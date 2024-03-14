@@ -43,18 +43,20 @@ import java.util.concurrent.Future;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link FileMergingSnapshotManager}. */
-public class FileMergingSnapshotManagerTest {
+public abstract class FileMergingSnapshotManagerTestBase {
 
-    private final String tmId = "Testing";
+    final String tmId = "Testing";
 
-    private final OperatorID operatorID = new OperatorID(289347923L, 75893479L);
+    final OperatorID operatorID = new OperatorID(289347923L, 75893479L);
 
-    private SubtaskKey subtaskKey1;
-    private SubtaskKey subtaskKey2;
+    SubtaskKey subtaskKey1;
+    SubtaskKey subtaskKey2;
 
-    private Path checkpointBaseDir;
+    Path checkpointBaseDir;
 
-    private int writeBufferSize;
+    int writeBufferSize;
+
+    abstract FileMergingType getFileMergingType();
 
     @BeforeEach
     public void setup(@TempDir java.nio.file.Path tempFolder) {
@@ -87,113 +89,6 @@ public class FileMergingSnapshotManagerTest {
                                     AbstractFsCheckpointStorageAccess.CHECKPOINT_SHARED_STATE_DIR
                                             + "/"
                                             + subtaskKey1.getManagedDirName()));
-        }
-    }
-
-    @Test
-    void testCreateAndReuseFiles() throws IOException {
-        try (FileMergingSnapshotManagerBase fmsm =
-                (FileMergingSnapshotManagerBase)
-                        createFileMergingSnapshotManager(checkpointBaseDir)) {
-            fmsm.registerSubtaskForSharedStates(subtaskKey1);
-            fmsm.registerSubtaskForSharedStates(subtaskKey2);
-            // firstly, we try shared state.
-            PhysicalFile file1 =
-                    fmsm.getOrCreatePhysicalFileForCheckpoint(
-                            subtaskKey1, 0, CheckpointedStateScope.SHARED);
-            assertThat(file1.getFilePath().getParent())
-                    .isEqualTo(fmsm.getManagedDir(subtaskKey1, CheckpointedStateScope.SHARED));
-            // allocate another
-            PhysicalFile file2 =
-                    fmsm.getOrCreatePhysicalFileForCheckpoint(
-                            subtaskKey1, 0, CheckpointedStateScope.SHARED);
-            assertThat(file2.getFilePath().getParent())
-                    .isEqualTo(fmsm.getManagedDir(subtaskKey1, CheckpointedStateScope.SHARED));
-            assertThat(file2).isNotEqualTo(file1);
-
-            // return for reuse
-            fmsm.returnPhysicalFileForNextReuse(subtaskKey1, 0, file1);
-
-            // allocate for another subtask
-            PhysicalFile file3 =
-                    fmsm.getOrCreatePhysicalFileForCheckpoint(
-                            subtaskKey2, 0, CheckpointedStateScope.SHARED);
-            assertThat(file3.getFilePath().getParent())
-                    .isEqualTo(fmsm.getManagedDir(subtaskKey2, CheckpointedStateScope.SHARED));
-            assertThat(file3).isNotEqualTo(file1);
-
-            // allocate for another checkpoint
-            PhysicalFile file4 =
-                    fmsm.getOrCreatePhysicalFileForCheckpoint(
-                            subtaskKey1, 1, CheckpointedStateScope.SHARED);
-            assertThat(file4.getFilePath().getParent())
-                    .isEqualTo(fmsm.getManagedDir(subtaskKey1, CheckpointedStateScope.SHARED));
-            assertThat(file4).isNotEqualTo(file1);
-
-            // allocate for this checkpoint
-            PhysicalFile file5 =
-                    fmsm.getOrCreatePhysicalFileForCheckpoint(
-                            subtaskKey1, 0, CheckpointedStateScope.SHARED);
-            assertThat(file5.getFilePath().getParent())
-                    .isEqualTo(fmsm.getManagedDir(subtaskKey1, CheckpointedStateScope.SHARED));
-            assertThat(file5).isEqualTo(file1);
-
-            // a physical file whose size is bigger than maxPhysicalFileSize cannot be reused
-            file5.incSize(fmsm.maxPhysicalFileSize);
-            fmsm.returnPhysicalFileForNextReuse(subtaskKey1, 0, file5);
-            PhysicalFile file6 =
-                    fmsm.getOrCreatePhysicalFileForCheckpoint(
-                            subtaskKey1, 0, CheckpointedStateScope.SHARED);
-            assertThat(file6.getFilePath().getParent())
-                    .isEqualTo(fmsm.getManagedDir(subtaskKey1, CheckpointedStateScope.SHARED));
-            assertThat(file6).isNotEqualTo(file5);
-
-            // Secondly, we try private state
-            PhysicalFile file7 =
-                    fmsm.getOrCreatePhysicalFileForCheckpoint(
-                            subtaskKey1, 0, CheckpointedStateScope.EXCLUSIVE);
-            assertThat(file7.getFilePath().getParent())
-                    .isEqualTo(fmsm.getManagedDir(subtaskKey1, CheckpointedStateScope.EXCLUSIVE));
-
-            // allocate another
-            PhysicalFile file8 =
-                    fmsm.getOrCreatePhysicalFileForCheckpoint(
-                            subtaskKey1, 0, CheckpointedStateScope.EXCLUSIVE);
-            assertThat(file8.getFilePath().getParent())
-                    .isEqualTo(fmsm.getManagedDir(subtaskKey1, CheckpointedStateScope.EXCLUSIVE));
-            assertThat(file8).isNotEqualTo(file6);
-
-            // return for reuse
-            fmsm.returnPhysicalFileForNextReuse(subtaskKey1, 0, file7);
-
-            // allocate for another checkpoint
-            PhysicalFile file9 =
-                    fmsm.getOrCreatePhysicalFileForCheckpoint(
-                            subtaskKey1, 1, CheckpointedStateScope.EXCLUSIVE);
-            assertThat(file9.getFilePath().getParent())
-                    .isEqualTo(fmsm.getManagedDir(subtaskKey1, CheckpointedStateScope.EXCLUSIVE));
-            assertThat(file9).isNotEqualTo(file7);
-
-            // allocate for this checkpoint but another subtask
-            PhysicalFile file10 =
-                    fmsm.getOrCreatePhysicalFileForCheckpoint(
-                            subtaskKey2, 0, CheckpointedStateScope.EXCLUSIVE);
-            assertThat(file10.getFilePath().getParent())
-                    .isEqualTo(fmsm.getManagedDir(subtaskKey2, CheckpointedStateScope.EXCLUSIVE));
-            assertThat(file10).isEqualTo(file7);
-
-            // a physical file whose size is bigger than maxPhysicalFileSize cannot be reused
-            file10.incSize(fmsm.maxPhysicalFileSize);
-            fmsm.returnPhysicalFileForNextReuse(subtaskKey1, 0, file10);
-            PhysicalFile file11 =
-                    fmsm.getOrCreatePhysicalFileForCheckpoint(
-                            subtaskKey1, 0, CheckpointedStateScope.SHARED);
-            assertThat(file11.getFilePath().getParent())
-                    .isEqualTo(fmsm.getManagedDir(subtaskKey1, CheckpointedStateScope.SHARED));
-            assertThat(file11).isNotEqualTo(file10);
-
-            assertThat(fmsm.getManagedDir(subtaskKey2, CheckpointedStateScope.EXCLUSIVE))
-                    .isEqualTo(fmsm.getManagedDir(subtaskKey1, CheckpointedStateScope.EXCLUSIVE));
         }
     }
 
@@ -379,38 +274,6 @@ public class FileMergingSnapshotManagerTest {
     }
 
     @Test
-    public void testCheckpointNotification() throws Exception {
-        try (FileMergingSnapshotManager fmsm = createFileMergingSnapshotManager(checkpointBaseDir);
-                CloseableRegistry closeableRegistry = new CloseableRegistry()) {
-            FileMergingCheckpointStateOutputStream cp1Stream =
-                    writeCheckpointAndGetStream(1, fmsm, closeableRegistry);
-            SegmentFileStateHandle cp1StateHandle = cp1Stream.closeAndGetHandle();
-            fmsm.notifyCheckpointComplete(subtaskKey1, 1);
-            assertFileInManagedDir(fmsm, cp1StateHandle);
-
-            // complete checkpoint-2
-            FileMergingCheckpointStateOutputStream cp2Stream =
-                    writeCheckpointAndGetStream(2, fmsm, closeableRegistry);
-            SegmentFileStateHandle cp2StateHandle = cp2Stream.closeAndGetHandle();
-            fmsm.notifyCheckpointComplete(subtaskKey1, 2);
-            assertFileInManagedDir(fmsm, cp2StateHandle);
-
-            // subsume checkpoint-1
-            assertThat(fileExists(cp1StateHandle)).isTrue();
-            fmsm.notifyCheckpointSubsumed(subtaskKey1, 1);
-            assertThat(fileExists(cp1StateHandle)).isFalse();
-
-            // abort checkpoint-3
-            FileMergingCheckpointStateOutputStream cp3Stream =
-                    writeCheckpointAndGetStream(3, fmsm, closeableRegistry);
-            SegmentFileStateHandle cp3StateHandle = cp3Stream.closeAndGetHandle();
-            assertFileInManagedDir(fmsm, cp3StateHandle);
-            fmsm.notifyCheckpointAborted(subtaskKey1, 3);
-            assertThat(fileExists(cp3StateHandle)).isFalse();
-        }
-    }
-
-    @Test
     public void testConcurrentFileReusingWithBlockingPool() throws Exception {
         try (FileMergingSnapshotManagerBase fmsm =
                 (FileMergingSnapshotManagerBase)
@@ -455,13 +318,13 @@ public class FileMergingSnapshotManagerTest {
         }
     }
 
-    private FileMergingSnapshotManager createFileMergingSnapshotManager(Path checkpointBaseDir)
+    FileMergingSnapshotManager createFileMergingSnapshotManager(Path checkpointBaseDir)
             throws IOException {
         return createFileMergingSnapshotManager(
                 checkpointBaseDir, 32 * 1024 * 1024, PhysicalFilePool.Type.NON_BLOCKING);
     }
 
-    private FileMergingSnapshotManager createFileMergingSnapshotManager(
+    FileMergingSnapshotManager createFileMergingSnapshotManager(
             Path checkpointBaseDir, long maxFileSize, PhysicalFilePool.Type filePoolType)
             throws IOException {
         FileSystem fs = LocalFileSystem.getSharedInstance();
@@ -479,7 +342,7 @@ public class FileMergingSnapshotManagerTest {
             fs.mkdirs(taskOwnedStateDir);
         }
         FileMergingSnapshotManager fmsm =
-                new FileMergingSnapshotManagerBuilder(tmId)
+                new FileMergingSnapshotManagerBuilder(tmId, getFileMergingType())
                         .setMaxFileSize(maxFileSize)
                         .setFilePoolType(filePoolType)
                         .build();
@@ -493,13 +356,13 @@ public class FileMergingSnapshotManagerTest {
         return fmsm;
     }
 
-    private FileMergingCheckpointStateOutputStream writeCheckpointAndGetStream(
+    FileMergingCheckpointStateOutputStream writeCheckpointAndGetStream(
             long checkpointId, FileMergingSnapshotManager fmsm, CloseableRegistry closeableRegistry)
             throws IOException {
         return writeCheckpointAndGetStream(checkpointId, fmsm, closeableRegistry, 32);
     }
 
-    private FileMergingCheckpointStateOutputStream writeCheckpointAndGetStream(
+    FileMergingCheckpointStateOutputStream writeCheckpointAndGetStream(
             long checkpointId,
             FileMergingSnapshotManager fmsm,
             CloseableRegistry closeableRegistry,
@@ -515,7 +378,7 @@ public class FileMergingSnapshotManagerTest {
         return stream;
     }
 
-    private void assertFileInManagedDir(
+    void assertFileInManagedDir(
             FileMergingSnapshotManager fmsm, SegmentFileStateHandle stateHandle) {
         assertThat(fmsm instanceof FileMergingSnapshotManagerBase).isTrue();
         assertThat(stateHandle).isNotNull();
@@ -524,7 +387,7 @@ public class FileMergingSnapshotManagerTest {
         assertThat(((FileMergingSnapshotManagerBase) fmsm).isResponsibleForFile(filePath)).isTrue();
     }
 
-    private boolean fileExists(SegmentFileStateHandle stateHandle) throws IOException {
+    boolean fileExists(SegmentFileStateHandle stateHandle) throws IOException {
         assertThat(stateHandle).isNotNull();
         Path filePath = stateHandle.getFilePath();
         assertThat(filePath).isNotNull();

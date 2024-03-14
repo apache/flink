@@ -19,6 +19,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManagerBuilder;
+import org.apache.flink.runtime.checkpoint.filemerging.FileMergingType;
 import org.apache.flink.util.ShutdownHookUtil;
 
 import org.slf4j.Logger;
@@ -78,7 +79,9 @@ public class TaskExecutorFileMergingManager {
             if (fileMergingSnapshotManager == null) {
                 // TODO FLINK-32440: choose different FileMergingSnapshotManager by configuration
                 fileMergingSnapshotManager =
-                        new FileMergingSnapshotManagerBuilder(jobId.toString()).build();
+                        new FileMergingSnapshotManagerBuilder(
+                                        jobId.toString(), FileMergingType.MERGE_WITHIN_CHECKPOINT)
+                                .build();
                 fileMergingSnapshotManagerByJobId.put(jobId, fileMergingSnapshotManager);
                 LOG.info("Registered new file merging snapshot manager for job {}.", jobId);
             }
