@@ -888,3 +888,26 @@ desc catalog extended cat2;
 +-------------------------+-------------------+
 4 rows in set
 !ok
+
+alter catalog cat2 set ('default-database'='db_new');
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
+desc catalog extended cat2;
+!output
++-------------------------+-------------------+
+|               info name |        info value |
++-------------------------+-------------------+
+|                    name |              cat2 |
+|                    type | generic_in_memory |
+|                 comment |                   |
+| option:default-database |            db_new |
++-------------------------+-------------------+
+4 rows in set
+!ok

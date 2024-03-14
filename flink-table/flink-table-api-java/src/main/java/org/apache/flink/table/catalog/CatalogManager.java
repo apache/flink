@@ -21,6 +21,7 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -319,6 +320,42 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         catalogs.put(catalogName, catalog);
 
         catalogStoreHolder.catalogStore().storeCatalog(catalogName, catalogDescriptor);
+    }
+
+    /**
+     * Alters a catalog under the given name. The catalog name must be unique.
+     *
+     * @param catalogName the given catalog name under which to alter the given catalog
+     * @param catalogDescriptor catalog descriptor for altering catalog
+     * @throws CatalogException If the catalog neither exists in the catalog store nor in the
+     *     initialized catalogs, or if an error occurs while creating the catalog or storing the
+     *     {@link CatalogDescriptor}
+     */
+    public void alterCatalog(String catalogName, CatalogDescriptor catalogDescriptor)
+            throws CatalogException {
+        checkArgument(
+                !StringUtils.isNullOrWhitespaceOnly(catalogName),
+                "Catalog name cannot be null or empty.");
+        checkNotNull(catalogDescriptor, "Catalog descriptor cannot be null");
+        CatalogStore catalogStore = catalogStoreHolder.catalogStore();
+        Optional<CatalogDescriptor> oldCatalogDescriptor = getCatalogDescriptor(catalogName);
+        if (catalogStore.contains(catalogName) && oldCatalogDescriptor.isPresent()) {
+            Map<String, String> props = oldCatalogDescriptor.get().getConfiguration().toMap();
+            props.putAll(catalogDescriptor.getConfiguration().toMap());
+            CatalogDescriptor newCatalogDescriptor =
+                    CatalogDescriptor.of(catalogName, Configuration.fromMap(props));
+            Catalog catalog = initCatalog(catalogName, newCatalogDescriptor);
+            catalogStore.removeCatalog(catalogName, false);
+            if (catalogs.containsKey(catalogName)) {
+                catalogs.get(catalogName).close();
+            }
+            catalog.open();
+            catalogs.put(catalogName, catalog);
+            catalogStoreHolder.catalogStore().storeCatalog(catalogName, newCatalogDescriptor);
+        } else {
+            throw new CatalogException(
+                    format("Catalog %s not exists in the catalog store.", catalogName));
+        }
     }
 
     private Catalog initCatalog(String catalogName, CatalogDescriptor catalogDescriptor) {

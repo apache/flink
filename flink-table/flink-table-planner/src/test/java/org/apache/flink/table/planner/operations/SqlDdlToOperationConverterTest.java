@@ -52,6 +52,7 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
+import org.apache.flink.table.operations.ddl.AlterCatalogOptionsOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
@@ -101,6 +102,23 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test cases for the DDL statements for {@link SqlNodeToOperationConversion}. */
 public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBase {
+
+    @Test
+    public void testAlterCatalog() {
+        // test alter catalog options
+        final String sql1 = "ALTER CATALOG cat2 SET ('K1' = 'V1', 'k2' = 'v2', 'k2' = 'v2_new')";
+        Operation operation = parse(sql1);
+        assertThat(operation).isInstanceOf(AlterCatalogOptionsOperation.class);
+        assertThat(((AlterCatalogOptionsOperation) operation).getCatalogName()).isEqualTo("cat2");
+        assertThat(operation.asSummaryString())
+                .isEqualTo("ALTER CATALOG cat2\n  SET 'K1' = 'V1',\n  SET 'k2' = 'v2_new'");
+
+        final Map<String, String> expectedOptions = new HashMap<>();
+        expectedOptions.put("K1", "V1");
+        expectedOptions.put("k2", "v2_new");
+        assertThat(((AlterCatalogOptionsOperation) operation).getProperties())
+                .isEqualTo(expectedOptions);
+    }
 
     @Test
     public void testCreateDatabase() {

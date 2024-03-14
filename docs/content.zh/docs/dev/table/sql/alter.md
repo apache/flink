@@ -102,6 +102,12 @@ tableEnv.executeSql("ALTER TABLE Orders RENAME TO NewOrders");
 // 字符串数组：["NewOrders"]
 String[] tables = tableEnv.listTables();
 // or tableEnv.executeSql("SHOW TABLES").print();
+
+// 注册名为 "cat2" 的 catalog
+tableEnv.executeSql("CREATE CATALOG cat2 WITH ('type'='generic_in_memory')");
+
+// 增加属性 `default-database`
+tableEnv.executeSql("ALTER CATALOG cat2 SET ('default-database'='db')");
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -139,6 +145,12 @@ tableEnv.executeSql("ALTER TABLE Orders RENAME TO NewOrders")
 // 字符串数组：["NewOrders"]
 val tables = tableEnv.listTables()
 // or tableEnv.executeSql("SHOW TABLES").print()
+
+// 注册名为 "cat2" 的 catalog
+tableEnv.executeSql("CREATE CATALOG cat2 WITH ('type'='generic_in_memory')")
+
+// 增加属性 `default-database`
+tableEnv.executeSql("ALTER CATALOG cat2 SET ('default-database'='db')")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -150,29 +162,35 @@ tables = table_env.list_tables()
 # or table_env.execute_sql("SHOW TABLES").print()
 
 # 新增列 `order` 并置于第一位
-table_env.execute_sql("ALTER TABLE Orders ADD `order` INT COMMENT 'order identifier' FIRST");
+table_env.execute_sql("ALTER TABLE Orders ADD `order` INT COMMENT 'order identifier' FIRST")
 
 # 新增更多列, 主键及 watermark
-table_env.execute_sql("ALTER TABLE Orders ADD (ts TIMESTAMP(3), category STRING AFTER product, PRIMARY KEY(`order`) NOT ENFORCED, WATERMARK FOR ts AS ts - INTERVAL '1' HOUR)");
+table_env.execute_sql("ALTER TABLE Orders ADD (ts TIMESTAMP(3), category STRING AFTER product, PRIMARY KEY(`order`) NOT ENFORCED, WATERMARK FOR ts AS ts - INTERVAL '1' HOUR)")
 
 # 修改列类型, 列注释, 主键及 watermark
-table_env.execute_sql("ALTER TABLE Orders MODIFY (amount DOUBLE NOT NULL, category STRING COMMENT 'category identifier' AFTER `order`, WATERMARK FOR ts AS ts)");
+table_env.execute_sql("ALTER TABLE Orders MODIFY (amount DOUBLE NOT NULL, category STRING COMMENT 'category identifier' AFTER `order`, WATERMARK FOR ts AS ts)")
 
 # 删除 watermark
-table_env.execute_sql("ALTER TABLE Orders DROP WATERMARK");
+table_env.execute_sql("ALTER TABLE Orders DROP WATERMARK")
 
 # 删除列
-table_env.execute_sql("ALTER TABLE Orders DROP (amount, ts, category)");
+table_env.execute_sql("ALTER TABLE Orders DROP (amount, ts, category)")
 
 # 重命名列
-table_env.execute_sql("ALTER TABLE Orders RENAME `order` TO order_id");
+table_env.execute_sql("ALTER TABLE Orders RENAME `order` TO order_id")
 
 # 把 "Orders" 的表名改为 "NewOrders"
-table_env.execute_sql("ALTER TABLE Orders RENAME TO NewOrders");
+table_env.execute_sql("ALTER TABLE Orders RENAME TO NewOrders")
 
 # 字符串数组：["NewOrders"]
 tables = table_env.list_tables()
 # or table_env.execute_sql("SHOW TABLES").print()
+
+# 注册名为 "cat2" 的 catalog
+table_env.execute_sql("CREATE CATALOG cat2 WITH ('type'='generic_in_memory')")
+
+# 增加属性 `default-database`
+table_env.execute_sql("ALTER CATALOG cat2 SET ('default-database'='db')")
 ```
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
@@ -286,6 +304,23 @@ Flink SQL> SHOW TABLES;
 |  NewOrders |
 +------------+
 1 row in set
+
+Flink SQL> CREATE CATALOG cat2 WITH ('type'='generic_in_memory');
+[INFO] Execute statement succeeded.
+
+Flink SQL> ALTER CATALOG cat2 SET ('default-database'='db_new');
+[INFO] Execute statement succeeded.
+
+Flink SQL> DESC CATALOG EXTENDED cat2;
++-------------------------+-------------------+
+|               info name |        info value |
++-------------------------+-------------------+
+|                    name |              cat2 |
+|                    type | generic_in_memory |
+|                 comment |                   |
+| option:default-database |            db_new |
++-------------------------+-------------------+
+4 rows in set
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -502,3 +537,22 @@ ALTER [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
 **LANGUAGE JAVA\|SCALA\|PYTHON**
 
 Language tag 用于指定 Flink runtime 如何执行这个函数。目前，只支持 JAVA，SCALA 和 PYTHON，且函数的默认语言为 JAVA。
+
+## ALTER CATALOG
+
+```sql
+ALTER CATALOG catalog_name SET (key1=val1, ...)
+```
+
+### SET
+
+为指定的 catalog 设置一个或多个属性。若个别属性已经存在，则使用新值覆盖旧值。
+
+`SET` 语句示例如下。
+
+```sql
+-- set 'default-database'
+ALTER CATALOG cat2 SET ('default-database'='db');
+```
+
+{{< top >}}

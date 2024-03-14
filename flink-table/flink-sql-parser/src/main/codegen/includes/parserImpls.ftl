@@ -148,6 +148,28 @@ SqlDrop SqlDropCatalog(Span s, boolean replace) :
 }
 
 /**
+* Parses a alter catalog statement.
+* ALTER CATALOG catalog_name SET (key1=val1, key2=val2, ...);
+*/
+SqlAlterCatalogOptions SqlAlterCatalog() :
+{
+    SqlParserPos startPos;
+    SqlIdentifier catalogName;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+}
+{
+    <ALTER> <CATALOG> { startPos = getPos(); }
+    catalogName = SimpleIdentifier()
+    <SET>
+    propertyList = TableProperties()
+    {
+        return new SqlAlterCatalogOptions(startPos.plus(getPos()),
+                    catalogName,
+                    propertyList);
+    }
+}
+
+/**
 * Parse a "Show DATABASES" metadata query command.
 */
 SqlShowDatabases SqlShowDatabases() :
