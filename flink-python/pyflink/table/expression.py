@@ -784,8 +784,9 @@ class Expression(Generic[T]):
     def mode(self) -> 'Expression':
         """
         Returns the most frequent value in a group of values.
-        If there are multiple values that appear the same number of times, one of them will be returned.
-        NULL values are ignored. If there is no non-null value, the function returns NULL.
+        If there are multiple values that appear the same number of times,
+        one of them will be returned. NULL values are ignored.
+        If there is no non-null value, the function returns NULL.
         """
         return _unary_op("mode")(self)
 
