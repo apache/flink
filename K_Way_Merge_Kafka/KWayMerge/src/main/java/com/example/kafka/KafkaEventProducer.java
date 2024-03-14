@@ -83,6 +83,8 @@ public class KafkaEventProducer
             ArrayList<Integer> currList = perPartitionData[i];
             System.out.println("Partition: " + i + " " + currList.toString());
         }
+        ArrayList<Integer> res = Merge.merge(perPartitionData);
+        System.out.println("Sorted Array: " + res.toString());
 
         } catch (Exception e) {
             e.printStackTrace();
