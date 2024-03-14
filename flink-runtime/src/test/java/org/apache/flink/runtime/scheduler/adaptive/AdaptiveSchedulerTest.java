@@ -57,7 +57,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
-import org.apache.flink.runtime.executiongraph.failover.ExecutionFailureHandler;
 import org.apache.flink.runtime.executiongraph.failover.FixedDelayRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.failover.NoRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.failover.TestRestartBackoffTimeStrategy;
@@ -2560,7 +2559,8 @@ public class AdaptiveSchedulerTest {
     private static void checkMetrics(List<Span> results, boolean canRestart) {
         assertThat(results).isNotEmpty();
         for (Span span : results) {
-            assertThat(span.getScope()).isEqualTo(ExecutionFailureHandler.class.getCanonicalName());
+            assertThat(span.getScope())
+                    .isEqualTo(JobFailureMetricReporter.class.getCanonicalName());
             assertThat(span.getName()).isEqualTo("JobFailure");
             Map<String, Object> attributes = span.getAttributes();
             assertThat(attributes).containsEntry("failureLabel.failKey", "failValue");

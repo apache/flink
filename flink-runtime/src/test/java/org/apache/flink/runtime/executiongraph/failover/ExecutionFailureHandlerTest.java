@@ -26,6 +26,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAda
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.scheduler.adaptive.JobFailureMetricReporter;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
@@ -339,7 +340,8 @@ class ExecutionFailureHandlerTest {
     private void checkMetrics(List<Span> results, boolean global, boolean canRestart) {
         assertThat(results).isNotEmpty();
         for (Span span : results) {
-            assertThat(span.getScope()).isEqualTo(ExecutionFailureHandler.class.getCanonicalName());
+            assertThat(span.getScope())
+                    .isEqualTo(JobFailureMetricReporter.class.getCanonicalName());
             assertThat(span.getName()).isEqualTo("JobFailure");
             Map<String, Object> attributes = span.getAttributes();
             assertThat(attributes).containsEntry("failureLabel.failKey", "failValue");

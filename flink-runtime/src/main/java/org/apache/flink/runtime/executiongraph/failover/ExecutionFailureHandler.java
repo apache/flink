@@ -32,8 +32,6 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.throwable.ThrowableClassifier;
 import org.apache.flink.runtime.throwable.ThrowableType;
-import org.apache.flink.traces.Span;
-import org.apache.flink.traces.SpanBuilder;
 import org.apache.flink.util.IterableUtils;
 
 import javax.annotation.Nullable;
@@ -180,28 +178,6 @@ public class ExecutionFailureHandler {
         }
 
         return failureHandlingResult;
-    }
-
-    private void reportFailureHandling(
-            FailureHandlingResult failureHandlingResult, Map<String, String> failureLabels) {
-
-        // Add base attributes
-        SpanBuilder spanBuilder =
-                Span.builder(ExecutionFailureHandler.class, "JobFailure")
-                        .setStartTsMillis(failureHandlingResult.getTimestamp())
-                        .setEndTsMillis(failureHandlingResult.getTimestamp())
-                        .setAttribute(
-                                "canRestart", String.valueOf(failureHandlingResult.canRestart()))
-                        .setAttribute(
-                                "isGlobalFailure",
-                                String.valueOf(failureHandlingResult.isGlobalFailure()));
-
-        // Add all failure labels
-        for (Map.Entry<String, String> entry : failureLabels.entrySet()) {
-            spanBuilder.setAttribute(
-                    FAILURE_LABEL_ATTRIBUTE_PREFIX + entry.getKey(), entry.getValue());
-        }
-        metricGroup.addSpan(spanBuilder);
     }
 
     private FailureHandlingResult handleFailure(
