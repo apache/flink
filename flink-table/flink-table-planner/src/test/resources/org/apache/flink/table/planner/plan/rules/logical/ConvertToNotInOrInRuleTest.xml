@@ -163,7 +163,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
-+- LogicalFilter(condition=[OR(=($1, 1), SEARCH($0, Sarg[1, 2, 3, 4]))])
++- LogicalFilter(condition=[OR(SEARCH($0, Sarg[1, 2, 3, 4]), =($1, 1))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
@@ -182,7 +182,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
-+- LogicalFilter(condition=[OR(=($1, 1), SEARCH($0, Sarg[1, 2, 3, 4]))])
++- LogicalFilter(condition=[OR(SEARCH($0, Sarg[1, 2, 3, 4]), =($1, 1))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
@@ -231,7 +231,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
-+- LogicalFilter(condition=[OR(NOT(SEARCH($0, Sarg[1, 2, 3, 4])), =($1, 1), SEARCH($0, Sarg[1, 2, 3, 4]))])
++- LogicalFilter(condition=[OR(NOT(SEARCH($0, Sarg[1, 2, 3, 4])), SEARCH($0, Sarg[1, 2, 3, 4]), =($1, 1))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
@@ -459,7 +459,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
-+- LogicalFilter(condition=[OR(IS NULL($0), =(CAST($0):DECIMAL(11, 1), 3.0), =(CAST($0):DECIMAL(11, 1), 4.0), =(CAST($0):BIGINT, 8), SEARCH($0, Sarg[1, 2, 5, 7]))])
++- LogicalFilter(condition=[OR(IS NULL($0), =(CAST($0):BIGINT, 8), =(CAST($0):DECIMAL(11, 1), 3.0), =(CAST($0):DECIMAL(11, 1), 4.0), SEARCH($0, Sarg[1, 2, 5, 7]))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>

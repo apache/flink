@@ -105,7 +105,7 @@ class ConvertToNotInOrInRule
     }
 
     val decomposed = decomposedBy(rex, connectOperator)
-    val combineMap = new mutable.HashMap[String, mutable.ListBuffer[RexCall]]
+    val combineMap = new java.util.HashMap[String, mutable.ListBuffer[RexCall]]
     val rexBuffer = new mutable.ArrayBuffer[RexNode]
     var beenConverted = false
 
