@@ -30,6 +30,7 @@ import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingExecutionVer
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingResultPartition;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingTopology;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
@@ -285,6 +286,9 @@ class RestartPipelinedRegionFailoverStrategyTest {
      *
      * Component 1: 1; component 2: 2
      */
+    @Disabled(
+            "To support job recovery, filtering the CREATED execution vertex not in strategy, instead of in "
+                    + "DefaultScheduler#restartTasksWithDelay. This case can be covered by BatchFineGrainedRecoveryITCase")
     @Test
     void testRegionFailoverDoesNotRestartCreatedExecutions() {
         TestingSchedulingTopology topology = new TestingSchedulingTopology();
