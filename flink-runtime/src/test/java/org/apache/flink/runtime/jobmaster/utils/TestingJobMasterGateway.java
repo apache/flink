@@ -55,6 +55,7 @@ import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.shuffle.PartitionWithMetrics;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
@@ -172,6 +173,10 @@ public class TestingJobMasterGateway implements JobMasterGateway {
                     Tuple4<JobID, JobVertexID, KeyGroupRange, String>,
                     CompletableFuture<Acknowledge>>
             notifyKvStateUnregisteredFunction;
+
+    @Nonnull
+    private final Supplier<CompletableFuture<Collection<PartitionWithMetrics>>>
+            getAllPartitionWithMetricsSupplier;
 
     @Nonnull TriFunction<String, Object, byte[], CompletableFuture<Object>> updateAggregateFunction;
 
@@ -312,7 +317,10 @@ public class TestingJobMasterGateway implements JobMasterGateway {
                             requestJobResourceRequirementsSupplier,
             @Nonnull
                     Function<JobResourceRequirements, CompletableFuture<Acknowledge>>
-                            updateJobResourceRequirementsFunction) {
+                            updateJobResourceRequirementsFunction,
+            @Nonnull
+                    Supplier<CompletableFuture<Collection<PartitionWithMetrics>>>
+                            getAllPartitionWithMetricsSupplier) {
         this.address = address;
         this.hostname = hostname;
         this.cancelFunction = cancelFunction;
@@ -345,6 +353,12 @@ public class TestingJobMasterGateway implements JobMasterGateway {
         this.notifyNewBlockedNodesFunction = notifyNewBlockedNodesFunction;
         this.requestJobResourceRequirementsSupplier = requestJobResourceRequirementsSupplier;
         this.updateJobResourceRequirementsFunction = updateJobResourceRequirementsFunction;
+        this.getAllPartitionWithMetricsSupplier = getAllPartitionWithMetricsSupplier;
+    }
+
+    @Override
+    public CompletableFuture<Collection<PartitionWithMetrics>> getAllPartitionWithMetrics() {
+        return getAllPartitionWithMetricsSupplier.get();
     }
 
     @Override

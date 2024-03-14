@@ -45,6 +45,9 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.forwardgroup.ForwardGroupComputeUtil;
 import org.apache.flink.runtime.jobmaster.DefaultExecutionDeploymentTracker;
+import org.apache.flink.runtime.jobmaster.event.DummyJobEventStore;
+import org.apache.flink.runtime.jobmaster.event.JobEventManager;
+import org.apache.flink.runtime.jobmaster.event.JobEventStore;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler;
@@ -119,6 +122,7 @@ public class DefaultSchedulerBuilder {
             HybridPartitionDataConsumeConstraint.UNFINISHED_PRODUCERS;
     private InputConsumableDecider.Factory inputConsumableDeciderFactory =
             AllFinishedInputConsumableDecider.Factory.INSTANCE;
+    private JobEventStore jobEventStore = new DummyJobEventStore();
 
     public DefaultSchedulerBuilder(
             JobGraph jobGraph,
@@ -292,6 +296,11 @@ public class DefaultSchedulerBuilder {
         return this;
     }
 
+    public DefaultSchedulerBuilder setJobEventStore(final JobEventStore jobEventStore) {
+        this.jobEventStore = jobEventStore;
+        return this;
+    }
+
     public DefaultScheduler build() throws Exception {
         return new DefaultScheduler(
                 log,
@@ -350,7 +359,8 @@ public class DefaultSchedulerBuilder {
                 defaultMaxParallelism,
                 hybridPartitionDataConsumeConstraint,
                 ForwardGroupComputeUtil.computeForwardGroupsAndCheckParallelism(
-                        jobGraph.getVerticesSortedTopologicallyFromSources()));
+                        jobGraph.getVerticesSortedTopologicallyFromSources()),
+                new JobEventManager(jobEventStore));
     }
 
     public SpeculativeScheduler buildSpeculativeScheduler() throws Exception {
@@ -383,7 +393,8 @@ public class DefaultSchedulerBuilder {
                 blocklistOperations,
                 HybridPartitionDataConsumeConstraint.ALL_PRODUCERS_FINISHED,
                 ForwardGroupComputeUtil.computeForwardGroupsAndCheckParallelism(
-                        jobGraph.getVerticesSortedTopologicallyFromSources()));
+                        jobGraph.getVerticesSortedTopologicallyFromSources()),
+                new JobEventManager(jobEventStore));
     }
 
     private ExecutionGraphFactory createExecutionGraphFactory(boolean isDynamicGraph) {

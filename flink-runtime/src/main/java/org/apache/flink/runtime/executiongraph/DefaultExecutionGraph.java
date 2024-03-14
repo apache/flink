@@ -1465,7 +1465,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         }
     }
 
-    ResultPartitionID createResultPartitionId(
+    @VisibleForTesting
+    public ResultPartitionID createResultPartitionId(
             final IntermediateResultPartitionID resultPartitionId) {
         final SchedulingResultPartition schedulingResultPartition =
                 getSchedulingTopology().getResultPartition(resultPartitionId);

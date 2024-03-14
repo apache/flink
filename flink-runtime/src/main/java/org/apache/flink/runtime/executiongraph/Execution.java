@@ -127,7 +127,7 @@ public class Execution
     private final ExecutionVertex vertex;
 
     /** The unique ID marking the specific execution instant of the task. */
-    private final ExecutionAttemptID attemptId;
+    private ExecutionAttemptID attemptId;
 
     /**
      * The timestamps when state transitions occurred, indexed by {@link ExecutionState#ordinal()}.
@@ -453,6 +453,26 @@ public class Execution
                 });
     }
 
+    private void recoverAttempt(ExecutionAttemptID newId) {
+        if (!this.attemptId.equals(newId)) {
+            getVertex().getExecutionGraphAccessor().deregisterExecution(this);
+            this.attemptId = newId;
+            getVertex().getExecutionGraphAccessor().registerExecution(this);
+        }
+    }
+
+    /** Recover the execution vertex status after JM failover. */
+    public void recoverExecution(ExecutionAttemptID attemptID, TaskManagerLocation location) {
+        recoverAttempt(attemptID);
+        taskManagerLocationFuture.complete(location);
+    }
+
+    public void recoverProducedPartitions(
+            Map<IntermediateResultPartitionID, ResultPartitionDeploymentDescriptor>
+                    producedPartitions) {
+        this.producedPartitions = checkNotNull(producedPartitions);
+    }
+
     private static CompletableFuture<
                     Map<IntermediateResultPartitionID, ResultPartitionDeploymentDescriptor>>
             registerProducedPartitions(
@@ -469,7 +489,6 @@ public class Execution
 
         for (IntermediateResultPartition partition : partitions) {
             PartitionDescriptor partitionDescriptor = PartitionDescriptor.from(partition);
-            int maxParallelism = getPartitionMaxParallelism(partition);
             CompletableFuture<? extends ShuffleDescriptor> shuffleDescriptorFuture =
                     vertex.getExecutionGraphAccessor()
                             .getShuffleMaster()
@@ -479,10 +498,8 @@ public class Execution
             CompletableFuture<ResultPartitionDeploymentDescriptor> partitionRegistration =
                     shuffleDescriptorFuture.thenApply(
                             shuffleDescriptor ->
-                                    new ResultPartitionDeploymentDescriptor(
-                                            partitionDescriptor,
-                                            shuffleDescriptor,
-                                            maxParallelism));
+                                    createResultPartitionDeploymentDescriptor(
+                                            partition, shuffleDescriptor));
             partitionRegistrations.add(partitionRegistration);
         }
 
@@ -499,8 +516,12 @@ public class Execution
                         });
     }
 
-    private static int getPartitionMaxParallelism(IntermediateResultPartition partition) {
-        return partition.getIntermediateResult().getConsumersMaxParallelism();
+    public static ResultPartitionDeploymentDescriptor createResultPartitionDeploymentDescriptor(
+            IntermediateResultPartition partition, ShuffleDescriptor shuffleDescriptor) {
+        PartitionDescriptor partitionDescriptor = PartitionDescriptor.from(partition);
+        int maxParallelism = partition.getIntermediateResult().getConsumersMaxParallelism();
+        return new ResultPartitionDeploymentDescriptor(
+                partitionDescriptor, shuffleDescriptor, maxParallelism);
     }
 
     /**

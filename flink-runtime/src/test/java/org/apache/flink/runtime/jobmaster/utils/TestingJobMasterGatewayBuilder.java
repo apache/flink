@@ -54,6 +54,7 @@ import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.shuffle.PartitionWithMetrics;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
@@ -187,6 +188,10 @@ public class TestingJobMasterGatewayBuilder {
     private Supplier<CompletableFuture<JobResourceRequirements>>
             requestJobResourceRequirementsSupplier =
                     () -> CompletableFuture.completedFuture(JobResourceRequirements.empty());
+
+    private Supplier<CompletableFuture<Collection<PartitionWithMetrics>>>
+            getAllPartitionWithMetricsSupplier =
+                    () -> CompletableFuture.completedFuture(Collections.emptyList());
 
     private Function<JobResourceRequirements, CompletableFuture<Acknowledge>>
             updateJobResourceRequirementsFunction =
@@ -424,6 +429,13 @@ public class TestingJobMasterGatewayBuilder {
         return this;
     }
 
+    public TestingJobMasterGatewayBuilder setGetAllPartitionWithMetricsSupplier(
+            Supplier<CompletableFuture<Collection<PartitionWithMetrics>>>
+                    getAllPartitionWithMetricsSupplier) {
+        this.getAllPartitionWithMetricsSupplier = getAllPartitionWithMetricsSupplier;
+        return this;
+    }
+
     public TestingJobMasterGatewayBuilder setUpdateJobResourceRequirementsFunction(
             Function<JobResourceRequirements, CompletableFuture<Acknowledge>>
                     updateJobResourceRequirementsFunction) {
@@ -464,6 +476,7 @@ public class TestingJobMasterGatewayBuilder {
                 notifyNotEnoughResourcesConsumer,
                 notifyNewBlockedNodesFunction,
                 requestJobResourceRequirementsSupplier,
-                updateJobResourceRequirementsFunction);
+                updateJobResourceRequirementsFunction,
+                getAllPartitionWithMetricsSupplier);
     }
 }

@@ -49,6 +49,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.forwardgroup.ForwardGroup;
 import org.apache.flink.runtime.jobgraph.forwardgroup.ForwardGroupComputeUtil;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
+import org.apache.flink.runtime.jobmaster.event.FileSystemJobEventStore;
+import org.apache.flink.runtime.jobmaster.event.JobEventManager;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
@@ -189,6 +191,17 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                 ForwardGroupComputeUtil.computeForwardGroupsAndCheckParallelism(
                         jobGraph.getVerticesSortedTopologicallyFromSources());
 
+        final boolean isJobRecoveryEnabled =
+                jobMasterConfiguration.getBoolean(BatchExecutionOptions.JOB_RECOVERY_ENABLED)
+                        && shuffleMaster.supportsBatchSnapshot();
+
+        JobEventManager jobEventManager = null;
+        if (isJobRecoveryEnabled) {
+            FileSystemJobEventStore jobEventStore =
+                    new FileSystemJobEventStore(jobGraph.getJobID(), jobMasterConfiguration);
+            jobEventManager = new JobEventManager(jobEventStore);
+        }
+
         if (enableSpeculativeExecution) {
             return new SpeculativeScheduler(
                     log,
@@ -220,7 +233,8 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                     defaultMaxParallelism,
                     blocklistOperations,
                     hybridPartitionDataConsumeConstraint,
-                    forwardGroupsByJobVertexId);
+                    forwardGroupsByJobVertexId,
+                    jobEventManager);
         } else {
             return new AdaptiveBatchScheduler(
                     log,
@@ -251,7 +265,8 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                             defaultMaxParallelism, jobMasterConfiguration),
                     defaultMaxParallelism,
                     hybridPartitionDataConsumeConstraint,
-                    forwardGroupsByJobVertexId);
+                    forwardGroupsByJobVertexId,
+                    jobEventManager);
         }
     }
 

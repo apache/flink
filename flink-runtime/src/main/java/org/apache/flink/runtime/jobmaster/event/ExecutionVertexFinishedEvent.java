@@ -120,6 +120,10 @@ public class ExecutionVertexFinishedEvent implements JobEvent {
         return TYPE_ID;
     }
 
+    public boolean hasOperatorCoordinatorAndShuffleMasterSnapshots() {
+        return shuffleMasterSnapshotFuture != null;
+    }
+
     @Override
     public String toString() {
         return "ExecutionVertexFinishedEvent("

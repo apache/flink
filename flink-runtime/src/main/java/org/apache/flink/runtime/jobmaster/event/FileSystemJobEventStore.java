@@ -229,47 +229,49 @@ public class FileSystemJobEventStore implements JobEventStore {
         checkNotNull(fileSystem);
         checkNotNull(event);
 
-        eventWriterExecutor.execute(
-                () -> {
-                    if (corrupted) {
-                        if (LOG.isDebugEnabled()) {
-                            LOG.debug("Skip job event {} because write corrupted.", event);
-                        }
-                        return;
-                    }
+        eventWriterExecutor.execute(() -> writeEventRunnable(event, cutBlock));
+    }
 
-                    try {
-                        if (outputStream == null) {
-                            openNewOutputStream();
-                        }
-                        // write event.
-                        SimpleVersionedSerializer<JobEvent> serializer =
-                                checkNotNull(
-                                        jobEventSerializers.get(event.getType()),
-                                        "There is no registered serializer for job event with type "
-                                                + event.getType());
-                        byte[] binaryEvent = serializer.serialize(event);
-                        writeInt(outputStream, event.getType());
-                        writeInt(outputStream, binaryEvent.length);
-                        outputStream.write(binaryEvent);
-                        if (LOG.isDebugEnabled()) {
-                            LOG.debug("Write job event {}.", event);
-                        }
+    @VisibleForTesting
+    protected void writeEventRunnable(JobEvent event, boolean cutBlock) {
+        if (corrupted) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Skip job event {} because write corrupted.", event);
+            }
+            return;
+        }
 
-                        if (cutBlock) {
-                            closeOutputStream();
-                        }
+        try {
+            if (outputStream == null) {
+                openNewOutputStream();
+            }
 
-                    } catch (Throwable throwable) {
-                        LOG.warn(
-                                "Write event {} into {} meet error, will not record event any more.",
-                                event,
-                                writeFile,
-                                throwable);
-                        corrupted = true;
-                        closeOutputStream();
-                    }
-                });
+            // write event.
+            SimpleVersionedSerializer<JobEvent> serializer =
+                    checkNotNull(
+                            jobEventSerializers.get(event.getType()),
+                            "There is no registered serializer for job event with type "
+                                    + event.getType());
+            byte[] binaryEvent = serializer.serialize(event);
+            writeInt(outputStream, event.getType());
+            writeInt(outputStream, binaryEvent.length);
+            outputStream.write(binaryEvent);
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Write job event {}.", event);
+            }
+
+            if (cutBlock) {
+                closeOutputStream();
+            }
+        } catch (Throwable throwable) {
+            LOG.warn(
+                    "Write event {} into {} meet error, will not record event any more.",
+                    event,
+                    writeFile,
+                    throwable);
+            corrupted = true;
+            closeOutputStream();
+        }
     }
 
     @VisibleForTesting
