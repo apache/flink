@@ -18,6 +18,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -46,6 +47,7 @@ import java.util.Set;
  * href="https://github.com/facebook/rocksdb/blob/64324e329eb0a9b4e77241a425a1615ff524c7f1/include/rocksdb/db.h#L429">
  * db.h</a> for more information.
  */
+@PublicEvolving
 public class RocksDBNativeMetricOptions implements Serializable {
     private static final long serialVersionUID = 1L;
 
