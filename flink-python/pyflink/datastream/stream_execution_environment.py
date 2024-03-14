@@ -287,7 +287,18 @@ class StreamExecutionEnvironment(object):
 
         :return: The :class:`~pyflink.datastream.CheckpointingMode`.
         """
-        j_checkpointing_mode = self._j_stream_execution_environment.getCheckpointingMode()
+        return self.get_checkpointing_consistency_mode()
+
+    def get_checkpointing_consistency_mode(self) -> CheckpointingMode:
+        """
+        Returns the checkpointing mode (exactly-once vs. at-least-once).
+
+        Shorthand for get_checkpoint_config().get_checkpointing_mode().
+
+        :return: The :class:`~pyflink.datastream.CheckpointingMode`.
+        """
+        j_checkpointing_mode = \
+            self._j_stream_execution_environment.getCheckpointingConsistencyMode()
         return CheckpointingMode._from_j_checkpointing_mode(j_checkpointing_mode)
 
     def get_state_backend(self) -> StateBackend:
