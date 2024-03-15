@@ -18,63 +18,47 @@
 
 package org.apache.flink.streaming.runtime.watermarkstatus;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link WatermarkStatus}. */
-public class WatermarkStatusTest {
+class WatermarkStatusTest {
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testIllegalCreationThrowsException() {
-        new WatermarkStatus(32);
+    @Test
+    void testIllegalCreationThrowsException() {
+        assertThatThrownBy(() -> new WatermarkStatus(32))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void testEquals() {
+    void testEquals() {
         WatermarkStatus idleStatus = new WatermarkStatus(WatermarkStatus.IDLE_STATUS);
         WatermarkStatus activeStatus = new WatermarkStatus(WatermarkStatus.ACTIVE_STATUS);
 
-        assertEquals(WatermarkStatus.IDLE, idleStatus);
-        assertTrue(idleStatus.isIdle());
-        assertFalse(idleStatus.isActive());
+        assertThat(idleStatus).isEqualTo(WatermarkStatus.IDLE);
+        assertThat(idleStatus.isIdle()).isTrue();
+        assertThat(idleStatus.isActive()).isFalse();
 
-        assertEquals(WatermarkStatus.ACTIVE, activeStatus);
-        assertTrue(activeStatus.isActive());
-        assertFalse(activeStatus.isIdle());
+        assertThat(activeStatus).isEqualTo(WatermarkStatus.ACTIVE);
+        assertThat(activeStatus.isActive()).isTrue();
+        assertThat(activeStatus.isIdle()).isFalse();
     }
 
     @Test
-    public void testTypeCasting() {
+    void testTypeCasting() {
         WatermarkStatus status = WatermarkStatus.ACTIVE;
 
-        assertTrue(status.isWatermarkStatus());
-        assertFalse(status.isRecord());
-        assertFalse(status.isWatermark());
-        assertFalse(status.isLatencyMarker());
+        assertThat(status.isWatermarkStatus()).isTrue();
+        assertThat(status.isRecord()).isFalse();
+        assertThat(status.isWatermark()).isFalse();
+        assertThat(status.isLatencyMarker()).isFalse();
 
-        try {
-            status.asWatermark();
-            fail("should throw an exception");
-        } catch (Exception e) {
-            // expected
-        }
+        assertThatThrownBy(status::asWatermark).isInstanceOf(ClassCastException.class);
 
-        try {
-            status.asRecord();
-            fail("should throw an exception");
-        } catch (Exception e) {
-            // expected
-        }
+        assertThatThrownBy(status::asRecord).isInstanceOf(ClassCastException.class);
 
-        try {
-            status.asLatencyMarker();
-            fail("should throw an exception");
-        } catch (Exception e) {
-            // expected
-        }
+        assertThatThrownBy(status::asLatencyMarker).isInstanceOf(ClassCastException.class);
     }
 }

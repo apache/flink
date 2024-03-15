@@ -79,7 +79,7 @@ import java.util.concurrent.Future;
 import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 
 /** Mock {@link Environment}. */

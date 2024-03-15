@@ -68,8 +68,6 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.SupplierWithException;
 
-import org.junit.Assert;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
@@ -85,6 +83,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test harness for testing a {@link StreamTask}.
@@ -401,9 +400,9 @@ public class StreamTaskTestHarness<OUT> {
         if (this.memorySize > 0) {
             MemoryManager memMan = this.mockEnv.getMemoryManager();
             if (memMan != null) {
-                Assert.assertTrue(
-                        "Memory Manager managed memory was not completely freed.",
-                        memMan.verifyEmpty());
+                assertThat(memMan.verifyEmpty())
+                        .as("Memory Manager managed memory was not completely freed.")
+                        .isTrue();
                 memMan.shutdown();
             }
         }

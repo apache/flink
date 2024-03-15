@@ -21,43 +21,42 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for different {@link StreamPartitioner} implementations. */
-public abstract class StreamPartitionerTest extends TestLogger {
+abstract class StreamPartitionerTest {
 
-    protected final StreamPartitioner<Tuple> streamPartitioner = createPartitioner();
-    protected final StreamRecord<Tuple> streamRecord = new StreamRecord<>(null);
-    protected final SerializationDelegate<StreamRecord<Tuple>> serializationDelegate =
+    final StreamPartitioner<Tuple> streamPartitioner = createPartitioner();
+    final StreamRecord<Tuple> streamRecord = new StreamRecord<>(null);
+    final SerializationDelegate<StreamRecord<Tuple>> serializationDelegate =
             new SerializationDelegate<>(null);
 
     abstract StreamPartitioner<Tuple> createPartitioner();
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         serializationDelegate.setInstance(streamRecord);
     }
 
-    protected void assertSelectedChannel(int expectedChannel) {
+    void assertSelectedChannel(int expectedChannel) {
         int actualResult = streamPartitioner.selectChannel(serializationDelegate);
-        assertEquals(expectedChannel, actualResult);
+        assertThat(actualResult).isEqualTo(expectedChannel);
     }
 
-    protected void assertSelectedChannelWithSetup(int expectedChannel, int numberOfChannels) {
+    void assertSelectedChannelWithSetup(int expectedChannel, int numberOfChannels) {
         streamPartitioner.setup(numberOfChannels);
         assertSelectedChannel(expectedChannel);
     }
 
     @Test
-    public void testSerializable() throws IOException, ClassNotFoundException {
+    void testSerializable() throws IOException, ClassNotFoundException {
         final StreamPartitioner<Tuple> clone = InstantiationUtil.clone(streamPartitioner);
-        assertEquals(streamPartitioner, clone);
+        assertThat(clone).isEqualTo(streamPartitioner);
     }
 }

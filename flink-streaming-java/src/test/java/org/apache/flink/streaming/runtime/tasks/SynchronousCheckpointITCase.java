@@ -64,47 +64,43 @@ import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.util.SerializedValue;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 /**
  * Tests that the cached thread pool used by the {@link Task} allows synchronous checkpoints to
  * complete successfully.
  */
-public class SynchronousCheckpointITCase {
+@Timeout(value = 10, unit = TimeUnit.SECONDS)
+class SynchronousCheckpointITCase {
 
     // A thread-safe queue to "log" and monitor events happening in the task's methods. Also, used
     // by the test thread
     // to synchronize actions with the task's threads.
-    private static LinkedBlockingQueue<Event> eventQueue = new LinkedBlockingQueue<>();
-
-    @Rule public final Timeout timeoutPerTest = Timeout.seconds(10);
+    private static final LinkedBlockingQueue<Event> EVENT_QUEUE = new LinkedBlockingQueue<>();
 
     @Test
-    public void taskDispatcherThreadPoolAllowsForSynchronousCheckpoints() throws Exception {
+    void taskDispatcherThreadPoolAllowsForSynchronousCheckpoints() throws Exception {
         final Task task = createTask(SynchronousCheckpointTestingTask.class);
 
         try (TaskCleaner ignored = new TaskCleaner(task)) {
             task.startTaskThread();
 
-            assertThat(eventQueue.take(), is(Event.TASK_IS_RUNNING));
-            assertTrue(eventQueue.isEmpty());
+            assertThat(EVENT_QUEUE.take()).isEqualTo(Event.TASK_IS_RUNNING);
+            assertThat(EVENT_QUEUE).isEmpty();
 
-            assertEquals(ExecutionState.RUNNING, task.getExecutionState());
+            assertThat(task.getExecutionState()).isEqualTo(ExecutionState.RUNNING);
 
             task.triggerCheckpointBarrier(
                     42,
@@ -113,23 +109,23 @@ public class SynchronousCheckpointITCase {
                             SavepointType.suspend(SavepointFormatType.CANONICAL),
                             CheckpointStorageLocationReference.getDefault()));
 
-            assertThat(eventQueue.take(), is(Event.PRE_TRIGGER_CHECKPOINT));
-            assertThat(eventQueue.take(), is(Event.POST_TRIGGER_CHECKPOINT));
-            assertTrue(eventQueue.isEmpty());
+            assertThat(EVENT_QUEUE.take()).isEqualTo(Event.PRE_TRIGGER_CHECKPOINT);
+            assertThat(EVENT_QUEUE.take()).isEqualTo(Event.POST_TRIGGER_CHECKPOINT);
+            assertThat(EVENT_QUEUE).isEmpty();
 
             task.notifyCheckpointComplete(42);
 
-            assertThat(eventQueue.take(), is(Event.PRE_NOTIFY_CHECKPOINT_COMPLETE));
-            assertThat(eventQueue.take(), is(Event.POST_NOTIFY_CHECKPOINT_COMPLETE));
-            assertTrue(eventQueue.isEmpty());
+            assertThat(EVENT_QUEUE.take()).isEqualTo(Event.PRE_NOTIFY_CHECKPOINT_COMPLETE);
+            assertThat(EVENT_QUEUE.take()).isEqualTo(Event.POST_NOTIFY_CHECKPOINT_COMPLETE);
+            assertThat(EVENT_QUEUE).isEmpty();
 
-            assertEquals(ExecutionState.RUNNING, task.getExecutionState());
+            assertThat(task.getExecutionState()).isEqualTo(ExecutionState.RUNNING);
         }
     }
 
     /**
      * A {@link StreamTask} which makes sure that the different phases of a synchronous checkpoint
-     * are reflected in the {@link SynchronousCheckpointITCase#eventQueue}.
+     * are reflected in the {@link SynchronousCheckpointITCase#EVENT_QUEUE}.
      */
     public static class SynchronousCheckpointTestingTask extends StreamTask {
         // Flag to emit the first event only once.
@@ -143,7 +139,7 @@ public class SynchronousCheckpointITCase {
         protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
             if (!isRunning) {
                 isRunning = true;
-                eventQueue.put(Event.TASK_IS_RUNNING);
+                EVENT_QUEUE.put(Event.TASK_IS_RUNNING);
             }
             if (isCanceled()) {
                 controller.suspendDefaultAction();
@@ -157,10 +153,10 @@ public class SynchronousCheckpointITCase {
         public CompletableFuture<Boolean> triggerCheckpointAsync(
                 CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
             try {
-                eventQueue.put(Event.PRE_TRIGGER_CHECKPOINT);
+                EVENT_QUEUE.put(Event.PRE_TRIGGER_CHECKPOINT);
                 CompletableFuture<Boolean> result =
                         super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
-                eventQueue.put(Event.POST_TRIGGER_CHECKPOINT);
+                EVENT_QUEUE.put(Event.POST_TRIGGER_CHECKPOINT);
                 return result;
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -171,9 +167,9 @@ public class SynchronousCheckpointITCase {
         @Override
         public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
             try {
-                eventQueue.put(Event.PRE_NOTIFY_CHECKPOINT_COMPLETE);
+                EVENT_QUEUE.put(Event.PRE_NOTIFY_CHECKPOINT_COMPLETE);
                 Future<Void> result = super.notifyCheckpointCompleteAsync(checkpointId);
-                eventQueue.put(Event.POST_NOTIFY_CHECKPOINT_COMPLETE);
+                EVENT_QUEUE.put(Event.POST_NOTIFY_CHECKPOINT_COMPLETE);
                 return result;
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();

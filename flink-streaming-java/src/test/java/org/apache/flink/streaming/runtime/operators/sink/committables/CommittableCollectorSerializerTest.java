@@ -126,7 +126,7 @@ class CommittableCollectorSerializerTest {
     }
 
     @Test
-    public void testCommittablesForSameSubtaskIdV2SerDe() throws IOException {
+    void testCommittablesForSameSubtaskIdV2SerDe() throws IOException {
 
         int subtaskId = 1;
         int numberOfSubtasks = 3;

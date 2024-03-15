@@ -35,16 +35,16 @@ import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayDeque;
 import java.util.Objects;
 import java.util.stream.StreamSupport;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ContinuousProcessingTimeTrigger}. */
-public class ContinuousProcessingTimeTriggerTest {
+class ContinuousProcessingTimeTriggerTest {
 
     private static final long NO_TIMESTAMP = Watermark.UNINITIALIZED.getTimestamp();
 
@@ -96,11 +96,11 @@ public class ContinuousProcessingTimeTriggerTest {
 
     /** Verify ContinuousProcessingTimeTrigger fire. */
     @Test
-    public void testWindowFiring() throws Exception {
+    void testWindowFiring() throws Exception {
         ContinuousProcessingTimeTrigger<TimeWindow> trigger =
                 ContinuousProcessingTimeTrigger.of(Time.milliseconds(5));
 
-        assertTrue(trigger.canMerge());
+        assertThat(trigger.canMerge()).isTrue();
 
         ListStateDescriptor<Integer> stateDesc =
                 new ListStateDescriptor<>(
@@ -173,11 +173,11 @@ public class ContinuousProcessingTimeTriggerTest {
     }
 
     @Test
-    public void testMergingWindows() throws Exception {
+    void testMergingWindows() throws Exception {
         ContinuousProcessingTimeTrigger<TimeWindow> trigger =
                 ContinuousProcessingTimeTrigger.of(Time.milliseconds(5));
 
-        assertTrue(trigger.canMerge());
+        assertThat(trigger.canMerge()).isTrue();
 
         ListStateDescriptor<Integer> stateDesc =
                 new ListStateDescriptor<>(

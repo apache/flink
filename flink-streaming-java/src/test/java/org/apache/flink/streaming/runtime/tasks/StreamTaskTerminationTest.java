@@ -71,15 +71,13 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -91,18 +89,18 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /** Tests for the StreamTask termination. */
-public class StreamTaskTerminationTest extends TestLogger {
+class StreamTaskTerminationTest {
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     private static final OneShotLatch RUN_LATCH = new OneShotLatch();
     private static final AtomicBoolean SNAPSHOT_HAS_STARTED = new AtomicBoolean();
@@ -115,7 +113,7 @@ public class StreamTaskTerminationTest extends TestLogger {
      * operation after the stream task has stopped running.
      */
     @Test
-    public void testConcurrentAsyncCheckpointCannotFailFinishedStreamTask() throws Exception {
+    void testConcurrentAsyncCheckpointCannotFailFinishedStreamTask() throws Exception {
         final Configuration taskConfiguration = new Configuration();
         final StreamConfig streamConfig = new StreamConfig(taskConfiguration);
         final NoOpStreamOperator<Long> noOpStreamOperator = new NoOpStreamOperator<>();
@@ -204,7 +202,7 @@ public class StreamTaskTerminationTest extends TestLogger {
         }
 
         // check that we have entered the finished state
-        assertEquals(ExecutionState.FINISHED, task.getExecutionState());
+        assertThat(task.getExecutionState()).isEqualTo(ExecutionState.FINISHED);
     }
 
     /**
@@ -245,8 +243,8 @@ public class StreamTaskTerminationTest extends TestLogger {
 
             // wait until all async checkpoint threads are terminated, so that no more exceptions
             // can be reported
-            Assert.assertTrue(
-                    getAsyncOperationsThreadPool().awaitTermination(30L, TimeUnit.SECONDS));
+            assertThat(getAsyncOperationsThreadPool().awaitTermination(30L, TimeUnit.SECONDS))
+                    .isTrue();
         }
     }
 
