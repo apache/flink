@@ -707,3 +707,49 @@ show create catalog cat2;
 +---------------------------------------------------------------------------------------------+
 1 row in set
 !ok
+
+describe catalog cat2;
++--------------------------+---------------------------+
+| catalog_description_item | catalog_description_value |
++--------------------------+---------------------------+
+|                     Name |                      cat2 |
+|                     Type |         generic_in_memory |
+|                  Comment |                           |
++--------------------------+---------------------------+
+3 rows in set
+!ok
+
+describe catalog extended cat2;
++--------------------------+---------------------------------------------------------+
+| catalog_description_item |                               catalog_description_value |
++--------------------------+---------------------------------------------------------+
+|                     Name |                                                    cat2 |
+|                     Type |                                       generic_in_memory |
+|                  Comment |                                                         |
+|               Properties | ('default-database','db'), ('type','generic_in_memory') |
++--------------------------+---------------------------------------------------------+
+4 rows in set
+!ok
+
+desc catalog cat2;
++--------------------------+---------------------------+
+| catalog_description_item | catalog_description_value |
++--------------------------+---------------------------+
+|                     Name |                      cat2 |
+|                     Type |         generic_in_memory |
+|                  Comment |                           |
++--------------------------+---------------------------+
+3 rows in set
+!ok
+
+desc catalog extended cat2;
++--------------------------+---------------------------------------------------------+
+| catalog_description_item |                               catalog_description_value |
++--------------------------+---------------------------------------------------------+
+|                     Name |                                                    cat2 |
+|                     Type |                                       generic_in_memory |
+|                  Comment |                                                         |
+|               Properties | ('default-database','db'), ('type','generic_in_memory') |
++--------------------------+---------------------------------------------------------+
+4 rows in set
+!ok

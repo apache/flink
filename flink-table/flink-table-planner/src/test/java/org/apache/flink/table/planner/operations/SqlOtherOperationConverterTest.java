@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.operations.DescribeCatalogOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ShowCreateCatalogOperation;
@@ -69,6 +70,41 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
         assertThat(operation).isInstanceOf(UseCatalogOperation.class);
         assertThat(((UseCatalogOperation) operation).getCatalogName()).isEqualTo("cat1");
         assertThat(operation.asSummaryString()).isEqualTo("USE CATALOG cat1");
+    }
+
+    @Test
+    void testDescribeCatalog() {
+        final String sql1 = "DESCRIBE CATALOG cat1";
+        Operation operation = parse(sql1);
+        assertThat(operation).isInstanceOf(DescribeCatalogOperation.class);
+        assertThat(((DescribeCatalogOperation) operation).getCatalogName()).isEqualTo("cat1");
+        assertThat(((DescribeCatalogOperation) operation).isExtended()).isEqualTo(false);
+        assertThat(operation.asSummaryString())
+                .isEqualTo("DESCRIBE CATALOG: (identifier: [cat1], isExtended: [false])");
+
+        final String sql2 = "DESCRIBE CATALOG EXTENDED cat1";
+        Operation operation2 = parse(sql2);
+        assertThat(operation2).isInstanceOf(DescribeCatalogOperation.class);
+        assertThat(((DescribeCatalogOperation) operation2).getCatalogName()).isEqualTo("cat1");
+        assertThat(((DescribeCatalogOperation) operation2).isExtended()).isEqualTo(true);
+        assertThat(operation2.asSummaryString())
+                .isEqualTo("DESCRIBE CATALOG: (identifier: [cat1], isExtended: [true])");
+
+        final String sql3 = "DESC CATALOG cat1";
+        Operation operation3 = parse(sql3);
+        assertThat(operation3).isInstanceOf(DescribeCatalogOperation.class);
+        assertThat(((DescribeCatalogOperation) operation3).getCatalogName()).isEqualTo("cat1");
+        assertThat(((DescribeCatalogOperation) operation3).isExtended()).isEqualTo(false);
+        assertThat(operation3.asSummaryString())
+                .isEqualTo("DESCRIBE CATALOG: (identifier: [cat1], isExtended: [false])");
+
+        final String sql4 = "DESC CATALOG EXTENDED cat1";
+        Operation operation4 = parse(sql4);
+        assertThat(operation4).isInstanceOf(DescribeCatalogOperation.class);
+        assertThat(((DescribeCatalogOperation) operation4).getCatalogName()).isEqualTo("cat1");
+        assertThat(((DescribeCatalogOperation) operation4).isExtended()).isEqualTo(true);
+        assertThat(operation4.asSummaryString())
+                .isEqualTo("DESCRIBE CATALOG: (identifier: [cat1], isExtended: [true])");
     }
 
     @Test

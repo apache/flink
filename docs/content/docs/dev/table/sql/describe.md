@@ -26,7 +26,7 @@ under the License.
 
 # DESCRIBE Statements
 
-DESCRIBE statements are used to describe the schema of a table or a view.
+DESCRIBE statements are used to describe the schema of a table or a view, or the metadata of a catalog.
 
 
 ## Run a DESCRIBE statement
@@ -80,6 +80,15 @@ tableEnv.executeSql("DESCRIBE Orders").print();
 
 // print the schema
 tableEnv.executeSql("DESC Orders").print();
+
+// register a catalog named "cat2"
+tableEnv.executeSql("CREATE CATALOG cat2 WITH ('type'='generic_in_memory', 'default-database'='db')");
+
+// print the metadata
+tableEnv.executeSql("DESCRIBE CATALOG cat2").print();
+
+// print the complete metadata
+tableEnv.executeSql("DESC CATALOG EXTENDED cat2").print();
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -103,6 +112,15 @@ tableEnv.executeSql("DESCRIBE Orders").print()
 
 // print the schema
 tableEnv.executeSql("DESC Orders").print()
+
+// register a catalog named "cat2"
+tableEnv.executeSql("CREATE CATALOG cat2 WITH ('type'='generic_in_memory', 'default-database'='db')")
+
+// print the metadata
+tableEnv.executeSql("DESCRIBE CATALOG cat2").print()
+
+// print the complete metadata
+tableEnv.executeSql("DESC CATALOG EXTENDED cat2").print()
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -126,6 +144,15 @@ table_env.execute_sql("DESCRIBE Orders").print()
 
 # print the schema
 table_env.execute_sql("DESC Orders").print()
+
+# register a catalog named "cat2"
+table_env.execute_sql("CREATE CATALOG cat2 WITH ('type'='generic_in_memory', 'default-database'='db')")
+
+# print the metadata
+table_env.execute_sql("DESCRIBE CATALOG cat2").print()
+
+# print the complete metadata
+table_env.execute_sql("DESC CATALOG EXTENDED cat2").print()
 ```
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
@@ -146,81 +173,116 @@ Flink SQL> CREATE TABLE Orders (
 Flink SQL> DESCRIBE Orders;
 
 Flink SQL> DESC Orders;
+
+Flink SQL> CREATE CATALOG cat2 WITH ('type'='generic_in_memory', 'default-database'='db');
+[INFO] Execute statement succeeded.
+
+Flink SQL> DESCRIBE CATALOG cat2;
+
+Flink SQL> DESC CATALOG EXTENDED cat2;
 ```
 {{< /tab >}}
 {{< /tabs >}}
-
-The result of the above example is:
-{{< tabs "c20da697-b9fc-434b-b7e5-3b51510eee5b" >}}
-{{< tab "Java" >}}
-```text
-
-+---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
-|    name |                        type |  null |       key |        extras |                  watermark |                   comment |
-+---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
-|    user |                      BIGINT | FALSE | PRI(user) |               |                            |       this is primary key |
-| product |                 VARCHAR(32) |  TRUE |           |               |                            |                           |
-|  amount |                         INT |  TRUE |           |               |                            |                           |
-|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |               | `ts` - INTERVAL '1' SECOND |         notice: watermark |
-|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           | AS PROCTIME() |                            | this is a computed column |
-+---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
-5 rows in set
-
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```text
-
-+---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
-|    name |                        type |  null |       key |        extras |                  watermark |                   comment |
-+---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
-|    user |                      BIGINT | FALSE | PRI(user) |               |                            |       this is primary key |
-| product |                 VARCHAR(32) |  TRUE |           |               |                            |                           |
-|  amount |                         INT |  TRUE |           |               |                            |                           |
-|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |               | `ts` - INTERVAL '1' SECOND |         notice: watermark |
-|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           | AS PROCTIME() |                            | this is a computed column |
-+---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
-5 rows in set
-
-```
-{{< /tab >}}
-{{< tab "Python" >}}
-```text
-
-+---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
-|    name |                        type |  null |       key |        extras |                  watermark |                   comment |
-+---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
-|    user |                      BIGINT | FALSE | PRI(user) |               |                            |       this is primary key |
-| product |                 VARCHAR(32) |  TRUE |           |               |                            |                           |
-|  amount |                         INT |  TRUE |           |               |                            |                           |
-|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |               | `ts` - INTERVAL '1' SECOND |         notice: watermark |
-|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           | AS PROCTIME() |                            | this is a computed column |
-+---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
-5 rows in set
-
-```
-{{< /tab >}}
-{{< tab "SQL CLI" >}}
-```text
-
-root
- |-- user: BIGINT NOT NULL COMMENT 'this is primary key'
- |-- product: VARCHAR(32)
- |-- amount: INT
- |-- ts: TIMESTAMP(3) *ROWTIME* COMMENT 'notice: watermark'
- |-- ptime: TIMESTAMP(3) NOT NULL *PROCTIME* AS PROCTIME() COMMENT 'this is a computed column'
- |-- WATERMARK FOR ts AS `ts` - INTERVAL '1' SECOND
- |-- CONSTRAINT PK_3599338 PRIMARY KEY (user)
-
-```
-{{< /tab >}}
-{{< /tabs >}}
-
 
 {{< top >}}
 
-## Syntax
+## DESCRIBE
 
 ```sql
-{ DESCRIBE | DESC } [catalog_name.][db_name.]table_name
+{ DESCRIBE | DESC } [EXTENDED] [catalog_name.][db_name.]table_name
+```
+
+Describe the metadata of an existing table or view.
+
+Assumes that the table `Orders` is created as follows:
+```sql
+CREATE TABLE Orders (
+    `user` BIGINT NOT NULl comment 'this is primary key',
+    product VARCHAR(32),
+    amount INT,
+    ts TIMESTAMP(3) comment 'notice: watermark',
+    ptime AS PROCTIME() comment 'this is a computed column',
+    PRIMARY KEY(`user`) NOT ENFORCED,
+    WATERMARK FOR ts AS ts - INTERVAL '1' SECONDS
+) with (
+    'connector' = 'datagen'
+);
+```
+Shows the schema.
+```sql
+describe Orders;
++---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
+|    name |                        type |  null |       key |        extras |                  watermark |                   comment |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
+|    user |                      BIGINT | FALSE | PRI(user) |               |                            |       this is primary key |
+| product |                 VARCHAR(32) |  TRUE |           |               |                            |                           |
+|  amount |                         INT |  TRUE |           |               |                            |                           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |               | `ts` - INTERVAL '1' SECOND |         notice: watermark |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           | AS PROCTIME() |                            | this is a computed column |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
+5 rows in set
+```
+
+## DESCRIBE CATALOG
+
+```
+{ DESCRIBE | DESC } CATALOG [EXTENDED] catalog_name
+```
+
+Describe the metadata of an existing catalog.
+
+The metadata information includes the catalog’s name, type, and comment. If the optional EXTENDED option is specified, catalog properties are also returned.
+
+Assumes that the catalog `cat2` is created as follows:
+```sql
+create catalog cat2 WITH (
+    'type'='generic_in_memory',
+    'default-database'='db'
+);
+```
+Shows the metadata description.
+```sql
+describe catalog cat2;
++--------------------------+---------------------------+
+| catalog_description_item | catalog_description_value |
++--------------------------+---------------------------+
+|                     Name |                      cat2 |
+|                     Type |         generic_in_memory |
+|                  Comment |                           |
++--------------------------+---------------------------+
+3 rows in set
+
+desc catalog cat2;
++--------------------------+---------------------------+
+| catalog_description_item | catalog_description_value |
++--------------------------+---------------------------+
+|                     Name |                      cat2 |
+|                     Type |         generic_in_memory |
+|                  Comment |                           |
++--------------------------+---------------------------+
+3 rows in set
+```
+Shows the complete metadata description.
+```sql
+describe catalog extended cat2;
++--------------------------+---------------------------------------------------------+
+| catalog_description_item |                               catalog_description_value |
++--------------------------+---------------------------------------------------------+
+|                     Name |                                                    cat2 |
+|                     Type |                                       generic_in_memory |
+|                  Comment |                                                         |
+|               Properties | ('default-database','db'), ('type','generic_in_memory') |
++--------------------------+---------------------------------------------------------+
+4 rows in set
+
+desc catalog extended cat2;
++--------------------------+---------------------------------------------------------+
+| catalog_description_item |                               catalog_description_value |
++--------------------------+---------------------------------------------------------+
+|                     Name |                                                    cat2 |
+|                     Type |                                       generic_in_memory |
+|                  Comment |                                                         |
+|               Properties | ('default-database','db'), ('type','generic_in_memory') |
++--------------------------+---------------------------------------------------------+
+4 rows in set
 ```

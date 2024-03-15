@@ -54,6 +54,7 @@ public class SqlNodeConverters {
         register(new SqlProcedureCallConverter());
         register(new SqlShowDatabasesConverter());
         register(new SqlShowCreateCatalogConverter());
+        register(new SqlDescribeCatalogConverter());
     }
 
     /**
