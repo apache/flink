@@ -95,6 +95,7 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 import static java.util.Collections.emptyList;
@@ -198,6 +199,14 @@ public class ChangelogKeyedStateBackend<K>
     private long lastFailedMaterializationId = -1L;
 
     private final ChangelogTruncateHelper changelogTruncateHelper;
+
+    /**
+     * The local snapshot is considered complete when there is at least one successful
+     * materialization after rescaling.
+     */
+    private AtomicBoolean hasCompletedMaterialization = new AtomicBoolean(false);
+
+    private boolean isRescaling = false;
 
     public ChangelogKeyedStateBackend(
             AbstractKeyedStateBackend<K> keyedStateBackend,
@@ -500,8 +509,9 @@ public class ChangelogKeyedStateBackend<K>
         if (prevDeltaCopy.isEmpty()
                 && changelogStateBackendStateCopy.getMaterializedSnapshot().isEmpty()) {
             return SnapshotResult.empty();
-        } else if (!changelogStateBackendStateCopy.getLocalMaterializedSnapshot().isEmpty()
-                || delta.getTaskLocalSnapshot() != null) {
+        } else if ((!isRescaling || hasCompletedMaterialization.get())
+                && (!changelogStateBackendStateCopy.getLocalMaterializedSnapshot().isEmpty()
+                        || delta.getTaskLocalSnapshot() != null)) {
             List<ChangelogStateHandle> localDeltaCopy =
                     new ArrayList<>(
                             changelogStateBackendStateCopy.getLocalRestoredNonMaterialized());
@@ -771,7 +781,7 @@ public class ChangelogKeyedStateBackend<K>
 
         List<KeyedStateHandle> localMaterialized = new ArrayList<>();
         List<ChangelogStateHandle> localRestoredNonMaterialized = new ArrayList<>();
-
+        isRescaling = stateHandles.size() > 1;
         for (ChangelogStateBackendHandle h : stateHandles) {
             if (h != null) {
                 if (h instanceof ChangelogStateBackendLocalHandle) {
@@ -794,7 +804,8 @@ public class ChangelogKeyedStateBackend<K>
         this.lastConfirmedMaterializationId = materializationId;
         this.materializedId = materializationId + 1;
 
-        if (!localMaterialized.isEmpty() || !localRestoredNonMaterialized.isEmpty()) {
+        if (!isRescaling
+                && (!localMaterialized.isEmpty() || !localRestoredNonMaterialized.isEmpty())) {
             return new ChangelogSnapshotState(
                     materialized,
                     localMaterialized,
@@ -904,7 +915,7 @@ public class ChangelogKeyedStateBackend<K>
                                 Collections.emptyList(),
                                 upTo,
                                 materializationID);
-
+        hasCompletedMaterialization.set(true);
         changelogTruncateHelper.materialized(upTo);
     }
 
