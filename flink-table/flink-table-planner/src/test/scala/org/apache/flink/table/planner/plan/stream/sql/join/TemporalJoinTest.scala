@@ -18,11 +18,13 @@
 package org.apache.flink.table.planner.plan.stream.sql.join
 
 import org.apache.flink.table.api.{ExplainDetail, TableException, ValidationException}
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable
 import org.junit.jupiter.api.{BeforeEach, Test}
+import org.junit.jupiter.api.Assertions.assertThrows
 
 /** Test temporal join in stream mode. */
 class TemporalJoinTest extends TableTestBase {
@@ -154,6 +156,11 @@ class TemporalJoinTest extends TableTestBase {
 
     util.addTable(
       "CREATE VIEW rates_last_value AS SELECT currency, LAST_VALUE(rate) AS rate " +
+        "FROM RatesHistory " +
+        "GROUP BY currency ")
+
+    util.addTable(
+      "CREATE VIEW rates_last_value_agg AS SELECT currency, LAST_VALUE(rate) AS rate, LAST_VALUE(rowtime) AS updated_at " +
         "FROM RatesHistory " +
         "GROUP BY currency ")
 
@@ -329,6 +336,36 @@ class TemporalJoinTest extends TableTestBase {
       "on o.currency = r.currency AND o.amount > 10 AND r.rate < 100"
 
     util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testEventTimeTemporalJoinWithRollingAggregate(): Unit = {
+    val sqlQuery = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "rates_last_value_agg " +
+      "FOR SYSTEM_TIME AS OF o.rowtime AS r " +
+      "on o.currency = r.currency"
+
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testEventTimeTemporalJoinWithRollingAggregateFailsWithoutFeatureFlag(): Unit = {
+    util.getTableEnv.getConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_TEMPORAL_JOIN_ON_ROLLING_AGGREGATE_ENABLED.key(),
+      "false")
+    assertThrows(
+      classOf[AssertionError],
+      () => {
+        val sqlQuery = "SELECT * " +
+          "FROM Orders AS o JOIN " +
+          "rates_last_value_agg " +
+          "FOR SYSTEM_TIME AS OF o.rowtime AS r " +
+          "on o.currency = r.currency"
+
+        util.verifyExecPlan(sqlQuery)
+      }
+    )
   }
 
   @Test
