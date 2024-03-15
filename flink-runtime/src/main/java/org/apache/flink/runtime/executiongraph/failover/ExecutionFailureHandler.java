@@ -26,13 +26,12 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.failure.FailureEnricherUtils;
+import org.apache.flink.runtime.scheduler.adaptive.JobFailureMetricReporter;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.throwable.ThrowableClassifier;
 import org.apache.flink.runtime.throwable.ThrowableType;
-import org.apache.flink.traces.Span;
-import org.apache.flink.traces.SpanBuilder;
 import org.apache.flink.util.IterableUtils;
 
 import javax.annotation.Nullable;
@@ -70,8 +69,8 @@ public class ExecutionFailureHandler {
     private final Collection<FailureEnricher> failureEnrichers;
     private final ComponentMainThreadExecutor mainThreadExecutor;
     private final MetricGroup metricGroup;
-
     private final boolean reportEventsAsSpans;
+    private final JobFailureMetricReporter jobFailureMetricReporter;
 
     /**
      * Creates the handler to deal with task failures.
@@ -105,6 +104,7 @@ public class ExecutionFailureHandler {
         this.globalFailureCtx = globalFailureCtx;
         this.metricGroup = metricGroup;
         this.reportEventsAsSpans = jobMasterConfig.get(TraceOptions.REPORT_EVENTS_AS_SPANS);
+        this.jobFailureMetricReporter = new JobFailureMetricReporter(metricGroup);
     }
 
     /**
@@ -171,33 +171,13 @@ public class ExecutionFailureHandler {
             failureHandlingResult
                     .getFailureLabels()
                     .thenAcceptAsync(
-                            labels -> reportFailureHandling(failureHandlingResult, labels),
+                            labels ->
+                                    jobFailureMetricReporter.reportJobFailure(
+                                            failureHandlingResult, labels),
                             mainThreadExecutor);
         }
 
         return failureHandlingResult;
-    }
-
-    private void reportFailureHandling(
-            FailureHandlingResult failureHandlingResult, Map<String, String> failureLabels) {
-
-        // Add base attributes
-        SpanBuilder spanBuilder =
-                Span.builder(ExecutionFailureHandler.class, "JobFailure")
-                        .setStartTsMillis(failureHandlingResult.getTimestamp())
-                        .setEndTsMillis(failureHandlingResult.getTimestamp())
-                        .setAttribute(
-                                "canRestart", String.valueOf(failureHandlingResult.canRestart()))
-                        .setAttribute(
-                                "isGlobalFailure",
-                                String.valueOf(failureHandlingResult.isGlobalFailure()));
-
-        // Add all failure labels
-        for (Map.Entry<String, String> entry : failureLabels.entrySet()) {
-            spanBuilder.setAttribute(
-                    FAILURE_LABEL_ATTRIBUTE_PREFIX + entry.getKey(), entry.getValue());
-        }
-        metricGroup.addSpan(spanBuilder);
     }
 
     private FailureHandlingResult handleFailure(
