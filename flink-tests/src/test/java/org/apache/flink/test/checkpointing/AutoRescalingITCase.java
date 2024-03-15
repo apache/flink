@@ -234,7 +234,7 @@ public class AutoRescalingITCase extends TestLogger {
 
             JobGraph jobGraph =
                     createJobGraphWithKeyedState(
-                            new Configuration(),
+                            cluster.getMiniCluster().getConfiguration().clone(),
                             parallelism,
                             maxParallelism,
                             numberKeys,
