@@ -33,7 +33,7 @@ under the License.
 
 	<properties>
 		<confluent.version>7.5.3</confluent.version>
-		<schema.registry.version>7.5.0-22</schema.registry.version>
+		<schema.registry.version>7.5.0</schema.registry.version>
 	</properties>
 
 	<repositories>

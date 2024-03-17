@@ -47,7 +47,7 @@ public class RegistryFormatOptions {
                                     + " That way one can control e.g. records namespaces.");
 
     public static final ConfigOption<Integer> SCHEMA_CACHE_SIZE =
-            ConfigOptions.key( "schema-cache-size")
+            ConfigOptions.key("schema-cache-size")
                     .intType()
                     .defaultValue(20)
                     .withFallbackKeys("schema-cache-size")

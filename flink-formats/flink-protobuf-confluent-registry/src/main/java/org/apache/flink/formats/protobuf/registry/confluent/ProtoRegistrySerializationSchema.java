@@ -18,6 +18,8 @@
 
 package org.apache.flink.formats.protobuf.registry.confluent;
 
+import com.google.protobuf.Descriptors;
+
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
@@ -29,9 +31,12 @@ import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
 import org.apache.kafka.common.utils.ByteUtils;
 
+import javax.annotation.Nullable;
+
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Serialization schema that serializes an object of Flink internal data structure with a Protobuf
@@ -48,6 +53,8 @@ public class ProtoRegistrySerializationSchema implements SerializationSchema<Row
     private final RowType rowType;
 
     private final SchemaRegistryConfig schemaRegistryConfig;
+    private transient @Nullable ProtobufSchema schema ;
+
 
     /** The converter that converts internal data formats to JsonNode. */
     private transient RowDataToProtoConverters.RowDataToProtoConverter runtimeConverter;
@@ -66,13 +73,18 @@ public class ProtoRegistrySerializationSchema implements SerializationSchema<Row
         final SchemaRegistryClient schemaRegistryClient = schemaRegistryConfig.createClient();
         this.schemaCoder =
                 new SchemaRegistryCoder(schemaRegistryConfig.getSchemaId(), schemaRegistryClient);
-        final ProtobufSchema schema =
+        this.schema =
                 (ProtobufSchema)
                         schemaRegistryClient.getSchemaById(schemaRegistryConfig.getSchemaId());
-        this.runtimeConverter =
+         this.runtimeConverter =
                 RowDataToProtoConverters.createConverter(rowType, schema.toDescriptor());
         this.arrayOutputStream = new ByteArrayOutputStream();
     }
+
+    public Optional<ProtobufSchema> schema(){
+        return Optional.ofNullable(schema);
+    }
+
 
     @Override
     public byte[] serialize(RowData row) {
@@ -91,7 +103,7 @@ public class ProtoRegistrySerializationSchema implements SerializationSchema<Row
     }
 
     private static ByteBuffer writeMessageIndexes() {
-        //write empty message indices for now
+        // write empty message indices for now
         ByteBuffer buffer = ByteBuffer.allocate(ByteUtils.sizeOfVarint(0));
         ByteUtils.writeVarint(0, buffer);
         return buffer;

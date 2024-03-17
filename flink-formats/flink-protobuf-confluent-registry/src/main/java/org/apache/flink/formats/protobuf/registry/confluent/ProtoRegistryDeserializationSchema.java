@@ -53,6 +53,11 @@ public class ProtoRegistryDeserializationSchema implements DeserializationSchema
     private transient SchemaRegistryCoder schemaCoder;
 
     private transient ProtoToRowDataConverters.ProtoToRowDataConverter runtimeConverter;
+
+    public Descriptor getMessageDescriptor() {
+        return descriptor;
+    }
+
     private transient Descriptor descriptor;
 
     public ProtoRegistryDeserializationSchema(
@@ -91,6 +96,23 @@ public class ProtoRegistryDeserializationSchema implements DeserializationSchema
 
             final DynamicMessage dynamicMessage = DynamicMessage.parseFrom(descriptor, inputStream);
             return (RowData) runtimeConverter.convert(dynamicMessage);
+        } catch (Exception e) {
+            throw new IOException("Failed to deserialize P protobuf message.", e);
+        }
+    }
+
+    public DynamicMessage parseFrom(byte[] message) throws IOException {
+        if (message == null) {
+            return null;
+        }
+        try {
+            inputStream.setBuffer(message);
+            schemaCoder.readSchema(inputStream);
+            // Not sure what the message indexes are, it is some Confluent Schema Registry Protobuf
+            // magic. Until we figure out what that is, let's skip it
+            skipMessageIndexes(inputStream);
+
+            return DynamicMessage.parseFrom(descriptor, inputStream);
         } catch (Exception e) {
             throw new IOException("Failed to deserialize P protobuf message.", e);
         }

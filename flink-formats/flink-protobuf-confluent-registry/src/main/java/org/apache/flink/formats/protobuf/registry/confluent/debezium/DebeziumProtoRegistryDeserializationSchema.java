@@ -1,39 +1,50 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.formats.protobuf.registry.confluent.debezium;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryDeserializationSchema;
 import org.apache.flink.formats.protobuf.registry.confluent.ProtoToRowDataConverters;
-import org.apache.flink.formats.protobuf.registry.confluent.SchemaRegistryCoder;
 import org.apache.flink.formats.protobuf.registry.confluent.SchemaRegistryConfig;
-import org.apache.flink.formats.protobuf.registry.confluent.utils.MutableByteArrayInputStream;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
-import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
-import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
-import org.apache.kafka.common.utils.ByteUtils;
 
-import java.io.DataInputStream;
+import javax.annotation.Nullable;
+
 import java.io.IOException;
-import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Function;
 
 import static java.lang.String.format;
 
+/** Check for type of fieldDesriptor == message */
 public class DebeziumProtoRegistryDeserializationSchema implements DeserializationSchema<RowData> {
+
     private static final long serialVersionUID = 1L;
-
-    private final SchemaRegistryConfig schemaRegistryConfig;
-    private final RowType rowType;
-    private final TypeInformation<RowData> producedTypeInfo;
-    private transient ProtoToRowDataConverters.ProtoToRowDataConverter beforeConverter;
-    private transient ProtoToRowDataConverters.ProtoToRowDataConverter afterConverter;
-
-    private transient MutableByteArrayInputStream inputStream;
-
     private static final String OP_READ = "r";
     /** insert operation. */
     private static final String OP_CREATE = "c";
@@ -46,47 +57,50 @@ public class DebeziumProtoRegistryDeserializationSchema implements Deserializati
             "The \"before\" field of %s message is null, "
                     + "if you are using Debezium Postgres Connector, "
                     + "please check the Postgres table has been set REPLICA IDENTITY to FULL level.";
-    private SchemaRegistryCoder schemaCoder;
-    private transient Descriptors.Descriptor descriptor;
+    private final ProtoRegistryDeserializationSchema protoDeserializer;
+    private final transient RowType rowType;
+    private transient Descriptors.Descriptor debeziumEnvelopDescriptor;
+    private transient @Nullable Descriptors.FieldDescriptor descriptorForBefore;
+    private transient @Nullable Descriptors.FieldDescriptor descriptorForAfter;
+
+    private transient @Nullable ProtoToRowDataConverters.ProtoToRowDataConverter beforeConverter;
+    private transient @Nullable ProtoToRowDataConverters.ProtoToRowDataConverter afterConverter;
 
 
     public DebeziumProtoRegistryDeserializationSchema(
             RowType rowType,
             TypeInformation<RowData> producedTypeInfo,
             SchemaRegistryConfig schemaRegistryConfig) {
-
-        this.schemaRegistryConfig = schemaRegistryConfig;
+        protoDeserializer =
+                new ProtoRegistryDeserializationSchema(
+                        schemaRegistryConfig, rowType, producedTypeInfo);
         this.rowType = rowType;
-        this.producedTypeInfo = producedTypeInfo;
     }
-
-    private void skipMessageIndexes(MutableByteArrayInputStream inputStream) throws IOException {
-        final DataInputStream dataInputStream = new DataInputStream(inputStream);
-        int size = ByteUtils.readVarint(dataInputStream);
-        if (size == 0) {
-            // optimization
-            return;
-        }
-        for (int i = 0; i < size; i++) {
-            ByteUtils.readVarint(dataInputStream);
-        }
-    }
-
 
     @Override
     public void open(InitializationContext context) throws Exception {
-        final SchemaRegistryClient schemaRegistryClient = schemaRegistryConfig.createClient();
-        this.schemaCoder =
-                new SchemaRegistryCoder(schemaRegistryConfig.getSchemaId(), schemaRegistryClient);
-        final ProtobufSchema schema =
-                (ProtobufSchema)
-                        schemaRegistryClient.getSchemaById(schemaRegistryConfig.getSchemaId());
-        this.descriptor = schema.toDescriptor();
+        protoDeserializer.open(context);
+        this.debeziumEnvelopDescriptor = protoDeserializer.getMessageDescriptor();
+        //do basic validation
+        this.descriptorForBefore = debeziumEnvelopDescriptor.findFieldByName(EnvelopField.BEFORE);
+        this.descriptorForAfter = debeziumEnvelopDescriptor.findFieldByName(EnvelopField.AFTER);
 
-        this.beforeConverter = ProtoToRowDataConverters.createConverter(descriptor, rowType);
-        this.inputStream = new MutableByteArrayInputStream();
+        //todo - need to assert presence
+        beforeConverter = maybeCreateConverter(descriptorForBefore);
+        afterConverter = maybeCreateConverter(descriptorForAfter);
     }
 
+
+    private ProtoToRowDataConverters.ProtoToRowDataConverter maybeCreateConverter(
+            @Nullable Descriptors.FieldDescriptor descriptor){
+        ProtoToRowDataConverters.ProtoToRowDataConverter converter = null;
+
+        if(descriptor!=null && descriptor.getMessageType()!=null)
+            converter = ProtoToRowDataConverters.createConverter(
+                this.descriptorForBefore.getMessageType(), rowType);
+
+        return converter;
+    }
 
     @Override
     public RowData deserialize(byte[] message) throws IOException {
@@ -94,72 +108,75 @@ public class DebeziumProtoRegistryDeserializationSchema implements Deserializati
                 "Please invoke DeserializationSchema#deserialize(byte[], Collector<RowData>) instead.");
     }
 
+
+    private <T> Optional<T> extractPayload(
+            DynamicMessage debeziumEnvelop, String field,
+            ProtoToRowDataConverters.ProtoToRowDataConverter converter)
+            throws IOException {
+
+        T row = null;
+
+
+        Descriptors.FieldDescriptor fieldDescriptor =
+                debeziumEnvelopDescriptor.findFieldByName(field);
+        if (Objects.nonNull(debeziumEnvelop.getField(fieldDescriptor))) {
+            row =
+                    (T)
+                            converter.convert(
+                                    (DynamicMessage) debeziumEnvelop.getField(
+                                            fieldDescriptor));
+        }
+        return Optional.ofNullable(row);
+    }
+
+
+
+    void extractIfPresent(Optional<RowData> row, Collector<RowData> out, RowKind kind) {
+        if (row.isPresent()) {
+            RowData r = row.get();
+            r.setRowKind(kind);
+            out.collect(r);
+        }
+    }
+
+    void extractOrElseThrow(Optional<RowData> row, Collector<RowData> out, RowKind kind) {
+        if (!row.isPresent()) {
+            throw new IllegalStateException(String.format(REPLICA_IDENTITY_EXCEPTION, "UPDATE"));
+        }
+        extractIfPresent(row, out, kind);
+    }
+
     @Override
     public void deserialize(byte[] message, Collector<RowData> out) throws IOException {
 
-        inputStream.setBuffer(message);
-        schemaCoder.readSchema(inputStream);
-        // Not sure what the message indexes are, it is some Confluent Schema Registry Protobuf
-        // magic. Until we figure out what that is, let's skip it
-        skipMessageIndexes(inputStream);
+        DynamicMessage debeziumEnvelop = protoDeserializer.parseFrom(message);
+        Optional<RowData> before =
+                extractPayload(debeziumEnvelop, EnvelopField.BEFORE, beforeConverter );
+        Optional<RowData> after =
+                extractPayload(debeziumEnvelop, EnvelopField.AFTER,afterConverter );
+        Optional<String> operation = extractPayload(debeziumEnvelop, EnvelopField.OP, Object::toString);
 
-        final DynamicMessage dynamicMessage = DynamicMessage.parseFrom(descriptor, inputStream);
-
-        if (message == null || message.length == 0) {
-            // skip tombstone messages
-            return;
-        }
-        RowData before= null;
-        RowData after= null;
-        String op = null;
-
-        try {
-            Map<Descriptors.FieldDescriptor,Object> fieldMap = dynamicMessage.getAllFields();
-            //probably not write, we need to figure out exact index of proto message in debezium
-            //also convert
-
-            for(Descriptors.FieldDescriptor fd:fieldMap.keySet()){
-                if(fd.getIndex()==0){
-                    before = (RowData) beforeConverter.convert(fieldMap.get(fd));
-                }
-                if(fd.getIndex()==1){
-                    after = (RowData) afterConverter.convert(fieldMap.get(fd));
-                }
-                if(fd.getIndex()==2){
-                    op = ((DynamicMessage) fieldMap.get(fd)).toString();
-                }
-            }
+        if (!operation.isPresent()) {
+            throw new IOException("Malformed debezium proto message");
+        } else {
+            String op = operation.get();
 
             if (OP_CREATE.equals(op) || OP_READ.equals(op)) {
-                after.setRowKind(RowKind.INSERT);
-                out.collect(after);
+                extractIfPresent(after, out, RowKind.INSERT);
             } else if (OP_UPDATE.equals(op)) {
-                if (before == null) {
-                    throw new IllegalStateException(
-                            String.format(REPLICA_IDENTITY_EXCEPTION, "UPDATE"));
-                }
-                before.setRowKind(RowKind.UPDATE_BEFORE);
-                after.setRowKind(RowKind.UPDATE_AFTER);
-                out.collect(before);
-                out.collect(after);
+                extractOrElseThrow(before, out, RowKind.UPDATE_BEFORE);
+                extractIfPresent(after, out, RowKind.UPDATE_AFTER);
+
             } else if (OP_DELETE.equals(op)) {
-                if (before == null) {
-                    throw new IllegalStateException(
-                            String.format(REPLICA_IDENTITY_EXCEPTION, "DELETE"));
-                }
-                before.setRowKind(RowKind.DELETE);
-                out.collect(before);
+                extractOrElseThrow(before, out, RowKind.DELETE);
+
             } else {
                 throw new IOException(
                         format(
                                 "Unknown \"op\" value \"%s\". The Debezium Avro message is '%s'",
                                 op, new String(message)));
             }
-        } catch (Throwable t) {
-            // a big try catch to protect the processing.
-            throw new IOException("Can't deserialize Debezium Avro message.", t);
         }
-
     }
 
     @Override
@@ -170,5 +187,11 @@ public class DebeziumProtoRegistryDeserializationSchema implements Deserializati
     @Override
     public TypeInformation<RowData> getProducedType() {
         return null;
+    }
+
+    private static class EnvelopField {
+        private static String BEFORE = "before";
+        private static String AFTER = "after";
+        private static String OP = "op";
     }
 }

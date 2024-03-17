@@ -43,9 +43,9 @@ public class RegistryClientConfigFactory {
         final String schemaRegistryURL = formatOptions.get(RegistryFormatOptions.URL);
         final int schemaId = formatOptions.get(RegistryFormatOptions.SCHEMA_ID);
         final int cacheSize = formatOptions.get(RegistryFormatOptions.SCHEMA_CACHE_SIZE);
-        final Map<String, Object> schemaClientProperties =
-                new HashMap<>();
-        formatOptions.getOptional(RegistryFormatOptions.PROPERTIES)
+        final Map<String, Object> schemaClientProperties = new HashMap<>();
+        formatOptions
+                .getOptional(RegistryFormatOptions.PROPERTIES)
                 .ifPresent(schemaClientProperties::putAll);
 
         return new DefaultSchemaRegistryConfig(

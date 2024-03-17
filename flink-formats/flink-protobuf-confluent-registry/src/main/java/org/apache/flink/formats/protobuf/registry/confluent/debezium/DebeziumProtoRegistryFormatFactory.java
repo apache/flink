@@ -1,3 +1,21 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.formats.protobuf.registry.confluent.debezium;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
@@ -6,13 +24,14 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.protobuf.registry.confluent.RegistryClientConfigFactory;
-import org.apache.flink.formats.protobuf.registry.confluent.RegistryFormatOptions;
 import org.apache.flink.formats.protobuf.registry.confluent.SchemaRegistryConfig;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DeserializationFormatFactory;
@@ -23,9 +42,9 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 public class DebeziumProtoRegistryFormatFactory
@@ -38,7 +57,6 @@ public class DebeziumProtoRegistryFormatFactory
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
         FactoryUtil.validateFactoryOptions(this, formatOptions);
 
-
         return new ProjectableDecodingFormat<DeserializationSchema<RowData>>() {
             @Override
             public DeserializationSchema<RowData> createRuntimeDecoder(
@@ -50,12 +68,11 @@ public class DebeziumProtoRegistryFormatFactory
                 final TypeInformation<RowData> producedTypeInfo =
                         context.createTypeInformation(producedDataType);
 
-                final SchemaRegistryConfig registryConfig = RegistryClientConfigFactory.get(formatOptions);
+                final SchemaRegistryConfig registryConfig =
+                        RegistryClientConfigFactory.get(formatOptions);
 
                 return new DebeziumProtoRegistryDeserializationSchema(
-                        rowType,
-                        producedTypeInfo,
-                        registryConfig);
+                        rowType, producedTypeInfo, registryConfig);
             }
 
             @Override
@@ -68,14 +85,35 @@ public class DebeziumProtoRegistryFormatFactory
                         .build();
             }
         };
-
     }
-
 
     @Override
     public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
-        return null;
+
+        FactoryUtil.validateFactoryOptions(this, formatOptions);
+
+        return new EncodingFormat<SerializationSchema<RowData>>() {
+            @Override
+            public ChangelogMode getChangelogMode() {
+                return ChangelogMode.newBuilder()
+                        .addContainedKind(RowKind.INSERT)
+                        .addContainedKind(RowKind.UPDATE_BEFORE)
+                        .addContainedKind(RowKind.UPDATE_AFTER)
+                        .addContainedKind(RowKind.DELETE)
+                        .build();
+            }
+
+            @Override
+            public SerializationSchema<RowData> createRuntimeEncoder(
+                    DynamicTableSink.Context context, DataType consumedDataType) {
+                final SchemaRegistryConfig registryConfig =
+                        RegistryClientConfigFactory.get(formatOptions);
+                final RowType rowType = (RowType) consumedDataType.getLogicalType();
+                return new DebeziumProtoRegistrySerializationSchema(
+                        registryConfig,rowType);
+            }
+        };
     }
 
     @Override
