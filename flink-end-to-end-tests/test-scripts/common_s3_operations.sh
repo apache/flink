@@ -38,6 +38,11 @@ function aws_cli_start() {
     -it banst/awscli)
   if [ $? -ne 0 ]; then
     echo "running aws cli container failed"
+    if [ -n "$CONTAINER_ID" ]
+    then
+      docker kill "$CONTAINER_ID"
+      docker rm "$CONTAINER_ID"
+    fi
     return 1
   fi
   export AWSCLI_CONTAINER_ID="$CONTAINER_ID"
