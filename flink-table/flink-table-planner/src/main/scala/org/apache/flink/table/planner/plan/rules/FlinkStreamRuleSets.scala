@@ -126,6 +126,7 @@ object FlinkStreamRuleSets {
           CoreRules.FILTER_MERGE,
           // unnest rule
           LogicalUnnestRule.INSTANCE,
+          UncollectToTableFunctionScanRule.INSTANCE,
           // rewrite constant table function scan to correlate
           JoinTableFunctionScanToCorrelateRule.INSTANCE,
           // Wrap arguments for JSON aggregate functions
