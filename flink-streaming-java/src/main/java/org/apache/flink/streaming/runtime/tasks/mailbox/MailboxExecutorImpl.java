@@ -103,4 +103,11 @@ public final class MailboxExecutorImpl implements MailboxExecutor {
             return false;
         }
     }
+
+    @Override
+    public boolean shouldInterrupt() {
+        // TODO: FLINK-35051 we shouldn't interrupt for every mail, but only for the time sensitive
+        // ones, for example related to checkpointing.
+        return mailbox.hasMail();
+    }
 }
