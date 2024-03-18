@@ -30,12 +30,21 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
+import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
+import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager.SubtaskKey;
+import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManagerBuilder;
+import org.apache.flink.runtime.checkpoint.filemerging.FileMergingType;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.state.filemerging.FileMergingOperatorStreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
+import org.apache.flink.runtime.state.filesystem.FsMergingCheckpointStorageLocation;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
@@ -47,6 +56,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
@@ -64,6 +74,8 @@ import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.core.fs.Path.fromLocalFile;
+import static org.apache.flink.core.fs.local.LocalFileSystem.getSharedInstance;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
@@ -416,6 +428,62 @@ class OperatorStateBackendTest {
                 FutureUtils.runIfNotDoneAndGet(snapshot);
         OperatorStateHandle stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
         assertThat(stateHandle).isNull();
+    }
+
+    @Test
+    void testFileMergingSnapshotEmpty(@TempDir File tmpFolder) throws Exception {
+        final AbstractStateBackend abstractStateBackend = new MemoryStateBackend(4096);
+        CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
+
+        Environment env = createMockEnvironment();
+        final OperatorStateBackend operatorStateBackend =
+                abstractStateBackend.createOperatorStateBackend(
+                        new OperatorStateBackendParametersImpl(
+                                env, "testOperator", emptyStateHandles, cancelStreamRegistry));
+
+        Path checkpointBaseDir = new Path(tmpFolder.toString());
+        Path sharedStateDir =
+                new Path(
+                        checkpointBaseDir,
+                        AbstractFsCheckpointStorageAccess.CHECKPOINT_SHARED_STATE_DIR);
+        Path taskOwnedStateDir =
+                new Path(
+                        checkpointBaseDir,
+                        AbstractFsCheckpointStorageAccess.CHECKPOINT_TASK_OWNED_STATE_DIR);
+
+        final FileMergingSnapshotManager.SubtaskKey subtaskKey =
+                new FileMergingSnapshotManager.SubtaskKey("opId", 1, 1);
+        LocalFileSystem fs = getSharedInstance();
+        CheckpointStorageLocationReference cslReference =
+                AbstractFsCheckpointStorageAccess.encodePathAsReference(
+                        fromLocalFile(fs.pathToFile(checkpointBaseDir)));
+        FileMergingSnapshotManager snapshotManager =
+                createFileMergingSnapshotManager(
+                        checkpointBaseDir, sharedStateDir, taskOwnedStateDir, subtaskKey);
+        CheckpointStreamFactory streamFactory =
+                new FsMergingCheckpointStorageLocation(
+                        subtaskKey,
+                        fs,
+                        checkpointBaseDir,
+                        sharedStateDir,
+                        taskOwnedStateDir,
+                        cslReference,
+                        1024,
+                        1024,
+                        snapshotManager,
+                        0);
+
+        RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot =
+                operatorStateBackend.snapshot(
+                        0L,
+                        0L,
+                        streamFactory,
+                        CheckpointOptions.forCheckpointWithDefaultLocation());
+
+        SnapshotResult<OperatorStateHandle> snapshotResult =
+                FutureUtils.runIfNotDoneAndGet(snapshot);
+        OperatorStateHandle stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
+        assertThat(stateHandle).isInstanceOf(FileMergingOperatorStreamStateHandle.class);
     }
 
     @Test
@@ -1046,5 +1114,22 @@ class OperatorStateBackendTest {
         return abstractStateBackend.createOperatorStateBackend(
                 new OperatorStateBackendParametersImpl(
                         env, "testOperator", toRestore, new CloseableRegistry()));
+    }
+
+    private FileMergingSnapshotManager createFileMergingSnapshotManager(
+            Path checkpointBaseDir,
+            Path sharedStateDir,
+            Path taskOwnedStateDir,
+            SubtaskKey subtaskKey) {
+        FileMergingSnapshotManager mgr =
+                new FileMergingSnapshotManagerBuilder(
+                                "test-1", FileMergingType.MERGE_WITHIN_CHECKPOINT)
+                        .build();
+
+        mgr.initFileSystem(
+                getSharedInstance(), checkpointBaseDir, sharedStateDir, taskOwnedStateDir, 1024);
+
+        mgr.registerSubtaskForSharedStates(subtaskKey);
+        return mgr;
     }
 }

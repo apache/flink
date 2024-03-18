@@ -19,6 +19,7 @@ package org.apache.flink.runtime.checkpoint.filemerging;
 
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
+import org.apache.flink.runtime.state.filemerging.SegmentFileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileMergingCheckpointStateOutputStream;
 
 import org.junit.jupiter.api.Test;
