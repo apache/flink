@@ -51,6 +51,8 @@ import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -515,6 +517,53 @@ public class FileUtilsTest {
         FileUtils.expandDirectory(zip, new Path(extractDir.toAbsolutePath().toString()));
 
         assertDirEquals(compressDir.resolve(originalDir), extractDir.resolve(originalDir));
+    }
+
+    /**
+     * Generates zip archive, containing path to file/dir passed in, un-archives the generated zip
+     * using {@link org.apache.flink.util.FileUtils#expandDirectory(org.apache.flink.core.fs.Path,
+     * org.apache.flink.core.fs.Path)} and returns path to expanded folder.
+     *
+     * @param prefix prefix to use for creating source and destination folders
+     * @param path path to contents of zip
+     * @return Path to folder containing unzipped contents
+     * @throws IOException if I/O error in file creation, un-archiving detects unsafe access outside
+     *     target folder
+     */
+    private Path writeZipAndFetchExpandedPath(String prefix, String path) throws IOException {
+        // random source folder
+        String sourcePath = prefix + "src";
+        String dstPath = prefix + "dst";
+        java.nio.file.Path srcFolder = TempDirUtils.newFolder(temporaryFolder, sourcePath).toPath();
+        java.nio.file.Path zippedFile = srcFolder.resolve("file.zip");
+        ZipOutputStream out = new ZipOutputStream(Files.newOutputStream(zippedFile));
+        ZipEntry e1 = new ZipEntry(path);
+        out.putNextEntry(e1);
+        out.close();
+        java.nio.file.Path dstFolder = TempDirUtils.newFolder(temporaryFolder, dstPath).toPath();
+        return FileUtils.expandDirectory(
+                new Path(zippedFile.toString()), new Path(dstFolder.toString()));
+    }
+
+    @Test
+    public void testExpandDirWithValidPaths() {
+        Assertions.assertDoesNotThrow(() -> writeZipAndFetchExpandedPath("t0", "/level1/level2/"));
+        Assertions.assertDoesNotThrow(
+                () -> writeZipAndFetchExpandedPath("t1", "/level1/level2/file.txt"));
+        Assertions.assertDoesNotThrow(
+                () -> writeZipAndFetchExpandedPath("t2", "/level1/../level1/file.txt"));
+        Assertions.assertDoesNotThrow(
+                () -> writeZipAndFetchExpandedPath("t3", "/level1/level2/level3/../"));
+        Assertions.assertThrows(
+                IOException.class,
+                () -> writeZipAndFetchExpandedPath("t2", "/level1/level2/../../pass"));
+    }
+
+    @Test
+    public void testExpandDirWithForbiddenEscape() {
+        Assertions.assertThrows(
+                IOException.class, () -> writeZipAndFetchExpandedPath("t1", "/../../"));
+        Assertions.assertThrows(IOException.class, () -> writeZipAndFetchExpandedPath("t2", "../"));
     }
 
     /**

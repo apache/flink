@@ -43,11 +43,8 @@ import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
@@ -62,11 +59,10 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.streaming.util.StreamRecordMatchers.streamRecord;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.HamcrestCondition.matching;
 import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.anyCollection;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyLong;
@@ -88,9 +84,7 @@ import static org.mockito.hamcrest.MockitoHamcrest.argThat;
  *
  * <p>These tests document the implicit contract that exists between the windowing components.
  */
-public abstract class WindowOperatorContractTest extends TestLogger {
-
-    @Rule public ExpectedException expectedException = ExpectedException.none();
+abstract class WindowOperatorContractTest {
 
     private static ValueStateDescriptor<String> valueStateDescriptor =
             new ValueStateDescriptor<>("string-state", StringSerializer.INSTANCE, null);
@@ -285,7 +279,8 @@ public abstract class WindowOperatorContractTest extends TestLogger {
                                                 invocation.getArguments()[1];
 
                                 // verify the expected windows
-                                assertThat(windows, containsInAnyOrder(expectedWindows.toArray()));
+                                assertThat(windows)
+                                        .containsExactlyInAnyOrderElementsOf(expectedWindows);
 
                                 callback.merge(toMerge, mergeResult);
                                 return null;
@@ -377,7 +372,7 @@ public abstract class WindowOperatorContractTest extends TestLogger {
      * any windows.
      */
     @Test
-    public void testNoLateSideOutputForSkippedWindows() throws Exception {
+    void testNoLateSideOutputForSkippedWindows() throws Exception {
 
         OutputTag<Integer> lateOutputTag = new OutputTag<Integer>("late") {};
 
@@ -400,13 +395,12 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
         verify(mockAssigner, times(1)).assignWindows(eq(0), eq(5L), anyAssignerContext());
 
-        assertTrue(
-                testHarness.getSideOutput(lateOutputTag) == null
-                        || testHarness.getSideOutput(lateOutputTag).isEmpty());
+        assertThat(testHarness.getSideOutput(lateOutputTag))
+                .satisfiesAnyOf(o -> assertThat(o).isNull(), o -> assertThat(o).isEmpty());
     }
 
     @Test
-    public void testLateSideOutput() throws Exception {
+    void testLateSideOutput() throws Exception {
 
         OutputTag<Integer> lateOutputTag = new OutputTag<Integer>("late") {};
 
@@ -429,25 +423,25 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
         verify(mockAssigner, times(1)).assignWindows(eq(0), eq(5L), anyAssignerContext());
 
-        assertThat(testHarness.getSideOutput(lateOutputTag), contains(streamRecord(0, 5L)));
+        assertThat(testHarness.getSideOutput(lateOutputTag))
+                .is(matching(contains(streamRecord(0, 5L))));
 
         // we should also see side output if the WindowAssigner assigns no windows
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
-                .thenReturn(Collections.<TimeWindow>emptyList());
+                .thenReturn(Collections.emptyList());
 
         testHarness.processElement(new StreamRecord<>(0, 10L));
 
         verify(mockAssigner, times(1)).assignWindows(eq(0), eq(5L), anyAssignerContext());
         verify(mockAssigner, times(1)).assignWindows(eq(0), eq(10L), anyAssignerContext());
 
-        assertThat(
-                testHarness.getSideOutput(lateOutputTag),
-                contains(streamRecord(0, 5L), streamRecord(0, 10L)));
+        assertThat(testHarness.getSideOutput(lateOutputTag))
+                .is(matching(contains(streamRecord(0, 5L), streamRecord(0, 10L))));
     }
 
     /** This also verifies that the timestamps ouf side-emitted records is correct. */
     @Test
-    public void testSideOutput() throws Exception {
+    void testSideOutput() throws Exception {
 
         final OutputTag<Integer> integerOutputTag = new OutputTag<Integer>("int-out") {};
         final OutputTag<Long> longOutputTag = new OutputTag<Long>("long-out") {};
@@ -490,17 +484,15 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
         testHarness.processElement(new StreamRecord<>(17, 5L));
 
-        assertThat(
-                testHarness.getSideOutput(integerOutputTag),
-                contains(streamRecord(17, windowEnd - 1)));
+        assertThat(testHarness.getSideOutput(integerOutputTag))
+                .is(matching(contains(streamRecord(17, windowEnd - 1))));
 
-        assertThat(
-                testHarness.getSideOutput(longOutputTag),
-                contains(streamRecord(17L, windowEnd - 1)));
+        assertThat(testHarness.getSideOutput(longOutputTag))
+                .is(matching(contains(streamRecord(17L, windowEnd - 1))));
     }
 
     @Test
-    public void testAssignerIsInvokedOncePerElement() throws Exception {
+    void testAssignerIsInvokedOncePerElement() throws Exception {
 
         WindowAssigner<Integer, TimeWindow> mockAssigner = mockTimeWindowAssigner();
         Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
@@ -525,7 +517,7 @@ public abstract class WindowOperatorContractTest extends TestLogger {
     }
 
     @Test
-    public void testAssignerWithMultipleWindows() throws Exception {
+    void testAssignerWithMultipleWindows() throws Exception {
 
         WindowAssigner<Integer, TimeWindow> mockAssigner = mockTimeWindowAssigner();
         Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
@@ -568,7 +560,7 @@ public abstract class WindowOperatorContractTest extends TestLogger {
     }
 
     @Test
-    public void testWindowsDontInterfere() throws Exception {
+    void testWindowsDontInterfere() throws Exception {
 
         WindowAssigner<Integer, TimeWindow> mockAssigner = mockTimeWindowAssigner();
         Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
@@ -591,11 +583,11 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         testHarness.processElement(new StreamRecord<>(1, 0L));
 
         // no output so far
-        assertTrue(testHarness.extractOutputStreamRecords().isEmpty());
+        assertThat(testHarness.extractOutputStreamRecords()).isEmpty();
 
         // state for two windows
-        assertEquals(2, testHarness.numKeyedStateEntries());
-        assertEquals(2, testHarness.numEventTimeTimers());
+        assertThat(testHarness.numKeyedStateEntries()).isEqualTo(2);
+        assertThat(testHarness.numEventTimeTimers()).isEqualTo(2);
 
         // now we fire
         shouldFireOnElement(mockTrigger);
@@ -634,7 +626,7 @@ public abstract class WindowOperatorContractTest extends TestLogger {
     }
 
     @Test
-    public void testOnElementCalledPerWindow() throws Exception {
+    void testOnElementCalledPerWindow() throws Exception {
 
         WindowAssigner<Integer, TimeWindow> mockAssigner = mockTimeWindowAssigner();
         Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
@@ -661,7 +653,7 @@ public abstract class WindowOperatorContractTest extends TestLogger {
     }
 
     @Test
-    public void testEmittingFromWindowFunction() throws Exception {
+    void testEmittingFromWindowFunction() throws Exception {
 
         WindowAssigner<Integer, TimeWindow> mockAssigner = mockTimeWindowAssigner();
         Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
@@ -720,18 +712,17 @@ public abstract class WindowOperatorContractTest extends TestLogger {
                         intIterable(0),
                         WindowOperatorContractTest.<String>anyCollector());
 
-        assertThat(
-                testHarness.extractOutputStreamRecords(),
-                contains(streamRecord("Hallo", 1L), streamRecord("Ciao", 1L)));
+        assertThat(testHarness.extractOutputStreamRecords())
+                .is(matching(contains(streamRecord("Hallo", 1L), streamRecord("Ciao", 1L))));
     }
 
     @Test
-    public void testEmittingFromWindowFunctionOnEventTime() throws Exception {
+    void testEmittingFromWindowFunctionOnEventTime() throws Exception {
         testEmittingFromWindowFunction(new EventTimeAdaptor());
     }
 
     @Test
-    public void testEmittingFromWindowFunctionOnProcessingTime() throws Exception {
+    void testEmittingFromWindowFunctionOnProcessingTime() throws Exception {
         testEmittingFromWindowFunction(new ProcessingTimeAdaptor());
     }
 
@@ -780,7 +771,7 @@ public abstract class WindowOperatorContractTest extends TestLogger {
                         anyInternalWindowContext(),
                         anyIntIterable(),
                         WindowOperatorContractTest.<String>anyCollector());
-        assertTrue(testHarness.extractOutputStreamRecords().isEmpty());
+        assertThat(testHarness.extractOutputStreamRecords()).isEmpty();
 
         timeAdaptor.shouldFireOnTime(mockTrigger);
 
@@ -794,13 +785,12 @@ public abstract class WindowOperatorContractTest extends TestLogger {
                         intIterable(0),
                         WindowOperatorContractTest.<String>anyCollector());
 
-        assertThat(
-                testHarness.extractOutputStreamRecords(),
-                contains(streamRecord("Hallo", 1L), streamRecord("Ciao", 1L)));
+        assertThat(testHarness.extractOutputStreamRecords())
+                .is(matching(contains(streamRecord("Hallo", 1L), streamRecord("Ciao", 1L))));
     }
 
     @Test
-    public void testOnElementContinue() throws Exception {
+    void testOnElementContinue() throws Exception {
 
         WindowAssigner<Integer, TimeWindow> mockAssigner = mockTimeWindowAssigner();
         Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
@@ -815,8 +805,8 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(2, 4), new TimeWindow(0, 2)));
 
-        assertEquals(0, testHarness.getOutput().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.getOutput()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         doAnswer(
                         new Answer<TriggerResult>() {
@@ -844,15 +834,16 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
 
         // CONTINUE should not purge contents
-        assertEquals(4, testHarness.numKeyedStateEntries()); // window contents plus trigger state
-        assertEquals(4, testHarness.numEventTimeTimers()); // window timers/gc timers
+        assertThat(testHarness.numKeyedStateEntries())
+                .isEqualTo(4); // window contents plus trigger state
+        assertThat(testHarness.numEventTimeTimers()).isEqualTo(4); // window timers/gc timers
 
         // there should be no firing
-        assertEquals(0, testHarness.getOutput().size());
+        assertThat(testHarness.getOutput()).isEmpty();
     }
 
     @Test
-    public void testOnElementFire() throws Exception {
+    void testOnElementFire() throws Exception {
 
         WindowAssigner<Integer, TimeWindow> mockAssigner = mockTimeWindowAssigner();
         Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
@@ -867,8 +858,8 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(2, 4), new TimeWindow(0, 2)));
 
-        assertEquals(0, testHarness.getOutput().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.getOutput()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         doAnswer(
                         new Answer<TriggerResult>() {
@@ -918,12 +909,13 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
 
         // FIRE should not purge contents
-        assertEquals(4, testHarness.numKeyedStateEntries()); // window contents plus trigger state
-        assertEquals(4, testHarness.numEventTimeTimers()); // window timers/gc timers
+        assertThat(testHarness.numKeyedStateEntries())
+                .isEqualTo(4); // window contents plus trigger state
+        assertThat(testHarness.numEventTimeTimers()).isEqualTo(4); // window timers/gc timers
     }
 
     @Test
-    public void testOnElementFireAndPurge() throws Exception {
+    void testOnElementFireAndPurge() throws Exception {
 
         WindowAssigner<Integer, TimeWindow> mockAssigner = mockTimeWindowAssigner();
         Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
@@ -938,8 +930,8 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(2, 4), new TimeWindow(0, 2)));
 
-        assertEquals(0, testHarness.getOutput().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.getOutput()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         doAnswer(
                         new Answer<TriggerResult>() {
@@ -989,17 +981,15 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
 
         // FIRE_AND_PURGE should purge contents
-        assertEquals(
-                2,
-                testHarness
-                        .numKeyedStateEntries()); // trigger state will stick around until GC time
+        assertThat(testHarness.numKeyedStateEntries())
+                .isEqualTo(2); // trigger state will stick around until GC time
 
         // timers will stick around
-        assertEquals(4, testHarness.numEventTimeTimers());
+        assertThat(testHarness.numEventTimeTimers()).isEqualTo(4);
     }
 
     @Test
-    public void testOnElementPurge() throws Exception {
+    void testOnElementPurge() throws Exception {
 
         WindowAssigner<Integer, TimeWindow> mockAssigner = mockTimeWindowAssigner();
         Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
@@ -1014,8 +1004,8 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(2, 4), new TimeWindow(0, 2)));
 
-        assertEquals(0, testHarness.getOutput().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.getOutput()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         doAnswer(
                         new Answer<TriggerResult>() {
@@ -1042,25 +1032,23 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
 
         // PURGE should purge contents
-        assertEquals(
-                2,
-                testHarness
-                        .numKeyedStateEntries()); // trigger state will stick around until GC time
+        assertThat(testHarness.numKeyedStateEntries())
+                .isEqualTo(2); // trigger state will stick around until GC time
 
         // timers will stick around
-        assertEquals(4, testHarness.numEventTimeTimers()); // trigger timer and GC timer
+        assertThat(testHarness.numEventTimeTimers()).isEqualTo(4); // trigger timer and GC timer
 
         // no output
-        assertEquals(0, testHarness.getOutput().size());
+        assertThat(testHarness.getOutput()).isEmpty();
     }
 
     @Test
-    public void testOnEventTimeContinue() throws Exception {
+    void testOnEventTimeContinue() throws Exception {
         testOnTimeContinue(new EventTimeAdaptor());
     }
 
     @Test
-    public void testOnProcessingTimeContinue() throws Exception {
+    void testOnProcessingTimeContinue() throws Exception {
         testOnTimeContinue(new ProcessingTimeAdaptor());
     }
 
@@ -1082,8 +1070,8 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(2, 4), new TimeWindow(0, 2)));
 
-        assertEquals(0, testHarness.extractOutputStreamRecords().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.extractOutputStreamRecords()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         // this should register two timers because we have two windows
         doAnswer(
@@ -1110,28 +1098,29 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
-        assertEquals(
-                4,
-                testHarness.numKeyedStateEntries()); // window-contents plus trigger state for two
+        assertThat(testHarness.numKeyedStateEntries())
+                .isEqualTo(4); // window-contents plus trigger state for two
+
         // windows
-        assertEquals(4, timeAdaptor.numTimers(testHarness)); // timers/gc timers for two windows
+        assertThat(timeAdaptor.numTimers(testHarness))
+                .isEqualTo(4); // timers/gc timers for two windows
 
         timeAdaptor.advanceTime(testHarness, 0L);
 
-        assertEquals(4, testHarness.numKeyedStateEntries());
-        assertEquals(2, timeAdaptor.numTimers(testHarness)); // only gc timers left
+        assertThat(testHarness.numKeyedStateEntries()).isEqualTo(4);
+        assertThat(timeAdaptor.numTimers(testHarness)).isEqualTo(2); // only gc timers left
 
         // there should be no firing
-        assertEquals(0, testHarness.extractOutputStreamRecords().size());
+        assertThat(testHarness.extractOutputStreamRecords()).isEmpty();
     }
 
     @Test
-    public void testOnEventTimeFire() throws Exception {
+    void testOnEventTimeFire() throws Exception {
         testOnTimeFire(new EventTimeAdaptor());
     }
 
     @Test
-    public void testOnProcessingTimeFire() throws Exception {
+    void testOnProcessingTimeFire() throws Exception {
         testOnTimeFire(new ProcessingTimeAdaptor());
     }
 
@@ -1153,8 +1142,8 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(2, 4), new TimeWindow(0, 2)));
 
-        assertEquals(0, testHarness.extractOutputStreamRecords().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.extractOutputStreamRecords()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         doAnswer(
                         new Answer<TriggerResult>() {
@@ -1180,10 +1169,11 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
-        assertEquals(
-                4, testHarness.numKeyedStateEntries()); // window-contents and trigger state for two
+        assertThat(testHarness.numKeyedStateEntries())
+                .isEqualTo(4); // window-contents and trigger state for two
         // windows
-        assertEquals(4, timeAdaptor.numTimers(testHarness)); // timers/gc timers for two windows
+        assertThat(timeAdaptor.numTimers(testHarness))
+                .isEqualTo(4); // timers/gc timers for two windows
 
         timeAdaptor.advanceTime(testHarness, 0L);
 
@@ -1213,17 +1203,17 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
 
         // FIRE should not purge contents
-        assertEquals(4, testHarness.numKeyedStateEntries());
-        assertEquals(2, timeAdaptor.numTimers(testHarness)); // only gc timers left
+        assertThat(testHarness.numKeyedStateEntries()).isEqualTo(4);
+        assertThat(timeAdaptor.numTimers(testHarness)).isEqualTo(2); // only gc timers left
     }
 
     @Test
-    public void testOnEventTimeFireAndPurge() throws Exception {
+    void testOnEventTimeFireAndPurge() throws Exception {
         testOnTimeFireAndPurge(new EventTimeAdaptor());
     }
 
     @Test
-    public void testOnProcessingTimeFireAndPurge() throws Exception {
+    void testOnProcessingTimeFireAndPurge() throws Exception {
         testOnTimeFireAndPurge(new ProcessingTimeAdaptor());
     }
 
@@ -1245,8 +1235,8 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(2, 4), new TimeWindow(0, 2)));
 
-        assertEquals(0, testHarness.extractOutputStreamRecords().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.extractOutputStreamRecords()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         doAnswer(
                         new Answer<TriggerResult>() {
@@ -1271,10 +1261,11 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
-        assertEquals(
-                4, testHarness.numKeyedStateEntries()); // window-contents and trigger state for two
+        assertThat(testHarness.numKeyedStateEntries())
+                .isEqualTo(4); // window-contents and trigger state for two
         // windows
-        assertEquals(4, timeAdaptor.numTimers(testHarness)); // timers/gc timers for two windows
+        assertThat(timeAdaptor.numTimers(testHarness))
+                .isEqualTo(4); // timers/gc timers for two windows
 
         timeAdaptor.advanceTime(testHarness, 0L);
 
@@ -1304,17 +1295,18 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
 
         // FIRE_AND_PURGE should purge contents
-        assertEquals(2, testHarness.numKeyedStateEntries()); // trigger state stays until GC time
-        assertEquals(2, timeAdaptor.numTimers(testHarness)); // gc timers are still there
+        assertThat(testHarness.numKeyedStateEntries())
+                .isEqualTo(2); // trigger state stays until GC time
+        assertThat(timeAdaptor.numTimers(testHarness)).isEqualTo(2); // gc timers are still there
     }
 
     @Test
-    public void testOnEventTimePurge() throws Exception {
+    void testOnEventTimePurge() throws Exception {
         testOnTimePurge(new EventTimeAdaptor());
     }
 
     @Test
-    public void testOnProcessingTimePurge() throws Exception {
+    void testOnProcessingTimePurge() throws Exception {
         testOnTimePurge(new ProcessingTimeAdaptor());
     }
 
@@ -1336,8 +1328,8 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(2, 4), new TimeWindow(4, 6)));
 
-        assertEquals(0, testHarness.extractOutputStreamRecords().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.extractOutputStreamRecords()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         doAnswer(
                         new Answer<TriggerResult>() {
@@ -1363,10 +1355,11 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
-        assertEquals(
-                4, testHarness.numKeyedStateEntries()); // window-contents and trigger state for two
+        assertThat(testHarness.numKeyedStateEntries())
+                .isEqualTo(4); // window-contents and trigger state for two
         // windows
-        assertEquals(4, timeAdaptor.numTimers(testHarness)); // timers/gc timers for two windows
+        assertThat(timeAdaptor.numTimers(testHarness))
+                .isEqualTo(4); // timers/gc timers for two windows
 
         timeAdaptor.advanceTime(testHarness, 1L);
 
@@ -1374,20 +1367,21 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
 
         // PURGE should purge contents
-        assertEquals(2, testHarness.numKeyedStateEntries()); // trigger state will stick around
-        assertEquals(2, timeAdaptor.numTimers(testHarness)); // gc timers are still there
+        assertThat(testHarness.numKeyedStateEntries())
+                .isEqualTo(2); // trigger state will stick around
+        assertThat(timeAdaptor.numTimers(testHarness)).isEqualTo(2); // gc timers are still there
 
         // still no output
-        assertEquals(0, testHarness.extractOutputStreamRecords().size());
+        assertThat(testHarness.extractOutputStreamRecords()).isEmpty();
     }
 
     @Test
-    public void testNoEventTimeFiringForPurgedWindow() throws Exception {
+    void testNoEventTimeFiringForPurgedWindow() throws Exception {
         testNoTimerFiringForPurgedWindow(new EventTimeAdaptor());
     }
 
     @Test
-    public void testNoProcessingTimeFiringForPurgedWindow() throws Exception {
+    void testNoProcessingTimeFiringForPurgedWindow() throws Exception {
         testNoTimerFiringForPurgedWindow(new ProcessingTimeAdaptor());
     }
 
@@ -1416,8 +1410,8 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(2, 4)));
 
-        assertEquals(0, testHarness.extractOutputStreamRecords().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.extractOutputStreamRecords()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         doAnswer(
                         new Answer<TriggerResult>() {
@@ -1440,8 +1434,8 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
-        assertEquals(0, testHarness.numKeyedStateEntries()); // not contents or state
-        assertEquals(2, timeAdaptor.numTimers(testHarness)); // timer and gc timer
+        assertThat(testHarness.numKeyedStateEntries()).isZero(); // not contents or state
+        assertThat(timeAdaptor.numTimers(testHarness)).isEqualTo(2); // timer and gc timer
 
         timeAdaptor.advanceTime(testHarness, 0L);
 
@@ -1454,18 +1448,18 @@ public abstract class WindowOperatorContractTest extends TestLogger {
                         anyTimeWindow(),
                         anyInternalWindowContext(),
                         anyIntIterable(),
-                        WindowOperatorContractTest.<List<Integer>>anyCollector());
+                        WindowOperatorContractTest.anyCollector());
 
-        assertEquals(1, timeAdaptor.numTimers(testHarness)); // only gc timers left
+        assertThat(timeAdaptor.numTimers(testHarness)).isOne(); // only gc timers left
     }
 
     @Test
-    public void testNoEventTimeFiringForPurgedMergingWindow() throws Exception {
+    void testNoEventTimeFiringForPurgedMergingWindow() throws Exception {
         testNoTimerFiringForPurgedMergingWindow(new EventTimeAdaptor());
     }
 
     @Test
-    public void testNoProcessingTimeFiringForPurgedMergingWindow() throws Exception {
+    void testNoProcessingTimeFiringForPurgedMergingWindow() throws Exception {
         testNoTimerFiringForPurgedMergingWindow(new ProcessingTimeAdaptor());
     }
 
@@ -1494,8 +1488,8 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(2, 4)));
 
-        assertEquals(0, testHarness.extractOutputStreamRecords().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.extractOutputStreamRecords()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         doAnswer(
                         new Answer<TriggerResult>() {
@@ -1518,8 +1512,8 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
-        assertEquals(1, testHarness.numKeyedStateEntries()); // just the merging window set
-        assertEquals(2, timeAdaptor.numTimers(testHarness)); // timer and gc timer
+        assertThat(testHarness.numKeyedStateEntries()).isOne(); // just the merging window set
+        assertThat(timeAdaptor.numTimers(testHarness)).isEqualTo(2); // timer and gc timer
 
         timeAdaptor.advanceTime(testHarness, 0L);
 
@@ -1532,18 +1526,18 @@ public abstract class WindowOperatorContractTest extends TestLogger {
                         anyTimeWindow(),
                         anyInternalWindowContext(),
                         anyIntIterable(),
-                        WindowOperatorContractTest.<List<Integer>>anyCollector());
+                        WindowOperatorContractTest.anyCollector());
 
-        assertEquals(1, timeAdaptor.numTimers(testHarness)); // only gc timers left
+        assertThat(timeAdaptor.numTimers(testHarness)).isOne(); // only gc timers left
     }
 
     @Test
-    public void testNoEventTimeFiringForGarbageCollectedMergingWindow() throws Exception {
+    void testNoEventTimeFiringForGarbageCollectedMergingWindow() throws Exception {
         testNoTimerFiringForGarbageCollectedMergingWindow(new EventTimeAdaptor());
     }
 
     @Test
-    public void testNoProcessingTimeFiringForGarbageCollectedMergingWindow() throws Exception {
+    void testNoProcessingTimeFiringForGarbageCollectedMergingWindow() throws Exception {
         testNoTimerFiringForGarbageCollectedMergingWindow(new ProcessingTimeAdaptor());
     }
 
@@ -1572,8 +1566,8 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(2, 4)));
 
-        assertEquals(0, testHarness.extractOutputStreamRecords().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.extractOutputStreamRecords()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         doAnswer(
                         new Answer<TriggerResult>() {
@@ -1596,9 +1590,9 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
-        assertEquals(
-                2, testHarness.numKeyedStateEntries()); // window contents and merging window set
-        assertEquals(2, timeAdaptor.numTimers(testHarness)); // timer and gc timer
+        assertThat(testHarness.numKeyedStateEntries())
+                .isEqualTo(2); // window contents and merging window set
+        assertThat(timeAdaptor.numTimers(testHarness)).isEqualTo(2); // timer and gc timer
 
         timeAdaptor.shouldContinueOnTime(mockTrigger);
 
@@ -1607,9 +1601,9 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
         verify(mockTrigger, times(1)).clear(anyTimeWindow(), anyTriggerContext());
 
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
         // we still have a dangling timer because our trigger doesn't do cleanup
-        assertEquals(1, timeAdaptor.numTimers(testHarness));
+        assertThat(timeAdaptor.numTimers(testHarness)).isOne();
 
         timeAdaptor.verifyTriggerCallback(mockTrigger, times(1), null, null);
 
@@ -1629,12 +1623,12 @@ public abstract class WindowOperatorContractTest extends TestLogger {
     }
 
     @Test
-    public void testEventTimeTimerCreationAndDeletion() throws Exception {
+    void testEventTimeTimerCreationAndDeletion() throws Exception {
         testTimerCreationAndDeletion(new EventTimeAdaptor());
     }
 
     @Test
-    public void testProcessingTimeTimerCreationAndDeletion() throws Exception {
+    void testProcessingTimeTimerCreationAndDeletion() throws Exception {
         testTimerCreationAndDeletion(new ProcessingTimeAdaptor());
     }
 
@@ -1655,19 +1649,19 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(0, 2)));
 
-        assertEquals(0, timeAdaptor.numTimers(testHarness));
+        assertThat(timeAdaptor.numTimers(testHarness)).isZero();
 
         timeAdaptor.shouldRegisterTimerOnElement(mockTrigger, 17);
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
-        assertEquals(
-                2, timeAdaptor.numTimers(testHarness)); // +1 because of the GC timer of the window
+        assertThat(timeAdaptor.numTimers(testHarness))
+                .isEqualTo(2); // +1 because of the GC timer of the window
 
         timeAdaptor.shouldRegisterTimerOnElement(mockTrigger, 42);
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
-        assertEquals(
-                3, timeAdaptor.numTimers(testHarness)); // +1 because of the GC timer of the window
+        assertThat(timeAdaptor.numTimers(testHarness))
+                .isEqualTo(3); // +1 because of the GC timer of the window
 
         timeAdaptor.shouldDeleteTimerOnElement(mockTrigger, 42);
         testHarness.processElement(new StreamRecord<>(0, 0L));
@@ -1675,17 +1669,17 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         timeAdaptor.shouldDeleteTimerOnElement(mockTrigger, 17);
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
-        assertEquals(
-                1, timeAdaptor.numTimers(testHarness)); // +1 because of the GC timer of the window
+        assertThat(timeAdaptor.numTimers(testHarness))
+                .isOne(); // +1 because of the GC timer of the window
     }
 
     @Test
-    public void testEventTimeTimerFiring() throws Exception {
+    void testEventTimeTimerFiring() throws Exception {
         testTimerFiring(new EventTimeAdaptor());
     }
 
     @Test
-    public void testProcessingTimeTimerFiring() throws Exception {
+    void testProcessingTimeTimerFiring() throws Exception {
         testTimerFiring(new ProcessingTimeAdaptor());
     }
 
@@ -1705,7 +1699,7 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(0, 100)));
 
-        assertEquals(0, timeAdaptor.numTimers(testHarness));
+        assertThat(timeAdaptor.numTimers(testHarness)).isZero();
 
         timeAdaptor.shouldRegisterTimerOnElement(mockTrigger, 1);
         testHarness.processElement(new StreamRecord<>(0, 0L));
@@ -1716,15 +1710,15 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         timeAdaptor.shouldRegisterTimerOnElement(mockTrigger, 42);
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
-        assertEquals(
-                4, timeAdaptor.numTimers(testHarness)); // +1 because of the GC timer of the window
+        assertThat(timeAdaptor.numTimers(testHarness))
+                .isEqualTo(4); // +1 because of the GC timer of the window
 
         timeAdaptor.advanceTime(testHarness, 1);
 
         timeAdaptor.verifyTriggerCallback(mockTrigger, atLeastOnce(), 1L, new TimeWindow(0, 100));
         timeAdaptor.verifyTriggerCallback(mockTrigger, times(1), null, null);
-        assertEquals(
-                3, timeAdaptor.numTimers(testHarness)); // +1 because of the GC timer of the window
+        assertThat(timeAdaptor.numTimers(testHarness))
+                .isEqualTo(3); // +1 because of the GC timer of the window
 
         // doesn't do anything
         timeAdaptor.advanceTime(testHarness, 15);
@@ -1737,17 +1731,17 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         timeAdaptor.verifyTriggerCallback(mockTrigger, atLeastOnce(), 17L, new TimeWindow(0, 100));
         timeAdaptor.verifyTriggerCallback(mockTrigger, atLeastOnce(), 42L, new TimeWindow(0, 100));
         timeAdaptor.verifyTriggerCallback(mockTrigger, times(3), null, null);
-        assertEquals(
-                1, timeAdaptor.numTimers(testHarness)); // +1 because of the GC timer of the window
+        assertThat(timeAdaptor.numTimers(testHarness))
+                .isOne(); // +1 because of the GC timer of the window
     }
 
     @Test
-    public void testEventTimeDeletedTimerDoesNotFire() throws Exception {
+    void testEventTimeDeletedTimerDoesNotFire() throws Exception {
         testDeletedTimerDoesNotFire(new EventTimeAdaptor());
     }
 
     @Test
-    public void testProcessingTimeDeletedTimerDoesNotFire() throws Exception {
+    void testProcessingTimeDeletedTimerDoesNotFire() throws Exception {
         testDeletedTimerDoesNotFire(new ProcessingTimeAdaptor());
     }
 
@@ -1767,22 +1761,22 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(0, 100)));
 
-        assertEquals(0, timeAdaptor.numTimers(testHarness));
+        assertThat(timeAdaptor.numTimers(testHarness)).isZero();
 
         timeAdaptor.shouldRegisterTimerOnElement(mockTrigger, 1);
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
-        assertEquals(2, timeAdaptor.numTimers(testHarness)); // +1 for the GC timer
+        assertThat(timeAdaptor.numTimers(testHarness)).isEqualTo(2); // +1 for the GC timer
 
         timeAdaptor.shouldDeleteTimerOnElement(mockTrigger, 1);
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
-        assertEquals(1, timeAdaptor.numTimers(testHarness)); // +1 for the GC timer
+        assertThat(timeAdaptor.numTimers(testHarness)).isOne(); // +1 for the GC timer
 
         timeAdaptor.shouldRegisterTimerOnElement(mockTrigger, 2);
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
-        assertEquals(2, timeAdaptor.numTimers(testHarness)); // +1 for the GC timer
+        assertThat(timeAdaptor.numTimers(testHarness)).isEqualTo(2); // +1 for the GC timer
 
         timeAdaptor.advanceTime(testHarness, 50L);
 
@@ -1790,11 +1784,11 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         timeAdaptor.verifyTriggerCallback(mockTrigger, times(1), 2L, new TimeWindow(0, 100));
         timeAdaptor.verifyTriggerCallback(mockTrigger, times(1), null, null);
 
-        assertEquals(1, timeAdaptor.numTimers(testHarness)); // +1 for the GC timer
+        assertThat(timeAdaptor.numTimers(testHarness)).isOne(); // +1 for the GC timer
     }
 
     @Test
-    public void testMergeWindowsIsCalled() throws Exception {
+    void testMergeWindowsIsCalled() throws Exception {
 
         MergingWindowAssigner<Integer, TimeWindow> mockAssigner = mockMergingAssigner();
         Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
@@ -1809,8 +1803,8 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(2, 4), new TimeWindow(0, 2)));
 
-        assertEquals(0, testHarness.getOutput().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.getOutput()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
@@ -1825,12 +1819,12 @@ public abstract class WindowOperatorContractTest extends TestLogger {
     }
 
     @Test
-    public void testEventTimeWindowsAreMergedEagerly() throws Exception {
+    void testEventTimeWindowsAreMergedEagerly() throws Exception {
         testWindowsAreMergedEagerly(new EventTimeAdaptor());
     }
 
     @Test
-    public void testProcessingTimeWindowsAreMergedEagerly() throws Exception {
+    void testProcessingTimeWindowsAreMergedEagerly() throws Exception {
         testWindowsAreMergedEagerly(new ProcessingTimeAdaptor());
     }
 
@@ -1852,8 +1846,8 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
         timeAdaptor.advanceTime(testHarness, Long.MIN_VALUE);
 
-        assertEquals(0, testHarness.extractOutputStreamRecords().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.extractOutputStreamRecords()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         doAnswer(
                         new Answer<TriggerResult>() {
@@ -1910,11 +1904,10 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
-        assertEquals(
-                3,
-                testHarness.numKeyedStateEntries()); // window state plus trigger state plus merging
+        assertThat(testHarness.numKeyedStateEntries())
+                .isEqualTo(3); // window state plus trigger state plus merging
         // window set
-        assertEquals(2, timeAdaptor.numTimers(testHarness)); // timer and GC timer
+        assertThat(timeAdaptor.numTimers(testHarness)).isEqualTo(2); // timer and GC timer
 
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(2, 4)));
@@ -1946,17 +1939,17 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
         verify(mockTrigger).onMerge(eq(new TimeWindow(0, 4)), anyOnMergeContext());
 
-        assertEquals(3, testHarness.numKeyedStateEntries());
-        assertEquals(2, timeAdaptor.numTimers(testHarness));
+        assertThat(testHarness.numKeyedStateEntries()).isEqualTo(3);
+        assertThat(timeAdaptor.numTimers(testHarness)).isEqualTo(2);
     }
 
     @Test
-    public void testRejectShrinkingMergingEventTimeWindows() throws Exception {
+    void testRejectShrinkingMergingEventTimeWindows() throws Exception {
         testRejectShrinkingMergingWindows(new EventTimeAdaptor());
     }
 
     @Test
-    public void testRejectShrinkingMergingProcessingTimeWindows() throws Exception {
+    void testRejectShrinkingMergingProcessingTimeWindows() throws Exception {
         testRejectShrinkingMergingWindows(new ProcessingTimeAdaptor());
     }
 
@@ -1986,17 +1979,17 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
         timeAdaptor.advanceTime(testHarness, 0);
 
-        assertEquals(0, testHarness.extractOutputStreamRecords().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.extractOutputStreamRecords()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(0, 22)));
 
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
-        assertEquals(
-                2, testHarness.numKeyedStateEntries()); // window contents and merging window set
-        assertEquals(1, timeAdaptor.numTimers(testHarness)); // cleanup timer
+        assertThat(testHarness.numKeyedStateEntries())
+                .isEqualTo(2); // window contents and merging window set
+        assertThat(timeAdaptor.numTimers(testHarness)).isOne(); // cleanup timer
 
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(0, 25)));
@@ -2004,9 +1997,9 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         timeAdaptor.advanceTime(testHarness, 20);
 
         // our window should still be there
-        assertEquals(
-                2, testHarness.numKeyedStateEntries()); // window contents and merging window set
-        assertEquals(1, timeAdaptor.numTimers(testHarness)); // cleanup timer
+        assertThat(testHarness.numKeyedStateEntries())
+                .isEqualTo(2); // window contents and merging window set
+        assertThat(timeAdaptor.numTimers(testHarness)).isOne(); // cleanup timer
 
         // the result timestamp is ... + 2 because a watermark t says no element with
         // timestamp <= t will come in the future and because window ends are exclusive:
@@ -2036,17 +2029,17 @@ public abstract class WindowOperatorContractTest extends TestLogger {
                                 new TimeWindow(0, 25))),
                 new TimeWindow(0, 20 - allowedLateness + 1));
 
-        expectedException.expect(UnsupportedOperationException.class);
-        testHarness.processElement(new StreamRecord<>(0, 0L));
+        assertThatThrownBy(() -> testHarness.processElement(new StreamRecord<>(0, 0L)))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     @Test
-    public void testMergingOfExistingEventTimeWindows() throws Exception {
+    void testMergingOfExistingEventTimeWindows() throws Exception {
         testMergingOfExistingWindows(new EventTimeAdaptor());
     }
 
     @Test
-    public void testMergingOfExistingProcessingTimeWindows() throws Exception {
+    void testMergingOfExistingProcessingTimeWindows() throws Exception {
         testMergingOfExistingWindows(new ProcessingTimeAdaptor());
     }
 
@@ -2070,8 +2063,8 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
         timeAdaptor.advanceTime(testHarness, Long.MIN_VALUE);
 
-        assertEquals(0, testHarness.extractOutputStreamRecords().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.extractOutputStreamRecords()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         doAnswer(
                         new Answer<TriggerResult>() {
@@ -2129,22 +2122,20 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
-        assertEquals(
-                3,
-                testHarness.numKeyedStateEntries()); // window state plus trigger state plus merging
+        assertThat(testHarness.numKeyedStateEntries())
+                .isEqualTo(3); // window state plus trigger state plus merging
         // window set
-        assertEquals(2, timeAdaptor.numTimers(testHarness)); // trigger timer plus GC timer
+        assertThat(timeAdaptor.numTimers(testHarness)).isEqualTo(2); // trigger timer plus GC timer
 
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(2, 4)));
 
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
-        assertEquals(
-                5,
-                testHarness.numKeyedStateEntries()); // window state plus trigger state plus merging
+        assertThat(testHarness.numKeyedStateEntries())
+                .isEqualTo(5); // window state plus trigger state plus merging
         // window set
-        assertEquals(4, timeAdaptor.numTimers(testHarness)); // trigger timer plus GC timer
+        assertThat(timeAdaptor.numTimers(testHarness)).isEqualTo(4); // trigger timer plus GC timer
 
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(1, 3)));
@@ -2161,18 +2152,16 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
-        assertEquals(
-                3,
-                testHarness
-                        .numKeyedStateEntries()); // window contents plus trigger state plus merging
+        assertThat(testHarness.numKeyedStateEntries())
+                .isEqualTo(3); // window contents plus trigger state plus merging
         // window set
-        assertEquals(2, timeAdaptor.numTimers(testHarness)); // trigger timer plus GC timer
+        assertThat(timeAdaptor.numTimers(testHarness)).isEqualTo(2); // trigger timer plus GC timer
 
-        assertEquals(0, testHarness.extractOutputStreamRecords().size());
+        assertThat(testHarness.extractOutputStreamRecords()).isEmpty();
     }
 
     @Test
-    public void testOnElementPurgeDoesNotCleanupMergingSet() throws Exception {
+    void testOnElementPurgeDoesNotCleanupMergingSet() throws Exception {
 
         MergingWindowAssigner<Integer, TimeWindow> mockAssigner = mockMergingAssigner();
         Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
@@ -2187,8 +2176,8 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(0, 2)));
 
-        assertEquals(0, testHarness.getOutput().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.getOutput()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         doAnswer(
                         new Answer<TriggerResult>() {
@@ -2207,20 +2196,20 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
-        assertEquals(1, testHarness.numKeyedStateEntries()); // the merging window set
+        assertThat(testHarness.numKeyedStateEntries()).isOne(); // the merging window set
 
-        assertEquals(1, testHarness.numEventTimeTimers()); // one cleanup timer
+        assertThat(testHarness.numEventTimeTimers()).isOne(); // one cleanup timer
 
-        assertEquals(0, testHarness.getOutput().size());
+        assertThat(testHarness.getOutput()).isEmpty();
     }
 
     @Test
-    public void testOnEventTimePurgeDoesNotCleanupMergingSet() throws Exception {
+    void testOnEventTimePurgeDoesNotCleanupMergingSet() throws Exception {
         testOnTimePurgeDoesNotCleanupMergingSet(new EventTimeAdaptor());
     }
 
     @Test
-    public void testOnProcessingTimePurgeDoesNotCleanupMergingSet() throws Exception {
+    void testOnProcessingTimePurgeDoesNotCleanupMergingSet() throws Exception {
         testOnTimePurgeDoesNotCleanupMergingSet(new ProcessingTimeAdaptor());
     }
 
@@ -2241,8 +2230,8 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(0, 4)));
 
-        assertEquals(0, testHarness.getOutput().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.getOutput()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         timeAdaptor.shouldRegisterTimerOnElement(mockTrigger, 1L);
 
@@ -2250,25 +2239,25 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
         timeAdaptor.shouldPurgeOnTime(mockTrigger);
 
-        assertEquals(
-                2, testHarness.numKeyedStateEntries()); // the merging window set + window contents
-        assertEquals(2, timeAdaptor.numTimers(testHarness)); // one cleanup timer + timer
-        assertEquals(0, testHarness.getOutput().size());
+        assertThat(testHarness.numKeyedStateEntries())
+                .isEqualTo(2); // the merging window set + window contents
+        assertThat(timeAdaptor.numTimers(testHarness)).isEqualTo(2); // one cleanup timer + timer
+        assertThat(testHarness.getOutput()).isEmpty();
 
         timeAdaptor.advanceTime(testHarness, 1L);
 
-        assertEquals(1, testHarness.numKeyedStateEntries()); // the merging window set
-        assertEquals(1, timeAdaptor.numTimers(testHarness)); // one cleanup timer
-        assertEquals(0, testHarness.extractOutputStreamRecords().size());
+        assertThat(testHarness.numKeyedStateEntries()).isOne(); // the merging window set
+        assertThat(timeAdaptor.numTimers(testHarness)).isOne(); // one cleanup timer
+        assertThat(testHarness.extractOutputStreamRecords()).isEmpty();
     }
 
     @Test
-    public void testNoEventTimeGarbageCollectionTimerForGlobalWindow() throws Exception {
+    void testNoEventTimeGarbageCollectionTimerForGlobalWindow() throws Exception {
         testNoGarbageCollectionTimerForGlobalWindow(new EventTimeAdaptor());
     }
 
     @Test
-    public void testNoProcessingTimeGarbageCollectionTimerForGlobalWindow() throws Exception {
+    void testNoProcessingTimeGarbageCollectionTimerForGlobalWindow() throws Exception {
         testNoGarbageCollectionTimerForGlobalWindow(new ProcessingTimeAdaptor());
     }
 
@@ -2282,28 +2271,28 @@ public abstract class WindowOperatorContractTest extends TestLogger {
                 mockWindowFunction();
 
         // this needs to be true for the test to succeed
-        assertEquals(Long.MAX_VALUE, GlobalWindow.get().maxTimestamp());
+        assertThat(GlobalWindow.get().maxTimestamp()).isEqualTo(Long.MAX_VALUE);
 
         KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Void> testHarness =
                 createWindowOperator(mockAssigner, mockTrigger, 0L, mockWindowFunction);
 
         testHarness.open();
 
-        assertEquals(0, testHarness.getOutput().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.getOutput()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
         // just the window contents
-        assertEquals(1, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.numKeyedStateEntries()).isOne();
 
         // verify we have no timers for either time domain
-        assertEquals(0, testHarness.numEventTimeTimers());
-        assertEquals(0, testHarness.numProcessingTimeTimers());
+        assertThat(testHarness.numEventTimeTimers()).isZero();
+        assertThat(testHarness.numProcessingTimeTimers()).isZero();
     }
 
     @Test
-    public void testNoEventTimeGarbageCollectionTimerForLongMax() throws Exception {
+    void testNoEventTimeGarbageCollectionTimerForLongMax() throws Exception {
 
         WindowAssigner<Integer, TimeWindow> mockAssigner = mockTimeWindowAssigner();
         Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
@@ -2318,22 +2307,21 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(0, Long.MAX_VALUE - 10)));
 
-        assertEquals(0, testHarness.getOutput().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.getOutput()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
         // just the window contents
-        assertEquals(1, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.numKeyedStateEntries()).isOne();
 
         // no GC timer
-        assertEquals(0, testHarness.numEventTimeTimers());
-        assertEquals(0, testHarness.numProcessingTimeTimers());
+        assertThat(testHarness.numEventTimeTimers()).isZero();
+        assertThat(testHarness.numProcessingTimeTimers()).isZero();
     }
 
     @Test
-    public void testProcessingTimeGarbageCollectionTimerIsAlwaysWindowMaxTimestamp()
-            throws Exception {
+    void testProcessingTimeGarbageCollectionTimerIsAlwaysWindowMaxTimestamp() throws Exception {
 
         WindowAssigner<Integer, TimeWindow> mockAssigner = mockTimeWindowAssigner();
         when(mockAssigner.isEventTime()).thenReturn(false);
@@ -2349,17 +2337,17 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(0, Long.MAX_VALUE - 10)));
 
-        assertEquals(0, testHarness.getOutput().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.getOutput()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
         // just the window contents
-        assertEquals(1, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.numKeyedStateEntries()).isOne();
 
         // no GC timer
-        assertEquals(0, testHarness.numEventTimeTimers());
-        assertEquals(1, testHarness.numProcessingTimeTimers());
+        assertThat(testHarness.numEventTimeTimers()).isZero();
+        assertThat(testHarness.numProcessingTimeTimers()).isOne();
 
         verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
 
@@ -2367,17 +2355,17 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
         verify(mockTrigger, times(1)).clear(anyTimeWindow(), anyTriggerContext());
 
-        assertEquals(0, testHarness.numEventTimeTimers());
-        assertEquals(0, testHarness.numProcessingTimeTimers());
+        assertThat(testHarness.numEventTimeTimers()).isZero();
+        assertThat(testHarness.numProcessingTimeTimers()).isZero();
     }
 
     @Test
-    public void testEventTimeGarbageCollectionTimer() throws Exception {
+    void testEventTimeGarbageCollectionTimer() throws Exception {
         testGarbageCollectionTimer(new EventTimeAdaptor());
     }
 
     @Test
-    public void testProcessingTimeGarbageCollectionTimer() throws Exception {
+    void testProcessingTimeGarbageCollectionTimer() throws Exception {
         testGarbageCollectionTimer(new ProcessingTimeAdaptor());
     }
 
@@ -2404,16 +2392,16 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(0, 20)));
 
-        assertEquals(0, testHarness.getOutput().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.getOutput()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
         // just the window contents
-        assertEquals(1, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.numKeyedStateEntries()).isOne();
 
-        assertEquals(1, timeAdaptor.numTimers(testHarness));
-        assertEquals(0, timeAdaptor.numTimersOtherDomain(testHarness));
+        assertThat(timeAdaptor.numTimers(testHarness)).isOne();
+        assertThat(timeAdaptor.numTimersOtherDomain(testHarness)).isZero();
 
         verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
 
@@ -2437,17 +2425,17 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
         verify(mockTrigger, times(1)).clear(anyTimeWindow(), anyTriggerContext());
 
-        assertEquals(0, timeAdaptor.numTimers(testHarness));
-        assertEquals(0, timeAdaptor.numTimersOtherDomain(testHarness));
+        assertThat(timeAdaptor.numTimers(testHarness)).isZero();
+        assertThat(timeAdaptor.numTimersOtherDomain(testHarness)).isZero();
     }
 
     @Test
-    public void testEventTimeTriggerTimerAndGarbageCollectionTimerCoincide() throws Exception {
+    void testEventTimeTriggerTimerAndGarbageCollectionTimerCoincide() throws Exception {
         testTriggerTimerAndGarbageCollectionTimerCoincide(new EventTimeAdaptor());
     }
 
     @Test
-    public void testProcessingTimeTriggerTimerAndGarbageCollectionTimerCoincide() throws Exception {
+    void testProcessingTimeTriggerTimerAndGarbageCollectionTimerCoincide() throws Exception {
         testTriggerTimerAndGarbageCollectionTimerCoincide(new ProcessingTimeAdaptor());
     }
 
@@ -2467,8 +2455,8 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(0, 20)));
 
-        assertEquals(0, testHarness.getOutput().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.getOutput()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         doAnswer(
                         new Answer<TriggerResult>() {
@@ -2492,10 +2480,10 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
         // just the window contents
-        assertEquals(1, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.numKeyedStateEntries()).isOne();
 
-        assertEquals(1, timeAdaptor.numTimers(testHarness));
-        assertEquals(0, timeAdaptor.numTimersOtherDomain(testHarness));
+        assertThat(timeAdaptor.numTimers(testHarness)).isOne();
+        assertThat(timeAdaptor.numTimersOtherDomain(testHarness)).isZero();
 
         verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
 
@@ -2504,17 +2492,17 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         verify(mockTrigger, times(1)).clear(anyTimeWindow(), anyTriggerContext());
         timeAdaptor.verifyTriggerCallback(mockTrigger, times(1), null, null);
 
-        assertEquals(0, timeAdaptor.numTimers(testHarness));
-        assertEquals(0, timeAdaptor.numTimersOtherDomain(testHarness));
+        assertThat(timeAdaptor.numTimers(testHarness)).isZero();
+        assertThat(timeAdaptor.numTimersOtherDomain(testHarness)).isZero();
     }
 
     @Test
-    public void testStateAndTimerCleanupAtEventTimeGarbageCollection() throws Exception {
+    void testStateAndTimerCleanupAtEventTimeGarbageCollection() throws Exception {
         testStateAndTimerCleanupAtEventTimeGarbageCollection(new EventTimeAdaptor());
     }
 
     @Test
-    public void testStateAndTimerCleanupAtProcessingTimeGarbageCollection() throws Exception {
+    void testStateAndTimerCleanupAtProcessingTimeGarbageCollection() throws Exception {
         testStateAndTimerCleanupAtEventTimeGarbageCollection(new ProcessingTimeAdaptor());
     }
 
@@ -2534,8 +2522,8 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(0, 20)));
 
-        assertEquals(0, testHarness.getOutput().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.getOutput()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         doAnswer(
                         new Answer<TriggerResult>() {
@@ -2576,27 +2564,28 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         // clear is only called at cleanup time/GC time
         verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
 
-        assertEquals(2, testHarness.numKeyedStateEntries()); // window contents plus trigger state
-        assertEquals(2, timeAdaptor.numTimers(testHarness)); // window timers/gc timers
-        assertEquals(0, timeAdaptor.numTimersOtherDomain(testHarness));
+        assertThat(testHarness.numKeyedStateEntries())
+                .isEqualTo(2); // window contents plus trigger state
+        assertThat(timeAdaptor.numTimers(testHarness)).isEqualTo(2); // window timers/gc timers
+        assertThat(timeAdaptor.numTimersOtherDomain(testHarness)).isZero();
 
         timeAdaptor.advanceTime(testHarness, 19 + 20);
 
         verify(mockTrigger, times(1)).clear(anyTimeWindow(), anyTriggerContext());
 
-        assertEquals(0, testHarness.numKeyedStateEntries()); // window contents plus trigger state
-        assertEquals(0, timeAdaptor.numTimers(testHarness)); // window timers/gc timers
-        assertEquals(0, timeAdaptor.numTimersOtherDomain(testHarness));
+        assertThat(testHarness.numKeyedStateEntries())
+                .isZero(); // window contents plus trigger state
+        assertThat(timeAdaptor.numTimers(testHarness)).isZero(); // window timers/gc timers
+        assertThat(timeAdaptor.numTimersOtherDomain(testHarness)).isZero();
     }
 
     @Test
-    public void testStateAndTimerCleanupAtEventTimeGarbageCollectionWithPurgingTrigger()
-            throws Exception {
+    void testStateAndTimerCleanupAtEventTimeGarbageCollectionWithPurgingTrigger() throws Exception {
         testStateAndTimerCleanupAtEventTimeGCWithPurgingTrigger(new EventTimeAdaptor());
     }
 
     @Test
-    public void testStateAndTimerCleanupAtProcessingTimeGarbageCollectionWithPurgingTrigger()
+    void testStateAndTimerCleanupAtProcessingTimeGarbageCollectionWithPurgingTrigger()
             throws Exception {
         testStateAndTimerCleanupAtEventTimeGCWithPurgingTrigger(new ProcessingTimeAdaptor());
     }
@@ -2618,8 +2607,8 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(0, 20)));
 
-        assertEquals(0, testHarness.getOutput().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.getOutput()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         doAnswer(
                         new Answer<TriggerResult>() {
@@ -2660,29 +2649,29 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         // clear is only called at cleanup time/GC time
         verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
 
-        assertEquals(1, testHarness.numKeyedStateEntries()); // just the trigger state remains
-        assertEquals(2, timeAdaptor.numTimers(testHarness)); // window timers/gc timers
-        assertEquals(0, timeAdaptor.numTimersOtherDomain(testHarness));
+        assertThat(testHarness.numKeyedStateEntries()).isOne(); // just the trigger state remains
+        assertThat(timeAdaptor.numTimers(testHarness)).isEqualTo(2); // window timers/gc timers
+        assertThat(timeAdaptor.numTimersOtherDomain(testHarness)).isZero();
 
         timeAdaptor.advanceTime(testHarness, 19 + 20); // 19 is maxTime of the window
 
         verify(mockTrigger, times(1)).clear(anyTimeWindow(), anyTriggerContext());
 
-        assertEquals(0, testHarness.numKeyedStateEntries()); // window contents plus trigger state
-        assertEquals(0, timeAdaptor.numTimers(testHarness)); // window timers/gc timers
-        assertEquals(0, timeAdaptor.numTimersOtherDomain(testHarness));
+        assertThat(testHarness.numKeyedStateEntries())
+                .isZero(); // window contents plus trigger state
+        assertThat(timeAdaptor.numTimers(testHarness)).isZero(); // window timers/gc timers
+        assertThat(timeAdaptor.numTimersOtherDomain(testHarness)).isZero();
     }
 
     @Test
-    public void
-            testStateAndTimerCleanupAtEventTimeGarbageCollectionWithPurgingTriggerAndMergingWindows()
-                    throws Exception {
+    void testStateAndTimerCleanupAtEventTimeGarbageCollectionWithPurgingTriggerAndMergingWindows()
+            throws Exception {
         testStateAndTimerCleanupAtGarbageCollectionWithPurgingTriggerAndMergingWindows(
                 new EventTimeAdaptor());
     }
 
     @Test
-    public void
+    void
             testStateAndTimerCleanupAtProcessingTimeGarbageCollectionWithPurgingTriggerAndMergingWindows()
                     throws Exception {
         testStateAndTimerCleanupAtGarbageCollectionWithPurgingTriggerAndMergingWindows(
@@ -2706,8 +2695,8 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(0, 20)));
 
-        assertEquals(0, testHarness.getOutput().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.getOutput()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         doAnswer(
                         new Answer<TriggerResult>() {
@@ -2748,27 +2737,28 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         // clear is only called at cleanup time/GC time
         verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
 
-        assertEquals(
-                2, testHarness.numKeyedStateEntries()); // trigger state plus merging window set
-        assertEquals(2, timeAdaptor.numTimers(testHarness)); // window timers/gc timers
-        assertEquals(0, timeAdaptor.numTimersOtherDomain(testHarness));
+        assertThat(testHarness.numKeyedStateEntries())
+                .isEqualTo(2); // trigger state plus merging window set
+        assertThat(timeAdaptor.numTimers(testHarness)).isEqualTo(2); // window timers/gc timers
+        assertThat(timeAdaptor.numTimersOtherDomain(testHarness)).isZero();
 
         timeAdaptor.advanceTime(testHarness, 19 + 20); // 19 is maxTime of the window
 
         verify(mockTrigger, times(1)).clear(anyTimeWindow(), anyTriggerContext());
 
-        assertEquals(0, testHarness.numKeyedStateEntries()); // window contents plus trigger state
-        assertEquals(0, timeAdaptor.numTimers(testHarness)); // window timers/gc timers
-        assertEquals(0, timeAdaptor.numTimersOtherDomain(testHarness));
+        assertThat(testHarness.numKeyedStateEntries())
+                .isZero(); // window contents plus trigger state
+        assertThat(timeAdaptor.numTimers(testHarness)).isZero(); // window timers/gc timers
+        assertThat(timeAdaptor.numTimersOtherDomain(testHarness)).isZero();
     }
 
     @Test
-    public void testMergingWindowSetClearedAtEventTimeGarbageCollection() throws Exception {
+    void testMergingWindowSetClearedAtEventTimeGarbageCollection() throws Exception {
         testMergingWindowSetClearedAtGarbageCollection(new EventTimeAdaptor());
     }
 
     @Test
-    public void testMergingWindowSetClearedAtProcessingTimeGarbageCollection() throws Exception {
+    void testMergingWindowSetClearedAtProcessingTimeGarbageCollection() throws Exception {
         testMergingWindowSetClearedAtGarbageCollection(new ProcessingTimeAdaptor());
     }
 
@@ -2788,23 +2778,23 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(0, 20)));
 
-        assertEquals(0, testHarness.getOutput().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.getOutput()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
-        assertEquals(
-                2, testHarness.numKeyedStateEntries()); // window contents plus merging window set
-        assertEquals(1, timeAdaptor.numTimers(testHarness)); // gc timers
+        assertThat(testHarness.numKeyedStateEntries())
+                .isEqualTo(2); // window contents plus merging window set
+        assertThat(timeAdaptor.numTimers(testHarness)).isOne(); // gc timers
 
         timeAdaptor.advanceTime(testHarness, 19 + 20); // 19 is maxTime of the window
 
-        assertEquals(0, testHarness.numKeyedStateEntries());
-        assertEquals(0, timeAdaptor.numTimers(testHarness));
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
+        assertThat(timeAdaptor.numTimers(testHarness)).isZero();
     }
 
     @Test
-    public void testProcessingElementsWithinAllowedLateness() throws Exception {
+    void testProcessingElementsWithinAllowedLateness() throws Exception {
         WindowAssigner<Integer, TimeWindow> mockAssigner = mockTimeWindowAssigner();
         Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
         InternalWindowFunction<Iterable<Integer>, Void, Integer, TimeWindow> mockWindowFunction =
@@ -2818,8 +2808,8 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(0, 2)));
 
-        assertEquals(0, testHarness.getOutput().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.getOutput()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         shouldFireOnElement(mockTrigger);
 
@@ -2840,12 +2830,13 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
 
         // FIRE should not purge contents
-        assertEquals(1, testHarness.numKeyedStateEntries()); // window contents plus trigger state
-        assertEquals(1, testHarness.numEventTimeTimers()); // just the GC timer
+        assertThat(testHarness.numKeyedStateEntries())
+                .isOne(); // window contents plus trigger state
+        assertThat(testHarness.numEventTimeTimers()).isOne(); // just the GC timer
     }
 
     @Test
-    public void testLateWindowDropping() throws Exception {
+    void testLateWindowDropping() throws Exception {
         WindowAssigner<Integer, TimeWindow> mockAssigner = mockTimeWindowAssigner();
         Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
         InternalWindowFunction<Iterable<Integer>, Void, Integer, TimeWindow> mockWindowFunction =
@@ -2859,8 +2850,8 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(0, 2)));
 
-        assertEquals(0, testHarness.getOutput().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.getOutput()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         shouldFireOnElement(mockTrigger);
 
@@ -2870,16 +2861,16 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
         // there should be nothing
-        assertEquals(0, testHarness.numKeyedStateEntries());
-        assertEquals(0, testHarness.numEventTimeTimers());
-        assertEquals(0, testHarness.numProcessingTimeTimers());
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
+        assertThat(testHarness.numEventTimeTimers()).isZero();
+        assertThat(testHarness.numProcessingTimeTimers()).isZero();
 
         // there should be two elements now
-        assertEquals(0, testHarness.extractOutputStreamRecords().size());
+        assertThat(testHarness.extractOutputStreamRecords()).isEmpty();
     }
 
     @Test
-    public void testStateSnapshotAndRestore() throws Exception {
+    void testStateSnapshotAndRestore() throws Exception {
 
         MergingWindowAssigner<Integer, TimeWindow> mockAssigner = mockMergingAssigner();
         Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
@@ -2894,8 +2885,8 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
                 .thenReturn(Arrays.asList(new TimeWindow(2, 4), new TimeWindow(0, 2)));
 
-        assertEquals(0, testHarness.getOutput().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.getOutput()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         doAnswer(
                         new Answer<TriggerResult>() {
@@ -2921,8 +2912,9 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
         // window-contents and trigger state for two windows plus merging window set
-        assertEquals(5, testHarness.numKeyedStateEntries());
-        assertEquals(4, testHarness.numEventTimeTimers()); // timers/gc timers for two windows
+        assertThat(testHarness.numKeyedStateEntries()).isEqualTo(5);
+        assertThat(testHarness.numEventTimeTimers())
+                .isEqualTo(4); // timers/gc timers for two windows
 
         OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
 
@@ -2956,11 +2948,12 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         testHarness.initializeState(snapshot);
         testHarness.open();
 
-        assertEquals(0, testHarness.extractOutputStreamRecords().size());
+        assertThat(testHarness.extractOutputStreamRecords()).isEmpty();
 
         // verify that we still have all the state/timers/merging window set
-        assertEquals(5, testHarness.numKeyedStateEntries());
-        assertEquals(4, testHarness.numEventTimeTimers()); // timers/gc timers for two windows
+        assertThat(testHarness.numKeyedStateEntries()).isEqualTo(5);
+        assertThat(testHarness.numEventTimeTimers())
+                .isEqualTo(4); // timers/gc timers for two windows
 
         verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
 
@@ -2997,17 +2990,17 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         verify(mockTrigger, times(1))
                 .onEventTime(eq(0L), eq(new TimeWindow(2, 4)), anyTriggerContext());
 
-        assertEquals(0, testHarness.numKeyedStateEntries());
-        assertEquals(0, testHarness.numEventTimeTimers());
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
+        assertThat(testHarness.numEventTimeTimers()).isZero();
     }
 
     @Test
-    public void testPerWindowStateSetAndClearedOnEventTimePurge() throws Exception {
+    void testPerWindowStateSetAndClearedOnEventTimePurge() throws Exception {
         testPerWindowStateSetAndClearedOnPurge(new EventTimeAdaptor());
     }
 
     @Test
-    public void testPerWindowStateSetAndClearedOnProcessingTimePurge() throws Exception {
+    void testPerWindowStateSetAndClearedOnProcessingTimePurge() throws Exception {
         testPerWindowStateSetAndClearedOnPurge(new ProcessingTimeAdaptor());
     }
 
@@ -3067,22 +3060,23 @@ public abstract class WindowOperatorContractTest extends TestLogger {
                 .when(mockWindowFunction)
                 .clear(anyTimeWindow(), anyInternalWindowContext());
 
-        assertEquals(0, testHarness.getOutput().size());
-        assertEquals(0, testHarness.numKeyedStateEntries());
+        assertThat(testHarness.getOutput()).isEmpty();
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
 
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
-        assertEquals(2, testHarness.numKeyedStateEntries()); // window contents plus value state
-        assertEquals(1, timeAdaptor.numTimers(testHarness)); // gc timers
+        assertThat(testHarness.numKeyedStateEntries())
+                .isEqualTo(2); // window contents plus value state
+        assertThat(timeAdaptor.numTimers(testHarness)).isOne(); // gc timers
 
         timeAdaptor.advanceTime(testHarness, 19 + 20); // 19 is maxTime of the window
 
-        assertEquals(0, testHarness.numKeyedStateEntries());
-        assertEquals(0, timeAdaptor.numTimers(testHarness));
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
+        assertThat(timeAdaptor.numTimers(testHarness)).isZero();
     }
 
     @Test
-    public void testWindowStateNotAvailableToMergingWindows() throws Exception {
+    void testWindowStateNotAvailableToMergingWindows() throws Exception {
         WindowAssigner<Integer, TimeWindow> mockAssigner = mockMergingAssigner();
         Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
         InternalWindowFunction<Iterable<Integer>, Void, Integer, TimeWindow> mockWindowFunction =
@@ -3121,24 +3115,24 @@ public abstract class WindowOperatorContractTest extends TestLogger {
                         anyIntIterable(),
                         WindowOperatorContractTest.<Void>anyCollector());
 
-        expectedException.expect(UnsupportedOperationException.class);
-        expectedException.expectMessage(
-                "Per-window state is not allowed when using merging windows.");
-        testHarness.processElement(new StreamRecord<>(0, 0L));
+        assertThatThrownBy(() -> testHarness.processElement(new StreamRecord<>(0, 0L)))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining(
+                        "Per-window state is not allowed when using merging windows.");
     }
 
     @Test
-    public void testEventTimeQuerying() throws Exception {
+    void testEventTimeQuerying() throws Exception {
         testCurrentTimeQuerying(new EventTimeAdaptor());
     }
 
     @Test
-    public void testProcessingTimeQuerying() throws Exception {
+    void testProcessingTimeQuerying() throws Exception {
         testCurrentTimeQuerying(new ProcessingTimeAdaptor());
     }
 
     @Test
-    public void testStateTypeIsConsistentFromWindowStateAndGlobalState() throws Exception {
+    void testStateTypeIsConsistentFromWindowStateAndGlobalState() throws Exception {
 
         class NoOpAggregateFunction implements AggregateFunction<String, String, String> {
 
@@ -3198,13 +3192,12 @@ public abstract class WindowOperatorContractTest extends TestLogger {
                                 ListStateDescriptor<String> globalListStateDescriptor =
                                         new ListStateDescriptor<String>(
                                                 "globalListState", String.class);
-                                assertEquals(
-                                        windowKeyedStateStore
-                                                .getListState(windowListStateDescriptor)
-                                                .getClass(),
-                                        globalKeyedStateStore
-                                                .getListState(globalListStateDescriptor)
-                                                .getClass());
+                                assertThat(
+                                                windowKeyedStateStore.getListState(
+                                                        windowListStateDescriptor))
+                                        .hasSameClassAs(
+                                                globalKeyedStateStore.getListState(
+                                                        globalListStateDescriptor));
 
                                 ValueStateDescriptor<String> windowValueStateDescriptor =
                                         new ValueStateDescriptor<String>(
@@ -3212,13 +3205,12 @@ public abstract class WindowOperatorContractTest extends TestLogger {
                                 ValueStateDescriptor<String> globalValueStateDescriptor =
                                         new ValueStateDescriptor<String>(
                                                 "globalValueState", String.class);
-                                assertEquals(
-                                        windowKeyedStateStore
-                                                .getState(windowValueStateDescriptor)
-                                                .getClass(),
-                                        globalKeyedStateStore
-                                                .getState(globalValueStateDescriptor)
-                                                .getClass());
+                                assertThat(
+                                                windowKeyedStateStore.getState(
+                                                        windowValueStateDescriptor))
+                                        .hasSameClassAs(
+                                                globalKeyedStateStore.getState(
+                                                        globalValueStateDescriptor));
 
                                 AggregatingStateDescriptor<String, String, String>
                                         windowAggStateDesc =
@@ -3235,13 +3227,12 @@ public abstract class WindowOperatorContractTest extends TestLogger {
                                                         "globalAgg",
                                                         new NoOpAggregateFunction(),
                                                         String.class);
-                                assertEquals(
-                                        windowKeyedStateStore
-                                                .getAggregatingState(windowAggStateDesc)
-                                                .getClass(),
-                                        globalKeyedStateStore
-                                                .getAggregatingState(globalAggStateDesc)
-                                                .getClass());
+                                assertThat(
+                                                windowKeyedStateStore.getAggregatingState(
+                                                        windowAggStateDesc))
+                                        .hasSameClassAs(
+                                                globalKeyedStateStore.getAggregatingState(
+                                                        globalAggStateDesc));
 
                                 ReducingStateDescriptor<String> windowReducingStateDesc =
                                         new ReducingStateDescriptor<String>(
@@ -3249,13 +3240,12 @@ public abstract class WindowOperatorContractTest extends TestLogger {
                                 ReducingStateDescriptor<String> globalReducingStateDesc =
                                         new ReducingStateDescriptor<String>(
                                                 "globalReducing", (a, b) -> a, String.class);
-                                assertEquals(
-                                        windowKeyedStateStore
-                                                .getReducingState(windowReducingStateDesc)
-                                                .getClass(),
-                                        globalKeyedStateStore
-                                                .getReducingState(globalReducingStateDesc)
-                                                .getClass());
+                                assertThat(
+                                                windowKeyedStateStore.getReducingState(
+                                                        windowReducingStateDesc))
+                                        .hasSameClassAs(
+                                                globalKeyedStateStore.getReducingState(
+                                                        globalReducingStateDesc));
 
                                 MapStateDescriptor<String, String> windowMapStateDescriptor =
                                         new MapStateDescriptor<String, String>(
@@ -3263,13 +3253,12 @@ public abstract class WindowOperatorContractTest extends TestLogger {
                                 MapStateDescriptor<String, String> globalMapStateDescriptor =
                                         new MapStateDescriptor<String, String>(
                                                 "globalMapState", String.class, String.class);
-                                assertEquals(
-                                        windowKeyedStateStore
-                                                .getMapState(windowMapStateDescriptor)
-                                                .getClass(),
-                                        globalKeyedStateStore
-                                                .getMapState(globalMapStateDescriptor)
-                                                .getClass());
+                                assertThat(
+                                                windowKeyedStateStore.getMapState(
+                                                        windowMapStateDescriptor))
+                                        .hasSameClassAs(
+                                                globalKeyedStateStore.getMapState(
+                                                        globalMapStateDescriptor));
 
                                 processWasInvoked.set(true);
                                 return null;
@@ -3285,7 +3274,7 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
-        assertTrue(processWasInvoked.get());
+        assertThat(processWasInvoked).isTrue();
     }
 
     public void testCurrentTimeQuerying(final TimeDomainAdaptor timeAdaptor) throws Exception {
@@ -3505,7 +3494,7 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         public void verifyCorrectTime(
                 OneInputStreamOperatorTestHarness testHarness,
                 InternalWindowFunction.InternalWindowContext context) {
-            assertEquals(testHarness.getCurrentWatermark(), context.currentWatermark());
+            assertThat(context.currentWatermark()).isEqualTo(testHarness.getCurrentWatermark());
         }
     }
 
@@ -3599,7 +3588,7 @@ public abstract class WindowOperatorContractTest extends TestLogger {
         public void verifyCorrectTime(
                 OneInputStreamOperatorTestHarness testHarness,
                 InternalWindowFunction.InternalWindowContext context) {
-            assertEquals(testHarness.getProcessingTime(), context.currentProcessingTime());
+            assertThat(context.currentProcessingTime()).isEqualTo(testHarness.getProcessingTime());
         }
     }
 }

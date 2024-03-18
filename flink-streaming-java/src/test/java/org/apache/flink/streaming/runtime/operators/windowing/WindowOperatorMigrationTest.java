@@ -55,19 +55,19 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.test.util.MigrationTest;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for checking whether {@link WindowOperator} can restore from snapshots that were done using
@@ -76,11 +76,11 @@ import static org.junit.Assert.fail;
  * <p>This also checks whether {@link WindowOperator} can restore from a checkpoint of the aligned
  * processing-time windows operator of previous Flink versions.
  */
-@RunWith(Parameterized.class)
-public class WindowOperatorMigrationTest implements MigrationTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class WindowOperatorMigrationTest implements MigrationTest {
 
-    @Parameterized.Parameters(name = "Migration Savepoint: {0}")
-    public static Collection<FlinkVersion> parameters() {
+    @Parameters(name = "Migration Savepoint: {0}")
+    private static Collection<FlinkVersion> parameters() {
         return FlinkVersion.rangeOf(
                 FlinkVersion.v1_8, MigrationTest.getMostRecentlyPublishedVersion());
     }
@@ -152,8 +152,8 @@ public class WindowOperatorMigrationTest implements MigrationTest {
         testHarness.close();
     }
 
-    @Test
-    public void testRestoreSessionWindowsWithCountTrigger() throws Exception {
+    @TestTemplate
+    void testRestoreSessionWindowsWithCountTrigger() throws Exception {
 
         final int sessionSize = 3;
 
@@ -278,8 +278,8 @@ public class WindowOperatorMigrationTest implements MigrationTest {
      * This checks that we can restore from a virgin {@code WindowOperator} that has never seen any
      * elements.
      */
-    @Test
-    public void testRestoreSessionWindowsWithCountTriggerInMintCondition() throws Exception {
+    @TestTemplate
+    void testRestoreSessionWindowsWithCountTriggerInMintCondition() throws Exception {
 
         final int sessionSize = 3;
 
@@ -443,8 +443,8 @@ public class WindowOperatorMigrationTest implements MigrationTest {
         testHarness.close();
     }
 
-    @Test
-    public void testRestoreReducingEventTimeWindows() throws Exception {
+    @TestTemplate
+    void testRestoreReducingEventTimeWindows() throws Exception {
         final int windowSize = 3;
 
         ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc =
@@ -593,8 +593,8 @@ public class WindowOperatorMigrationTest implements MigrationTest {
         testHarness.close();
     }
 
-    @Test
-    public void testRestoreApplyEventTimeWindows() throws Exception {
+    @TestTemplate
+    void testRestoreApplyEventTimeWindows() throws Exception {
         final int windowSize = 3;
 
         ListStateDescriptor<Tuple2<String, Integer>> stateDesc =
@@ -733,8 +733,8 @@ public class WindowOperatorMigrationTest implements MigrationTest {
         testHarness.close();
     }
 
-    @Test
-    public void testRestoreReducingProcessingTimeWindows() throws Exception {
+    @TestTemplate
+    void testRestoreReducingProcessingTimeWindows() throws Exception {
         final int windowSize = 3;
 
         ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc =
@@ -869,8 +869,8 @@ public class WindowOperatorMigrationTest implements MigrationTest {
         testHarness.close();
     }
 
-    @Test
-    public void testRestoreApplyProcessingTimeWindows() throws Exception {
+    @TestTemplate
+    void testRestoreApplyProcessingTimeWindows() throws Exception {
         final int windowSize = 3;
 
         ListStateDescriptor<Tuple2<String, Integer>> stateDesc =
@@ -950,7 +950,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
 
         TypeSerializer<NonPojoType> keySerializer =
                 TypeInformation.of(NonPojoType.class).createSerializer(new SerializerConfigImpl());
-        assertTrue(keySerializer instanceof KryoSerializer);
+        assertThat(keySerializer).isInstanceOf(KryoSerializer.class);
 
         WindowOperator<
                         NonPojoType,
@@ -1030,8 +1030,8 @@ public class WindowOperatorMigrationTest implements MigrationTest {
         testHarness.close();
     }
 
-    @Test
-    public void testRestoreKryoSerializedKeysWindows() throws Exception {
+    @TestTemplate
+    void testRestoreKryoSerializedKeysWindows() throws Exception {
         final int windowSize = 3;
 
         TypeInformation<Tuple2<NonPojoType, Integer>> inputType =
@@ -1045,7 +1045,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
 
         TypeSerializer<NonPojoType> keySerializer =
                 TypeInformation.of(NonPojoType.class).createSerializer(new SerializerConfigImpl());
-        assertTrue(keySerializer instanceof KryoSerializer);
+        assertThat(keySerializer).isInstanceOf(KryoSerializer.class);
 
         WindowOperator<
                         NonPojoType,
@@ -1205,9 +1205,8 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                 Collector<Tuple2<String, Integer>> out)
                 throws Exception {
 
-            if (!openCalled) {
-                fail("Open was not called");
-            }
+            assertThat(openCalled).as("Open was not called").isTrue();
+
             int sum = 0;
 
             for (Tuple2<String, Integer> t : input) {

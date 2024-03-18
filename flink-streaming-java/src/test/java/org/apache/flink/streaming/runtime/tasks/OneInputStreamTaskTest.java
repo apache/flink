@@ -74,11 +74,8 @@ import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TestLogger;
 
-import org.hamcrest.collection.IsMapContaining;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.ArrayDeque;
@@ -94,12 +91,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link OneInputStreamTask}.
@@ -109,7 +101,7 @@ import static org.junit.Assert.fail;
  * used as a representative to test OneInputStreamTask, since OneInputStreamTask is used for all
  * OneInputStreamOperators.
  */
-public class OneInputStreamTaskTest extends TestLogger {
+class OneInputStreamTaskTest {
 
     private static final ListStateDescriptor<Integer> TEST_DESCRIPTOR =
             new ListStateDescriptor<>("test", new IntSerializer());
@@ -120,7 +112,7 @@ public class OneInputStreamTaskTest extends TestLogger {
      * emitted elements.
      */
     @Test
-    public void testOpenCloseAndTimestamps() throws Exception {
+    void testOpenCloseAndTimestamps() throws Exception {
         final OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
                         OneInputStreamTask::new,
@@ -151,7 +143,9 @@ public class OneInputStreamTaskTest extends TestLogger {
 
         testHarness.waitForTaskCompletion();
 
-        assertTrue("RichFunction methods where not called.", TestOpenCloseMapFunction.closeCalled);
+        assertThat(TestOpenCloseMapFunction.closeCalled)
+                .as("RichFunction methods where not called.")
+                .isTrue();
 
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -163,7 +157,7 @@ public class OneInputStreamTaskTest extends TestLogger {
      * inputs. The forwarded watermark must be the minimum of the watermarks of all active inputs.
      */
     @Test
-    public void testWatermarkAndWatermarkStatusForwarding() throws Exception {
+    void testWatermarkAndWatermarkStatusForwarding() throws Exception {
 
         final OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
@@ -273,7 +267,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 
         List<String> resultElements =
                 TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
-        assertEquals(2, resultElements.size());
+        assertThat(resultElements).hasSize(2);
     }
 
     /**
@@ -286,7 +280,7 @@ public class OneInputStreamTaskTest extends TestLogger {
      * were forwarded watermarks when the task is idle.
      */
     @Test
-    public void testWatermarksNotForwardedWithinChainWhenIdle() throws Exception {
+    void testWatermarksNotForwardedWithinChainWhenIdle() throws Exception {
 
         final OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
@@ -406,12 +400,12 @@ public class OneInputStreamTaskTest extends TestLogger {
 
         List<String> resultElements =
                 TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
-        assertEquals(12, resultElements.size());
+        assertThat(resultElements).hasSize(12);
     }
 
     /** This test verifies that checkpoint barriers are correctly forwarded. */
     @Test
-    public void testCheckpointBarriers() throws Exception {
+    void testCheckpointBarriers() throws Exception {
         final OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
                         OneInputStreamTask::new,
@@ -485,7 +479,7 @@ public class OneInputStreamTaskTest extends TestLogger {
      * receive barriers from a later checkpoint.
      */
     @Test
-    public void testOvertakingCheckpointBarriers() throws Exception {
+    void testOvertakingCheckpointBarriers() throws Exception {
         final OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
                         OneInputStreamTask::new,
@@ -581,7 +575,7 @@ public class OneInputStreamTaskTest extends TestLogger {
      * operators.
      */
     @Test
-    public void testSnapshottingAndRestoring() throws Exception {
+    void testSnapshottingAndRestoring() throws Exception {
         final Deadline deadline = Deadline.fromNow(Duration.ofMinutes(2));
 
         final OneInputStreamTaskTestHarness<String, String> testHarness =
@@ -621,11 +615,11 @@ public class OneInputStreamTaskTest extends TestLogger {
                 .get();
 
         // since no state was set, there shouldn't be restore calls
-        assertEquals(0, TestingStreamOperator.numberRestoreCalls);
+        assertThat(TestingStreamOperator.numberRestoreCalls).isZero();
 
         taskStateManager.getWaitForReportLatch().await();
 
-        assertEquals(checkpointId, taskStateManager.getReportedCheckpointId());
+        assertThat(taskStateManager.getReportedCheckpointId()).isEqualTo(checkpointId);
 
         testHarness.endInput();
         testHarness.waitForTaskCompletion(deadline.timeLeft().toMillis());
@@ -646,7 +640,7 @@ public class OneInputStreamTaskTest extends TestLogger {
         configureChainedTestingStreamOperator(restoredTaskStreamConfig, numberChainedTasks);
 
         TaskStateSnapshot stateHandles = taskStateManager.getLastJobManagerTaskStateSnapshot();
-        Assert.assertEquals(numberChainedTasks, stateHandles.getSubtaskStateMappings().size());
+        assertThat(stateHandles.getSubtaskStateMappings()).hasSize(numberChainedTasks);
 
         TestingStreamOperator.numberRestoreCalls = 0;
 
@@ -658,14 +652,14 @@ public class OneInputStreamTaskTest extends TestLogger {
         restoredTaskHarness.waitForTaskCompletion(deadline.timeLeft().toMillis());
 
         // restore of every chained operator should have been called
-        assertEquals(numberChainedTasks, TestingStreamOperator.numberRestoreCalls);
+        assertThat(TestingStreamOperator.numberRestoreCalls).isEqualTo(numberChainedTasks);
 
         TestingStreamOperator.numberRestoreCalls = 0;
         TestingStreamOperator.numberSnapshotCalls = 0;
     }
 
     @Test
-    public void testQuiesceTimerServiceAfterOpClose() throws Exception {
+    void testQuiesceTimerServiceAfterOpClose() throws Exception {
 
         final OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
@@ -687,7 +681,7 @@ public class OneInputStreamTaskTest extends TestLogger {
                 (SystemProcessingTimeService) testHarness.getTimerService();
 
         // verify that the timer service is running
-        Assert.assertTrue(timeService.isAlive());
+        assertThat(timeService.isAlive()).isTrue();
 
         testHarness.endInput();
         testHarness.waitForTaskCompletion();
@@ -695,7 +689,7 @@ public class OneInputStreamTaskTest extends TestLogger {
     }
 
     @Test
-    public void testClosingAllOperatorsOnChainProperly() throws Exception {
+    void testClosingAllOperatorsOnChainProperly() throws Exception {
         final OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
                         OneInputStreamTask::new,
@@ -728,7 +722,7 @@ public class OneInputStreamTaskTest extends TestLogger {
                 new StreamRecord<>("[Operator1]: End of input"),
                 new StreamRecord<>("[Operator1]: Finish"));
 
-        assertThat(testHarness.getOutput(), containsInAnyOrder(expected.toArray()));
+        assertThat(testHarness.getOutput()).containsExactlyInAnyOrder(expected.toArray());
     }
 
     private static class TestOperator extends AbstractStreamOperator<String>
@@ -745,15 +739,16 @@ public class OneInputStreamTaskTest extends TestLogger {
         public void finish() throws Exception {
 
             // verify that the timer service is still running
-            Assert.assertTrue(
-                    ((SystemProcessingTimeService) getContainingTask().getTimerService())
-                            .isAlive());
+            assertThat(
+                            ((SystemProcessingTimeService) getContainingTask().getTimerService())
+                                    .isAlive())
+                    .isTrue();
             super.close();
         }
     }
 
     @Test
-    public void testOperatorMetricReuse() throws Exception {
+    void testOperatorMetricReuse() throws Exception {
         final OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
                         OneInputStreamTask::new,
@@ -807,8 +802,8 @@ public class OneInputStreamTaskTest extends TestLogger {
         }
         testHarness.waitForInputProcessing();
 
-        assertEquals(numRecords, numRecordsInCounter.getCount());
-        assertEquals(numRecords * 2 * 2 * 2, numRecordsOutCounter.getCount());
+        assertThat(numRecordsInCounter.getCount()).isEqualTo(numRecords);
+        assertThat(numRecordsOutCounter.getCount()).isEqualTo(numRecords * 2 * 2 * 2);
 
         testHarness.endInput();
         testHarness.waitForTaskCompletion();
@@ -825,7 +820,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testWatermarkMetrics() throws Exception {
+    void testWatermarkMetrics() throws Exception {
         final OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
                         OneInputStreamTask::new,
@@ -895,39 +890,38 @@ public class OneInputStreamTaskTest extends TestLogger {
                 (Gauge<Long>)
                         chainedOperatorMetricGroup.get(MetricNames.IO_CURRENT_OUTPUT_WATERMARK);
 
-        Assert.assertEquals(
-                "A metric was registered multiple times.",
-                5,
-                new HashSet<>(
+        assertThat(
+                        new HashSet<>(
                                 Arrays.asList(
                                         taskInputWatermarkGauge,
                                         headInputWatermarkGauge,
                                         headOutputWatermarkGauge,
                                         chainedInputWatermarkGauge,
-                                        chainedOutputWatermarkGauge))
-                        .size());
+                                        chainedOutputWatermarkGauge)))
+                .as("A metric was registered multiple times.")
+                .hasSize(5);
 
-        Assert.assertEquals(Long.MIN_VALUE, taskInputWatermarkGauge.getValue().longValue());
-        Assert.assertEquals(Long.MIN_VALUE, headInputWatermarkGauge.getValue().longValue());
-        Assert.assertEquals(Long.MIN_VALUE, headOutputWatermarkGauge.getValue().longValue());
-        Assert.assertEquals(Long.MIN_VALUE, chainedInputWatermarkGauge.getValue().longValue());
-        Assert.assertEquals(Long.MIN_VALUE, chainedOutputWatermarkGauge.getValue().longValue());
+        assertThat(taskInputWatermarkGauge.getValue()).isEqualTo(Long.MIN_VALUE);
+        assertThat(headInputWatermarkGauge.getValue()).isEqualTo(Long.MIN_VALUE);
+        assertThat(headOutputWatermarkGauge.getValue()).isEqualTo(Long.MIN_VALUE);
+        assertThat(chainedInputWatermarkGauge.getValue()).isEqualTo(Long.MIN_VALUE);
+        assertThat(chainedOutputWatermarkGauge.getValue()).isEqualTo(Long.MIN_VALUE);
 
         testHarness.processElement(new Watermark(1L));
         testHarness.waitForInputProcessing();
-        Assert.assertEquals(1L, taskInputWatermarkGauge.getValue().longValue());
-        Assert.assertEquals(1L, headInputWatermarkGauge.getValue().longValue());
-        Assert.assertEquals(2L, headOutputWatermarkGauge.getValue().longValue());
-        Assert.assertEquals(2L, chainedInputWatermarkGauge.getValue().longValue());
-        Assert.assertEquals(4L, chainedOutputWatermarkGauge.getValue().longValue());
+        assertThat(taskInputWatermarkGauge.getValue()).isOne();
+        assertThat(headInputWatermarkGauge.getValue()).isOne();
+        assertThat(headOutputWatermarkGauge.getValue()).isEqualTo(2L);
+        assertThat(chainedInputWatermarkGauge.getValue()).isEqualTo(2L);
+        assertThat(chainedOutputWatermarkGauge.getValue()).isEqualTo(4L);
 
         testHarness.processElement(new Watermark(2L));
         testHarness.waitForInputProcessing();
-        Assert.assertEquals(2L, taskInputWatermarkGauge.getValue().longValue());
-        Assert.assertEquals(2L, headInputWatermarkGauge.getValue().longValue());
-        Assert.assertEquals(4L, headOutputWatermarkGauge.getValue().longValue());
-        Assert.assertEquals(4L, chainedInputWatermarkGauge.getValue().longValue());
-        Assert.assertEquals(8L, chainedOutputWatermarkGauge.getValue().longValue());
+        assertThat(taskInputWatermarkGauge.getValue()).isEqualTo(2L);
+        assertThat(headInputWatermarkGauge.getValue()).isEqualTo(2L);
+        assertThat(headOutputWatermarkGauge.getValue()).isEqualTo(4L);
+        assertThat(chainedInputWatermarkGauge.getValue()).isEqualTo(4L);
+        assertThat(chainedOutputWatermarkGauge.getValue()).isEqualTo(8L);
 
         testHarness.endInput();
         testHarness.waitForTaskCompletion();
@@ -938,7 +932,7 @@ public class OneInputStreamTaskTest extends TestLogger {
      * while generating the {@link OneInputStreamTask}.
      */
     @Test
-    public void testCheckpointBarrierMetrics() throws Exception {
+    void testCheckpointBarrierMetrics() throws Exception {
         final OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
                         OneInputStreamTask::new,
@@ -958,15 +952,16 @@ public class OneInputStreamTaskTest extends TestLogger {
         testHarness.invoke(environment);
         testHarness.waitForTaskRunning();
 
-        assertThat(metrics, IsMapContaining.hasKey(MetricNames.CHECKPOINT_ALIGNMENT_TIME));
-        assertThat(metrics, IsMapContaining.hasKey(MetricNames.CHECKPOINT_START_DELAY_TIME));
+        assertThat(metrics)
+                .containsKey(MetricNames.CHECKPOINT_ALIGNMENT_TIME)
+                .containsKey(MetricNames.CHECKPOINT_START_DELAY_TIME);
 
         testHarness.endInput();
         testHarness.waitForTaskCompletion();
     }
 
     @Test
-    public void testCanEmitBatchOfRecords() throws Exception {
+    void testCanEmitBatchOfRecords() throws Exception {
         AvailabilityProvider.AvailabilityHelper availabilityHelper =
                 new AvailabilityProvider.AvailabilityHelper();
         try (StreamTaskMailboxTestHarness<Integer> testHarness =
@@ -983,28 +978,28 @@ public class OneInputStreamTaskTest extends TestLogger {
             testHarness.processAll();
 
             availabilityHelper.resetAvailable();
-            assertTrue(canEmitBatchOfRecordsChecker.check());
+            assertThat(canEmitBatchOfRecordsChecker.check()).isTrue();
 
             // The canEmitBatchOfRecordsChecker should be the false after the record writer is
             // unavailable.
             availabilityHelper.resetUnavailable();
-            assertFalse(canEmitBatchOfRecordsChecker.check());
+            assertThat(canEmitBatchOfRecordsChecker.check()).isFalse();
 
             // Restore record writer to available
             availabilityHelper.resetAvailable();
-            assertTrue(canEmitBatchOfRecordsChecker.check());
+            assertThat(canEmitBatchOfRecordsChecker.check()).isTrue();
 
             // The canEmitBatchOfRecordsChecker should be the false after add the mail to mail box.
             testHarness.streamTask.mainMailboxExecutor.execute(() -> {}, "mail");
-            assertFalse(canEmitBatchOfRecordsChecker.check());
+            assertThat(canEmitBatchOfRecordsChecker.check()).isFalse();
 
             testHarness.processAll();
-            assertTrue(canEmitBatchOfRecordsChecker.check());
+            assertThat(canEmitBatchOfRecordsChecker.check()).isTrue();
         }
     }
 
     @Test
-    public void testTaskSideOutputStatistics() throws Exception {
+    void testTaskSideOutputStatistics() throws Exception {
         TaskMetricGroup taskMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
 
@@ -1061,12 +1056,12 @@ public class OneInputStreamTaskTest extends TestLogger {
             final int oddEvenOperatorOutputsWithOddTag = numOddRecords;
             final int oddEvenOperatorOutputsWithoutTag = numOddRecords + numEvenRecords;
             final int duplicatingOperatorOutput = (numOddRecords + numEvenRecords) * 2;
-            assertEquals(numOddRecords + numEvenRecords, numRecordsInCounter.getCount());
-            assertEquals(
-                    oddEvenOperatorOutputsWithOddTag
-                            + oddEvenOperatorOutputsWithoutTag
-                            + duplicatingOperatorOutput,
-                    numRecordsOutCounter.getCount());
+            assertThat(numRecordsInCounter.getCount()).isEqualTo(numOddRecords + numEvenRecords);
+            assertThat(numRecordsOutCounter.getCount())
+                    .isEqualTo(
+                            oddEvenOperatorOutputsWithOddTag
+                                    + oddEvenOperatorOutputsWithoutTag
+                                    + duplicatingOperatorOutput);
             testHarness.waitForTaskCompletion();
         } finally {
             for (ResultPartitionWriter partitionWriter : partitionWriters) {
@@ -1206,18 +1201,14 @@ public class OneInputStreamTaskTest extends TestLogger {
                     context.getOperatorStateStore().getListState(TEST_DESCRIPTOR);
 
             if (numberSnapshotCalls == 0) {
-                for (Integer v : partitionableState.get()) {
-                    fail();
-                }
+                assertThat(partitionableState.get()).isEmpty();
             } else {
                 Set<Integer> result = new HashSet<>();
                 for (Integer v : partitionableState.get()) {
                     result.add(v);
                 }
 
-                assertEquals(2, result.size());
-                assertTrue(result.contains(42));
-                assertTrue(result.contains(4711));
+                assertThat(result).containsExactlyInAnyOrder(42, 4711);
             }
         }
 
@@ -1243,26 +1234,20 @@ public class OneInputStreamTaskTest extends TestLogger {
         @Override
         public void open(OpenContext openContext) throws Exception {
             super.open(openContext);
-            if (closeCalled) {
-                Assert.fail("Close called before open.");
-            }
+            assertThat(openCalled).as("Close called before open.").isFalse();
             openCalled = true;
         }
 
         @Override
         public void close() throws Exception {
             super.close();
-            if (!openCalled) {
-                Assert.fail("Open was not called before close.");
-            }
+            assertThat(openCalled).as("Open was not called before close.").isTrue();
             closeCalled = true;
         }
 
         @Override
         public String map(String value) throws Exception {
-            if (!openCalled) {
-                Assert.fail("Open was not called before run.");
-            }
+            assertThat(openCalled).as("Open was not called before run.").isTrue();
             return value;
         }
     }

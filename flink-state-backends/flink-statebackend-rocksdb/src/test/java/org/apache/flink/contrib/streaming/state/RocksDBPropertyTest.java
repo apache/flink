@@ -22,7 +22,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
-import org.rocksdb.RocksDBException;
 
 /** Validate RocksDB properties. */
 class RocksDBPropertyTest {
@@ -34,12 +33,14 @@ class RocksDBPropertyTest {
         RocksDB db = rocksDBExtension.getRocksDB();
         ColumnFamilyHandle handle = rocksDBExtension.getDefaultColumnFamily();
 
-        for (RocksDBProperty property : RocksDBProperty.values()) {
+        for (RocksDBProperty rocksDBProperty : RocksDBProperty.values()) {
             try {
-                db.getLongProperty(handle, property.getRocksDBProperty());
-            } catch (RocksDBException e) {
+                rocksDBProperty.getNumericalPropertyValue(db, handle);
+            } catch (Exception e) {
                 throw new AssertionError(
-                        String.format("Invalid RocksDB property %s", property.getRocksDBProperty()),
+                        String.format(
+                                "Invalid RocksDB property %s",
+                                rocksDBProperty.getRocksDBProperty()),
                         e);
             }
         }

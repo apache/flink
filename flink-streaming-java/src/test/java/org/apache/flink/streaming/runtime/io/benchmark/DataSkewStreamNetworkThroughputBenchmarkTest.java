@@ -21,8 +21,7 @@ package org.apache.flink.streaming.runtime.io.benchmark;
 /**
  * Tests for various network benchmarks based on {@link DataSkewStreamNetworkThroughputBenchmark}.
  */
-public class DataSkewStreamNetworkThroughputBenchmarkTest
-        extends StreamNetworkThroughputBenchmarkTest {
+class DataSkewStreamNetworkThroughputBenchmarkTest extends StreamNetworkThroughputBenchmarkTest {
     @Override
     protected StreamNetworkThroughputBenchmark createBenchmark() {
         return new DataSkewStreamNetworkThroughputBenchmark();

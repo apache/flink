@@ -58,4 +58,13 @@ public class StateHandleDownloadSpec {
                 stateHandle.getMetaDataStateHandle(),
                 stateHandle.getSharedState());
     }
+
+    @Override
+    public String toString() {
+        return "StateHandleDownloadSpec(downloadDestination = ["
+                + downloadDestination
+                + "] stateHandle = ["
+                + stateHandle
+                + "])";
+    }
 }

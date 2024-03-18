@@ -215,11 +215,19 @@ class SortMergeResultPartitionReadSchedulerTest {
 
     @Test
     void testOnReadBufferRequestError() throws Exception {
+        ManuallyTriggeredScheduledExecutorService schedulerExecutor =
+                new ManuallyTriggeredScheduledExecutorService();
+        readScheduler =
+                new SortMergeResultPartitionReadScheduler(
+                        bufferPool, schedulerExecutor, new Object());
         SortMergeSubpartitionReader subpartitionReader =
                 readScheduler.createSubpartitionReader(
                         new NoOpBufferAvailablityListener(), 0, partitionedFile);
-
         bufferPool.destroy();
+        assertThat(schedulerExecutor.numQueuedRunnables()).isEqualTo(1);
+        // we should trigger the scheduled task to handle the buffer request error.
+        schedulerExecutor.trigger();
+
         waitUntilReadFinish();
 
         assertThat(subpartitionReader.isReleased()).isTrue();

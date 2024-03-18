@@ -71,13 +71,13 @@ import static org.apache.flink.changelog.fs.FsStateChangelogOptions.PREEMPTIVE_P
 import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTS_DIRECTORY;
 import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINT_STORAGE;
 import static org.apache.flink.configuration.CheckpointingOptions.FS_SMALL_FILE_THRESHOLD;
-import static org.apache.flink.configuration.CheckpointingOptions.LOCAL_RECOVERY;
 import static org.apache.flink.configuration.CoreOptions.DEFAULT_PARALLELISM;
 import static org.apache.flink.configuration.PipelineOptions.OBJECT_REUSE;
 import static org.apache.flink.configuration.RestartStrategyOptions.RESTART_STRATEGY;
 import static org.apache.flink.configuration.StateBackendOptions.STATE_BACKEND;
 import static org.apache.flink.configuration.StateChangelogOptions.ENABLE_STATE_CHANGE_LOG;
 import static org.apache.flink.configuration.StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL;
+import static org.apache.flink.configuration.StateRecoveryOptions.LOCAL_RECOVERY;
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_ENABLED;
 import static org.apache.flink.runtime.jobgraph.SavepointRestoreSettings.forPath;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
@@ -220,7 +220,7 @@ public class ChangelogRescalingITCase extends TestLogger {
         conf.set(CHECKPOINT_STORAGE, "filesystem");
         conf.set(CHECKPOINTS_DIRECTORY, cpDir.toURI().toString());
         conf.set(STATE_BACKEND, "hashmap");
-        conf.set(LOCAL_RECOVERY, false); // not supported by changelog
+        conf.set(LOCAL_RECOVERY, true);
         // tune changelog
         conf.set(PREEMPTIVE_PERSIST_THRESHOLD, MemorySize.ofMebiBytes(10));
         conf.set(PERIODIC_MATERIALIZATION_INTERVAL, Duration.ofMinutes(3));

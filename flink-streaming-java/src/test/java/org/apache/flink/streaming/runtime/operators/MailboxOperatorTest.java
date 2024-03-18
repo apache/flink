@@ -25,28 +25,25 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarnessBuilder;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.RunnableWithException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 
 import java.util.concurrent.RejectedExecutionException;
 import java.util.stream.IntStream;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test to verify that timer triggers are run according to operator precedence (combined with
  * yield() at operator level).
  */
-public class MailboxOperatorTest extends TestLogger {
+class MailboxOperatorTest {
 
     @Test
-    public void testAvoidTaskStarvation() throws Exception {
+    void testAvoidTaskStarvation() throws Exception {
         final int numRecords = 3;
 
         StreamTaskMailboxTestHarnessBuilder<Integer> builder =
@@ -72,9 +69,9 @@ public class MailboxOperatorTest extends TestLogger {
                     testHarness.getOutput().stream()
                             .mapToInt(r -> ((StreamRecord<Integer>) r).getValue())
                             .toArray();
-            assertArrayEquals(output, IntStream.range(0, numRecords).toArray());
-            assertThat(mail1.getMailCount(), equalTo(numRecords + 1));
-            assertThat(mail2.getMailCount(), equalTo(numRecords + 1));
+            assertThat(output).isEqualTo(IntStream.range(0, numRecords).toArray());
+            assertThat(mail1.getMailCount()).isEqualTo(numRecords + 1);
+            assertThat(mail2.getMailCount()).isEqualTo(numRecords + 1);
         }
     }
 

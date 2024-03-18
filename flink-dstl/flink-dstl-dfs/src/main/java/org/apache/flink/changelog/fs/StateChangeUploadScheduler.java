@@ -97,7 +97,7 @@ public interface StateChangeUploadScheduler extends AutoCloseable {
         checkArgument(bytes <= Integer.MAX_VALUE);
         int bufferSize = (int) bytes;
         StateChangeUploader store =
-                localRecoveryConfig.isLocalRecoveryEnabled()
+                localRecoveryConfig.isLocalBackupEnabled()
                         ? new DuplicatingStateChangeFsUploader(
                                 jobID,
                                 basePath,

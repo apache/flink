@@ -21,11 +21,11 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blocklist.BlocklistOperations;
@@ -265,7 +265,7 @@ public final class DefaultSlotPoolServiceSchedulerFactory
     static RequestSlotMatchingStrategy getRequestSlotMatchingStrategy(
             Configuration configuration, JobType jobType) {
         final boolean isLocalRecoveryEnabled =
-                configuration.get(CheckpointingOptions.LOCAL_RECOVERY);
+                configuration.get(StateRecoveryOptions.LOCAL_RECOVERY);
 
         if (isLocalRecoveryEnabled) {
             if (jobType == JobType.STREAMING) {

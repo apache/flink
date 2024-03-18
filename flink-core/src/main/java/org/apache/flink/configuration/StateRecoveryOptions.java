@@ -97,4 +97,23 @@ public class StateRecoveryOptions {
                                                     + "the specific checkpoint without in-flight data.")
                                     .linebreak()
                                     .build());
+
+    /**
+     * This option configures local recovery for the state backend, which indicates whether to
+     * recovery from local snapshot. By default, local recovery is deactivated.
+     *
+     * <p>Local recovery currently only covers keyed state backends (including both the
+     * EmbeddedRocksDBStateBackend and the HashMapStateBackend).
+     */
+    @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
+    public static final ConfigOption<Boolean> LOCAL_RECOVERY =
+            ConfigOptions.key("execution.state-recovery.from-local")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDeprecatedKeys("state.backend.local-recovery")
+                    .withDescription(
+                            "This option configures local recovery for the state backend, "
+                                    + "which indicates whether to recovery from local snapshot."
+                                    + "By default, local recovery is deactivated. Local recovery currently only "
+                                    + "covers keyed state backends (including both the EmbeddedRocksDBStateBackend and the HashMapStateBackend).\"");
 }

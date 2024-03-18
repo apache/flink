@@ -741,9 +741,9 @@ function get_num_metric_samples {
 
 function wait_oper_metric_num_in_records {
     OPERATOR=$1
-    MAX_NUM_METRICS="${2:-200}"
+    MAX_NUM_RECORDS="${2:-200}"
     JOB_NAME="${3:-General purpose test job}"
-    NUM_METRICS=$(get_num_metric_samples ${OPERATOR} '${JOB_NAME}')
+    NUM_METRICS=$(get_num_metric_samples ${OPERATOR} "${JOB_NAME}")
     OLD_NUM_METRICS=${4:-${NUM_METRICS}}
     local timeout="${5:-600}"
     local i=0
@@ -758,12 +758,12 @@ function wait_oper_metric_num_in_records {
         NUM_RECORDS=0
       fi
 
-      if (( $NUM_RECORDS < $MAX_NUM_METRICS )); then
-        echo "Waiting for job to process up to ${MAX_NUM_METRICS} records, current progress: ${NUM_RECORDS} records ..."
+      if (( $NUM_RECORDS < $MAX_NUM_RECORDS )); then
+        echo "Waiting for job to process up to ${MAX_NUM_RECORDS} records, current progress: ${NUM_RECORDS} records ..."
         sleep 1
         ((i++))
         if ((i > timeout)); then
-            echo "A timeout occurred waiting for job to process up to ${MAX_NUM_METRICS} records"
+            echo "A timeout occurred waiting for job to process up to ${MAX_NUM_RECORDS} records"
             exit 1
         fi
       else

@@ -178,8 +178,13 @@ public class CheckpointingOptions {
      *
      * <p>Local recovery currently only covers keyed state backends (including both the
      * EmbeddedRocksDBStateBackend and the HashMapStateBackend).
+     *
+     * @deprecated use {@link StateRecoveryOptions#LOCAL_RECOVERY} and {@link
+     *     CheckpointingOptions#LOCAL_BACKUP_ENABLED} instead.
      */
     @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
+    @Deprecated
     public static final ConfigOption<Boolean> LOCAL_RECOVERY =
             ConfigOptions.key("state.backend.local-recovery")
                     .booleanType()
@@ -305,4 +310,25 @@ public class CheckpointingOptions {
                                             + "The actual write buffer size is determined to be the maximum of the value of this option and option '%s'.",
                                     FS_SMALL_FILE_THRESHOLD.key()))
                     .withDeprecatedKeys("state.backend.fs.write-buffer-size");
+
+    /**
+     * This option configures local backup for the state backend, which indicates whether to make
+     * backup checkpoint on local disk. If not configured, fallback to {@link
+     * StateRecoveryOptions#LOCAL_RECOVERY}. By default, local backup is deactivated. Local backup
+     * currently only covers keyed state backends (including both the EmbeddedRocksDBStateBackend
+     * and the HashMapStateBackend).
+     */
+    public static final ConfigOption<Boolean> LOCAL_BACKUP_ENABLED =
+            ConfigOptions.key("execution.checkpointing.local-backup.enabled")
+                    .booleanType()
+                    .defaultValue(StateRecoveryOptions.LOCAL_RECOVERY.defaultValue())
+                    .withFallbackKeys(StateRecoveryOptions.LOCAL_RECOVERY.key())
+                    .withDeprecatedKeys(LOCAL_RECOVERY.key())
+                    .withDescription(
+                            "This option configures local backup for the state backend, "
+                                    + "which indicates whether to make backup checkpoint on local disk.  "
+                                    + "If not configured, fallback to "
+                                    + StateRecoveryOptions.LOCAL_RECOVERY.key()
+                                    + ". By default, local backup is deactivated. Local backup currently only "
+                                    + "covers keyed state backends (including both the EmbeddedRocksDBStateBackend and the HashMapStateBackend).");
 }

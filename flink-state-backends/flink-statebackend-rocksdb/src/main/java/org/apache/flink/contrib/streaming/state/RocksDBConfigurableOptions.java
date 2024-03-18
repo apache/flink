@@ -18,6 +18,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Description;
@@ -53,6 +54,7 @@ import static org.rocksdb.InfoLogLevel.INFO_LEVEL;
  * PredefinedOptions}, and then a user-defined {@link RocksDBOptionsFactory} may override the
  * configurations here.
  */
+@PublicEvolving
 public class RocksDBConfigurableOptions implements Serializable {
 
     // --------------------------------------------------------------------------

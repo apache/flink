@@ -344,7 +344,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.time.Time;
 
 StateTtlConfig ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
+    .newBuilder(Duration.ofSeconds(1))
     .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
     .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
     .build();
@@ -360,7 +360,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor
 import org.apache.flink.api.common.time.Time
 
 val ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
+    .newBuilder(Duration.ofSeconds(1))
     .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
     .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
     .build
@@ -447,7 +447,7 @@ in the background if supported by the configured state backend. Background clean
 ```java
 import org.apache.flink.api.common.state.StateTtlConfig;
 StateTtlConfig ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
+    .newBuilder(Duration.ofSeconds(1))
     .disableCleanupInBackground()
     .build();
 ```
@@ -456,7 +456,7 @@ StateTtlConfig ttlConfig = StateTtlConfig
 ```scala
 import org.apache.flink.api.common.state.StateTtlConfig
 val ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
+    .newBuilder(Duration.ofSeconds(1))
     .disableCleanupInBackground
     .build
 ```
@@ -491,7 +491,7 @@ import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.time.Time;
 
 StateTtlConfig ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
+    .newBuilder(Duration.ofSeconds(1))
     .cleanupFullSnapshot()
     .build();
 ```
@@ -502,7 +502,7 @@ import org.apache.flink.api.common.state.StateTtlConfig
 import org.apache.flink.api.common.time.Time
 
 val ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
+    .newBuilder(Duration.ofSeconds(1))
     .cleanupFullSnapshot
     .build
 ```
@@ -543,7 +543,7 @@ This feature can be configured in `StateTtlConfig`:
 ```java
 import org.apache.flink.api.common.state.StateTtlConfig;
  StateTtlConfig ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
+    .newBuilder(Duration.ofSeconds(1))
     .cleanupIncrementally(10, true)
     .build();
 ```
@@ -552,7 +552,7 @@ import org.apache.flink.api.common.state.StateTtlConfig;
 ```scala
 import org.apache.flink.api.common.state.StateTtlConfig
 val ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
+    .newBuilder(Duration.ofSeconds(1))
     .cleanupIncrementally(10, true)
     .build
 ```
@@ -600,8 +600,8 @@ This feature can be configured in `StateTtlConfig`:
 import org.apache.flink.api.common.state.StateTtlConfig;
 
 StateTtlConfig ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
-    .cleanupInRocksdbCompactFilter(1000, Time.hours(1))
+    .newBuilder(Duration.ofSeconds(1))
+    .cleanupInRocksdbCompactFilter(1000, Duration.ofHours(1))
     .build();
 ```
 {{< /tab >}}
@@ -610,19 +610,20 @@ StateTtlConfig ttlConfig = StateTtlConfig
 import org.apache.flink.api.common.state.StateTtlConfig
 
 val ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
-    .cleanupInRocksdbCompactFilter(1000, Time.hours(1))
+    .newBuilder(Duration.ofSeconds(1))
+    .cleanupInRocksdbCompactFilter(1000, Duration.ofHours(1))
     .build
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
+from pyflink.common import Duration
 from pyflink.common.time import Time
 from pyflink.datastream.state import StateTtlConfig
 
 ttl_config = StateTtlConfig \
   .new_builder(Time.seconds(1)) \
-  .cleanup_in_rocksdb_compact_filter(1000, Time.hours(1)) \
+  .cleanup_in_rocksdb_compact_filter(1000, Duration.of_hours(1)) \
   .build()
 ```
 {{< /tab >}}
@@ -640,7 +641,7 @@ Periodic compaction could speed up expired state entries cleanup, especially for
 Files older than this value will be picked up for compaction, and re-written to the same level as they were before. 
 It makes sure a file goes through compaction filters periodically.
 You can change it and pass a custom value to
-`StateTtlConfig.newBuilder(...).cleanupInRocksdbCompactFilter(long queryTimeAfterNumEntries, Time periodicCompactionTime)` method.
+`StateTtlConfig.newBuilder(...).cleanupInRocksdbCompactFilter(long queryTimeAfterNumEntries, Duration periodicCompactionTime)` method.
 The default value of Periodic compaction seconds is 30 days.
 You could set it to 0 to turn off periodic compaction or set a small value to speed up expired state entries cleanup, but it
 would trigger more compactions.

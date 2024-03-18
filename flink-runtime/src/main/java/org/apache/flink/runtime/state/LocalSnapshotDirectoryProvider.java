@@ -22,12 +22,12 @@ import java.io.File;
 import java.io.Serializable;
 
 /**
- * Provides directories for local recovery. It offers access to the allocation base directories
- * (i.e. the root directories for all local state that is created under the same allocation id) and
- * the subtask-specific paths, which contain the local state for one subtask. Access by checkpoint
- * id rotates over all root directory indexes, in case that there is more than one. Selection
- * methods are provided to pick the directory under a certain index. Directory structures are of the
- * following shape:
+ * Provides directories for local backup or local recovery. It offers access to the allocation base
+ * directories (i.e. the root directories for all local state that is created under the same
+ * allocation id) and the subtask-specific paths, which contain the local state for one subtask.
+ * Access by checkpoint id rotates over all root directory indexes, in case that there is more than
+ * one. Selection methods are provided to pick the directory under a certain index. Directory
+ * structures are of the following shape:
  *
  * <p>
  *
@@ -48,7 +48,7 @@ import java.io.Serializable;
  *
  * <p>
  */
-public interface LocalRecoveryDirectoryProvider extends Serializable {
+public interface LocalSnapshotDirectoryProvider extends Serializable {
 
     /**
      * Returns the local state allocation base directory for given checkpoint id w.r.t. our rotation

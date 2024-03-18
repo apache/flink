@@ -60,8 +60,8 @@ import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.clock.SystemClock;
 
-import org.junit.After;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -79,19 +79,19 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link StreamTaskNetworkInput}. */
-public class StreamTaskNetworkInputTest {
+class StreamTaskNetworkInputTest {
 
     private static final int PAGE_SIZE = 1000;
 
     private final IOManager ioManager = new IOManagerAsync();
 
-    @After
-    public void tearDown() throws Exception {
+    @AfterEach
+    void tearDown() throws Exception {
         ioManager.close();
     }
 
     @Test
-    public void testIsAvailableWithBufferedDataInDeserializer() throws Exception {
+    void testIsAvailableWithBufferedDataInDeserializer() throws Exception {
         List<BufferOrEvent> buffers = Collections.singletonList(createDataBuffer());
 
         VerifyRecordsDataOutput<Long> output = new VerifyRecordsDataOutput<>();
@@ -108,7 +108,7 @@ public class StreamTaskNetworkInputTest {
      * record.
      */
     @Test
-    public void testNoDataProcessedAfterCheckpointBarrier() throws Exception {
+    void testNoDataProcessedAfterCheckpointBarrier() throws Exception {
         CheckpointBarrier barrier =
                 new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation());
 
@@ -135,7 +135,7 @@ public class StreamTaskNetworkInputTest {
     }
 
     @Test
-    public void testSnapshotAfterEndOfPartition() throws Exception {
+    void testSnapshotAfterEndOfPartition() throws Exception {
         int numInputChannels = 1;
         int channelId = 0;
         int checkpointId = 0;
@@ -186,7 +186,7 @@ public class StreamTaskNetworkInputTest {
     }
 
     @Test
-    public void testReleasingDeserializerTimely() throws Exception {
+    void testReleasingDeserializerTimely() throws Exception {
 
         int numInputChannels = 2;
         LongSerializer inSerializer = LongSerializer.INSTANCE;
@@ -212,7 +212,7 @@ public class StreamTaskNetworkInputTest {
     }
 
     @Test
-    public void testInputStatusAfterEndOfRecovery() throws Exception {
+    void testInputStatusAfterEndOfRecovery() throws Exception {
         int numInputChannels = 2;
         LongSerializer inSerializer = LongSerializer.INSTANCE;
         StreamTestSingleInputGate<Long> inputGate =
@@ -235,7 +235,7 @@ public class StreamTaskNetworkInputTest {
     }
 
     @Test
-    public void testRecordsAreProcessedInBatches() throws Exception {
+    void testRecordsAreProcessedInBatches() throws Exception {
         int numInputChannels = 2;
         Random random = new Random();
         LongSerializer inSerializer = LongSerializer.INSTANCE;
@@ -270,7 +270,7 @@ public class StreamTaskNetworkInputTest {
     }
 
     @Test
-    public void testBatchProcessingRecordsCanBeInterrupted() throws Exception {
+    void testBatchProcessingRecordsCanBeInterrupted() throws Exception {
         int numInputChannels = 2;
         Random random = new Random();
         LongSerializer inSerializer = LongSerializer.INSTANCE;
@@ -321,7 +321,7 @@ public class StreamTaskNetworkInputTest {
     }
 
     @Test
-    public void testProcessRecordAttributes() throws Exception {
+    void testProcessRecordAttributes() throws Exception {
         int numInputChannels = 2;
         LongSerializer inSerializer = LongSerializer.INSTANCE;
         StreamTestSingleInputGate<Long> inputGate =

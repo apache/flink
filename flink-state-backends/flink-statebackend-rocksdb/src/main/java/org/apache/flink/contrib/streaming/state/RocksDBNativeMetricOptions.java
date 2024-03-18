@@ -18,6 +18,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -46,6 +47,7 @@ import java.util.Set;
  * href="https://github.com/facebook/rocksdb/blob/64324e329eb0a9b4e77241a425a1615ff524c7f1/include/rocksdb/db.h#L429">
  * db.h</a> for more information.
  */
+@PublicEvolving
 public class RocksDBNativeMetricOptions implements Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -244,6 +246,12 @@ public class RocksDBNativeMetricOptions implements Serializable {
                     .withDescription(
                             "Whether to expose the column family as a variable for RocksDB property based metrics.");
 
+    public static final ConfigOption<Boolean> MONITOR_NUM_FILES_AT_LEVEL =
+            ConfigOptions.key("state.backend.rocksdb.metrics.num-files-at-level")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("Monitor the number of files at each level.");
+
     // --------------------------------------------------------------------------------------------
     //  RocksDB statistics based metrics, report at database level
     // --------------------------------------------------------------------------------------------
@@ -436,6 +444,10 @@ public class RocksDBNativeMetricOptions implements Serializable {
             options.enableBlockCachePinnedUsage();
         }
 
+        if (config.get(MONITOR_NUM_FILES_AT_LEVEL)) {
+            options.enableNumFilesAtLevel();
+        }
+
         options.setColumnFamilyAsVariable(config.get(COLUMN_FAMILY_AS_VARIABLE));
     }
 
@@ -469,7 +481,7 @@ public class RocksDBNativeMetricOptions implements Serializable {
                 }
             };
 
-    private final Set<String> properties;
+    private final Set<RocksDBProperty> properties;
     private final Set<TickerType> monitorTickerTypes;
     private boolean columnFamilyAsVariable = COLUMN_FAMILY_AS_VARIABLE.defaultValue();
 
@@ -491,32 +503,32 @@ public class RocksDBNativeMetricOptions implements Serializable {
 
     /** Returns number of immutable memtables that have not yet been flushed. */
     public void enableNumImmutableMemTable() {
-        this.properties.add(RocksDBProperty.NumImmutableMemTable.getRocksDBProperty());
+        this.properties.add(RocksDBProperty.NumImmutableMemTable);
     }
 
     /** Returns 1 if a memtable flush is pending; otherwise, returns 0. */
     public void enableMemTableFlushPending() {
-        this.properties.add(RocksDBProperty.MemTableFlushPending.getRocksDBProperty());
+        this.properties.add(RocksDBProperty.MemTableFlushPending);
     }
 
     /** Returns 1 if at least one compaction is pending; otherwise, returns 0. */
     public void enableCompactionPending() {
-        this.properties.add(RocksDBProperty.CompactionPending.getRocksDBProperty());
+        this.properties.add(RocksDBProperty.CompactionPending);
     }
 
     /** Returns accumulated number of background errors. */
     public void enableBackgroundErrors() {
-        this.properties.add(RocksDBProperty.BackgroundErrors.getRocksDBProperty());
+        this.properties.add(RocksDBProperty.BackgroundErrors);
     }
 
     /** Returns approximate size of active memtable (bytes). */
     public void enableCurSizeActiveMemTable() {
-        this.properties.add(RocksDBProperty.CurSizeActiveMemTable.getRocksDBProperty());
+        this.properties.add(RocksDBProperty.CurSizeActiveMemTable);
     }
 
     /** Returns approximate size of active and unflushed immutable memtables (bytes). */
     public void enableCurSizeAllMemTables() {
-        this.properties.add(RocksDBProperty.CurSizeAllMemTables.getRocksDBProperty());
+        this.properties.add(RocksDBProperty.CurSizeAllMemTables);
     }
 
     /**
@@ -524,27 +536,27 @@ public class RocksDBNativeMetricOptions implements Serializable {
      * (bytes).
      */
     public void enableSizeAllMemTables() {
-        this.properties.add(RocksDBProperty.SizeAllMemTables.getRocksDBProperty());
+        this.properties.add(RocksDBProperty.SizeAllMemTables);
     }
 
     /** Returns total number of entries in the active memtable. */
     public void enableNumEntriesActiveMemTable() {
-        this.properties.add(RocksDBProperty.NumEntriesActiveMemTable.getRocksDBProperty());
+        this.properties.add(RocksDBProperty.NumEntriesActiveMemTable);
     }
 
     /** Returns total number of entries in the unflushed immutable memtables. */
     public void enableNumEntriesImmMemTables() {
-        this.properties.add(RocksDBProperty.NumEntriesImmMemTables.getRocksDBProperty());
+        this.properties.add(RocksDBProperty.NumEntriesImmMemTables);
     }
 
     /** Returns total number of delete entries in the active memtable. */
     public void enableNumDeletesActiveMemTable() {
-        this.properties.add(RocksDBProperty.NumDeletesActiveMemTable.getRocksDBProperty());
+        this.properties.add(RocksDBProperty.NumDeletesActiveMemTable);
     }
 
     /** Returns total number of delete entries in the unflushed immutable memtables. */
     public void enableNumDeletesImmMemTables() {
-        this.properties.add(RocksDBProperty.NumDeletesImmMemTables.getRocksDBProperty());
+        this.properties.add(RocksDBProperty.NumDeletesImmMemTables);
     }
 
     /**
@@ -552,7 +564,7 @@ public class RocksDBNativeMetricOptions implements Serializable {
      * storage.
      */
     public void enableEstimateNumKeys() {
-        this.properties.add(RocksDBProperty.EstimateNumKeys.getRocksDBProperty());
+        this.properties.add(RocksDBProperty.EstimateNumKeys);
     }
 
     /**
@@ -560,12 +572,12 @@ public class RocksDBNativeMetricOptions implements Serializable {
      * (e.g.,filter and index blocks).
      */
     public void enableEstimateTableReadersMem() {
-        this.properties.add(RocksDBProperty.EstimateTableReadersMem.getRocksDBProperty());
+        this.properties.add(RocksDBProperty.EstimateTableReadersMem);
     }
 
     /** Returns number of unreleased snapshots of the database. */
     public void enableNumSnapshots() {
-        this.properties.add(RocksDBProperty.NumSnapshots.getRocksDBProperty());
+        this.properties.add(RocksDBProperty.NumSnapshots);
     }
 
     /**
@@ -574,12 +586,12 @@ public class RocksDBNativeMetricOptions implements Serializable {
      * iterators or unfinished compactions.
      */
     public void enableNumLiveVersions() {
-        this.properties.add(RocksDBProperty.NumLiveVersions.getRocksDBProperty());
+        this.properties.add(RocksDBProperty.NumLiveVersions);
     }
 
     /** Returns an estimate of the amount of live data in bytes. */
     public void enableEstimateLiveDataSize() {
-        this.properties.add(RocksDBProperty.EstimateLiveDataSize.getRocksDBProperty());
+        this.properties.add(RocksDBProperty.EstimateLiveDataSize);
     }
 
     /**
@@ -587,11 +599,11 @@ public class RocksDBNativeMetricOptions implements Serializable {
      * queries if there are too many files.
      */
     public void enableTotalSstFilesSize() {
-        this.properties.add(RocksDBProperty.TotalSstFilesSize.getRocksDBProperty());
+        this.properties.add(RocksDBProperty.TotalSstFilesSize);
     }
 
     public void enableLiveSstFilesSize() {
-        this.properties.add(RocksDBProperty.LiveSstFilesSize.getRocksDBProperty());
+        this.properties.add(RocksDBProperty.LiveSstFilesSize);
     }
 
     /**
@@ -599,42 +611,53 @@ public class RocksDBNativeMetricOptions implements Serializable {
      * under target size. Not valid for other compactions than level-based.
      */
     public void enableEstimatePendingCompactionBytes() {
-        this.properties.add(RocksDBProperty.EstimatePendingCompactionBytes.getRocksDBProperty());
+        this.properties.add(RocksDBProperty.EstimatePendingCompactionBytes);
     }
 
     /** Returns the number of currently running compactions. */
     public void enableNumRunningCompactions() {
-        this.properties.add(RocksDBProperty.NumRunningCompactions.getRocksDBProperty());
+        this.properties.add(RocksDBProperty.NumRunningCompactions);
     }
 
     /** Returns the number of currently running flushes. */
     public void enableNumRunningFlushes() {
-        this.properties.add(RocksDBProperty.NumRunningFlushes.getRocksDBProperty());
+        this.properties.add(RocksDBProperty.NumRunningFlushes);
     }
 
     /** Returns the current actual delayed write rate. 0 means no delay. */
     public void enableActualDelayedWriteRate() {
-        this.properties.add(RocksDBProperty.ActualDelayedWriteRate.getRocksDBProperty());
+        this.properties.add(RocksDBProperty.ActualDelayedWriteRate);
     }
 
     /** Returns 1 if write has been stopped. */
     public void enableIsWriteStopped() {
-        this.properties.add(RocksDBProperty.IsWriteStopped.getRocksDBProperty());
+        this.properties.add(RocksDBProperty.IsWriteStopped);
     }
 
     /** Returns block cache capacity. */
     public void enableBlockCacheCapacity() {
-        this.properties.add(RocksDBProperty.BlockCacheCapacity.getRocksDBProperty());
+        this.properties.add(RocksDBProperty.BlockCacheCapacity);
     }
 
     /** Returns the memory size for the entries residing in block cache. */
     public void enableBlockCacheUsage() {
-        this.properties.add(RocksDBProperty.BlockCacheUsage.getRocksDBProperty());
+        this.properties.add(RocksDBProperty.BlockCacheUsage);
     }
 
     /** Returns the memory size for the entries being pinned in block cache. */
     public void enableBlockCachePinnedUsage() {
-        this.properties.add(RocksDBProperty.BlockCachePinnedUsage.getRocksDBProperty());
+        this.properties.add(RocksDBProperty.BlockCachePinnedUsage);
+    }
+
+    /** Returns the number of files per level. */
+    public void enableNumFilesAtLevel() {
+        this.properties.add(RocksDBProperty.NumFilesAtLevel0);
+        this.properties.add(RocksDBProperty.NumFilesAtLevel1);
+        this.properties.add(RocksDBProperty.NumFilesAtLevel2);
+        this.properties.add(RocksDBProperty.NumFilesAtLevel3);
+        this.properties.add(RocksDBProperty.NumFilesAtLevel4);
+        this.properties.add(RocksDBProperty.NumFilesAtLevel5);
+        this.properties.add(RocksDBProperty.NumFilesAtLevel6);
     }
 
     /** Returns the column family as variable. */
@@ -643,7 +666,7 @@ public class RocksDBNativeMetricOptions implements Serializable {
     }
 
     /** @return the enabled RocksDB property-based metrics */
-    public Collection<String> getProperties() {
+    public Collection<RocksDBProperty> getProperties() {
         return Collections.unmodifiableCollection(properties);
     }
 

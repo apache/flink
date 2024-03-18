@@ -158,6 +158,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
         TaskExecutorLocalStateStoresManager localStateStoresManager =
                 new TaskExecutorLocalStateStoresManager(
                         false,
+                        false,
                         Reference.owned(new File[] {temporaryFolder.newFolder()}),
                         Executors.directExecutor());
 

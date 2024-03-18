@@ -119,7 +119,7 @@ abstract class SinkWriterOperatorTestBase {
     }
 
     @Test
-    public void testTimeBasedBufferingSinkWriter() throws Exception {
+    void testTimeBasedBufferingSinkWriter() throws Exception {
         final long initialTime = 0;
 
         final OneInputStreamOperatorTestHarness<Integer, CommittableMessage<Integer>> testHarness =
@@ -421,7 +421,7 @@ abstract class SinkWriterOperatorTestBase {
         assertThat(initContext.get().getTaskInfo().getIndexOfThisSubtask()).isEqualTo(subtaskId);
         assertThat(initContext.get().getTaskInfo().getNumberOfParallelSubtasks())
                 .isEqualTo(parallelism);
-        assertThat(initContext.get().getTaskInfo().getAttemptNumber()).isEqualTo(0);
+        assertThat(initContext.get().getTaskInfo().getAttemptNumber()).isZero();
         assertThat(initContext.get().metricGroup()).isNotNull();
         assertThat(initContext.get().getRestoredCheckpointId()).isNotPresent();
         assertThat(initContext.get().isObjectReuseEnabled()).isTrue();

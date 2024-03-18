@@ -44,7 +44,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Test for {@link ChangelogTaskLocalStateStore}. */
 class ChangelogTaskLocalStateStoreTest extends TaskLocalStateStoreImplTest {
 
-    private LocalRecoveryDirectoryProvider localRecoveryDirectoryProvider;
+    private LocalSnapshotDirectoryProvider localSnapshotDirectoryProvider;
 
     @BeforeEach
     @Override
@@ -62,12 +62,13 @@ class ChangelogTaskLocalStateStoreTest extends TaskLocalStateStoreImplTest {
             AllocationID allocationID,
             JobVertexID jobVertexID,
             int subtaskIdx) {
-        LocalRecoveryDirectoryProviderImpl directoryProvider =
-                new LocalRecoveryDirectoryProviderImpl(
+        LocalSnapshotDirectoryProviderImpl directoryProvider =
+                new LocalSnapshotDirectoryProviderImpl(
                         allocationBaseDirs, jobID, jobVertexID, subtaskIdx);
-        this.localRecoveryDirectoryProvider = directoryProvider;
+        this.localSnapshotDirectoryProvider = directoryProvider;
 
-        LocalRecoveryConfig localRecoveryConfig = new LocalRecoveryConfig(directoryProvider);
+        LocalRecoveryConfig localRecoveryConfig =
+                LocalRecoveryConfig.backupAndRecoveryEnabled(directoryProvider);
         return new ChangelogTaskLocalStateStore(
                 jobID,
                 allocationID,
@@ -173,14 +174,14 @@ class ChangelogTaskLocalStateStoreTest extends TaskLocalStateStoreImplTest {
 
     private boolean checkMaterializedDirExists(long materializationID) {
         File materializedDir =
-                localRecoveryDirectoryProvider.subtaskSpecificCheckpointDirectory(
+                localSnapshotDirectoryProvider.subtaskSpecificCheckpointDirectory(
                         materializationID);
         return materializedDir.exists();
     }
 
     private void writeToMaterializedDir(long materializationID) {
         File materializedDir =
-                localRecoveryDirectoryProvider.subtaskSpecificCheckpointDirectory(
+                localSnapshotDirectoryProvider.subtaskSpecificCheckpointDirectory(
                         materializationID);
         if (!materializedDir.exists() && !materializedDir.mkdirs()) {
             throw new FlinkRuntimeException(

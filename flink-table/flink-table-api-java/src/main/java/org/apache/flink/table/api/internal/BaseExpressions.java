@@ -132,6 +132,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LPAD;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LTRIM;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_ENTRIES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_KEYS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_UNION;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_VALUES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAX;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MD5;
@@ -1546,6 +1547,21 @@ public abstract class BaseExpressions<InType, OutType> {
     /** Returns an array of all entries in the given map. */
     public OutType mapEntries() {
         return toApiSpecificExpression(unresolvedCall(MAP_ENTRIES, toExpr()));
+    }
+
+    /**
+     * Returns a map created by merging at least one map. These maps should have a common map type.
+     * If there are overlapping keys, the value from 'map2' will overwrite the value from 'map1',
+     * the value from 'map3' will overwrite the value from 'map2', the value from 'mapn' will
+     * overwrite the value from 'map(n-1)'. If any of maps is null, return null.
+     */
+    public OutType mapUnion(InType... inputs) {
+        Expression[] args =
+                Stream.concat(
+                                Stream.of(toExpr()),
+                                Arrays.stream(inputs).map(ApiExpressionUtils::objectToExpression))
+                        .toArray(Expression[]::new);
+        return toApiSpecificExpression(unresolvedCall(MAP_UNION, args));
     }
 
     // Time definition

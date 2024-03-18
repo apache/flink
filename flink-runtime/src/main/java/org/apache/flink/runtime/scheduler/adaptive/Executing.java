@@ -43,6 +43,7 @@ import javax.annotation.Nullable;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
@@ -106,8 +107,9 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
     }
 
     @Override
-    void onFailure(Throwable cause) {
-        FailureResultUtil.restartOrFail(context.howToHandleFailure(cause), context, this);
+    void onFailure(Throwable cause, CompletableFuture<Map<String, String>> failureLabels) {
+        FailureResultUtil.restartOrFail(
+                context.howToHandleFailure(cause, failureLabels), context, this);
     }
 
     @Override
@@ -255,9 +257,11 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
          * Asks how to handle the failure.
          *
          * @param failure failure describing the failure cause
+         * @param failureLabels future of labels from error classification.
          * @return {@link FailureResult} which describes how to handle the failure
          */
-        FailureResult howToHandleFailure(Throwable failure);
+        FailureResult howToHandleFailure(
+                Throwable failure, CompletableFuture<Map<String, String>> failureLabels);
 
         /**
          * Asks if we should rescale the currently executing job.

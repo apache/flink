@@ -28,14 +28,12 @@ import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
-import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -46,17 +44,13 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Future;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link StreamOperatorWrapper}. */
-public class StreamOperatorWrapperTest extends TestLogger {
+class StreamOperatorWrapperTest {
 
     private static SystemProcessingTimeService timerService;
 
@@ -68,19 +62,19 @@ public class StreamOperatorWrapperTest extends TestLogger {
 
     private volatile StreamTask<?, ?> containingTask;
 
-    @BeforeClass
-    public static void startTimeService() {
+    @BeforeAll
+    static void startTimeService() {
         CompletableFuture<Throwable> errorFuture = new CompletableFuture<>();
         timerService = new SystemProcessingTimeService(errorFuture::complete);
     }
 
-    @AfterClass
-    public static void shutdownTimeService() {
+    @AfterAll
+    static void shutdownTimeService() {
         timerService.shutdownService();
     }
 
-    @Before
-    public void setup() throws Exception {
+    @BeforeEach
+    void setup() throws Exception {
         this.operatorWrappers = new ArrayList<>();
         this.output = new ConcurrentLinkedQueue<>();
 
@@ -127,13 +121,13 @@ public class StreamOperatorWrapperTest extends TestLogger {
         }
     }
 
-    @After
-    public void teardown() throws Exception {
+    @AfterEach
+    void teardown() throws Exception {
         containingTask.cleanUpInternal();
     }
 
     @Test
-    public void testFinish() throws Exception {
+    void testFinish() throws Exception {
         output.clear();
         operatorWrappers.get(0).finish(containingTask.getActionExecutor(), StopMode.DRAIN);
 
@@ -148,14 +142,13 @@ public class StreamOperatorWrapperTest extends TestLogger {
                     prefix + ": Mail to put in mailbox when finishing operator");
         }
 
-        assertArrayEquals(
-                "Output was not correct.",
-                expected.subList(2, expected.size()).toArray(),
-                output.toArray());
+        assertThat(output)
+                .as("Output was not correct.")
+                .containsExactlyElementsOf(expected.subList(2, expected.size()));
     }
 
     @Test
-    public void testFinishingOperatorWithException() {
+    void testFinishingOperatorWithException() {
         AbstractStreamOperator<Void> streamOperator =
                 new AbstractStreamOperator<Void>() {
                     @Override
@@ -173,46 +166,43 @@ public class StreamOperatorWrapperTest extends TestLogger {
                                 .createExecutor(Integer.MAX_VALUE - 1),
                         true);
 
-        try {
-            operatorWrapper.finish(containingTask.getActionExecutor(), StopMode.DRAIN);
-            fail("should throw an exception");
-        } catch (Throwable t) {
-            Optional<Throwable> optional =
-                    ExceptionUtils.findThrowableWithMessage(t, "test exception at finishing");
-            assertTrue(optional.isPresent());
-        }
+        assertThatThrownBy(
+                        () ->
+                                operatorWrapper.finish(
+                                        containingTask.getActionExecutor(), StopMode.DRAIN))
+                .hasMessageContaining("test exception at finishing");
     }
 
     @Test
-    public void testReadIterator() {
+    void testReadIterator() {
         // traverse operators in forward order
         Iterator<StreamOperatorWrapper<?, ?>> it =
                 new StreamOperatorWrapper.ReadIterator(operatorWrappers.get(0), false);
         for (int i = 0; i < operatorWrappers.size(); i++) {
-            assertTrue(it.hasNext());
+            assertThat(it).hasNext();
 
             StreamOperatorWrapper<?, ?> next = it.next();
-            assertNotNull(next);
+            assertThat(next).isNotNull();
 
             TestOneInputStreamOperator operator = getStreamOperatorFromWrapper(next);
-            assertEquals("Operator" + i, operator.getName());
+            assertThat(operator.getName()).isEqualTo("Operator" + i);
         }
-        assertFalse(it.hasNext());
+        assertThat(it).isExhausted();
 
         // traverse operators in reverse order
         it =
                 new StreamOperatorWrapper.ReadIterator(
                         operatorWrappers.get(operatorWrappers.size() - 1), true);
         for (int i = operatorWrappers.size() - 1; i >= 0; i--) {
-            assertTrue(it.hasNext());
+            assertThat(it).hasNext();
 
             StreamOperatorWrapper<?, ?> next = it.next();
-            assertNotNull(next);
+            assertThat(next).isNotNull();
 
             TestOneInputStreamOperator operator = getStreamOperatorFromWrapper(next);
-            assertEquals("Operator" + i, operator.getName());
+            assertThat(operator.getName()).isEqualTo("Operator" + i);
         }
-        assertFalse(it.hasNext());
+        assertThat(it).isExhausted();
     }
 
     private TestOneInputStreamOperator getStreamOperatorFromWrapper(
@@ -322,8 +312,8 @@ public class StreamOperatorWrapperTest extends TestLogger {
                                     "["
                                             + name
                                             + "]: Timer to put in mailbox when finishing operator");
-            assertNotNull(processingTimeService.registerTimer(0, callback));
-            assertNull(timerMailController.getPuttingLatch(callback));
+            assertThat((Future<?>) processingTimeService.registerTimer(0, callback)).isNotNull();
+            assertThat(timerMailController.getPuttingLatch(callback)).isNull();
 
             mailboxExecutor.submit(
                     () ->

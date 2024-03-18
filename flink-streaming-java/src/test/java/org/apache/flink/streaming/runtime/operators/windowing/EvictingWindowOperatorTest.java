@@ -52,23 +52,24 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Comparator;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Tests for {@link EvictingWindowOperator}. */
-public class EvictingWindowOperatorTest {
+class EvictingWindowOperatorTest {
 
     private static final TypeInformation<Tuple2<String, Integer>> STRING_INT_TUPLE =
             TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {});
 
     /** Tests CountEvictor evictAfter behavior. */
     @Test
-    public void testCountEvictorEvictAfter() throws Exception {
+    void testCountEvictorEvictAfter() throws Exception {
         AtomicInteger closeCalled = new AtomicInteger(0);
         final int windowSize = 4;
         final int triggerCount = 2;
@@ -156,12 +157,12 @@ public class EvictingWindowOperatorTest {
 
         testHarness.close();
 
-        Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+        assertThat(closeCalled).as("Close was not called.").hasValue(1);
     }
 
     /** Tests TimeEvictor evictAfter behavior. */
     @Test
-    public void testTimeEvictorEvictAfter() throws Exception {
+    void testTimeEvictorEvictAfter() throws Exception {
         AtomicInteger closeCalled = new AtomicInteger(0);
         final int triggerCount = 2;
         final boolean evictAfter = true;
@@ -238,12 +239,12 @@ public class EvictingWindowOperatorTest {
 
         testHarness.close();
 
-        Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+        assertThat(closeCalled).as("Close was not called.").hasValue(1);
     }
 
     /** Tests TimeEvictor evictBefore behavior. */
     @Test
-    public void testTimeEvictorEvictBefore() throws Exception {
+    void testTimeEvictorEvictBefore() throws Exception {
         AtomicInteger closeCalled = new AtomicInteger(0);
         final int triggerCount = 2;
         final int windowSize = 4;
@@ -319,7 +320,7 @@ public class EvictingWindowOperatorTest {
 
         testHarness.close();
 
-        Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+        assertThat(closeCalled).as("Close was not called.").hasValue(1);
     }
 
     /**
@@ -327,7 +328,7 @@ public class EvictingWindowOperatorTest {
      * evicted from the window.
      */
     @Test
-    public void testTimeEvictorNoTimestamp() throws Exception {
+    void testTimeEvictorNoTimestamp() throws Exception {
         AtomicInteger closeCalled = new AtomicInteger(0);
         final int triggerCount = 2;
         final boolean evictAfter = true;
@@ -402,12 +403,12 @@ public class EvictingWindowOperatorTest {
 
         testHarness.close();
 
-        Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+        assertThat(closeCalled).as("Close was not called.").hasValue(1);
     }
 
     /** Tests DeltaEvictor, evictBefore behavior. */
     @Test
-    public void testDeltaEvictorEvictBefore() throws Exception {
+    void testDeltaEvictorEvictBefore() throws Exception {
         AtomicInteger closeCalled = new AtomicInteger(0);
         final int triggerCount = 2;
         final boolean evictAfter = false;
@@ -496,12 +497,12 @@ public class EvictingWindowOperatorTest {
 
         testHarness.close();
 
-        Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+        assertThat(closeCalled).as("Close was not called.").hasValue(1);
     }
 
     /** Tests DeltaEvictor, evictAfter behavior. */
     @Test
-    public void testDeltaEvictorEvictAfter() throws Exception {
+    void testDeltaEvictorEvictAfter() throws Exception {
         AtomicInteger closeCalled = new AtomicInteger(0);
         final int triggerCount = 2;
         final boolean evictAfter = true;
@@ -590,12 +591,12 @@ public class EvictingWindowOperatorTest {
 
         testHarness.close();
 
-        Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+        assertThat(closeCalled).as("Close was not called.").hasValue(1);
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testCountTrigger() throws Exception {
+    void testCountTrigger() throws Exception {
 
         final int windowSize = 4;
         final int windowSlide = 2;
@@ -685,7 +686,7 @@ public class EvictingWindowOperatorTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testCountTriggerWithApply() throws Exception {
+    void testCountTriggerWithApply() throws Exception {
         AtomicInteger closeCalled = new AtomicInteger(0);
 
         final int windowSize = 4;
@@ -766,12 +767,12 @@ public class EvictingWindowOperatorTest {
 
         testHarness.close();
 
-        Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+        assertThat(closeCalled).as("Close was not called.").hasValue(1);
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testTumblingWindowWithApply() throws Exception {
+    void testTumblingWindowWithApply() throws Exception {
         AtomicInteger closeCalled = new AtomicInteger(0);
 
         final int windowSize = 4;
@@ -889,9 +890,7 @@ public class EvictingWindowOperatorTest {
                 Collector<Tuple2<String, Integer>> out)
                 throws Exception {
 
-            if (!openCalled) {
-                Assert.fail("Open was not called");
-            }
+            assertThat(openCalled).as("Open was not called").isTrue();
             int sum = 0;
 
             for (Tuple2<String, Integer> t : input) {

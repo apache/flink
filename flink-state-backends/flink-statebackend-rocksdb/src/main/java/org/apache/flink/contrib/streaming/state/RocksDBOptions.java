@@ -18,6 +18,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.ConfigOption;
@@ -33,6 +34,7 @@ import static org.apache.flink.contrib.streaming.state.PredefinedOptions.SPINNIN
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM;
 
 /** Configuration options for the RocksDB backend. */
+@PublicEvolving
 public class RocksDBOptions {
 
     /** The local directory (on the TaskManager) where RocksDB puts its files. */

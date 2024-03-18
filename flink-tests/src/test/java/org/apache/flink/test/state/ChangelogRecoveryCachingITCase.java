@@ -62,12 +62,12 @@ import static org.apache.flink.changelog.fs.FsStateChangelogOptions.CACHE_IDLE_T
 import static org.apache.flink.changelog.fs.FsStateChangelogOptions.PREEMPTIVE_PERSIST_THRESHOLD;
 import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTS_DIRECTORY;
 import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINT_STORAGE;
-import static org.apache.flink.configuration.CheckpointingOptions.LOCAL_RECOVERY;
 import static org.apache.flink.configuration.CoreOptions.DEFAULT_PARALLELISM;
 import static org.apache.flink.configuration.RestartStrategyOptions.RESTART_STRATEGY;
 import static org.apache.flink.configuration.StateBackendOptions.STATE_BACKEND;
 import static org.apache.flink.configuration.StateChangelogOptions.ENABLE_STATE_CHANGE_LOG;
 import static org.apache.flink.configuration.StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED;
+import static org.apache.flink.configuration.StateRecoveryOptions.LOCAL_RECOVERY;
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_ENABLED;
 import static org.apache.flink.runtime.jobgraph.SavepointRestoreSettings.forPath;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;

@@ -25,24 +25,17 @@ import org.apache.flink.streaming.api.windowing.assigners.SessionWindowTimeGapEx
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Matchers;
 
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 
-import static org.apache.flink.streaming.util.StreamRecordMatchers.timeWindow;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.Matchers.contains;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyCollection;
 import static org.mockito.Mockito.eq;
@@ -54,10 +47,10 @@ import static org.mockito.Mockito.when;
 import static org.mockito.hamcrest.MockitoHamcrest.argThat;
 
 /** Tests for {@link DynamicEventTimeSessionWindows}. */
-public class DynamicEventTimeSessionWindowsTest extends TestLogger {
+class DynamicEventTimeSessionWindowsTest {
 
     @Test
-    public void testWindowAssignment() {
+    void testWindowAssignment() {
 
         WindowAssigner.WindowAssignerContext mockContext =
                 mock(WindowAssigner.WindowAssignerContext.class);
@@ -69,18 +62,16 @@ public class DynamicEventTimeSessionWindowsTest extends TestLogger {
         DynamicEventTimeSessionWindows<String> assigner =
                 DynamicEventTimeSessionWindows.withDynamicGap(extractor);
 
-        assertThat(
-                assigner.assignWindows("gap5000", 0L, mockContext), contains(timeWindow(0, 5000)));
-        assertThat(
-                assigner.assignWindows("gap4000", 4999L, mockContext),
-                contains(timeWindow(4999, 8999)));
-        assertThat(
-                assigner.assignWindows("gap9000", 5000L, mockContext),
-                contains(timeWindow(5000, 14000)));
+        assertThat(assigner.assignWindows("gap5000", 0L, mockContext))
+                .containsExactly(new TimeWindow(0, 5000));
+        assertThat(assigner.assignWindows("gap4000", 4999L, mockContext))
+                .containsExactly(new TimeWindow(4999, 8999));
+        assertThat(assigner.assignWindows("gap9000", 5000L, mockContext))
+                .containsExactly(new TimeWindow(5000, 14000));
     }
 
     @Test
-    public void testMergeSinglePointWindow() {
+    void testMergeSinglePointWindow() {
         MergingWindowAssigner.MergeCallback callback =
                 mock(MergingWindowAssigner.MergeCallback.class);
         SessionWindowTimeGapExtractor extractor = mock(SessionWindowTimeGapExtractor.class);
@@ -89,13 +80,13 @@ public class DynamicEventTimeSessionWindowsTest extends TestLogger {
         DynamicEventTimeSessionWindows assigner =
                 DynamicEventTimeSessionWindows.withDynamicGap(extractor);
 
-        assigner.mergeWindows(Lists.newArrayList(new TimeWindow(0, 0)), callback);
+        assigner.mergeWindows(Collections.singletonList(new TimeWindow(0, 0)), callback);
 
         verify(callback, never()).merge(anyCollection(), Matchers.anyObject());
     }
 
     @Test
-    public void testMergeSingleWindow() {
+    void testMergeSingleWindow() {
         MergingWindowAssigner.MergeCallback callback =
                 mock(MergingWindowAssigner.MergeCallback.class);
         SessionWindowTimeGapExtractor extractor = mock(SessionWindowTimeGapExtractor.class);
@@ -104,13 +95,13 @@ public class DynamicEventTimeSessionWindowsTest extends TestLogger {
         DynamicEventTimeSessionWindows assigner =
                 DynamicEventTimeSessionWindows.withDynamicGap(extractor);
 
-        assigner.mergeWindows(Lists.newArrayList(new TimeWindow(0, 1)), callback);
+        assigner.mergeWindows(Collections.singletonList(new TimeWindow(0, 1)), callback);
 
         verify(callback, never()).merge(anyCollection(), Matchers.anyObject());
     }
 
     @Test
-    public void testMergeConsecutiveWindows() {
+    void testMergeConsecutiveWindows() {
         MergingWindowAssigner.MergeCallback callback =
                 mock(MergingWindowAssigner.MergeCallback.class);
         SessionWindowTimeGapExtractor extractor = mock(SessionWindowTimeGapExtractor.class);
@@ -120,7 +111,7 @@ public class DynamicEventTimeSessionWindowsTest extends TestLogger {
                 DynamicEventTimeSessionWindows.withDynamicGap(extractor);
 
         assigner.mergeWindows(
-                Lists.newArrayList(
+                Arrays.asList(
                         new TimeWindow(0, 1),
                         new TimeWindow(1, 2),
                         new TimeWindow(2, 3),
@@ -150,7 +141,7 @@ public class DynamicEventTimeSessionWindowsTest extends TestLogger {
     }
 
     @Test
-    public void testMergeCoveringWindow() {
+    void testMergeCoveringWindow() {
         MergingWindowAssigner.MergeCallback callback =
                 mock(MergingWindowAssigner.MergeCallback.class);
         SessionWindowTimeGapExtractor extractor = mock(SessionWindowTimeGapExtractor.class);
@@ -160,7 +151,7 @@ public class DynamicEventTimeSessionWindowsTest extends TestLogger {
                 DynamicEventTimeSessionWindows.withDynamicGap(extractor);
 
         assigner.mergeWindows(
-                Lists.newArrayList(
+                Arrays.asList(
                         new TimeWindow(1, 1),
                         new TimeWindow(0, 2),
                         new TimeWindow(4, 7),
@@ -187,47 +178,34 @@ public class DynamicEventTimeSessionWindowsTest extends TestLogger {
     }
 
     @Test
-    public void testInvalidParameters() {
+    void testInvalidParameters() {
         WindowAssigner.WindowAssignerContext mockContext =
                 mock(WindowAssigner.WindowAssignerContext.class);
-        try {
-            SessionWindowTimeGapExtractor extractor = mock(SessionWindowTimeGapExtractor.class);
-            when(extractor.extract(any())).thenReturn(-1L);
+        SessionWindowTimeGapExtractor extractor = mock(SessionWindowTimeGapExtractor.class);
+        when(extractor.extract(any())).thenReturn(-1L);
 
-            DynamicEventTimeSessionWindows assigner =
-                    DynamicEventTimeSessionWindows.withDynamicGap(extractor);
-            assigner.assignWindows(Lists.newArrayList(new Object()), 1, mockContext);
+        DynamicEventTimeSessionWindows assigner =
+                DynamicEventTimeSessionWindows.withDynamicGap(extractor);
 
-            fail("should fail");
-        } catch (IllegalArgumentException e) {
-            assertThat(e.toString(), containsString("0 < gap"));
-        }
-
-        try {
-            SessionWindowTimeGapExtractor extractor = mock(SessionWindowTimeGapExtractor.class);
-            when(extractor.extract(any())).thenReturn(0L);
-
-            DynamicEventTimeSessionWindows assigner =
-                    DynamicEventTimeSessionWindows.withDynamicGap(extractor);
-            assigner.assignWindows(Lists.newArrayList(new Object()), 1, mockContext);
-
-            fail("should fail");
-        } catch (IllegalArgumentException e) {
-            assertThat(e.toString(), containsString("0 < gap"));
-        }
+        assertThatThrownBy(
+                        () ->
+                                assigner.assignWindows(
+                                        Collections.singletonList(new Object()), 1, mockContext))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("0 < gap");
     }
 
     @Test
-    public void testProperties() {
+    void testProperties() {
         SessionWindowTimeGapExtractor extractor = mock(SessionWindowTimeGapExtractor.class);
         when(extractor.extract(any())).thenReturn(5000L);
 
         DynamicEventTimeSessionWindows assigner =
                 DynamicEventTimeSessionWindows.withDynamicGap(extractor);
 
-        assertTrue(assigner.isEventTime());
-        assertEquals(
-                new TimeWindow.Serializer(), assigner.getWindowSerializer(new ExecutionConfig()));
-        assertThat(assigner.getDefaultTrigger(), instanceOf(EventTimeTrigger.class));
+        assertThat(assigner.isEventTime()).isTrue();
+        assertThat(assigner.getWindowSerializer(new ExecutionConfig()))
+                .isEqualTo(new TimeWindow.Serializer());
+        assertThat(assigner.getDefaultTrigger()).isInstanceOf(EventTimeTrigger.class);
     }
 }

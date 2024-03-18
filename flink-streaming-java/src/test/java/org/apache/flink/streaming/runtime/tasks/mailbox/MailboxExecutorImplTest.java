@@ -23,12 +23,9 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MailboxClose
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.RunnableWithException;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -38,12 +35,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link MailboxExecutorImpl}. */
-public class MailboxExecutorImplTest {
+class MailboxExecutorImplTest {
 
     public static final int DEFAULT_PRIORITY = 0;
     private MailboxExecutor mailboxExecutor;
@@ -51,10 +47,8 @@ public class MailboxExecutorImplTest {
     private TaskMailboxImpl mailbox;
     private MailboxProcessor mailboxProcessor;
 
-    @Rule public ExpectedException expectedException = ExpectedException.none();
-
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() throws Exception {
         this.mailbox = new TaskMailboxImpl();
         this.mailboxExecutor =
                 new MailboxExecutorImpl(
@@ -64,8 +58,8 @@ public class MailboxExecutorImplTest {
                 new MailboxProcessor(c -> {}, mailbox, StreamTaskActionExecutor.IMMEDIATE);
     }
 
-    @After
-    public void tearDown() {
+    @AfterEach
+    void tearDown() {
         otherThreadExecutor.shutdown();
         try {
             if (!otherThreadExecutor.awaitTermination(60, TimeUnit.SECONDS)) {
@@ -81,31 +75,31 @@ public class MailboxExecutorImplTest {
     }
 
     @Test
-    public void testIsIdle() throws Exception {
+    void testIsIdle() throws Exception {
         MailboxProcessor processor =
                 new MailboxProcessor(MailboxDefaultAction.Controller::suspendDefaultAction);
         MailboxExecutorImpl executor =
                 (MailboxExecutorImpl) processor.getMailboxExecutor(DEFAULT_PRIORITY);
 
-        assertFalse(executor.isIdle());
+        assertThat(executor.isIdle()).isFalse();
 
         processor.runMailboxStep(); // let the default action suspend mailbox
         processor.allActionsCompleted();
         // process allActionsCompleted() mail or any other remaining control mails
         while (processor.runMailboxStep()) {}
 
-        assertTrue(executor.isIdle());
+        assertThat(executor.isIdle()).isTrue();
 
         executor.execute(() -> {}, "");
-        assertFalse(executor.isIdle());
+        assertThat(executor.isIdle()).isFalse();
 
         processor.mailbox.drain();
         processor.mailbox.quiesce();
-        assertFalse(executor.isIdle());
+        assertThat(executor.isIdle()).isFalse();
     }
 
     @Test
-    public void testOperations() throws Exception {
+    void testOperations() throws Exception {
         AtomicBoolean wasExecuted = new AtomicBoolean(false);
         CompletableFuture.runAsync(
                         () -> mailboxExecutor.execute(() -> wasExecuted.set(true), ""),
@@ -113,11 +107,11 @@ public class MailboxExecutorImplTest {
                 .get();
 
         mailbox.take(DEFAULT_PRIORITY).run();
-        Assert.assertTrue(wasExecuted.get());
+        assertThat(wasExecuted).isTrue();
     }
 
     @Test
-    public void testClose() throws Exception {
+    void testClose() throws Exception {
         final TestRunnable yieldRun = new TestRunnable();
         final TestRunnable leftoverRun = new TestRunnable();
         mailboxExecutor.execute(yieldRun, "yieldRun");
@@ -127,42 +121,37 @@ public class MailboxExecutorImplTest {
                                 otherThreadExecutor)
                         .get();
 
-        assertTrue(mailboxExecutor.tryYield());
-        assertEquals(Thread.currentThread(), yieldRun.wasExecutedBy());
+        assertThat(mailboxExecutor.tryYield()).isTrue();
+        assertThat(yieldRun.wasExecutedBy()).isEqualTo(Thread.currentThread());
 
-        assertFalse(leftoverFuture.isDone());
-        assertFalse(leftoverFuture.isCancelled());
+        assertThat(leftoverFuture).isNotDone().isNotCancelled();
 
         mailboxProcessor.close();
-        assertTrue(leftoverFuture.isCancelled());
+        assertThat(leftoverFuture).isCancelled();
 
-        try {
-            mailboxExecutor.tryYield();
-            Assert.fail("yielding should not work after shutdown().");
-        } catch (MailboxClosedException expected) {
-        }
+        assertThatThrownBy(mailboxExecutor::tryYield)
+                .as("yielding should not work after shutdown().")
+                .isInstanceOf(MailboxClosedException.class);
 
-        try {
-            mailboxExecutor.yield();
-            Assert.fail("yielding should not work after shutdown().");
-        } catch (MailboxClosedException expected) {
-        }
+        assertThatThrownBy(mailboxExecutor::yield)
+                .as("yielding should not work after shutdown().")
+                .isInstanceOf(MailboxClosedException.class);
     }
 
     @Test
-    public void testTryYield() throws Exception {
+    void testTryYield() throws Exception {
         final TestRunnable testRunnable = new TestRunnable();
         CompletableFuture.runAsync(
                         () -> mailboxExecutor.execute(testRunnable, "testRunnable"),
                         otherThreadExecutor)
                 .get();
-        assertTrue(mailboxExecutor.tryYield());
-        assertFalse(mailboxExecutor.tryYield());
-        Assert.assertEquals(Thread.currentThread(), testRunnable.wasExecutedBy());
+        assertThat(mailboxExecutor.tryYield()).isTrue();
+        assertThat(mailboxExecutor.tryYield()).isFalse();
+        assertThat(testRunnable.wasExecutedBy()).isEqualTo(Thread.currentThread());
     }
 
     @Test
-    public void testYield() throws Exception {
+    void testYield() throws Exception {
         final AtomicReference<Exception> exceptionReference = new AtomicReference<>();
         final TestRunnable testRunnable = new TestRunnable();
         final Thread submitThread =
@@ -179,8 +168,8 @@ public class MailboxExecutorImplTest {
         mailboxExecutor.yield();
         submitThread.join();
 
-        Assert.assertNull(exceptionReference.get());
-        Assert.assertEquals(Thread.currentThread(), testRunnable.wasExecutedBy());
+        assertThat(exceptionReference.get()).isNull();
+        assertThat(testRunnable.wasExecutedBy()).isEqualTo(Thread.currentThread());
     }
 
     /** Test {@link Runnable} that tracks execution. */
