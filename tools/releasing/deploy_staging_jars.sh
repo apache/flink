@@ -20,7 +20,7 @@
 ##
 ## Variables with defaults (if not overwritten by environment)
 ##
-MVN=${MVN:-mvn}
+MVN=${MVN:-${MAVEN_WRAPPER:-mvn}}
 CUSTOM_OPTIONS=${CUSTOM_OPTIONS:-}
 
 # fail immediately
