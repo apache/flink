@@ -15,11 +15,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.checkpoint.filemerging;
+package org.apache.flink.runtime.state.filemerging;
 
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.checkpoint.filemerging.LogicalFile;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.PhysicalStateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -138,7 +139,7 @@ public class SegmentFileStateHandle implements StreamStateHandle {
 
         SegmentFileStateHandle that = (SegmentFileStateHandle) o;
 
-        return super.equals(that)
+        return filePath.equals(that.filePath)
                 && startPos == that.startPos
                 && stateSize == that.stateSize
                 && scope.equals(that.scope);

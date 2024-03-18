@@ -27,6 +27,8 @@ import org.apache.flink.core.fs.OutputStreamAndPath;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.filemerging.LogicalFile.LogicalFileId;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
+import org.apache.flink.runtime.state.filemerging.DirectoryStreamStateHandle;
+import org.apache.flink.runtime.state.filemerging.SegmentFileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileMergingCheckpointStateOutputStream;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
@@ -37,6 +39,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.HashSet;
@@ -106,10 +109,22 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     private final Map<SubtaskKey, Path> managedSharedStateDir = new ConcurrentHashMap<>();
 
     /**
+     * The {@link DirectoryStreamStateHandle} for shared state directories, one for each subtask.
+     */
+    private final Map<SubtaskKey, DirectoryStreamStateHandle> managedSharedStateDirHandles =
+            new ConcurrentHashMap<>();
+
+    /**
      * The private state files are merged across subtasks, there is only one directory for
      * merged-files within one TM per job.
      */
     protected Path managedExclusiveStateDir;
+
+    /**
+     * The {@link DirectoryStreamStateHandle} for private state directory, one for each task
+     * manager.
+     */
+    protected DirectoryStreamStateHandle managedExclusiveStateDirHandle;
 
     public FileMergingSnapshotManagerBase(
             String id, long maxFileSize, PhysicalFilePool.Type filePoolType, Executor ioExecutor) {
@@ -152,6 +167,9 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
         Path managedExclusivePath = new Path(taskOwnedStateDir, id);
         createManagedDirectory(managedExclusivePath);
         this.managedExclusiveStateDir = managedExclusivePath;
+        this.managedExclusiveStateDirHandle =
+                DirectoryStreamStateHandle.forPathWithZeroSize(
+                        new File(managedExclusivePath.getPath()).toPath());
         this.writeBufferSize = writeBufferSize;
     }
 
@@ -162,6 +180,10 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
         if (!managedSharedStateDir.containsKey(subtaskKey)) {
             createManagedDirectory(managedPath);
             managedSharedStateDir.put(subtaskKey, managedPath);
+            managedSharedStateDirHandles.put(
+                    subtaskKey,
+                    DirectoryStreamStateHandle.forPathWithZeroSize(
+                            new File(managedPath.getPath()).toPath()));
         }
     }
 
@@ -474,6 +496,16 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
             return managedSharedStateDir.get(subtaskKey);
         } else {
             return managedExclusiveStateDir;
+        }
+    }
+
+    @Override
+    public DirectoryStreamStateHandle getManagedDirStateHandle(
+            SubtaskKey subtaskKey, CheckpointedStateScope scope) {
+        if (scope.equals(CheckpointedStateScope.SHARED)) {
+            return managedSharedStateDirHandles.get(subtaskKey);
+        } else {
+            return managedExclusiveStateDirHandle;
         }
     }
 

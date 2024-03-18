@@ -25,6 +25,7 @@ import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.filemerging.DirectoryStreamStateHandle;
 
 import java.io.IOException;
 import java.util.List;
@@ -82,6 +83,16 @@ public class FsMergingCheckpointStorageLocation extends FsCheckpointStorageLocat
 
     public CheckpointStreamFactory toNonFileMerging() {
         return backwardsConvertor.get();
+    }
+
+    public DirectoryStreamStateHandle getExclusiveStateHandle() {
+        return fileMergingSnapshotManager.getManagedDirStateHandle(
+                subtaskKey, CheckpointedStateScope.EXCLUSIVE);
+    }
+
+    public DirectoryStreamStateHandle getSharedStateHandle() {
+        return fileMergingSnapshotManager.getManagedDirStateHandle(
+                subtaskKey, CheckpointedStateScope.SHARED);
     }
 
     @Override

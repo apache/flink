@@ -25,6 +25,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.TaskStateManager;
+import org.apache.flink.runtime.state.filemerging.DirectoryStreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileMergingCheckpointStateOutputStream;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageAccess;
 
@@ -116,6 +117,17 @@ public interface FileMergingSnapshotManager extends Closeable {
      * @return the managed directory for one subtask in specified checkpoint scope.
      */
     Path getManagedDir(SubtaskKey subtaskKey, CheckpointedStateScope scope);
+
+    /**
+     * Get the {@link DirectoryStreamStateHandle} of the managed directory, created in {@link
+     * #initFileSystem} or {@link #registerSubtaskForSharedStates}.
+     *
+     * @param subtaskKey the subtask key identifying the subtask.
+     * @param scope the checkpoint scope.
+     * @return the {@link DirectoryStreamStateHandle} for one subtask in specified checkpoint scope.
+     */
+    DirectoryStreamStateHandle getManagedDirStateHandle(
+            SubtaskKey subtaskKey, CheckpointedStateScope scope);
 
     /**
      * Notifies the manager that the checkpoint with the given {@code checkpointId} completed and

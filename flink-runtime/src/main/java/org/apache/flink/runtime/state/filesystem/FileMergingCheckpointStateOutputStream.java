@@ -22,8 +22,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
-import org.apache.flink.runtime.checkpoint.filemerging.SegmentFileStateHandle;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
+import org.apache.flink.runtime.state.filemerging.SegmentFileStateHandle;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
