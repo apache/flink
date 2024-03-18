@@ -35,6 +35,13 @@ public interface SchemaCoder {
 
     void writeSchema(Schema schema, OutputStream out) throws IOException;
 
+    default void writeSchema(Schema schema, OutputStream out, Map<String, Object> headers)
+            throws IOException {
+        throw new RuntimeException(
+                "writeSchema default void writeSchema(Schema schema, OutputStream out, Map<String, Object> headers)");
+        //        writeSchema(schema, out);
+    }
+
     default Schema readSchemaWithHeaders(InputStream in, Map<String, Object> headers)
             throws IOException {
         return readSchema(in);

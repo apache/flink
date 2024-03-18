@@ -29,8 +29,6 @@ import org.apache.flink.formats.avro.AvroRowDataSerializationSchema;
 import org.apache.flink.formats.avro.AvroToRowDataConverters;
 import org.apache.flink.formats.avro.RowDataToAvroConverters;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
-import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.DecodingFormat;
@@ -57,7 +55,6 @@ import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -66,21 +63,21 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.lang.String.format;
-import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.BASIC_AUTH_CREDENTIALS_SOURCE;
-import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.BASIC_AUTH_USER_INFO;
-import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.BEARER_AUTH_CREDENTIALS_SOURCE;
-import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.BEARER_AUTH_TOKEN;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.BASIC_AUTH_CREDENTIALS_PASSWORD;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.BASIC_AUTH_CREDENTIALS_USERID;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.ENABLE_CONFLUENT_ID_HANDLER;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.ENABLE_HEADERS;
-import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.HEADERS_HANDLER;
-import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.ID_HANDLER;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.LEGACY_SCHEMA_ID;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.PROPERTIES;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.REGISTERED_ARTIFACT_DESCRIPTION;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.REGISTERED_ARTIFACT_ID;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.REGISTERED_ARTIFACT_NAME;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.REGISTERED_ARTIFACT_VERSION;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.SCHEMA;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.SSL_KEYSTORE_LOCATION;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.SSL_KEYSTORE_PASSWORD;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.SSL_TRUSTSTORE_LOCATION;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.SSL_TRUSTSTORE_PASSWORD;
-import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.SUBJECT;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.URL;
 
 /** Apicurio avro format. */
@@ -136,22 +133,6 @@ public class ApicurioRegistryAvroFormatFactory
             public ChangelogMode getChangelogMode() {
                 return ChangelogMode.insertOnly();
             }
-            // --------------------------------------------------------------------------------------------
-            // Metadata handling
-            // --------------------------------------------------------------------------------------------
-
-            @Override
-            public Map<String, DataType> listReadableMetadata() {
-                final Map<String, DataType> metadataMap = new LinkedHashMap<>();
-                Stream.of(ReadableMetadata.values())
-                        .forEachOrdered(m -> metadataMap.put(m.key, m.dataType));
-                return metadataMap;
-            }
-
-            @Override
-            public void applyReadableMetadata(List<String> metadataKeys) {
-                this.metadataKeys = metadataKeys;
-            }
         };
     }
 
@@ -161,16 +142,8 @@ public class ApicurioRegistryAvroFormatFactory
         FactoryUtil.validateFactoryOptions(this, formatOptions);
 
         String schemaRegistryURL = formatOptions.get(URL);
-        Optional<String> subject = formatOptions.getOptional(SUBJECT);
         Optional<String> schemaString = formatOptions.getOptional(SCHEMA);
         Map<String, ?> optionalPropertiesMap = buildOptionalPropertiesMap(formatOptions);
-
-        if (!subject.isPresent()) {
-            throw new ValidationException(
-                    String.format(
-                            "Option %s.%s is required for serialization",
-                            IDENTIFIER, SUBJECT.key()));
-        }
 
         return new EncodingFormat<SerializationSchema<RowData>>() {
             @Override
@@ -184,7 +157,7 @@ public class ApicurioRegistryAvroFormatFactory
                 return new AvroRowDataSerializationSchema(
                         rowType,
                         ApicurioRegistryAvroSerializationSchema.forGeneric(
-                                subject.get(), schema, schemaRegistryURL, optionalPropertiesMap),
+                                schema, schemaRegistryURL, optionalPropertiesMap),
                         RowDataToAvroConverters.createConverter(rowType));
             }
 
@@ -210,21 +183,21 @@ public class ApicurioRegistryAvroFormatFactory
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
         Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(SUBJECT);
         options.add(ENABLE_HEADERS);
-        options.add(HEADERS_HANDLER);
-        options.add(ID_HANDLER);
+        options.add(LEGACY_SCHEMA_ID);
         options.add(ENABLE_CONFLUENT_ID_HANDLER);
         options.add(SCHEMA);
+        options.add(REGISTERED_ARTIFACT_NAME);
+        options.add(REGISTERED_ARTIFACT_DESCRIPTION);
+        options.add(REGISTERED_ARTIFACT_ID);
+        options.add(REGISTERED_ARTIFACT_VERSION);
         options.add(PROPERTIES);
         options.add(SSL_KEYSTORE_LOCATION);
         options.add(SSL_KEYSTORE_PASSWORD);
         options.add(SSL_TRUSTSTORE_LOCATION);
         options.add(SSL_TRUSTSTORE_PASSWORD);
-        options.add(BASIC_AUTH_CREDENTIALS_SOURCE);
-        options.add(BASIC_AUTH_USER_INFO);
-        options.add(BEARER_AUTH_CREDENTIALS_SOURCE);
-        options.add(BEARER_AUTH_TOKEN);
+        options.add(BASIC_AUTH_CREDENTIALS_USERID);
+        options.add(BASIC_AUTH_CREDENTIALS_PASSWORD);
         return options;
     }
 
@@ -233,20 +206,20 @@ public class ApicurioRegistryAvroFormatFactory
         return Stream.of(
                         URL,
                         ENABLE_HEADERS,
-                        HEADERS_HANDLER,
-                        ID_HANDLER,
+                        LEGACY_SCHEMA_ID,
                         ENABLE_CONFLUENT_ID_HANDLER,
-                        SUBJECT,
                         SCHEMA,
+                        REGISTERED_ARTIFACT_NAME,
+                        REGISTERED_ARTIFACT_DESCRIPTION,
+                        REGISTERED_ARTIFACT_ID,
+                        REGISTERED_ARTIFACT_VERSION,
                         PROPERTIES,
                         SSL_KEYSTORE_LOCATION,
                         SSL_KEYSTORE_PASSWORD,
                         SSL_TRUSTSTORE_LOCATION,
                         SSL_TRUSTSTORE_PASSWORD,
-                        BASIC_AUTH_CREDENTIALS_SOURCE,
-                        BASIC_AUTH_USER_INFO,
-                        BEARER_AUTH_CREDENTIALS_SOURCE,
-                        BEARER_AUTH_TOKEN)
+                        BASIC_AUTH_CREDENTIALS_USERID,
+                        BASIC_AUTH_CREDENTIALS_PASSWORD)
                 .collect(Collectors.toSet());
     }
 
@@ -257,47 +230,118 @@ public class ApicurioRegistryAvroFormatFactory
         formatOptions
                 .getOptional(AvroApicurioFormatOptions.PROPERTIES)
                 .ifPresent(properties::putAll);
+        // options with defaults
+        // we are java 8, so we cannot use ifPresentElse which would be a better implementation
+
+        updatePropertiesWithConfigOptionBoolean(
+                formatOptions,
+                properties,
+                AvroApicurioFormatOptions.ENABLE_HEADERS,
+                SerdeConfig.ENABLE_HEADERS);
+        updatePropertiesWithConfigOptionBoolean(
+                formatOptions,
+                properties,
+                AvroApicurioFormatOptions.LEGACY_SCHEMA_ID,
+                LEGACY_SCHEMA_ID.key());
+        updatePropertiesWithConfigOptionBoolean(
+                formatOptions,
+                properties,
+                AvroApicurioFormatOptions.ENABLE_CONFLUENT_ID_HANDLER,
+                SerdeConfig.ENABLE_CONFLUENT_ID_HANDLER);
+        updatePropertiesWithConfigOptionString(
+                formatOptions,
+                properties,
+                AvroApicurioFormatOptions.REGISTERED_ARTIFACT_NAME,
+                REGISTERED_ARTIFACT_NAME.key());
+        updatePropertiesWithConfigOptionString(
+                formatOptions,
+                properties,
+                REGISTERED_ARTIFACT_DESCRIPTION,
+                REGISTERED_ARTIFACT_DESCRIPTION.key());
+        updatePropertiesWithConfigOptionString(
+                formatOptions,
+                properties,
+                REGISTERED_ARTIFACT_VERSION,
+                REGISTERED_ARTIFACT_VERSION.key());
+
+        // options without defaults.
         formatOptions
-                .getOptional(AvroApicurioFormatOptions.ENABLE_HEADERS)
-                .ifPresent(v -> properties.put(SerdeConfig.ENABLE_HEADERS, v));
-        formatOptions
-                .getOptional(AvroApicurioFormatOptions.HEADERS_HANDLER)
-                .ifPresent(v -> properties.put(SerdeConfig.HEADERS_HANDLER, v));
-        formatOptions
-                .getOptional(AvroApicurioFormatOptions.ID_HANDLER)
-                .ifPresent(v -> properties.put(SerdeConfig.ID_HANDLER, v));
-        formatOptions
-                .getOptional(AvroApicurioFormatOptions.ENABLE_CONFLUENT_ID_HANDLER)
-                .ifPresent(v -> properties.put(SerdeConfig.ENABLE_CONFLUENT_ID_HANDLER, v));
+                .getOptional(AvroApicurioFormatOptions.REGISTERED_ARTIFACT_ID)
+                .ifPresent(
+                        v ->
+                                properties.put(
+                                        AvroApicurioFormatOptions.REGISTERED_ARTIFACT_ID.key(), v));
         formatOptions
                 .getOptional(AvroApicurioFormatOptions.SSL_KEYSTORE_LOCATION)
-                .ifPresent(v -> properties.put("schema.registry.ssl.keystore.location", v));
+                .ifPresent(
+                        v ->
+                                properties.put(
+                                        AvroApicurioFormatOptions.SSL_KEYSTORE_LOCATION.key(), v));
         formatOptions
                 .getOptional(AvroApicurioFormatOptions.SSL_KEYSTORE_PASSWORD)
-                .ifPresent(v -> properties.put("schema.registry.ssl.keystore.password", v));
+                .ifPresent(
+                        v ->
+                                properties.put(
+                                        AvroApicurioFormatOptions.SSL_KEYSTORE_PASSWORD.key(), v));
         formatOptions
                 .getOptional(AvroApicurioFormatOptions.SSL_TRUSTSTORE_LOCATION)
-                .ifPresent(v -> properties.put("schema.registry.ssl.truststore.location", v));
+                .ifPresent(
+                        v ->
+                                properties.put(
+                                        AvroApicurioFormatOptions.SSL_TRUSTSTORE_LOCATION.key(),
+                                        v));
         formatOptions
                 .getOptional(AvroApicurioFormatOptions.SSL_TRUSTSTORE_PASSWORD)
-                .ifPresent(v -> properties.put("schema.registry.ssl.truststore.password", v));
+                .ifPresent(
+                        v ->
+                                properties.put(
+                                        AvroApicurioFormatOptions.SSL_TRUSTSTORE_PASSWORD.key(),
+                                        v));
         formatOptions
-                .getOptional(AvroApicurioFormatOptions.BASIC_AUTH_CREDENTIALS_SOURCE)
+                .getOptional(BASIC_AUTH_CREDENTIALS_USERID)
                 .ifPresent(v -> properties.put("basic.auth.credentials.source", v));
         formatOptions
-                .getOptional(AvroApicurioFormatOptions.BASIC_AUTH_USER_INFO)
-                .ifPresent(v -> properties.put("basic.auth.user.info", v));
-        formatOptions
-                .getOptional(AvroApicurioFormatOptions.BEARER_AUTH_CREDENTIALS_SOURCE)
-                .ifPresent(v -> properties.put("bearer.auth.credentials.source", v));
-        formatOptions
-                .getOptional(AvroApicurioFormatOptions.BEARER_AUTH_TOKEN)
-                .ifPresent(v -> properties.put("bearer.auth.token", v));
+                .getOptional(BASIC_AUTH_CREDENTIALS_PASSWORD)
+                .ifPresent(v -> properties.put(BASIC_AUTH_CREDENTIALS_PASSWORD.key(), v));
         // null pointers later if left as null TODO assess what behaviour we want for this.
         //        if (properties.isEmpty()) {
         //            return null;
         //        }
         return properties;
+    }
+
+    protected static void updatePropertiesWithConfigOptionBoolean(
+            ReadableConfig formatOptions,
+            Map<String, Object> properties,
+            ConfigOption<Boolean> configOption,
+            String propertyKey) {
+        Optional formatOption = formatOptions.getOptional(configOption);
+        if (formatOption.isPresent()) {
+            properties.put(propertyKey, formatOption.get());
+        } else {
+            properties.put(propertyKey, configOption.defaultValue());
+        }
+        if (properties.get(propertyKey) == null) {
+            throw new RuntimeException(
+                    "updatePropertiesWithConfigOptionBoolean null for " + propertyKey);
+        }
+    }
+
+    protected static void updatePropertiesWithConfigOptionString(
+            ReadableConfig formatOptions,
+            Map<String, Object> properties,
+            ConfigOption<String> configOption,
+            String propertyKey) {
+        Optional formatOption = formatOptions.getOptional(configOption);
+        if (formatOption.isPresent()) {
+            properties.put(propertyKey, formatOption.get());
+        } else {
+            properties.put(propertyKey, configOption.defaultValue());
+        }
+        if (properties.get(propertyKey) == null) {
+            throw new RuntimeException(
+                    "updatePropertiesWithConfigOptionBoolean null for " + propertyKey);
+        }
     }
 
     private static Schema getAvroSchema(String schemaString, RowType rowType) {
@@ -316,80 +360,6 @@ public class ApicurioRegistryAvroFormatFactory
         }
 
         return new Parser().parse(schemaString);
-    }
-    // --------------------------------------------------------------------------------------------
-    // Metadata handling
-    // --------------------------------------------------------------------------------------------
-
-    /** List of metadata that can be read with this format. */
-    enum ReadableMetadata {
-        ENABLE_HEADERS(
-                SerdeConfig.ENABLE_HEADERS,
-                DataTypes.BOOLEAN(),
-                DataTypes.FIELD(SerdeConfig.ENABLE_HEADERS, DataTypes.BOOLEAN()),
-                new MetadataConverter() {
-                    private static final long serialVersionUID = 1L;
-
-                    @Override
-                    public Object convert(GenericRowData row, int pos) {
-                        return row.getBoolean(pos);
-                    }
-                }),
-        HEADERS_HANDLER(
-                SerdeConfig.HEADERS_HANDLER,
-                DataTypes.STRING().nullable(),
-                DataTypes.FIELD(SerdeConfig.HEADERS_HANDLER, DataTypes.STRING()),
-                new MetadataConverter() {
-                    private static final long serialVersionUID = 1L;
-
-                    @Override
-                    public Object convert(GenericRowData row, int pos) {
-                        return row.getString(pos);
-                    }
-                }),
-        ID_HANDLER(
-                SerdeConfig.ID_HANDLER,
-                DataTypes.STRING().nullable(),
-                DataTypes.FIELD(SerdeConfig.HEADERS_HANDLER, DataTypes.STRING()),
-                new MetadataConverter() {
-                    private static final long serialVersionUID = 1L;
-
-                    @Override
-                    public Object convert(GenericRowData row, int pos) {
-                        return row.getString(pos);
-                    }
-                }),
-        ENABLE_CONFLUENT_ID_HANDLER(
-                SerdeConfig.ENABLE_CONFLUENT_ID_HANDLER,
-                DataTypes.BOOLEAN(),
-                DataTypes.FIELD(SerdeConfig.ENABLE_CONFLUENT_ID_HANDLER, DataTypes.BOOLEAN()),
-                new MetadataConverter() {
-                    private static final long serialVersionUID = 1L;
-
-                    @Override
-                    public Object convert(GenericRowData row, int pos) {
-                        return row.getBoolean(pos);
-                    }
-                });
-
-        final String key;
-
-        final DataType dataType;
-
-        final DataTypes.Field requiredJsonField;
-
-        final MetadataConverter converter;
-
-        ReadableMetadata(
-                String key,
-                DataType dataType,
-                DataTypes.Field requiredJsonField,
-                MetadataConverter converter) {
-            this.key = key;
-            this.dataType = dataType;
-            this.requiredJsonField = requiredJsonField;
-            this.converter = converter;
-        }
     }
     // --------------------------------------------------------------------------------------------
 

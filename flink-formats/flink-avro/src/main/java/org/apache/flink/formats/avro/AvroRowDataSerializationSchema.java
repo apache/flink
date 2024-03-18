@@ -27,6 +27,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -114,12 +115,30 @@ public class AvroRowDataSerializationSchema implements SerializationSchema<RowDa
 
     @Override
     public byte[] serialize(RowData row) {
+        throw new RuntimeException("222   public byte[] serialize(RowData row)");
+        //        GenericRecord record = null;
+        //        try {
+        //            // convert to record
+        //            record = (GenericRecord) runtimeConverter.convert(schema, row);
+        //            return nestedSchema.serialize(record);
+        //        } catch (Exception e) {
+        //            throw new RuntimeException("Failed to serialize row1. record=" + record, e);
+        //        }
+    }
+
+    @Override
+    public byte[] serialize(RowData row, Map<String, Object> additionalProperties) {
         try {
             // convert to record
-            final GenericRecord record = (GenericRecord) runtimeConverter.convert(schema, row);
-            return nestedSchema.serialize(record);
+            GenericRecord record = (GenericRecord) runtimeConverter.convert(schema, row);
+            return nestedSchema.serialize(record, additionalProperties);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to serialize row.", e);
+            throw new RuntimeException(
+                    "Failed to serialize row2. headers="
+                            + additionalProperties
+                            + " exception "
+                            + e.getMessage(),
+                    e);
         }
     }
 

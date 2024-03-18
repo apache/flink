@@ -33,7 +33,7 @@ import java.util.Map;
 
 /**
  * Deserialization schema that deserializes from Avro binary format using {@link SchemaCoder} that
- * uses Apicurio Schema Registry.
+ * uses Apicurio Registry.
  *
  * @param <T> type of record it produces
  */
@@ -135,12 +135,12 @@ public class ApicurioRegistryAvroDeserializationSchema<T>
         return new ApicurioRegistryAvroDeserializationSchema<>(
                 GenericRecord.class,
                 schema,
-                new CachedSchemaCoderProvider(null, url, identityMapCapacity, registryConfigs));
+                new CachedSchemaCoderProvider(url, identityMapCapacity, registryConfigs));
     }
 
     /**
      * Creates {@link AvroDeserializationSchema} that produces classes that were generated from Avro
-     * schema and looks up the writer schema in the Apicurio Schema Registry.
+     * schema and looks up the writer schema in the Apicurio Registry.
      *
      * <p>By default, this method supports up to 1000 cached schema versions.
      *
@@ -155,7 +155,7 @@ public class ApicurioRegistryAvroDeserializationSchema<T>
 
     /**
      * Creates {@link AvroDeserializationSchema} that produces classes that were generated from Avro
-     * schema and looks up the writer schema in the Apicurio Schema Registry.
+     * schema and looks up the writer schema in the Apicurio Registry.
      *
      * @param tClass class of record to be produced
      * @param url url of schema registry to connect
@@ -170,7 +170,7 @@ public class ApicurioRegistryAvroDeserializationSchema<T>
 
     /**
      * Creates {@link AvroDeserializationSchema} that produces classes that were generated from Avro
-     * schema and looks up the writer schema in the Apicurio Schema Registry.
+     * schema and looks up the writer schema in the Apicurio Registry.
      *
      * <p>By default, this method supports up to 1000 cached schema versions.
      *
@@ -188,7 +188,7 @@ public class ApicurioRegistryAvroDeserializationSchema<T>
 
     /**
      * Creates {@link AvroDeserializationSchema} that produces classes that were generated from Avro
-     * schema and looks up the writer schema in the Apicurio Schema Registry.
+     * schema and looks up the writer schema in the Apicurio Registry.
      *
      * @param tClass class of record to be produced
      * @param url URL of schema registry to connect
@@ -206,6 +206,6 @@ public class ApicurioRegistryAvroDeserializationSchema<T>
         return new ApicurioRegistryAvroDeserializationSchema<>(
                 tClass,
                 null,
-                new CachedSchemaCoderProvider(null, url, identityMapCapacity, registryConfigs));
+                new CachedSchemaCoderProvider(url, identityMapCapacity, registryConfigs));
     }
 }

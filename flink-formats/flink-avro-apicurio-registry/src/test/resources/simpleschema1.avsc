@@ -1,0 +1,15 @@
+{
+  "namespace": "com.kubetrade.schema.trade",
+  "type": "record",
+  "name": "simpleschema1",
+  "fields": [
+    {
+      "name": "a",
+      "type": "string"
+    },
+    {
+      "name": "b",
+      "type": ["null", "int"]
+    }
+  ]
+}

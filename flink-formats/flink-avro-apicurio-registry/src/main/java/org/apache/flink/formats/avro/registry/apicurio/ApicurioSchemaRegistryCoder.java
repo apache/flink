@@ -18,12 +18,17 @@
 
 package org.apache.flink.formats.avro.registry.apicurio;
 
+import org.apache.flink.formats.avro.AvroFormatOptions;
 import org.apache.flink.formats.avro.SchemaCoder;
 
 import io.apicurio.registry.rest.client.RegistryClient;
 import io.apicurio.registry.rest.v2.beans.ArtifactMetaData;
+import io.apicurio.registry.rest.v2.beans.IfExists;
+import io.apicurio.registry.types.ArtifactType;
 import org.apache.avro.Schema;
 
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -33,23 +38,24 @@ import java.util.Map;
 /** Reads and Writes schema using Avro Schema Registry protocol. */
 public class ApicurioSchemaRegistryCoder implements SchemaCoder {
 
+    public static final String APICURIO_VALUE_GLOBAL_ID = "apicurio.value.globalId";
+    public static final String APICURIO_VALUE_ENCODING = "apicurio.value.encoding";
     private final RegistryClient registryClient;
+
     private final Map<String, Object> registryConfigs;
-    private String subject;
-    private static final int CONFLUENT_MAGIC_BYTE = 0;
+
+    private static final int MAGIC_BYTE = 0;
 
     /**
      * Creates {@link SchemaCoder} that uses provided {@link RegistryClient} to connect to schema
      * registry.
      *
      * @param registryClient client to connect schema registry
-     * @param subject subject of schema registry to produce
      * @param registryConfigs map for registry configs
      */
     public ApicurioSchemaRegistryCoder(
-            String subject, RegistryClient registryClient, Map<String, Object> registryConfigs) {
+            RegistryClient registryClient, Map<String, Object> registryConfigs) {
         this.registryClient = registryClient;
-        this.subject = subject;
         this.registryConfigs = registryConfigs;
     }
 
@@ -66,24 +72,8 @@ public class ApicurioSchemaRegistryCoder implements SchemaCoder {
 
     @Override
     public Schema readSchema(InputStream in) throws IOException {
-        // TODO error not expected. Hard coding for now
-        //        long globalId = 2;
-        //        return new Schema.Parser().parse(registryClient.getContentByGlobalId(globalId));
-        try {
-            throw new Exception("hello");
-        } catch (Exception e) {
-            StackTraceElement[] stack = e.getStackTrace();
-            String str = "";
-            for (StackTraceElement s : stack) {
-                str = str + s.toString() + "\n\t\t";
-            }
-            throw new IOException(
-                    "Incompatible Kafka connector. Use a Kafka connector that passes headers "
-                            + str);
-        }
-        //        throw new IOException(
-        //                "Incompatible Kafka connector. Use a Kafka connector that passes
-        // headers");
+        throw new IOException(
+                "Incompatible Kafka connector. Use a Kafka connector that passes headers");
     }
 
     public long bytesToLong(byte[] bytes) {
@@ -93,87 +83,206 @@ public class ApicurioSchemaRegistryCoder implements SchemaCoder {
         return buffer.getLong();
     }
 
+    public byte[] longToBytes(long x) {
+        ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+        buffer.putLong(x);
+        return buffer.array();
+    }
+
+    /**
+     * Get the Avro schema using the Apicurio Registry. In order to call the registry, we need to
+     * get the globalId of the Avro Schema in the registry. If the format is configured to expect
+     * headers, then the globalId will be obtained from the headers map. Otherwise, the globalId is
+     * obtained from the message payload, depending on the format configuration. This format is only
+     * used with the Kafka connector. The Kafka connector lives in another repository. This
+     * repository does not have any Kafka dependancies; it is therefore not possible for us to use
+     * the Kafka consumer record here passing a deserialization handler. So we have to get the
+     * information we need directly from the headers or the payload itself.
+     *
+     * @param in input stream
+     * @param headers map of Kafka headers
+     * @return the Avro Schema
+     * @throws IOException if there is an error
+     */
     @Override
     public Schema readSchemaWithHeaders(InputStream in, Map<String, Object> headers)
             throws IOException {
         if (in == null) {
             return null;
         }
-        boolean enableHeaders =
-                (boolean) registryConfigs.get(AvroApicurioFormatOptions.ENABLE_HEADERS.key());
-
-        // get from headers
-        Long globalId;
         Schema schema = null;
-        if (headers.get("apicurio.value.globalId") != null) {
-            //            throw new RuntimeException(
-            //                    "headers.get(\"apicurio.value.globalId\") "
-            //                            + headers.get("apicurio.value.globalId"));
-            byte[] globalIDByteArray = (byte[]) headers.get("apicurio.value.globalId");
-            globalId = bytesToLong(globalIDByteArray);
-            try {
-                schema = new Schema.Parser().parse(registryClient.getContentByGlobalId(globalId));
-            } catch (Exception e) {
-                throw new RuntimeException(
-                        "Exception during parse "
-                                + e.getMessage()
-                                + " globalId="
-                                + headers.get("apicurio.value.globalId"));
+        try {
+            boolean enableHeaders =
+                    (boolean) registryConfigs.get(AvroApicurioFormatOptions.ENABLE_HEADERS.key());
+            boolean isLegacy =
+                    (boolean) registryConfigs.get(AvroApicurioFormatOptions.LEGACY_SCHEMA_ID.key());
+            boolean isConfluent =
+                    (boolean)
+                            registryConfigs.get(
+                                    AvroApicurioFormatOptions.ENABLE_CONFLUENT_ID_HANDLER.key());
+            Long globalId;
+            if (enableHeaders) {
+                // get from headers
+                if (headers.get(APICURIO_VALUE_GLOBAL_ID) != null) {
+                    byte[] globalIDByteArray = (byte[]) headers.get(APICURIO_VALUE_GLOBAL_ID);
+                    globalId = bytesToLong(globalIDByteArray);
+                } else {
+                    throw new IOException(
+                            "The format was configured to enable headers, but "
+                                    + APICURIO_VALUE_GLOBAL_ID
+                                    + " not present.\n "
+                                    + "Ensure that the kafka message was created by an Apicurio client. Check that it is "
+                                    + " sending the globalId in the header, if the message is sending the globalId in the payload,\n"
+                                    + " amend the format configuration to not set "
+                                    + AvroApicurioFormatOptions.ENABLE_HEADERS);
+                }
+            } else {
+                // the id is in the payload
+                DataInputStream dataInputStream = new DataInputStream(in);
+                if (isLegacy) {
+                    int legacySchemaId = dataInputStream.readInt();
+                    globalId = Long.valueOf(new Integer(legacySchemaId));
+                } else if (isConfluent) {
+                    if (dataInputStream.readByte() != 0) {
+                        throw new IOException("Unknown data format. Magic number does not match");
+                    } else {
+                        int schemaId = dataInputStream.readInt();
+                        globalId = Long.valueOf(new Integer(schemaId));
+                    }
+                } else {
+                    globalId = dataInputStream.readLong();
+                }
             }
+            try {
+                // get the schema in canonical form with references dereferenced
+                schema =
+                        new Schema.Parser()
+                                .parse(registryClient.getContentByGlobalId(globalId, true, true));
+            } catch (IOException e) {
+                throw new IOException(
+                        "Attempting to get an Apicurio artifact with globalId "
+                                + globalId
+                                + " and to parse it into an Avro Schema, but got error "
+                                + e.getMessage());
+            }
+        } catch (Exception e) {
+            throw new IOException(
+                    "registryConfigs "
+                            + registryConfigs
+                            + ",AvroApicurioFormatOptions.ENABLE_HEADERS.key()="
+                            + AvroApicurioFormatOptions.ENABLE_HEADERS.key(),
+                    e);
         }
         return schema;
-
-        //        StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
-        //
-        //        throw new RuntimeException(
-        //                "Schema readSchemaWithHeaders(InputStream in, Map<String, Object>
-        // headers)) :"
-        //                        + headers.keySet().size()
-        //                        + ":"
-        //                        + Arrays.stream(stackTraceElements)
-        //                                .map(Object::toString)
-        //                                .collect(Collectors.joining(",")));
-        //        if (globalId != null) {
-        //            throw new RuntimeException("Global id from headers is " + globalId);
-        //        }
-        //        return new Schema.Parser().parse(registryClient.getContentByGlobalId(globalId));
-        //        throw new RuntimeException(
-        //                "globalId="
-        //                        + globalId
-        //                        + ", headers are "
-        //                        + headers.keySet().stream()
-        //                                .map(Object::toString)
-        //                                .reduce("", String::concat));
     }
 
     @Override
     public void writeSchema(Schema schema, OutputStream out) throws IOException {
+        throw new IOException(
+                "Incompatible Kafka connector is being used, upgrade the Kafka connector.");
+    }
+
+    /**
+     * The Avro schema will be written depending on the configuration.
+     *
+     * @param schema Avro Schema to write into the output stream,
+     * @param out the output stream where the schema is serialized.
+     * @throws IOException Exception has occurred
+     */
+    @Override
+    public void writeSchema(Schema schema, OutputStream out, Map<String, Object> headers)
+            throws IOException {
         boolean enableHeaders =
                 (boolean) registryConfigs.get(AvroApicurioFormatOptions.ENABLE_HEADERS.key());
-        boolean enableConfluentIdHandler =
+        boolean isLegacy =
+                (boolean) registryConfigs.get(AvroApicurioFormatOptions.LEGACY_SCHEMA_ID.key());
+        boolean isConfluent =
                 (boolean)
                         registryConfigs.get(
                                 AvroApicurioFormatOptions.ENABLE_CONFLUENT_ID_HANDLER.key());
-        String idHandlerClassName =
-                (String) registryConfigs.get(AvroApicurioFormatOptions.ID_HANDLER.key());
-        String headersHandler =
-                (String) registryConfigs.get(AvroApicurioFormatOptions.HEADERS_HANDLER.key());
-        ArtifactMetaData artifactMetaData = null;
-
-        if (enableConfluentIdHandler) {
-            // extract the 4 byte magic bytes using the legacy handler
-            idHandlerClassName = "io.apicurio.registry.serde.Legacy4ByteIdHandler";
+        String groupId = (String) registryConfigs.get(AvroApicurioFormatOptions.GROUP_ID.key());
+        String artifactId =
+                (String)
+                        registryConfigs.get(AvroApicurioFormatOptions.REGISTERED_ARTIFACT_ID.key());
+        String artifactName =
+                (String)
+                        registryConfigs.get(
+                                AvroApicurioFormatOptions.REGISTERED_ARTIFACT_NAME.key());
+        if (artifactId == null) {
+            artifactId = new Integer(schema.hashCode()).toString();
         }
-        //                try {
-        //                    ArtifactMetaData metaData =
-        //                            registryClient.get()
+        String artifactDescription =
+                (String)
+                        registryConfigs.get(
+                                AvroApicurioFormatOptions.REGISTERED_ARTIFACT_DESCRIPTION.key());
+        String artifactVersion =
+                (String)
+                        registryConfigs.get(
+                                AvroApicurioFormatOptions.REGISTERED_ARTIFACT_VERSION.key());
+        //            String encoding = getStringValueFromConfig(registryConfigs,
+        // AvroFormatOptions.AVRO_ENCODING);
+        AvroFormatOptions.AvroEncoding avroEncoding;
+        Object configOption = registryConfigs.get(AvroFormatOptions.AVRO_ENCODING.key());
+        if (configOption == null) {
+            if (AvroFormatOptions.AVRO_ENCODING.hasDefaultValue()) {
+                avroEncoding = AvroFormatOptions.AVRO_ENCODING.defaultValue();
+            } else {
+                avroEncoding = null;
+            }
+        } else {
+            avroEncoding = (AvroFormatOptions.AvroEncoding) configOption;
+        }
+        // register the schema
+        InputStream in = new ByteArrayInputStream(schema.toString().getBytes());
+
+        //        throw new RuntimeException(
+        //                "registryConfigs"
+        //                        + registryConfigs
+        //                        + "artifactName:"
+        //                        + artifactName
+        //                        + registryConfigs.get(
+        //                                AvroApicurioFormatOptions.REGISTERED_ARTIFACT_NAME.key())
+        //                        + ",artifactDescription:"
+        //                        + artifactDescription
+        //                        + "-"
+        //                        + registryConfigs.get(
         //
-        //                    out.write(metaData.getGlobalId());
-        //                    byte[] schemaIdBytes =
-        // ByteBuffer.allocate(4).putInt(registeredId).array();
-        //                    out.write(schemaIdBytes);
-        //                } catch (RestClientException e) {
-        //                    throw new IOException("Could not register schema in registry", e);
-        //                }
+        // AvroApicurioFormatOptions.REGISTERED_ARTIFACT_DESCRIPTION.key())
+        //                        + ",artifactId:"
+        //                        + artifactId
+        //                        + "-"
+        //                        + registryConfigs.get(
+        //                                AvroApicurioFormatOptions.REGISTERED_ARTIFACT_ID.key())
+        //                        + ",artifactVersion "
+        //                        + artifactVersion
+        //                        + "-"
+        //                        + AvroApicurioFormatOptions.REGISTERED_ARTIFACT_VERSION);
+        ArtifactMetaData artifactMetaData =
+                registryClient.createArtifact(
+                        groupId,
+                        artifactId,
+                        artifactVersion,
+                        ArtifactType.AVRO,
+                        IfExists.RETURN_OR_UPDATE,
+                        true,
+                        artifactName,
+                        artifactDescription,
+                        in);
+        Long registeredGlobalId = artifactMetaData.getGlobalId();
+        if (enableHeaders) {
+            // convert values to byte array
+            headers.put(APICURIO_VALUE_GLOBAL_ID, longToBytes(registeredGlobalId));
+            headers.put(APICURIO_VALUE_ENCODING, avroEncoding.toString().getBytes());
+        } else {
+            out.write(MAGIC_BYTE);
+            byte[] schemaIdBytes;
+            if (isConfluent) {
+                schemaIdBytes =
+                        ByteBuffer.allocate(4).putInt(registeredGlobalId.intValue()).array();
+            } else {
+                schemaIdBytes = ByteBuffer.allocate(8).putLong(registeredGlobalId).array();
+            }
+            out.write(schemaIdBytes);
+        }
     }
 }

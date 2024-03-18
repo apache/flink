@@ -91,19 +91,20 @@ public class RegistryAvroDeserializationSchema<T> extends AvroDeserializationSch
 
     @Override
     public T deserialize(@Nullable byte[] message) throws IOException {
-        return deserializeWithHeaders(message, new HashMap<>());
+        return deserializeWithAdditionalProperties(message, new HashMap<>());
     }
 
     @Override
-    public T deserializeWithHeaders(byte[] message, Map<String, Object> headers)
-            throws IOException {
+    public T deserializeWithAdditionalProperties(
+            byte[] message, Map<String, Object> additionalProperties) throws IOException {
         if (message == null) {
             return null;
         }
         checkAvroInitialized();
         getInputStream().setBuffer(message);
         // get the schema passing headers
-        Schema writerSchema = schemaCoder.readSchemaWithHeaders(getInputStream(), headers);
+        Schema writerSchema =
+                schemaCoder.readSchemaWithHeaders(getInputStream(), additionalProperties);
 
         Schema readerSchema = getReaderSchema();
 

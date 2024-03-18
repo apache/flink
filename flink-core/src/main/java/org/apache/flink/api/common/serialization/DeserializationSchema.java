@@ -96,23 +96,24 @@ public interface DeserializationSchema<T> extends Serializable, ResultTypeQuerya
     boolean isEndOfStream(T nextElement);
 
     /**
-     * Deserializes the byte message with headers.
+     * Deserializes the byte message with additionalProperties.
      *
      * @param message The message, as a byte array.
-     * @param headers headers map of headers that can be used for deserialization. Override this
-     *     method to make use of the headers,
+     * @param additionalProperties additionalProperties map of additionalProperties that can be used
+     *     for deserialization. Override this method to make use of the additionalProperties,
      * @return The deserialized message as an object (null if the message cannot be deserialized).
      */
     @PublicEvolving
-    default T deserializeWithHeaders(byte[] message, Map<String, Object> headers)
-            throws IOException {
+    default T deserializeWithAdditionalProperties(
+            byte[] message, Map<String, Object> additionalProperties) throws IOException {
         return deserialize(message);
     }
 
     @PublicEvolving
-    default void deserializeWithHeaders(
-            byte[] message, Map<String, Object> headers, Collector<T> out) throws IOException {
-        T deserialize = deserializeWithHeaders(message, headers);
+    default void deserializeWithAdditionalProperties(
+            byte[] message, Map<String, Object> additionalProperties, Collector<T> out)
+            throws IOException {
+        T deserialize = deserializeWithAdditionalProperties(message, additionalProperties);
         if (deserialize != null) {
             out.collect(deserialize);
         }

@@ -38,6 +38,7 @@ import javax.annotation.Nullable;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -154,6 +155,12 @@ public class AvroSerializationSchema<T> implements SerializationSchema<T> {
         if (schemaString != null) {
             this.schema = new Parser().parse(schemaString);
         }
+    }
+
+    @Override
+    public byte[] serialize(T object, Map<String, Object> additionalProperties) {
+        throw new RuntimeException();
+        //        return serialize(object);
     }
 
     @Override

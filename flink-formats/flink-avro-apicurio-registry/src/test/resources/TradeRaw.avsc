@@ -1,0 +1,19 @@
+{
+  "namespace": "com.kubetrade.schema.trade",
+  "type": "record",
+  "name": "TradeRaw",
+  "fields": [
+    {
+      "name": "tradeKey",
+      "type": "com.kubetrade.schema.trade.TradeKey"
+    },
+    {
+      "name": "symbol",
+      "type": "string"
+    },
+    {
+      "name": "payload",
+      "type": "string"
+    }
+  ]
+}

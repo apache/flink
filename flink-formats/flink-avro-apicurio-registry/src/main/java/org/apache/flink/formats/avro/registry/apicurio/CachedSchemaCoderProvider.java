@@ -26,6 +26,7 @@ import io.apicurio.registry.rest.client.RegistryClientFactory;
 
 import javax.annotation.Nullable;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -36,55 +37,31 @@ import java.util.Objects;
 class CachedSchemaCoderProvider implements SchemaCoder.SchemaCoderProvider {
 
     private static final long serialVersionUID = 8610401613495438381L;
-    private final String subject;
+
     private final String url;
     private final int identityMapCapacity;
     private final @Nullable Map<String, ?> registryConfigs;
 
     CachedSchemaCoderProvider(String url, int identityMapCapacity) {
-        this(null, url, identityMapCapacity, null);
+        this(url, identityMapCapacity, null);
     }
 
     CachedSchemaCoderProvider(
-            @Nullable String subject,
-            String url,
-            int identityMapCapacity,
-            @Nullable Map<String, ?> registryConfigs) {
-        this.subject = subject;
+            String url, int identityMapCapacity, @Nullable Map<String, ?> registryConfigs) {
         this.url = Objects.requireNonNull(url);
         // TODO this does not seem to be used for Apicurio
         this.identityMapCapacity = identityMapCapacity;
-        this.registryConfigs = registryConfigs;
+        // Apicurio null pointers if this is left null.
+        this.registryConfigs = registryConfigs == null ? new HashMap<>() : registryConfigs;
     }
 
-    //    @Override
-    //    public SchemaCoder get() {
-    //        //        return new ApicurioSchemaRegistryCoder(
-    //        //                this.subject,
-    //        //                new CachedSchemaRegistryClient(url, identityMapCapacity,
-    //        // registryConfigs));
-    //        //        final String tokenEndpoint = System.getenv("AUTH_TOKEN_ENDPOINT");
-    //        //        if (tokenEndpoint != null) {
-    //        //            final String authClient = System.getenv("AUTH_CLIENT_ID");
-    //        //            final String authSecret = System.getenv("AUTH_CLIENT_SECRET");
-    //        //            Auth auth = new OidcAuth(new JdkHttpClient(tokenEndpoint,
-    //        // Collections.emptyMap(), null, new AuthErrorHandler()), authClient, authSecret);
-    //        //            return RegistryClientFactory.create(new JdkHttpClient(registryUrl,
-    //        // Collections.emptyMap(), auth, new AuthErrorHandler()));
-    //        //        } else {
-    //
-    //        return RegistryClientFactory.create(this.url);
-    //        //        }
-    //
-    //    }
     @Override
     public SchemaCoder get() {
         RegistryClientFactory registryClientFactory = new RegistryClientFactory();
         RegistryClient registryClient =
                 registryClientFactory.create(url, (Map<String, Object>) this.registryConfigs);
-
         return new ApicurioSchemaRegistryCoder(
-                this.subject, registryClient, (Map<String, Object>) this.registryConfigs);
+                registryClient, (Map<String, Object>) this.registryConfigs);
     }
 
     @Override
@@ -97,13 +74,12 @@ class CachedSchemaCoderProvider implements SchemaCoder.SchemaCoderProvider {
         }
         CachedSchemaCoderProvider that = (CachedSchemaCoderProvider) o;
         return identityMapCapacity == that.identityMapCapacity
-                && Objects.equals(subject, that.subject)
                 && url.equals(that.url)
                 && Objects.equals(registryConfigs, that.registryConfigs);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(subject, url, identityMapCapacity, registryConfigs);
+        return Objects.hash(url, identityMapCapacity, registryConfigs);
     }
 }

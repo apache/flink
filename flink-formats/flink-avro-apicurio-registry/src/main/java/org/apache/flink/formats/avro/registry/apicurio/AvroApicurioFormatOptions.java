@@ -34,161 +34,150 @@ public class AvroApicurioFormatOptions {
             ConfigOptions.key("url")
                     .stringType()
                     .noDefaultValue()
-                    .withFallbackKeys("schema-registry.url")
-                    .withDescription(
-                            "The URL of the Apicurio Schema Registry to fetch/register schemas.");
-
+                    .withDescription("The URL of the Apicurio Registry to fetch/register schemas.");
+    // TODO Schema
     public static final ConfigOption<Boolean> ENABLE_HEADERS =
             ConfigOptions.key(SerdeConfig.ENABLE_HEADERS)
                     .booleanType()
+                    .defaultValue(SerdeConfig.ENABLE_HEADERS_DEFAULT)
+                    .withDescription(
+                            "Optional flag to indicate that when serialising to a Kafka sink the global identifier is put in a Kafka Header,  ;\n"
+                                    + "true by default. If false then the global identifier is in the payload.");
+
+    public static final ConfigOption<Boolean> LEGACY_SCHEMA_ID =
+            ConfigOptions.key("apicurio.registry.legacy-id")
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Optional flag to indicate that the artifact identifier is in the headers rather than the payload;\n"
-                                    + "false by default.");
-
-    public static final ConfigOption<String> HEADERS_HANDLER =
-            ConfigOptions.key(SerdeConfig.HEADERS_HANDLER)
-                    .stringType()
-                    .defaultValue(SerdeConfig.HEADERS_HANDLER_DEFAULT)
-                    .withDescription(
-                            "Used by serializers and deserializers. Fully-qualified Java classname that implements\n"
-                                    + "HeadersHandler and writes/reads the artifact identifier to/from the Kafka message headers.");
-    public static final ConfigOption<String> ID_HANDLER =
-            ConfigOptions.key(SerdeConfig.ID_HANDLER)
-                    .stringType()
-                    .defaultValue(SerdeConfig.ID_HANDLER_DEFAULT)
-                    .withDescription(
-                            "    Used by serializers and deserializers. Fully-qualified Java classname of a class that implements\n"
-                                    + "IdHandler and writes/reads the artifact identifier to/from the message payload.\n"
+                            "Optional flag to indicate that when serialising to a Kafka sink the global identifier is put "
+                                    + "in the payload as an 8 byte long. \n"
                                     + "Only used if "
-                                    + SerdeConfig.ENABLE_HEADERS
+                                    + AvroApicurioFormatOptions.ENABLE_HEADERS
                                     + " is set to false.");
 
     public static final ConfigOption<Boolean> ENABLE_CONFLUENT_ID_HANDLER =
             ConfigOptions.key(SerdeConfig.ENABLE_CONFLUENT_ID_HANDLER)
                     .booleanType()
-                    .defaultValue(true)
+                    .defaultValue(false)
                     .withDescription(
-                            "Used by serializers and deserializers. Shortcut for enabling the\n "
-                                    + "legacy Confluent-compatible implementation of IdHandler.\n"
+                            "Optional flag to indicate that when serialising to a Kafka sink the global identifier is put "
+                                    + "in the payload as a 4 byte int. \n"
                                     + "Only used if "
-                                    + SerdeConfig.ENABLE_HEADERS
+                                    + AvroApicurioFormatOptions.ENABLE_HEADERS
                                     + " is set to false.");
 
-    /*
-    TODO
-     Artifact resolver strategy - default or provided ?
-      encoding
-      Avro datum provider
-      Avro encoding
-     */
-    public static final ConfigOption<String> SUBJECT =
-            ConfigOptions.key("subject")
+    public static final ConfigOption<String> GROUP_ID =
+            ConfigOptions.key("groupId")
                     .stringType()
-                    .noDefaultValue()
-                    .withFallbackKeys("schema-registry.subject")
-                    .withDescription(
-                            "The Apicurio Schema Registry subject under which to register the "
-                                    + "schema used by this format during serialization. By default, "
-                                    + "'kafka' and 'upsert-kafka' connectors use '<topic_name>-value' "
-                                    + "or '<topic_name>-key' as the default subject name if this format "
-                                    + "is used as the value or key format. But for other connectors (e.g. 'filesystem'), "
-                                    + "the subject option is required when used as sink.");
+                    .defaultValue("default")
+                    .withDescription("GroupId Used by deserializers.");
 
     public static final ConfigOption<String> SCHEMA =
             ConfigOptions.key("schema")
                     .stringType()
                     .noDefaultValue()
-                    .withFallbackKeys("schema-registry.schema")
                     .withDescription(
-                            "The schema registered or to be registered in the Apicurio Schema Registry. "
+                            "The schema registered or to be registered in the Apicurio Registry. "
                                     + "If no schema is provided Flink converts the table schema to avro schema. "
-                                    + "The schema provided must match the table schema ('avro-apicurio') or "
-                                    + "the Debezium schema which is a nullable record type including "
-                                    + "fields 'before', 'after', 'op' ('debezium-avro-apicurio').");
+                                    + "The schema provided must match the table schema ('avro-apicurio').");
+    public static final ConfigOption<String> REGISTERED_ARTIFACT_ID =
+            ConfigOptions.key("artifactId")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "ArtifactId is used by serializers when registering a new Schemas to ensure that "
+                                    + "each serialization is associated with the same schema in the registry");
+    public static final ConfigOption<String> REGISTERED_ARTIFACT_NAME =
+            ConfigOptions.key("artifactName")
+                    .stringType()
+                    .defaultValue("generated-schema")
+                    .withDescription(
+                            "The registered artifact name is used by serializers as the name of the schema being registered");
+    public static final ConfigOption<String> REGISTERED_ARTIFACT_DESCRIPTION =
+            ConfigOptions.key("artifactDescription")
+                    .stringType()
+                    .defaultValue("Schema registered by Apache Flink.")
+                    .withDescription(
+                            "The registered schema description is used by serializers as the description of the schema being registered");
+    public static final ConfigOption<String> REGISTERED_ARTIFACT_VERSION =
+            ConfigOptions.key("artifactVersion")
+                    .stringType()
+                    .defaultValue("1")
+                    .withDescription(
+                            "The registered artifact version is used by serializers as the version of the schema being registered");
 
     // --------------------------------------------------------------------------------------------
     // Commonly used options maintained by Flink for convenience
     // --------------------------------------------------------------------------------------------
 
     public static final ConfigOption<String> SSL_KEYSTORE_LOCATION =
-            ConfigOptions.key("ssl.keystore.location")
+            ConfigOptions.key(SerdeConfig.REQUEST_KEYSTORE_LOCATION)
                     .stringType()
                     .noDefaultValue()
                     .withDescription("Location / File of SSL keystore");
 
     public static final ConfigOption<String> SSL_KEYSTORE_PASSWORD =
-            ConfigOptions.key("ssl.keystore.password")
+            ConfigOptions.key(SerdeConfig.REQUEST_KEYSTORE_PASSWORD)
                     .stringType()
                     .noDefaultValue()
                     .withDescription("Password for SSL keystore");
     public static final ConfigOption<String> SSL_KEYSTORE_TYPE =
-            ConfigOptions.key("ssl.keystore.type")
+            ConfigOptions.key(SerdeConfig.REQUEST_KEYSTORE_TYPE)
                     .stringType()
                     .noDefaultValue()
                     .withDescription("Type for SSL truststore");
 
     public static final ConfigOption<String> SSL_TRUSTSTORE_LOCATION =
-            ConfigOptions.key("ssl.truststore.location")
+            ConfigOptions.key(SerdeConfig.REQUEST_TRUSTSTORE_LOCATION)
                     .stringType()
                     .noDefaultValue()
                     .withDescription("Location / File of SSL truststore");
 
     public static final ConfigOption<String> SSL_TRUSTSTORE_PASSWORD =
-            ConfigOptions.key("ssl.truststore.password")
+            ConfigOptions.key(SerdeConfig.REQUEST_TRUSTSTORE_PASSWORD)
                     .stringType()
                     .noDefaultValue()
                     .withDescription("Password for SSL truststore");
 
     public static final ConfigOption<String> SSL_TRUSTSTORE_TYPE =
-            ConfigOptions.key("ssl.truststore.type")
+            ConfigOptions.key(SerdeConfig.REQUEST_TRUSTSTORE_TYPE)
                     .stringType()
                     .noDefaultValue()
                     .withDescription("Type for SSL truststore");
 
-    public static final ConfigOption<String> BASIC_AUTH_CREDENTIALS_SOURCE =
-            ConfigOptions.key("basic-auth.credentials-source")
+    public static final ConfigOption<String> BASIC_AUTH_CREDENTIALS_USERID =
+            ConfigOptions.key(SerdeConfig.AUTH_USERNAME)
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("Basic auth credentials source for Schema Registry");
+                    .withDescription("Basic auth userid for Apicurio Registry");
 
-    public static final ConfigOption<String> BASIC_AUTH_USER_INFO =
-            ConfigOptions.key("basic-auth.user-info")
+    public static final ConfigOption<String> BASIC_AUTH_CREDENTIALS_PASSWORD =
+            ConfigOptions.key(SerdeConfig.AUTH_PASSWORD)
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("Basic auth user info for schema registry");
-
-    public static final ConfigOption<String> BEARER_AUTH_CREDENTIALS_SOURCE =
-            ConfigOptions.key("bearer-auth.credentials-source")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription("Bearer auth credentials source for Schema Registry");
-
-    public static final ConfigOption<String> BEARER_AUTH_TOKEN =
-            ConfigOptions.key("bearer-auth.token")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription("Bearer auth token for Schema Registry");
+                    .withDescription("Basic auth password for Apicurio Registry");
 
     // --------------------------------------------------------------------------------------------
     // Apicurio token security settings
     // --------------------------------------------------------------------------------------------
     public static final ConfigOption<String> AUTH_TOKEN_ENDPOINT =
-            ConfigOptions.key("auth.token-endpoint")
+            ConfigOptions.key(SerdeConfig.AUTH_TOKEN_ENDPOINT)
                     .stringType()
                     .noDefaultValue()
                     .withDescription("Auth token endpoint");
 
     public static final ConfigOption<String> AUTH_CLIENT_ID =
-            ConfigOptions.key("auth.client-id")
+            ConfigOptions.key(SerdeConfig.AUTH_CLIENT_ID)
                     .stringType()
                     .noDefaultValue()
                     .withDescription("Auth client id");
     public static final ConfigOption<String> AUTH_CLIENT_SECRET =
-            ConfigOptions.key("auth.client-secret")
+            ConfigOptions.key(SerdeConfig.AUTH_CLIENT_SECRET)
                     .stringType()
                     .noDefaultValue()
                     .withDescription("Auth client secret");
+
+    // TODO the other SerdeConfig. options
 
     // --------------------------------------------------------------------------------------------
     // Fallback properties

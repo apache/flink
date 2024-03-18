@@ -31,7 +31,7 @@ import javax.annotation.Nullable;
 import java.util.Map;
 
 /**
- * Serialization schema that serializes to Avro binary format that uses Apicurio Schema Registry.
+ * Serialization schema that serializes to Avro binary format that uses Apicurio Registry.
  *
  * @param <T> the type to be serialized
  */
@@ -42,14 +42,14 @@ public class ApicurioRegistryAvroSerializationSchema<T> extends RegistryAvroSeri
     private static final long serialVersionUID = -1771641202177852775L;
 
     /**
-     * Creates a Avro serialization schema.
+     * Creates an Avro serialization schema.
      *
      * @param recordClazz class to serialize. Should be either {@link SpecificRecord} or {@link
      *     GenericRecord}.
      * @param schema writer's Avro schema. Should be provided if recordClazz is {@link
      *     GenericRecord}
      * @param schemaCoderProvider provider for schema coder that writes the writer schema to
-     *     Apicurio Schema Registry
+     *     Apicurio Registry
      */
     private ApicurioRegistryAvroSerializationSchema(
             Class<T> recordClazz,
@@ -60,63 +60,53 @@ public class ApicurioRegistryAvroSerializationSchema<T> extends RegistryAvroSeri
 
     /**
      * Creates {@link AvroSerializationSchema} that produces byte arrays that were generated from
-     * Avro schema and writes the writer schema to Apicurio Schema Registry.
+     * Avro schema and writes the writer schema to Apicurio Registry.
      *
      * @param tClass the type to be serialized
-     * @param subject subject of schema registry to produce
      * @param schemaRegistryUrl URL of schema registry to connect
      * @return serialized record
      */
     public static <T extends SpecificRecord> ApicurioRegistryAvroSerializationSchema<T> forSpecific(
-            Class<T> tClass, String subject, String schemaRegistryUrl) {
-        return forSpecific(tClass, subject, schemaRegistryUrl, null);
+            Class<T> tClass, String schemaRegistryUrl) {
+        return forSpecific(tClass, schemaRegistryUrl, null);
     }
 
     /**
      * Creates {@link AvroSerializationSchema} that produces byte arrays that were generated from
-     * Avro schema and writes the writer schema to Apicurio Schema Registry.
+     * Avro schema and writes the writer schema to Apicurio Registry.
      *
      * @param tClass the type to be serialized
-     * @param subject subject of schema registry to produce
      * @param schemaRegistryUrl URL of schema registry to connect
      * @param registryConfigs map with additional schema registry configs (for example SSL
      *     properties)
      * @return serialized record
      */
     public static <T extends SpecificRecord> ApicurioRegistryAvroSerializationSchema<T> forSpecific(
-            Class<T> tClass,
-            String subject,
-            String schemaRegistryUrl,
-            @Nullable Map<String, ?> registryConfigs) {
+            Class<T> tClass, String schemaRegistryUrl, @Nullable Map<String, ?> registryConfigs) {
         return new ApicurioRegistryAvroSerializationSchema<>(
                 tClass,
                 null,
                 new CachedSchemaCoderProvider(
-                        subject,
-                        schemaRegistryUrl,
-                        DEFAULT_IDENTITY_MAP_CAPACITY,
-                        registryConfigs));
+                        schemaRegistryUrl, DEFAULT_IDENTITY_MAP_CAPACITY, registryConfigs));
     }
 
     /**
      * Creates {@link AvroSerializationSchema} that produces byte arrays that were generated from
-     * Avro schema and writes the writer schema to Apicurio Schema Registry.
+     * Avro schema and writes the writer schema to Apicurio Registry.
      *
-     * @param subject subject of schema registry to produce
      * @param schema schema that will be used for serialization
      * @param schemaRegistryUrl URL of schema registry to connect
      * @return serialized record
      */
     public static ApicurioRegistryAvroSerializationSchema<GenericRecord> forGeneric(
-            String subject, Schema schema, String schemaRegistryUrl) {
-        return forGeneric(subject, schema, schemaRegistryUrl, null);
+            Schema schema, String schemaRegistryUrl) {
+        return forGeneric(schema, schemaRegistryUrl, null);
     }
 
     /**
      * Creates {@link AvroSerializationSchema} that produces byte arrays that were generated from
-     * Avro schema and writes the writer schema to Apicurio Schema Registry.
+     * Avro schema and writes the writer schema to Apicurio Registry.
      *
-     * @param subject subject of schema registry to produce
      * @param schema schema that will be used for serialization
      * @param schemaRegistryUrl URL of schema registry to connect
      * @param registryConfigs map with additional schema registry configs (for example SSL
@@ -124,17 +114,11 @@ public class ApicurioRegistryAvroSerializationSchema<T> extends RegistryAvroSeri
      * @return serialized record
      */
     public static ApicurioRegistryAvroSerializationSchema<GenericRecord> forGeneric(
-            String subject,
-            Schema schema,
-            String schemaRegistryUrl,
-            @Nullable Map<String, ?> registryConfigs) {
+            Schema schema, String schemaRegistryUrl, @Nullable Map<String, ?> registryConfigs) {
         return new ApicurioRegistryAvroSerializationSchema<>(
                 GenericRecord.class,
                 schema,
                 new CachedSchemaCoderProvider(
-                        subject,
-                        schemaRegistryUrl,
-                        DEFAULT_IDENTITY_MAP_CAPACITY,
-                        registryConfigs));
+                        schemaRegistryUrl, DEFAULT_IDENTITY_MAP_CAPACITY, registryConfigs));
     }
 }
