@@ -844,5 +844,10 @@ class AsyncExecutionControllerTest {
         public boolean tryYield() throws FlinkRuntimeException {
             return false;
         }
+
+        @Override
+        public boolean shouldInterrupt() {
+            return false;
+        }
     }
 }

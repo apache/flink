@@ -245,4 +245,13 @@ public interface MailboxExecutor {
      * @throws RuntimeException if executed {@link RunnableWithException} thrown an exception.
      */
     boolean tryYield() throws FlinkRuntimeException;
+
+    /**
+     * Return if operator/function should interrupt a longer computation and return from the
+     * currently processed elemenent/watermark, for example in order to let Flink perform a
+     * checkpoint.
+     *
+     * @return whether operator/function should interrupt its computation.
+     */
+    boolean shouldInterrupt();
 }
