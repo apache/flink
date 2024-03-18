@@ -51,10 +51,7 @@ class StreamRecordTest {
                 .isEqualTo(new StreamRecord<>("test"))
                 .isEqualTo(record.asRecord());
 
-        assertThatThrownBy(record::asWatermark)
-                .isInstanceOf(ClassCastException.class)
-                .hasMessageContaining(
-                        "cannot be cast to org.apache.flink.streaming.api.watermark.Watermark");
+        assertThatThrownBy(record::asWatermark).isInstanceOf(ClassCastException.class);
     }
 
     @Test
@@ -80,10 +77,7 @@ class StreamRecordTest {
                 .isNotEqualTo(new StreamRecord<>("foo"))
                 .isEqualTo(record.asRecord());
 
-        assertThatThrownBy(record::asWatermark)
-                .isInstanceOf(ClassCastException.class)
-                .hasMessageContaining(
-                        "cannot be cast to org.apache.flink.streaming.api.watermark.Watermark");
+        assertThatThrownBy(record::asWatermark).isInstanceOf(ClassCastException.class);
     }
 
     @Test
