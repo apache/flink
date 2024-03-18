@@ -711,8 +711,8 @@ import org.apache.hadoop.hive.ql.exec.vector.{BytesColumnVector, LongColumnVecto
 class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 
   override def vectorize(element: Person, batch: VectorizedRowBatch): Unit = {
-    val row = batch.row
-    batch.row = batch.row + 1
+    val row = batch.size
+    batch.size = batch.size + 1
 
     val nameColVector = batch.cols(0).asInstanceOf[BytesColumnVector]
     val ageColVector = batch.cols(1).asInstanceOf[LongColumnVector]
