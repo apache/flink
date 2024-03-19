@@ -25,7 +25,7 @@ if [ "$#" -lt 3 ]; then
 fi
 
 source "$2"/bash-java-utils.sh
-setJavaRun "$FLINK_CONF_DIR"
+setJavaRun "$1"
 
 ARGS=("${@:1}")
 result=$(updateAndGetFlinkConfiguration "${ARGS[@]}")
