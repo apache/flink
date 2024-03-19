@@ -59,17 +59,15 @@ class DefaultLeaderElectionServiceTest {
             {
                 runTestWithSynchronousEventHandling(
                         () -> {
-                            // grant leadership
                             final UUID leaderSessionID = UUID.randomUUID();
                             grantLeadership(leaderSessionID);
 
                             applyToBothContenderContexts(
                                     ctx -> {
                                         ctx.contender.waitForLeader();
+                                        ctx.assertLeadership(
+                                                storedLeaderInformation, leaderSessionID);
                                         assertThat(ctx.contender.getLeaderSessionID())
-                                                .isEqualTo(
-                                                        leaderElectionService.getLeaderSessionID(
-                                                                ctx.componentId))
                                                 .isEqualTo(leaderSessionID);
 
                                         final LeaderInformation
@@ -85,29 +83,20 @@ class DefaultLeaderElectionServiceTest {
                                                 .hasValue(expectedLeaderInformationInHaBackend);
                                     });
 
+                            final LeaderInformationRegister newLeaderInformation =
+                                    LeaderInformationRegister.empty();
+                            storedLeaderInformation.set(newLeaderInformation);
                             revokeLeadership();
 
                             applyToBothContenderContexts(
                                     ctx -> {
                                         ctx.contender.waitForRevokeLeader();
                                         assertThat(ctx.contender.getLeaderSessionID()).isNull();
-                                        assertThat(
-                                                        leaderElectionService.getLeaderSessionID(
-                                                                ctx.componentId))
-                                                .isNull();
 
-                                        final LeaderInformation
-                                                expectedLeaderInformationInHaBackend =
-                                                        LeaderInformation.known(
-                                                                leaderSessionID, ctx.address);
-
-                                        assertThat(
-                                                        storedLeaderInformation
-                                                                .get()
-                                                                .forComponentId(ctx.componentId))
+                                        assertThat(storedLeaderInformation.get())
                                                 .as(
                                                         "External storage is not touched by the leader session because the leadership is already lost.")
-                                                .hasValue(expectedLeaderInformationInHaBackend);
+                                                .isSameAs(newLeaderInformation);
                                     });
                         });
             }
@@ -523,15 +512,6 @@ class DefaultLeaderElectionServiceTest {
                                     ctx -> {
                                         assertThat(ctx.contender.getLeaderSessionID())
                                                 .isEqualTo(leaderSessionID);
-                                        assertThat(
-                                                        leaderElectionService.getLeaderSessionID(
-                                                                ctx.componentId))
-                                                .isEqualTo(leaderSessionID);
-
-                                        assertThat(
-                                                        leaderElectionService.getLeaderSessionID(
-                                                                ctx.componentId))
-                                                .isEqualTo(leaderSessionID);
 
                                         assertThat(
                                                         storedLeaderInformation
@@ -547,12 +527,7 @@ class DefaultLeaderElectionServiceTest {
                                                 .as(
                                                         "The LeaderContender should have been informed about the leadership loss.")
                                                 .isNull();
-                                        assertThat(
-                                                        leaderElectionService.getLeaderSessionID(
-                                                                ctx.componentId))
-                                                .as(
-                                                        "The LeaderElectionService should have its internal state cleaned.")
-                                                .isNull();
+                                        ctx.assertNoLeadership(storedLeaderInformation);
                                     });
 
                             assertThat(storedLeaderInformation.get().getRegisteredComponentIds())
@@ -872,7 +847,9 @@ class DefaultLeaderElectionServiceTest {
 
     @Test
     void testOnGrantLeadershipIsIgnoredAfterLeaderElectionClose() throws Exception {
-        new Context() {
+        final AtomicReference<LeaderInformationRegister> storedLeaderInformation =
+                new AtomicReference<>(LeaderInformationRegister.empty());
+        new Context(storedLeaderInformation) {
             {
                 runTestWithSynchronousEventHandling(
                         () -> {
@@ -881,12 +858,9 @@ class DefaultLeaderElectionServiceTest {
 
                             applyToBothContenderContexts(
                                     ctx -> {
-                                        assertThat(
-                                                        leaderElectionService.getLeaderSessionID(
-                                                                ctx.componentId))
-                                                .as(
-                                                        "The grant event shouldn't have been processed by the LeaderElectionService.")
-                                                .isNull();
+                                        ctx.assertNoLeadership(
+                                                storedLeaderInformation,
+                                                "The grant event shouldn't have been processed by the LeaderElectionService.");
                                         assertThat(ctx.contender.getLeaderSessionID())
                                                 .as(
                                                         "The grant event shouldn't have been forwarded to the contender.")
@@ -990,10 +964,8 @@ class DefaultLeaderElectionServiceTest {
             {
                 runTestWithSynchronousEventHandling(
                         () -> {
-                            grantLeadership();
-                            final UUID oldSessionId =
-                                    leaderElectionService.getLeaderSessionID(
-                                            contenderContext0.componentId);
+                            final UUID oldSessionId = UUID.randomUUID();
+                            grantLeadership(oldSessionId);
 
                             applyToBothContenderContexts(
                                     ctx -> {
@@ -1028,22 +1000,16 @@ class DefaultLeaderElectionServiceTest {
 
                             applyToBothContenderContexts(
                                     ctx -> {
-                                        final LeaderInformation expectedLeaderInformation =
-                                                LeaderInformation.known(
-                                                        currentLeaderSessionId, ctx.address);
-                                        assertThat(
-                                                        storedLeaderInformation
-                                                                .get()
-                                                                .forComponentId(ctx.componentId))
-                                                .hasValue(expectedLeaderInformation);
+                                        ctx.assertLeadership(
+                                                storedLeaderInformation, currentLeaderSessionId);
 
-                                        // Old confirm call should be ignored.
+                                        final UUID outdatedSessionID = UUID.randomUUID();
                                         ctx.leaderElection.confirmLeadership(
-                                                UUID.randomUUID(), ctx.address);
-                                        assertThat(
-                                                        leaderElectionService.getLeaderSessionID(
-                                                                ctx.componentId))
-                                                .isEqualTo(currentLeaderSessionId);
+                                                outdatedSessionID, ctx.address);
+                                        ctx.assertLeadership(
+                                                storedLeaderInformation,
+                                                currentLeaderSessionId,
+                                                "The out-dated confirm call should have been ignored.");
                                     });
 
                             assertThat(storedLeaderInformation.get())
@@ -1057,26 +1023,34 @@ class DefaultLeaderElectionServiceTest {
 
     @Test
     void testOldConfirmationWhileHavingLeadershipLost() throws Exception {
-        new Context() {
+        final AtomicReference<LeaderInformationRegister> storedLeaderInformation =
+                new AtomicReference<>();
+        new Context(storedLeaderInformation) {
             {
                 runTestWithSynchronousEventHandling(
                         () -> {
                             final UUID currentLeaderSessionId = UUID.randomUUID();
                             grantLeadership(currentLeaderSessionId);
 
+                            final LeaderInformationRegister externallyChangedLeaderInformation =
+                                    LeaderInformationRegister.empty();
+                            storedLeaderInformation.set(externallyChangedLeaderInformation);
                             revokeLeadership();
 
                             applyToBothContenderContexts(
                                     ctx -> {
-                                        // Old confirm call should be ignored.
                                         ctx.leaderElection.confirmLeadership(
                                                 currentLeaderSessionId, ctx.address);
 
-                                        assertThat(
-                                                        leaderElectionService.getLeaderSessionID(
-                                                                ctx.componentId))
-                                                .isNull();
+                                        ctx.assertNoLeadership(
+                                                storedLeaderInformation,
+                                                "The out-dated confirm call should have been ignored.");
                                     });
+
+                            assertThat(storedLeaderInformation.get())
+                                    .as(
+                                            "The leader information in the external storage shouldn't have been updated.")
+                                    .isSameAs(externallyChangedLeaderInformation);
                         });
             }
         };
@@ -1140,19 +1114,17 @@ class DefaultLeaderElectionServiceTest {
     @Test
     void testGrantDoesNotBlockNotifyLeaderInformationChange() throws Exception {
         testLeaderEventDoesNotBlockLeaderInformationChangeEventHandling(
-                (listener, componentId, storedLeaderInformation) -> {
-                    listener.onLeaderInformationChange(
-                            componentId,
-                            storedLeaderInformation.forComponentIdOrEmpty(componentId));
-                });
+                (listener, componentId, storedLeaderInformation) ->
+                        listener.onLeaderInformationChange(
+                                componentId,
+                                storedLeaderInformation.forComponentIdOrEmpty(componentId)));
     }
 
     @Test
     void testGrantDoesNotBlockNotifyAllKnownLeaderInformation() throws Exception {
         testLeaderEventDoesNotBlockLeaderInformationChangeEventHandling(
-                (listener, componentId, storedLeaderInformation) -> {
-                    listener.onLeaderInformationChange(storedLeaderInformation);
-                });
+                (listener, componentId, storedLeaderInformation) ->
+                        listener.onLeaderInformationChange(storedLeaderInformation));
     }
 
     private void testLeaderEventDoesNotBlockLeaderInformationChangeEventHandling(
@@ -1357,7 +1329,7 @@ class DefaultLeaderElectionServiceTest {
         private final String componentId;
         private final String address;
         private final TestingContender contender;
-        private LeaderElection leaderElection;
+        private final LeaderElection leaderElection;
 
         private static ContenderContext create(int id, LeaderElectionService leaderElectionService)
                 throws Exception {
@@ -1383,6 +1355,45 @@ class DefaultLeaderElectionServiceTest {
             this.address = address;
             this.contender = contender;
             this.leaderElection = leaderElection;
+        }
+
+        void assertLeadership(
+                AtomicReference<LeaderInformationRegister> storedInformation,
+                UUID expectedLeaderSessionID) {
+            assertLeadership(
+                    storedInformation,
+                    expectedLeaderSessionID,
+                    "The LeaderElection backend should have the expected leader information persisted.");
+        }
+
+        void assertLeadership(
+                AtomicReference<LeaderInformationRegister> storedInformation,
+                UUID expectedLeaderSessionID,
+                String assertMsg) {
+            assertLeaderInformation(
+                    storedInformation,
+                    LeaderInformation.known(expectedLeaderSessionID, address),
+                    assertMsg);
+        }
+
+        void assertNoLeadership(AtomicReference<LeaderInformationRegister> storedInformation) {
+            assertNoLeadership(
+                    storedInformation,
+                    "The LeaderElection backend should have the component-specific leader information cleaned up.");
+        }
+
+        void assertNoLeadership(
+                AtomicReference<LeaderInformationRegister> storedInformation, String assertMsg) {
+            assertLeaderInformation(storedInformation, LeaderInformation.empty(), assertMsg);
+        }
+
+        private void assertLeaderInformation(
+                AtomicReference<LeaderInformationRegister> storedInformation,
+                LeaderInformation expectedLeaderInformation,
+                String assertMsg) {
+            assertThat(storedInformation.get().forComponentIdOrEmpty(this.componentId))
+                    .as(assertMsg)
+                    .isEqualTo(expectedLeaderInformation);
         }
 
         @Override

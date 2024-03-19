@@ -380,22 +380,6 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
         }
     }
 
-    /**
-     * Returns the current leader session ID for the given {@code componentId} or {@code null}, if
-     * the session wasn't confirmed.
-     */
-    @VisibleForTesting
-    @Nullable
-    public UUID getLeaderSessionID(String componentId) {
-        synchronized (lock) {
-            return leaderContenderRegistry.containsKey(componentId)
-                    ? confirmedLeaderInformation
-                            .forComponentIdOrEmpty(componentId)
-                            .getLeaderSessionID()
-                    : null;
-        }
-    }
-
     @GuardedBy("lock")
     private void onGrantLeadershipInternal(UUID newLeaderSessionId) {
         Preconditions.checkNotNull(newLeaderSessionId);
