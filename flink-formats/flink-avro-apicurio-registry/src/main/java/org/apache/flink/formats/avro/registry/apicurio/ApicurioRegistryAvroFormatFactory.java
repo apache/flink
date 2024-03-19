@@ -46,7 +46,6 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
-import io.apicurio.registry.serde.SerdeConfig;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Parser;
 
@@ -65,9 +64,7 @@ import java.util.stream.Stream;
 import static java.lang.String.format;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.BASIC_AUTH_CREDENTIALS_PASSWORD;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.BASIC_AUTH_CREDENTIALS_USERID;
-import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.ENABLE_CONFLUENT_ID_HANDLER;
-import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.ENABLE_HEADERS;
-import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.LEGACY_SCHEMA_ID;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.GLOBALID_PLACEMENT;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.PROPERTIES;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.REGISTERED_ARTIFACT_DESCRIPTION;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.REGISTERED_ARTIFACT_ID;
@@ -183,9 +180,7 @@ public class ApicurioRegistryAvroFormatFactory
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
         Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(ENABLE_HEADERS);
-        options.add(LEGACY_SCHEMA_ID);
-        options.add(ENABLE_CONFLUENT_ID_HANDLER);
+        options.add(GLOBALID_PLACEMENT);
         options.add(SCHEMA);
         options.add(REGISTERED_ARTIFACT_NAME);
         options.add(REGISTERED_ARTIFACT_DESCRIPTION);
@@ -205,9 +200,7 @@ public class ApicurioRegistryAvroFormatFactory
     public Set<ConfigOption<?>> forwardOptions() {
         return Stream.of(
                         URL,
-                        ENABLE_HEADERS,
-                        LEGACY_SCHEMA_ID,
-                        ENABLE_CONFLUENT_ID_HANDLER,
+                        GLOBALID_PLACEMENT,
                         SCHEMA,
                         REGISTERED_ARTIFACT_NAME,
                         REGISTERED_ARTIFACT_DESCRIPTION,
@@ -222,6 +215,22 @@ public class ApicurioRegistryAvroFormatFactory
                         BASIC_AUTH_CREDENTIALS_PASSWORD)
                 .collect(Collectors.toSet());
     }
+    //    protected static void updatePropertiesWithConfigOptionEnum(
+    //            ReadableConfig formatOptions,
+    //            Map<String, Object> properties,
+    //            ConfigOption<GlobalIdPlacementEnum> configOption,
+    //            String propertyKey) {
+    //        Optional formatOption = formatOptions.getOptional(configOption);
+    //        if (formatOption.isPresent()) {
+    //            properties.put(propertyKey, formatOption.get());
+    //        } else {
+    //            properties.put(propertyKey, configOption.defaultValue());
+    //        }
+    //        if (properties.get(propertyKey) == null) {
+    //            throw new RuntimeException(
+    //                    "updatePropertiesWithConfigOptionEnum for " + propertyKey);
+    //        }
+    //    }
 
     public static @Nullable Map<String, Object> buildOptionalPropertiesMap(
             ReadableConfig formatOptions) {
@@ -233,68 +242,67 @@ public class ApicurioRegistryAvroFormatFactory
         // options with defaults
         // we are java 8, so we cannot use ifPresentElse which would be a better implementation
 
-        updatePropertiesWithConfigOptionBoolean(
-                formatOptions,
-                properties,
-                AvroApicurioFormatOptions.ENABLE_HEADERS,
-                SerdeConfig.ENABLE_HEADERS);
-        updatePropertiesWithConfigOptionBoolean(
-                formatOptions,
-                properties,
-                AvroApicurioFormatOptions.LEGACY_SCHEMA_ID,
-                LEGACY_SCHEMA_ID.key());
-        updatePropertiesWithConfigOptionBoolean(
-                formatOptions,
-                properties,
-                AvroApicurioFormatOptions.ENABLE_CONFLUENT_ID_HANDLER,
-                SerdeConfig.ENABLE_CONFLUENT_ID_HANDLER);
-        updatePropertiesWithConfigOptionString(
-                formatOptions,
-                properties,
-                AvroApicurioFormatOptions.REGISTERED_ARTIFACT_NAME,
-                REGISTERED_ARTIFACT_NAME.key());
-        updatePropertiesWithConfigOptionString(
-                formatOptions,
-                properties,
-                REGISTERED_ARTIFACT_DESCRIPTION,
-                REGISTERED_ARTIFACT_DESCRIPTION.key());
-        updatePropertiesWithConfigOptionString(
-                formatOptions,
-                properties,
-                REGISTERED_ARTIFACT_VERSION,
-                REGISTERED_ARTIFACT_VERSION.key());
-
-        // options without defaults.
-        formatOptions
-                .getOptional(AvroApicurioFormatOptions.REGISTERED_ARTIFACT_ID)
-                .ifPresent(
-                        v ->
-                                properties.put(
-                                        AvroApicurioFormatOptions.REGISTERED_ARTIFACT_ID.key(), v));
-        formatOptions
-                .getOptional(AvroApicurioFormatOptions.SSL_KEYSTORE_LOCATION)
-                .ifPresent(
-                        v ->
-                                properties.put(
-                                        AvroApicurioFormatOptions.SSL_KEYSTORE_LOCATION.key(), v));
+//        // handle enum
+//        Optional globalIdPresentformatOption =
+//                formatOptions.getOptional(AvroApicurioFormatOptions.GLOBALID_PLACEMENT);
+//        String globalPlaceMentKey = GLOBALID_PLACEMENT.key();
+//
+//        if (globalIdPresentformatOption.isPresent()) {
+//            properties.put(globalPlaceMentKey, globalIdPresentformatOption.get());
+//        } else {
+//            properties.put(
+//                    globalPlaceMentKey,
+//                    AvroApicurioFormatOptions.GLOBALID_PLACEMENT.defaultValue());
+//        }
+//        if (properties.get(globalPlaceMentKey) == null) {
+//            throw new RuntimeException(
+//                    "updatePropertiesWithConfigOptionEnum for " + globalPlaceMentKey);
+//        }
+//
+//        updatePropertiesWithConfigOptionString(
+//                formatOptions,
+//                properties,
+//                AvroApicurioFormatOptions.REGISTERED_ARTIFACT_NAME,
+//                REGISTERED_ARTIFACT_NAME.key());
+//        updatePropertiesWithConfigOptionString(
+//                formatOptions,
+//                properties,
+//                REGISTERED_ARTIFACT_DESCRIPTION,
+//                REGISTERED_ARTIFACT_DESCRIPTION.key());
+//        updatePropertiesWithConfigOptionString(
+//                formatOptions,
+//                properties,
+//                REGISTERED_ARTIFACT_VERSION,
+//                REGISTERED_ARTIFACT_VERSION.key());
+//
+//        // options without defaults.
+//        formatOptions
+//                .getOptional(AvroApicurioFormatOptions.REGISTERED_ARTIFACT_ID)
+//                .ifPresent(
+//                        v ->
+//                                properties.put(
+//                                        AvroApicurioFormatOptions.REGISTERED_ARTIFACT_ID.key(), v));
+//        formatOptions
+//                .getOptional(AvroApicurioFormatOptions.SSL_KEYSTORE_LOCATION)
+//                .ifPresent(
+//                        v ->
+//                                properties.put(
+//                                        AvroApicurioFormatOptions.SSL_KEYSTORE_LOCATION.key(), v));
         formatOptions
                 .getOptional(AvroApicurioFormatOptions.SSL_KEYSTORE_PASSWORD)
                 .ifPresent(
-                        v ->
-                                properties.put(
+                        v -> properties.put(
                                         AvroApicurioFormatOptions.SSL_KEYSTORE_PASSWORD.key(), v));
         formatOptions
                 .getOptional(AvroApicurioFormatOptions.SSL_TRUSTSTORE_LOCATION)
                 .ifPresent(
-                        v ->
-                                properties.put(
+                        v -> properties.put(
                                         AvroApicurioFormatOptions.SSL_TRUSTSTORE_LOCATION.key(),
                                         v));
         formatOptions
                 .getOptional(AvroApicurioFormatOptions.SSL_TRUSTSTORE_PASSWORD)
                 .ifPresent(
-                        v ->
-                                properties.put(
+                        v -> properties.put(
                                         AvroApicurioFormatOptions.SSL_TRUSTSTORE_PASSWORD.key(),
                                         v));
         formatOptions
@@ -308,23 +316,6 @@ public class ApicurioRegistryAvroFormatFactory
         //            return null;
         //        }
         return properties;
-    }
-
-    protected static void updatePropertiesWithConfigOptionBoolean(
-            ReadableConfig formatOptions,
-            Map<String, Object> properties,
-            ConfigOption<Boolean> configOption,
-            String propertyKey) {
-        Optional formatOption = formatOptions.getOptional(configOption);
-        if (formatOption.isPresent()) {
-            properties.put(propertyKey, formatOption.get());
-        } else {
-            properties.put(propertyKey, configOption.defaultValue());
-        }
-        if (properties.get(propertyKey) == null) {
-            throw new RuntimeException(
-                    "updatePropertiesWithConfigOptionBoolean null for " + propertyKey);
-        }
     }
 
     protected static void updatePropertiesWithConfigOptionString(

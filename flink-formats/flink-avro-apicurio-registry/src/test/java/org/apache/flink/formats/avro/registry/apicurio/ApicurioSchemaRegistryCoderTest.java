@@ -38,7 +38,7 @@ public class ApicurioSchemaRegistryCoderTest {
     @Test
     public void readSchemaWithHeaders() throws IOException {
         Map<String, Object> registryConfigs = new HashMap<>();
-        registryConfigs.put(AvroApicurioFormatOptions.ENABLE_HEADERS.key(), true);
+        registryConfigs.put(AvroApicurioFormatOptions.GLOBALID_PLACEMENT.key(), GlobalIdPlacementEnum.HEADER);
         // TODO either populate with Mockito instead?
         MockRegistryClient registryClient = new MockRegistryClient();
         Schema schemaFromFile =

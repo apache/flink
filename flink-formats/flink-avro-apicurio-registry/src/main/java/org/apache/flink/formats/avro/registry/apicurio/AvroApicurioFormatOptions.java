@@ -35,36 +35,21 @@ public class AvroApicurioFormatOptions {
                     .stringType()
                     .noDefaultValue()
                     .withDescription("The URL of the Apicurio Registry to fetch/register schemas.");
-    // TODO Schema
-    public static final ConfigOption<Boolean> ENABLE_HEADERS =
-            ConfigOptions.key(SerdeConfig.ENABLE_HEADERS)
-                    .booleanType()
-                    .defaultValue(SerdeConfig.ENABLE_HEADERS_DEFAULT)
-                    .withDescription(
-                            "Optional flag to indicate that when serialising to a Kafka sink the global identifier is put in a Kafka Header,  ;\n"
-                                    + "true by default. If false then the global identifier is in the payload.");
 
-    public static final ConfigOption<Boolean> LEGACY_SCHEMA_ID =
-            ConfigOptions.key("apicurio.registry.legacy-id")
-                    .booleanType()
-                    .defaultValue(false)
+    public static final ConfigOption<GlobalIdPlacementEnum> GLOBALID_PLACEMENT =
+            ConfigOptions.key("globalid-placement")
+                    .enumType(GlobalIdPlacementEnum.class)
+                    .defaultValue(GlobalIdPlacementEnum.HEADER)
                     .withDescription(
-                            "Optional flag to indicate that when serialising to a Kafka sink the global identifier is put "
-                                    + "in the payload as an 8 byte long. \n"
-                                    + "Only used if "
-                                    + AvroApicurioFormatOptions.ENABLE_HEADERS
-                                    + " is set to false.");
-
-    public static final ConfigOption<Boolean> ENABLE_CONFLUENT_ID_HANDLER =
-            ConfigOptions.key(SerdeConfig.ENABLE_CONFLUENT_ID_HANDLER)
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "Optional flag to indicate that when serialising to a Kafka sink the global identifier is put "
-                                    + "in the payload as a 4 byte int. \n"
-                                    + "Only used if "
-                                    + AvroApicurioFormatOptions.ENABLE_HEADERS
-                                    + " is set to false.");
+                            "Specifies where the globalId should be put when serialising Avro messages. The Valid options are:\n"
+                                    + "HEADER - "
+                                    + GlobalIdPlacementEnum.HEADER.getDescription()
+                                    + "\n"
+                                    + "LEGACY - "
+                                    + GlobalIdPlacementEnum.LEGACY.getDescription()
+                                    + "\n"
+                                    + "CONFLUENT - "
+                                    + GlobalIdPlacementEnum.CONFLUENT.getDescription());
 
     public static final ConfigOption<String> GROUP_ID =
             ConfigOptions.key("groupId")
@@ -158,7 +143,7 @@ public class AvroApicurioFormatOptions {
                     .withDescription("Basic auth password for Apicurio Registry");
 
     // --------------------------------------------------------------------------------------------
-    // Apicurio token security settings
+    // Apicurio token security settings TODO confirm
     // --------------------------------------------------------------------------------------------
     public static final ConfigOption<String> AUTH_TOKEN_ENDPOINT =
             ConfigOptions.key(SerdeConfig.AUTH_TOKEN_ENDPOINT)
