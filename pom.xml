@@ -175,6 +175,7 @@ under the License.
 		<orc.version>1.5.6</orc.version>
 		<japicmp.referenceVersion>1.18.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
+		<checkstyle.version>8.14</checkstyle.version>
 		<!-- can be removed with maven-spotless-plugin:2.38+ -->
 		<spotless.skip>false</spotless.skip>
 		<spotless.version>2.27.1</spotless.version>
@@ -2175,7 +2176,7 @@ under the License.
 							<groupId>com.puppycrawl.tools</groupId>
 							<artifactId>checkstyle</artifactId>
 							<!-- Note: match version with docs/flinkDev/ide_setup.md -->
-							<version>8.14</version>
+							<version>${checkstyle.version}</version>
 						</dependency>
 					</dependencies>
 					<executions>
