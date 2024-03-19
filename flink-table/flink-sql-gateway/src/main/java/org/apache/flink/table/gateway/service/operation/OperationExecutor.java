@@ -783,7 +783,7 @@ public class OperationExecutor {
      * @param handle the specified operation handle
      * @param clusterAction the cluster action to run against the retrieved {@link ClusterClient}.
      * @param <ClusterID> type of the cluster id
-     * @param <Result>> type of the result
+     * @param <Result> type of the result
      * @throws SqlExecutionException if something goes wrong
      */
     private <ClusterID, Result> Result runClusterAction(
