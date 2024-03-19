@@ -42,7 +42,6 @@ import org.apache.flink.table.types.utils.TypeInfoDataTypeConverter;
 
 import javax.annotation.Nullable;
 
-import java.util.Optional;
 import java.util.function.Supplier;
 
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
@@ -132,49 +131,13 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
     private static Supplier<SerializerConfig> createSerializerConfig(
             ClassLoader classLoader, ReadableConfig config, SerializerConfig serializerConfig) {
         return () -> {
-            final SerializerConfig newSerializerConfig = new SerializerConfigImpl();
-
+            SerializerConfig newSerializerConfig;
             if (serializerConfig != null) {
-                if (serializerConfig.isForceKryoEnabled()) {
-                    newSerializerConfig.setForceKryo(true);
-                }
-
-                if (serializerConfig.isForceAvroEnabled()) {
-                    newSerializerConfig.setForceAvro(true);
-                }
-
-                serializerConfig
-                        .getDefaultKryoSerializers()
-                        .forEach(
-                                (c, s) ->
-                                        newSerializerConfig.addDefaultKryoSerializer(
-                                                c, s.getSerializer()));
-
-                Optional.ofNullable(serializerConfig.isForceKryoAvroEnabled().getAsBoolean())
-                        .ifPresent(serializerConfig::setForceKryoAvro);
-
-                serializerConfig
-                        .getDefaultKryoSerializerClasses()
-                        .forEach(newSerializerConfig::addDefaultKryoSerializer);
-
-                serializerConfig
-                        .getRegisteredKryoTypes()
-                        .forEach(newSerializerConfig::registerKryoType);
-
-                serializerConfig
-                        .getRegisteredTypesWithKryoSerializerClasses()
-                        .forEach(newSerializerConfig::registerTypeWithKryoSerializer);
-
-                serializerConfig
-                        .getRegisteredTypesWithKryoSerializers()
-                        .forEach(
-                                (c, s) ->
-                                        newSerializerConfig.registerTypeWithKryoSerializer(
-                                                c, s.getSerializer()));
+                newSerializerConfig = serializerConfig.copy();
+            } else {
+                newSerializerConfig = new SerializerConfigImpl();
+                newSerializerConfig.configure(config, classLoader);
             }
-
-            newSerializerConfig.configure(config, classLoader);
-
             return newSerializerConfig;
         };
     }

@@ -20,9 +20,9 @@ package org.apache.flink.api.common.serialization;
 
 import org.apache.flink.api.common.typeinfo.TypeInfoFactory;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.configuration.PipelineOptions;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
@@ -34,15 +34,38 @@ import java.io.Serializable;
 import java.lang.reflect.Type;
 import java.util.AbstractMap;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.configuration.PipelineOptions.KRYO_DEFAULT_SERIALIZERS;
+import static org.apache.flink.configuration.PipelineOptions.KRYO_REGISTERED_CLASSES;
+import static org.apache.flink.configuration.PipelineOptions.POJO_REGISTERED_CLASSES;
+import static org.apache.flink.configuration.PipelineOptions.SERIALIZATION_CONFIG;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SerializerConfigImplTest {
+    private static final Map<ConfigOption<List<String>>, String> configs = new HashMap<>();
+
+    static {
+        configs.put(
+                KRYO_DEFAULT_SERIALIZERS,
+                "class:org.apache.flink.api.common.serialization.SerializerConfigImplTest,"
+                        + "serializer:org.apache.flink.api.common.serialization.SerializerConfigImplTest$TestSerializer1;"
+                        + "class:org.apache.flink.api.common.serialization.SerializerConfigImplTest$TestSerializer1,"
+                        + "serializer:org.apache.flink.api.common.serialization.SerializerConfigImplTest$TestSerializer2");
+        configs.put(
+                KRYO_REGISTERED_CLASSES,
+                "org.apache.flink.api.common.serialization.SerializerConfigImplTest;"
+                        + "org.apache.flink.api.common.serialization.SerializerConfigImplTest$TestSerializer1");
+        configs.put(
+                POJO_REGISTERED_CLASSES,
+                "org.apache.flink.api.common.serialization.SerializerConfigImplTest;"
+                        + "org.apache.flink.api.common.serialization.SerializerConfigImplTest$TestSerializer1");
+    }
 
     @Test
     void testReadingDefaultConfig() {
@@ -84,9 +107,7 @@ class SerializerConfigImplTest {
 
         Configuration configuration = new Configuration();
         configuration.setString(
-                "pipeline.registered-kryo-types",
-                "org.apache.flink.api.common.serialization.SerializerConfigImplTest;"
-                        + "org.apache.flink.api.common.serialization.SerializerConfigImplTest$TestSerializer1");
+                KRYO_REGISTERED_CLASSES.key(), configs.get(KRYO_REGISTERED_CLASSES));
 
         // mutate config according to configuration
         configFromConfiguration.configure(
@@ -106,9 +127,7 @@ class SerializerConfigImplTest {
 
         Configuration configuration = new Configuration();
         configuration.setString(
-                "pipeline.registered-pojo-types",
-                "org.apache.flink.api.common.serialization.SerializerConfigImplTest;"
-                        + "org.apache.flink.api.common.serialization.SerializerConfigImplTest$TestSerializer1");
+                POJO_REGISTERED_CLASSES.key(), configs.get(POJO_REGISTERED_CLASSES));
 
         // mutate config according to configuration
         configFromConfiguration.configure(
@@ -131,11 +150,7 @@ class SerializerConfigImplTest {
 
         Configuration configuration = new Configuration();
         configuration.setString(
-                "pipeline.default-kryo-serializers",
-                "class:org.apache.flink.api.common.serialization.SerializerConfigImplTest,"
-                        + "serializer:org.apache.flink.api.common.serialization.SerializerConfigImplTest$TestSerializer1;"
-                        + "class:org.apache.flink.api.common.serialization.SerializerConfigImplTest$TestSerializer1,"
-                        + "serializer:org.apache.flink.api.common.serialization.SerializerConfigImplTest$TestSerializer2");
+                KRYO_DEFAULT_SERIALIZERS.key(), configs.get(KRYO_DEFAULT_SERIALIZERS));
 
         // mutate config according to configuration
         configFromConfiguration.configure(
@@ -301,9 +316,32 @@ class SerializerConfigImplTest {
                                 + " class org.apache.flink.api.common.serialization.SerializerConfigImplTest");
     }
 
+    @Test
+    void testCopyDefaultSerializationConfig() {
+        SerializerConfig config = new SerializerConfigImpl();
+        Configuration configuration = new Configuration();
+        config.configure(configuration, SerializerConfigImplTest.class.getClassLoader());
+
+        assertThat(config.copy()).isEqualTo(config);
+    }
+
+    @Test
+    void testCopySerializerConfig() {
+        SerializerConfig serializerConfig = new SerializerConfigImpl();
+        Configuration configuration = new Configuration();
+        configs.forEach((k, v) -> configuration.setString(k.key(), v));
+
+        serializerConfig.configure(configuration, SerializerConfigImplTest.class.getClassLoader());
+        serializerConfig
+                .getDefaultKryoSerializerClasses()
+                .forEach(serializerConfig::registerTypeWithKryoSerializer);
+
+        assertThat(serializerConfig.copy()).isEqualTo(serializerConfig);
+    }
+
     private SerializerConfig getConfiguredSerializerConfig(String serializationConfigStr) {
         Configuration configuration = new Configuration();
-        configuration.setString(PipelineOptions.SERIALIZATION_CONFIG.key(), serializationConfigStr);
+        configuration.setString(SERIALIZATION_CONFIG.key(), serializationConfigStr);
 
         SerializerConfig serializerConfig = new SerializerConfigImpl();
         serializerConfig.configure(configuration, Thread.currentThread().getContextClassLoader());
