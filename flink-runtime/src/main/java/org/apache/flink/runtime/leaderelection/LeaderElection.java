@@ -37,6 +37,8 @@ public interface LeaderElection extends AutoCloseable {
      * session ID in the {@link LeaderContender} and publishing the new leader session ID and the
      * related leader address to the leader retrieval services.
      *
+     * <p>Calling this method does not have any effect if the leadership was lost in the meantime.
+     *
      * @param leaderSessionID The new leader session ID
      * @param leaderAddress The address of the new leader
      */

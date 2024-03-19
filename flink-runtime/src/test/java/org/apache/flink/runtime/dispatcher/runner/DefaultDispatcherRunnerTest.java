@@ -256,30 +256,6 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
     }
 
     @Test
-    public void grantLeadership_oldLeader_doesNotConfirmLeaderSession() throws Exception {
-        final UUID leaderSessionId = UUID.randomUUID();
-        final CompletableFuture<String> contenderConfirmationFuture = new CompletableFuture<>();
-        final TestingDispatcherLeaderProcess testingDispatcherLeaderProcess =
-                TestingDispatcherLeaderProcess.newBuilder(leaderSessionId)
-                        .setConfirmLeaderSessionFuture(contenderConfirmationFuture)
-                        .build();
-
-        testingDispatcherLeaderProcessFactory =
-                TestingDispatcherLeaderProcessFactory.from(testingDispatcherLeaderProcess);
-
-        try (final DispatcherRunner dispatcherRunner = createDispatcherRunner()) {
-            leaderElection.isLeader(leaderSessionId);
-
-            leaderElection.notLeader();
-
-            // complete the confirmation future after losing the leadership
-            contenderConfirmationFuture.complete("leader address");
-
-            assertThat(leaderElection.hasLeadership(leaderSessionId), is(false));
-        }
-    }
-
-    @Test
     public void
             grantLeadership_multipleLeaderChanges_lastDispatcherLeaderProcessWaitsForOthersToTerminateBeforeItStarts()
                     throws Exception {
