@@ -47,6 +47,7 @@ import org.apache.flink.runtime.scheduler.TestExecutionOperationsDecorator;
 import org.apache.flink.runtime.scheduler.TestExecutionSlotAllocator;
 import org.apache.flink.runtime.scheduler.TestExecutionSlotAllocatorFactory;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.testutils.TestingUtils;
@@ -69,6 +70,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -78,15 +80,15 @@ import java.util.stream.Stream;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.completeCancellingForAllVertices;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
 import static org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder.createCustomParallelismDecider;
-import static org.apache.flink.runtime.scheduler.DefaultSchedulerTest.singleNonParallelJobVertexJobGraph;
+import static org.apache.flink.runtime.scheduler.DefaultSchedulerTest.singleNonParallelJobVertexJobGraphForBatch;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createCanceledTaskExecutionState;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createFailedTaskExecutionState;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createFinishedTaskExecutionState;
 import static org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchSchedulerTest.createResultPartitionBytesForExecution;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for {@link SpeculativeScheduler}. */
-class SpeculativeSchedulerTest {
+/** Tests for {@link AdaptiveBatchScheduler} with speculative execution enabled. */
+class SpeculativeExecutionTest {
 
     @RegisterExtension
     private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
@@ -132,7 +134,7 @@ class SpeculativeSchedulerTest {
 
     @Test
     void testNotifySlowTasks() {
-        final SpeculativeScheduler scheduler = createSchedulerAndStartScheduling();
+        final AdaptiveBatchScheduler scheduler = createSchedulerAndStartScheduling();
         final ExecutionVertex ev = getOnlyExecutionVertex(scheduler);
         final Execution attempt1 = ev.getCurrentExecutionAttempt();
 
@@ -153,7 +155,7 @@ class SpeculativeSchedulerTest {
 
     @Test
     void testNotifyDuplicatedSlowTasks() {
-        final SpeculativeScheduler scheduler = createSchedulerAndStartScheduling();
+        final AdaptiveBatchScheduler scheduler = createSchedulerAndStartScheduling();
         final ExecutionVertex ev = getOnlyExecutionVertex(scheduler);
         final Execution attempt1 = ev.getCurrentExecutionAttempt();
 
@@ -178,7 +180,7 @@ class SpeculativeSchedulerTest {
 
     @Test
     void testRestartVertexIfAllSpeculativeExecutionFailed() {
-        final SpeculativeScheduler scheduler = createSchedulerAndStartScheduling();
+        final AdaptiveBatchScheduler scheduler = createSchedulerAndStartScheduling();
         final ExecutionVertex ev = getOnlyExecutionVertex(scheduler);
         final Execution attempt1 = ev.getCurrentExecutionAttempt();
 
@@ -198,7 +200,7 @@ class SpeculativeSchedulerTest {
 
     @Test
     void testNoRestartIfNotAllSpeculativeExecutionFailed() {
-        final SpeculativeScheduler scheduler = createSchedulerAndStartScheduling();
+        final AdaptiveBatchScheduler scheduler = createSchedulerAndStartScheduling();
         final ExecutionVertex ev = getOnlyExecutionVertex(scheduler);
         final Execution attempt1 = ev.getCurrentExecutionAttempt();
 
@@ -211,7 +213,7 @@ class SpeculativeSchedulerTest {
 
     @Test
     void testRestartVertexIfPartitionExceptionHappened() {
-        final SpeculativeScheduler scheduler = createSchedulerAndStartScheduling();
+        final AdaptiveBatchScheduler scheduler = createSchedulerAndStartScheduling();
         final ExecutionVertex ev = getOnlyExecutionVertex(scheduler);
         final Execution attempt1 = ev.getCurrentExecutionAttempt();
 
@@ -232,7 +234,7 @@ class SpeculativeSchedulerTest {
 
     @Test
     void testCancelOtherDeployedCurrentExecutionsWhenAnyExecutionFinished() {
-        final SpeculativeScheduler scheduler = createSchedulerAndStartScheduling();
+        final AdaptiveBatchScheduler scheduler = createSchedulerAndStartScheduling();
         final ExecutionVertex ev = getOnlyExecutionVertex(scheduler);
         final Execution attempt1 = ev.getCurrentExecutionAttempt();
 
@@ -248,7 +250,7 @@ class SpeculativeSchedulerTest {
     void testCancelOtherScheduledCurrentExecutionsWhenAnyExecutionFinished() {
         testExecutionSlotAllocator.disableAutoCompletePendingRequests();
 
-        final SpeculativeScheduler scheduler = createSchedulerAndStartScheduling();
+        final AdaptiveBatchScheduler scheduler = createSchedulerAndStartScheduling();
         final ExecutionVertex ev = getOnlyExecutionVertex(scheduler);
         final Execution attempt1 = ev.getCurrentExecutionAttempt();
 
@@ -263,7 +265,7 @@ class SpeculativeSchedulerTest {
 
     @Test
     void testExceptionHistoryIfPartitionExceptionHappened() {
-        final SpeculativeScheduler scheduler = createSchedulerAndStartScheduling();
+        final AdaptiveBatchScheduler scheduler = createSchedulerAndStartScheduling();
         final ExecutionVertex ev = getOnlyExecutionVertex(scheduler);
         final Execution attempt1 = ev.getCurrentExecutionAttempt();
 
@@ -288,7 +290,7 @@ class SpeculativeSchedulerTest {
 
     @Test
     void testLocalExecutionAttemptFailureIsCorrectlyRecorded() {
-        final SpeculativeScheduler scheduler = createSchedulerAndStartScheduling();
+        final AdaptiveBatchScheduler scheduler = createSchedulerAndStartScheduling();
         final ExecutionVertex ev = getOnlyExecutionVertex(scheduler);
         final Execution attempt1 = ev.getCurrentExecutionAttempt();
 
@@ -300,7 +302,7 @@ class SpeculativeSchedulerTest {
                 createFailedTaskExecutionState(attempt1.getAttemptId());
         scheduler.updateTaskExecutionState(failedState);
 
-        final ClassLoader classLoader = SpeculativeSchedulerTest.class.getClassLoader();
+        final ClassLoader classLoader = this.getClass().getClassLoader();
         assertThat(scheduler.getExecutionGraph().getFailureInfo()).isNotNull();
         assertThat(scheduler.getExecutionGraph().getFailureInfo().getExceptionAsString())
                 .contains(failedState.getError(classLoader).getMessage());
@@ -313,7 +315,7 @@ class SpeculativeSchedulerTest {
 
     @Test
     void testUnrecoverableLocalExecutionAttemptFailureWillFailJob() {
-        final SpeculativeScheduler scheduler = createSchedulerAndStartScheduling();
+        final AdaptiveBatchScheduler scheduler = createSchedulerAndStartScheduling();
         final ExecutionVertex ev = getOnlyExecutionVertex(scheduler);
         final Execution attempt1 = ev.getCurrentExecutionAttempt();
 
@@ -333,7 +335,7 @@ class SpeculativeSchedulerTest {
     void testLocalExecutionAttemptFailureAndForbiddenRestartWillFailJob() {
         restartStrategy.setCanRestart(false);
 
-        final SpeculativeScheduler scheduler = createSchedulerAndStartScheduling();
+        final AdaptiveBatchScheduler scheduler = createSchedulerAndStartScheduling();
         final ExecutionVertex ev = getOnlyExecutionVertex(scheduler);
         final Execution attempt1 = ev.getCurrentExecutionAttempt();
 
@@ -364,10 +366,10 @@ class SpeculativeSchedulerTest {
 
         final ComponentMainThreadExecutor mainThreadExecutor =
                 ComponentMainThreadExecutorServiceAdapter.forMainThread();
-        final SpeculativeScheduler scheduler =
+        final AdaptiveBatchScheduler scheduler =
                 createSchedulerBuilder(jobGraph, mainThreadExecutor)
                         .setVertexParallelismAndInputInfosDecider(createCustomParallelismDecider(3))
-                        .buildSpeculativeScheduler();
+                        .buildAdaptiveBatchJobScheduler(true);
         mainThreadExecutor.execute(scheduler::startScheduling);
 
         final DefaultExecutionGraph graph = (DefaultExecutionGraph) scheduler.getExecutionGraph();
@@ -401,25 +403,25 @@ class SpeculativeSchedulerTest {
 
     @Test
     void testNumSlowExecutionVerticesMetric() {
-        final SpeculativeScheduler scheduler = createSchedulerAndStartScheduling();
+        final AdaptiveBatchScheduler scheduler = createSchedulerAndStartScheduling();
         final ExecutionVertex ev = getOnlyExecutionVertex(scheduler);
         final Execution attempt1 = ev.getCurrentExecutionAttempt();
 
         notifySlowTask(scheduler, attempt1);
-        assertThat(scheduler.getNumSlowExecutionVertices()).isEqualTo(1);
+        assertThat(getNumSlowExecutionVertices(scheduler)).isEqualTo(1);
 
         // notify a slow vertex twice
         notifySlowTask(scheduler, attempt1);
-        assertThat(scheduler.getNumSlowExecutionVertices()).isEqualTo(1);
+        assertThat(getNumSlowExecutionVertices(scheduler)).isEqualTo(1);
 
         // vertex no longer slow
-        scheduler.notifySlowTasks(Collections.emptyMap());
-        assertThat(scheduler.getNumSlowExecutionVertices()).isZero();
+        notifySlowTask(scheduler, Collections.emptyMap());
+        assertThat(getNumSlowExecutionVertices(scheduler)).isZero();
     }
 
     @Test
     void testEffectiveSpeculativeExecutionsMetric() {
-        final SpeculativeScheduler scheduler = createSchedulerAndStartScheduling();
+        final AdaptiveBatchScheduler scheduler = createSchedulerAndStartScheduling();
         final ExecutionVertex ev = getOnlyExecutionVertex(scheduler);
         final Execution attempt1 = ev.getCurrentExecutionAttempt();
 
@@ -430,7 +432,7 @@ class SpeculativeSchedulerTest {
         final Execution attempt2 = getExecution(ev, 1);
         scheduler.updateTaskExecutionState(
                 createFinishedTaskExecutionState(attempt2.getAttemptId()));
-        assertThat(scheduler.getNumEffectiveSpeculativeExecutions()).isEqualTo(1);
+        assertThat(getNumEffectiveSpeculativeExecutions(scheduler)).isEqualTo(1);
 
         // complete cancellation
         scheduler.updateTaskExecutionState(
@@ -441,7 +443,7 @@ class SpeculativeSchedulerTest {
         // numEffectiveSpeculativeExecutions will be decreased accordingly.
         scheduler.handleGlobalFailure(new Exception());
         taskRestartExecutor.triggerScheduledTasks();
-        assertThat(scheduler.getNumEffectiveSpeculativeExecutions()).isZero();
+        assertThat(getNumEffectiveSpeculativeExecutions(scheduler)).isZero();
 
         final Execution attempt3 = getExecution(ev, 2);
         notifySlowTask(scheduler, attempt3);
@@ -450,7 +452,7 @@ class SpeculativeSchedulerTest {
         // finishes first
         scheduler.updateTaskExecutionState(
                 createFinishedTaskExecutionState(attempt3.getAttemptId()));
-        assertThat(scheduler.getNumEffectiveSpeculativeExecutions()).isZero();
+        assertThat(getNumEffectiveSpeculativeExecutions(scheduler)).isZero();
     }
 
     private static Execution getExecution(ExecutionVertex executionVertex, int attemptNumber) {
@@ -460,20 +462,20 @@ class SpeculativeSchedulerTest {
                 .get();
     }
 
-    private static ExecutionVertex getOnlyExecutionVertex(SpeculativeScheduler scheduler) {
+    private static ExecutionVertex getOnlyExecutionVertex(AdaptiveBatchScheduler scheduler) {
         return Iterables.getOnlyElement(scheduler.getExecutionGraph().getAllExecutionVertices());
     }
 
-    private SpeculativeScheduler createSchedulerAndStartScheduling() {
-        return createSchedulerAndStartScheduling(singleNonParallelJobVertexJobGraph());
+    private AdaptiveBatchScheduler createSchedulerAndStartScheduling() {
+        return createSchedulerAndStartScheduling(singleNonParallelJobVertexJobGraphForBatch());
     }
 
-    private SpeculativeScheduler createSchedulerAndStartScheduling(final JobGraph jobGraph) {
+    private AdaptiveBatchScheduler createSchedulerAndStartScheduling(final JobGraph jobGraph) {
         final ComponentMainThreadExecutor mainThreadExecutor =
                 ComponentMainThreadExecutorServiceAdapter.forMainThread();
 
         try {
-            final SpeculativeScheduler scheduler = createScheduler(jobGraph, mainThreadExecutor);
+            final AdaptiveBatchScheduler scheduler = createScheduler(jobGraph, mainThreadExecutor);
             mainThreadExecutor.execute(scheduler::startScheduling);
             return scheduler;
         } catch (Exception e) {
@@ -481,10 +483,11 @@ class SpeculativeSchedulerTest {
         }
     }
 
-    private SpeculativeScheduler createScheduler(
+    private AdaptiveBatchScheduler createScheduler(
             final JobGraph jobGraph, final ComponentMainThreadExecutor mainThreadExecutor)
             throws Exception {
-        return createSchedulerBuilder(jobGraph, mainThreadExecutor).buildSpeculativeScheduler();
+        return createSchedulerBuilder(jobGraph, mainThreadExecutor)
+                .buildAdaptiveBatchJobScheduler(true);
     }
 
     private DefaultSchedulerBuilder createSchedulerBuilder(
@@ -505,11 +508,29 @@ class SpeculativeSchedulerTest {
     }
 
     private static void notifySlowTask(
-            final SpeculativeScheduler scheduler, final Execution slowTask) {
-        scheduler.notifySlowTasks(
-                ImmutableMap.of(
-                        slowTask.getVertex().getID(),
-                        Collections.singleton(slowTask.getAttemptId())));
+            final AdaptiveBatchScheduler scheduler, final Execution slowTask) {
+        ((DefaultSpeculativeExecutionHandler) scheduler.getSpeculativeExecutionHandler())
+                .notifySlowTasks(
+                        ImmutableMap.of(
+                                slowTask.getVertex().getID(),
+                                Collections.singleton(slowTask.getAttemptId())));
+    }
+
+    private static void notifySlowTask(
+            final AdaptiveBatchScheduler scheduler,
+            final Map<ExecutionVertexID, Collection<ExecutionAttemptID>> slowTasks) {
+        ((DefaultSpeculativeExecutionHandler) scheduler.getSpeculativeExecutionHandler())
+                .notifySlowTasks(slowTasks);
+    }
+
+    private long getNumSlowExecutionVertices(AdaptiveBatchScheduler scheduler) {
+        return ((DefaultSpeculativeExecutionHandler) scheduler.getSpeculativeExecutionHandler())
+                .getNumSlowExecutionVertices();
+    }
+
+    private long getNumEffectiveSpeculativeExecutions(AdaptiveBatchScheduler scheduler) {
+        return ((DefaultSpeculativeExecutionHandler) scheduler.getSpeculativeExecutionHandler())
+                .getNumEffectiveSpeculativeExecutions();
     }
 
     private static class TestBlocklistOperations implements BlocklistOperations {

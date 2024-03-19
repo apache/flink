@@ -2044,6 +2044,17 @@ public class DefaultSchedulerTest {
         return singleJobVertexJobGraph(1);
     }
 
+    public static JobGraph singleNonParallelJobVertexJobGraphForBatch() {
+        return singleJobVertexJobGraphForBatch(1);
+    }
+
+    private static JobGraph singleJobVertexJobGraphForBatch(final int parallelism) {
+        final JobVertex vertex = new JobVertex("source");
+        vertex.setInvokableClass(NoOpInvokable.class);
+        vertex.setParallelism(parallelism);
+        return JobGraphTestUtils.batchJobGraph(vertex);
+    }
+
     private static JobGraph singleJobVertexJobGraph(final int parallelism) {
         final JobVertex vertex = new JobVertex("source");
         vertex.setInvokableClass(NoOpInvokable.class);

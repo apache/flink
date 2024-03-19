@@ -20,49 +20,29 @@
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint;
-import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.blocklist.BlocklistOperations;
-import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
-import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.IOMetrics;
-import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.SpeculativeExecutionVertex;
-import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
-import org.apache.flink.runtime.executiongraph.failover.FailureHandlingResult;
-import org.apache.flink.runtime.executiongraph.failover.RestartBackoffTimeStrategy;
 import org.apache.flink.runtime.io.network.partition.PartitionException;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.forwardgroup.ForwardGroup;
 import org.apache.flink.runtime.metrics.MetricNames;
-import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
-import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
-import org.apache.flink.runtime.scheduler.ExecutionOperations;
-import org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorFactory;
-import org.apache.flink.runtime.scheduler.ExecutionVertexVersioner;
 import org.apache.flink.runtime.scheduler.slowtaskdetector.ExecutionTimeBasedSlowTaskDetector;
 import org.apache.flink.runtime.scheduler.slowtaskdetector.SlowTaskDetector;
 import org.apache.flink.runtime.scheduler.slowtaskdetector.SlowTaskDetectorListener;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
-import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
-import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
-import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.slf4j.Logger;
 
@@ -76,8 +56,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -85,9 +66,9 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
-/** The speculative scheduler. */
-public class SpeculativeScheduler extends AdaptiveBatchScheduler
-        implements SlowTaskDetectorListener {
+/** The default implementation of {@link SpeculativeExecutionHandler}. */
+public class DefaultSpeculativeExecutionHandler
+        implements SpeculativeExecutionHandler, SlowTaskDetectorListener {
 
     private final int maxConcurrentExecutions;
 
@@ -101,70 +82,26 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
 
     private final Counter numEffectiveSpeculativeExecutionsCounter;
 
-    public SpeculativeScheduler(
-            final Logger log,
-            final JobGraph jobGraph,
-            final Executor ioExecutor,
-            final Configuration jobMasterConfiguration,
-            final Consumer<ComponentMainThreadExecutor> startUpAction,
-            final ScheduledExecutor delayExecutor,
-            final ClassLoader userCodeLoader,
-            final CheckpointsCleaner checkpointsCleaner,
-            final CheckpointRecoveryFactory checkpointRecoveryFactory,
-            final JobManagerJobMetricGroup jobManagerJobMetricGroup,
-            final SchedulingStrategyFactory schedulingStrategyFactory,
-            final FailoverStrategy.Factory failoverStrategyFactory,
-            final RestartBackoffTimeStrategy restartBackoffTimeStrategy,
-            final ExecutionOperations executionOperations,
-            final ExecutionVertexVersioner executionVertexVersioner,
-            final ExecutionSlotAllocatorFactory executionSlotAllocatorFactory,
-            long initializationTimestamp,
-            final ComponentMainThreadExecutor mainThreadExecutor,
-            final JobStatusListener jobStatusListener,
-            final Collection<FailureEnricher> failureEnrichers,
-            final ExecutionGraphFactory executionGraphFactory,
-            final ShuffleMaster<?> shuffleMaster,
-            final Time rpcTimeout,
-            final VertexParallelismAndInputInfosDecider vertexParallelismAndInputInfosDecider,
-            final int defaultMaxParallelism,
-            final BlocklistOperations blocklistOperations,
-            final HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint,
-            final Map<JobVertexID, ForwardGroup> forwardGroupsByJobVertexId)
-            throws Exception {
+    private final Function<ExecutionVertexID, ExecutionVertex> executionVertexRetriever;
 
-        super(
-                log,
-                jobGraph,
-                ioExecutor,
-                jobMasterConfiguration,
-                startUpAction,
-                delayExecutor,
-                userCodeLoader,
-                checkpointsCleaner,
-                checkpointRecoveryFactory,
-                jobManagerJobMetricGroup,
-                schedulingStrategyFactory,
-                failoverStrategyFactory,
-                restartBackoffTimeStrategy,
-                executionOperations,
-                executionVertexVersioner,
-                executionSlotAllocatorFactory,
-                initializationTimestamp,
-                mainThreadExecutor,
-                jobStatusListener,
-                failureEnrichers,
-                executionGraphFactory,
-                shuffleMaster,
-                rpcTimeout,
-                vertexParallelismAndInputInfosDecider,
-                defaultMaxParallelism,
-                hybridPartitionDataConsumeConstraint,
-                forwardGroupsByJobVertexId);
+    private final Supplier<Map<ExecutionAttemptID, Execution>> registerExecutionsSupplier;
 
+    private final BiConsumer<List<Execution>, Collection<ExecutionVertexID>>
+            allocateSlotsAndDeployFunction;
+
+    private final Logger log;
+
+    public DefaultSpeculativeExecutionHandler(
+            Configuration jobMasterConfiguration,
+            BlocklistOperations blocklistOperations,
+            Function<ExecutionVertexID, ExecutionVertex> executionVertexRetriever,
+            Supplier<Map<ExecutionAttemptID, Execution>> registerExecutionsSupplier,
+            BiConsumer<List<Execution>, Collection<ExecutionVertexID>>
+                    allocateSlotsAndDeployFunction,
+            Logger log) {
         this.maxConcurrentExecutions =
                 jobMasterConfiguration.get(
                         BatchExecutionOptions.SPECULATIVE_MAX_CONCURRENT_EXECUTIONS);
-
         this.blockSlowNodeDuration =
                 jobMasterConfiguration.get(BatchExecutionOptions.BLOCK_SLOW_NODE_DURATION);
         checkArgument(
@@ -172,126 +109,77 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
                 "The blocking duration should not be negative.");
 
         this.blocklistOperations = checkNotNull(blocklistOperations);
-
         this.slowTaskDetector = new ExecutionTimeBasedSlowTaskDetector(jobMasterConfiguration);
-
         this.numEffectiveSpeculativeExecutionsCounter = new SimpleCounter();
+        this.executionVertexRetriever = checkNotNull(executionVertexRetriever);
+        this.registerExecutionsSupplier = checkNotNull(registerExecutionsSupplier);
+        this.allocateSlotsAndDeployFunction = checkNotNull(allocateSlotsAndDeployFunction);
+        this.log = checkNotNull(log);
     }
 
     @Override
-    protected void startSchedulingInternal() {
-        registerMetrics(jobManagerJobMetricGroup);
-
-        super.startSchedulingInternal();
-        slowTaskDetector.start(getExecutionGraph(), this, getMainThreadExecutor());
-    }
-
-    private void registerMetrics(MetricGroup metricGroup) {
+    public void init(
+            ExecutionGraph executionGraph,
+            ComponentMainThreadExecutor mainThreadExecutor,
+            MetricGroup metricGroup) {
         metricGroup.gauge(MetricNames.NUM_SLOW_EXECUTION_VERTICES, () -> numSlowExecutionVertices);
         metricGroup.counter(
                 MetricNames.NUM_EFFECTIVE_SPECULATIVE_EXECUTIONS,
                 numEffectiveSpeculativeExecutionsCounter);
+
+        slowTaskDetector.start(executionGraph, this, mainThreadExecutor);
     }
 
     @Override
-    public CompletableFuture<Void> closeAsync() {
+    public void stopSlowTaskDetector() {
         slowTaskDetector.stop();
-        return super.closeAsync();
     }
 
     @Override
-    public SpeculativeExecutionVertex getExecutionVertex(ExecutionVertexID executionVertexId) {
-        return (SpeculativeExecutionVertex) super.getExecutionVertex(executionVertexId);
-    }
-
-    @Override
-    protected void onTaskFinished(final Execution execution, final IOMetrics ioMetrics) {
+    public void notifyTaskFinished(
+            final Execution execution,
+            Function<ExecutionVertexID, CompletableFuture<?>> cancelPendingExecutionsFunction) {
         if (!isOriginalAttempt(execution)) {
             numEffectiveSpeculativeExecutionsCounter.inc();
         }
 
         // cancel all un-terminated executions because the execution vertex has finished
-        FutureUtils.assertNoException(cancelPendingExecutions(execution.getVertex().getID()));
-
-        super.onTaskFinished(execution, ioMetrics);
+        FutureUtils.assertNoException(
+                cancelPendingExecutionsFunction.apply(execution.getVertex().getID()));
     }
 
-    private static boolean isOriginalAttempt(final Execution execution) {
-        return ((SpeculativeExecutionVertex) execution.getVertex())
+    private boolean isOriginalAttempt(final Execution execution) {
+        return getExecutionVertex(execution.getVertex().getID())
                 .isOriginalAttempt(execution.getAttemptNumber());
     }
 
-    private CompletableFuture<?> cancelPendingExecutions(
-            final ExecutionVertexID executionVertexId) {
-        final List<Execution> pendingExecutions =
-                getExecutionVertex(executionVertexId).getCurrentExecutions().stream()
-                        .filter(
-                                e ->
-                                        !e.getState().isTerminal()
-                                                && e.getState() != ExecutionState.CANCELING)
-                        .collect(Collectors.toList());
-        if (pendingExecutions.isEmpty()) {
-            return CompletableFuture.completedFuture(null);
-        }
-
-        log.info(
-                "Canceling {} un-finished executions of {} because one of its executions has finished.",
-                pendingExecutions.size(),
-                executionVertexId);
-
-        final CompletableFuture<?> future =
-                FutureUtils.combineAll(
-                        pendingExecutions.stream()
-                                .map(this::cancelExecution)
-                                .collect(Collectors.toList()));
-        cancelAllPendingSlotRequestsForVertex(executionVertexId);
-        return future;
-    }
-
     @Override
-    protected void onTaskFailed(final Execution execution) {
+    public void notifyTaskFailed(final Execution execution) {
         final SpeculativeExecutionVertex executionVertex =
                 getExecutionVertex(execution.getVertex().getID());
 
         // when an execution fails, remove it from current executions to make room for future
         // speculative executions
         executionVertex.archiveFailedExecution(execution.getAttemptId());
-
-        super.onTaskFailed(execution);
     }
 
     @Override
-    protected void handleTaskFailure(
-            final Execution failedExecution, @Nullable final Throwable error) {
-
+    public boolean handleTaskFailure(
+            final Execution failedExecution,
+            @Nullable final Throwable error,
+            BiConsumer<Execution, Throwable> handleLocalExecutionAttemptFailure) {
         final SpeculativeExecutionVertex executionVertex =
                 getExecutionVertex(failedExecution.getVertex().getID());
 
-        // if the execution vertex is not possible finish or a PartitionException occurred, trigger
-        // an execution vertex failover to recover
+        // if the execution vertex is not possible finish or a PartitionException occurred,
+        // trigger an execution vertex failover to recover
         if (!isExecutionVertexPossibleToFinish(executionVertex)
                 || ExceptionUtils.findThrowable(error, PartitionException.class).isPresent()) {
-            super.handleTaskFailure(failedExecution, error);
+            return false;
         } else {
             // this is just a local failure and the execution vertex will not be fully restarted
-            handleLocalExecutionAttemptFailure(failedExecution, error);
-        }
-    }
-
-    private void handleLocalExecutionAttemptFailure(
-            final Execution failedExecution, @Nullable final Throwable error) {
-        executionSlotAllocator.cancel(failedExecution.getAttemptId());
-
-        final FailureHandlingResult failureHandlingResult =
-                recordTaskFailure(failedExecution, error);
-        if (failureHandlingResult.canRestart()) {
-            archiveFromFailureHandlingResult(
-                    createFailureHandlingResultSnapshot(failureHandlingResult));
-        } else {
-            failJob(
-                    error,
-                    failureHandlingResult.getTimestamp(),
-                    failureHandlingResult.getFailureLabels());
+            handleLocalExecutionAttemptFailure.accept(failedExecution, error);
+            return true;
         }
     }
 
@@ -312,17 +200,6 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
             }
         }
         return anyExecutionPossibleToFinish;
-    }
-
-    @Override
-    protected void resetForNewExecution(final ExecutionVertexID executionVertexId) {
-        final ExecutionVertex executionVertex = getExecutionVertex(executionVertexId);
-        final Execution execution = executionVertex.getCurrentExecutionAttempt();
-        if (execution.getState() == ExecutionState.FINISHED && !isOriginalAttempt(execution)) {
-            numEffectiveSpeculativeExecutionsCounter.dec();
-        }
-
-        super.resetForNewExecution(executionVertexId);
     }
 
     @Override
@@ -367,9 +244,7 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
             }
         }
 
-        executionDeployer.allocateSlotsAndDeploy(
-                newSpeculativeExecutions,
-                executionVertexVersioner.getExecutionVertexVersions(verticesToDeploy));
+        allocateSlotsAndDeployFunction.accept(newSpeculativeExecutions, verticesToDeploy);
     }
 
     private void blockSlowNodes(
@@ -396,7 +271,7 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
                 slowTasks.values().stream().flatMap(Collection::stream).collect(Collectors.toSet());
 
         return slowExecutions.stream()
-                .map(id -> getExecutionGraph().getRegisteredExecutions().get(id))
+                .map(id -> registerExecutionsSupplier.get().get(id))
                 .map(
                         e -> {
                             checkNotNull(
@@ -408,6 +283,11 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
                         })
                 .map(TaskManagerLocation::getNodeId)
                 .collect(Collectors.toSet());
+    }
+
+    private SpeculativeExecutionVertex getExecutionVertex(
+            final ExecutionVertexID executionVertexId) {
+        return (SpeculativeExecutionVertex) executionVertexRetriever.apply(executionVertexId);
     }
 
     private void setupSubtaskGatewayForAttempts(
@@ -424,6 +304,15 @@ public class SpeculativeScheduler extends AdaptiveBatchScheduler
                         operatorCoordinator ->
                                 operatorCoordinator.setupSubtaskGatewayForAttempts(
                                         executionVertex.getParallelSubtaskIndex(), attemptNumbers));
+    }
+
+    @Override
+    public void resetForNewExecution(final ExecutionVertexID executionVertexId) {
+        final ExecutionVertex executionVertex = getExecutionVertex(executionVertexId);
+        final Execution execution = executionVertex.getCurrentExecutionAttempt();
+        if (execution.getState() == ExecutionState.FINISHED && !isOriginalAttempt(execution)) {
+            numEffectiveSpeculativeExecutionsCounter.dec();
+        }
     }
 
     @VisibleForTesting

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.blob.BlobWriter;
@@ -33,7 +34,6 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.ParallelismAndInputInfos;
-import org.apache.flink.runtime.executiongraph.SpeculativeExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.VertexInputInfoComputationUtils;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.NoRestartBackoffTimeStrategy;
@@ -43,19 +43,17 @@ import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.forwardgroup.ForwardGroupComputeUtil;
 import org.apache.flink.runtime.jobmaster.DefaultExecutionDeploymentTracker;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler;
+import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchSchedulerFactory;
 import org.apache.flink.runtime.scheduler.adaptivebatch.BlockingResultInfo;
-import org.apache.flink.runtime.scheduler.adaptivebatch.SpeculativeScheduler;
 import org.apache.flink.runtime.scheduler.adaptivebatch.VertexParallelismAndInputInfosDecider;
 import org.apache.flink.runtime.scheduler.strategy.AllFinishedInputConsumableDecider;
 import org.apache.flink.runtime.scheduler.strategy.InputConsumableDecider;
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
-import org.apache.flink.runtime.scheduler.strategy.VertexwiseSchedulingStrategy;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
@@ -72,6 +70,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
+import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.ALL_PRODUCERS_FINISHED;
 import static org.apache.flink.runtime.scheduler.SchedulerBase.computeVertexParallelismStore;
 
 /** A builder to create {@link DefaultScheduler} or its subclass instances for testing. */
@@ -322,68 +321,51 @@ public class DefaultSchedulerBuilder {
     }
 
     public AdaptiveBatchScheduler buildAdaptiveBatchJobScheduler() throws Exception {
-        return new AdaptiveBatchScheduler(
-                log,
-                jobGraph,
-                ioExecutor,
-                jobMasterConfiguration,
-                componentMainThreadExecutor -> {},
-                delayExecutor,
-                userCodeLoader,
-                checkpointCleaner,
-                checkpointRecoveryFactory,
-                jobManagerJobMetricGroup,
-                new VertexwiseSchedulingStrategy.Factory(inputConsumableDeciderFactory),
-                failoverStrategyFactory,
-                restartBackoffTimeStrategy,
-                executionOperations,
-                executionVertexVersioner,
-                executionSlotAllocatorFactory,
-                System.currentTimeMillis(),
-                mainThreadExecutor,
-                jobStatusListener,
-                failureEnrichers,
-                createExecutionGraphFactory(true),
-                shuffleMaster,
-                rpcTimeout,
-                vertexParallelismAndInputInfosDecider,
-                defaultMaxParallelism,
-                hybridPartitionDataConsumeConstraint,
-                ForwardGroupComputeUtil.computeForwardGroupsAndCheckParallelism(
-                        jobGraph.getVerticesSortedTopologicallyFromSources()));
+        return buildAdaptiveBatchJobScheduler(false);
     }
 
-    public SpeculativeScheduler buildSpeculativeScheduler() throws Exception {
-        return new SpeculativeScheduler(
+    public AdaptiveBatchScheduler buildAdaptiveBatchJobScheduler(boolean enableSpeculativeExecution)
+            throws Exception {
+        jobMasterConfiguration.set(
+                BatchExecutionOptions.SPECULATIVE_ENABLED, enableSpeculativeExecution);
+        jobMasterConfiguration.set(
+                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM,
+                defaultMaxParallelism);
+        if (enableSpeculativeExecution) {
+            jobMasterConfiguration.set(
+                    JobManagerOptions.HYBRID_PARTITION_DATA_CONSUME_CONSTRAINT,
+                    ALL_PRODUCERS_FINISHED);
+        } else {
+            jobMasterConfiguration.set(
+                    JobManagerOptions.HYBRID_PARTITION_DATA_CONSUME_CONSTRAINT,
+                    hybridPartitionDataConsumeConstraint);
+        }
+
+        return AdaptiveBatchSchedulerFactory.createScheduler(
                 log,
                 jobGraph,
+                jobGraph.getSerializedExecutionConfig().deserializeValue(userCodeLoader),
                 ioExecutor,
                 jobMasterConfiguration,
-                componentMainThreadExecutor -> {},
-                delayExecutor,
+                futureExecutor,
                 userCodeLoader,
-                checkpointCleaner,
                 checkpointRecoveryFactory,
+                rpcTimeout,
+                blobWriter,
                 jobManagerJobMetricGroup,
-                new VertexwiseSchedulingStrategy.Factory(inputConsumableDeciderFactory),
-                failoverStrategyFactory,
-                restartBackoffTimeStrategy,
-                executionOperations,
-                executionVertexVersioner,
-                executionSlotAllocatorFactory,
+                shuffleMaster,
+                partitionTracker,
+                new DefaultExecutionDeploymentTracker(),
                 System.currentTimeMillis(),
                 mainThreadExecutor,
                 jobStatusListener,
                 failureEnrichers,
-                createExecutionGraphFactory(true, new SpeculativeExecutionJobVertex.Factory()),
-                shuffleMaster,
-                rpcTimeout,
-                vertexParallelismAndInputInfosDecider,
-                defaultMaxParallelism,
                 blocklistOperations,
-                HybridPartitionDataConsumeConstraint.ALL_PRODUCERS_FINISHED,
-                ForwardGroupComputeUtil.computeForwardGroupsAndCheckParallelism(
-                        jobGraph.getVerticesSortedTopologicallyFromSources()));
+                executionOperations,
+                executionSlotAllocatorFactory,
+                restartBackoffTimeStrategy,
+                delayExecutor,
+                vertexParallelismAndInputInfosDecider);
     }
 
     private ExecutionGraphFactory createExecutionGraphFactory(boolean isDynamicGraph) {
