@@ -173,7 +173,11 @@ Example configuration:
 
 ```yaml
 
+metrics.reporters: prom
 metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
+metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+metrics.reporter.prom.host: localhost
+metrics.reporter.prom.port: 9250-9260
 
 ```
 
