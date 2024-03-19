@@ -59,6 +59,7 @@ import org.apache.calcite.sql.SqlTableFunction;
 import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.SqlWindowTableFunction;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.DelegatingScope;
 import org.apache.calcite.sql.validate.IdentifierNamespace;
 import org.apache.calcite.sql.validate.IdentifierSnapshotNamespace;
@@ -203,7 +204,7 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
         Optional<SqlSnapshot> snapshot = getSnapShotNode(ns);
         if (usingScope != null
                 && snapshot.isPresent()
-                && !(snapshot.get().getPeriod() instanceof SqlIdentifier)) {
+                && !(hasInputReference(snapshot.get().getPeriod()))) {
             SqlSnapshot sqlSnapshot = snapshot.get();
             SqlNode periodNode = sqlSnapshot.getPeriod();
             SqlToRelConverter sqlToRelConverter = this.createSqlToRelConverter();
@@ -222,15 +223,25 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
                             Collections.singletonList(simplifiedRexNode),
                             reducedNodes);
             // check whether period is the unsupported expression
-            if (!(reducedNodes.get(0) instanceof RexLiteral)) {
-                throw new UnsupportedOperationException(
+            final RexNode reducedNode = reducedNodes.get(0);
+            if (!(reducedNode instanceof RexLiteral)) {
+                throw new ValidationException(
                         String.format(
                                 "Unsupported time travel expression: %s for the expression can not be reduced to a constant by Flink.",
                                 periodNode));
             }
 
-            RexLiteral rexLiteral = (RexLiteral) (reducedNodes).get(0);
-            TimestampString timestampString = rexLiteral.getValueAs(TimestampString.class);
+            final SqlTypeName sqlTypeName = ((RexLiteral) reducedNode).getTypeName();
+            if (!(sqlTypeName == SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE
+                    || sqlTypeName == SqlTypeName.TIMESTAMP)) {
+                throw newValidationError(
+                        periodNode,
+                        Static.RESOURCE.illegalExpressionForTemporal(sqlTypeName.getName()));
+            }
+
+            RexLiteral rexLiteral = (RexLiteral) reducedNode;
+            TimestampString timestampString =
+                    ((RexLiteral) reducedNode).getValueAs(TimestampString.class);
             checkNotNull(
                     timestampString,
                     "The time travel expression %s can not reduce to a valid timestamp string. This is a bug. Please file an issue.",
@@ -262,6 +273,10 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
         }
 
         super.registerNamespace(usingScope, alias, ns, forceNullable);
+    }
+
+    private static boolean hasInputReference(SqlNode node) {
+        return node.accept(new SqlToRelConverter.SqlIdentifierFinder());
     }
 
     /**
