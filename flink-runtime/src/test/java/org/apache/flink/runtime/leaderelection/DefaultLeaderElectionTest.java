@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.util.function.BiConsumerWithException;
+import org.apache.flink.util.function.QuadFunction;
+import org.apache.flink.util.function.ThrowingRunnable;
 import org.apache.flink.util.function.TriConsumer;
 
 import org.junit.jupiter.api.Test;
@@ -193,18 +195,34 @@ class DefaultLeaderElectionTest {
         private final BiConsumerWithException<String, LeaderContender, Exception> registerConsumer;
         private final Consumer<String> removeConsumer;
         private final TriConsumer<String, UUID, String> confirmLeadershipConsumer;
+
+        private final QuadFunction<
+                        String,
+                        UUID,
+                        ThrowingRunnable<? extends Throwable>,
+                        String,
+                        CompletableFuture<Void>>
+                runAsyncIfLeaderConsumer;
         private final BiFunction<String, UUID, Boolean> hasLeadershipFunction;
 
         private TestingAbstractLeaderElectionService(
                 BiConsumerWithException<String, LeaderContender, Exception> registerConsumer,
                 Consumer<String> removeConsumer,
                 TriConsumer<String, UUID, String> confirmLeadershipConsumer,
+                QuadFunction<
+                                String,
+                                UUID,
+                                ThrowingRunnable<? extends Throwable>,
+                                String,
+                                CompletableFuture<Void>>
+                        runAsyncIfLeaderConsumer,
                 BiFunction<String, UUID, Boolean> hasLeadershipFunction) {
             super();
 
             this.registerConsumer = registerConsumer;
             this.removeConsumer = removeConsumer;
             this.confirmLeadershipConsumer = confirmLeadershipConsumer;
+            this.runAsyncIfLeaderConsumer = runAsyncIfLeaderConsumer;
             this.hasLeadershipFunction = hasLeadershipFunction;
         }
 
@@ -222,6 +240,16 @@ class DefaultLeaderElectionTest {
         protected void confirmLeadership(
                 String componentId, UUID leaderSessionID, String leaderAddress) {
             confirmLeadershipConsumer.accept(componentId, leaderSessionID, leaderAddress);
+        }
+
+        @Override
+        CompletableFuture<Void> runAsyncIfLeader(
+                String componentId,
+                UUID leaderSessionID,
+                ThrowingRunnable<? extends Throwable> callback,
+                String eventLabelToLog) {
+            return runAsyncIfLeaderConsumer.apply(
+                    componentId, leaderSessionID, callback, eventLabelToLog);
         }
 
         @Override
@@ -253,6 +281,14 @@ class DefaultLeaderElectionTest {
             private BiConsumerWithException<String, LeaderContender, Exception> registerConsumer;
             private Consumer<String> removeConsumer;
             private TriConsumer<String, UUID, String> confirmLeadershipConsumer;
+
+            private QuadFunction<
+                            String,
+                            UUID,
+                            ThrowingRunnable<? extends Throwable>,
+                            String,
+                            CompletableFuture<Void>>
+                    runAsyncIfLeaderConsumer;
             private BiFunction<String, UUID, Boolean> hasLeadershipFunction;
 
             private Builder() {}
@@ -274,6 +310,18 @@ class DefaultLeaderElectionTest {
                 return this;
             }
 
+            public Builder setRunAsyncIfLeaderConsumer(
+                    QuadFunction<
+                                    String,
+                                    UUID,
+                                    ThrowingRunnable<? extends Throwable>,
+                                    String,
+                                    CompletableFuture<Void>>
+                            runAsyncIfLeaderConsumer) {
+                this.runAsyncIfLeaderConsumer = runAsyncIfLeaderConsumer;
+                return this;
+            }
+
             public Builder setHasLeadershipFunction(
                     BiFunction<String, UUID, Boolean> hasLeadershipFunction) {
                 this.hasLeadershipFunction = hasLeadershipFunction;
@@ -285,6 +333,7 @@ class DefaultLeaderElectionTest {
                         registerConsumer,
                         removeConsumer,
                         confirmLeadershipConsumer,
+                        runAsyncIfLeaderConsumer,
                         hasLeadershipFunction);
             }
         }

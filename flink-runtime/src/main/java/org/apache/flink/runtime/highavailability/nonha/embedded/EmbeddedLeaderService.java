@@ -26,6 +26,7 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -250,36 +251,58 @@ public class EmbeddedLeaderService {
             final EmbeddedLeaderElection embeddedLeaderElection,
             final UUID leaderSessionId,
             final String leaderAddress) {
+        runIfLeader(
+                embeddedLeaderElection,
+                leaderSessionId,
+                () -> {
+                    if (embeddedLeaderElection == currentLeaderProposed) {
+                        LOG.info(
+                                "Received confirmation of leadership for leader {} , session={}",
+                                leaderAddress,
+                                leaderSessionId);
+
+                        // mark leadership
+                        currentLeaderConfirmed = embeddedLeaderElection;
+                        currentLeaderAddress = leaderAddress;
+                        currentLeaderProposed = null;
+
+                        // notify all listeners
+                        notifyAllListeners(leaderAddress, leaderSessionId);
+                    } else {
+                        LOG.debug(
+                                "Received confirmation of leadership for a stale leadership grant. Ignoring.");
+                    }
+                },
+                "Confirm leadership");
+    }
+
+    private CompletableFuture<Void> runIfLeader(
+            final EmbeddedLeaderElection embeddedLeaderElection,
+            final UUID leaderSessionId,
+            final ThrowingRunnable<? extends Throwable> callback,
+            final String eventLabelToLog) {
         synchronized (lock) {
-            // if the leader election was shut down in the meantime, ignore this confirmation
-            if (!embeddedLeaderElection.running || shutdown) {
-                return;
-            }
-
             try {
-                // check if the confirmation is for the same grant, or whether it is a stale grant
-                if (embeddedLeaderElection == currentLeaderProposed
+                // if the leader election was shut down in the meantime, ignore this confirmation
+                if (embeddedLeaderElection.running
+                        && !shutdown
+                        && currentLeaderSessionId != null
                         && currentLeaderSessionId.equals(leaderSessionId)) {
-                    LOG.info(
-                            "Received confirmation of leadership for leader {} , session={}",
-                            leaderAddress,
-                            leaderSessionId);
+                    LOG.debug("'{}' event processing triggered.", eventLabelToLog);
 
-                    // mark leadership
-                    currentLeaderConfirmed = embeddedLeaderElection;
-                    currentLeaderAddress = leaderAddress;
-                    currentLeaderProposed = null;
-
-                    // notify all listeners
-                    notifyAllListeners(leaderAddress, leaderSessionId);
+                    callback.run();
                 } else {
                     LOG.debug(
-                            "Received confirmation of leadership for a stale leadership grant. Ignoring.");
+                            "'{}' event processing was triggered while the {} is closed. The event will be ignored.",
+                            eventLabelToLog,
+                            EmbeddedLeaderElection.class.getSimpleName());
                 }
             } catch (Throwable t) {
-                fatalError(t);
+                return FutureUtils.completedExceptionally(t);
             }
         }
+
+        return FutureUtils.completedVoidFuture();
     }
 
     private CompletableFuture<Void> notifyAllListeners(String address, UUID leaderSessionId) {
@@ -485,6 +508,14 @@ public class EmbeddedLeaderService {
             checkNotNull(leaderSessionID);
             checkNotNull(leaderAddress);
             confirmLeader(this, leaderSessionID, leaderAddress);
+        }
+
+        @Override
+        public CompletableFuture<Void> runAsyncIfLeader(
+                UUID leaderSessionID,
+                ThrowingRunnable<? extends Throwable> callback,
+                String eventLabelToLog) {
+            return runIfLeader(this, leaderSessionID, callback, eventLabelToLog);
         }
 
         @Override

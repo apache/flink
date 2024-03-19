@@ -19,8 +19,10 @@
 package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * {@code DefaultLeaderElection} implements the {@link LeaderElection} based on the {@link
@@ -45,6 +47,15 @@ class DefaultLeaderElection implements LeaderElection {
     @Override
     public void confirmLeadership(UUID leaderSessionID, String leaderAddress) {
         parentService.confirmLeadership(componentId, leaderSessionID, leaderAddress);
+    }
+
+    @Override
+    public CompletableFuture<Void> runAsyncIfLeader(
+            UUID leaderSessionID,
+            ThrowingRunnable<? extends Throwable> callback,
+            String eventLabelToLog) {
+        return parentService.runAsyncIfLeader(
+                componentId, leaderSessionID, callback, eventLabelToLog);
     }
 
     @Override
@@ -82,6 +93,16 @@ class DefaultLeaderElection implements LeaderElection {
          */
         abstract void confirmLeadership(
                 String componentId, UUID leaderSessionID, String leaderAddress);
+
+        /**
+         * Runs the passed callback asynchronously if the leadership is still acquired at the time
+         * of the execution.
+         */
+        abstract CompletableFuture<Void> runAsyncIfLeader(
+                String componentId,
+                UUID leaderSessionID,
+                ThrowingRunnable<? extends Throwable> callback,
+                String eventLabelToLog);
 
         /**
          * Checks whether the {@code ParentService} has the leadership acquired for the {@code

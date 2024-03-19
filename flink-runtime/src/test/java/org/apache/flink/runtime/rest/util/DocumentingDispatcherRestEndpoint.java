@@ -34,6 +34,7 @@ import org.apache.flink.runtime.rest.handler.legacy.metrics.VoidMetricFetcher;
 import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ConfigurationException;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
@@ -94,6 +95,14 @@ public class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint
 
         @Override
         public void confirmLeadership(UUID leaderSessionID, String leaderAddress) {}
+
+        @Override
+        public CompletableFuture<Void> runAsyncIfLeader(
+                UUID leaderSessionID,
+                ThrowingRunnable<? extends Throwable> callback,
+                String eventLabelToLog) {
+            return CompletableFuture.completedFuture(null);
+        }
 
         @Override
         public boolean hasLeadership(UUID leaderSessionId) {

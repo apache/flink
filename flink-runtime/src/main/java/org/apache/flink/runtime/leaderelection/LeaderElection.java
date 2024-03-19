@@ -18,7 +18,10 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import org.apache.flink.util.function.ThrowingRunnable;
+
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * {@code LeaderElection} serves as a proxy between {@code LeaderElectionService} and {@link
@@ -43,6 +46,22 @@ public interface LeaderElection extends AutoCloseable {
      * @param leaderAddress The address of the new leader
      */
     void confirmLeadership(UUID leaderSessionID, String leaderAddress);
+
+    /**
+     * Runs the passed {@code callback} if the leadership is still acquired when executing the
+     * {@code callback}.
+     *
+     * @param leaderSessionID The leadership session this {@code callback} is assigned to.
+     * @param callback The callback that shall be executed.
+     * @param eventLabelToLog A label that's used for logging the event handling.
+     * @return The future that can be used to monitor the completion of the asynchronous operation.
+     *     The future should complete exceptionally with a {@link LeadershipLostException} if the
+     *     callback could not be triggered due to missing leadership.
+     */
+    CompletableFuture<Void> runAsyncIfLeader(
+            UUID leaderSessionID,
+            ThrowingRunnable<? extends Throwable> callback,
+            String eventLabelToLog);
 
     /**
      * Returns {@code true} if the service's {@link LeaderContender} has the leadership under the

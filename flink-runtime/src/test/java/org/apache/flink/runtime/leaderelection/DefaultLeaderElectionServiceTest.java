@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
@@ -34,6 +33,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -41,6 +41,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -207,7 +208,7 @@ class DefaultLeaderElectionServiceTest {
             closeThread.join();
             grantThread.join();
 
-            FlinkAssertions.assertThatFuture(driverCloseTriggered).eventuallySucceeds();
+            assertThatFuture(driverCloseTriggered).eventuallySucceeds();
         }
     }
 
@@ -1106,6 +1107,264 @@ class DefaultLeaderElectionServiceTest {
                                     .isEqualTo(testException);
 
                             fatalErrorHandlerExtension.getTestingFatalErrorHandler().clearError();
+                        });
+            }
+        };
+    }
+
+    @Test
+    void testRunAsyncIfLeader() throws Exception {
+        new Context() {
+            {
+                runTestWithSynchronousEventHandling(
+                        () -> {
+                            final UUID sessionId = UUID.randomUUID();
+                            grantLeadership(sessionId);
+
+                            applyToBothContenderContexts(
+                                    ctx -> {
+                                        final CompletableFuture<Void> runAsyncExecutedFuture =
+                                                new CompletableFuture<>();
+                                        final CompletableFuture<Void> asyncOperationFuture =
+                                                ctx.leaderElection.runAsyncIfLeader(
+                                                        sessionId,
+                                                        () -> runAsyncExecutedFuture.complete(null),
+                                                        "Test: runAsync executed while having leadership");
+
+                                        assertThatFuture(asyncOperationFuture).eventuallySucceeds();
+                                        assertThat(runAsyncExecutedFuture).isDone();
+                                    });
+                        });
+            }
+        };
+    }
+
+    @Test
+    void testRunAsyncFailsIfLeader() throws Exception {
+        new Context() {
+            {
+                runTestWithSynchronousEventHandling(
+                        () -> {
+                            final UUID sessionId = UUID.randomUUID();
+                            grantLeadership(sessionId);
+
+                            applyToBothContenderContexts(
+                                    ctx -> {
+                                        final RuntimeException expectedException =
+                                                new RuntimeException("Expected exception");
+                                        final CompletableFuture<Void> asyncOperationFuture =
+                                                ctx.leaderElection.runAsyncIfLeader(
+                                                        sessionId,
+                                                        () -> {
+                                                            throw expectedException;
+                                                        },
+                                                        "Test: runAsync callback fails while having leadership");
+
+                                        assertThatFuture(asyncOperationFuture)
+                                                .eventuallyFails()
+                                                .withThrowableOfType(ExecutionException.class)
+                                                .withCause(expectedException);
+                                    });
+                        });
+            }
+        };
+    }
+
+    @Test
+    void testRunAsyncIfLeaderWithOutdatedSessionID() throws Exception {
+        new Context() {
+            {
+                runTestWithSynchronousEventHandling(
+                        () -> {
+                            grantLeadership();
+
+                            final UUID outdatedSessionId = UUID.randomUUID();
+                            applyToBothContenderContexts(
+                                    ctx -> {
+                                        final CompletableFuture<Void> runAsyncExecutedFuture =
+                                                new CompletableFuture<>();
+                                        final CompletableFuture<Void> asyncOperationFuture =
+                                                ctx.leaderElection.runAsyncIfLeader(
+                                                        outdatedSessionId,
+                                                        () -> runAsyncExecutedFuture.complete(null),
+                                                        "Test: runAsync executed while having leadership");
+
+                                        assertThatFuture(asyncOperationFuture)
+                                                .eventuallyFailsWith(ExecutionException.class)
+                                                .withCauseInstanceOf(LeadershipLostException.class);
+                                        assertThat(runAsyncExecutedFuture)
+                                                .as("The callback should not have been executed.")
+                                                .isNotDone();
+                                    });
+                        });
+            }
+        };
+    }
+
+    @Test
+    void testRunAsyncIfNotLeader() throws Exception {
+        new Context() {
+            {
+                runTestWithSynchronousEventHandling(
+                        () ->
+                                applyToBothContenderContexts(
+                                        ctx -> {
+                                            final CompletableFuture<Void> runAsyncExecutedFuture =
+                                                    new CompletableFuture<>();
+                                            final CompletableFuture<Void> asyncOperationFuture =
+                                                    ctx.leaderElection.runAsyncIfLeader(
+                                                            UUID.randomUUID(),
+                                                            () ->
+                                                                    runAsyncExecutedFuture.complete(
+                                                                            null),
+                                                            "Test: runAsync executed while having not leadership");
+
+                                            assertThatFuture(asyncOperationFuture)
+                                                    .eventuallyFailsWith(ExecutionException.class)
+                                                    .withCauseInstanceOf(
+                                                            LeadershipLostException.class);
+                                            assertThat(runAsyncExecutedFuture)
+                                                    .as(
+                                                            "The callback should not have been executed.")
+                                                    .isNotDone();
+                                        }));
+            }
+        };
+    }
+
+    @Test
+    void testRunAsyncByDeregisteredComponent() throws Exception {
+        new Context() {
+            {
+                runTestWithSynchronousEventHandling(
+                        () -> {
+                            grantLeadership();
+
+                            applyToBothContenderContexts(
+                                    ctx -> {
+                                        ctx.leaderElection.close();
+
+                                        final CompletableFuture<Void> asyncOperationFuture =
+                                                ctx.leaderElection.runAsyncIfLeader(
+                                                        UUID.randomUUID(),
+                                                        () -> {
+                                                            throw new RuntimeException(
+                                                                    "Expected error");
+                                                        },
+                                                        "Test: runAsync executed while having the LeaderElection stopped.");
+
+                                        assertThat(asyncOperationFuture)
+                                                .as(
+                                                        "The LeaderElection process is stopped and shouldn't forward any errors.")
+                                                .isNotCompletedExceptionally()
+                                                .isCompleted();
+                                    });
+                        });
+            }
+        };
+    }
+
+    @Test
+    void testRunAsyncOnConcurrentDeregistration() throws Exception {
+        new Context() {
+            {
+                runTestWithManuallyTriggeredEvents(
+                        executorService -> {
+                            grantLeadership();
+                            executorService.triggerAll();
+
+                            applyToBothContenderContexts(
+                                    ctx -> {
+                                        final CompletableFuture<Void> asyncOperationFuture =
+                                                ctx.leaderElection.runAsyncIfLeader(
+                                                        UUID.randomUUID(),
+                                                        () -> {
+                                                            throw new RuntimeException(
+                                                                    "Expected error");
+                                                        },
+                                                        "Test: runAsync executed while stopping the LeaderElection.");
+
+                                        assertThat(asyncOperationFuture).isNotDone();
+
+                                        ctx.leaderElection.close();
+
+                                        executorService.trigger();
+
+                                        assertThat(asyncOperationFuture)
+                                                .as(
+                                                        "The LeaderElection process is stopped and shouldn't forward any errors.")
+                                                .isNotCompletedExceptionally()
+                                                .isCompleted();
+                                    });
+                        });
+            }
+        };
+    }
+
+    @Test
+    void testRunAsyncOnStoppedInstance() throws Exception {
+        new Context() {
+            {
+                runTestWithManuallyTriggeredEvents(
+                        executorService -> {
+                            grantLeadership();
+                            executorService.triggerAll();
+
+                            // close contender #0 to prepare for the actual test execution on
+                            // contender #1
+                            contenderContext0.leaderElection.close();
+
+                            final CompletableFuture<Void> asyncOperationFuture =
+                                    contenderContext1.leaderElection.runAsyncIfLeader(
+                                            UUID.randomUUID(),
+                                            () -> {
+                                                throw new RuntimeException("Expected error");
+                                            },
+                                            "Test: runAsync executed while having the LeaderElection stopped.");
+
+                            contenderContext1.leaderElection.close();
+                            leaderElectionService.close();
+
+                            executorService.trigger();
+
+                            assertThat(asyncOperationFuture)
+                                    .as(
+                                            "The LeaderElection process is stopped and shouldn't forward any errors.")
+                                    .isNotCompletedExceptionally()
+                                    .isCompleted();
+                        });
+            }
+        };
+    }
+
+    @Test
+    void testRunAsyncOnConcurrentInstanceStop() throws Exception {
+        new Context() {
+            {
+                runTestWithSynchronousEventHandling(
+                        () -> {
+                            grantLeadership();
+
+                            closeLeaderElectionInBothContexts();
+                            leaderElectionService.close();
+
+                            applyToBothContenderContexts(
+                                    ctx -> {
+                                        final CompletableFuture<Void> asyncOperationFuture =
+                                                ctx.leaderElection.runAsyncIfLeader(
+                                                        UUID.randomUUID(),
+                                                        () -> {
+                                                            throw new RuntimeException(
+                                                                    "Expected error");
+                                                        },
+                                                        "Test: runAsync executed while having the LeaderElection stopped.");
+
+                                        assertThat(asyncOperationFuture)
+                                                .as(
+                                                        "The LeaderElection process is stopped and shouldn't forward any errors.")
+                                                .isNotCompletedExceptionally()
+                                                .isCompleted();
+                                    });
                         });
             }
         };

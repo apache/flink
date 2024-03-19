@@ -20,9 +20,11 @@ package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -201,11 +204,14 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
 
             if (issuedLeaderSessionID != null) {
                 // notifying the LeaderContender shouldn't happen in the contender's main thread
-                runInLeaderEventThread(
-                        LEADER_ACQUISITION_EVENT_LOG_NAME,
-                        () ->
-                                notifyLeaderContenderOfLeadership(
-                                        componentId, issuedLeaderSessionID));
+                FutureUtils.handleUncaughtException(
+                        runInLeaderEventThreadIfStarted(
+                                componentId,
+                                LEADER_ACQUISITION_EVENT_LOG_NAME,
+                                () ->
+                                        notifyLeaderContenderOfLeadership(
+                                                componentId, issuedLeaderSessionID)),
+                        this::forwardErrorToLeaderContender);
             }
         }
     }
@@ -324,39 +330,81 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
 
         checkNotNull(leaderSessionID);
 
-        synchronized (lock) {
-            if (hasLeadership(componentId, leaderSessionID)) {
-                Preconditions.checkState(
-                        leaderElectionDriver != null,
-                        "The leadership check should only return true if a driver is instantiated.");
-                Preconditions.checkState(
-                        !confirmedLeaderInformation.hasLeaderInformation(componentId),
-                        "No confirmation should have happened, yet.");
+        runAsyncIfLeader(
+                        componentId,
+                        leaderSessionID,
+                        () ->
+                                confirmLeadershipInternal(
+                                        componentId, leaderSessionID, leaderAddress),
+                        "Confirm leadership")
+                .exceptionally(
+                        t -> {
+                            if (ExceptionUtils.findThrowable(t, LeadershipLostException.class)
+                                    .isPresent()) {
+                                LOG.debug(
+                                        "Confirmation of the leadership failed because the leadership was lost in the mean time.",
+                                        t);
+                            } else {
+                                this.forwardErrorToLeaderContender(Thread.currentThread(), t);
+                            }
+                            return null;
+                        });
+    }
 
-                final LeaderInformation newConfirmedLeaderInformation =
-                        LeaderInformation.known(leaderSessionID, leaderAddress);
-                confirmedLeaderInformation =
-                        LeaderInformationRegister.merge(
-                                confirmedLeaderInformation,
-                                componentId,
-                                newConfirmedLeaderInformation);
-                leaderElectionDriver.publishLeaderInformation(
-                        componentId, newConfirmedLeaderInformation);
+    @GuardedBy("lock")
+    private void confirmLeadershipInternal(
+            String componentId, UUID leaderSessionID, String leaderAddress) {
+        Preconditions.checkState(
+                leaderElectionDriver != null,
+                "The leadership check should only return true if a driver is instantiated.");
+        Preconditions.checkState(
+                !confirmedLeaderInformation.hasLeaderInformation(componentId),
+                "No confirmation should have happened, yet.");
+
+        final LeaderInformation newConfirmedLeaderInformation =
+                LeaderInformation.known(leaderSessionID, leaderAddress);
+        confirmedLeaderInformation =
+                LeaderInformationRegister.merge(
+                        confirmedLeaderInformation, componentId, newConfirmedLeaderInformation);
+        leaderElectionDriver.publishLeaderInformation(componentId, newConfirmedLeaderInformation);
+    }
+
+    @Override
+    protected CompletableFuture<Void> runAsyncIfLeader(
+            String componentId,
+            UUID leaderSessionID,
+            ThrowingRunnable<? extends Throwable> synchronizedCallback,
+            String eventLabelToLog) {
+        return runInLeaderEventThreadIfStarted(
+                componentId,
+                eventLabelToLog,
+                () -> runIfLeader(componentId, leaderSessionID, synchronizedCallback));
+    }
+
+    @GuardedBy("lock")
+    private void runIfLeader(
+            String componentId,
+            UUID leaderSessionID,
+            ThrowingRunnable<? extends Throwable> synchronizedCallback)
+            throws Throwable {
+        if (hasLeadership(componentId, leaderSessionID)) {
+            synchronizedCallback.run();
+        } else {
+            final String errorMessage;
+            if (!leaderSessionID.equals(this.issuedLeaderSessionID)) {
+                errorMessage =
+                        String.format(
+                                "Received an old confirmation call of leader session ID %s for component '%s' (current issued session ID is %s).",
+                                leaderSessionID, componentId, issuedLeaderSessionID);
             } else {
-                if (!leaderSessionID.equals(this.issuedLeaderSessionID)) {
-                    LOG.debug(
-                            "Received an old confirmation call of leader session ID {} for component '{}' (current issued session ID is {}).",
-                            leaderSessionID,
-                            componentId,
-                            issuedLeaderSessionID);
-                } else {
-                    LOG.warn(
-                            "The leader session ID {} for component '{}' was confirmed even though the corresponding "
-                                    + "service was not elected as the leader or has been stopped already.",
-                            componentId,
-                            leaderSessionID);
-                }
+                errorMessage =
+                        String.format(
+                                "The leader session ID %s for component '%s' was confirmed even though the corresponding "
+                                        + "service was not elected as the leader or has been stopped already.",
+                                componentId, leaderSessionID);
             }
+
+            throw new LeadershipLostException(errorMessage);
         }
     }
 
@@ -508,43 +556,100 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
         leaderElectionDriver.publishLeaderInformation(componentId, confirmedLeaderInformation);
     }
 
-    private void runInLeaderEventThread(String leaderElectionEventName, Runnable callback) {
+    private CompletableFuture<Void> runInLeaderEventThreadIfStarted(
+            String leaderElectionEventLabel,
+            ThrowingRunnable<? extends Throwable> synchronizedCallback) {
+        return runInLeaderEventThreadIfStartedWithProperEventLogging(
+                "for all components", null, leaderElectionEventLabel, synchronizedCallback);
+    }
+
+    private CompletableFuture<Void> runInLeaderEventThreadIfStarted(
+            String componentId,
+            String leaderElectionEventLabel,
+            ThrowingRunnable<? extends Throwable> synchronizedCallback) {
+        return runInLeaderEventThreadIfStartedWithProperEventLogging(
+                "from " + componentId, componentId, leaderElectionEventLabel, synchronizedCallback);
+    }
+
+    private CompletableFuture<Void> runInLeaderEventThreadIfStartedWithProperEventLogging(
+            String componentLabel,
+            @Nullable String componentId,
+            String leaderElectionEventLabel,
+            ThrowingRunnable<? extends Throwable> synchronizedCallback) {
+        final CompletableFuture<Void> forwardedAsyncOperationFuture = new CompletableFuture<>();
+        final boolean asyncCallIsTriggered =
+                synchronizedRunCallback(
+                        "Handling",
+                        leaderElectionEventLabel,
+                        componentId,
+                        componentLabel,
+                        () -> {
+                            final CompletableFuture<Void> asyncOperationFuture =
+                                    CompletableFuture.runAsync(
+                                            () ->
+                                                    synchronizedRunCallback(
+                                                            "Processing",
+                                                            leaderElectionEventLabel,
+                                                            componentId,
+                                                            componentLabel,
+                                                            () -> {
+                                                                try {
+                                                                    synchronizedCallback.run();
+                                                                } catch (Throwable t) {
+                                                                    throw new CompletionException(
+                                                                            t);
+                                                                }
+                                                            }),
+                                            leadershipOperationExecutor);
+                            FutureUtils.forward(
+                                    asyncOperationFuture, forwardedAsyncOperationFuture);
+                        });
+
+        if (!asyncCallIsTriggered) {
+            forwardedAsyncOperationFuture.complete(null);
+        }
+
+        return forwardedAsyncOperationFuture;
+    }
+
+    private boolean synchronizedRunCallback(
+            String logPrefix,
+            String leaderElectionEventLabel,
+            @Nullable String componentId,
+            String componentIdLabel,
+            Runnable callback) {
         synchronized (lock) {
-            if (running) {
-                LOG.debug("'{}' event processing triggered.", leaderElectionEventName);
-                FutureUtils.handleUncaughtException(
-                        CompletableFuture.runAsync(
-                                () -> {
-                                    synchronized (lock) {
-                                        if (!running) {
-                                            LOG.debug(
-                                                    "Processing '{}' event omitted due to the service not being in running state, anymore.",
-                                                    leaderElectionEventName);
-                                        } else if (leaderElectionDriver == null) {
-                                            Preconditions.checkState(
-                                                    leaderContenderRegistry.isEmpty(),
-                                                    "All contenders should be deregistered when the driver is removed.");
-                                            LOG.debug(
-                                                    "All contenders have been deregistered and the driver was shut down. Any incoming leadership event will be ignored.");
-                                        } else {
-                                            LOG.debug(
-                                                    "Processing '{}' event.",
-                                                    leaderElectionEventName);
-                                            callback.run();
-                                        }
-                                    }
-                                },
-                                leadershipOperationExecutor),
-                        (thread, error) -> forwardErrorToLeaderContender(error));
+            final String logMessageFormat =
+                    String.format(
+                            "%s '%s' event %s {}. The event will be ignored.",
+                            logPrefix, leaderElectionEventLabel, componentIdLabel);
+            if (!running) {
+                LOG.debug(logMessageFormat, "while the DefaultLeaderElectionService is closed");
+            } else if (leaderElectionDriver == null) {
+                Preconditions.checkState(
+                        leaderContenderRegistry.isEmpty(),
+                        "All contenders should be deregistered when the driver is removed.");
+                LOG.debug(
+                        logMessageFormat,
+                        "while the driver is not started and no contenders are registered");
+            } else if (componentId != null && !leaderContenderRegistry.containsKey(componentId)) {
+                LOG.debug(
+                        logMessageFormat, "while the triggering component is already deregistered");
             } else {
                 LOG.debug(
-                        "'{}' event processing was triggered while the DefaultLeaderElectionService is closed. The event will be ignored.",
-                        leaderElectionEventName);
+                        "{} '{}' event {} is triggered.",
+                        logPrefix,
+                        leaderElectionEventLabel,
+                        componentIdLabel);
+                callback.run();
+                return true;
             }
+
+            return false;
         }
     }
 
-    private void forwardErrorToLeaderContender(Throwable t) {
+    private void forwardErrorToLeaderContender(Thread ignored, Throwable t) {
         synchronized (lock) {
             if (leaderContenderRegistry.isEmpty()) {
                 fallbackErrorHandler.onFatalError(t);
@@ -566,14 +671,19 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
 
     @Override
     public void onGrantLeadership(UUID leaderSessionID) {
-        runInLeaderEventThread(
-                LEADER_ACQUISITION_EVENT_LOG_NAME,
-                () -> onGrantLeadershipInternal(leaderSessionID));
+        FutureUtils.handleUncaughtException(
+                runInLeaderEventThreadIfStarted(
+                        LEADER_ACQUISITION_EVENT_LOG_NAME,
+                        () -> onGrantLeadershipInternal(leaderSessionID)),
+                this::forwardErrorToLeaderContender);
     }
 
     @Override
     public void onRevokeLeadership() {
-        runInLeaderEventThread(LEADER_REVOCATION_EVENT_LOG_NAME, this::onRevokeLeadershipInternal);
+        FutureUtils.handleUncaughtException(
+                runInLeaderEventThreadIfStarted(
+                        LEADER_REVOCATION_EVENT_LOG_NAME, this::onRevokeLeadershipInternal),
+                this::forwardErrorToLeaderContender);
     }
 
     @Override
@@ -608,6 +718,6 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
 
     @Override
     public void onError(Throwable t) {
-        forwardErrorToLeaderContender(t);
+        forwardErrorToLeaderContender(Thread.currentThread(), t);
     }
 }

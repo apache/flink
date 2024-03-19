@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -107,6 +109,22 @@ public class TestingLeaderElection implements LeaderElection {
     @GuardedBy("this")
     private boolean hasLeadership() {
         return issuedLeaderSessionId != null;
+    }
+
+    @Override
+    public CompletableFuture<Void> runAsyncIfLeader(
+            UUID leaderSessionID,
+            ThrowingRunnable<? extends Throwable> callback,
+            String eventLabelToLog) {
+        try {
+            if (hasLeadership(leaderSessionID)) {
+                callback.run();
+            }
+        } catch (Throwable t) {
+            return FutureUtils.completedExceptionally(t);
+        }
+
+        return FutureUtils.completedVoidFuture();
     }
 
     @Override

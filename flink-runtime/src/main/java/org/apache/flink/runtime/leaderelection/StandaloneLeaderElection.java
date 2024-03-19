@@ -19,10 +19,16 @@
 package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.function.ThrowingRunnable;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * {@code StandaloneLeaderElection} implements {@link LeaderElection} for non-HA cases. This
@@ -30,6 +36,8 @@ import java.util.UUID;
  * the main components (e.g. ResourceManager or Dispatcher).
  */
 public class StandaloneLeaderElection implements LeaderElection {
+
+    private static final Logger LOG = LoggerFactory.getLogger(StandaloneLeaderElection.class);
 
     private final Object lock = new Object();
 
@@ -54,6 +62,30 @@ public class StandaloneLeaderElection implements LeaderElection {
 
     @Override
     public void confirmLeadership(UUID leaderSessionID, String leaderAddress) {}
+
+    @Override
+    public CompletableFuture<Void> runAsyncIfLeader(
+            UUID leaderSessionID,
+            ThrowingRunnable<? extends Throwable> callback,
+            String eventLabelToLog) {
+        synchronized (lock) {
+            if (hasLeadership(leaderSessionID)) {
+                LOG.debug("'{}' event processing triggered.", eventLabelToLog);
+                try {
+                    callback.run();
+                } catch (Throwable t) {
+                    return FutureUtils.completedExceptionally(t);
+                }
+            } else {
+                LOG.debug(
+                        "'{}' event processing was triggered while the {} is closed. The event will be ignored.",
+                        StandaloneLeaderElection.class.getSimpleName(),
+                        eventLabelToLog);
+            }
+        }
+
+        return FutureUtils.completedVoidFuture();
+    }
 
     @Override
     public boolean hasLeadership(UUID leaderSessionId) {
