@@ -1021,7 +1021,7 @@ under the License.
 							<excludedGroups>
 								${surefire.excludedGroups.github-actions},
 								${surefire.excludedGroups.adaptive-scheduler},
-								${surefire.excludedGroups.jdk,
+								${surefire.excludedGroups.jdk}
 							</excludedGroups>
 						</configuration>
 					</plugin>
