@@ -39,7 +39,7 @@ resources:
   # Container with SSL to have the same environment everywhere.
   # see https://github.com/apache/flink-connector-shared-utils/tree/ci_utils
   - container: flink-build-container
-    image: mapohl/flink-ci:FLINK-34194
+    image: chesnay/flink-ci:java_8_11_17_21_maven_386
 
 variables:
   MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository

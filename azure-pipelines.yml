@@ -39,7 +39,7 @@ resources:
   # Container with SSL to have the same environment everywhere.
   # see https://github.com/apache/flink-connector-shared-utils/tree/ci_utils
   - container: flink-build-container
-    image: mapohl/flink-ci:FLINK-34194
+    image: chesnay/flink-ci:java_8_11_17_21_maven_386
     # On AZP provided machines, set this flag to allow writing coredumps in docker
     options: --privileged
 
@@ -73,16 +73,16 @@ stages:
         parameters: # see template file for a definition of the parameters.
           stage_name: ci_build
           test_pool_definition:
-            vmImage: 'ubuntu-22.04'
+            vmImage: 'ubuntu-20.04'
           e2e_pool_definition:
-            vmImage: 'ubuntu-22.04'
+            vmImage: 'ubuntu-20.04'
           environment: PROFILE="-Dflink.hadoop.version=2.10.2"
           run_end_to_end: false
           container: flink-build-container
           jdk: 8
       - job: docs_404_check # run on a MSFT provided machine
         pool:
-          vmImage: 'ubuntu-22.04'
+          vmImage: 'ubuntu-20.04'
         steps:
           - task: GoTool@0
             inputs:
