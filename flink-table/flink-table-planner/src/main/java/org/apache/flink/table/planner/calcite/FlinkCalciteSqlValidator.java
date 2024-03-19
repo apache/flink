@@ -231,7 +231,8 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
                                 periodNode));
             }
 
-            final SqlTypeName sqlTypeName = ((RexLiteral) reducedNode).getTypeName();
+            RexLiteral rexLiteral = (RexLiteral) reducedNode;
+            final SqlTypeName sqlTypeName = rexLiteral.getTypeName();
             if (!(sqlTypeName == SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE
                     || sqlTypeName == SqlTypeName.TIMESTAMP)) {
                 throw newValidationError(
@@ -239,9 +240,7 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
                         Static.RESOURCE.illegalExpressionForTemporal(sqlTypeName.getName()));
             }
 
-            RexLiteral rexLiteral = (RexLiteral) reducedNode;
-            TimestampString timestampString =
-                    ((RexLiteral) reducedNode).getValueAs(TimestampString.class);
+            TimestampString timestampString = rexLiteral.getValueAs(TimestampString.class);
             checkNotNull(
                     timestampString,
                     "The time travel expression %s can not reduce to a valid timestamp string. This is a bug. Please file an issue.",
