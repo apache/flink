@@ -33,6 +33,7 @@ import org.apache.flink.util.Collector;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -43,6 +44,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Integration tests for {@link KeyedPartitionWindowedStream}. */
+@Tag("org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler") // FLINK-34718
 class KeyedPartitionWindowedStreamITCase {
 
     private static final int EVENT_NUMBER = 100;
