@@ -56,7 +56,6 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.runtime.scheduler.adaptivebatch.SpeculativeScheduler;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -93,8 +92,11 @@ import static org.apache.flink.configuration.RestartStrategyOptions.RestartStrat
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** IT cases for {@link SpeculativeScheduler}. */
-class SpeculativeSchedulerITCase {
+/**
+ * IT cases for {@link org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler} with
+ * speculative execution enabled.
+ */
+class SpeculativeExecutionITCase {
 
     @TempDir private Path temporaryFolder;
     private static final int MAX_PARALLELISM = 4;
