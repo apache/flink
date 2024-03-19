@@ -59,7 +59,7 @@ import org.apache.calcite.sql.SqlTableFunction;
 import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.SqlWindowTableFunction;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.sql.validate.DelegatingScope;
 import org.apache.calcite.sql.validate.IdentifierNamespace;
 import org.apache.calcite.sql.validate.IdentifierSnapshotNamespace;
@@ -232,12 +232,12 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
             }
 
             RexLiteral rexLiteral = (RexLiteral) reducedNode;
-            final SqlTypeName sqlTypeName = rexLiteral.getTypeName();
-            if (!(sqlTypeName == SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE
-                    || sqlTypeName == SqlTypeName.TIMESTAMP)) {
+            final RelDataType sqlType = rexLiteral.getType();
+            if (!SqlTypeUtil.isTimestamp(rexLiteral.getType())) {
                 throw newValidationError(
                         periodNode,
-                        Static.RESOURCE.illegalExpressionForTemporal(sqlTypeName.getName()));
+                        Static.RESOURCE.illegalExpressionForTemporal(
+                                sqlType.getSqlTypeName().getName()));
             }
 
             TimestampString timestampString = rexLiteral.getValueAs(TimestampString.class);
