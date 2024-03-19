@@ -87,6 +87,9 @@ public class StreamOperatorFactoryUtil {
                                         ? () -> processingTimeService
                                         : processingTimeServiceFactory,
                                 operatorEventDispatcher));
+        if (op instanceof YieldingOperator) {
+            ((YieldingOperator<?>) operatorFactory).setMailboxExecutor(mailboxExecutor);
+        }
         return new Tuple2<>(op, Optional.ofNullable(processingTimeService));
     }
 }
