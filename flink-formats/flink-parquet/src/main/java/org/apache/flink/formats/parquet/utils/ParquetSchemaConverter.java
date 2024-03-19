@@ -152,10 +152,7 @@ public class ParquetSchemaConverter {
                         name,
                         MAP_REPEATED_NAME,
                         convertToParquetType(
-                                "key",
-                                mapType.getKeyType(),
-                                Type.Repetition.REQUIRED,
-                                conf),
+                                "key", mapType.getKeyType(), Type.Repetition.REQUIRED, conf),
                         convertToParquetType("value", mapType.getValueType(), conf));
             case MULTISET:
                 MultisetType multisetType = (MultisetType) type;
