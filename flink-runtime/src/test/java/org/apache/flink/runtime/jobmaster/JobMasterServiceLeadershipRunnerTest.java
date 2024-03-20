@@ -45,18 +45,19 @@ import org.apache.flink.runtime.leaderelection.TestingLeaderElectionDriver;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
@@ -676,25 +677,24 @@ class JobMasterServiceLeadershipRunnerTest {
         }
     }
 
-    @Disabled
     @Test
     void testJobMasterServiceLeadershipRunnerCloseWhenElectionServiceGrantLeaderShip()
             throws Exception {
         final AtomicReference<LeaderInformationRegister> storedLeaderInformation =
                 new AtomicReference<>(LeaderInformationRegister.empty());
+        final AtomicBoolean haBackendLeadershipFlag = new AtomicBoolean();
 
         final TestingLeaderElectionDriver.Factory driverFactory =
                 new TestingLeaderElectionDriver.Factory(
                         TestingLeaderElectionDriver.newBuilder(
-                                new AtomicBoolean(), storedLeaderInformation, new AtomicBoolean()));
+                                haBackendLeadershipFlag,
+                                storedLeaderInformation,
+                                new AtomicBoolean()));
 
         // we need to use DefaultLeaderElectionService here because JobMasterServiceLeadershipRunner
         // in connection with the DefaultLeaderElectionService generates the nested locking
         final DefaultLeaderElectionService defaultLeaderElectionService =
                 new DefaultLeaderElectionService(driverFactory, fatalErrorHandler);
-
-        final TestingLeaderElectionDriver currentLeaderDriver =
-                driverFactory.assertAndGetOnlyCreatedDriver();
 
         // latch to detect when we reached the first synchronized section having a lock on the
         // JobMasterServiceProcess#stop side
@@ -733,6 +733,7 @@ class JobMasterServiceLeadershipRunnerTest {
                                                         // before calling stop on the
                                                         // DefaultLeaderElectionService
                                                         triggerClassLoaderLeaseRelease.await();
+
                                                         // In order to reproduce the deadlock, we
                                                         // need to ensure that
                                                         // leaderContender#grantLeadership can be
@@ -770,13 +771,19 @@ class JobMasterServiceLeadershipRunnerTest {
             jobManagerRunner.start();
 
             // grant leadership to create jobMasterServiceProcess
+            haBackendLeadershipFlag.set(true);
             final UUID leaderSessionID = UUID.randomUUID();
             defaultLeaderElectionService.onGrantLeadership(leaderSessionID);
 
-            while (!currentLeaderDriver.hasLeadership()
-                    || !leaderElection.hasLeadership(leaderSessionID)) {
-                Thread.sleep(100);
-            }
+            final SupplierWithException<Boolean, Exception> confirmationForSessionIdReceived =
+                    () ->
+                            storedLeaderInformation
+                                    .get()
+                                    .forComponentId(componentId)
+                                    .map(LeaderInformation::getLeaderSessionID)
+                                    .map(sessionId -> sessionId.equals(leaderSessionID))
+                                    .orElse(false);
+            CommonTestUtils.waitUntilCondition(confirmationForSessionIdReceived);
 
             final CheckedThread contenderCloseThread = createCheckedThread(jobManagerRunner::close);
             contenderCloseThread.start();
