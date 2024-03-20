@@ -233,7 +233,7 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
 
             RexLiteral rexLiteral = (RexLiteral) reducedNode;
             final RelDataType sqlType = rexLiteral.getType();
-            if (!SqlTypeUtil.isTimestamp(rexLiteral.getType())) {
+            if (!SqlTypeUtil.isTimestamp(sqlType)) {
                 throw newValidationError(
                         periodNode,
                         Static.RESOURCE.illegalExpressionForTemporal(
