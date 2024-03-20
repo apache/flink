@@ -34,11 +34,6 @@ import org.apache.calcite.rel.convert.ConverterRule.Config
  */
 class StreamPhysicalRankRule(config: Config) extends ConverterRule(config) {
 
-  override def matches(call: RelOptRuleCall): Boolean = {
-    val rank: FlinkLogicalRank = call.rel(0)
-    !RankUtil.canConvertToDeduplicate(rank)
-  }
-
   override def convert(rel: RelNode): RelNode = {
     val rank = rel.asInstanceOf[FlinkLogicalRank]
     val input = rank.getInput

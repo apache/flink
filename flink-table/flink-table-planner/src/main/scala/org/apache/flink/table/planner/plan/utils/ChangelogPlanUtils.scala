@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalR
 import org.apache.flink.table.planner.plan.optimize.program.FlinkChangelogModeInferenceProgram
 import org.apache.flink.types.RowKind
 
+import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.rel.RelNode
 
 import scala.collection.JavaConversions._
@@ -46,7 +47,11 @@ object ChangelogPlanUtils {
    * <p>Note: this method must be called after [[FlinkChangelogModeInferenceProgram]] is applied.
    */
   def inputInsertOnly(node: StreamPhysicalRel): Boolean = {
-    node.getInputs.forall { case input: StreamPhysicalRel => isInsertOnly(input) }
+    node.getInputs.forall {
+      case input: StreamPhysicalRel => isInsertOnly(input)
+      case hepRelVertex: HepRelVertex =>
+        isInsertOnly(hepRelVertex.getCurrentRel.asInstanceOf[StreamPhysicalRel])
+    }
   }
 
   /**
