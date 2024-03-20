@@ -69,7 +69,7 @@ public class StandaloneLeaderElection implements LeaderElection {
             ThrowingRunnable<? extends Throwable> callback,
             String eventLabelToLog) {
         synchronized (lock) {
-            if (hasLeadership(leaderSessionID)) {
+            if (this.leaderContender != null && this.sessionID.equals(leaderSessionID)) {
                 LOG.debug("'{}' event processing triggered.", eventLabelToLog);
                 try {
                     callback.run();
@@ -85,13 +85,6 @@ public class StandaloneLeaderElection implements LeaderElection {
         }
 
         return FutureUtils.completedVoidFuture();
-    }
-
-    @Override
-    public boolean hasLeadership(UUID leaderSessionId) {
-        synchronized (lock) {
-            return this.leaderContender != null && this.sessionID.equals(leaderSessionId);
-        }
     }
 
     @Override

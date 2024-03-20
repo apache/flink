@@ -64,15 +64,6 @@ public interface LeaderElection extends AutoCloseable {
             String eventLabelToLog);
 
     /**
-     * Returns {@code true} if the service's {@link LeaderContender} has the leadership under the
-     * given leader session ID acquired.
-     *
-     * @param leaderSessionId identifying the current leader
-     * @return true if the associated {@link LeaderContender} is the leader, otherwise false
-     */
-    boolean hasLeadership(UUID leaderSessionId);
-
-    /**
      * Closes the {@code LeaderElection} by deregistering the {@link LeaderContender} from the
      * underlying leader election. {@link LeaderContender#revokeLeadership()} will be called if the
      * service still holds the leadership.

@@ -28,7 +28,6 @@ import org.junit.jupiter.api.Test;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
@@ -156,39 +155,6 @@ class DefaultLeaderElectionTest {
                 .isEqualTo(DEFAULT_TEST_COMPONENT_ID);
     }
 
-    @Test
-    void testHasLeadershipTrue() throws Exception {
-        testHasLeadership(true);
-    }
-
-    @Test
-    void testHasLeadershipFalse() throws Exception {
-        testHasLeadership(false);
-    }
-
-    private void testHasLeadership(boolean expectedReturnValue) throws Exception {
-        final AtomicReference<String> componentIdRef = new AtomicReference<>();
-        final AtomicReference<UUID> leaderSessionIDRef = new AtomicReference<>();
-        final DefaultLeaderElection.ParentService parentService =
-                TestingAbstractLeaderElectionService.newBuilder()
-                        .setHasLeadershipFunction(
-                                (actualComponentId, actualLeaderSessionID) -> {
-                                    componentIdRef.set(actualComponentId);
-                                    leaderSessionIDRef.set(actualLeaderSessionID);
-                                    return expectedReturnValue;
-                                })
-                        .build();
-        try (final DefaultLeaderElection testInstance =
-                new DefaultLeaderElection(parentService, DEFAULT_TEST_COMPONENT_ID)) {
-
-            final UUID expectedLeaderSessionID = UUID.randomUUID();
-            assertThat(testInstance.hasLeadership(expectedLeaderSessionID))
-                    .isEqualTo(expectedReturnValue);
-            assertThat(componentIdRef).hasValue(DEFAULT_TEST_COMPONENT_ID);
-            assertThat(leaderSessionIDRef).hasValue(expectedLeaderSessionID);
-        }
-    }
-
     private static class TestingAbstractLeaderElectionService
             extends DefaultLeaderElection.ParentService {
 
@@ -203,7 +169,6 @@ class DefaultLeaderElectionTest {
                         String,
                         CompletableFuture<Void>>
                 runAsyncIfLeaderConsumer;
-        private final BiFunction<String, UUID, Boolean> hasLeadershipFunction;
 
         private TestingAbstractLeaderElectionService(
                 BiConsumerWithException<String, LeaderContender, Exception> registerConsumer,
@@ -215,15 +180,13 @@ class DefaultLeaderElectionTest {
                                 ThrowingRunnable<? extends Throwable>,
                                 String,
                                 CompletableFuture<Void>>
-                        runAsyncIfLeaderConsumer,
-                BiFunction<String, UUID, Boolean> hasLeadershipFunction) {
+                        runAsyncIfLeaderConsumer) {
             super();
 
             this.registerConsumer = registerConsumer;
             this.removeConsumer = removeConsumer;
             this.confirmLeadershipConsumer = confirmLeadershipConsumer;
             this.runAsyncIfLeaderConsumer = runAsyncIfLeaderConsumer;
-            this.hasLeadershipFunction = hasLeadershipFunction;
         }
 
         @Override
@@ -252,11 +215,6 @@ class DefaultLeaderElectionTest {
                     componentId, leaderSessionID, callback, eventLabelToLog);
         }
 
-        @Override
-        protected boolean hasLeadership(String componentId, UUID leaderSessionId) {
-            return hasLeadershipFunction.apply(componentId, leaderSessionId);
-        }
-
         public static Builder newBuilder() {
             return new Builder()
                     .setRegisterConsumer(
@@ -268,11 +226,6 @@ class DefaultLeaderElectionTest {
                             (componentId, leaderSessionID, address) -> {
                                 throw new UnsupportedOperationException(
                                         "confirmLeadership not supported");
-                            })
-                    .setHasLeadershipFunction(
-                            (componentId, leaderSessionID) -> {
-                                throw new UnsupportedOperationException(
-                                        "hasLeadership not supported");
                             });
         }
 
@@ -289,7 +242,6 @@ class DefaultLeaderElectionTest {
                             String,
                             CompletableFuture<Void>>
                     runAsyncIfLeaderConsumer;
-            private BiFunction<String, UUID, Boolean> hasLeadershipFunction;
 
             private Builder() {}
 
@@ -322,19 +274,12 @@ class DefaultLeaderElectionTest {
                 return this;
             }
 
-            public Builder setHasLeadershipFunction(
-                    BiFunction<String, UUID, Boolean> hasLeadershipFunction) {
-                this.hasLeadershipFunction = hasLeadershipFunction;
-                return this;
-            }
-
             public TestingAbstractLeaderElectionService build() {
                 return new TestingAbstractLeaderElectionService(
                         registerConsumer,
                         removeConsumer,
                         confirmLeadershipConsumer,
-                        runAsyncIfLeaderConsumer,
-                        hasLeadershipFunction);
+                        runAsyncIfLeaderConsumer);
             }
         }
     }

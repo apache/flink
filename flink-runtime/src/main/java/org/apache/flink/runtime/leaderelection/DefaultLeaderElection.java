@@ -59,11 +59,6 @@ class DefaultLeaderElection implements LeaderElection {
     }
 
     @Override
-    public boolean hasLeadership(UUID leaderSessionId) {
-        return parentService.hasLeadership(componentId, leaderSessionId);
-    }
-
-    @Override
     public void close() throws Exception {
         parentService.remove(componentId);
     }
@@ -103,14 +98,5 @@ class DefaultLeaderElection implements LeaderElection {
                 UUID leaderSessionID,
                 ThrowingRunnable<? extends Throwable> callback,
                 String eventLabelToLog);
-
-        /**
-         * Checks whether the {@code ParentService} has the leadership acquired for the {@code
-         * componentId} and {@code leaderSessionID}.
-         *
-         * @return {@code true} if the service has leadership with the passed {@code
-         *     leaderSessionID} acquired; {@code false} otherwise.
-         */
-        abstract boolean hasLeadership(String componentId, UUID leaderSessionID);
     }
 }

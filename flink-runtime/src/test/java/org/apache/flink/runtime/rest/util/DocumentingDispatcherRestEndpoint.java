@@ -105,11 +105,6 @@ public class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint
         }
 
         @Override
-        public boolean hasLeadership(UUID leaderSessionId) {
-            return false;
-        }
-
-        @Override
         public void close() {}
     }
 }

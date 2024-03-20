@@ -408,23 +408,21 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
         }
     }
 
-    @Override
-    protected boolean hasLeadership(String componentId, UUID leaderSessionId) {
-        synchronized (lock) {
-            if (leaderElectionDriver != null) {
-                if (leaderContenderRegistry.containsKey(componentId)) {
-                    return leaderElectionDriver.hasLeadership()
-                            && leaderSessionId.equals(issuedLeaderSessionID);
-                } else {
-                    LOG.debug(
-                            "hasLeadership is called for component '{}' while there is no contender registered under that ID in the service, returning false.",
-                            componentId);
-                    return false;
-                }
+    @GuardedBy("lock")
+    private boolean hasLeadership(String componentId, UUID leaderSessionId) {
+        if (leaderElectionDriver != null) {
+            if (leaderContenderRegistry.containsKey(componentId)) {
+                return leaderElectionDriver.hasLeadership()
+                        && leaderSessionId.equals(issuedLeaderSessionID);
             } else {
-                LOG.debug("hasLeadership is called after the service is closed, returning false.");
+                LOG.debug(
+                        "hasLeadership is called for component '{}' while there is no contender registered under that ID in the service, returning false.",
+                        componentId);
                 return false;
             }
+        } else {
+            LOG.debug("hasLeadership is called after the service is closed, returning false.");
+            return false;
         }
     }
 

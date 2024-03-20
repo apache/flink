@@ -518,11 +518,6 @@ public class EmbeddedLeaderService {
             return runIfLeader(this, leaderSessionID, callback, eventLabelToLog);
         }
 
-        @Override
-        public boolean hasLeadership(UUID leaderSessionId) {
-            return isLeader && leaderSessionId.equals(currentLeaderSessionId);
-        }
-
         void shutdown(Exception cause) {
             if (running) {
                 running = false;

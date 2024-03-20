@@ -79,30 +79,6 @@ class StandaloneLeaderElectionTest {
     }
 
     @Test
-    void testHasLeadershipWithContender() throws Exception {
-        final TestingGenericLeaderContender contender =
-                TestingGenericLeaderContender.newBuilder().build();
-        try (final LeaderElection testInstance = new StandaloneLeaderElection(SESSION_ID)) {
-            testInstance.startLeaderElection(contender);
-
-            assertThat(testInstance.hasLeadership(SESSION_ID)).isTrue();
-
-            final UUID differentSessionID = UUID.randomUUID();
-            assertThat(testInstance.hasLeadership(differentSessionID)).isFalse();
-        }
-    }
-
-    @Test
-    void testHasLeadershipWithoutContender() throws Exception {
-        try (final LeaderElection testInstance = new StandaloneLeaderElection(SESSION_ID)) {
-            assertThat(testInstance.hasLeadership(SESSION_ID)).isFalse();
-
-            final UUID differentSessionID = UUID.randomUUID();
-            assertThat(testInstance.hasLeadership(differentSessionID)).isFalse();
-        }
-    }
-
-    @Test
     void testRevokeCallOnClose() throws Exception {
         final AtomicBoolean revokeLeadershipCalled = new AtomicBoolean(false);
         final TestingGenericLeaderContender contender =
