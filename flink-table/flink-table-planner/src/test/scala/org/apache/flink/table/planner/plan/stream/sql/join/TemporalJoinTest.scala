@@ -508,6 +508,27 @@ class TemporalJoinTest extends TableTestBase {
         " table, but the rowtime types are TIMESTAMP_LTZ(3) *ROWTIME* and TIMESTAMP(3) *ROWTIME*.",
       classOf[ValidationException]
     )
+
+    val sqlQuery9 = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "RatesHistoryWithPK FOR SYSTEM_TIME AS OF 'o.rowtime' AS r " +
+      "ON o.currency = r.currency"
+    expectExceptionThrown(
+      sqlQuery9,
+      "The system time period specification expects Timestamp type but is 'CHAR'",
+      classOf[ValidationException]
+    )
+
+    val sqlQuery10 = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "RatesHistoryWithPK FOR SYSTEM_TIME AS OF o.rowtime + INTERVAL '1' SECOND AS r " +
+      "ON o.currency = r.currency"
+    expectExceptionThrown(
+      sqlQuery10,
+      "Temporal table join currently only supports 'FOR SYSTEM_TIME AS OF' left table's time" +
+        " attribute field'",
+      classOf[ValidationException]
+    )
   }
 
   @Test
