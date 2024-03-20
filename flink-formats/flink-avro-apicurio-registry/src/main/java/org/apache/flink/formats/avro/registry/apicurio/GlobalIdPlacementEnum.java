@@ -19,7 +19,7 @@
 package org.apache.flink.formats.avro.registry.apicurio;
 
 /** Enumeration of where to put the GlobalId. */
-public enum GlobalIdPlacementEnum {
+enum GlobalIdPlacementEnum {
     HEADER("HEADER", "global ID is put in the header."),
     LEGACY("LEGACY", "global ID is put in the message as a long."),
     CONFLUENT("CONFLUENT", "global ID is put in the message as an int."),

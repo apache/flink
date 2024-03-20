@@ -242,67 +242,72 @@ public class ApicurioRegistryAvroFormatFactory
         // options with defaults
         // we are java 8, so we cannot use ifPresentElse which would be a better implementation
 
-//        // handle enum
-//        Optional globalIdPresentformatOption =
-//                formatOptions.getOptional(AvroApicurioFormatOptions.GLOBALID_PLACEMENT);
-//        String globalPlaceMentKey = GLOBALID_PLACEMENT.key();
-//
-//        if (globalIdPresentformatOption.isPresent()) {
-//            properties.put(globalPlaceMentKey, globalIdPresentformatOption.get());
-//        } else {
-//            properties.put(
-//                    globalPlaceMentKey,
-//                    AvroApicurioFormatOptions.GLOBALID_PLACEMENT.defaultValue());
-//        }
-//        if (properties.get(globalPlaceMentKey) == null) {
-//            throw new RuntimeException(
-//                    "updatePropertiesWithConfigOptionEnum for " + globalPlaceMentKey);
-//        }
-//
-//        updatePropertiesWithConfigOptionString(
-//                formatOptions,
-//                properties,
-//                AvroApicurioFormatOptions.REGISTERED_ARTIFACT_NAME,
-//                REGISTERED_ARTIFACT_NAME.key());
-//        updatePropertiesWithConfigOptionString(
-//                formatOptions,
-//                properties,
-//                REGISTERED_ARTIFACT_DESCRIPTION,
-//                REGISTERED_ARTIFACT_DESCRIPTION.key());
-//        updatePropertiesWithConfigOptionString(
-//                formatOptions,
-//                properties,
-//                REGISTERED_ARTIFACT_VERSION,
-//                REGISTERED_ARTIFACT_VERSION.key());
-//
-//        // options without defaults.
-//        formatOptions
-//                .getOptional(AvroApicurioFormatOptions.REGISTERED_ARTIFACT_ID)
-//                .ifPresent(
-//                        v ->
-//                                properties.put(
-//                                        AvroApicurioFormatOptions.REGISTERED_ARTIFACT_ID.key(), v));
-//        formatOptions
-//                .getOptional(AvroApicurioFormatOptions.SSL_KEYSTORE_LOCATION)
-//                .ifPresent(
-//                        v ->
-//                                properties.put(
-//                                        AvroApicurioFormatOptions.SSL_KEYSTORE_LOCATION.key(), v));
+        //        // handle enum
+        //        Optional globalIdPresentformatOption =
+        //                formatOptions.getOptional(AvroApicurioFormatOptions.GLOBALID_PLACEMENT);
+        //        String globalPlaceMentKey = GLOBALID_PLACEMENT.key();
+        //
+        //        if (globalIdPresentformatOption.isPresent()) {
+        //            properties.put(globalPlaceMentKey, globalIdPresentformatOption.get());
+        //        } else {
+        //            properties.put(
+        //                    globalPlaceMentKey,
+        //                    AvroApicurioFormatOptions.GLOBALID_PLACEMENT.defaultValue());
+        //        }
+        //        if (properties.get(globalPlaceMentKey) == null) {
+        //            throw new RuntimeException(
+        //                    "updatePropertiesWithConfigOptionEnum for " + globalPlaceMentKey);
+        //        }
+        //
+        //        updatePropertiesWithConfigOptionString(
+        //                formatOptions,
+        //                properties,
+        //                AvroApicurioFormatOptions.REGISTERED_ARTIFACT_NAME,
+        //                REGISTERED_ARTIFACT_NAME.key());
+        //        updatePropertiesWithConfigOptionString(
+        //                formatOptions,
+        //                properties,
+        //                REGISTERED_ARTIFACT_DESCRIPTION,
+        //                REGISTERED_ARTIFACT_DESCRIPTION.key());
+        //        updatePropertiesWithConfigOptionString(
+        //                formatOptions,
+        //                properties,
+        //                REGISTERED_ARTIFACT_VERSION,
+        //                REGISTERED_ARTIFACT_VERSION.key());
+        //
+        //        // options without defaults.
+        //        formatOptions
+        //                .getOptional(AvroApicurioFormatOptions.REGISTERED_ARTIFACT_ID)
+        //                .ifPresent(
+        //                        v ->
+        //                                properties.put(
+        //
+        // AvroApicurioFormatOptions.REGISTERED_ARTIFACT_ID.key(), v));
+        //        formatOptions
+        //                .getOptional(AvroApicurioFormatOptions.SSL_KEYSTORE_LOCATION)
+        //                .ifPresent(
+        //                        v ->
+        //                                properties.put(
+        //
+        // AvroApicurioFormatOptions.SSL_KEYSTORE_LOCATION.key(), v));
         formatOptions
                 .getOptional(AvroApicurioFormatOptions.SSL_KEYSTORE_PASSWORD)
                 .ifPresent(
-                        v -> properties.put(
+                        v ->
+                                properties.put(
                                         AvroApicurioFormatOptions.SSL_KEYSTORE_PASSWORD.key(), v));
         formatOptions
                 .getOptional(AvroApicurioFormatOptions.SSL_TRUSTSTORE_LOCATION)
                 .ifPresent(
-                        v -> properties.put(
+                        v ->
+                                properties.put(
                                         AvroApicurioFormatOptions.SSL_TRUSTSTORE_LOCATION.key(),
                                         v));
         formatOptions
                 .getOptional(AvroApicurioFormatOptions.SSL_TRUSTSTORE_PASSWORD)
                 .ifPresent(
-                        v -> properties.put(
+                        v ->
+                                properties.put(
                                         AvroApicurioFormatOptions.SSL_TRUSTSTORE_PASSWORD.key(),
                                         v));
         formatOptions
