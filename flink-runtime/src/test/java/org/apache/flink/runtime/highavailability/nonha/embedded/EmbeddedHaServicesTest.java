@@ -25,20 +25,27 @@ import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingGenericLeaderContender;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
 import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class EmbeddedHaServicesTest {
+
+    @RegisterExtension
+    final TestingFatalErrorHandlerExtension testingFatalErrorHandlerExtension =
+            new TestingFatalErrorHandlerExtension();
 
     private static final String ADDRESS = "foobar";
 
@@ -169,28 +176,52 @@ class EmbeddedHaServicesTest {
      */
     @Test
     void testConcurrentLeadershipOperations() throws Exception {
+        final AtomicReference<UUID> contenderSessionID = new AtomicReference<>();
+        final LeaderContender leaderContender =
+                TestingGenericLeaderContender.newBuilder()
+                        .setGrantLeadershipConsumer(contenderSessionID::set)
+                        .setRevokeLeadershipRunnable(() -> contenderSessionID.set(null))
+                        .setHandleErrorConsumer(testingFatalErrorHandlerExtension)
+                        .build();
         final LeaderElection leaderElection = embeddedHaServices.getDispatcherLeaderElection();
-        final TestingLeaderContender leaderContender = new TestingLeaderContender();
+        final EmbeddedLeaderService dispatcherLeaderService =
+                embeddedHaServices.getDispatcherLeaderService();
 
+        assertThat(dispatcherLeaderService.getCurrentLeaderSessionID()).isNull();
+        assertThat(dispatcherLeaderService.getCurrentLeaderAddress()).isNull();
+        assertThat(contenderSessionID.get())
+                .as("The contender shouldn't have leadership initially.")
+                .isEqualTo(null);
         leaderElection.startLeaderElection(leaderContender);
 
-        final UUID oldLeaderSessionId = leaderContender.getLeaderSessionFuture().get();
+        final UUID initialLeaderSessionId = dispatcherLeaderService.getCurrentLeaderSessionID();
+        assertThat(initialLeaderSessionId)
+                .as("The contender should have acquired leadership right away.")
+                .isNotNull();
+        assertThat(contenderSessionID.get()).isEqualTo(initialLeaderSessionId);
+        assertThat(dispatcherLeaderService.getCurrentLeaderAddress())
+                .as("But the leadership shouldn't have been confirmed, yet.")
+                .isNull();
 
-        assertThat(leaderElection.hasLeadership(oldLeaderSessionId)).isTrue();
+        dispatcherLeaderService.revokeLeadership().get();
+        assertThat(dispatcherLeaderService.getCurrentLeaderSessionID()).isNull();
+        assertThat(dispatcherLeaderService.getCurrentLeaderAddress()).isNull();
+        assertThat(contenderSessionID.get()).isNull();
 
-        embeddedHaServices.getDispatcherLeaderService().revokeLeadership().get();
-        assertThat(leaderElection.hasLeadership(oldLeaderSessionId)).isFalse();
+        dispatcherLeaderService.grantLeadership();
+        final UUID newLeaderSessionId = dispatcherLeaderService.getCurrentLeaderSessionID();
+        assertThat(newLeaderSessionId)
+                .as("The contender should have acquired leadership again.")
+                .isNotNull();
+        assertThat(contenderSessionID.get()).isEqualTo(newLeaderSessionId);
+        assertThat(dispatcherLeaderService.getCurrentLeaderAddress())
+                .as("But the leadership shouldn't have been confirmed, yet.")
+                .isNull();
 
-        embeddedHaServices.getDispatcherLeaderService().grantLeadership();
-        final UUID newLeaderSessionId = leaderContender.getLeaderSessionFuture().get();
-
-        assertThat(leaderElection.hasLeadership(newLeaderSessionId)).isTrue();
-
-        leaderElection.confirmLeadership(oldLeaderSessionId, ADDRESS);
+        leaderElection.confirmLeadership(initialLeaderSessionId, ADDRESS);
         leaderElection.confirmLeadership(newLeaderSessionId, ADDRESS);
 
-        assertThat(leaderElection.hasLeadership(newLeaderSessionId)).isTrue();
-
-        leaderContender.tryRethrowException();
+        assertThat(dispatcherLeaderService.getCurrentLeaderSessionID())
+                .isEqualTo(newLeaderSessionId);
     }
 }

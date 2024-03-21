@@ -71,9 +71,11 @@ public class EmbeddedLeaderService {
     private EmbeddedLeaderElection currentLeaderConfirmed;
 
     /** fencing UID for the current leader (or proposed leader). */
+    @GuardedBy("lock")
     private volatile UUID currentLeaderSessionId;
 
     /** the cached address of the current leader. */
+    @GuardedBy("lock")
     private String currentLeaderAddress;
 
     /** flag marking the service as terminated. */
@@ -388,6 +390,20 @@ public class EmbeddedLeaderService {
             }
 
             return updateLeader();
+        }
+    }
+
+    @VisibleForTesting
+    UUID getCurrentLeaderSessionID() {
+        synchronized (lock) {
+            return this.currentLeaderSessionId;
+        }
+    }
+
+    @VisibleForTesting
+    String getCurrentLeaderAddress() {
+        synchronized (lock) {
+            return this.currentLeaderAddress;
         }
     }
 

@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
+
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -86,6 +88,12 @@ public class TestingGenericLeaderContender implements LeaderContender {
         public Builder setRevokeLeadershipRunnable(Runnable revokeLeadershipRunnable) {
             this.revokeLeadershipRunnable = revokeLeadershipRunnable;
             return this;
+        }
+
+        public Builder setHandleErrorConsumer(
+                TestingFatalErrorHandlerExtension fatalErrorHandlerExtension) {
+            return setHandleErrorConsumer(
+                    fatalErrorHandlerExtension.getTestingFatalErrorHandler()::onFatalError);
         }
 
         public Builder setHandleErrorConsumer(Consumer<Exception> handleErrorConsumer) {
