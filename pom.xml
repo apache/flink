@@ -65,6 +65,7 @@ under the License.
 	<modules>
 		<module>flink-annotations</module>
 		<module>flink-architecture-tests</module>
+		<module>flink-core-api</module>
 		<module>flink-core</module>
 		<module>flink-java</module>
 		<module>flink-scala</module>
@@ -102,6 +103,7 @@ under the License.
 		<module>flink-kubernetes</module>
 		<module>flink-external-resources</module>
 		<module>tools/ci/flink-ci-tools</module>
+		<module>flink-process-function-parent</module>
 	</modules>
 
 	<properties>
@@ -2364,6 +2366,8 @@ under the License.
 								<exclude>org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#fromData(java.util.Collection)</exclude>
 								<exclude>org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#fromData(java.util.Collection,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
 								<exclude>org.apache.flink.api.common.functions.RuntimeContext</exclude>
+								<exclude>org.apache.flink.api.common.functions.Function</exclude>
+								<exclude>org.apache.flink.api.java.functions.KeySelector</exclude>
 								<!-- MARKER: end exclusions -->
 							</excludes>
 							<accessModifier>public</accessModifier>

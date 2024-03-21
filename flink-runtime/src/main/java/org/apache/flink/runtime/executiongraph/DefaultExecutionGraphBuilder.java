@@ -38,6 +38,7 @@ import org.apache.flink.runtime.executiongraph.failover.partitionrelease.Partiti
 import org.apache.flink.runtime.executiongraph.failover.partitionrelease.PartitionGroupReleaseStrategyFactoryLoader;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
@@ -103,10 +104,12 @@ public class DefaultExecutionGraphBuilder {
 
         final String jobName = jobGraph.getName();
         final JobID jobId = jobGraph.getJobID();
+        final JobType jobType = jobGraph.getJobType();
 
         final JobInformation jobInformation =
                 new JobInformation(
                         jobId,
+                        jobType,
                         jobName,
                         jobGraph.getSerializedExecutionConfig(),
                         jobGraph.getJobConfiguration(),

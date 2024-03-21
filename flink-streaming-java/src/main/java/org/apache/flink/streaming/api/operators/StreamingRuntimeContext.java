@@ -40,6 +40,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
@@ -162,6 +163,10 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 
     public Configuration getJobConfiguration() {
         return taskEnvironment.getJobConfiguration();
+    }
+
+    public JobType getJobType() {
+        return taskEnvironment.getJobType();
     }
 
     @Override

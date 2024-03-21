@@ -39,6 +39,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
@@ -70,6 +71,7 @@ public class DummyEnvironment implements Environment {
 
     private final JobInfo jobInfo = new JobInfoImpl(new JobID(), "DummyJob");
     private final JobVertexID jobVertexId = new JobVertexID();
+    private final JobType jobType = JobType.STREAMING;
     private final ExecutionAttemptID executionId;
     private final ExecutionConfig executionConfig = new ExecutionConfig();
     private final TaskInfo taskInfo;
@@ -122,6 +124,11 @@ public class DummyEnvironment implements Environment {
     @Override
     public JobID getJobID() {
         return jobInfo.getJobId();
+    }
+
+    @Override
+    public JobType getJobType() {
+        return jobType;
     }
 
     @Override

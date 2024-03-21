@@ -530,6 +530,14 @@ public abstract class AbstractStreamOperator<OUT>
         return stateHandler.getKeyedStateStore().orElse(null);
     }
 
+    protected KeySelector<?, ?> getStateKeySelector1() {
+        return stateKeySelector1;
+    }
+
+    protected KeySelector<?, ?> getStateKeySelector2() {
+        return stateKeySelector2;
+    }
+
     // ------------------------------------------------------------------------
     //  Context and chaining properties
     // ------------------------------------------------------------------------
