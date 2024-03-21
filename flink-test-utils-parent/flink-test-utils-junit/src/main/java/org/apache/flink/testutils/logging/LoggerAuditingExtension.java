@@ -48,7 +48,7 @@ public class LoggerAuditingExtension implements BeforeEachCallback, AfterEachCal
     private final String loggerName;
     private final org.slf4j.event.Level level;
 
-    private ConcurrentLinkedQueue<LogEvent> loggingEvents;
+    private volatile ConcurrentLinkedQueue<LogEvent> loggingEvents;
 
     public LoggerAuditingExtension(Class<?> clazz, org.slf4j.event.Level level) {
         this(clazz.getCanonicalName(), level);
@@ -77,11 +77,12 @@ public class LoggerAuditingExtension implements BeforeEachCallback, AfterEachCal
     public void beforeEach(ExtensionContext context) throws Exception {
         loggingEvents = new ConcurrentLinkedQueue<>();
 
+        final ConcurrentLinkedQueue<LogEvent> loggingEventsLocal = loggingEvents;
         Appender testAppender =
                 new AbstractAppender("test-appender", null, null, false, Property.EMPTY_ARRAY) {
                     @Override
                     public void append(LogEvent event) {
-                        loggingEvents.add(event.toImmutable());
+                        loggingEventsLocal.add(event.toImmutable());
                     }
                 };
         testAppender.start();
