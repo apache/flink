@@ -72,7 +72,7 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
 
     env.setParallelism(1)
     env.enableCheckpointing(100)
-    env.getCheckpointConfig.setConsistencyMode(CheckpointingMode.EXACTLY_ONCE)
+    env.getCheckpointConfig.setCheckpointingConsistencyMode(CheckpointingMode.EXACTLY_ONCE)
   }
 
   def additionalProperties(): Array[String] = Array()

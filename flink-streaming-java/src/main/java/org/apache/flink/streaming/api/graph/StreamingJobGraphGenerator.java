@@ -1394,7 +1394,7 @@ public class StreamingJobGraphGenerator {
     }
 
     private CheckpointingMode getCheckpointingMode(CheckpointConfig checkpointConfig) {
-        CheckpointingMode checkpointingMode = checkpointConfig.getConsistencyMode();
+        CheckpointingMode checkpointingMode = checkpointConfig.getCheckpointingConsistencyMode();
 
         checkArgument(
                 checkpointingMode == CheckpointingMode.EXACTLY_ONCE

@@ -309,7 +309,8 @@ public abstract class SourceTestSuiteBase<T> {
 
         // Step 3: Build and execute Flink job
         final StreamExecutionEnvironment execEnv = testEnv.createExecutionEnvironment(envOptions);
-        execEnv.getCheckpointConfig().setConsistencyMode(CheckpointingMode.EXACTLY_ONCE);
+        execEnv.getCheckpointConfig()
+                .setCheckpointingConsistencyMode(CheckpointingMode.EXACTLY_ONCE);
         execEnv.enableCheckpointing(50);
         execEnv.setRestartStrategy(RestartStrategies.noRestart());
         DataStreamSource<T> source =
@@ -358,7 +359,9 @@ public abstract class SourceTestSuiteBase<T> {
         final StreamExecutionEnvironment restartEnv =
                 testEnv.createExecutionEnvironment(restartEnvOptions);
         restartEnv.enableCheckpointing(500);
-        restartEnv.getCheckpointConfig().setConsistencyMode(CheckpointingMode.EXACTLY_ONCE);
+        restartEnv
+                .getCheckpointConfig()
+                .setCheckpointingConsistencyMode(CheckpointingMode.EXACTLY_ONCE);
 
         DataStreamSource<T> restartSource =
                 restartEnv

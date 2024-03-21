@@ -29,6 +29,8 @@ import org.apache.flink.annotation.Public;
  * whether the system draws checkpoints such that a recovery behaves as if the operators/functions
  * see each record "exactly once" ({@link #EXACTLY_ONCE}), or whether the checkpoints are drawn in a
  * simpler fashion that typically encounters some duplicates upon recovery ({@link #AT_LEAST_ONCE})
+ *
+ * <p>Also called "CheckpointingConsistencyMode" everywhere in APIs.
  */
 @Public
 public enum CheckpointingMode {

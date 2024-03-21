@@ -267,7 +267,7 @@ public class TestJobBuilders {
         env.setParallelism(4);
         env.setRestartStrategy(noRestart());
         env.enableCheckpointing(200); // shouldn't matter
-        env.getCheckpointConfig().setConsistencyMode(CheckpointingMode.EXACTLY_ONCE);
+        env.getCheckpointConfig().setCheckpointingConsistencyMode(CheckpointingMode.EXACTLY_ONCE);
         env.getConfig().setAutoWatermarkInterval(50);
         envConsumer.accept(env);
         return env;

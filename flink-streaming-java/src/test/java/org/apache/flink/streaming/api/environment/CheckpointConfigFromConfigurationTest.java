@@ -51,8 +51,8 @@ public class CheckpointConfigFromConfigurationTest {
                                 org.apache.flink.streaming.api.CheckpointingMode.AT_LEAST_ONCE),
                 TestSpec.testValue(CheckpointingMode.AT_LEAST_ONCE)
                         .whenSetFromFile("execution.checkpointing.mode", "AT_LEAST_ONCE")
-                        .viaSetter(CheckpointConfig::setConsistencyMode)
-                        .getterVia(CheckpointConfig::getConsistencyMode)
+                        .viaSetter(CheckpointConfig::setCheckpointingConsistencyMode)
+                        .getterVia(CheckpointConfig::getCheckpointingConsistencyMode)
                         .nonDefaultValue(CheckpointingMode.AT_LEAST_ONCE),
                 TestSpec.testValue(CheckpointingMode.AT_LEAST_ONCE)
                         .whenSetFromFile("execution.checkpointing.mode", "AT_LEAST_ONCE")
@@ -62,13 +62,14 @@ public class CheckpointConfigFromConfigurationTest {
                                             org.apache.flink.streaming.api.CheckpointingMode
                                                     .valueOf(v.name()));
                                 })
-                        .getterVia(CheckpointConfig::getConsistencyMode)
+                        .getterVia(CheckpointConfig::getCheckpointingConsistencyMode)
                         .nonDefaultValue(CheckpointingMode.AT_LEAST_ONCE),
                 TestSpec.testValue(org.apache.flink.streaming.api.CheckpointingMode.AT_LEAST_ONCE)
                         .whenSetFromFile("execution.checkpointing.mode", "AT_LEAST_ONCE")
                         .viaSetter(
                                 (config, v) -> {
-                                    config.setConsistencyMode(CheckpointingMode.valueOf(v.name()));
+                                    config.setCheckpointingConsistencyMode(
+                                            CheckpointingMode.valueOf(v.name()));
                                 })
                         .getterVia(CheckpointConfig::getCheckpointingMode)
                         .nonDefaultValue(
