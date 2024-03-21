@@ -42,37 +42,34 @@ public class KafkaEventProducer
         consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 
-
         // Create Kafka producer
         Producer<String, String> producer = new KafkaProducer<>(producerProps);
-
         // Create Kafka consumer
         Consumer<String, String> consumer = new KafkaConsumer<>(consumerProps);
-
         consumer.subscribe(Collections.singletonList("test_topic")); // Replace with your topic name
-
         ArrayList<Integer>[] perPartitionData = new ArrayList[PARTITION_COUNT]; // Create an array of ArrayLists with size 5
 
         for (int i = 0; i < perPartitionData.length; i++) {
             perPartitionData[i] = new ArrayList<>();
         }
 
-
         try {
             int totalMessages = 10;
             // Generate events and send them to Kafka
-            for (int i = 0; i < totalMessages; i++) {
-                String key = "key-" + i; // This will be the path ID
-                String value = i + ""; // This is the sequence ID
-                ProducerRecord<String, String> record = new ProducerRecord<>("test_topic", key, value);
-                producer.send(record);
-            }
-            Thread.sleep(1000); // delay before consuming
+//            sendUniqueKeyMessages(producer, totalMessages);
+//            sendLimitedKeyMessages(producer, totalMessages, PARTITION_COUNT);
+
+            sendSingleKeyMessage(producer, totalMessages);
+
+
+            Thread.sleep(5000); // delay before consuming
 
             int recieveCount = 0;
             while (recieveCount < totalMessages) {
+                System.out.println("Attempting to poll server");
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
                 for (ConsumerRecord<String, String> record : records) {
+//                    System.out.println("Partition " + record.partition() + " Key: " + record.key());
                     perPartitionData[record.partition()].add(Integer.parseInt(record.value()));
                     recieveCount++;
                 }
@@ -92,6 +89,34 @@ public class KafkaEventProducer
             System.out.println("Closing Consumer and producer");
             producer.close();
             consumer.close();
+        }
+    }
+
+    public static void sendUniqueKeyMessages(Producer<String, String> producer, int numMessages) {
+        for (int i = 0; i < numMessages; i++) {
+            String key = "key-" + i;
+            String value = i + "";
+            ProducerRecord<String, String> record = new ProducerRecord<>("test_topic", key, value);
+            System.out.println("Sent Key: " + key + " value: " + value);
+            producer.send(record);
+        }
+    }
+    public static void sendLimitedKeyMessages(Producer<String, String> producer, int numMessages, int numKeys ) {
+        for (int i = 0; i < numMessages; i++) {
+            String key = "key-" + (i % numKeys);
+            String value = i + "";
+            ProducerRecord<String, String> record = new ProducerRecord<>("test_topic", key, value);
+            System.out.println("Sent Key: " + key + " value: " + value);
+            producer.send(record);
+        }
+    }
+    public static void sendSingleKeyMessage(Producer<String, String> producer, int numMessages) {
+        for (int i = 0; i < numMessages; i++) {
+            String key = "test_key" ;
+            String value = i + "";
+            ProducerRecord<String, String> record = new ProducerRecord<>("test_topic", key, value);
+            System.out.println("Sent Key: " + key + " value: " + value);
+            producer.send(record);
         }
     }
 }

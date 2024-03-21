@@ -9,7 +9,7 @@
     
     <properties>
         <kafka.version>3.7.0</kafka.version>
-    </properties>
+	</properties>
     
     <dependencies>
         <!-- Apache Kafka dependency -->
@@ -24,6 +24,8 @@
         <version>4.13.2</version>
         <scope>test</scope>
       </dependency>
+
+
     </dependencies>
     
     <build>
