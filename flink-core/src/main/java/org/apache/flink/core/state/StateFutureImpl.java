@@ -46,7 +46,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
     /** The callback runner. */
     CallbackRunner callbackRunner;
 
-    StateFutureImpl(CallbackRunner callbackRunner) {
+    public StateFutureImpl(CallbackRunner callbackRunner) {
         this.completableFuture = new CompletableFuture<>();
         this.callbackRunner = callbackRunner;
     }
