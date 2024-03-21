@@ -56,24 +56,24 @@ public class KafkaEventProducer
         try {
             int totalMessages = 10;
             // Generate events and send them to Kafka
-//            sendUniqueKeyMessages(producer, totalMessages);
-//            sendLimitedKeyMessages(producer, totalMessages, PARTITION_COUNT);
+            // sendUniqueKeyMessages(producer, totalMessages);
+            // sendLimitedKeyMessages(producer, totalMessages, PARTITION_COUNT);
 
             sendSingleKeyMessage(producer, totalMessages);
-
-
             Thread.sleep(5000); // delay before consuming
 
             int recieveCount = 0;
-            while (recieveCount < totalMessages) {
+            int pollCount = 0;
+            while (recieveCount < totalMessages || pollCount > 20) {
                 System.out.println("Attempting to poll server");
-                ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
+                ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(1000));
                 for (ConsumerRecord<String, String> record : records) {
 //                    System.out.println("Partition " + record.partition() + " Key: " + record.key());
                     perPartitionData[record.partition()].add(Integer.parseInt(record.value()));
                     recieveCount++;
                 }
                 consumer.commitSync();
+                pollCount++;
             }
 
         for (int i = 0; i < perPartitionData.length; i++){

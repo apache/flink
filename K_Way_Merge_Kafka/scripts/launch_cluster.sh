@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Path to Kafka server directory
-KAFKA_SERVER_DIR="./kafka-3.7.0-src"
+KAFKA_SERVER_DIR="./kafka_2.13-3.7.0"
 cd "$KAFKA_SERVER_DIR" || exit
 
 rm -rf /tmp/kafka-logs /tmp/kafka-logs1 /tmp/zookeeper /tmp/kraft-combined-logs
