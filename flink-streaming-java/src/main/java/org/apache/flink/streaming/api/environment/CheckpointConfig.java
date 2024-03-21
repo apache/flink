@@ -177,7 +177,7 @@ public class CheckpointConfig implements java.io.Serializable {
      * Gets the checkpointing mode (exactly-once vs. at-least-once).
      *
      * @return The checkpointing mode.
-     * @deprecated Use {@link #getConsistencyMode} instead.
+     * @deprecated Use {@link #getCheckpointingConsistencyMode} instead.
      */
     @Deprecated
     public org.apache.flink.streaming.api.CheckpointingMode getCheckpointingMode() {
@@ -188,7 +188,7 @@ public class CheckpointConfig implements java.io.Serializable {
      * Sets the checkpointing mode (exactly-once vs. at-least-once).
      *
      * @param checkpointingMode The checkpointing mode.
-     * @deprecated Use {@link #setConsistencyMode} instead.
+     * @deprecated Use {@link #setCheckpointingConsistencyMode} instead.
      */
     @Deprecated
     public void setCheckpointingMode(
@@ -201,7 +201,7 @@ public class CheckpointConfig implements java.io.Serializable {
      *
      * @return The checkpointing mode.
      */
-    public CheckpointingMode getConsistencyMode() {
+    public CheckpointingMode getCheckpointingConsistencyMode() {
         return configuration.get(ExecutionCheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE);
     }
 
@@ -210,7 +210,7 @@ public class CheckpointConfig implements java.io.Serializable {
      *
      * @param checkpointingMode The checkpointing mode.
      */
-    public void setConsistencyMode(CheckpointingMode checkpointingMode) {
+    public void setCheckpointingConsistencyMode(CheckpointingMode checkpointingMode) {
         configuration.set(
                 ExecutionCheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE, checkpointingMode);
     }
@@ -999,7 +999,7 @@ public class CheckpointConfig implements java.io.Serializable {
     public void configure(ReadableConfig configuration) {
         configuration
                 .getOptional(ExecutionCheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE)
-                .ifPresent(this::setConsistencyMode);
+                .ifPresent(this::setCheckpointingConsistencyMode);
         configuration
                 .getOptional(ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL)
                 .ifPresent(i -> this.setCheckpointInterval(i.toMillis()));

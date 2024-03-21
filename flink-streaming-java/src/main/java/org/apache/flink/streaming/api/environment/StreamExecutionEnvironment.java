@@ -569,7 +569,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      *     guaranteed.
      */
     public StreamExecutionEnvironment enableCheckpointing(long interval, CheckpointingMode mode) {
-        checkpointCfg.setConsistencyMode(mode);
+        checkpointCfg.setCheckpointingConsistencyMode(mode);
         checkpointCfg.setCheckpointInterval(interval);
         return this;
     }
@@ -675,12 +675,12 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     /**
      * Returns the checkpointing consistency mode (exactly-once vs. at-least-once).
      *
-     * <p>Shorthand for {@code getCheckpointConfig().getConsistencyMode()}.
+     * <p>Shorthand for {@code getCheckpointConfig().getCheckpointingConsistencyMode()}.
      *
      * @return The checkpoint mode
      */
     public CheckpointingMode getCheckpointingConsistencyMode() {
-        return checkpointCfg.getConsistencyMode();
+        return checkpointCfg.getCheckpointingConsistencyMode();
     }
 
     /**

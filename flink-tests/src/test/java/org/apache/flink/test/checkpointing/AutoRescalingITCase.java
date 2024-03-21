@@ -578,7 +578,7 @@ public class AutoRescalingITCase extends TestLogger {
 
     private static void configureCheckpointing(CheckpointConfig config) {
         config.setCheckpointInterval(100);
-        config.setConsistencyMode(CheckpointingMode.EXACTLY_ONCE);
+        config.setCheckpointingConsistencyMode(CheckpointingMode.EXACTLY_ONCE);
         config.enableUnalignedCheckpoints(true);
     }
 
