@@ -18,16 +18,22 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
+import org.apache.flink.table.planner.plan.rules.physical.stream.StreamPhysicalConstantTableFunctionScanRule;
+
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.logical.LogicalTableFunctionScan;
+import org.apache.calcite.rex.RexUtil;
 import org.immutables.value.Value;
 
 /**
  * Rule that rewrites {@link org.apache.calcite.rel.core.Join} on {@link
  * org.apache.calcite.rel.core.TableFunctionScan} to {@link org.apache.calcite.rel.core.Correlate}.
+ *
+ * <p>Note: The rule was implemented so that we can apply {@link
+ * StreamPhysicalConstantTableFunctionScanRule} later.
  */
 @Value.Enclosing
 public class JoinTableFunctionScanToCorrelateRule
@@ -68,6 +74,12 @@ public class JoinTableFunctionScanToCorrelateRule
                                                                 b2.operand(
                                                                                 LogicalTableFunctionScan
                                                                                         .class)
+                                                                        .predicate(
+                                                                                scan ->
+                                                                                        !RexUtil
+                                                                                                .containsInputRef(
+                                                                                                        scan
+                                                                                                                .getCall()))
                                                                         .noInputs()))
                         .description("JoinTableFunctionScanToCorrelateRule")
                         .build();
