@@ -33,4 +33,12 @@ under the License.
 	<name>Flink : DataStream : API</name>
 
 	<packaging>jar</packaging>
+
+	<dependencies>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core-api</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+	</dependencies>
 </project>
