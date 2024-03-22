@@ -53,13 +53,13 @@ class GenericCsvInputFormatTest {
     // --------------------------------------------------------------------------------------------
 
     @BeforeEach
-    public void setup() {
+    void setup() {
         format = new TestCsvInputFormat();
         format.setFilePath("file:///some/file/that/will/not/be/read");
     }
 
     @AfterEach
-    public void setdown() throws Exception {
+    void setdown() throws Exception {
         if (this.format != null) {
             this.format.close();
         }

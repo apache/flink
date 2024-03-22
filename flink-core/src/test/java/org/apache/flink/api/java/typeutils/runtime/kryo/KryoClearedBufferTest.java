@@ -28,8 +28,7 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.EOFException;
@@ -37,7 +36,10 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
 
-public class KryoClearedBufferTest {
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+class KryoClearedBufferTest {
 
     /**
      * Tests that the kryo output buffer is cleared in case of an exception. Flink uses the
@@ -46,7 +48,7 @@ public class KryoClearedBufferTest {
      * cleared.
      */
     @Test
-    public void testOutputBufferedBeingClearedInCaseOfException() throws Exception {
+    void testOutputBufferedBeingClearedInCaseOfException() throws Exception {
         SerializerConfigImpl serializerConfigImpl = new SerializerConfigImpl();
         serializerConfigImpl.registerTypeWithKryoSerializer(
                 TestRecord.class, new TestRecordSerializer());
@@ -64,20 +66,15 @@ public class KryoClearedBufferTest {
 
         kryoSerializer.serialize(testRecord, target);
 
-        try {
-            kryoSerializer.serialize(testRecord, target);
-            Assert.fail("Expected an EOFException.");
-        } catch (EOFException eofException) {
-            // expected exception
-            // now the Kryo Output should have been cleared
-        }
+        assertThatThrownBy(() -> kryoSerializer.serialize(testRecord, target))
+                .isInstanceOf(EOFException.class);
 
         TestRecord actualRecord =
                 kryoSerializer.deserialize(
                         new DataInputViewStreamWrapper(
                                 new ByteArrayInputStream(target.getBuffer())));
 
-        Assert.assertEquals(testRecord, actualRecord);
+        assertThat(actualRecord).isEqualTo(testRecord);
 
         target.clear();
 
@@ -95,11 +92,11 @@ public class KryoClearedBufferTest {
             }
         }
 
-        Assert.assertEquals(size, counter);
+        assertThat(counter).isEqualTo(size);
     }
 
     public static class TestRecord {
-        private byte[] buffer;
+        private final byte[] buffer;
 
         public TestRecord(int size) {
             buffer = new byte[size];
@@ -145,7 +142,7 @@ public class KryoClearedBufferTest {
 
     public static class TestDataOutputView implements DataOutputView {
 
-        private byte[] buffer;
+        private final byte[] buffer;
         private int position;
 
         public TestDataOutputView(int size) {

@@ -45,13 +45,13 @@ class EnumerateNestedFilesTest {
     private DummyFileInputFormat format;
 
     @BeforeEach
-    public void setup() {
+    void setup() {
         this.config = new Configuration();
         format = new DummyFileInputFormat();
     }
 
     @AfterEach
-    public void setdown() throws Exception {
+    void setdown() throws Exception {
         if (this.format != null) {
             this.format.close();
         }

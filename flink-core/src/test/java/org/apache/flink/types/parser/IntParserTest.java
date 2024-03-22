@@ -45,7 +45,7 @@ public class IntParserTest extends ParserTestBase<Integer> {
             "1569a86",
             "-57-6",
             "7-877678",
-            String.valueOf(Integer.MAX_VALUE) + "0",
+            Integer.MAX_VALUE + "0",
             String.valueOf(Long.MIN_VALUE),
             String.valueOf(((long) Integer.MAX_VALUE) + 1),
             String.valueOf(((long) Integer.MIN_VALUE) - 1),

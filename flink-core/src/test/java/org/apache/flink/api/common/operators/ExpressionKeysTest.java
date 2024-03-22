@@ -28,7 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
-import org.apache.flink.api.java.typeutils.PojoTypeExtractionTest.ComplexNestedClass;
+import org.apache.flink.api.java.typeutils.PojoTypeExtractionTest;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
@@ -42,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SuppressWarnings("unused")
-public class ExpressionKeysTest {
+class ExpressionKeysTest {
 
     @Test
     void testBasicType() {
@@ -370,8 +370,8 @@ public class ExpressionKeysTest {
 
     @Test
     void testInvalidPojo() {
-        TypeInformation<ComplexNestedClass> ti =
-                TypeExtractor.getForClass(ComplexNestedClass.class);
+        TypeInformation<PojoTypeExtractionTest.ComplexNestedClass> ti =
+                TypeExtractor.getForClass(PojoTypeExtractionTest.ComplexNestedClass.class);
 
         String[][] tests =
                 new String[][] {

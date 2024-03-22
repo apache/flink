@@ -141,12 +141,12 @@ class ResourceSpecTest {
         ResourceSpec rs3 = rs1.merge(rs2);
         assertThat(rs3.getCpuCores()).isEqualTo(new CPUResource(2.0));
         assertThat(rs3.getTaskHeapMemory().getMebiBytes()).isEqualTo(200);
-        assertThat(rs3.getExtendedResource(EXTERNAL_RESOURCE_NAME).get())
-                .isEqualTo(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1.1));
+        assertThat(rs3.getExtendedResource(EXTERNAL_RESOURCE_NAME))
+                .contains(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1.1));
 
         ResourceSpec rs4 = rs1.merge(rs3);
-        assertThat(rs4.getExtendedResource(EXTERNAL_RESOURCE_NAME).get())
-                .isEqualTo(new ExternalResource(EXTERNAL_RESOURCE_NAME, 2.2));
+        assertThat(rs4.getExtendedResource(EXTERNAL_RESOURCE_NAME))
+                .contains(new ExternalResource(EXTERNAL_RESOURCE_NAME, 2.2));
     }
 
     @Test
@@ -228,8 +228,8 @@ class ResourceSpecTest {
         final ResourceSpec subtracted = rs1.subtract(rs2);
         assertThat(subtracted.getCpuCores()).isEqualTo(new CPUResource(0.8));
         assertThat(subtracted.getTaskHeapMemory().getMebiBytes()).isZero();
-        assertThat(subtracted.getExtendedResource(EXTERNAL_RESOURCE_NAME).get())
-                .isEqualTo(new ExternalResource(EXTERNAL_RESOURCE_NAME, 0.6));
+        assertThat(subtracted.getExtendedResource(EXTERNAL_RESOURCE_NAME))
+                .contains(new ExternalResource(EXTERNAL_RESOURCE_NAME, 0.6));
     }
 
     @Test

@@ -18,19 +18,17 @@
 
 package org.apache.flink.configuration;
 
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Arrays;
 import java.util.Collection;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Tests for {@link StructuredOptionsSplitter#escapeWithSingleQuote}. */
-@RunWith(Parameterized.class)
 public class StructuredOptionsSplitterEscapeTest {
 
-    @Parameterized.Parameters(name = "{0}")
     public static Collection<TestSpec> getEncodeSpecs() {
         return Arrays.asList(
                 TestSpec.encode("A,B,C,D", ";").expect("A,B,C,D"),
@@ -46,14 +44,16 @@ public class StructuredOptionsSplitterEscapeTest {
                 TestSpec.encode("A;B;C:D", ",", ":").expect("'A;B;C:D'"));
     }
 
-    @Parameterized.Parameter public TestSpec testSpec;
+    public TestSpec testSpec;
 
-    @Test
-    public void testEscapeWithSingleQuote() {
+    @MethodSource("getEncodeSpecs")
+    @ParameterizedTest(name = "{0}")
+    void testEscapeWithSingleQuote(TestSpec testSpec) {
+        initStructuredOptionsSplitterEscapeTest(testSpec);
         String encoded =
                 StructuredOptionsSplitter.escapeWithSingleQuote(
                         testSpec.getString(), testSpec.getEscapeChars());
-        Assert.assertEquals(testSpec.getEncodedString(), encoded);
+        assertThat(encoded).isEqualTo(testSpec.getEncodedString());
     }
 
     private static class TestSpec {
@@ -86,5 +86,9 @@ public class StructuredOptionsSplitterEscapeTest {
         public String[] getEscapeChars() {
             return escapeChars;
         }
+    }
+
+    public void initStructuredOptionsSplitterEscapeTest(TestSpec testSpec) {
+        this.testSpec = testSpec;
     }
 }

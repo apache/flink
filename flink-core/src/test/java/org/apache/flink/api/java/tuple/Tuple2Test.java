@@ -20,27 +20,32 @@ package org.apache.flink.api.java.tuple;
 
 import org.apache.flink.types.NullFieldException;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
 
 /** Tests for {@link Tuple2}. */
-public class Tuple2Test {
+class Tuple2Test {
 
     @Test
-    public void testSwapValues() {
+    void testSwapValues() {
         Tuple2<String, Integer> toSwap = new Tuple2<>("Test case", 25);
         Tuple2<Integer, String> swapped = toSwap.swap();
 
-        Assert.assertEquals(swapped.f0, toSwap.f1);
+        assertThat(toSwap.f1).isEqualTo(swapped.f0);
 
-        Assert.assertEquals(swapped.f1, toSwap.f0);
+        assertThat(toSwap.f0).isEqualTo(swapped.f1);
     }
 
-    @Test(expected = NullFieldException.class)
-    public void testGetFieldNotNull() {
-        Tuple2<String, Integer> tuple = new Tuple2<>("Test case", null);
-
-        Assert.assertEquals("Test case", tuple.getFieldNotNull(0));
-        tuple.getFieldNotNull(1);
+    @Test
+    void testGetFieldNotNull() {
+        assertThatExceptionOfType(NullFieldException.class)
+                .isThrownBy(
+                        () -> {
+                            Tuple2<String, Integer> tuple = new Tuple2<>("Test case", null);
+                            assertThat((String) tuple.getFieldNotNull(0)).isEqualTo("Test case");
+                            tuple.getFieldNotNull(1);
+                        });
     }
 }

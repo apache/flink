@@ -18,19 +18,17 @@
 
 package org.apache.flink.core.fs;
 
-import org.apache.flink.util.TestLogger;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the {@link AutoCloseableRegistry}. */
-public class AutoCloseableRegistryTest extends TestLogger {
+class AutoCloseableRegistryTest {
     @Test
-    public void testReverseOrderOfClosing() throws Exception {
+    void testReverseOrderOfClosing() throws Exception {
         ArrayList<Integer> closeOrder = new ArrayList<>();
         AutoCloseableRegistry autoCloseableRegistry = new AutoCloseableRegistry();
         autoCloseableRegistry.registerCloseable(() -> closeOrder.add(3));
@@ -41,12 +39,12 @@ public class AutoCloseableRegistryTest extends TestLogger {
 
         int expected = 1;
         for (int actual : closeOrder) {
-            assertEquals(expected++, actual);
+            assertThat(actual).isEqualTo(expected++);
         }
     }
 
     @Test
-    public void testSuppressedExceptions() throws Exception {
+    void testSuppressedExceptions() throws Exception {
         AutoCloseableRegistry autoCloseableRegistry = new AutoCloseableRegistry();
         autoCloseableRegistry.registerCloseable(
                 () -> {
@@ -66,9 +64,9 @@ public class AutoCloseableRegistryTest extends TestLogger {
 
             fail("Close should throw exception");
         } catch (Exception ex) {
-            assertEquals("1", ex.getMessage());
-            assertEquals("2", ex.getSuppressed()[0].getMessage());
-            assertEquals("java.lang.AssertionError: 3", ex.getSuppressed()[1].getMessage());
+            assertThat(ex.getMessage()).isEqualTo("1");
+            assertThat(ex.getSuppressed()[0].getMessage()).isEqualTo("2");
+            assertThat(ex.getSuppressed()[1].getMessage()).isEqualTo("java.lang.AssertionError: 3");
         }
     }
 }

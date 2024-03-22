@@ -24,27 +24,23 @@ import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 
+import lombok.SneakyThrows;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.nio.file.FileAlreadyExistsException;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.fail;
-import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 /** A test validating that the initialization of local output paths is properly synchronized. */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(LocalFileSystem.class)
 public class InitOutputPathTest {
 
     @Rule public final TemporaryFolder tempDir = new TemporaryFolder();
@@ -59,8 +55,12 @@ public class InitOutputPathTest {
         // deactivate the lock to produce the original un-synchronized state
         Field lock = FileSystem.class.getDeclaredField("OUTPUT_DIRECTORY_INIT_LOCK");
         lock.setAccessible(true);
-        lock.set(null, new NoOpLock());
 
+        Field modifiers = Field.class.getDeclaredField("modifiers");
+        modifiers.setAccessible(true);
+        modifiers.setInt(lock, lock.getModifiers() & ~Modifier.FINAL);
+
+        lock.set(null, new NoOpLock());
         try {
             // in the original un-synchronized state, we can force the race to occur by using
             // the proper latch order to control the process of the concurrent threads
@@ -104,32 +104,23 @@ public class InitOutputPathTest {
         final OneShotLatch createAwaitLatch = new OneShotLatch();
         final OneShotLatch createTriggerLatch = new OneShotLatch();
 
-        // this "new LocalDataOutputStream()" is in the end called by the async threads
-        whenNew(LocalDataOutputStream.class)
-                .withAnyArguments()
-                .thenAnswer(
-                        new Answer<LocalDataOutputStream>() {
-
-                            @Override
-                            public LocalDataOutputStream answer(InvocationOnMock invocation)
-                                    throws Throwable {
-                                createAwaitLatch.trigger();
-                                createTriggerLatch.await();
-
-                                final File file = (File) invocation.getArguments()[0];
-                                return new LocalDataOutputStream(file);
-                            }
-                        });
-
         final LocalFileSystem fs1 =
                 new SyncedFileSystem(
-                        deleteAwaitLatch1, mkdirsAwaitLatch1,
-                        deleteTriggerLatch1, mkdirsTriggerLatch1);
+                        deleteAwaitLatch1,
+                        mkdirsAwaitLatch1,
+                        deleteTriggerLatch1,
+                        mkdirsTriggerLatch1,
+                        createAwaitLatch,
+                        createTriggerLatch);
 
         final LocalFileSystem fs2 =
                 new SyncedFileSystem(
-                        deleteAwaitLatch2, mkdirsAwaitLatch2,
-                        deletetriggerLatch2, mkdirsTriggerLatch2);
+                        deleteAwaitLatch2,
+                        mkdirsAwaitLatch2,
+                        deletetriggerLatch2,
+                        mkdirsTriggerLatch2,
+                        createAwaitLatch,
+                        createTriggerLatch);
 
         // start the concurrent file creators
         FileCreator thread1 = new FileCreator(fs1, path1);
@@ -211,16 +202,44 @@ public class InitOutputPathTest {
         private final OneShotLatch deleteAwaitLatch;
         private final OneShotLatch mkdirsAwaitLatch;
 
+        private final OneShotLatch createAwaitLatch;
+        private final OneShotLatch createTriggerLatch;
+
         SyncedFileSystem(
                 OneShotLatch deleteTriggerLatch,
                 OneShotLatch mkdirsTriggerLatch,
                 OneShotLatch deleteAwaitLatch,
-                OneShotLatch mkdirsAwaitLatch) {
+                OneShotLatch mkdirsAwaitLatch,
+                OneShotLatch createAwaitLatch,
+                OneShotLatch createTriggerLatch) {
 
             this.deleteTriggerLatch = deleteTriggerLatch;
             this.mkdirsTriggerLatch = mkdirsTriggerLatch;
             this.deleteAwaitLatch = deleteAwaitLatch;
             this.mkdirsAwaitLatch = mkdirsAwaitLatch;
+            this.createAwaitLatch = createAwaitLatch;
+            this.createTriggerLatch = createTriggerLatch;
+        }
+
+        @Override
+        @SneakyThrows
+        public FSDataOutputStream create(final Path filePath, final WriteMode overwrite)
+                throws IOException {
+            checkNotNull(filePath, "filePath");
+
+            if (exists(filePath) && overwrite == WriteMode.NO_OVERWRITE) {
+                throw new FileAlreadyExistsException("File already exists: " + filePath);
+            }
+
+            final Path parent = filePath.getParent();
+            if (parent != null && !mkdirs(parent)) {
+                throw new IOException("Mkdirs failed to create " + parent);
+            }
+
+            final File file = pathToFile(filePath);
+            createAwaitLatch.trigger();
+            createTriggerLatch.await();
+            return new LocalDataOutputStream(file);
         }
 
         @Override

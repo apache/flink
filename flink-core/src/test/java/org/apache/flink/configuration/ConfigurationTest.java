@@ -24,11 +24,11 @@ import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.assertj.core.api.Assertions;
 import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
@@ -39,7 +39,6 @@ import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * This class contains test for the configuration package. In particular, the serialization of
@@ -80,55 +79,44 @@ public class ConfigurationTest {
 
     /** This test checks the serialization/deserialization of configuration objects. */
     @TestTemplate
-    void testConfigurationSerializationAndGetters() {
-        try {
-            final Configuration orig = new Configuration(standardYaml);
-            orig.setString("mykey", "myvalue");
-            orig.setInteger("mynumber", 100);
-            orig.setLong("longvalue", 478236947162389746L);
-            orig.setFloat("PI", 3.1415926f);
-            orig.setDouble("E", Math.E);
-            orig.setBoolean("shouldbetrue", true);
-            orig.setBytes("bytes sequence", new byte[] {1, 2, 3, 4, 5});
-            orig.setClass("myclass", this.getClass());
+    void testConfigurationSerializationAndGetters() throws ClassNotFoundException, IOException {
+        final Configuration orig = new Configuration(standardYaml);
+        orig.setString("mykey", "myvalue");
+        orig.setInteger("mynumber", 100);
+        orig.setLong("longvalue", 478236947162389746L);
+        orig.setFloat("PI", 3.1415926f);
+        orig.setDouble("E", Math.E);
+        orig.setBoolean("shouldbetrue", true);
+        orig.setBytes("bytes sequence", new byte[] {1, 2, 3, 4, 5});
+        orig.setClass("myclass", this.getClass());
 
-            final Configuration copy = InstantiationUtil.createCopyWritable(orig);
-            assertThat("myvalue").isEqualTo(copy.getString("mykey", "null"));
-            assertThat(copy.getInteger("mynumber", 0)).isEqualTo(100);
-            assertThat(478236947162389746L).isEqualTo(copy.getLong("longvalue", 0L));
-            assertThat(3.1415926f).isCloseTo(copy.getFloat("PI", 3.1415926f), Offset.offset(0.0f));
-            assertThat(Math.E).isCloseTo(copy.getDouble("E", 0.0), Offset.offset(0.0));
-            assertThat(copy.getBoolean("shouldbetrue", false)).isTrue();
-            assertThat(new byte[] {1, 2, 3, 4, 5}).isEqualTo(copy.getBytes("bytes sequence", null));
-            assertThat(getClass())
-                    .isEqualTo(copy.getClass("myclass", null, getClass().getClassLoader()));
+        final Configuration copy = InstantiationUtil.createCopyWritable(orig);
+        assertThat("myvalue").isEqualTo(copy.getString("mykey", "null"));
+        assertThat(copy.getInteger("mynumber", 0)).isEqualTo(100);
+        assertThat(478236947162389746L).isEqualTo(copy.getLong("longvalue", 0L));
+        assertThat(3.1415926f).isCloseTo(copy.getFloat("PI", 3.1415926f), Offset.offset(0.0f));
+        assertThat(Math.E).isCloseTo(copy.getDouble("E", 0.0), Offset.offset(0.0));
+        assertThat(copy.getBoolean("shouldbetrue", false)).isTrue();
+        assertThat(new byte[] {1, 2, 3, 4, 5}).isEqualTo(copy.getBytes("bytes sequence", null));
+        assertThat(getClass())
+                .isEqualTo(copy.getClass("myclass", null, getClass().getClassLoader()));
 
-            assertThat(orig).isEqualTo(copy);
-            assertThat(orig.keySet()).isEqualTo(copy.keySet());
-            assertThat(orig).hasSameHashCodeAs(copy);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        assertThat(orig).isEqualTo(copy);
+        assertThat(orig.keySet()).isEqualTo(copy.keySet());
+        assertThat(orig).hasSameHashCodeAs(copy);
     }
 
     @TestTemplate
     void testCopyConstructor() {
-        try {
-            final String key = "theKey";
+        final String key = "theKey";
 
-            Configuration cfg1 = new Configuration(standardYaml);
-            cfg1.setString(key, "value");
+        Configuration cfg1 = new Configuration(standardYaml);
+        cfg1.setString(key, "value");
 
-            Configuration cfg2 = new Configuration(cfg1);
-            cfg2.setString(key, "another value");
+        Configuration cfg2 = new Configuration(cfg1);
+        cfg2.setString(key, "another value");
 
-            assertThat("value").isEqualTo(cfg1.getString(key, ""));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        assertThat("value").isEqualTo(cfg1.getString(key, ""));
     }
 
     @TestTemplate
@@ -372,18 +360,14 @@ public class ConfigurationTest {
         final String invalidValueForTestEnum = "InvalidValueForTestEnum";
         configuration.setString(STRING_OPTION.key(), invalidValueForTestEnum);
 
-        try {
-            configuration.getEnum(TestEnum.class, STRING_OPTION);
-            fail("Expected exception not thrown");
-        } catch (IllegalArgumentException e) {
-            final String expectedMessage =
-                    "Value for config option "
-                            + STRING_OPTION.key()
-                            + " must be one of [VALUE1, VALUE2] (was "
-                            + invalidValueForTestEnum
-                            + ")";
-            assertThat(e.getMessage()).contains(expectedMessage);
-        }
+        assertThatThrownBy(() -> configuration.getEnum(TestEnum.class, STRING_OPTION))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(
+                        "Value for config option "
+                                + STRING_OPTION.key()
+                                + " must be one of [VALUE1, VALUE2] (was "
+                                + invalidValueForTestEnum
+                                + ")");
     }
 
     @TestTemplate
@@ -457,7 +441,7 @@ public class ConfigurationTest {
     void testMapNotContained() {
         final Configuration cfg = new Configuration(standardYaml);
 
-        assertThat(cfg.getOptional(MAP_OPTION).isPresent()).isFalse();
+        assertThat(cfg.getOptional(MAP_OPTION)).isNotPresent();
         assertThat(cfg.contains(MAP_OPTION)).isFalse();
     }
 
@@ -521,7 +505,7 @@ public class ConfigurationTest {
         ConfigOption<List<String>> secret =
                 ConfigOptions.key("secret").stringType().asList().noDefaultValue();
 
-        Assertions.assertThat(GlobalConfiguration.isSensitive(secret.key())).isTrue();
+        assertThat(GlobalConfiguration.isSensitive(secret.key())).isTrue();
 
         final Configuration cfg = new Configuration(standardYaml);
         // missing closing quote
@@ -531,7 +515,7 @@ public class ConfigurationTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .satisfies(
                         e ->
-                                Assertions.assertThat(ExceptionUtils.stringifyException(e))
+                                assertThat(ExceptionUtils.stringifyException(e))
                                         .doesNotContain("secret_value"));
     }
 
@@ -540,7 +524,7 @@ public class ConfigurationTest {
         ConfigOption<Map<String, String>> secret =
                 ConfigOptions.key("secret").mapType().noDefaultValue();
 
-        Assertions.assertThat(GlobalConfiguration.isSensitive(secret.key())).isTrue();
+        assertThat(GlobalConfiguration.isSensitive(secret.key())).isTrue();
 
         final Configuration cfg = new Configuration(standardYaml);
         // malformed map representation
@@ -550,7 +534,7 @@ public class ConfigurationTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .satisfies(
                         e ->
-                                Assertions.assertThat(ExceptionUtils.stringifyException(e))
+                                assertThat(ExceptionUtils.stringifyException(e))
                                         .doesNotContain("secret_value"));
     }
 
@@ -559,7 +543,7 @@ public class ConfigurationTest {
         ConfigOption<Map<String, String>> secret =
                 ConfigOptions.key("secret").mapType().noDefaultValue();
 
-        Assertions.assertThat(GlobalConfiguration.isSensitive(secret.key())).isTrue();
+        assertThat(GlobalConfiguration.isSensitive(secret.key())).isTrue();
 
         final Configuration cfg = new Configuration(standardYaml);
         cfg.setString(secret.key(), "secret_value");

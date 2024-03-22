@@ -22,17 +22,15 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.util.Random;
 
-public class RecordITCase extends TestLogger {
+class RecordITCase {
 
     private static final long SEED = 354144423270432543L;
     private final Random rand = new Random(RecordITCase.SEED);
@@ -40,35 +38,31 @@ public class RecordITCase extends TestLogger {
     private DataInputView in;
     private DataOutputView out;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() throws Exception {
         PipedInputStream pipedInput = new PipedInputStream(32 * 1024 * 1024);
         this.in = new DataInputViewStreamWrapper(pipedInput);
         this.out = new DataOutputViewStreamWrapper(new PipedOutputStream(pipedInput));
     }
 
     @Test
-    public void massiveRandomBlackBoxTests() {
-        try {
-            // random test with records with a small number of fields
-            for (int i = 0; i < 100000; i++) {
-                final Value[] fields = RecordTest.createRandomValues(this.rand, 0, 32);
-                RecordTest.blackboxTestRecordWithValues(fields, this.rand, this.in, this.out);
-            }
+    void massiveRandomBlackBoxTests() throws Exception {
+        // random test with records with a small number of fields
+        for (int i = 0; i < 100000; i++) {
+            final Value[] fields = RecordTest.createRandomValues(this.rand, 0, 32);
+            RecordTest.blackboxTestRecordWithValues(fields, this.rand, this.in, this.out);
+        }
 
-            // random tests with records with a moderately large number of fields
-            for (int i = 0; i < 2000; i++) {
-                final Value[] fields = RecordTest.createRandomValues(this.rand, 20, 200);
-                RecordTest.blackboxTestRecordWithValues(fields, this.rand, this.in, this.out);
-            }
+        // random tests with records with a moderately large number of fields
+        for (int i = 0; i < 2000; i++) {
+            final Value[] fields = RecordTest.createRandomValues(this.rand, 20, 200);
+            RecordTest.blackboxTestRecordWithValues(fields, this.rand, this.in, this.out);
+        }
 
-            // random tests with records with very many fields
-            for (int i = 0; i < 200; i++) {
-                final Value[] fields = RecordTest.createRandomValues(this.rand, 500, 2000);
-                RecordTest.blackboxTestRecordWithValues(fields, this.rand, this.in, this.out);
-            }
-        } catch (Throwable t) {
-            Assert.fail("Test failed due to an exception: " + t.getMessage());
+        // random tests with records with very many fields
+        for (int i = 0; i < 200; i++) {
+            final Value[] fields = RecordTest.createRandomValues(this.rand, 500, 2000);
+            RecordTest.blackboxTestRecordWithValues(fields, this.rand, this.in, this.out);
         }
     }
 }

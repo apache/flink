@@ -18,82 +18,65 @@
 
 package org.apache.flink.configuration;
 
-import org.apache.flink.util.TestLogger;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * This class verifies that the Unmodifiable Configuration class overrides all setter methods in
  * Configuration.
  */
-public class UnmodifiableConfigurationTest extends TestLogger {
+class UnmodifiableConfigurationTest {
 
     @Test
-    public void testOverrideAddMethods() {
-        try {
-            Class<UnmodifiableConfiguration> clazz = UnmodifiableConfiguration.class;
-            for (Method m : clazz.getMethods()) {
-                if (m.getName().startsWith("add")) {
-                    assertEquals(clazz, m.getDeclaringClass());
-                }
+    void testOverrideAddMethods() {
+        Class<UnmodifiableConfiguration> clazz = UnmodifiableConfiguration.class;
+        for (Method m : clazz.getMethods()) {
+            if (m.getName().startsWith("add")) {
+                assertThat(m.getDeclaringClass()).isEqualTo(clazz);
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testExceptionOnSet() {
-        try {
-            @SuppressWarnings("rawtypes")
-            final ConfigOption rawOption = ConfigOptions.key("testkey").defaultValue("value");
+    void testExceptionOnSet() {
+        @SuppressWarnings("rawtypes")
+        final ConfigOption rawOption = ConfigOptions.key("testkey").defaultValue("value");
 
-            Map<Class<?>, Object> parameters = new HashMap<>();
-            parameters.put(byte[].class, new byte[0]);
-            parameters.put(Class.class, Object.class);
-            parameters.put(int.class, 0);
-            parameters.put(long.class, 0L);
-            parameters.put(float.class, 0.0f);
-            parameters.put(double.class, 0.0);
-            parameters.put(String.class, "");
-            parameters.put(boolean.class, false);
+        Map<Class<?>, Object> parameters = new HashMap<>();
+        parameters.put(byte[].class, new byte[0]);
+        parameters.put(Class.class, Object.class);
+        parameters.put(int.class, 0);
+        parameters.put(long.class, 0L);
+        parameters.put(float.class, 0.0f);
+        parameters.put(double.class, 0.0);
+        parameters.put(String.class, "");
+        parameters.put(boolean.class, false);
 
-            Class<UnmodifiableConfiguration> clazz = UnmodifiableConfiguration.class;
-            UnmodifiableConfiguration config = new UnmodifiableConfiguration(new Configuration());
+        Class<UnmodifiableConfiguration> clazz = UnmodifiableConfiguration.class;
+        UnmodifiableConfiguration config = new UnmodifiableConfiguration(new Configuration());
 
-            for (Method m : clazz.getMethods()) {
-                // ignore WritableConfig#set as it is covered in ReadableWritableConfigurationTest
-                if (m.getName().startsWith("set") && !m.getName().equals("set")) {
+        for (Method m : clazz.getMethods()) {
+            // ignore WritableConfig#set as it is covered in ReadableWritableConfigurationTest
+            if (m.getName().startsWith("set") && !m.getName().equals("set")) {
 
-                    Class<?> keyClass = m.getParameterTypes()[0];
-                    Class<?> parameterClass = m.getParameterTypes()[1];
-                    Object key = keyClass == String.class ? "key" : rawOption;
+                Class<?> keyClass = m.getParameterTypes()[0];
+                Class<?> parameterClass = m.getParameterTypes()[1];
+                Object key = keyClass == String.class ? "key" : rawOption;
 
-                    Object parameter = parameters.get(parameterClass);
-                    assertNotNull("method " + m + " not covered by test", parameter);
+                Object parameter = parameters.get(parameterClass);
+                assertThat(parameter).as("method " + m + " not covered by test").isNotNull();
 
-                    try {
-                        m.invoke(config, key, parameter);
-                        fail("should fail with an exception");
-                    } catch (InvocationTargetException e) {
-                        assertTrue(e.getTargetException() instanceof UnsupportedOperationException);
-                    }
-                }
+                assertThatThrownBy(() -> m.invoke(config, key, parameter))
+                        .isInstanceOf(InvocationTargetException.class)
+                        .hasCauseInstanceOf(UnsupportedOperationException.class);
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 }

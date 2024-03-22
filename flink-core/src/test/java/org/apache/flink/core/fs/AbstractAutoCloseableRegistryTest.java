@@ -20,8 +20,7 @@ package org.apache.flink.core.fs;
 
 import org.apache.flink.util.AbstractAutoCloseableRegistry;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -30,9 +29,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the {@link AbstractAutoCloseableRegistry}. */
 public abstract class AbstractAutoCloseableRegistryTest<C extends Closeable, E extends C, T> {
@@ -53,7 +51,7 @@ public abstract class AbstractAutoCloseableRegistryTest<C extends Closeable, E e
             int maxStreams);
 
     public void setup(int maxStreams) {
-        Assert.assertFalse(SafetyNetCloseableRegistry.isReaperThreadRunning());
+        assertThat(SafetyNetCloseableRegistry.isReaperThreadRunning()).isFalse();
         this.closeableRegistry = createRegistry();
         this.unclosedCounter = new AtomicInteger(0);
         this.streamOpenThreads = new ProducerThread[10];
@@ -89,8 +87,8 @@ public abstract class AbstractAutoCloseableRegistryTest<C extends Closeable, E e
 
         joinThreads();
 
-        assertEquals(0, unclosedCounter.get());
-        assertEquals(0, closeableRegistry.getNumberOfRegisteredCloseables());
+        assertThat(unclosedCounter.get()).isZero();
+        assertThat(closeableRegistry.getNumberOfRegisteredCloseables()).isZero();
 
         final TestCloseable testCloseable = new TestCloseable();
 
@@ -100,9 +98,9 @@ public abstract class AbstractAutoCloseableRegistryTest<C extends Closeable, E e
         } catch (IOException expected) {
         }
 
-        assertTrue(testCloseable.isClosed());
-        assertEquals(0, unclosedCounter.get());
-        assertEquals(0, closeableRegistry.getNumberOfRegisteredCloseables());
+        assertThat(testCloseable.isClosed()).isTrue();
+        assertThat(unclosedCounter.get()).isZero();
+        assertThat(closeableRegistry.getNumberOfRegisteredCloseables()).isZero();
     }
 
     @Test
@@ -112,7 +110,7 @@ public abstract class AbstractAutoCloseableRegistryTest<C extends Closeable, E e
         final BlockingTestCloseable blockingCloseable = new BlockingTestCloseable();
         registerCloseable(blockingCloseable);
 
-        assertEquals(1, closeableRegistry.getNumberOfRegisteredCloseables());
+        assertThat(closeableRegistry.getNumberOfRegisteredCloseables()).isOne();
 
         Thread closer =
                 new Thread(
@@ -136,8 +134,8 @@ public abstract class AbstractAutoCloseableRegistryTest<C extends Closeable, E e
         blockingCloseable.unblockClose();
         closer.join();
 
-        assertTrue(testCloseable.isClosed());
-        assertEquals(0, closeableRegistry.getNumberOfRegisteredCloseables());
+        assertThat(testCloseable.isClosed()).isTrue();
+        assertThat(closeableRegistry.getNumberOfRegisteredCloseables()).isZero();
     }
 
     /** A testing producer. */
@@ -186,7 +184,7 @@ public abstract class AbstractAutoCloseableRegistryTest<C extends Closeable, E e
     /** Testing stream which adds itself to a reference counter while not closed. */
     protected static final class TestStream extends FSDataInputStream {
 
-        protected AtomicInteger refCount;
+        private final AtomicInteger refCount;
 
         public TestStream(AtomicInteger refCount) {
             this.refCount = refCount;
@@ -237,7 +235,7 @@ public abstract class AbstractAutoCloseableRegistryTest<C extends Closeable, E e
         /** Causes the current thread to wait until {@link #close()} is called. */
         public void awaitClose(final long timeout, final TimeUnit timeUnit)
                 throws InterruptedException {
-            assertTrue(closeCalledLatch.await(timeout, timeUnit));
+            assertThat(closeCalledLatch.await(timeout, timeUnit)).isTrue();
         }
     }
 
@@ -248,7 +246,9 @@ public abstract class AbstractAutoCloseableRegistryTest<C extends Closeable, E e
 
         @Override
         public void close() throws IOException {
-            assertTrue("TestCloseable was already closed", closed.compareAndSet(false, true));
+            assertThat(closed.compareAndSet(false, true))
+                    .as("TestCloseable was already closed")
+                    .isTrue();
         }
 
         public boolean isClosed() {

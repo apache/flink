@@ -23,20 +23,20 @@ import org.apache.flink.core.memory.DataOutputSerializer;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
 
 /** Tests for the {@link SimpleVersionedSerialization} class. */
-public class SimpleVersionedSerializationTest {
+class SimpleVersionedSerializationTest {
 
     @Test
-    public void testSerializationRoundTrip() throws IOException {
+    void testSerializationRoundTrip() throws IOException {
         final SimpleVersionedSerializer<String> utfEncoder = new TestStringSerializer();
 
         final String testString = "dugfakgs";
@@ -46,19 +46,19 @@ public class SimpleVersionedSerializationTest {
 
         final byte[] bytes =
                 SimpleVersionedSerialization.writeVersionAndSerialize(utfEncoder, testString);
-        assertArrayEquals(bytes, outBytes);
+        assertThat(outBytes).containsExactly(bytes);
 
         final DataInputDeserializer in = new DataInputDeserializer(bytes);
         final String deserialized =
                 SimpleVersionedSerialization.readVersionAndDeSerialize(utfEncoder, in);
         final String deserializedFromBytes =
                 SimpleVersionedSerialization.readVersionAndDeSerialize(utfEncoder, outBytes);
-        assertEquals(testString, deserialized);
-        assertEquals(testString, deserializedFromBytes);
+        assertThat(deserialized).isEqualTo(testString);
+        assertThat(deserializedFromBytes).isEqualTo(testString);
     }
 
     @Test
-    public void testSerializeEmpty() throws IOException {
+    void testSerializeEmpty() throws IOException {
         final String testString = "beeeep!";
 
         SimpleVersionedSerializer<String> emptySerializer =
@@ -76,8 +76,8 @@ public class SimpleVersionedSerializationTest {
 
                     @Override
                     public String deserialize(int version, byte[] serialized) throws IOException {
-                        assertEquals(42, version);
-                        assertEquals(0, serialized.length);
+                        assertThat(version).isEqualTo(42);
+                        assertThat(serialized.length).isZero();
                         return testString;
                     }
                 };
@@ -88,19 +88,19 @@ public class SimpleVersionedSerializationTest {
 
         final byte[] bytes =
                 SimpleVersionedSerialization.writeVersionAndSerialize(emptySerializer, "abc");
-        assertArrayEquals(bytes, outBytes);
+        assertThat(outBytes).containsExactly(bytes);
 
         final DataInputDeserializer in = new DataInputDeserializer(bytes);
         final String deserialized =
                 SimpleVersionedSerialization.readVersionAndDeSerialize(emptySerializer, in);
         final String deserializedFromBytes =
                 SimpleVersionedSerialization.readVersionAndDeSerialize(emptySerializer, outBytes);
-        assertEquals(testString, deserialized);
-        assertEquals(testString, deserializedFromBytes);
+        assertThat(deserialized).isEqualTo(testString);
+        assertThat(deserializedFromBytes).isEqualTo(testString);
     }
 
     @Test
-    public void testListSerializationRoundTrip() throws IOException {
+    void testListSerializationRoundTrip() throws IOException {
         final SimpleVersionedSerializer<String> utfEncoder = new TestStringSerializer();
         final List<String> datums = ImmutableList.of("beeep!", "beep!!!");
 
@@ -111,13 +111,17 @@ public class SimpleVersionedSerializationTest {
         final DataInputDeserializer in = new DataInputDeserializer(outBytes);
         final List<String> deserialized =
                 SimpleVersionedSerialization.readVersionAndDeserializeList(utfEncoder, in);
-        assertEquals(datums, deserialized);
+        assertThat(deserialized).isEqualTo(datums);
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testUnderflow() throws Exception {
-        SimpleVersionedSerialization.readVersionAndDeSerialize(
-                new TestStringSerializer(), new byte[7]);
+    @Test
+    void testUnderflow() throws Exception {
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(
+                        () -> {
+                            SimpleVersionedSerialization.readVersionAndDeSerialize(
+                                    new TestStringSerializer(), new byte[7]);
+                        });
     }
 
     // ------------------------------------------------------------------------
@@ -139,7 +143,7 @@ public class SimpleVersionedSerializationTest {
 
         @Override
         public String deserialize(int version, byte[] serialized) throws IOException {
-            assertEquals(VERSION, version);
+            assertThat(version).isEqualTo(VERSION);
             return new String(serialized, StandardCharsets.UTF_8);
         }
     }
