@@ -48,6 +48,7 @@ import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
+import org.apache.flink.streaming.runtime.translators.DataStreamV2SinkTransformationTranslator;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -86,6 +87,18 @@ public class ExecutionEnvironmentImpl implements ExecutionEnvironment {
      * The environment of the context (local by default, cluster if invoked through command line).
      */
     private static ExecutionEnvironmentFactory contextEnvironmentFactory = null;
+
+    static {
+        try {
+            // All transformation translator must be put to a map in StreamGraphGenerator, but
+            // streaming-java is not depend on process-function module, using reflect to handle
+            // this.
+            DataStreamV2SinkTransformationTranslator.registerSinkTransformationTranslator();
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Can not register process function transformation translator.");
+        }
+    }
 
     /**
      * Create and return an instance of {@link ExecutionEnvironment}.
@@ -200,6 +213,10 @@ public class ExecutionEnvironmentImpl implements ExecutionEnvironment {
 
     public void setParallelism(int parallelism) {
         executionConfig.setParallelism(parallelism);
+    }
+
+    public CheckpointConfig getCheckpointCfg() {
+        return checkpointCfg;
     }
 
     // -----------------------------------------------

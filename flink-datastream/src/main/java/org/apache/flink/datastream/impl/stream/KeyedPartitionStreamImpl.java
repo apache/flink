@@ -19,6 +19,7 @@
 package org.apache.flink.datastream.impl.stream;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.dsv2.Sink;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -325,7 +326,10 @@ public class KeyedPartitionStreamImpl<K, V> extends AbstractDataStream<V>
         return keySelector;
     }
 
-    // TODO add toSink method.
+    @Override
+    public void toSink(Sink<V> sink) {
+        StreamUtils.addSinkOperator(this, sink, getType());
+    }
 
     // ---------------------
     //   Partitioning

@@ -19,6 +19,7 @@
 package org.apache.flink.datastream.impl.stream;
 
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.connector.dsv2.DataStreamV2SinkUtils;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.datastream.api.stream.KeyedPartitionStream;
@@ -27,6 +28,8 @@ import org.apache.flink.datastream.impl.ExecutionEnvironmentImpl;
 import org.apache.flink.datastream.impl.TestingTransformation;
 import org.apache.flink.datastream.impl.stream.StreamTestUtils.NoOpOneInputStreamProcessFunction;
 import org.apache.flink.datastream.impl.stream.StreamTestUtils.NoOpTwoOutputStreamProcessFunction;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
+import org.apache.flink.streaming.api.transformations.DataStreamV2SinkTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
@@ -131,6 +134,19 @@ public class KeyedPartitionStreamImplTest {
         assertThat(transformations).hasSize(2);
         assertProcessType(transformations.get(0), TwoInputTransformation.class, Types.LONG);
         assertProcessType(transformations.get(1), TwoInputTransformation.class, Types.LONG);
+    }
+
+    @Test
+    void testToSink() throws Exception {
+        ExecutionEnvironmentImpl env = StreamTestUtils.getEnv();
+        GlobalStreamImpl<Integer> stream =
+                new GlobalStreamImpl<>(env, new TestingTransformation<>("t1", Types.INT, 1));
+        stream.toSink(DataStreamV2SinkUtils.wrapSink(new DiscardingSink<>()));
+        List<Transformation<?>> transformations = env.getTransformations();
+        assertThat(transformations)
+                .hasSize(1)
+                .element(0)
+                .isInstanceOf(DataStreamV2SinkTransformation.class);
     }
 
     private static KeyedPartitionStream<Integer, Integer> createKeyedStream(
