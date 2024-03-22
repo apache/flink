@@ -20,17 +20,22 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.VisibleForTesting;
 
-import javax.annotation.concurrent.NotThreadSafe;
+import javax.annotation.concurrent.ThreadSafe;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicReference;
 
-/** A builder for {@link SubTaskInitializationMetrics}. */
-@NotThreadSafe
+/**
+ * A builder for {@link SubTaskInitializationMetrics}. Class is {@link ThreadSafe} to allow using it
+ * from async threads when used by state backends.
+ */
+@ThreadSafe
 public class SubTaskInitializationMetricsBuilder {
     private final long initializationStartTs;
-    private final Map<String, Long> durationMetrics = new HashMap<>();
-    private InitializationStatus status = InitializationStatus.FAILED;
+    private final ConcurrentMap<String, Long> durationMetrics = new ConcurrentHashMap<>();
+    private final AtomicReference<InitializationStatus> status =
+            new AtomicReference<>(InitializationStatus.FAILED);
 
     public SubTaskInitializationMetricsBuilder(long initializationStartTs) {
         this.initializationStartTs = initializationStartTs;
@@ -52,7 +57,7 @@ public class SubTaskInitializationMetricsBuilder {
     }
 
     public SubTaskInitializationMetricsBuilder setStatus(InitializationStatus status) {
-        this.status = status;
+        this.status.set(status);
         return this;
     }
 
@@ -63,6 +68,6 @@ public class SubTaskInitializationMetricsBuilder {
     @VisibleForTesting
     public SubTaskInitializationMetrics build(long endTs) {
         return new SubTaskInitializationMetrics(
-                initializationStartTs, endTs, durationMetrics, status);
+                initializationStartTs, endTs, durationMetrics, status.get());
     }
 }
