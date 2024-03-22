@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.ReadableConfig;
@@ -122,6 +123,15 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
             randomize(conf, CheckpointingOptions.CLEANER_PARALLEL_MODE, true, false);
             randomize(conf, ExecutionOptions.SNAPSHOT_COMPRESSION, true, false);
         }
+
+        randomize(
+                conf,
+                // This config option is defined in the rocksdb module :(
+                ConfigOptions.key("state.backend.rocksdb.use-ingest-db-restore-mode")
+                        .booleanType()
+                        .noDefaultValue(),
+                true,
+                false);
 
         // randomize ITTests for enabling state change log
         if (!conf.contains(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)) {
