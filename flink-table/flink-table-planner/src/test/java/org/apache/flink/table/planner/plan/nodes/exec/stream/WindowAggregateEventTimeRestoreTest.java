@@ -55,6 +55,14 @@ public class WindowAggregateEventTimeRestoreTest extends RestoreTestBase {
                 WindowAggregateTestPrograms.GROUP_CUMULATE_WINDOW_EVENT_TIME_WITH_OFFSET,
                 WindowAggregateTestPrograms.GROUP_CUMULATE_WINDOW_EVENT_TIME_TWO_PHASE_WITH_OFFSET,
                 WindowAggregateTestPrograms
-                        .GROUP_CUMULATE_WINDOW_EVENT_TIME_WITH_OFFSET_DISTINCT_SPLIT);
+                        .GROUP_CUMULATE_WINDOW_EVENT_TIME_WITH_OFFSET_DISTINCT_SPLIT,
+                WindowAggregateTestPrograms.GROUP_SESSION_WINDOW_EVENT_TIME,
+                WindowAggregateTestPrograms.GROUP_SESSION_WINDOW_EVENT_TIME_TWO_PHASE,
+                WindowAggregateTestPrograms
+                        .GROUP_SESSION_WINDOW_EVENT_TIME_TWO_PHASE_DISTINCT_SPLIT,
+                WindowAggregateTestPrograms.GROUP_SESSION_WINDOW_PARTITION_EVENT_TIME,
+                WindowAggregateTestPrograms.GROUP_SESSION_WINDOW_PARTITION_EVENT_TIME_TWO_PHASE,
+                WindowAggregateTestPrograms
+                        .GROUP_SESSION_WINDOW_PARTITION_EVENT_TIME_TWO_PHASE_DISTINCT_SPLIT);
     }
 }

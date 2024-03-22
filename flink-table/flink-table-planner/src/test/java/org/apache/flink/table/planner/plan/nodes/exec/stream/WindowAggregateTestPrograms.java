@@ -26,6 +26,7 @@ import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
 
 import java.math.BigDecimal;
+import java.util.function.Function;
 
 /** {@link TableTestProgram} definitions for testing {@link StreamExecWindowAggregate}. */
 public class WindowAggregateTestPrograms {
@@ -53,21 +54,29 @@ public class WindowAggregateTestPrograms {
         Row.of("2020-10-10 00:00:44", 13, 6d, 6f, new BigDecimal("7.44"), "Comment#7", "d")
     };
 
-    static final SourceTestStep SOURCE =
-            SourceTestStep.newBuilder("window_source_t")
-                    .addSchema(
-                            "ts STRING",
-                            "a_int INT",
-                            "b_double DOUBLE",
-                            "c_float FLOAT",
-                            "d_bigdec DECIMAL(10, 2)",
-                            "`comment` STRING",
-                            "name STRING",
-                            "`rowtime` AS TO_TIMESTAMP(`ts`)",
-                            "`proctime` AS PROCTIME()",
-                            "WATERMARK for `rowtime` AS `rowtime` - INTERVAL '1' SECOND")
-                    .producedBeforeRestore(BEFORE_DATA)
-                    .producedAfterRestore(AFTER_DATA)
+    static final Function<String, SourceTestStep.Builder> SOURCE_BUILDER =
+            str ->
+                    SourceTestStep.newBuilder(str)
+                            .addSchema(
+                                    "ts STRING",
+                                    "a_int INT",
+                                    "b_double DOUBLE",
+                                    "c_float FLOAT",
+                                    "d_bigdec DECIMAL(10, 2)",
+                                    "`comment` STRING",
+                                    "name STRING",
+                                    "`rowtime` AS TO_TIMESTAMP(`ts`)",
+                                    "`proctime` AS PROCTIME()",
+                                    "WATERMARK for `rowtime` AS `rowtime` - INTERVAL '1' SECOND")
+                            .addOption("changelog-mode", "I,UA,UB,D")
+                            .producedBeforeRestore(BEFORE_DATA)
+                            .producedAfterRestore(AFTER_DATA);
+    static final SourceTestStep SOURCE = SOURCE_BUILDER.apply("window_source_t").build();
+
+    static final SourceTestStep CDC_SOURCE =
+            SOURCE_BUILDER
+                    .apply("cdc_window_source_t")
+                    .addOption("changelog-mode", "I,UA,UB,D")
                     .build();
 
     static final String[] TUMBLE_EVENT_TIME_BEFORE_ROWS = {
@@ -362,6 +371,105 @@ public class WindowAggregateTestPrograms {
                     CUMULATE_EVENT_TIME_WITH_OFFSET_AFTER_ROWS,
                     true);
 
+    static final String[] SESSION_EVENT_TIME_BEFORE_ROWS = {
+        "+I[a, 2020-10-10T00:00:01, 2020-10-10T00:00:13, 1, 1, 1]",
+        "-U[a, 2020-10-10T00:00:01, 2020-10-10T00:00:13, 1, 1, 1]",
+        "+U[a, 2020-10-10T00:00:01, 2020-10-10T00:00:13, 2, 3, 2]",
+        "-U[a, 2020-10-10T00:00:01, 2020-10-10T00:00:13, 2, 3, 2]",
+        "+U[a, 2020-10-10T00:00:01, 2020-10-10T00:00:13, 3, 5, 2]",
+        "-U[a, 2020-10-10T00:00:01, 2020-10-10T00:00:13, 3, 5, 2]",
+        "+U[a, 2020-10-10T00:00:01, 2020-10-10T00:00:13, 4, 10, 2]",
+        "+I[b, 2020-10-10T00:00:01, 2020-10-10T00:00:13, 1, 3, 1]",
+        "-U[b, 2020-10-10T00:00:01, 2020-10-10T00:00:13, 1, 3, 1]",
+        "+U[b, 2020-10-10T00:00:01, 2020-10-10T00:00:13, 2, 9, 2]",
+        "-U[a, 2020-10-10T00:00:01, 2020-10-10T00:00:13, 4, 10, 2]",
+        "+U[a, 2020-10-10T00:00:01, 2020-10-10T00:00:13, 5, 13, 3]",
+        "-U[a, 2020-10-10T00:00:01, 2020-10-10T00:00:13, 5, 13, 3]",
+        "+U[a, 2020-10-10T00:00:01, 2020-10-10T00:00:13, 6, 18, 3]",
+        "+I[b, 2020-10-10T00:00:16, 2020-10-10T00:00:21, 1, 4, 1]"
+    };
+
+    public static final String[] SESSION_EVENT_TIME_AFTER_ROWS = {
+        "+I[null, 2020-10-10T00:00:32, 2020-10-10T00:00:39, 1, 7, 0]",
+        "+I[b, 2020-10-10T00:00:32, 2020-10-10T00:00:39, 1, 1, 1]",
+        "+I[a, 2020-10-10T00:00:40, 2020-10-10T00:00:49, 1, 10, 1]",
+        "+I[d, 2020-10-10T00:00:40, 2020-10-10T00:00:49, 1, 11, 1]",
+        "+I[c, 2020-10-10T00:00:40, 2020-10-10T00:00:49, 1, 12, 1]",
+        "-U[d, 2020-10-10T00:00:40, 2020-10-10T00:00:49, 1, 11, 1]",
+        "+U[d, 2020-10-10T00:00:40, 2020-10-10T00:00:49, 2, 24, 2]"
+    };
+
+    static final TableTestProgram GROUP_SESSION_WINDOW_EVENT_TIME =
+            getTableTestProgram(
+                    "window-aggregate-session-event-time",
+                    "validates group by using session window with event time",
+                    AggregatePhaseStrategy.ONE_PHASE.toString(),
+                    "SESSION(TABLE window_source_t, DESCRIPTOR(rowtime), INTERVAL '5' SECOND)",
+                    SESSION_EVENT_TIME_BEFORE_ROWS,
+                    SESSION_EVENT_TIME_AFTER_ROWS);
+
+    static final TableTestProgram GROUP_SESSION_WINDOW_EVENT_TIME_TWO_PHASE =
+            getTableTestProgram(
+                    "window-aggregate-session-event-time-two-phase",
+                    "validates group by using session window with event time with two phase aggregation",
+                    AggregatePhaseStrategy.TWO_PHASE.toString(),
+                    "SESSION(TABLE window_source_t, DESCRIPTOR(rowtime), INTERVAL '5' SECOND)",
+                    SESSION_EVENT_TIME_BEFORE_ROWS,
+                    SESSION_EVENT_TIME_AFTER_ROWS);
+
+    static final TableTestProgram GROUP_SESSION_WINDOW_EVENT_TIME_TWO_PHASE_DISTINCT_SPLIT =
+            getTableTestProgram(
+                    "window-aggregate-session-event-time-two-phase-distinct-split",
+                    "validates group by using session window with event time with two phase aggregation",
+                    AggregatePhaseStrategy.TWO_PHASE.toString(),
+                    "SESSION(TABLE window_source_t, DESCRIPTOR(rowtime), INTERVAL '5' SECOND)",
+                    SESSION_EVENT_TIME_BEFORE_ROWS,
+                    SESSION_EVENT_TIME_AFTER_ROWS,
+                    true);
+
+    static final String[] SESSION_EVENT_TIME_PARTITIONED_BEFORE_ROWS = {
+        "+I[b, 2020-10-10T00:00:06, 2020-10-10T00:00:12, 2, 9, 2]",
+        "+I[a, 2020-10-10T00:00:01, 2020-10-10T00:00:13, 6, 18, 3]",
+        "+I[b, 2020-10-10T00:00:16, 2020-10-10T00:00:21, 1, 4, 1]"
+    };
+
+    public static final String[] SESSION_EVENT_TIME_PARTITIONED_AFTER_ROWS = {
+        "+I[null, 2020-10-10T00:00:32, 2020-10-10T00:00:37, 1, 7, 0]",
+        "+I[b, 2020-10-10T00:00:34, 2020-10-10T00:00:39, 1, 1, 1]",
+        "+I[a, 2020-10-10T00:00:40, 2020-10-10T00:00:45, 1, 10, 1]",
+        "+I[c, 2020-10-10T00:00:43, 2020-10-10T00:00:48, 1, 12, 1]",
+        "+I[d, 2020-10-10T00:00:42, 2020-10-10T00:00:49, 2, 24, 2]"
+    };
+
+    static final TableTestProgram GROUP_SESSION_WINDOW_PARTITION_EVENT_TIME =
+            getTableTestProgram(
+                    "window-aggregate-session-partition-event-time",
+                    "validates group by using session window with event time",
+                    AggregatePhaseStrategy.ONE_PHASE.toString(),
+                    "SESSION(TABLE window_source_t PARTITION BY name, DESCRIPTOR(rowtime), INTERVAL '5' SECOND)",
+                    SESSION_EVENT_TIME_PARTITIONED_BEFORE_ROWS,
+                    SESSION_EVENT_TIME_PARTITIONED_AFTER_ROWS);
+
+    static final TableTestProgram GROUP_SESSION_WINDOW_PARTITION_EVENT_TIME_TWO_PHASE =
+            getTableTestProgram(
+                    "window-aggregate-session-partition-event-time-two-phase",
+                    "validates group by using session window with event time with two phase aggregation",
+                    AggregatePhaseStrategy.TWO_PHASE.toString(),
+                    "SESSION(TABLE window_source_t PARTITION BY name, DESCRIPTOR(rowtime), INTERVAL '5' SECOND)",
+                    SESSION_EVENT_TIME_PARTITIONED_BEFORE_ROWS,
+                    SESSION_EVENT_TIME_PARTITIONED_AFTER_ROWS);
+
+    static final TableTestProgram
+            GROUP_SESSION_WINDOW_PARTITION_EVENT_TIME_TWO_PHASE_DISTINCT_SPLIT =
+                    getTableTestProgram(
+                            "window-aggregate-session-partition-event-time-two-phase-distinct-split",
+                            "validates group by using session window with event time with two phase aggregation",
+                            AggregatePhaseStrategy.TWO_PHASE.toString(),
+                            "SESSION(TABLE cdc_window_source_t PARTITION BY name, DESCRIPTOR(rowtime), INTERVAL '5' SECOND)",
+                            SESSION_EVENT_TIME_PARTITIONED_BEFORE_ROWS,
+                            SESSION_EVENT_TIME_PARTITIONED_AFTER_ROWS,
+                            true);
+
     private static TableTestProgram getTableTestProgram(
             final String id,
             final String description,
@@ -403,6 +511,7 @@ public class WindowAggregateTestPrograms {
         return builder.setupConfig(
                         OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, aggPhaseStrategy)
                 .setupTableSource(SOURCE)
+                .setupTableSource(CDC_SOURCE)
                 .setupTableSink(
                         SinkTestStep.newBuilder("window_sink_t")
                                 .addSchema(
