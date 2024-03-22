@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
@@ -97,5 +98,17 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT>
 
     public void processRecordAttributes2(RecordAttributes recordAttributes) throws Exception {
         twoInputOperator.processRecordAttributes2(recordAttributes);
+    }
+
+    public void endInput1() throws Exception {
+        if (operator instanceof BoundedMultiInput) {
+            ((BoundedMultiInput) operator).endInput(1);
+        }
+    }
+
+    public void endInput2() throws Exception {
+        if (operator instanceof BoundedMultiInput) {
+            ((BoundedMultiInput) operator).endInput(2);
+        }
     }
 }
