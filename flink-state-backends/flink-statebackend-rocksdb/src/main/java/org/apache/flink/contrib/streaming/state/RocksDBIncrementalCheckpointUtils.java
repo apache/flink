@@ -287,49 +287,56 @@ public class RocksDBIncrementalCheckpointUtils {
                 // with the registry
                 final Closeable cancelCompactionCloseable =
                         () -> {
-                            logger.debug(
+                            logger.info(
                                     "Cancel request for async compaction targeting key-groups range {}.",
-                                    dbExpectedKeyGroupRange.prettyPrintInterval());
+                                    dbExpectedKeyGroupRange.prettyPrintInterval(),
+                                    new Exception("StackTrace"));
                             compactionOptions.setCanceled(true);
                         };
 
-                closeableRegistry.registerCloseable(cancelCompactionCloseable);
+                try {
+                    closeableRegistry.registerCloseable(cancelCompactionCloseable);
 
-                if (!rangeCheckResult.leftInRange) {
-                    logger.debug(
-                            "Compacting left interval in async compaction targeting key-groups range {}.",
-                            dbExpectedKeyGroupRange.prettyPrintInterval());
-                    // Compact all keys before from the expected key-groups range
-                    for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
-                        try (ResourceGuard.Lease ignored = rocksDBResourceGuard.acquireResource()) {
-                            db.compactRange(
-                                    columnFamilyHandle,
-                                    // TODO: change to null once this API is fixed
-                                    new byte[] {},
-                                    rangeCheckResult.minKey,
-                                    compactionOptions);
+                    if (!rangeCheckResult.leftInRange) {
+                        logger.debug(
+                                "Compacting left interval in async compaction targeting key-groups range {}.",
+                                dbExpectedKeyGroupRange.prettyPrintInterval());
+                        // Compact all keys before from the expected key-groups range
+                        for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
+                            try (ResourceGuard.Lease ignored =
+                                    rocksDBResourceGuard.acquireResource()) {
+                                db.compactRange(
+                                        columnFamilyHandle,
+                                        // TODO: change to null once this API is fixed
+                                        new byte[] {},
+                                        rangeCheckResult.minKey,
+                                        compactionOptions);
+                            }
                         }
                     }
-                }
 
-                if (!rangeCheckResult.rightInRange) {
-                    logger.debug(
-                            "Compacting right interval in async compaction targeting key-groups range {}.",
-                            dbExpectedKeyGroupRange.prettyPrintInterval());
-                    // Compact all keys after the expected key-groups range
-                    for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
-                        try (ResourceGuard.Lease ignored = rocksDBResourceGuard.acquireResource()) {
-                            db.compactRange(
-                                    columnFamilyHandle,
-                                    rangeCheckResult.maxKey,
-                                    // TODO: change to null once this API is fixed
-                                    new byte[] {(byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff},
-                                    compactionOptions);
+                    if (!rangeCheckResult.rightInRange) {
+                        logger.debug(
+                                "Compacting right interval in async compaction targeting key-groups range {}.",
+                                dbExpectedKeyGroupRange.prettyPrintInterval());
+                        // Compact all keys after the expected key-groups range
+                        for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
+                            try (ResourceGuard.Lease ignored =
+                                    rocksDBResourceGuard.acquireResource()) {
+                                db.compactRange(
+                                        columnFamilyHandle,
+                                        rangeCheckResult.maxKey,
+                                        // TODO: change to null once this API is fixed
+                                        new byte[] {
+                                            (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff
+                                        },
+                                        compactionOptions);
+                            }
                         }
                     }
+                } finally {
+                    closeableRegistry.unregisterCloseable(cancelCompactionCloseable);
                 }
-
-                closeableRegistry.unregisterCloseable(cancelCompactionCloseable);
             }
         };
     }
