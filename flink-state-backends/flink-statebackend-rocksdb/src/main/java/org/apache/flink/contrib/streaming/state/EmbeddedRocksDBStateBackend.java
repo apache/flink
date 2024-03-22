@@ -529,7 +529,9 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                         .setManualCompactionConfig(
                                 manualCompactionConfig == null
                                         ? RocksDBManualCompactionConfig.getDefault()
-                                        : manualCompactionConfig);
+                                        : manualCompactionConfig)
+                        .setAsyncExceptionHandler(
+                                (ign, throwable) -> parameters.getEnv().failExternally(throwable));
         return builder.build();
     }
 

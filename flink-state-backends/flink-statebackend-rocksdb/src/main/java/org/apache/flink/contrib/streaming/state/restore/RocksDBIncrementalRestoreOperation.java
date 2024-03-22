@@ -47,6 +47,7 @@ import org.apache.flink.runtime.state.StateBackend.CustomInitializationMetrics;
 import org.apache.flink.runtime.state.StateSerializerProvider;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
+import org.apache.flink.runtime.taskmanager.AsyncExceptionHandler;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
@@ -150,6 +151,8 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
 
     private final ExecutorService ioExecutor;
 
+    private final AsyncExceptionHandler asyncExceptionHandler;
+
     public RocksDBIncrementalRestoreOperation(
             String operatorIdentifier,
             KeyGroupRange keyGroupRange,
@@ -176,7 +179,8 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
             boolean useIngestDbRestoreMode,
             boolean asyncCompactAfterRescale,
             boolean useDeleteFilesInRange,
-            ExecutorService ioExecutor) {
+            ExecutorService ioExecutor,
+            AsyncExceptionHandler asyncExceptionHandler) {
         this.rocksHandle =
                 new RocksDBHandle(
                         kvStateInformation,
@@ -208,6 +212,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
         this.asyncCompactAfterRescale = asyncCompactAfterRescale;
         this.useDeleteFilesInRange = useDeleteFilesInRange;
         this.ioExecutor = ioExecutor;
+        this.asyncExceptionHandler = asyncExceptionHandler;
     }
 
     /**
@@ -303,13 +308,12 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                         operatorIdentifier,
                         System.currentTimeMillis() - t);
             } catch (Throwable throwable) {
-                // We don't rethrow because the executing thread might have a fatal exception
-                // handler.
-                logger.info(
-                        "Failed async compaction after restore for backend {} in operator {} after {} ms.",
-                        backendUID,
-                        operatorIdentifier,
-                        System.currentTimeMillis() - t,
+                asyncExceptionHandler.handleAsyncException(
+                        String.format(
+                                "Failed async compaction after restore for backend {} in operator {} after {} ms.",
+                                backendUID,
+                                operatorIdentifier,
+                                System.currentTimeMillis() - t),
                         throwable);
             }
         };

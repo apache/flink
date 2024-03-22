@@ -54,6 +54,7 @@ import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSnapshotRestoreWrapper;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.runtime.taskmanager.AsyncExceptionHandler;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
@@ -145,6 +146,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
     private RocksDBManualCompactionConfig manualCompactionConfig =
             RocksDBManualCompactionConfig.getDefault();
     private ExecutorService ioExecutor;
+    private AsyncExceptionHandler asyncExceptionHandler;
 
     public RocksDBKeyedStateBackendBuilder(
             String operatorIdentifier,
@@ -553,7 +555,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                     useIngestDbRestoreMode,
                     incrementalRestoreAsyncCompactAfterRescale,
                     rescalingUseDeleteFilesInRange,
-                    ioExecutor);
+                    ioExecutor,
+                    asyncExceptionHandler);
         } else if (priorityQueueConfig.getPriorityQueueStateType()
                 == EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP) {
             return new RocksDBHeapTimersFullRestoreOperation<>(
@@ -692,6 +695,12 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
     public RocksDBKeyedStateBackendBuilder<K> setManualCompactionConfig(
             RocksDBManualCompactionConfig manualCompactionConfig) {
         this.manualCompactionConfig = checkNotNull(manualCompactionConfig);
+        return this;
+    }
+
+    public RocksDBKeyedStateBackendBuilder<K> setAsyncExceptionHandler(
+            AsyncExceptionHandler asyncExceptionHandler) {
+        this.asyncExceptionHandler = asyncExceptionHandler;
         return this;
     }
 }
