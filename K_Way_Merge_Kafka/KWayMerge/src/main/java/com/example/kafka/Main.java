@@ -3,12 +3,12 @@ package com.example.kafka;
 public class Main {
 
     public static void main( String[] args ) {
-        KafkaTestProducer kep = new KafkaTestProducer("localhost:9092", 3);
+        KafkaTestProducer ktp = new KafkaTestProducer("localhost:9092", 3);
         KafkaMergeConsumer kmc = new KafkaMergeConsumer("localhost:9092",3);
 
         int totalMessages = 10;
         try {
-            kep.sendSingleKeyMessage(totalMessages);
+            ktp.sendSingleKeyMessage(totalMessages);
             Thread.sleep(5000); // delay before consuming
             kmc.consumeMergeLimitedMessages(totalMessages);
         }
@@ -17,7 +17,7 @@ public class Main {
         } finally {
             System.out.println("Closing Consumer and producer");
             kmc.close();
-            kep.close();
+            ktp.close();
         }
     }
 }
