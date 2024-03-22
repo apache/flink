@@ -34,35 +34,32 @@ public class WindowAggregateEventTimeRestoreTest extends RestoreTestBase {
     @Override
     public List<TableTestProgram> programs() {
         return Arrays.asList(
-                WindowAggregateTestPrograms.GROUP_TUMBLE_WINDOW_EVENT_TIME,
-                WindowAggregateTestPrograms.GROUP_TUMBLE_WINDOW_EVENT_TIME_TWO_PHASE,
-                WindowAggregateTestPrograms.GROUP_TUMBLE_WINDOW_EVENT_TIME_TWO_PHASE_DISTINCT_SPLIT,
-                WindowAggregateTestPrograms.GROUP_TUMBLE_WINDOW_EVENT_TIME_WITH_OFFSET,
-                WindowAggregateTestPrograms.GROUP_TUMBLE_WINDOW_EVENT_TIME_TWO_PHASE_WITH_OFFSET,
+                WindowAggregateTestPrograms.TUMBLE_WINDOW_EVENT_TIME,
+                WindowAggregateTestPrograms.TUMBLE_WINDOW_EVENT_TIME_TWO_PHASE,
+                WindowAggregateTestPrograms.TUMBLE_WINDOW_EVENT_TIME_TWO_PHASE_DISTINCT_SPLIT,
+                WindowAggregateTestPrograms.TUMBLE_WINDOW_EVENT_TIME_WITH_OFFSET,
+                WindowAggregateTestPrograms.TUMBLE_WINDOW_EVENT_TIME_TWO_PHASE_WITH_OFFSET,
                 WindowAggregateTestPrograms
-                        .GROUP_TUMBLE_WINDOW_EVENT_TIME_TWO_PHASE_WITH_OFFSET_DISTINCT_SPLIT,
-                WindowAggregateTestPrograms.GROUP_HOP_WINDOW_EVENT_TIME,
-                WindowAggregateTestPrograms.GROUP_HOP_WINDOW_EVENT_TIME_TWO_PHASE,
-                WindowAggregateTestPrograms.GROUP_HOP_WINDOW_EVENT_TIME_TWO_PHASE_DISTINCT_SPLIT,
-                WindowAggregateTestPrograms.GROUP_HOP_WINDOW_EVENT_TIME_WITH_OFFSET,
-                WindowAggregateTestPrograms.GROUP_HOP_WINDOW_EVENT_TIME_TWO_PHASE_WITH_OFFSET,
+                        .TUMBLE_WINDOW_EVENT_TIME_TWO_PHASE_WITH_OFFSET_DISTINCT_SPLIT,
+                WindowAggregateTestPrograms.HOP_WINDOW_EVENT_TIME,
+                WindowAggregateTestPrograms.HOP_WINDOW_EVENT_TIME_TWO_PHASE,
+                WindowAggregateTestPrograms.HOP_WINDOW_EVENT_TIME_TWO_PHASE_DISTINCT_SPLIT,
+                WindowAggregateTestPrograms.HOP_WINDOW_EVENT_TIME_WITH_OFFSET,
+                WindowAggregateTestPrograms.HOP_WINDOW_EVENT_TIME_TWO_PHASE_WITH_OFFSET,
                 WindowAggregateTestPrograms
-                        .GROUP_HOP_WINDOW_EVENT_TIME_TWO_PHASE_WITH_OFFSET_DISTINCT_SPLIT,
-                WindowAggregateTestPrograms.GROUP_CUMULATE_WINDOW_EVENT_TIME,
-                WindowAggregateTestPrograms.GROUP_CUMULATE_WINDOW_EVENT_TIME_TWO_PHASE,
+                        .HOP_WINDOW_EVENT_TIME_TWO_PHASE_WITH_OFFSET_DISTINCT_SPLIT,
+                WindowAggregateTestPrograms.CUMULATE_WINDOW_EVENT_TIME,
+                WindowAggregateTestPrograms.CUMULATE_WINDOW_EVENT_TIME_TWO_PHASE,
+                WindowAggregateTestPrograms.CUMULATE_WINDOW_EVENT_TIME_TWO_PHASE_DISTINCT_SPLIT,
+                WindowAggregateTestPrograms.CUMULATE_WINDOW_EVENT_TIME_WITH_OFFSET,
+                WindowAggregateTestPrograms.CUMULATE_WINDOW_EVENT_TIME_TWO_PHASE_WITH_OFFSET,
+                WindowAggregateTestPrograms.CUMULATE_WINDOW_EVENT_TIME_WITH_OFFSET_DISTINCT_SPLIT,
+                WindowAggregateTestPrograms.SESSION_WINDOW_EVENT_TIME,
+                WindowAggregateTestPrograms.SESSION_WINDOW_EVENT_TIME_TWO_PHASE,
+                WindowAggregateTestPrograms.SESSION_WINDOW_EVENT_TIME_TWO_PHASE_DISTINCT_SPLIT,
+                WindowAggregateTestPrograms.SESSION_WINDOW_PARTITION_EVENT_TIME,
+                WindowAggregateTestPrograms.SESSION_WINDOW_PARTITION_EVENT_TIME_TWO_PHASE,
                 WindowAggregateTestPrograms
-                        .GROUP_CUMULATE_WINDOW_EVENT_TIME_TWO_PHASE_DISTINCT_SPLIT,
-                WindowAggregateTestPrograms.GROUP_CUMULATE_WINDOW_EVENT_TIME_WITH_OFFSET,
-                WindowAggregateTestPrograms.GROUP_CUMULATE_WINDOW_EVENT_TIME_TWO_PHASE_WITH_OFFSET,
-                WindowAggregateTestPrograms
-                        .GROUP_CUMULATE_WINDOW_EVENT_TIME_WITH_OFFSET_DISTINCT_SPLIT,
-                WindowAggregateTestPrograms.GROUP_SESSION_WINDOW_EVENT_TIME,
-                WindowAggregateTestPrograms.GROUP_SESSION_WINDOW_EVENT_TIME_TWO_PHASE,
-                WindowAggregateTestPrograms
-                        .GROUP_SESSION_WINDOW_EVENT_TIME_TWO_PHASE_DISTINCT_SPLIT,
-                WindowAggregateTestPrograms.GROUP_SESSION_WINDOW_PARTITION_EVENT_TIME,
-                WindowAggregateTestPrograms.GROUP_SESSION_WINDOW_PARTITION_EVENT_TIME_TWO_PHASE,
-                WindowAggregateTestPrograms
-                        .GROUP_SESSION_WINDOW_PARTITION_EVENT_TIME_TWO_PHASE_DISTINCT_SPLIT);
+                        .SESSION_WINDOW_PARTITION_EVENT_TIME_TWO_PHASE_DISTINCT_SPLIT);
     }
 }
