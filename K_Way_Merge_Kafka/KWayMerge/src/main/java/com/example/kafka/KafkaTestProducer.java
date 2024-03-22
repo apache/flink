@@ -4,12 +4,15 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
+import sun.awt.windows.ThemeReader;
+
 import java.util.Properties;
 
 public class KafkaTestProducer {
     public int PARTITION_COUNT;
     Producer<String, String> producer;
 
+    public boolean isRunning = true;
 
     public KafkaTestProducer(String bootstrapServer, int numPartitions) {
         this.PARTITION_COUNT = numPartitions;
@@ -30,8 +33,8 @@ public class KafkaTestProducer {
         }
     }
 
-    public void sendLimitedKeyMessages(int numMessages, int numKeys) {
-        for (int i = 0; i < numMessages; i++) {
+    public void sendLimitedKeyMessages(int numMessages, int numKeys, int offset) {
+        for (int i = offset; i < numMessages + offset; i++) {
             String key = "key-" + (i % numKeys);
             String value = i + "";
             ProducerRecord<String, String> record = new ProducerRecord<>("test_topic", key, value);
