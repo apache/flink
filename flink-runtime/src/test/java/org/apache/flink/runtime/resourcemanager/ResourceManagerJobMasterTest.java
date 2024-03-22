@@ -199,7 +199,8 @@ class ResourceManagerJobMasterTest {
                 resourceManagerGateway, taskExecutorId, taskExecutorGateway.getAddress());
 
         resourceManagerGateway.disconnectTaskManager(taskExecutorId, new Exception("for test"));
-        assertThatFuture(disconnectRMFuture).succeedsWithin(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+        assertThatFuture(disconnectRMFuture)
+                .succeedsWithin(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
         final ResourceID resourceId =
                 disconnectTMFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
         assertThat(resourceId).isEqualTo(taskExecutorId);
