@@ -74,7 +74,7 @@ under the License.
 		<module>flink-runtime-web</module>
 		<module>flink-optimizer</module>
 		<module>flink-streaming-java</module>
-<!--		<module>flink-streaming-scala</module>-->
+		<module>flink-streaming-scala</module>
 		<module>flink-connectors</module>
 		<module>flink-formats</module>
 <!--		<module>flink-examples</module>-->
@@ -95,13 +95,14 @@ under the License.
 		<module>flink-metrics</module>
 <!--		<module>flink-yarn</module>-->
 <!--		<module>flink-yarn-tests</module>-->
-<!--		<module>flink-fs-tests</module>-->
+		<module>flink-fs-tests</module>
 		<module>flink-docs</module>
 <!--		<module>flink-python</module>-->
 <!--		<module>flink-walkthroughs</module>-->
 <!--		<module>flink-kubernetes</module>-->
 <!--		<module>flink-external-resources</module>-->
-<!--		<module>tools/ci/flink-ci-tools</module>-->
+		<module>tools/ci/flink-ci-tools</module>
+		<module>path-tracker-pipelines</module>
 	</modules>
 
 	<properties>

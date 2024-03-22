@@ -1,7 +1,19 @@
 /*
-* Ported from the unit test utility of flink-runtime
-* @ org.apache.flink.runtime.executiongraph.TestingDefaultExecutionGraphBuilder;
-* We should remove this once we find a better way to generate execution graph
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package org.apache.flink.streaming.api.environment;
@@ -32,17 +44,14 @@ import org.apache.flink.runtime.executiongraph.ExecutionStateUpdateListener;
 import org.apache.flink.runtime.executiongraph.MarkPartitionFinishedStrategy;
 import org.apache.flink.runtime.executiongraph.NoOpExecutionDeploymentListener;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
-
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
-
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,27 +93,21 @@ public class TestingDefaultExecutionGraphBuilder {
 
     private TestingDefaultExecutionGraphBuilder() {}
 
-
-
     public TestingDefaultExecutionGraphBuilder setJobGraph(JobGraph jobGraph) {
         this.jobGraph = jobGraph;
         return this;
     }
-
-
 
     public TestingDefaultExecutionGraphBuilder setUserClassLoader(ClassLoader userClassLoader) {
         this.userClassLoader = userClassLoader;
         return this;
     }
 
-
     public TestingDefaultExecutionGraphBuilder setVertexParallelismStore(
             VertexParallelismStore store) {
         this.vertexParallelismStore = store;
         return this;
     }
-
 
     private DefaultExecutionGraph build(
             boolean isDynamicGraph, ScheduledExecutorService executorService)
@@ -143,6 +146,4 @@ public class TestingDefaultExecutionGraphBuilder {
             throws JobException, JobExecutionException {
         return build(false, executorService);
     }
-
-
 }
