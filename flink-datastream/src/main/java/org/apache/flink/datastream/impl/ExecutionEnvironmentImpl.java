@@ -20,24 +20,40 @@ package org.apache.flink.datastream.impl;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.InvalidTypesException;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.dsv2.FromDataSource;
+import org.apache.flink.api.connector.dsv2.Source;
+import org.apache.flink.api.connector.dsv2.WrappedSource;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.java.typeutils.MissingTypeInfo;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.connector.datagen.functions.FromElementsGeneratorFunction;
+import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.datastream.api.ExecutionEnvironment;
+import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream;
+import org.apache.flink.datastream.impl.stream.NonKeyedPartitionStreamImpl;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
+import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -132,6 +148,40 @@ public class ExecutionEnvironmentImpl implements ExecutionEnvironment {
         contextEnvironmentFactory = null;
     }
 
+    @Override
+    public <OUT> NonKeyedPartitionStream<OUT> fromSource(Source<OUT> source, String sourceName) {
+        if (source instanceof WrappedSource) {
+            org.apache.flink.api.connector.source.Source<OUT, ?, ?> innerSource =
+                    ((WrappedSource<OUT>) source).getWrappedSource();
+            final TypeInformation<OUT> resolvedTypeInfo =
+                    getSourceTypeInfo(innerSource, sourceName);
+
+            SourceTransformation<OUT, ?, ?> sourceTransformation =
+                    new SourceTransformation<>(
+                            sourceName,
+                            innerSource,
+                            WatermarkStrategy.noWatermarks(),
+                            resolvedTypeInfo,
+                            getParallelism(),
+                            false);
+            return new NonKeyedPartitionStreamImpl<>(this, sourceTransformation);
+        } else if (source instanceof FromDataSource) {
+            Collection<OUT> data = ((FromDataSource<OUT>) source).getData();
+            TypeInformation<OUT> outType = extractTypeInfoFromCollection(data);
+
+            FromElementsGeneratorFunction<OUT> generatorFunction =
+                    new FromElementsGeneratorFunction<>(outType, executionConfig, data);
+
+            DataGeneratorSource<OUT> generatorSource =
+                    new DataGeneratorSource<>(generatorFunction, data.size(), outType);
+
+            return fromSource(new WrappedSource<>(generatorSource), "Collection Source");
+        } else {
+            throw new UnsupportedOperationException(
+                    "Unsupported type of sink, you could use DataStreamV2SourceUtils to wrap a FLIP-27 based source.");
+        }
+    }
+
     public Configuration getConfiguration() {
         return this.configuration;
     }
@@ -155,6 +205,54 @@ public class ExecutionEnvironmentImpl implements ExecutionEnvironment {
     // -----------------------------------------------
     //              Internal Methods
     // -----------------------------------------------
+
+    private static <OUT> TypeInformation<OUT> extractTypeInfoFromCollection(Collection<OUT> data) {
+        Preconditions.checkNotNull(data, "Collection must not be null");
+        if (data.isEmpty()) {
+            throw new IllegalArgumentException("Collection must not be empty");
+        }
+
+        OUT first = data.iterator().next();
+        if (first == null) {
+            throw new IllegalArgumentException("Collection must not contain null elements");
+        }
+
+        TypeInformation<OUT> typeInfo;
+        try {
+            typeInfo = TypeExtractor.getForObject(first);
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Could not create TypeInformation for type "
+                            + first.getClass()
+                            + "; please specify the TypeInformation manually via the version of the "
+                            + "method that explicitly accepts it as an argument.",
+                    e);
+        }
+        return typeInfo;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <OUT, T extends TypeInformation<OUT>> T getSourceTypeInfo(
+            org.apache.flink.api.connector.source.Source<OUT, ?, ?> source, String sourceName) {
+        TypeInformation<OUT> resolvedTypeInfo = null;
+        if (source instanceof ResultTypeQueryable) {
+            resolvedTypeInfo = ((ResultTypeQueryable<OUT>) source).getProducedType();
+        }
+        if (resolvedTypeInfo == null) {
+            try {
+                resolvedTypeInfo =
+                        TypeExtractor.createTypeInfo(
+                                org.apache.flink.api.connector.source.Source.class,
+                                source.getClass(),
+                                0,
+                                null,
+                                null);
+            } catch (final InvalidTypesException e) {
+                resolvedTypeInfo = (TypeInformation<OUT>) new MissingTypeInfo(sourceName, e);
+            }
+        }
+        return (T) resolvedTypeInfo;
+    }
 
     public void addOperator(Transformation<?> transformation) {
         checkNotNull(transformation, "transformation must not be null.");
