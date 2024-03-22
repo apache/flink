@@ -19,12 +19,15 @@
 package org.apache.flink.datastream.impl.stream;
 
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.connector.dsv2.DataStreamV2SinkUtils;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.datastream.impl.ExecutionEnvironmentImpl;
 import org.apache.flink.datastream.impl.TestingTransformation;
 import org.apache.flink.datastream.impl.stream.StreamTestUtils.NoOpOneInputStreamProcessFunction;
 import org.apache.flink.datastream.impl.stream.StreamTestUtils.NoOpTwoInputBroadcastStreamProcessFunction;
 import org.apache.flink.datastream.impl.stream.StreamTestUtils.NoOpTwoOutputStreamProcessFunction;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
+import org.apache.flink.streaming.api.transformations.DataStreamV2SinkTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 
 import org.junit.jupiter.api.Test;
@@ -71,5 +74,18 @@ class GlobalStreamImplTest {
         Transformation<?> shuffleTransform = transformations.get(1).getInputs().get(0);
         assertThat(shuffleTransform).isInstanceOf(PartitionTransformation.class);
         assertThat(transformations.get(2).getParallelism()).isOne();
+    }
+
+    @Test
+    void testToSink() throws Exception {
+        ExecutionEnvironmentImpl env = StreamTestUtils.getEnv();
+        GlobalStreamImpl<Integer> stream =
+                new GlobalStreamImpl<>(env, new TestingTransformation<>("t1", Types.INT, 1));
+        stream.toSink(DataStreamV2SinkUtils.wrapSink(new DiscardingSink<>()));
+        List<Transformation<?>> transformations = env.getTransformations();
+        assertThat(transformations)
+                .hasSize(1)
+                .element(0)
+                .isInstanceOf(DataStreamV2SinkTransformation.class);
     }
 }
