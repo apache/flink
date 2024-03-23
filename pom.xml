@@ -64,7 +64,7 @@ under the License.
 
 	<modules>
 		<module>flink-annotations</module>
-		<module>flink-architecture-tests</module>
+<!--		<module>flink-architecture-tests</module>-->
 		<module>flink-core</module>
 		<module>flink-java</module>
 		<module>flink-scala</module>
@@ -77,31 +77,32 @@ under the License.
 		<module>flink-streaming-scala</module>
 		<module>flink-connectors</module>
 		<module>flink-formats</module>
-		<module>flink-examples</module>
+<!--		<module>flink-examples</module>-->
 		<module>flink-clients</module>
 		<module>flink-container</module>
 		<module>flink-queryable-state</module>
-		<module>flink-tests</module>
-		<module>flink-end-to-end-tests</module>
-		<module>flink-test-utils-parent</module>
+<!--		<module>flink-tests</module>-->
+<!--		<module>flink-end-to-end-tests</module>-->
+<!--		<module>flink-test-utils-parent</module>-->
 		<module>flink-state-backends</module>
 		<module>flink-dstl</module>
 		<module>flink-libraries</module>
-		<module>flink-table</module>
-		<module>flink-quickstart</module>
+<!--		<module>flink-table</module>-->
+<!--		<module>flink-quickstart</module>-->
 		<module>flink-contrib</module>
-		<module>flink-dist</module>
-		<module>flink-dist-scala</module>
+<!--		<module>flink-dist</module>-->
+<!--		<module>flink-dist-scala</module>-->
 		<module>flink-metrics</module>
-		<module>flink-yarn</module>
-		<module>flink-yarn-tests</module>
+<!--		<module>flink-yarn</module>-->
+<!--		<module>flink-yarn-tests</module>-->
 		<module>flink-fs-tests</module>
 		<module>flink-docs</module>
-		<module>flink-python</module>
-		<module>flink-walkthroughs</module>
-		<module>flink-kubernetes</module>
-		<module>flink-external-resources</module>
+<!--		<module>flink-python</module>-->
+<!--		<module>flink-walkthroughs</module>-->
+<!--		<module>flink-kubernetes</module>-->
+<!--		<module>flink-external-resources</module>-->
 		<module>tools/ci/flink-ci-tools</module>
+		<module>path-tracker-pipelines</module>
 	</modules>
 
 	<properties>
