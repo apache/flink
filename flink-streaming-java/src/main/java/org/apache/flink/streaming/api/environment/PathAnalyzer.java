@@ -103,14 +103,14 @@ public class PathAnalyzer {
             throw new Exception("Stream graph contains more than one source instance");
         }
 
-        Collection<Integer> sinkIDs = streamGraph.getSinkIDs();
-        if (sinkIDs.isEmpty()) {
-            throw new Exception("Stream graph contains no sink");
-        }
-        StreamNode sinkNode = streamGraph.getStreamNode((Integer) sinkIDs.toArray()[0]);
-        if (sinkIDs.size() > 1 || sinkNode.getParallelism() > 1) {
-            throw new Exception("Stream graph contains more than one sink instance");
-        }
+        //        Collection<Integer> sinkIDs = streamGraph.getSinkIDs();
+        //        if (sinkIDs.isEmpty()) {
+        //            throw new Exception("Stream graph contains no sink");
+        //        }
+        //        StreamNode sinkNode = streamGraph.getStreamNode((Integer) sinkIDs.toArray()[0]);
+        //        if (sinkIDs.size() > 1 || sinkNode.getParallelism() > 1) {
+        //            throw new Exception("Stream graph contains more than one sink instance");
+        //        }
 
         while (!curNode.getOutEdges().isEmpty()) {
             if (curNode.getOutEdges().size() > 1) {
