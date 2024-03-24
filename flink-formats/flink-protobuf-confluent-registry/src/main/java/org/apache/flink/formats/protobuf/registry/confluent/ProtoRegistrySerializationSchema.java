@@ -18,8 +18,6 @@
 
 package org.apache.flink.formats.protobuf.registry.confluent;
 
-import com.google.protobuf.Descriptors;
-
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
@@ -53,8 +51,7 @@ public class ProtoRegistrySerializationSchema implements SerializationSchema<Row
     private final RowType rowType;
 
     private final SchemaRegistryConfig schemaRegistryConfig;
-    private transient @Nullable ProtobufSchema schema ;
-
+    private transient @Nullable ProtobufSchema schema;
 
     /** The converter that converts internal data formats to JsonNode. */
     private transient RowDataToProtoConverters.RowDataToProtoConverter runtimeConverter;
@@ -76,21 +73,15 @@ public class ProtoRegistrySerializationSchema implements SerializationSchema<Row
         this.schema =
                 (ProtobufSchema)
                         schemaRegistryClient.getSchemaById(schemaRegistryConfig.getSchemaId());
-         this.runtimeConverter =
+        this.runtimeConverter =
                 RowDataToProtoConverters.createConverter(rowType, schema.toDescriptor());
         this.arrayOutputStream = new ByteArrayOutputStream();
     }
-
-    public Optional<ProtobufSchema> schema(){
-        return Optional.ofNullable(schema);
-    }
-
 
     @Override
     public byte[] serialize(RowData row) {
         try {
             final DynamicMessage converted = (DynamicMessage) runtimeConverter.convert(row);
-
             arrayOutputStream.reset();
             schemaCoder.writeSchema(arrayOutputStream);
             final ByteBuffer buffer = writeMessageIndexes();

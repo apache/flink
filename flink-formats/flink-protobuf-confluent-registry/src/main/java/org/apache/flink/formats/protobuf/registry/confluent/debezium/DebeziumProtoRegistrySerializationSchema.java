@@ -18,32 +18,20 @@
 
 package org.apache.flink.formats.protobuf.registry.confluent.debezium;
 
-
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistrySerializationSchema;
-import org.apache.flink.formats.protobuf.registry.confluent.SchemaRegistryCoder;
 import org.apache.flink.formats.protobuf.registry.confluent.SchemaRegistryConfig;
-import org.apache.flink.formats.protobuf.registry.confluent.utils.ProtoToFlinkSchemaConverter;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
-import com.google.protobuf.DynamicMessage;
-import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
-import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
-import org.apache.kafka.common.utils.ByteUtils;
-
-import java.io.ByteArrayOutputStream;
-import java.nio.ByteBuffer;
 import java.util.Objects;
-import java.util.Optional;
 
 import static java.lang.String.format;
-import static org.apache.flink.formats.protobuf.registry.confluent.debezium.DebeziumProtoRegistryFormatFactory.IDENTIFIER;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
 // TODO - checks for type of message
@@ -51,44 +39,34 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDa
 public class DebeziumProtoRegistrySerializationSchema implements SerializationSchema<RowData> {
     private static final long serialVersionUID = 1L;
 
+    /** insert operation. */
+    private static final StringData OP_INSERT = StringData.fromString("c");
+    /** delete operation. */
+    private static final StringData OP_DELETE = StringData.fromString("d");
+
+
     /** RowType to generate the runtime converter. */
     private final RowType rowType;
+
     private final SchemaRegistryConfig schemaRegistryConfig;
 
     /** The converter that converts internal data formats to JsonNode. */
     private final ProtoRegistrySerializationSchema protoSerializer;
-    private final transient RowType debeziumProtoRowType ;
 
+    private transient GenericRowData outputReuse;
 
-    private transient SchemaRegistryCoder schemaCoder;
-    /** Output stream to write message to. */
-    private transient ByteArrayOutputStream arrayOutputStream;
 
     public DebeziumProtoRegistrySerializationSchema(
             SchemaRegistryConfig registryConfig, RowType rowType) {
 
         this.rowType = Preconditions.checkNotNull(rowType);
         this.schemaRegistryConfig = Preconditions.checkNotNull(registryConfig);
-        this.debeziumProtoRowType =  createDebeziumProtoRowType(fromLogicalToDataType(rowType));
-
-        this.protoSerializer = new ProtoRegistrySerializationSchema(registryConfig,debeziumProtoRowType);
+        RowType debeziumProtoRowType = createDebeziumProtoRowType(fromLogicalToDataType(rowType));
+        //call validate to check if schema is same
+        this.protoSerializer =
+                new ProtoRegistrySerializationSchema(registryConfig, debeziumProtoRowType);
     }
 
-
-    static void validateSchemaWithFlinkRowType(ProtobufSchema schema, RowType rowType) {
-        if (schema.toDescriptor() != null) {
-            LogicalType convertedDataType =
-                    ProtoToFlinkSchemaConverter.toFlinkSchema(schema.toDescriptor());
-
-            if (!convertedDataType.equals(rowType)) {
-                throw new IllegalArgumentException(
-                        format(
-                                "Schema provided for '%s' format must be a nullable record type with fields 'before', 'after', 'op'"
-                                        + " and schema of fields 'before' and 'after' must match the table schema: %s",
-                                IDENTIFIER, schema));
-            }
-        }
-    }
 
     private RowType createDebeziumProtoRowType(DataType dataType) {
         // but we don't need them
@@ -100,28 +78,10 @@ public class DebeziumProtoRegistrySerializationSchema implements SerializationSc
                         .getLogicalType();
     }
 
-    private static ByteBuffer writeMessageIndexes() {
-        // write empty message indices for now
-        ByteBuffer buffer = ByteBuffer.allocate(ByteUtils.sizeOfVarint(0));
-        ByteUtils.writeVarint(0, buffer);
-        return buffer;
-    }
-
     @Override
     public void open(InitializationContext context) throws Exception {
         protoSerializer.open(context);
-        Optional<ProtobufSchema> userSchema = protoSerializer.schema();
-        ProtobufSchema schema = userSchema.orElseThrow(()->
-                new IllegalStateException("Null/Incorrect schema registered"));
-          validateSchemaWithFlinkRowType(schema ,rowType);
-
-        //get the registered schema from the underlying protoSerializer
-
-        final SchemaRegistryClient schemaRegistryClient = schemaRegistryConfig.createClient();
-        this.schemaCoder =
-                new SchemaRegistryCoder(schemaRegistryConfig.getSchemaId(), schemaRegistryClient);
-        this.arrayOutputStream = new ByteArrayOutputStream();
-
+        outputReuse = new GenericRowData(3);
     }
 
     @Override
@@ -144,7 +104,29 @@ public class DebeziumProtoRegistrySerializationSchema implements SerializationSc
     }
 
     @Override
-    public byte[] serialize(RowData row) {
-        return protoSerializer.serialize(row);
+    public byte[] serialize(RowData rowData) {
+        try {
+            switch (rowData.getRowKind()) {
+                case INSERT:
+                case UPDATE_AFTER:
+                    outputReuse.setField(0, null);
+                    outputReuse.setField(1, rowData);
+                    outputReuse.setField(2, OP_INSERT);
+                    return protoSerializer.serialize(outputReuse);
+                case UPDATE_BEFORE:
+                case DELETE:
+                    outputReuse.setField(0, rowData);
+                    outputReuse.setField(1, null);
+                    outputReuse.setField(2, OP_DELETE);
+                    return protoSerializer.serialize(outputReuse);
+                default:
+                    throw new UnsupportedOperationException(
+                            format(
+                                    "Unsupported operation '%s' for row kind.",
+                                    rowData.getRowKind()));
+            }
+        } catch (Throwable t) {
+            throw new RuntimeException(format("Could not serialize row '%s'.", rowData), t);
+        }
     }
 }

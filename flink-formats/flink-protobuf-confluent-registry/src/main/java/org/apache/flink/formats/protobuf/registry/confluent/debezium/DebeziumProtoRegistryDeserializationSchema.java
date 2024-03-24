@@ -21,25 +21,19 @@ package org.apache.flink.formats.protobuf.registry.confluent.debezium;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryDeserializationSchema;
-import org.apache.flink.formats.protobuf.registry.confluent.ProtoToRowDataConverters;
 import org.apache.flink.formats.protobuf.registry.confluent.SchemaRegistryConfig;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
-import com.google.protobuf.Descriptors;
-import com.google.protobuf.DynamicMessage;
-
-import javax.annotation.Nullable;
-
 import java.io.IOException;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.function.Function;
 
 import static java.lang.String.format;
+import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
 /** Check for type of fieldDesriptor == message */
 public class DebeziumProtoRegistryDeserializationSchema implements DeserializationSchema<RowData> {
@@ -53,53 +47,38 @@ public class DebeziumProtoRegistryDeserializationSchema implements Deserializati
     /** delete operation. */
     private static final String OP_DELETE = "d";
 
-    private static final String REPLICA_IDENTITY_EXCEPTION =
-            "The \"before\" field of %s message is null, "
-                    + "if you are using Debezium Postgres Connector, "
-                    + "please check the Postgres table has been set REPLICA IDENTITY to FULL level.";
     private final ProtoRegistryDeserializationSchema protoDeserializer;
-    private final transient RowType rowType;
-    private transient Descriptors.Descriptor debeziumEnvelopDescriptor;
-    private transient @Nullable Descriptors.FieldDescriptor descriptorForBefore;
-    private transient @Nullable Descriptors.FieldDescriptor descriptorForAfter;
-
-    private transient @Nullable ProtoToRowDataConverters.ProtoToRowDataConverter beforeConverter;
-    private transient @Nullable ProtoToRowDataConverters.ProtoToRowDataConverter afterConverter;
-
+    private final TypeInformation<RowData> producedTypeInfo;
 
     public DebeziumProtoRegistryDeserializationSchema(
             RowType rowType,
             TypeInformation<RowData> producedTypeInfo,
             SchemaRegistryConfig schemaRegistryConfig) {
+        this.producedTypeInfo = producedTypeInfo;
+        RowType debeziumProtoRowType = createDebeziumProtoRowType(fromLogicalToDataType(rowType));
+        // todo validate schema String (call validate)
+
         protoDeserializer =
                 new ProtoRegistryDeserializationSchema(
-                        schemaRegistryConfig, rowType, producedTypeInfo);
-        this.rowType = rowType;
+                        schemaRegistryConfig, debeziumProtoRowType, producedTypeInfo);
+    }
+
+    private RowType createDebeziumProtoRowType(DataType databaseSchema) {
+        // Debezium proto might contain other information, e.g. "source", "ts_ms"
+        // but we don't need them
+        return (RowType)
+                DataTypes.ROW(
+                                DataTypes.FIELD("before", databaseSchema.nullable()),
+                                DataTypes.FIELD("after", databaseSchema.nullable()),
+                                DataTypes.FIELD("op", DataTypes.STRING()))
+                        .getLogicalType();
     }
 
     @Override
     public void open(InitializationContext context) throws Exception {
         protoDeserializer.open(context);
-        this.debeziumEnvelopDescriptor = protoDeserializer.getMessageDescriptor();
-        //do basic validation
-        this.descriptorForBefore = debeziumEnvelopDescriptor.findFieldByName(EnvelopField.BEFORE);
-        this.descriptorForAfter = debeziumEnvelopDescriptor.findFieldByName(EnvelopField.AFTER);
-
-        //todo - need to assert presence
-        beforeConverter = maybeCreateConverter(descriptorForBefore);
-        afterConverter = maybeCreateConverter(descriptorForAfter);
-    }
-
-
-    private ProtoToRowDataConverters.ProtoToRowDataConverter maybeCreateConverter(
-            @Nullable Descriptors.FieldDescriptor descriptor){
-        ProtoToRowDataConverters.ProtoToRowDataConverter converter = null;
-
-        if(descriptor!=null && descriptor.getMessageType()!=null)
-            converter = ProtoToRowDataConverters.createConverter(
-                this.descriptorForBefore.getMessageType(), rowType);
-
-        return converter;
+        // todo do basic validation
+        // todo what about case here
     }
 
     @Override
@@ -108,74 +87,30 @@ public class DebeziumProtoRegistryDeserializationSchema implements Deserializati
                 "Please invoke DeserializationSchema#deserialize(byte[], Collector<RowData>) instead.");
     }
 
-
-    private <T> Optional<T> extractPayload(
-            DynamicMessage debeziumEnvelop, String field,
-            ProtoToRowDataConverters.ProtoToRowDataConverter converter)
-            throws IOException {
-
-        T row = null;
-
-
-        Descriptors.FieldDescriptor fieldDescriptor =
-                debeziumEnvelopDescriptor.findFieldByName(field);
-        if (Objects.nonNull(debeziumEnvelop.getField(fieldDescriptor))) {
-            row =
-                    (T)
-                            converter.convert(
-                                    (DynamicMessage) debeziumEnvelop.getField(
-                                            fieldDescriptor));
-        }
-        return Optional.ofNullable(row);
-    }
-
-
-
-    void extractIfPresent(Optional<RowData> row, Collector<RowData> out, RowKind kind) {
-        if (row.isPresent()) {
-            RowData r = row.get();
-            r.setRowKind(kind);
-            out.collect(r);
-        }
-    }
-
-    void extractOrElseThrow(Optional<RowData> row, Collector<RowData> out, RowKind kind) {
-        if (!row.isPresent()) {
-            throw new IllegalStateException(String.format(REPLICA_IDENTITY_EXCEPTION, "UPDATE"));
-        }
-        extractIfPresent(row, out, kind);
-    }
-
     @Override
     public void deserialize(byte[] message, Collector<RowData> out) throws IOException {
 
-        DynamicMessage debeziumEnvelop = protoDeserializer.parseFrom(message);
-        Optional<RowData> before =
-                extractPayload(debeziumEnvelop, EnvelopField.BEFORE, beforeConverter );
-        Optional<RowData> after =
-                extractPayload(debeziumEnvelop, EnvelopField.AFTER,afterConverter );
-        Optional<String> operation = extractPayload(debeziumEnvelop, EnvelopField.OP, Object::toString);
+        GenericRowData debeziumEnvelop = (GenericRowData) protoDeserializer.deserialize(message);
+        RowData before = (RowData) debeziumEnvelop.getField(0);
+        RowData after = (RowData) debeziumEnvelop.getField(1);
+        String op =  debeziumEnvelop.getField(2).toString();
 
-        if (!operation.isPresent()) {
-            throw new IOException("Malformed debezium proto message");
+        if (OP_CREATE.equals(op) || OP_READ.equals(op)) {
+            after.setRowKind(RowKind.INSERT);
+            out.collect(after);
+        } else if (OP_UPDATE.equals(op)) {
+            before.setRowKind(RowKind.UPDATE_BEFORE);
+            after.setRowKind(RowKind.UPDATE_AFTER);
+            out.collect(before);
+            out.collect(after);
+        } else if (OP_DELETE.equals(op)) {
+            before.setRowKind(RowKind.DELETE);
+            out.collect(before);
         } else {
-            String op = operation.get();
-
-            if (OP_CREATE.equals(op) || OP_READ.equals(op)) {
-                extractIfPresent(after, out, RowKind.INSERT);
-            } else if (OP_UPDATE.equals(op)) {
-                extractOrElseThrow(before, out, RowKind.UPDATE_BEFORE);
-                extractIfPresent(after, out, RowKind.UPDATE_AFTER);
-
-            } else if (OP_DELETE.equals(op)) {
-                extractOrElseThrow(before, out, RowKind.DELETE);
-
-            } else {
-                throw new IOException(
-                        format(
-                                "Unknown \"op\" value \"%s\". The Debezium Avro message is '%s'",
-                                op, new String(message)));
-            }
+            throw new IOException(
+                    format(
+                            "Unknown \"op\" value \"%s\". The Debezium proto message is '%s'",
+                            op, new String(message)));
         }
     }
 
@@ -186,12 +121,6 @@ public class DebeziumProtoRegistryDeserializationSchema implements Deserializati
 
     @Override
     public TypeInformation<RowData> getProducedType() {
-        return null;
-    }
-
-    private static class EnvelopField {
-        private static String BEFORE = "before";
-        private static String AFTER = "after";
-        private static String OP = "op";
+        return producedTypeInfo;
     }
 }

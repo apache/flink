@@ -20,7 +20,6 @@ package org.apache.flink.formats.protobuf.registry.confluent.debezium;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.formats.protobuf.registry.confluent.utils.MockInitializationContext;
-import org.apache.flink.formats.protobuf.registry.confluent.utils.ProtoToFlinkSchemaConverter;
 import org.apache.flink.formats.protobuf.registry.confluent.utils.TestSchemaRegistryConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -46,10 +45,20 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.apache.flink.table.api.DataTypes.BIGINT;
+import static org.apache.flink.table.api.DataTypes.FIELD;
+import static org.apache.flink.table.api.DataTypes.INT;
+import static org.apache.flink.table.api.DataTypes.ROW;
+import static org.apache.flink.table.api.DataTypes.STRING;
+
 @ExtendWith(TestLoggerExtension.class)
 public class DebeziumProtoRegistryDeserializationSchemaTest {
 
     private static final String SUBJECT = "test-subject";
+    private static final RowType rowType =
+            (RowType)
+                    ROW(FIELD("id", BIGINT()), FIELD("name", STRING()), FIELD("salary", INT()))
+                            .getLogicalType();
 
     private static SchemaRegistryClient client;
 
@@ -64,7 +73,7 @@ public class DebeziumProtoRegistryDeserializationSchemaTest {
     }
 
     @Test
-    void testDebeziumWrapperWithEnvelop() throws Exception {
+    void testDeserialization() throws Exception {
         final String schemaStr =
                 "syntax = \"proto3\";\n"
                         + "package proto_full_postgres.public.employee;\n"
@@ -117,21 +126,19 @@ public class DebeziumProtoRegistryDeserializationSchemaTest {
         valueBuilder.setField(valueDescriptor.findFieldByName("name"), "Foobar");
         valueBuilder.setField(valueDescriptor.findFieldByName("salary"), 10);
         DynamicMessage value = valueBuilder.build();
-
+        envelopBuilder.setField(envelopDescriptor.findFieldByName("op"), "d");
         envelopBuilder.setField(envelopDescriptor.findFieldByName("before"), value);
         DynamicMessage outerEnvelop = envelopBuilder.build();
         System.out.println(outerEnvelop);
 
         byte[] protoRepr = outerEnvelop.toByteArray();
 
-        final RowType flinkSchema =
-                (RowType) ProtoToFlinkSchemaConverter.toFlinkSchema(protoDescriptor);
         final int schemaId = client.register(SUBJECT, protoSchema, 0, 100002);
 
         final DeserializationSchema<RowData> deserializationSchema =
                 new DebeziumProtoRegistryDeserializationSchema(
-                        (RowType) flinkSchema,
-                        InternalTypeInfo.of(flinkSchema),
+                        rowType,
+                        InternalTypeInfo.of(rowType),
                         new TestSchemaRegistryConfig(schemaId, client));
         deserializationSchema.open(new MockInitializationContext());
         SimpleCollector collector = new SimpleCollector();
