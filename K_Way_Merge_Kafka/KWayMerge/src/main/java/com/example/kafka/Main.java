@@ -3,11 +3,12 @@ package com.example.kafka;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class Main {
+
     public static void main( String[] args ) {
         // Weird bug - the first time you launch the cluster and run this code it polls forever and cant find any new events. Once you stop the code and try again it works
         // Needs to be fixed in the future but for now I will leave it due to time constraints.
         int partitionCount = 3;
-
+        int  messageSendBurstMilli = 200;
         // Initialize queue which stores all incoming messages per partition
         ConcurrentLinkedQueue<Integer>[] queue = new ConcurrentLinkedQueue[partitionCount];
         for(int i = 0; i < partitionCount; i++) {
@@ -38,7 +39,7 @@ public class Main {
                 testProducer.sendLimitedKeyMessages(totalMessages, partitionCount, messageCount);
                 messageCount += totalMessages;
                 counter++;
-                Thread.sleep(1000); // delay before consuming
+                Thread.sleep(messageSendBurstMilli); // delay before consuming
                 }
             }
         catch (Exception e) {

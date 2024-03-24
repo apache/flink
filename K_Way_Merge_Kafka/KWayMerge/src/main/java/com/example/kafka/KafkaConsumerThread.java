@@ -18,7 +18,7 @@ public class KafkaConsumerThread implements Runnable{
         Consumer<String, String> consumer;
         private ConcurrentLinkedQueue<Integer> partitionQueue [];
 
-        public KafkaConsumerThread(String bootstrapServer , int partitionCount, ConcurrentLinkedQueue<Integer>[] queue) {
+    public KafkaConsumerThread(String bootstrapServer , int partitionCount, ConcurrentLinkedQueue<Integer>[] queue) {
             this.partitionCount = partitionCount;
             Properties consumerProps = new Properties();
             consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServer); // Replace with your Kafka broker addresses
@@ -32,7 +32,9 @@ public class KafkaConsumerThread implements Runnable{
         @Override
         public void run() {
             while (running) {
-                ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(1000));
+                int pollTimeMilli = 1000;
+                ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(
+                        pollTimeMilli));
                 for (ConsumerRecord<String, String> record : records) {
                     partitionQueue[record.partition()].offer(Integer.parseInt(record.value()));
                 }
