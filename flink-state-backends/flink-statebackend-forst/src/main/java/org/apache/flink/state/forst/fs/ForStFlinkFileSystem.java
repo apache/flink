@@ -19,8 +19,6 @@
 package org.apache.flink.state.forst.fs;
 
 import org.apache.flink.core.fs.BlockLocation;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemKind;
@@ -43,28 +41,51 @@ public class ForStFlinkFileSystem extends FileSystem {
         this.delegateFS = delegateFS;
     }
 
+    /**
+     * Returns a reference to the {@link FileSystem} instance for accessing the file system
+     * identified by the given {@link URI}.
+     *
+     * @param uri the {@link URI} identifying the file system.
+     * @return a reference to the {@link FileSystem} instance for accessing the file system
+     *     identified by the given {@link URI}.
+     * @throws IOException thrown if a reference to the file system instance could not be obtained.
+     */
     public static FileSystem get(URI uri) throws IOException {
         return new ForStFlinkFileSystem(FileSystem.get(uri));
     }
 
-    @Override
-    public FSDataOutputStream create(Path path, WriteMode overwriteMode) throws IOException {
-        return delegateFS.create(path, overwriteMode);
+    /**
+     * Create ByteBufferWritableFSDataOutputStream from specific path which supports to write data
+     * to ByteBuffer with {@link org.apache.flink.core.fs.FileSystem.WriteMode#OVERWRITE} mode.
+     *
+     * @param path The file path to write to.
+     * @return The stream to the new file at the target path.
+     * @throws IOException Thrown, if the stream could not be opened because of an I/O, or because a
+     *     file already exists at that path and the write mode indicates to not overwrite the file.
+     */
+    public ByteBufferWritableFSDataOutputStream create(Path path) throws IOException {
+        return create(path, WriteMode.OVERWRITE);
     }
 
     @Override
-    public FSDataInputStream open(Path path, int bufferSize) throws IOException {
-        return delegateFS.open(path, bufferSize);
+    public ByteBufferWritableFSDataOutputStream create(Path path, WriteMode overwriteMode)
+            throws IOException {
+        return new ByteBufferWritableFSDataOutputStream(delegateFS.create(path, overwriteMode));
     }
 
     @Override
-    public FSDataInputStream open(Path path) throws IOException {
-        return delegateFS.open(path);
+    public ByteBufferReadableFSDataInputStream open(Path path, int bufferSize) throws IOException {
+        return new ByteBufferReadableFSDataInputStream(delegateFS.open(path, bufferSize));
+    }
+
+    @Override
+    public ByteBufferReadableFSDataInputStream open(Path path) throws IOException {
+        return new ByteBufferReadableFSDataInputStream(delegateFS.open(path));
     }
 
     @Override
     public boolean rename(Path src, Path dst) throws IOException {
-        // The rename is not atomic for RocksDB. Some FileSystems e.g. HDFS, OSS does not allow a
+        // The rename is not atomic for ForSt. Some FileSystems e.g. HDFS, OSS does not allow a
         // renaming if the target already exists. So, we delete the target before attempting the
         // rename.
         if (delegateFS.exists(dst)) {
@@ -115,10 +136,6 @@ public class ForStFlinkFileSystem extends FileSystem {
     @Override
     public boolean mkdirs(Path path) throws IOException {
         return delegateFS.mkdirs(path);
-    }
-
-    public FSDataOutputStream create(Path path) throws IOException {
-        return create(path, WriteMode.OVERWRITE);
     }
 
     @Override
