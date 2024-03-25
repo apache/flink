@@ -385,6 +385,18 @@ under the License.
 						<groupId>org.slf4j</groupId>
 						<artifactId>slf4j-reload4j</artifactId>
 					</exclusion>
+					<exclusion>
+						<groupId>com.github.pjfanning</groupId>
+						<artifactId>jersey-json</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>io.dropwizard.metrics</groupId>
+						<artifactId>metrics-core</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>com.sun.xml.bind</groupId>
+						<artifactId>jaxb-impl</artifactId>
+					</exclusion>
 				</exclusions>
 			</dependency>
 			<dependency>
@@ -412,6 +424,14 @@ under the License.
 					<exclusion>
 						<groupId>org.slf4j</groupId>
 						<artifactId>slf4j-reload4j</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>com.sun.xml.bind</groupId>
+						<artifactId>jaxb-impl</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>com.github.pjfanning</groupId>
+						<artifactId>jersey-json</artifactId>
 					</exclusion>
 				</exclusions>
 			</dependency>
