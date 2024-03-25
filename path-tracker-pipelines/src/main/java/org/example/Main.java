@@ -35,6 +35,7 @@ import org.apache.kafka.clients.admin.KafkaAdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.TopicPartitionInfo;
 import org.testcontainers.containers.KafkaContainer;
@@ -79,13 +80,9 @@ public class Main {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        KafkaSink<String> kafkaSink = KafkaSink.<String>builder()
+        KafkaSink<DataRecord> kafkaSink = KafkaSink.<DataRecord>builder()
                 .setBootstrapServers(kafkaBootstrapServer)
-                .setRecordSerializer(KafkaRecordSerializationSchema.builder()
-                        .setTopic(OUTPUT_TOPIC)
-                        .setValueSerializationSchema(new SimpleStringSchema())
-                        .build()
-                )
+                .setRecordSerializer(new CustomKafkaSerializer(OUTPUT_TOPIC))
                 .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
                 .build();
 
@@ -97,7 +94,7 @@ public class Main {
                 .map((DataRecord x) -> {x.setValue(x.getValue()*2); return x; }).setParallelism(4)
                 .keyBy(DataRecord::getValue)
                 // square it
-                .map((DataRecord x) -> {int newValue = x.getValue()*x.getValue(); x.setValue(newValue); return String.format("%d-%d", x.getSequenceId(), newValue); }).setParallelism(2)
+                .map((DataRecord x) -> {int newValue = x.getValue()*x.getValue(); x.setValue(newValue); return x; }).setParallelism(2)
                 .sinkTo(kafkaSink).setParallelism(1);
 
 
@@ -106,6 +103,8 @@ public class Main {
 
     }
 }
+
+
 
 class DataRecord {
 
