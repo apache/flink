@@ -32,7 +32,7 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
-import org.apache.flink.configuration.ExternalizedCheckpointCleanup;
+import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
@@ -303,20 +303,20 @@ public class DataStreamAllroundTestJobFactory {
                             ENVIRONMENT_EXTERNALIZE_CHECKPOINT_CLEANUP.key(),
                             ENVIRONMENT_EXTERNALIZE_CHECKPOINT_CLEANUP.defaultValue());
 
-            ExternalizedCheckpointCleanup cleanupMode;
+            ExternalizedCheckpointRetention cleanupMode;
             switch (cleanupModeConfig) {
                 case "retain":
-                    cleanupMode = ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION;
+                    cleanupMode = ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION;
                     break;
                 case "delete":
-                    cleanupMode = ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION;
+                    cleanupMode = ExternalizedCheckpointRetention.DELETE_ON_CANCELLATION;
                     break;
                 default:
                     throw new IllegalArgumentException(
                             "Unknown clean up mode for externalized checkpoints: "
                                     + cleanupModeConfig);
             }
-            env.getCheckpointConfig().setExternalizedCheckpointCleanupRetention(cleanupMode);
+            env.getCheckpointConfig().setExternalizedCheckpointRetention(cleanupMode);
 
             final int tolerableDeclinedCheckpointNumber =
                     pt.getInt(

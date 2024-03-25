@@ -22,7 +22,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ExternalizedCheckpointCleanup;
+import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -122,8 +122,8 @@ public class CoordinatedSourceRescaleITCase extends TestLogger {
         env.setParallelism(p);
         env.enableCheckpointing(100);
         env.getCheckpointConfig()
-                .setExternalizedCheckpointCleanupRetention(
-                        ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+                .setExternalizedCheckpointRetention(
+                        ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
         env.setRestartStrategy(RestartStrategies.noRestart());
 
         DataStream<Long> stream = env.fromSequence(0, Long.MAX_VALUE);

@@ -27,7 +27,7 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ExternalizedCheckpointCleanup;
+import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -303,8 +303,8 @@ class UnalignedCheckpointStressITCase {
         env.getCheckpointConfig().enableUnalignedCheckpoints();
         env.setRestartStrategy(RestartStrategies.noRestart());
         env.getCheckpointConfig()
-                .setExternalizedCheckpointCleanupRetention(
-                        ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION);
+                .setExternalizedCheckpointRetention(
+                        ExternalizedCheckpointRetention.DELETE_ON_CANCELLATION);
         return env;
     }
 

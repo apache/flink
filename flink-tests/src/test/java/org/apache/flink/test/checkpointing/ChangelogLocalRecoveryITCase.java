@@ -21,7 +21,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ExternalizedCheckpointCleanup;
+import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -176,8 +176,8 @@ public class ChangelogLocalRecoveryITCase extends TestLogger {
                                 Duration.ofMillis(materializationInterval))
                         .set(StateChangelogOptions.MATERIALIZATION_MAX_FAILURES_ALLOWED, 1));
         env.getCheckpointConfig()
-                .setExternalizedCheckpointCleanupRetention(
-                        ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+                .setExternalizedCheckpointRetention(
+                        ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
         Configuration configuration = new Configuration();
         configuration.set(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, 1);
         env.configure(configuration);

@@ -73,7 +73,7 @@ import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINT_STO
 import static org.apache.flink.configuration.CheckpointingOptions.FILE_MERGING_ENABLED;
 import static org.apache.flink.configuration.CheckpointingOptions.FS_SMALL_FILE_THRESHOLD;
 import static org.apache.flink.configuration.CoreOptions.DEFAULT_PARALLELISM;
-import static org.apache.flink.configuration.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION;
+import static org.apache.flink.configuration.ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION;
 import static org.apache.flink.configuration.PipelineOptions.OBJECT_REUSE;
 import static org.apache.flink.configuration.RestartStrategyOptions.RESTART_STRATEGY;
 import static org.apache.flink.configuration.StateBackendOptions.STATE_BACKEND;
