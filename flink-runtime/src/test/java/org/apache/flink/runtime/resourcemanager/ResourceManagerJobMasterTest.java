@@ -29,11 +29,14 @@ import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElection;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.junit.jupiter.api.AfterEach;
@@ -44,8 +47,11 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.apache.flink.runtime.resourcemanager.ResourceManagerPartitionLifecycleTest.registerTaskExecutor;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the interaction between the {@link ResourceManager} and the {@link JobMaster}. */
 class ResourceManagerJobMasterTest {
@@ -144,6 +150,60 @@ class ResourceManagerJobMasterTest {
         assertThatFuture(successfulFuture)
                 .succeedsWithin(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS)
                 .isInstanceOf(JobMasterRegistrationSuccess.class);
+    }
+
+    @Test
+    void testDisconnectTaskManagerInResourceManager()
+            throws ExecutionException, InterruptedException, TimeoutException {
+        final ResourceID taskExecutorId = ResourceID.generate();
+        final CompletableFuture<Exception> disconnectRMFuture = new CompletableFuture<>();
+        final CompletableFuture<ResourceID> disconnectTMFuture = new CompletableFuture<>();
+
+        TestingJobMasterGateway jobMasterGateway =
+                new TestingJobMasterGatewayBuilder()
+                        .setDisconnectTaskManagerFunction(
+                                resourceID -> {
+                                    disconnectTMFuture.complete(resourceID);
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                })
+                        .setAddress("pekko.tcp://flink@localhost:6130/user/jobmanager2")
+                        .build();
+        rpcService.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
+        ResourceManagerGateway resourceManagerGateway =
+                resourceManagerService
+                        .getResourceManagerGateway()
+                        .orElseThrow(
+                                () ->
+                                        new AssertionError(
+                                                "RM not available after confirming leadership."));
+
+        // test response successful
+        CompletableFuture<RegistrationResponse> successfulFuture =
+                resourceManagerGateway.registerJobMaster(
+                        jobMasterGateway.getFencingToken(),
+                        jobMasterResourceId,
+                        jobMasterGateway.getAddress(),
+                        jobId,
+                        TIMEOUT);
+        assertThatFuture(successfulFuture)
+                .succeedsWithin(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS)
+                .isInstanceOf(JobMasterRegistrationSuccess.class);
+
+        final TaskExecutorGateway taskExecutorGateway =
+                new TestingTaskExecutorGatewayBuilder()
+                        .setAddress(UUID.randomUUID().toString())
+                        .setDisconnectResourceManagerConsumer(disconnectRMFuture::complete)
+                        .createTestingTaskExecutorGateway();
+        rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
+        registerTaskExecutor(
+                resourceManagerGateway, taskExecutorId, taskExecutorGateway.getAddress());
+
+        resourceManagerGateway.disconnectTaskManager(taskExecutorId, new Exception("for test"));
+        assertThatFuture(disconnectRMFuture)
+                .succeedsWithin(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+        final ResourceID resourceId =
+                disconnectTMFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+        assertThat(resourceId).isEqualTo(taskExecutorId);
     }
 
     /** Test receive registration with unmatched leadershipId from job master. */

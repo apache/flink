@@ -1179,6 +1179,14 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             slotManager.unregisterTaskManager(workerRegistration.getInstanceID(), cause);
             clusterPartitionTracker.processTaskExecutorShutdown(resourceID);
 
+            jobManagerRegistrations
+                    .values()
+                    .forEach(
+                            jobManagerRegistration ->
+                                    jobManagerRegistration
+                                            .getJobManagerGateway()
+                                            .disconnectTaskManager(resourceID, cause));
+
             workerRegistration.getTaskExecutorGateway().disconnectResourceManager(cause);
         } else {
             log.debug(
