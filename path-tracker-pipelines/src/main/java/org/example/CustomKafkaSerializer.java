@@ -7,7 +7,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.testcontainers.shaded.org.bouncycastle.util.Strings;
 
 public class CustomKafkaSerializer implements
-        KafkaRecordSerializationSchema<DataRecord> {
+        KafkaRecordSerializationSchema<DecorateRecord<Integer>> {
 
     private static final long serialVersionUID = 1L;
 
@@ -22,13 +22,13 @@ public class CustomKafkaSerializer implements
 
     @Override
     public ProducerRecord<byte[], byte[]> serialize(
-            DataRecord element, KafkaSinkContext context, Long timestamp) {
+            DecorateRecord<Integer> element, KafkaSinkContext context, Long timestamp) {
 
         try {
             return new ProducerRecord<>(
                     topic,
-                    Strings.toByteArray(Integer.toString(element.getValue())),
-                    Strings.toByteArray(Integer.toString(element.getValue()))
+                    Strings.toByteArray(element.getPathInfo()),
+                    Strings.toByteArray(String.format("%d-%d", element.getSeqNum(), element.getValue()))
             );
         } catch (Exception e) {
             throw new IllegalArgumentException(
