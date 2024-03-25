@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link Transformation}. */
@@ -99,42 +100,42 @@ class TransformationTest {
     void testDeclareManagedMemoryOperatorScopeUseCaseFailWrongScope() {
         assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(
-                        () -> {
-                            transformation.declareManagedMemoryUseCaseAtOperatorScope(
-                                    ManagedMemoryUseCase.PYTHON, 123);
-                        });
+                        () ->
+                                transformation.declareManagedMemoryUseCaseAtOperatorScope(
+                                        ManagedMemoryUseCase.PYTHON, 123));
     }
 
     @Test
     void testDeclareManagedMemoryOperatorScopeUseCaseFailZeroWeight() {
         assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(
-                        () -> {
-                            transformation.declareManagedMemoryUseCaseAtOperatorScope(
-                                    ManagedMemoryUseCase.OPERATOR, 0);
-                        });
+                        () ->
+                                transformation.declareManagedMemoryUseCaseAtOperatorScope(
+                                        ManagedMemoryUseCase.OPERATOR, 0));
     }
 
     @Test
     void testDeclareManagedMemoryOperatorScopeUseCaseFailNegativeWeight() {
         assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(
-                        () -> {
-                            assertThatThrownBy(
-                        () ->transformation.declareManagedMemoryUseCaseAtOperatorScope(
-                                    ManagedMemoryUseCase.OPERATOR, -1))
-                .isInstanceOf(IllegalArgumentException.class);
-                        });
+                        () ->
+                                assertThatThrownBy(
+                                                () ->
+                                                        transformation
+                                                                .declareManagedMemoryUseCaseAtOperatorScope(
+                                                                        ManagedMemoryUseCase
+                                                                                .OPERATOR,
+                                                                        -1))
+                                        .isInstanceOf(IllegalArgumentException.class));
     }
 
     @Test
     void testDeclareManagedMemorySlotScopeUseCaseFailWrongScope() {
         assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(
-                        () -> {
-                            transformation.declareManagedMemoryUseCaseAtSlotScope(
-                                    ManagedMemoryUseCase.OPERATOR);
-                        });
+                        () ->
+                                transformation.declareManagedMemoryUseCaseAtSlotScope(
+                                        ManagedMemoryUseCase.OPERATOR));
     }
 
     /** A test implementation of {@link Transformation}. */
