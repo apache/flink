@@ -24,8 +24,7 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
-import org.apache.flink.configuration.ExternalizedCheckpointCleanup;
-import org.apache.flink.configuration.StateRecoveryOptions;
+import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 import org.apache.flink.core.execution.CheckpointingMode;
@@ -144,11 +143,12 @@ public class ExecutionCheckpointingOptions {
                                                                     .key()))
                                             .build());
 
-    public static final ConfigOption<ExternalizedCheckpointCleanup>
+    public static final ConfigOption<ExternalizedCheckpointRetention>
             EXTERNALIZED_CHECKPOINT_RETENTION =
                     ConfigOptions.key("execution.checkpointing.externalized-checkpoint-retention")
-                            .enumType(ExternalizedCheckpointCleanup.class)
-                            .defaultValue(ExternalizedCheckpointCleanup.NO_EXTERNALIZED_CHECKPOINTS)
+                            .enumType(ExternalizedCheckpointRetention.class)
+                            .defaultValue(
+                                    ExternalizedCheckpointRetention.NO_EXTERNALIZED_CHECKPOINTS)
                             .withDescription(
                                     Description.builder()
                                             .text(

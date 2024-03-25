@@ -29,7 +29,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
-import org.apache.flink.configuration.ExternalizedCheckpointCleanup;
+import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.execution.CheckpointingMode;
@@ -1957,7 +1957,7 @@ public class StreamingJobGraphGenerator {
 
         CheckpointRetentionPolicy retentionAfterTermination;
         if (cfg.isExternalizedCheckpointsEnabled()) {
-            ExternalizedCheckpointCleanup cleanup = cfg.getExternalizedCheckpointCleanupRetention();
+            ExternalizedCheckpointRetention cleanup = cfg.getExternalizedCheckpointRetention();
             // Sanity check
             if (cleanup == null) {
                 throw new IllegalStateException(

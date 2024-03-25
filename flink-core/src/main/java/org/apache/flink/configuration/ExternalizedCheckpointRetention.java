@@ -27,7 +27,7 @@ import static org.apache.flink.configuration.description.TextElement.text;
 
 /** Cleanup behaviour for externalized checkpoints when the job is cancelled. */
 @PublicEvolving
-public enum ExternalizedCheckpointCleanup implements DescribedEnum {
+public enum ExternalizedCheckpointRetention implements DescribedEnum {
 
     /**
      * Delete externalized checkpoints on job cancellation.
@@ -61,7 +61,7 @@ public enum ExternalizedCheckpointCleanup implements DescribedEnum {
 
     private final InlineElement description;
 
-    ExternalizedCheckpointCleanup(InlineElement description) {
+    ExternalizedCheckpointRetention(InlineElement description) {
         this.description = description;
     }
 
