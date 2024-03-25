@@ -33,6 +33,7 @@ import org.apache.calcite.rex.RexInputRef;
 import org.immutables.value.Value;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -119,7 +120,7 @@ public class WindowGroupReorderRule
             List<Integer> sortedIndices =
                     IntStream.range(0, mapToOldTypeIndexes.size())
                             .boxed()
-                            .sorted(Comparator.comparingInt(i -> mapToOldTypeIndexes.get(i)))
+                            .sorted(Comparator.comparingInt(mapToOldTypeIndexes::get))
                             .collect(Collectors.toList());
 
             List<RexInputRef> projects =
@@ -133,7 +134,7 @@ public class WindowGroupReorderRule
             LogicalProject project =
                     LogicalProject.create(
                             newLogicalWindow,
-                            java.util.Collections.emptyList(),
+                            Collections.emptyList(),
                             projects,
                             window.getRowType());
             call.transformTo(project);
