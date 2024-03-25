@@ -499,11 +499,33 @@ class JobMasterServiceLeadershipRunnerTest {
 
         leaderElection.notLeader();
 
+        assertThat(jobManagerRunner.getResultFuture())
+                .as("The runner result should not be completed by the leadership revocation.")
+                .isNotDone();
+
         resultFuture.complete(
                 JobManagerRunnerResult.forSuccess(
                         createFailedExecutionGraphInfo(new FlinkException("test exception"))));
 
-        assertThatFuture(jobManagerRunner.getResultFuture()).eventuallyFails();
+        assertThat(jobManagerRunner.getResultFuture())
+                .as("The runner result should not be completed if the leadership is lost.")
+                .isNotDone();
+
+        jobManagerRunner.closeAsync().get();
+
+        assertThatFuture(jobManagerRunner.getResultFuture())
+                .eventuallySucceeds()
+                .as(
+                        "The runner result should be completed with a SUSPENDED job status if the job didn't finish when closing the runner, yet.")
+                .satisfies(
+                        result -> {
+                            assertThat(result.isSuccess()).isTrue();
+                            assertThat(
+                                            result.getExecutionGraphInfo()
+                                                    .getArchivedExecutionGraph()
+                                                    .getState())
+                                    .isEqualTo(JobStatus.SUSPENDED);
+                        });
     }
 
     @Test
