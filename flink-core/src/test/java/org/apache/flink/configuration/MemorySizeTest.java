@@ -88,6 +88,14 @@ public class MemorySizeTest {
     }
 
     @Test
+    public void testFractional() {
+        assertEquals(103, MemorySize.parseBytes("0.1kb"));
+        assertEquals(512, MemorySize.parseBytes("0.5kb"));
+        assertEquals(1, MemorySize.parseBytes("0.00001kb"));
+        assertEquals(1127, MemorySize.parseBytes("1.1kb"));
+    }
+
+    @Test
     public void testParseBytes() {
         assertEquals(1234, MemorySize.parseBytes("1234"));
         assertEquals(1234, MemorySize.parseBytes("1234b"));
@@ -198,6 +206,27 @@ public class MemorySizeTest {
         // negative number
         try {
             MemorySize.parseBytes("-100 bytes");
+            fail("exception expected");
+        } catch (IllegalArgumentException ignored) {
+        }
+
+        // multiple decimal points
+        try {
+            MemorySize.parseBytes("0..1 bytes");
+            fail("exception expected");
+        } catch (IllegalArgumentException ignored) {
+        }
+
+        // multiple decimal points
+        try {
+            MemorySize.parseBytes("0.1.1 bytes");
+            fail("exception expected");
+        } catch (IllegalArgumentException ignored) {
+        }
+
+        // invalid decimal point
+        try {
+            MemorySize.parseBytes("1 .bytes");
             fail("exception expected");
         } catch (IllegalArgumentException ignored) {
         }
