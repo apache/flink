@@ -22,6 +22,9 @@ import org.apache.flink.core.fs.FSDataInputStream;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Queue;
+import java.util.concurrent.Callable;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * A {@link FSDataInputStream} delegates requests to other one and supports reading data with {@link
@@ -36,11 +39,17 @@ public class ByteBufferReadableFSDataInputStream extends FSDataInputStream {
 
     private volatile long toSeek = -1L;
 
-    private final Object lock;
+    private final Queue<FSDataInputStream> readInputStreamPool;
 
-    public ByteBufferReadableFSDataInputStream(FSDataInputStream originalInputStream) {
+    private final Callable<FSDataInputStream> inputStreamBuilder;
+
+    public ByteBufferReadableFSDataInputStream(
+            FSDataInputStream originalInputStream,
+            Callable<FSDataInputStream> inputStreamBuilder,
+            int inputStreamCapacity) {
         this.originalInputStream = originalInputStream;
-        this.lock = new Object();
+        this.inputStreamBuilder = inputStreamBuilder;
+        this.readInputStreamPool = new LinkedBlockingQueue<>(inputStreamCapacity);
     }
 
     /**
@@ -66,7 +75,7 @@ public class ByteBufferReadableFSDataInputStream extends FSDataInputStream {
     /**
      * Reads up to <code>ByteBuffer#remaining</code> bytes of data from the specific position of the
      * input stream into a ByteBuffer. Tread-safe since the interface of random read of ForSt may be
-     * concurrently accessed by multiple threads.
+     * concurrently accessed by multiple threads. TODO: Support to split this method to other class.
      *
      * @param position the start offset in input stream at which the data is read.
      * @param bb the buffer into which the data is read.
@@ -74,12 +83,18 @@ public class ByteBufferReadableFSDataInputStream extends FSDataInputStream {
      * @exception IOException If the first byte cannot be read for any reason other than end of
      *     file, or if the input stream has been closed, or if some other I/O error occurs.
      */
-    public int readFully(long position, ByteBuffer bb) throws IOException {
-        // TODO: Improve the performance
-        synchronized (lock) {
-            originalInputStream.seek(position);
-            return readFullyFromFSDataInputStream(originalInputStream, bb);
+    public int readFully(long position, ByteBuffer bb) throws Exception {
+        // TODO: Support partitioned read
+        FSDataInputStream fsDataInputStream = readInputStreamPool.poll();
+        if (fsDataInputStream == null) {
+            fsDataInputStream = inputStreamBuilder.call();
         }
+        fsDataInputStream.seek(position);
+        int result = readFullyFromFSDataInputStream(fsDataInputStream, bb);
+        if (!readInputStreamPool.offer(fsDataInputStream)) {
+            fsDataInputStream.close();
+        }
+        return result;
     }
 
     private int readFullyFromFSDataInputStream(FSDataInputStream originalInputStream, ByteBuffer bb)
@@ -153,6 +168,9 @@ public class ByteBufferReadableFSDataInputStream extends FSDataInputStream {
     @Override
     public void close() throws IOException {
         originalInputStream.close();
+        for (FSDataInputStream fsDataInputStream : readInputStreamPool) {
+            fsDataInputStream.close();
+        }
     }
 
     @Override
