@@ -22,7 +22,13 @@ import java.util.UUID;
 
 /**
  * Interface which has to be implemented to take part in the leader election process of the {@link
- * LeaderElectionService}.
+ * LeaderElection}.
+ *
+ * <p>The event handling methods for granting and revoking leadership are meant to be called in an
+ * alternating fashion, i.e. no two leadership grants or revocation events can happen after each
+ * other. Two subsequent events of the same type would indicate that the current instance missed a
+ * state change of the HA backend resulting in an invalid state of the overall deployment
+ * (split-brain scenario possible).
  */
 public interface LeaderContender {
 
