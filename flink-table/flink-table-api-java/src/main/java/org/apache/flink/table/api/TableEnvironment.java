@@ -985,7 +985,8 @@ public interface TableEnvironment {
      *
      * @param statement The statement for which the AST and execution plan will be returned.
      * @param extraDetails The extra explain details which the explain result should include, e.g.
-     *     estimated cost, changelog mode for streaming, displaying execution plan in json format
+     *     estimated cost, changelog mode for streaming, displaying execution plan in json format,
+     *     displaying job plan in json
      * @return AST and the execution plan.
      */
     default String explainSql(String statement, ExplainDetail... extraDetails) {
@@ -999,7 +1000,8 @@ public interface TableEnvironment {
      * @param statement The statement for which the AST and execution plan will be returned.
      * @param format The output format of explained plan.
      * @param extraDetails The extra explain details which the explain result should include, e.g.
-     *     estimated cost, changelog mode for streaming, displaying execution plan in json format
+     *     estimated cost, changelog mode for streaming, displaying execution plan in json format,
+     *     displaying job plan in json
      * @return AST and the execution plan.
      */
     String explainSql(String statement, ExplainFormat format, ExplainDetail... extraDetails);

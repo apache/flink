@@ -41,5 +41,8 @@ public enum ExplainDetail {
     /**
      * The potential risk warnings and SQL optimizer tuning advice analyzed from the physical plan.
      */
-    PLAN_ADVICE
+    PLAN_ADVICE,
+
+    /** The job plan in json format of the program. */
+    JSON_JOB_PLAN;
 }
