@@ -41,9 +41,6 @@ import org.apache.flink.util.Collector;
 
 import org.apache.flink.shaded.guava31.com.google.common.cache.Cache;
 import org.apache.flink.shaded.guava31.com.google.common.cache.CacheBuilder;
-import org.apache.flink.shaded.guava31.com.google.common.cache.RemovalCause;
-import org.apache.flink.shaded.guava31.com.google.common.cache.RemovalListener;
-import org.apache.flink.shaded.guava31.com.google.common.cache.RemovalNotification;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -139,7 +136,9 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
         kvRowKeyMap =
                 cacheBuilder
                         .maximumSize(lruCacheSize)
-                        .removalListener(new CacheRemovalListener())
+                        .removalListener(
+                                new TopNBufferCacheRemovalListener<>(
+                                        keyContext, this::flushBufferToState))
                         .build();
 
         LOG.info(
@@ -192,9 +191,8 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
         for (Map.Entry<RowData, Tuple2<TopNBuffer, Map<RowData, RankRow>>> entry :
                 kvRowKeyMap.asMap().entrySet()) {
             RowData partitionKey = entry.getKey();
-            Map<RowData, RankRow> currentRowKeyMap = entry.getValue().f1;
             keyContext.setCurrentKey(partitionKey);
-            flushBufferToState(currentRowKeyMap);
+            flushBufferToState(entry.getValue());
         }
     }
 
@@ -543,7 +541,9 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
         }
     }
 
-    private void flushBufferToState(Map<RowData, RankRow> curRowKeyMap) throws Exception {
+    private void flushBufferToState(Tuple2<TopNBuffer, Map<RowData, RankRow>> bufferEntry)
+            throws Exception {
+        Map<RowData, RankRow> curRowKeyMap = bufferEntry.f1;
         for (Map.Entry<RowData, RankRow> entry : curRowKeyMap.entrySet()) {
             RowData key = entry.getKey();
             RankRow rankRow = entry.getValue();
@@ -568,37 +568,6 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
                     row.dirty = true;
                 }
                 innerRank += 1;
-            }
-        }
-    }
-
-    private class CacheRemovalListener
-            implements RemovalListener<RowData, Tuple2<TopNBuffer, Map<RowData, RankRow>>> {
-
-        @Override
-        public void onRemoval(
-                RemovalNotification<RowData, Tuple2<TopNBuffer, Map<RowData, RankRow>>>
-                        notification) {
-            if (notification.getCause() != RemovalCause.SIZE) {
-                // Don't flush values to state if cause is ttl expired
-                return;
-            }
-
-            RowData partitionKey = notification.getKey();
-            Tuple2<TopNBuffer, Map<RowData, RankRow>> value = notification.getValue();
-            if (partitionKey == null || value == null) {
-                return;
-            }
-
-            RowData previousKey = (RowData) keyContext.getCurrentKey();
-            keyContext.setCurrentKey(partitionKey);
-            try {
-                flushBufferToState(value.f1);
-            } catch (Throwable e) {
-                LOG.error("Fail to synchronize state!", e);
-                throw new RuntimeException(e);
-            } finally {
-                keyContext.setCurrentKey(previousKey);
             }
         }
     }

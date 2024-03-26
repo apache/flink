@@ -35,9 +35,6 @@ import org.apache.flink.util.Collector;
 
 import org.apache.flink.shaded.guava31.com.google.common.cache.Cache;
 import org.apache.flink.shaded.guava31.com.google.common.cache.CacheBuilder;
-import org.apache.flink.shaded.guava31.com.google.common.cache.RemovalCause;
-import org.apache.flink.shaded.guava31.com.google.common.cache.RemovalListener;
-import org.apache.flink.shaded.guava31.com.google.common.cache.RemovalNotification;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,7 +99,9 @@ public class FastTop1Function extends AbstractTopNFunction implements Checkpoint
         kvCache =
                 cacheBuilder
                         .maximumSize(lruCacheSize)
-                        .removalListener(new CacheRemovalListener())
+                        .removalListener(
+                                new TopNBufferCacheRemovalListener<>(
+                                        keyContext, this::flushBufferToState))
                         .build();
         LOG.info("Top-1 operator is using LRU caches key-size: {}", lruCacheSize);
 
@@ -163,7 +162,7 @@ public class FastTop1Function extends AbstractTopNFunction implements Checkpoint
     public void snapshotState(FunctionSnapshotContext context) throws Exception {
         for (Map.Entry<RowData, RowData> entry : kvCache.asMap().entrySet()) {
             keyContext.setCurrentKey(entry.getKey());
-            dataState.update(entry.getValue());
+            flushBufferToState(entry.getValue());
         }
     }
 
@@ -172,25 +171,7 @@ public class FastTop1Function extends AbstractTopNFunction implements Checkpoint
         // nothing to do
     }
 
-    private class CacheRemovalListener implements RemovalListener<RowData, RowData> {
-        @Override
-        public void onRemoval(RemovalNotification<RowData, RowData> notification) {
-            if (notification.getCause() != RemovalCause.SIZE || notification.getValue() == null) {
-                // Don't flush values to state if cause is ttl expired
-                return;
-            }
-
-            RowData previousKey = (RowData) keyContext.getCurrentKey();
-            RowData partitionKey = notification.getKey();
-            keyContext.setCurrentKey(partitionKey);
-            try {
-                dataState.update(notification.getValue());
-            } catch (Throwable e) {
-                LOG.error("Fail to synchronize state!", e);
-                throw new RuntimeException(e);
-            } finally {
-                keyContext.setCurrentKey(previousKey);
-            }
-        }
+    private void flushBufferToState(RowData rowData) throws Exception {
+        dataState.update(rowData);
     }
 }
