@@ -225,6 +225,9 @@ metrics.reporter.promgateway.randomJobNameSuffix: true
 metrics.reporter.promgateway.deleteOnShutdown: false
 metrics.reporter.promgateway.groupingKey: k1=v1;k2=v2
 metrics.reporter.promgateway.interval: 60 SECONDS
+metrics.reporter.promgateway.basicAuth: true
+metrics.reporter.promgateway.username: username
+metrics.reporter.promgateway.password: password
 ```
 
 PrometheusPushGatewayReporter 发送器将运行指标发送给 [Pushgateway](https://github.com/prometheus/pushgateway)，Prometheus 再从 Pushgateway 拉取、解析运行指标。
