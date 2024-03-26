@@ -93,6 +93,9 @@ public abstract class CatalogTest {
         if (catalog.functionExists(path1)) {
             catalog.dropFunction(path1, true);
         }
+        if (catalog.functionExists(path3)) {
+            catalog.dropFunction(path3, true);
+        }
         if (catalog.databaseExists(db1)) {
             catalog.dropDatabase(db1, true, false);
         }
@@ -808,6 +811,47 @@ public abstract class CatalogTest {
         catalog.createDatabase(db1, createDb(), false);
         catalog.dropFunction(nonExistObjectPath, true);
         catalog.dropDatabase(db1, false, false);
+    }
+
+    @Test
+    public void testRenameFunction_FunctionNotExistsException() throws Exception {
+        catalog.createDatabase(db1, createDb(), false);
+
+        exception.expect(FunctionNotExistException.class);
+        exception.expectMessage("Function db1.t1 does not exist in Catalog");
+        catalog.renameFunction(path1, t2, false);
+    }
+
+    @Test
+    public void testRenameFunction_FunctionNotExistException_ignored() throws Exception {
+        catalog.createDatabase(db1, createDb(), false);
+        catalog.renameFunction(path1, t2, true);
+    }
+
+    @Test
+    public void testRenameFunction_FunctionAlreadyExistsException() throws Exception {
+        catalog.createDatabase(db1, createDb(), false);
+        CatalogFunction function = createFunction();
+        catalog.createFunction(path1, function, false);
+        catalog.createFunction(path3, createAnotherFunction(), false);
+
+        exception.expect(FunctionAlreadyExistException.class);
+        exception.expectMessage("Function db1.t2 already exists in Catalog");
+        catalog.renameFunction(path1, t2, false);
+    }
+
+    @Test
+    public void testRenameFunction() throws Exception {
+        catalog.createDatabase(db1, createDb(), false);
+        CatalogFunction function = createFunction();
+        catalog.createFunction(path1, function, false);
+
+        checkEquals(function, catalog.getFunction(path1));
+
+        catalog.renameFunction(path1, t2, false);
+
+        checkEquals(function, catalog.getFunction(path3));
+        assertFalse(catalog.functionExists(path1));
     }
 
     // ------ partitions ------
