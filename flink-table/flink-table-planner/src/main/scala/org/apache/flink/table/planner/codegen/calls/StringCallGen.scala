@@ -111,6 +111,8 @@ object StringCallGen {
 
       case REPLACE => generateReplace(ctx, operands, returnType)
 
+      case TRANSLATE3 => generateTranslate(ctx, operands, returnType)
+
       case SPLIT_INDEX => generateSplitIndex(ctx, operands, returnType)
 
       case HASH_CODE if isCharacterString(operands.head.resultType) =>
@@ -553,6 +555,16 @@ object StringCallGen {
     val className = classOf[SqlFunctionUtils].getCanonicalName
     generateStringResultCallIfArgsNotNull(ctx, operands, returnType) {
       terms => s"$className.replace(${toStringTerms(terms, operands)})"
+    }
+  }
+
+  def generateTranslate(
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType): GeneratedExpression = {
+    val className = classOf[SqlFunctionUtils].getCanonicalName
+    generateStringResultCallIfArgsNotNull(ctx, operands, returnType) {
+      terms => s"$className.translate3(${toStringTerms(terms, operands)})"
     }
   }
 

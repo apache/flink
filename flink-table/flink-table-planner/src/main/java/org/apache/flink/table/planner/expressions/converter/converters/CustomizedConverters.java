@@ -44,6 +44,7 @@ public class CustomizedConverters {
         CONVERTERS.put(BuiltInFunctionDefinitions.BETWEEN, new BetweenConverter());
         CONVERTERS.put(BuiltInFunctionDefinitions.NOT_BETWEEN, new NotBetweenConverter());
         CONVERTERS.put(BuiltInFunctionDefinitions.REPLACE, new ReplaceConverter());
+        CONVERTERS.put(BuiltInFunctionDefinitions.TRANSLATE3, new TranslateConverter());
         CONVERTERS.put(BuiltInFunctionDefinitions.PLUS, new PlusConverter());
         CONVERTERS.put(
                 BuiltInFunctionDefinitions.TEMPORAL_OVERLAPS, new TemporalOverlapsConverter());
