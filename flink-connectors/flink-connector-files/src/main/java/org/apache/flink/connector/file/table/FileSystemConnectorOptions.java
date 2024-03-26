@@ -80,6 +80,16 @@ public class FileSystemConnectorOptions {
                                     + "the table should set 'path'='/dir' and 'source.regex-pattern'='/dir/.*'."
                                     + "The hidden files and directories will not be matched.");
 
+    public static final ConfigOption<Boolean> SOURCE_USE_FIXED_SPLIT_ASSIGNER =
+            key("source.use-fixed-split-assigner")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "If set to true, every split will bind with fixed task id, "
+                                    + "it can reduce the cost of failover "
+                                    + "because it avoid too many splits assign to some task. "
+                                    + "And it will be ignored in streaming mode.");
+
     public static final ConfigOption<MemorySize> SINK_ROLLING_POLICY_FILE_SIZE =
             key("sink.rolling-policy.file-size")
                     .memoryType()
