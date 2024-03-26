@@ -25,55 +25,53 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparator;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Fail.fail;
 
 /** Tests for the type extraction of {@link Writable}. */
-@SuppressWarnings("serial")
-public class WritableExtractionTest {
+class WritableExtractionTest {
 
     @Test
-    public void testDetectWritable() {
+    void testDetectWritable() {
         // writable interface itself must not be writable
-        assertFalse(TypeExtractor.isHadoopWritable(Writable.class));
+        assertThat(TypeExtractor.isHadoopWritable(Writable.class)).isFalse();
 
         // various forms of extension
-        assertTrue(TypeExtractor.isHadoopWritable(DirectWritable.class));
-        assertTrue(TypeExtractor.isHadoopWritable(ViaInterfaceExtension.class));
-        assertTrue(TypeExtractor.isHadoopWritable(ViaAbstractClassExtension.class));
+        assertThat(TypeExtractor.isHadoopWritable(DirectWritable.class)).isTrue();
+        assertThat(TypeExtractor.isHadoopWritable(ViaInterfaceExtension.class)).isTrue();
+        assertThat(TypeExtractor.isHadoopWritable(ViaAbstractClassExtension.class)).isTrue();
 
         // some non-writables
-        assertFalse(TypeExtractor.isHadoopWritable(String.class));
-        assertFalse(TypeExtractor.isHadoopWritable(List.class));
-        assertFalse(TypeExtractor.isHadoopWritable(WritableComparator.class));
+        assertThat(TypeExtractor.isHadoopWritable(String.class)).isFalse();
+        assertThat(TypeExtractor.isHadoopWritable(List.class)).isFalse();
+        assertThat(TypeExtractor.isHadoopWritable(WritableComparator.class)).isFalse();
     }
 
     @Test
-    public void testCreateWritableInfo() {
+    void testCreateWritableInfo() {
         TypeInformation<DirectWritable> info1 =
                 TypeExtractor.createHadoopWritableTypeInfo(DirectWritable.class);
-        assertEquals(DirectWritable.class, info1.getTypeClass());
+        assertThat(info1.getTypeClass()).isEqualTo(DirectWritable.class);
 
         TypeInformation<ViaInterfaceExtension> info2 =
                 TypeExtractor.createHadoopWritableTypeInfo(ViaInterfaceExtension.class);
-        assertEquals(ViaInterfaceExtension.class, info2.getTypeClass());
+        assertThat(info2.getTypeClass()).isEqualTo(ViaInterfaceExtension.class);
 
         TypeInformation<ViaAbstractClassExtension> info3 =
                 TypeExtractor.createHadoopWritableTypeInfo(ViaAbstractClassExtension.class);
-        assertEquals(ViaAbstractClassExtension.class, info3.getTypeClass());
+        assertThat(info3.getTypeClass()).isEqualTo(ViaAbstractClassExtension.class);
     }
 
     @Test
-    public void testValidateTypeInfo() {
+    void testValidateTypeInfo() {
         // validate unrelated type info
         TypeExtractor.validateIfWritable(BasicTypeInfo.STRING_TYPE_INFO, String.class);
 
@@ -87,26 +85,27 @@ public class WritableExtractionTest {
                 ViaAbstractClassExtension.class);
 
         // incorrect case: not writable at all
-        try {
-            TypeExtractor.validateIfWritable(
-                    new WritableTypeInfo<>(DirectWritable.class), String.class);
-            fail("should have failed with an exception");
-        } catch (InvalidTypesException e) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () -> {
+                            TypeExtractor.validateIfWritable(
+                                    new WritableTypeInfo<>(DirectWritable.class), String.class);
+                        })
+                .as("should have failed with an exception")
+                .isInstanceOf(InvalidTypesException.class);
 
         // incorrect case: wrong writable
-        try {
-            TypeExtractor.validateIfWritable(
-                    new WritableTypeInfo<>(ViaInterfaceExtension.class), DirectWritable.class);
-            fail("should have failed with an exception");
-        } catch (InvalidTypesException e) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () -> {
+                            TypeExtractor.validateIfWritable(
+                                    new WritableTypeInfo<>(ViaInterfaceExtension.class),
+                                    DirectWritable.class);
+                        })
+                .as("should have failed with an exception")
+                .isInstanceOf(InvalidTypesException.class);
     }
 
     @Test
-    public void testExtractFromFunction() {
+    void testExtractFromFunction() {
         RichMapFunction<DirectWritable, DirectWritable> function =
                 new RichMapFunction<DirectWritable, DirectWritable>() {
                     @Override
@@ -119,12 +118,12 @@ public class WritableExtractionTest {
                 TypeExtractor.getMapReturnTypes(
                         function, new WritableTypeInfo<>(DirectWritable.class));
 
-        assertTrue(outType instanceof WritableTypeInfo);
-        assertEquals(DirectWritable.class, outType.getTypeClass());
+        assertThat(outType).isInstanceOf(WritableTypeInfo.class);
+        assertThat(outType.getTypeClass()).isEqualTo(DirectWritable.class);
     }
 
     @Test
-    public void testExtractAsPartOfPojo() {
+    void testExtractAsPartOfPojo() {
         PojoTypeInfo<PojoWithWritable> pojoInfo =
                 (PojoTypeInfo<PojoWithWritable>) TypeExtractor.getForClass(PojoWithWritable.class);
 
@@ -138,17 +137,18 @@ public class WritableExtractionTest {
                     fail("already seen");
                 }
                 foundWritable = true;
-                assertEquals(
-                        new WritableTypeInfo<>(DirectWritable.class), field.getTypeInformation());
-                assertEquals(DirectWritable.class, field.getTypeInformation().getTypeClass());
+                assertThat(field.getTypeInformation())
+                        .isEqualTo(new WritableTypeInfo<>(DirectWritable.class));
+                assertThat(field.getTypeInformation().getTypeClass())
+                        .isEqualTo(DirectWritable.class);
             }
         }
 
-        assertTrue("missed the writable type", foundWritable);
+        assertThat(foundWritable).as("missed the writable type").isTrue();
     }
 
     @Test
-    public void testInputValidationError() {
+    void testInputValidationError() {
 
         RichMapFunction<Writable, String> function =
                 new RichMapFunction<Writable, String>() {

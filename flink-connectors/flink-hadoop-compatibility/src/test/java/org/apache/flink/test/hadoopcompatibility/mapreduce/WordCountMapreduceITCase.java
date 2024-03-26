@@ -26,7 +26,7 @@ import org.apache.flink.api.java.hadoop.mapreduce.HadoopOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.hadoopcompatibility.HadoopInputs;
 import org.apache.flink.test.testdata.WordCountData;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit5;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OperatingSystem;
 
@@ -36,22 +36,23 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
-import org.junit.Assume;
-import org.junit.Before;
+import org.junit.jupiter.api.BeforeEach;
 
 import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Test WordCount with Hadoop input and output "mapreduce" (modern) formats. */
-public class WordCountMapreduceITCase extends JavaProgramTestBase {
+class WordCountMapreduceITCase extends JavaProgramTestBaseJUnit5 {
 
-    protected String textPath;
-    protected String resultPath;
+    private String textPath;
+    private String resultPath;
 
-    @Before
-    public void checkOperatingSystem() {
+    @BeforeEach
+    void checkOperatingSystem() {
         // FLINK-5164 - see https://wiki.apache.org/hadoop/WindowsProblems
-        Assume.assumeTrue(
-                "This test can't run successfully on Windows.", !OperatingSystem.isWindows());
+        assumeThat(OperatingSystem.isWindows())
+                .as("This test can't run successfully on Windows.")
+                .isFalse();
     }
 
     @Override

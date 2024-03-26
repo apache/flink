@@ -26,9 +26,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.JobConfigurable;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -37,13 +36,15 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.function.Consumer;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Test for {@link HadoopInputSplit}. */
-public class HadoopInputSplitTest {
+class HadoopInputSplitTest {
 
     private JobConf conf;
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
         Configuration configuration = new Configuration();
         for (int i = 0; i < 10000; i++) {
             configuration.set("key-" + i, "value-" + i);
@@ -62,22 +63,22 @@ public class HadoopInputSplitTest {
         serializeSizeChecker.accept(bytes.length);
 
         split = InstantiationUtil.deserializeObject(bytes, split.getClass().getClassLoader());
-        Assert.assertEquals(5, split.getSplitNumber());
-        Assert.assertArrayEquals(new String[] {"host0"}, split.getHostnames());
+        assertThat(split.getSplitNumber()).isEqualTo(5);
+        assertThat(split.getHostnames()).containsExactly("host0");
         splitChecker.accept(split.getHadoopInputSplit());
     }
 
     @Test
-    public void testFileSplit() throws IOException, ClassNotFoundException {
+    void testFileSplit() throws IOException, ClassNotFoundException {
         FileSplit fileSplit = new FileSplit(new Path("/test"), 0, 100, new String[] {"host0"});
         testInner(
                 fileSplit,
-                i -> Assert.assertTrue(i < 10000),
-                split -> Assert.assertEquals(fileSplit, split));
+                i -> assertThat(i < 10000).isTrue(),
+                split -> assertThat(split).isEqualTo(fileSplit));
     }
 
     @Test
-    public void testConfigurable() throws IOException, ClassNotFoundException {
+    void testConfigurable() throws IOException, ClassNotFoundException {
         ConfigurableFileSplit fileSplit =
                 new ConfigurableFileSplit(new Path("/test"), 0, 100, new String[] {"host0"});
         testInner(
@@ -85,13 +86,13 @@ public class HadoopInputSplitTest {
                 i -> {},
                 inputSplit -> {
                     ConfigurableFileSplit split = (ConfigurableFileSplit) inputSplit;
-                    Assert.assertNotNull(split.getConf());
-                    Assert.assertEquals(fileSplit, split);
+                    assertThat(split.getConf()).isNotNull();
+                    assertThat(split).isEqualTo(fileSplit);
                 });
     }
 
     @Test
-    public void testJobConfigurable() throws IOException, ClassNotFoundException {
+    void testJobConfigurable() throws IOException, ClassNotFoundException {
         JobConfigurableFileSplit fileSplit =
                 new JobConfigurableFileSplit(new Path("/test"), 0, 100, new String[] {"host0"});
         testInner(
@@ -99,8 +100,8 @@ public class HadoopInputSplitTest {
                 i -> {},
                 inputSplit -> {
                     JobConfigurableFileSplit split = (JobConfigurableFileSplit) inputSplit;
-                    Assert.assertNotNull(split.getConf());
-                    Assert.assertEquals(fileSplit, split);
+                    assertThat(split.getConf()).isNotNull();
+                    assertThat(split).isEqualTo(fileSplit);
                 });
     }
 

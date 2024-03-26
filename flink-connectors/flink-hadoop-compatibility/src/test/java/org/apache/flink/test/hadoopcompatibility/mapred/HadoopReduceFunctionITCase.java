@@ -23,7 +23,8 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.hadoopcompatibility.mapred.HadoopReduceFunction;
-import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBaseJUnit5;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
@@ -31,29 +32,22 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapred.Reducer;
 import org.apache.hadoop.mapred.Reporter;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Iterator;
 
 import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
 
 /** IT cases for the {@link HadoopReduceFunction}. */
-@RunWith(Parameterized.class)
-public class HadoopReduceFunctionITCase extends MultipleProgramsTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+class HadoopReduceFunctionITCase extends MultipleProgramsTestBaseJUnit5 {
 
-    public HadoopReduceFunctionITCase(TestExecutionMode mode) {
-        super(mode);
-    }
-
-    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
-
-    @Test
-    public void testStandardGrouping() throws Exception {
+    @TestTemplate
+    void testStandardGrouping(@TempDir Path tempFolder) throws Exception {
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         DataSet<Tuple2<IntWritable, Text>> ds =
@@ -66,7 +60,7 @@ public class HadoopReduceFunctionITCase extends MultipleProgramsTestBase {
                                         IntWritable, Text, IntWritable, IntWritable>(
                                         new CommentCntReducer()));
 
-        String resultPath = tempFolder.newFile().toURI().toString();
+        String resultPath = tempFolder.toUri().toString();
 
         commentCnts.writeAsText(resultPath);
         env.execute();
@@ -76,8 +70,8 @@ public class HadoopReduceFunctionITCase extends MultipleProgramsTestBase {
         compareResultsByLinesInMemory(expected, resultPath);
     }
 
-    @Test
-    public void testUngroupedHadoopReducer() throws Exception {
+    @TestTemplate
+    void testUngroupedHadoopReducer(@TempDir Path tempFolder) throws Exception {
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         DataSet<Tuple2<IntWritable, Text>> ds = HadoopTestData.getKVPairDataSet(env);
@@ -87,7 +81,7 @@ public class HadoopReduceFunctionITCase extends MultipleProgramsTestBase {
                         new HadoopReduceFunction<IntWritable, Text, IntWritable, IntWritable>(
                                 new AllCommentCntReducer()));
 
-        String resultPath = tempFolder.newFile().toURI().toString();
+        String resultPath = tempFolder.toUri().toString();
 
         commentCnts.writeAsText(resultPath);
         env.execute();
@@ -97,8 +91,8 @@ public class HadoopReduceFunctionITCase extends MultipleProgramsTestBase {
         compareResultsByLinesInMemory(expected, resultPath);
     }
 
-    @Test
-    public void testConfigurationViaJobConf() throws Exception {
+    @TestTemplate
+    void testConfigurationViaJobConf(@TempDir Path tempFolder) throws Exception {
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         JobConf conf = new JobConf();
@@ -114,7 +108,7 @@ public class HadoopReduceFunctionITCase extends MultipleProgramsTestBase {
                                         IntWritable, Text, IntWritable, IntWritable>(
                                         new ConfigurableCntReducer(), conf));
 
-        String resultPath = tempFolder.newFile().toURI().toString();
+        String resultPath = tempFolder.toUri().toString();
 
         helloCnts.writeAsText(resultPath);
         env.execute();

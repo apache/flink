@@ -19,19 +19,21 @@ package org.apache.flink.api.hadoopcompatibility.scala
 
 import org.apache.flink.api.java.typeutils.WritableTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.util.TestLogger
+import org.apache.flink.util.TestLoggerExtension
 
 import org.apache.hadoop.io.Text
-import org.junit.Assert._
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
 
-class ScalaWritableTypeInfoTest extends TestLogger {
+@ExtendWith(Array(classOf[TestLoggerExtension]))
+class ScalaWritableTypeInfoTest {
 
   @Test
   def testWritableTypeInfo = {
     val writableTypeInfo = createTypeInformation[Text]
 
-    assertTrue(writableTypeInfo.isInstanceOf[WritableTypeInfo[Text]])
-    assertEquals(classOf[Text], writableTypeInfo.getTypeClass)
+    assertThat(writableTypeInfo).isInstanceOf(classOf[WritableTypeInfo[Text]])
+    assertThat(classOf[Text]).isEqualTo(writableTypeInfo.getTypeClass)
   }
 }

@@ -32,14 +32,14 @@ import org.apache.hadoop.mapred.RecordWriter;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.TaskAttemptContext;
 import org.apache.hadoop.util.Progressable;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
 
 import java.io.IOException;
 
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.mock;
@@ -48,10 +48,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Tests for {@link HadoopOutputFormat}. */
-public class HadoopOutputFormatTest {
+class HadoopOutputFormatTest {
 
     @Test
-    public void testOpen() throws Exception {
+    void testOpen() throws Exception {
 
         OutputFormat<String, Long> dummyOutputFormat = mock(DummyOutputFormat.class);
         DummyOutputCommitter outputCommitter = mock(DummyOutputCommitter.class);
@@ -74,7 +74,7 @@ public class HadoopOutputFormatTest {
     }
 
     @Test
-    public void testConfigureWithConfigurable() {
+    void testConfigureWithConfigurable() {
         ConfigurableDummyOutputFormat dummyOutputFormat = mock(ConfigurableDummyOutputFormat.class);
         JobConf jobConf = mock(JobConf.class);
 
@@ -87,7 +87,7 @@ public class HadoopOutputFormatTest {
     }
 
     @Test
-    public void testConfigureWithJobConfigurable() {
+    void testConfigureWithJobConfigurable() {
         JobConfigurableDummyOutputFormat dummyOutputFormat =
                 mock(JobConfigurableDummyOutputFormat.class);
         JobConf jobConf = mock(JobConf.class);
@@ -101,7 +101,7 @@ public class HadoopOutputFormatTest {
     }
 
     @Test
-    public void testCloseWithTaskCommit() throws Exception {
+    void testCloseWithTaskCommit() throws Exception {
         OutputFormat<String, Long> dummyOutputFormat = mock(DummyOutputFormat.class);
         DummyOutputCommitter outputCommitter = mock(DummyOutputCommitter.class);
         when(outputCommitter.needsTaskCommit(nullable(TaskAttemptContext.class))).thenReturn(true);
@@ -120,7 +120,7 @@ public class HadoopOutputFormatTest {
     }
 
     @Test
-    public void testCloseWithoutTaskCommit() throws Exception {
+    void testCloseWithoutTaskCommit() throws Exception {
         OutputFormat<String, Long> dummyOutputFormat = mock(DummyOutputFormat.class);
         DummyOutputCommitter outputCommitter = mock(DummyOutputCommitter.class);
         when(outputCommitter.needsTaskCommit(any(TaskAttemptContext.class))).thenReturn(false);
@@ -139,7 +139,7 @@ public class HadoopOutputFormatTest {
     }
 
     @Test
-    public void testWriteRecord() throws Exception {
+    void testWriteRecord() throws Exception {
         OutputFormat<String, Long> dummyOutputFormat = mock(DummyOutputFormat.class);
         DummyRecordWriter recordWriter = mock(DummyRecordWriter.class);
         JobConf jobConf = mock(JobConf.class);
@@ -154,7 +154,7 @@ public class HadoopOutputFormatTest {
     }
 
     @Test
-    public void testFinalizeGlobal() throws Exception {
+    void testFinalizeGlobal() throws Exception {
         OutputFormat<String, Long> dummyOutputFormat = mock(DummyOutputFormat.class);
         DummyOutputCommitter outputCommitter = mock(DummyOutputCommitter.class);
         JobConf jobConf = Mockito.spy(new JobConf());

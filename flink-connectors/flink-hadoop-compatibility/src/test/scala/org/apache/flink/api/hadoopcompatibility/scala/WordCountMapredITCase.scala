@@ -21,22 +21,27 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.hadoop.mapred.HadoopOutputFormat
 import org.apache.flink.hadoopcompatibility.scala.HadoopInputs
 import org.apache.flink.test.testdata.WordCountData
-import org.apache.flink.test.util.{JavaProgramTestBase, TestBaseUtils}
-import org.apache.flink.util.OperatingSystem
+import org.apache.flink.test.util.{JavaProgramTestBaseJUnit5, TestBaseUtils}
+import org.apache.flink.util.{OperatingSystem, TestLoggerExtension}
 
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.{LongWritable, Text}
 import org.apache.hadoop.mapred.{FileOutputFormat, JobConf, TextInputFormat, TextOutputFormat}
-import org.junit.{Assume, Before}
+import org.assertj.core.api.Assumptions.assumeThat
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.extension.ExtendWith
 
-class WordCountMapredITCase extends JavaProgramTestBase {
+@ExtendWith(Array(classOf[TestLoggerExtension]))
+class WordCountMapredITCase extends JavaProgramTestBaseJUnit5 {
   protected var textPath: String = null
   protected var resultPath: String = null
 
-  @Before
+  @BeforeEach
   def checkOperatingSystem() {
     // FLINK-5164 - see https://wiki.apache.org/hadoop/WindowsProblems
-    Assume.assumeTrue("This test can't run successfully on Windows.", !OperatingSystem.isWindows)
+    assumeThat(OperatingSystem.isWindows)
+      .as("This test can't run successfully on Windows.")
+      .isFalse()
   }
 
   override protected def preSubmit() {
