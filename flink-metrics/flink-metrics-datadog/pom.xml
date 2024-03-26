@@ -89,6 +89,7 @@ under the License.
 								<includes>
 									<include>com.squareup.okhttp3:*</include>
 									<include>com.squareup.okio:*</include>
+									<include>org.jetbrains.kotlin:*</include>
 								</includes>
 							</artifactSet>
 							<relocations>
