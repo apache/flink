@@ -34,7 +34,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.stream.Collectors;
 
 /**
  * Utility class for working with Hadoop-related classes. This should only be used if Hadoop is on
@@ -48,6 +50,8 @@ public class HadoopUtils {
 
     /** The prefixes that Flink adds to the Hadoop config. */
     private static final String[] FLINK_CONFIG_PREFIXES = {"flink.hadoop."};
+
+    private static final String DFS_NAME_SERVICES = "dfs.nameservices";
 
     @SuppressWarnings("deprecation")
     public static Configuration getHadoopConfiguration(
@@ -123,13 +127,18 @@ public class HadoopUtils {
             for (String prefix : FLINK_CONFIG_PREFIXES) {
                 if (key.startsWith(prefix)) {
                     String newKey = key.substring(prefix.length());
-                    String value = flinkConfiguration.getString(key, null);
-                    result.set(newKey, value);
+                    String newValue = flinkConfiguration.getString(key, null);
+                    if (DFS_NAME_SERVICES.equals(newKey) && newValue != null) {
+                        String oldValue = result.get(newKey);
+                        newValue = oldValue == null ? newValue : oldValue + "," + newValue;
+                        newValue = Arrays.stream(newValue.split(",")).distinct().collect(Collectors.joining(","));
+                    }
+                    result.set(newKey, newValue);
                     LOG.debug(
                             "Adding Flink config entry for {} as {}={} to Hadoop config",
                             key,
                             newKey,
-                            value);
+                            newValue);
                     foundHadoopConfiguration = true;
                 }
             }
