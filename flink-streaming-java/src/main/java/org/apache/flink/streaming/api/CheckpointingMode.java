@@ -77,5 +77,17 @@ public enum CheckpointingMode {
      * scenarios, where a sustained very-low latency (such as few milliseconds) is needed, and where
      * occasional duplicate messages (on recovery) do not matter.
      */
-    AT_LEAST_ONCE
+    AT_LEAST_ONCE;
+
+    public static org.apache.flink.core.execution.CheckpointingMode convertToCheckpointingMode(
+            org.apache.flink.streaming.api.CheckpointingMode semantic) {
+        switch (semantic) {
+            case EXACTLY_ONCE:
+                return org.apache.flink.core.execution.CheckpointingMode.EXACTLY_ONCE;
+            case AT_LEAST_ONCE:
+                return org.apache.flink.core.execution.CheckpointingMode.AT_LEAST_ONCE;
+            default:
+                throw new IllegalArgumentException("Unsupported semantic: " + semantic);
+        }
+    }
 }
