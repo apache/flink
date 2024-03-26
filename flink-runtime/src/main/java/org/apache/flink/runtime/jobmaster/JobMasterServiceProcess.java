@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -68,7 +69,7 @@ public interface JobMasterServiceProcess extends AutoCloseableAsync {
 
         @Override
         public UUID getLeaderSessionId() {
-            throw new UnsupportedOperationException("Still waiting for the leadership.");
+            return HighAvailabilityServices.DEFAULT_LEADER_ID;
         }
 
         @Override

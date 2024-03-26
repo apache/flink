@@ -653,7 +653,7 @@ class JobMasterServiceLeadershipRunnerTest {
     @Test
     void testJobMasterServiceProcessCreationFailureIsForwardedToResultFuture() throws Exception {
         final FlinkRuntimeException testException = new FlinkRuntimeException("Test exception");
-        final JobMasterServiceLeadershipRunner jobManagerRunner =
+        try (final JobMasterServiceLeadershipRunner jobManagerRunner =
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .setJobMasterServiceProcessFactory(
                                 TestingJobMasterServiceProcessFactory.newBuilder()
@@ -662,15 +662,41 @@ class JobMasterServiceLeadershipRunnerTest {
                                                     throw testException;
                                                 })
                                         .build())
-                        .build();
+                        .build()) {
 
-        jobManagerRunner.start();
+            jobManagerRunner.start();
 
-        leaderElection.isLeader(UUID.randomUUID());
+            leaderElection.isLeader(UUID.randomUUID());
 
-        assertThatFuture(jobManagerRunner.getResultFuture())
-                .eventuallyFailsWith(ExecutionException.class)
-                .satisfies(cause -> assertThat(cause).hasRootCause(testException));
+            assertThatFuture(jobManagerRunner.getResultFuture())
+                    .eventuallyFailsWith(ExecutionException.class)
+                    .satisfies(cause -> assertThat(cause).hasRootCause(testException));
+        }
+    }
+
+    @Test
+    void testJobMasterServiceProcessCreationFailureAndConcurrentLeadershipLoss() throws Exception {
+        final FlinkRuntimeException testException = new FlinkRuntimeException("Test exception");
+        try (final JobMasterServiceLeadershipRunner jobManagerRunner =
+                newJobMasterServiceLeadershipRunnerBuilder()
+                        .setJobMasterServiceProcessFactory(
+                                TestingJobMasterServiceProcessFactory.newBuilder()
+                                        .setJobMasterServiceProcessFunction(
+                                                ignored -> {
+                                                    throw testException;
+                                                })
+                                        .build())
+                        .build()) {
+
+            jobManagerRunner.start();
+
+            leaderElection.isLeader(UUID.randomUUID());
+            leaderElection.notLeader();
+
+            assertThatFuture(jobManagerRunner.getResultFuture())
+                    .eventuallyFailsWith(ExecutionException.class)
+                    .satisfies(cause -> assertThat(cause).hasRootCause(testException));
+        }
     }
 
     @Test
