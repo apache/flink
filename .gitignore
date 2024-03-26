@@ -13,6 +13,7 @@ filter.properties
 logs.zip
 .mvn/wrapper/*.jar
 .mvn/maven.config
+.mvn/.gradle-enterprise/
 target
 tmp
 *.class
