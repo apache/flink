@@ -7,6 +7,7 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import sun.awt.windows.ThemeReader;
 
 import java.util.Properties;
+import java.util.Random;
 
 public class KafkaTestProducer {
     public int PARTITION_COUNT;
@@ -34,9 +35,10 @@ public class KafkaTestProducer {
     }
 
     public void sendLimitedKeyMessages(int numMessages, int numKeys, int offset) {
+        Random random = new Random();
         for (int i = offset; i < numMessages + offset; i++) {
             String key = "key-" + (i % numKeys);
-            String value = i + "";
+            String value = i + "-" + random.nextInt(101);
             ProducerRecord<String, String> record = new ProducerRecord<>("test_topic", key, value);
             System.out.println("Sent Key: " + key + " value: " + value);
             producer.send(record);

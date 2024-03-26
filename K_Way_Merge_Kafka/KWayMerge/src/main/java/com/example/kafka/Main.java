@@ -1,7 +1,14 @@
 package com.example.kafka;
 
+import java.util.Collections;
+import java.util.Properties;
 import java.util.concurrent.ConcurrentLinkedQueue;
-
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.clients.admin.KafkaAdminClient;
+import org.testcontainers.containers.KafkaContainer;
+import org.testcontainers.utility.DockerImageName;
+import org.apache.kafka.clients.admin.NewTopic;
 public class Main {
 
     public static void main( String[] args ) {
@@ -10,7 +17,7 @@ public class Main {
         int partitionCount = 3;
         int  messageSendBurstMilli = 200;
         // Initialize queue which stores all incoming messages per partition
-        ConcurrentLinkedQueue<Integer>[] queue = new ConcurrentLinkedQueue[partitionCount];
+        ConcurrentLinkedQueue<kafkaMessage>[] queue = new ConcurrentLinkedQueue[partitionCount];
         for(int i = 0; i < partitionCount; i++) {
             queue[i] = new ConcurrentLinkedQueue<>();
         }

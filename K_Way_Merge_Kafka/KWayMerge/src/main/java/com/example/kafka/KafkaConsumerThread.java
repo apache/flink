@@ -11,14 +11,20 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class KafkaConsumerThread implements Runnable{
         private volatile boolean running = true;
         private int partitionCount;
         Consumer<String, String> consumer;
-        private ConcurrentLinkedQueue<Integer> partitionQueue [];
+        private ConcurrentLinkedQueue<kafkaMessage> partitionQueue [];
+        String pattern = "(\\d+)-(\\d+)"; // detects things in the pattern %d-%d
+        Pattern regex;
+        Matcher matcher;
 
-    public KafkaConsumerThread(String bootstrapServer , int partitionCount, ConcurrentLinkedQueue<Integer>[] queue) {
+
+    public KafkaConsumerThread(String bootstrapServer , int partitionCount, ConcurrentLinkedQueue<kafkaMessage>[] queue) {
             this.partitionCount = partitionCount;
             Properties consumerProps = new Properties();
             consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServer); // Replace with your Kafka broker addresses
@@ -28,6 +34,7 @@ public class KafkaConsumerThread implements Runnable{
             this.consumer = new KafkaConsumer<>(consumerProps);
             this.consumer.subscribe(Collections.singletonList("test_topic")); // Replace with your topic name
             this.partitionQueue = queue;
+            this.regex = Pattern.compile(pattern);
         }
         @Override
         public void run() {
@@ -36,7 +43,17 @@ public class KafkaConsumerThread implements Runnable{
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(
                         pollTimeMilli));
                 for (ConsumerRecord<String, String> record : records) {
-                    partitionQueue[record.partition()].offer(Integer.parseInt(record.value()));
+                    this.matcher = regex.matcher(record.value());
+                    if(matcher.matches()){
+                        int seqNum = Integer.parseInt(matcher.group(1));
+                        int value = Integer.parseInt(matcher.group(2));
+                        kafkaMessage message = new kafkaMessage(seqNum, value);
+                        partitionQueue[record.partition()].offer(message);
+                    }
+                    else {
+                        System.out.println("data is not in correct format closing");
+                        stopRunning();
+                    }
                 }
                 consumer.commitSync();
             }
