@@ -556,7 +556,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                     restoreStateHandles,
                     ttlCompactFiltersManager,
                     writeBatchSize,
-                    optionsContainer.getWriteBufferManagerCapacity());
+                    optionsContainer.getWriteBufferManagerCapacity(),
+                    cancelStreamRegistry);
         } else {
             return new RocksDBFullRestoreOperation<>(
                     keyGroupRange,
@@ -571,7 +572,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                     restoreStateHandles,
                     ttlCompactFiltersManager,
                     writeBatchSize,
-                    optionsContainer.getWriteBufferManagerCapacity());
+                    optionsContainer.getWriteBufferManagerCapacity(),
+                    cancelStreamRegistry);
         }
     }
 

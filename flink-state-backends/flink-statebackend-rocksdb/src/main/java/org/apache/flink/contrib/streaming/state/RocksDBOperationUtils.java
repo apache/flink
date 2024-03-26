@@ -19,6 +19,8 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
+import org.apache.flink.core.fs.ICloseableRegistry;
+import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
@@ -123,7 +125,8 @@ public class RocksDBOperationUtils {
             RocksDB db,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             @Nullable RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
-            @Nullable Long writeBufferManagerCapacity) {
+            @Nullable Long writeBufferManagerCapacity,
+            ICloseableRegistry cancelStreamRegistryForRestore) {
 
         ColumnFamilyDescriptor columnFamilyDescriptor =
                 createColumnFamilyDescriptor(
@@ -134,7 +137,8 @@ public class RocksDBOperationUtils {
 
         final ColumnFamilyHandle columnFamilyHandle;
         try {
-            columnFamilyHandle = createColumnFamily(columnFamilyDescriptor, db);
+            columnFamilyHandle =
+                    createColumnFamily(columnFamilyDescriptor, db, cancelStreamRegistryForRestore);
         } catch (Exception ex) {
             IOUtils.closeQuietly(columnFamilyDescriptor.getOptions());
             throw new FlinkRuntimeException("Error creating ColumnFamilyHandle.", ex);
@@ -230,7 +234,18 @@ public class RocksDBOperationUtils {
     }
 
     private static ColumnFamilyHandle createColumnFamily(
-            ColumnFamilyDescriptor columnDescriptor, RocksDB db) throws RocksDBException {
+            ColumnFamilyDescriptor columnDescriptor,
+            RocksDB db,
+            ICloseableRegistry cancelStreamRegistryForRestore)
+            throws RocksDBException, InterruptedException {
+        if (Thread.currentThread().isInterrupted()) {
+            // abort recovery if the task thread was already interrupted
+            // e.g. because the task was cancelled
+            throw new InterruptedException("The thread was interrupted, aborting recovery");
+        } else if (cancelStreamRegistryForRestore.isClosed()) {
+            throw new CancelTaskException("The stream was closed, aborting recovery");
+        }
+
         return db.createColumnFamily(columnDescriptor);
     }
 
