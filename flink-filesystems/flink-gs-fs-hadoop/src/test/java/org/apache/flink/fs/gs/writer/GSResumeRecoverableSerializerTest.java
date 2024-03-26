@@ -19,10 +19,12 @@
 package org.apache.flink.fs.gs.writer;
 
 import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -30,28 +32,27 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.UUID;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test recoverable writer serializer. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class GSResumeRecoverableSerializerTest {
 
-    @Parameterized.Parameter(value = 0)
-    public String bucketName;
+    @Parameter public String bucketName;
 
-    @Parameterized.Parameter(value = 1)
+    @Parameter(value = 1)
     public String objectName;
 
-    @Parameterized.Parameter(value = 2)
+    @Parameter(value = 2)
     public long position;
 
-    @Parameterized.Parameter(value = 3)
+    @Parameter(value = 3)
     public boolean closed;
 
-    @Parameterized.Parameter(value = 4)
+    @Parameter(value = 4)
     public int componentCount;
 
-    @Parameterized.Parameters(
+    @Parameters(
             name = "bucketName={0}, objectName={1}, position={2}, closed={3}, componentCount={4}")
     public static Collection<Object[]> data() {
         return Arrays.asList(
@@ -70,7 +71,7 @@ public class GSResumeRecoverableSerializerTest {
                 });
     }
 
-    @Test
+    @TestTemplate
     public void shouldSerdeState() throws IOException {
 
         // create the state
@@ -89,14 +90,14 @@ public class GSResumeRecoverableSerializerTest {
                 (GSResumeRecoverable) serializer.deserialize(serializer.getVersion(), serialized);
 
         // check that states match
-        assertEquals(bucketName, deserializedState.finalBlobIdentifier.bucketName);
-        assertEquals(objectName, deserializedState.finalBlobIdentifier.objectName);
-        assertEquals(position, deserializedState.position);
-        assertEquals(closed, deserializedState.closed);
-        assertEquals(componentCount, deserializedState.componentObjectIds.size());
+        assertThat(deserializedState.finalBlobIdentifier.bucketName).isEqualTo(bucketName);
+        assertThat(deserializedState.finalBlobIdentifier.objectName).isEqualTo(objectName);
+        assertThat(deserializedState.position).isEqualTo(position);
+        assertThat(deserializedState.closed).isEqualTo(closed);
+        assertThat(deserializedState.componentObjectIds.size()).isEqualTo(componentCount);
         for (int i = 0; i < componentCount; i++) {
-            assertEquals(
-                    state.componentObjectIds.get(i), deserializedState.componentObjectIds.get(i));
+            assertThat(deserializedState.componentObjectIds.get(i))
+                    .isEqualTo(state.componentObjectIds.get(i));
         }
     }
 }

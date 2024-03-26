@@ -21,11 +21,13 @@ package org.apache.flink.fs.gs.writer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fs.gs.GSFileSystemOptions;
 import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,19 +35,19 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test {@link GSResumeRecoverable}. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class GSCommitRecoverableTest {
 
-    @Parameterized.Parameter(value = 0)
-    public List<UUID> componentObjectIds;
+    @Parameter public List<UUID> componentObjectIds;
 
-    @Parameterized.Parameter(value = 1)
+    @Parameter(value = 1)
     public String temporaryBucketName;
 
-    @Parameterized.Parameters(name = "componentObjectIds={0}, temporaryBucketName={1}")
+    @Parameters(name = "componentObjectIds={0}, temporaryBucketName={1}")
     public static Collection<Object[]> data() {
 
         ArrayList<UUID> emptyComponentObjectIds = new ArrayList<>();
@@ -70,36 +72,39 @@ public class GSCommitRecoverableTest {
 
     private GSBlobIdentifier blobIdentifier;
 
-    @Before
+    @BeforeEach
     public void before() {
         blobIdentifier = new GSBlobIdentifier("foo", "bar");
     }
 
-    @Test
+    @TestTemplate
     public void shouldConstructProperly() {
         GSCommitRecoverable commitRecoverable =
                 new GSCommitRecoverable(blobIdentifier, componentObjectIds);
-        assertEquals(blobIdentifier, commitRecoverable.finalBlobIdentifier);
-        assertEquals(componentObjectIds, commitRecoverable.componentObjectIds);
+        assertThat(commitRecoverable.finalBlobIdentifier).isEqualTo(blobIdentifier);
+        assertThat(commitRecoverable.componentObjectIds).isEqualTo(componentObjectIds);
     }
 
     /** Ensure that the list of component object ids cannot be added to. */
-    @Test(expected = UnsupportedOperationException.class)
+    @TestTemplate
     public void shouldNotAddComponentId() {
         GSCommitRecoverable commitRecoverable =
                 new GSCommitRecoverable(blobIdentifier, componentObjectIds);
-        commitRecoverable.componentObjectIds.add(UUID.randomUUID());
+        assertThatThrownBy(() -> commitRecoverable.componentObjectIds.add(UUID.randomUUID()))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     /** Ensure that component object ids can't be updated. */
-    @Test(expected = UnsupportedOperationException.class)
+    @TestTemplate
     public void shouldNotModifyComponentId() {
         GSCommitRecoverable commitRecoverable =
                 new GSCommitRecoverable(blobIdentifier, componentObjectIds);
-        commitRecoverable.componentObjectIds.set(0, UUID.randomUUID());
+
+        assertThatThrownBy(() -> commitRecoverable.componentObjectIds.set(0, UUID.randomUUID()))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
-    @Test
+    @TestTemplate
     public void shouldGetComponentBlobIds() {
 
         // configure options, if this test configuration has a temporary bucket name, set it
@@ -119,9 +124,11 @@ public class GSCommitRecoverableTest {
 
             // if a temporary bucket is specified in options, the component blob identifier
             // should be in this bucket; otherwise, it should be in the bucket with the final blob
-            assertEquals(
-                    temporaryBucketName == null ? blobIdentifier.bucketName : temporaryBucketName,
-                    componentBlobIdentifier.bucketName);
+            assertThat(componentBlobIdentifier.bucketName)
+                    .isEqualTo(
+                            temporaryBucketName == null
+                                    ? blobIdentifier.bucketName
+                                    : temporaryBucketName);
 
             // make sure the name is what is expected
             String expectedObjectName =
@@ -130,11 +137,11 @@ public class GSCommitRecoverableTest {
                             blobIdentifier.bucketName,
                             blobIdentifier.objectName,
                             componentObjectId);
-            assertEquals(expectedObjectName, componentBlobIdentifier.objectName);
+            assertThat(componentBlobIdentifier.objectName).isEqualTo(expectedObjectName);
         }
     }
 
-    @Test
+    @TestTemplate
     public void shouldGetComponentBlobIdsWithEntropy() {
 
         // configure options, if this test configuration has a temporary bucket name, set it
@@ -156,9 +163,11 @@ public class GSCommitRecoverableTest {
 
             // if a temporary bucket is specified in options, the component blob identifier
             // should be in this bucket; otherwise, it should be in the bucket with the final blob
-            assertEquals(
-                    temporaryBucketName == null ? blobIdentifier.bucketName : temporaryBucketName,
-                    componentBlobIdentifier.bucketName);
+            assertThat(componentBlobIdentifier.bucketName)
+                    .isEqualTo(
+                            temporaryBucketName == null
+                                    ? blobIdentifier.bucketName
+                                    : temporaryBucketName);
 
             // make sure the name is what is expected
             String expectedObjectName =
@@ -168,7 +177,7 @@ public class GSCommitRecoverableTest {
                             blobIdentifier.bucketName,
                             blobIdentifier.objectName,
                             componentObjectId);
-            assertEquals(expectedObjectName, componentBlobIdentifier.objectName);
+            assertThat(componentBlobIdentifier.objectName).isEqualTo(expectedObjectName);
         }
     }
 }

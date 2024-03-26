@@ -20,9 +20,8 @@ package org.apache.flink.runtime.fs.hdfs;
 
 import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -30,14 +29,14 @@ import java.net.URL;
 import java.net.URLClassLoader;
 
 /** Tests that validate the behavior of the Hadoop File System Factory. */
-public class HadoopFreeFsFactoryTest extends TestLogger {
+class HadoopFreeFsFactoryTest {
 
     /**
      * This test validates that the factory can be instantiated and configured even when Hadoop
      * classes are missing from the classpath.
      */
     @Test
-    public void testHadoopFactoryInstantiationWithoutHadoop() throws Exception {
+    void testHadoopFactoryInstantiationWithoutHadoop() throws Exception {
         // we do reflection magic here to instantiate the test in another class
         // loader, to make sure no hadoop classes are in the classpath
 

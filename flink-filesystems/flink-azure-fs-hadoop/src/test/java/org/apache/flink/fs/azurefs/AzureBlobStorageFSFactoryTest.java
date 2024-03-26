@@ -19,31 +19,17 @@
 package org.apache.flink.fs.azurefs;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.fs.azure.AzureException;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.net.URI;
-import java.util.Arrays;
-import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the AzureFSFactory. */
-@RunWith(Parameterized.class)
-public class AzureBlobStorageFSFactoryTest extends TestLogger {
-
-    @Parameterized.Parameter public String scheme;
-
-    @Parameterized.Parameters(name = "Scheme = {0}")
-    public static List<String> parameters() {
-        return Arrays.asList("wasb", "wasbs");
-    }
-
-    @Rule public final ExpectedException exception = ExpectedException.none();
+class AzureBlobStorageFSFactoryTest {
 
     private AbstractAzureFSFactory getFactory(String scheme) {
         return scheme.equals("wasb")
@@ -51,45 +37,45 @@ public class AzureBlobStorageFSFactoryTest extends TestLogger {
                 : new SecureAzureBlobStorageFSFactory();
     }
 
-    @Test
-    public void testNullFsURI() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"wasb", "wasbs"})
+    void testNullFsURI(String scheme) throws Exception {
         URI uri = null;
         AbstractAzureFSFactory factory = getFactory(scheme);
 
-        exception.expect(NullPointerException.class);
-        exception.expectMessage("passed file system URI object should not be null");
-
-        factory.create(uri);
+        assertThatThrownBy(() -> factory.create(uri))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("passed file system URI object should not be null");
     }
 
     // missing credentials
-    @Test
-    public void testCreateFsWithAuthorityMissingCreds() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"wasb", "wasbs"})
+    void testCreateFsWithAuthorityMissingCreds(String scheme) throws Exception {
         String uriString =
                 String.format(
                         "%s://yourcontainer@youraccount.blob.core.windows.net/testDir", scheme);
         final URI uri = URI.create(uriString);
 
-        exception.expect(AzureException.class);
-
         AbstractAzureFSFactory factory = getFactory(scheme);
         Configuration config = new Configuration();
         config.setInteger("fs.azure.io.retry.max.retries", 0);
         factory.configure(config);
-        factory.create(uri);
+
+        assertThatThrownBy(() -> factory.create(uri)).isInstanceOf(AzureException.class);
     }
 
-    @Test
-    public void testCreateFsWithMissingAuthority() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"wasb", "wasbs"})
+    void testCreateFsWithMissingAuthority(String scheme) throws Exception {
         String uriString = String.format("%s:///my/path", scheme);
         final URI uri = URI.create(uriString);
 
-        exception.expect(IllegalArgumentException.class);
-        exception.expectMessage(
-                "Cannot initialize WASB file system, URI authority not recognized.");
-
         AbstractAzureFSFactory factory = getFactory(scheme);
         factory.configure(new Configuration());
-        factory.create(uri);
+
+        assertThatThrownBy(() -> factory.create(uri))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Cannot initialize WASB file system, URI authority not recognized.");
     }
 }

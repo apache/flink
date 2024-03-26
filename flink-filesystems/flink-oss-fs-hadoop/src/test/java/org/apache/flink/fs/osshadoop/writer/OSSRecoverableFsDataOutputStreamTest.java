@@ -26,20 +26,21 @@ import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.fs.osshadoop.OSSTestUtils;
 import org.apache.flink.testutils.oss.OSSTestCredentials;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
-import static junit.framework.TestCase.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link OSSRecoverableFsDataOutputStream}. */
-public class OSSRecoverableFsDataOutputStreamTest {
+class OSSRecoverableFsDataOutputStreamTest {
 
     private static Path basePath;
 
@@ -55,10 +56,10 @@ public class OSSRecoverableFsDataOutputStreamTest {
 
     private RecoverableFsDataOutputStream fsDataOutputStream;
 
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir public static File temporaryFolder;
 
-    @Before
-    public void before() throws IOException {
+    @BeforeEach
+    void before() throws IOException {
         OSSTestCredentials.assumeCredentialsAvailable();
 
         final Configuration conf = new Configuration();
@@ -77,7 +78,7 @@ public class OSSRecoverableFsDataOutputStreamTest {
     }
 
     @Test
-    public void testRegularDataWritten() throws IOException {
+    void testRegularDataWritten() throws IOException {
         final byte[] part = OSSTestUtils.bytesOf("hello world", 1024 * 1024);
 
         fsDataOutputStream.write(part);
@@ -89,22 +90,23 @@ public class OSSRecoverableFsDataOutputStreamTest {
     }
 
     @Test
-    public void testNoDataWritten() throws IOException {
+    void testNoDataWritten() throws IOException {
         RecoverableFsDataOutputStream.Committer committer = fsDataOutputStream.closeForCommit();
         committer.commit();
 
         // will not create empty object
-        assertFalse(fs.exists(objectPath));
-    }
-
-    @Test(expected = IOException.class)
-    public void testCloseForCommitOnClosedStreamShouldFail() throws IOException {
-        fsDataOutputStream.closeForCommit().commit();
-        fsDataOutputStream.closeForCommit().commit();
+        assertThat(fs.exists(objectPath)).isFalse();
     }
 
     @Test
-    public void testCloseWithoutCommit() throws IOException {
+    void testCloseForCommitOnClosedStreamShouldFail() throws IOException {
+        fsDataOutputStream.closeForCommit().commit();
+        assertThatThrownBy(() -> fsDataOutputStream.closeForCommit().commit())
+                .isInstanceOf(IOException.class);
+    }
+
+    @Test
+    void testCloseWithoutCommit() throws IOException {
         final byte[] part = OSSTestUtils.bytesOf("hello world", 1024 * 1024);
 
         fsDataOutputStream.write(part);
@@ -112,11 +114,11 @@ public class OSSRecoverableFsDataOutputStreamTest {
         fsDataOutputStream.close();
 
         // close without commit will not upload current part
-        assertFalse(fs.exists(objectPath));
+        assertThat(fs.exists(objectPath)).isFalse();
     }
 
     @Test
-    public void testWriteLargeFile() throws IOException {
+    void testWriteLargeFile() throws IOException {
         List<byte[]> buffers = OSSTestUtils.generateRandomBuffer(50 * 1024 * 1024, 10 * 104 * 1024);
         for (byte[] buffer : buffers) {
             fsDataOutputStream.write(buffer);
@@ -129,7 +131,7 @@ public class OSSRecoverableFsDataOutputStreamTest {
     }
 
     @Test
-    public void testConcatWrites() throws IOException {
+    void testConcatWrites() throws IOException {
         fsDataOutputStream.write(OSSTestUtils.bytesOf("hello", 5));
         fsDataOutputStream.write(OSSTestUtils.bytesOf(" ", 1));
         fsDataOutputStream.write(OSSTestUtils.bytesOf("world", 5));
@@ -141,7 +143,7 @@ public class OSSRecoverableFsDataOutputStreamTest {
     }
 
     @Test
-    public void testRegularRecovery() throws IOException {
+    void testRegularRecovery() throws IOException {
         final byte[] part = OSSTestUtils.bytesOf("hello world", 1024 * 1024);
         fsDataOutputStream.write(part);
 
@@ -156,7 +158,7 @@ public class OSSRecoverableFsDataOutputStreamTest {
     }
 
     @Test
-    public void testContinuousPersistWithoutWrites() throws IOException {
+    void testContinuousPersistWithoutWrites() throws IOException {
         fsDataOutputStream.write(OSSTestUtils.bytesOf("hello", 5));
 
         fsDataOutputStream.persist();
@@ -174,7 +176,7 @@ public class OSSRecoverableFsDataOutputStreamTest {
     }
 
     @Test
-    public void testWriteSmallDataAndPersist() throws IOException {
+    void testWriteSmallDataAndPersist() throws IOException {
         fsDataOutputStream.write(OSSTestUtils.bytesOf("h", 1));
         fsDataOutputStream.persist();
 
@@ -201,7 +203,7 @@ public class OSSRecoverableFsDataOutputStreamTest {
     }
 
     @Test
-    public void testWriteBigDataAndPersist() throws IOException {
+    void testWriteBigDataAndPersist() throws IOException {
         List<byte[]> buffers = OSSTestUtils.generateRandomBuffer(50 * 1024 * 1024, 10 * 104 * 1024);
         for (byte[] buffer : buffers) {
             fsDataOutputStream.write(buffer);
@@ -215,7 +217,7 @@ public class OSSRecoverableFsDataOutputStreamTest {
     }
 
     @Test
-    public void testDataWrittenAfterRecovery() throws IOException {
+    void testDataWrittenAfterRecovery() throws IOException {
         final byte[] part = OSSTestUtils.bytesOf("hello world", 1024 * 1024);
         fsDataOutputStream.write(part);
 
@@ -236,8 +238,8 @@ public class OSSRecoverableFsDataOutputStreamTest {
         OSSTestUtils.objectContentEquals(fs, objectPath, buffers);
     }
 
-    @After
-    public void after() throws IOException {
+    @AfterEach
+    void after() throws IOException {
         try {
             if (fs != null) {
                 fs.delete(basePath, true);

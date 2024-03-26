@@ -25,8 +25,6 @@ import org.apache.flink.core.fs.RefCountedBufferingFileStream;
 import org.apache.flink.core.fs.RefCountedFileWithStream;
 import org.apache.flink.fs.osshadoop.writer.OSSRecoverableMultipartUpload;
 
-import org.junit.rules.TemporaryFolder;
-
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -40,7 +38,7 @@ import java.util.List;
 import java.util.SplittableRandom;
 import java.util.UUID;
 
-import static junit.framework.TestCase.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** OSS test utility class. */
 public class OSSTestUtils {
@@ -64,7 +62,7 @@ public class OSSTestUtils {
         for (byte[] bytes : expectContents) {
             out.write(bytes);
         }
-        assertEquals(out.toString(), actualContent);
+        assertThat(actualContent).isEqualTo(out.toString());
     }
 
     public static void objectContentEquals(FileSystem fs, Path objectPath, byte[]... expectContents)
@@ -82,7 +80,7 @@ public class OSSTestUtils {
 
     public static void uploadPart(
             OSSRecoverableMultipartUpload uploader,
-            final TemporaryFolder temporaryFolder,
+            final File temporaryFolder,
             final byte[] content)
             throws IOException {
         RefCountedBufferingFileStream partFile = writeData(temporaryFolder, content);
@@ -92,9 +90,9 @@ public class OSSTestUtils {
         uploader.uploadPart(partFile);
     }
 
-    public static RefCountedBufferingFileStream writeData(
-            TemporaryFolder temporaryFolder, byte[] content) throws IOException {
-        final File newFile = new File(temporaryFolder.getRoot(), ".tmp_" + UUID.randomUUID());
+    public static RefCountedBufferingFileStream writeData(File temporaryFolder, byte[] content)
+            throws IOException {
+        final File newFile = new File(temporaryFolder, ".tmp_" + UUID.randomUUID());
         final OutputStream out =
                 Files.newOutputStream(newFile.toPath(), StandardOpenOption.CREATE_NEW);
 

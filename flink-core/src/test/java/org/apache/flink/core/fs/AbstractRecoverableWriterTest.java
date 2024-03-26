@@ -23,10 +23,10 @@ import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
 import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -34,7 +34,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * A base test-suite for the {@link RecoverableWriter}. This should be subclassed to test each
@@ -71,13 +72,13 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
         return getFileSystem().createRecoverableWriter();
     }
 
-    @Before
+    @BeforeEach
     public void prepare() throws Exception {
         basePathForTest = new Path(getBasePath(), randomName());
         getFileSystem().mkdirs(basePathForTest);
     }
 
-    @After
+    @AfterEach
     public void cleanup() throws Exception {
         getFileSystem().delete(basePathForTest, true);
     }
@@ -303,27 +304,23 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 
     // TESTS FOR EXCEPTIONS
 
-    @Test(expected = IOException.class)
+    @Test
     public void testExceptionWritingAfterCloseForCommit() throws Exception {
         final Path testDir = getBasePathForTest();
 
         final RecoverableWriter writer = getNewFileSystemWriter();
         final Path path = new Path(testDir, "part-0");
 
-        RecoverableFsDataOutputStream stream = null;
-        try {
-            stream = writer.open(path);
+        try (RecoverableFsDataOutputStream stream = writer.open(path)) {
             stream.write(testData1.getBytes(StandardCharsets.UTF_8));
 
             stream.closeForCommit().getRecoverable();
-            stream.write(testData2.getBytes(StandardCharsets.UTF_8));
-            fail();
-        } finally {
-            IOUtils.closeQuietly(stream);
+            assertThatThrownBy(() -> stream.write(testData2.getBytes(StandardCharsets.UTF_8)))
+                    .isInstanceOf(IOException.class);
         }
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void testResumeAfterCommit() throws Exception {
         final Path testDir = getBasePathForTest();
 
@@ -345,8 +342,7 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
         }
 
         // this should throw an exception as the file is already committed
-        writer.recover(recoverable);
-        fail();
+        assertThatThrownBy(() -> writer.recover(recoverable)).isInstanceOf(IOException.class);
     }
 
     @Test

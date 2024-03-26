@@ -22,78 +22,83 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fs.gs.GSFileSystemOptions;
 import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.net.URI;
 import java.util.UUID;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test {@link BlobUtils}. */
-public class BlobUtilsTest {
+class BlobUtilsTest {
 
     @Test
-    public void shouldParseValidUri() {
+    void shouldParseValidUri() {
         GSBlobIdentifier blobIdentifier = BlobUtils.parseUri(URI.create("gs://bucket/foo/bar"));
-        assertEquals("bucket", blobIdentifier.bucketName);
-        assertEquals("foo/bar", blobIdentifier.objectName);
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void shouldFailToParseUriBadScheme() {
-        BlobUtils.parseUri(URI.create("s3://bucket/foo/bar"));
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void shouldFailToParseUriMissingBucketName() {
-        BlobUtils.parseUri(URI.create("gs:///foo/bar"));
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void shouldFailToParseUriMissingObjectName() {
-        BlobUtils.parseUri(URI.create("gs://bucket/"));
+        assertThat(blobIdentifier.bucketName).isEqualTo("bucket");
+        assertThat(blobIdentifier.objectName).isEqualTo("foo/bar");
     }
 
     @Test
-    public void shouldUseTemporaryBucketNameIfSpecified() {
+    void shouldFailToParseUriBadScheme() {
+        assertThatThrownBy(() -> BlobUtils.parseUri(URI.create("s3://bucket/foo/bar")))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldFailToParseUriMissingBucketName() {
+        assertThatThrownBy(() -> BlobUtils.parseUri(URI.create("gs:///foo/bar")))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldFailToParseUriMissingObjectName() {
+        assertThatThrownBy(() -> BlobUtils.parseUri(URI.create("gs://bucket/")))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldUseTemporaryBucketNameIfSpecified() {
         Configuration flinkConfig = new Configuration();
         flinkConfig.set(GSFileSystemOptions.WRITER_TEMPORARY_BUCKET_NAME, "temp");
         GSFileSystemOptions options = new GSFileSystemOptions(flinkConfig);
         GSBlobIdentifier identifier = new GSBlobIdentifier("foo", "bar");
 
         String bucketName = BlobUtils.getTemporaryBucketName(identifier, options);
-        assertEquals("temp", bucketName);
+        assertThat(bucketName).isEqualTo("temp");
     }
 
     @Test
-    public void shouldUseIdentifierBucketNameNameIfTemporaryBucketNotSpecified() {
+    void shouldUseIdentifierBucketNameNameIfTemporaryBucketNotSpecified() {
         Configuration flinkConfig = new Configuration();
         GSFileSystemOptions options = new GSFileSystemOptions(flinkConfig);
         GSBlobIdentifier identifier = new GSBlobIdentifier("foo", "bar");
 
         String bucketName = BlobUtils.getTemporaryBucketName(identifier, options);
-        assertEquals("foo", bucketName);
+        assertThat(bucketName).isEqualTo("foo");
     }
 
     @Test
-    public void shouldProperlyConstructTemporaryObjectPartialName() {
+    void shouldProperlyConstructTemporaryObjectPartialName() {
         GSBlobIdentifier identifier = new GSBlobIdentifier("foo", "bar");
 
         String partialName = BlobUtils.getTemporaryObjectPartialName(identifier);
-        assertEquals(".inprogress/foo/bar/", partialName);
+        assertThat(partialName).isEqualTo(".inprogress/foo/bar/");
     }
 
     @Test
-    public void shouldProperlyConstructTemporaryObjectName() {
+    void shouldProperlyConstructTemporaryObjectName() {
         GSBlobIdentifier identifier = new GSBlobIdentifier("foo", "bar");
         UUID temporaryObjectId = UUID.fromString("f09c43e5-ea49-4537-a406-0586f8f09d47");
 
         String partialName = BlobUtils.getTemporaryObjectName(identifier, temporaryObjectId);
-        assertEquals(".inprogress/foo/bar/f09c43e5-ea49-4537-a406-0586f8f09d47", partialName);
+        assertThat(partialName)
+                .isEqualTo(".inprogress/foo/bar/f09c43e5-ea49-4537-a406-0586f8f09d47");
     }
 
     @Test
-    public void shouldProperlyConstructTemporaryObjectNameWithEntropy() {
+    void shouldProperlyConstructTemporaryObjectNameWithEntropy() {
         Configuration flinkConfig = new Configuration();
         flinkConfig.set(GSFileSystemOptions.ENABLE_FILESINK_ENTROPY, Boolean.TRUE);
 
@@ -102,13 +107,14 @@ public class BlobUtilsTest {
 
         String partialName =
                 BlobUtils.getTemporaryObjectNameWithEntropy(identifier, temporaryObjectId);
-        assertEquals(
-                "f09c43e5-ea49-4537-a406-0586f8f09d47.inprogress/foo/bar/f09c43e5-ea49-4537-a406-0586f8f09d47",
-                partialName);
+        assertThat(
+                        "f09c43e5-ea49-4537-a406-0586f8f09d47.inprogress/foo/bar/f09c43e5-ea49-4537-a406-0586f8f09d47")
+                .isEqualTo(partialName);
     }
 
     @Test
-    public void shouldProperlyConstructTemporaryBlobIdentifierWithDefaultBucket() {
+    void shouldProperlyConstructTemporaryBlobIdentifierWithDefaultBucket() {
+
         Configuration flinkConfig = new Configuration();
         GSFileSystemOptions options = new GSFileSystemOptions(flinkConfig);
         GSBlobIdentifier identifier = new GSBlobIdentifier("foo", "bar");
@@ -116,14 +122,13 @@ public class BlobUtilsTest {
 
         GSBlobIdentifier temporaryBlobIdentifier =
                 BlobUtils.getTemporaryBlobIdentifier(identifier, temporaryObjectId, options);
-        assertEquals("foo", temporaryBlobIdentifier.bucketName);
-        assertEquals(
-                ".inprogress/foo/bar/f09c43e5-ea49-4537-a406-0586f8f09d47",
-                temporaryBlobIdentifier.objectName);
+        assertThat(temporaryBlobIdentifier.bucketName).isEqualTo("foo");
+        assertThat(temporaryBlobIdentifier.objectName)
+                .isEqualTo(".inprogress/foo/bar/f09c43e5-ea49-4537-a406-0586f8f09d47");
     }
 
     @Test
-    public void shouldProperlyConstructTemporaryBlobIdentifierWithTemporaryBucket() {
+    void shouldProperlyConstructTemporaryBlobIdentifierWithTemporaryBucket() {
         Configuration flinkConfig = new Configuration();
         flinkConfig.set(GSFileSystemOptions.WRITER_TEMPORARY_BUCKET_NAME, "temp");
         GSFileSystemOptions options = new GSFileSystemOptions(flinkConfig);
@@ -132,9 +137,8 @@ public class BlobUtilsTest {
 
         GSBlobIdentifier temporaryBlobIdentifier =
                 BlobUtils.getTemporaryBlobIdentifier(identifier, temporaryObjectId, options);
-        assertEquals("temp", temporaryBlobIdentifier.bucketName);
-        assertEquals(
-                ".inprogress/foo/bar/f09c43e5-ea49-4537-a406-0586f8f09d47",
-                temporaryBlobIdentifier.objectName);
+        assertThat(temporaryBlobIdentifier.bucketName).isEqualTo("temp");
+        assertThat(temporaryBlobIdentifier.objectName)
+                .isEqualTo(".inprogress/foo/bar/f09c43e5-ea49-4537-a406-0586f8f09d47");
     }
 }
