@@ -49,8 +49,18 @@ public class TestingUtils {
         return new TestExecutorExtension<>(Executors::newSingleThreadScheduledExecutor);
     }
 
+    public static TestExecutorExtension<ScheduledExecutorService>
+            defaultExecutorExtensionWithOutstandingTaskAssertion() {
+        return defaultExecutorExtension().withOutstandingTasksAssert();
+    }
+
     public static TestExecutorResource<ScheduledExecutorService> defaultExecutorResource() {
         return new TestExecutorResource<>(Executors::newSingleThreadScheduledExecutor);
+    }
+
+    public static TestExecutorResource<ScheduledExecutorService>
+            defaultExecutorResourceWithOutstandingTaskAssertion() {
+        return defaultExecutorResource().withOutstandingTasksAssert();
     }
 
     public static UUID zeroUUID() {
