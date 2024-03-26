@@ -114,7 +114,7 @@ public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
     }
 
     /**
-     * Determines wether we can pushdown the filter into the source. we can not push filter twice,
+     * Determines whether we can pushdown the filter into the source. we can not push filter twice,
      * make sure FilterPushDownSpec has not been assigned as a capability.
      *
      * @param tableSourceTable Table scan to attempt to push into
