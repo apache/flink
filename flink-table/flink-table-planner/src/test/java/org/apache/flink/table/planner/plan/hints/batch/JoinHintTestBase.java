@@ -26,7 +26,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.hint.JoinStrategy;
 import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder;
-import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
+import org.apache.flink.table.planner.plan.utils.RelTreeWriterImpl;
 import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.PlanKind;
 import org.apache.flink.table.planner.utils.TableTestBase;
@@ -39,6 +39,8 @@ import org.apache.logging.log4j.util.Strings;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -885,18 +887,27 @@ public abstract class JoinHintTestBase extends TableTestBase {
     protected String buildAstPlanWithQueryBlockAlias(List<RelNode> relNodes) {
         StringBuilder astBuilder = new StringBuilder();
         relNodes.forEach(
-                node ->
-                        astBuilder
-                                .append(System.lineSeparator())
-                                .append(
-                                        FlinkRelOptUtil.toString(
-                                                node,
-                                                SqlExplainLevel.EXPPLAN_ATTRIBUTES,
-                                                false,
-                                                false,
-                                                true,
-                                                false,
-                                                true)));
+                node -> {
+                    StringWriter sw = new StringWriter();
+                    RelTreeWriterImpl planWriter =
+                            new RelTreeWriterImpl(
+                                    new PrintWriter(sw),
+                                    SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+                                    false,
+                                    false,
+                                    true,
+                                    true,
+                                    false,
+                                    true,
+                                    true,
+                                    1,
+                                    false,
+                                    // print richer detail in sub query
+                                    true);
+
+                    node.explain(planWriter);
+                    astBuilder.append(System.lineSeparator()).append(sw);
+                });
         return astBuilder.toString();
     }
 

@@ -411,7 +411,7 @@ LogicalProject(a2=[$0])
 NestedLoopJoin(joinType=[LeftAntiJoin], where=[OR(IS NULL(a1), IS NULL(a2), =(a1, a2))], select=[a1, b1], build=[right])
 :- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
 +- Exchange(distribution=[broadcast])
-   +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2], hints=[[[ALIAS options:[T2]]]])
+   +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
 ]]>
     </Resource>
   </TestCase>
@@ -434,7 +434,7 @@ LogicalProject(a2=[$0])
 NestedLoopJoin(joinType=[LeftAntiJoin], where=[OR(IS NULL(a1), IS NULL(a2), =(a1, a2))], select=[a1, b1], build=[right])
 :- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
 +- Exchange(distribution=[broadcast])
-   +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2], hints=[[[ALIAS options:[T2]]]])
+   +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
 ]]>
     </Resource>
   </TestCase>
@@ -639,7 +639,7 @@ LogicalProject(EXPR$0=[$1])
       <![CDATA[
 HashJoin(joinType=[LeftSemiJoin], where=[=(a1, EXPR$0)], select=[a1, b1], build=[right], tryDistinctBuildRow=[true])
 :- Exchange(distribution=[hash[a1]])
-:  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
+:  +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1, b1], metadata=[]]], fields=[a1, b1])
 +- Exchange(distribution=[hash[EXPR$0]])
    +- LocalHashAggregate(groupBy=[EXPR$0], select=[EXPR$0])
       +- Calc(select=[EXPR$0])
@@ -648,8 +648,9 @@ HashJoin(joinType=[LeftSemiJoin], where=[=(a1, EXPR$0)], select=[a1, b1], build=
                +- LocalHashAggregate(groupBy=[a1], select=[a1, Partial_COUNT(a2) AS count$0])
                   +- NestedLoopJoin(joinType=[InnerJoin], where=[=(a2, a1)], select=[a2, a1], build=[left])
                      :- Exchange(distribution=[broadcast])
-                     :  +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2], hints=[[[ALIAS options:[T2]]]])
-                     +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1], metadata=[]]], fields=[a1], hints=[[[ALIAS options:[T1]]]])
+                     :  +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
+                     +- Calc(select=[a1])
+                        +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1, b1], metadata=[]]], fields=[a1, b1])
 ]]>
     </Resource>
   </TestCase>
@@ -679,8 +680,8 @@ HashJoin(joinType=[LeftSemiJoin], where=[=(a1, a2)], select=[a1, b1], build=[rig
    +- Calc(select=[a2])
       +- NestedLoopJoin(joinType=[InnerJoin], where=[=(a2, a3)], select=[a2, a3], build=[left])
          :- Exchange(distribution=[broadcast])
-         :  +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2], hints=[[[ALIAS options:[T2]]]])
-         +- TableSourceScan(table=[[default_catalog, default_database, T3, project=[a3], metadata=[]]], fields=[a3], hints=[[[ALIAS options:[T3]]]])
+         :  +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
+         +- TableSourceScan(table=[[default_catalog, default_database, T3, project=[a3], metadata=[]]], fields=[a3])
 ]]>
     </Resource>
   </TestCase>
@@ -717,8 +718,8 @@ Calc(select=[a1, b1])
                         :  +- Calc(select=[a2])
                         :     +- NestedLoopJoin(joinType=[InnerJoin], where=[=(a2, a3)], select=[a2, a3], build=[left])
                         :        :- Exchange(distribution=[broadcast])
-                        :        :  +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2], hints=[[[ALIAS options:[T2]]]])
-                        :        +- TableSourceScan(table=[[default_catalog, default_database, T3, project=[a3], metadata=[]]], fields=[a3], hints=[[[ALIAS options:[T3]]]])
+                        :        :  +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
+                        :        +- TableSourceScan(table=[[default_catalog, default_database, T3, project=[a3], metadata=[]]], fields=[a3])
                         +- HashAggregate(isMerge=[true], groupBy=[a1], select=[a1])
                            +- Exchange(distribution=[hash[a1]])
                               +- LocalHashAggregate(groupBy=[a1], select=[a1])
@@ -769,7 +770,7 @@ LogicalProject(a2=[$0])
     <Resource name="optimized rel plan">
       <![CDATA[
 HashJoin(joinType=[LeftSemiJoin], where=[=(a1, a2)], select=[a1, b1], isBroadcast=[true], build=[right])
-:- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
+:- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1, b1], metadata=[]]], fields=[a1, b1])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[a2])
       +- SortLimit(orderBy=[a1 ASC], offset=[0], fetch=[10], global=[true])
@@ -777,8 +778,9 @@ HashJoin(joinType=[LeftSemiJoin], where=[=(a1, a2)], select=[a1, b1], isBroadcas
             +- SortLimit(orderBy=[a1 ASC], offset=[0], fetch=[10], global=[false])
                +- NestedLoopJoin(joinType=[InnerJoin], where=[=(a2, a1)], select=[a2, a1], build=[left])
                   :- Exchange(distribution=[broadcast])
-                  :  +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2], hints=[[[ALIAS options:[T2]]]])
-                  +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1], metadata=[]]], fields=[a1], hints=[[[ALIAS options:[T1]]]])
+                  :  +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
+                  +- Calc(select=[a1])
+                     +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1, b1], metadata=[]]], fields=[a1, b1])
 ]]>
     </Resource>
   </TestCase>
@@ -818,13 +820,13 @@ Calc(select=[a1, b1])
                         :  +- Calc(select=[a2])
                         :     +- NestedLoopJoin(joinType=[InnerJoin], where=[=(a2, a3)], select=[a2, a3], build=[left])
                         :        :- Exchange(distribution=[broadcast])
-                        :        :  +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2], hints=[[[ALIAS options:[T2]]]])
+                        :        :  +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
                         :        +- Calc(select=[a3])
                         :           +- HashJoin(joinType=[InnerJoin], where=[=(a2, a3)], select=[a2, a3], build=[left])
                         :              :- Exchange(distribution=[hash[a2]])
-                        :              :  +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2], hints=[[[ALIAS options:[T2]]]])
+                        :              :  +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
                         :              +- Exchange(distribution=[hash[a3]])
-                        :                 +- TableSourceScan(table=[[default_catalog, default_database, T3, project=[a3], metadata=[]]], fields=[a3], hints=[[[ALIAS options:[T3]]]])
+                        :                 +- TableSourceScan(table=[[default_catalog, default_database, T3, project=[a3], metadata=[]]], fields=[a3])
                         +- HashAggregate(isMerge=[true], groupBy=[a1], select=[a1])
                            +- Exchange(distribution=[hash[a1]])
                               +- LocalHashAggregate(groupBy=[a1], select=[a1])
@@ -858,8 +860,8 @@ HashJoin(joinType=[LeftSemiJoin], where=[=(a1, a2)], select=[a1, b1], build=[rig
    +- Calc(select=[a2])
       +- NestedLoopJoin(joinType=[InnerJoin], where=[=(a2, a3)], select=[a2, a3], build=[left])
          :- Exchange(distribution=[broadcast])
-         :  +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2], hints=[[[ALIAS options:[T2]]]])
-         +- TableSourceScan(table=[[default_catalog, default_database, T3, project=[a3], metadata=[]]], fields=[a3], hints=[[[ALIAS options:[T3]]]])
+         :  +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
+         +- TableSourceScan(table=[[default_catalog, default_database, T3, project=[a3], metadata=[]]], fields=[a3])
 ]]>
     </Resource>
   </TestCase>
@@ -1142,7 +1144,7 @@ NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a1, EXPR$0], buil
 :  +- HashJoin(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, a2], build=[left])
 :     :- Exchange(distribution=[hash[a1]])
 :     :  +- Calc(select=[a1], where=[=(b1, 'abc')])
-:     :     +- TableSourceScan(table=[[default_catalog, default_database, T1, filter=[]]], fields=[a1, b1])
+:     :     +- TableSourceScan(table=[[default_catalog, default_database, T1, filter=[], project=[a1, b1], metadata=[]]], fields=[a1, b1])
 :     +- Exchange(distribution=[hash[a2]])
 :        +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
 +- Exchange(distribution=[broadcast])
@@ -1152,9 +1154,10 @@ NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a1, EXPR$0], buil
             +- Calc(select=[0 AS $f0])
                +- HashJoin(joinType=[InnerJoin], where=[=(a1, a3)], select=[a1, a3], build=[left])
                   :- Exchange(distribution=[hash[a1]])
-                  :  +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1], metadata=[]]], fields=[a1], hints=[[[ALIAS options:[T1]]]])
+                  :  +- Calc(select=[a1])
+                  :     +- TableSourceScan(table=[[default_catalog, default_database, T1, filter=[], project=[a1, b1], metadata=[]]], fields=[a1, b1])
                   +- Exchange(distribution=[hash[a3]])
-                     +- TableSourceScan(table=[[default_catalog, default_database, T3, project=[a3], metadata=[]]], fields=[a3], hints=[[[ALIAS options:[T3]]]])
+                     +- TableSourceScan(table=[[default_catalog, default_database, T3, project=[a3], metadata=[]]], fields=[a3])
 ]]>
     </Resource>
   </TestCase>
@@ -1231,7 +1234,7 @@ NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a1, $f2], build=[
          :     +- Exchange(distribution=[single])
          :        +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
          :           +- Calc(select=[a1], where=[=(a1, 1)])
-         :              +- TableSourceScan(table=[[default_catalog, default_database, T1, filter=[], project=[a1], metadata=[]]], fields=[a1], hints=[[[ALIAS options:[T1]]]])
+         :              +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1], metadata=[]]], fields=[a1])
          +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
             +- Exchange(distribution=[single])
                +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
@@ -1240,9 +1243,9 @@ NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a1, $f2], build=[
                         +- LocalHashAggregate(groupBy=[a3], select=[a3])
                            +- Union(all=[true], union=[a3])
                               :- Calc(select=[CAST(1 AS BIGINT) AS a3], where=[=(a1, 1)])
-                              :  +- TableSourceScan(table=[[default_catalog, default_database, T1, filter=[], project=[a1], metadata=[]]], fields=[a1], hints=[[[ALIAS options:[T1]]]])
+                              :  +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1], metadata=[]]], fields=[a1])
                               +- Calc(select=[CAST(1 AS BIGINT) AS a3], where=[=(a3, 1)])
-                                 +- TableSourceScan(table=[[default_catalog, default_database, T3, filter=[], project=[a3], metadata=[]]], fields=[a3], hints=[[[ALIAS options:[T3]]]])
+                                 +- TableSourceScan(table=[[default_catalog, default_database, T3, filter=[], project=[a3], metadata=[]]], fields=[a3])
 ]]>
     </Resource>
   </TestCase>
@@ -1418,7 +1421,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[=(a1, a2)], select=[a1, b1], build=[rig
 :- Exchange(distribution=[hash[a1]])
 :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
 +- Exchange(distribution=[hash[a2]])
-   +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2], hints=[[[ALIAS options:[T2]]]])
+   +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
 ]]>
     </Resource>
   </TestCase>
@@ -1505,7 +1508,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[=(a1, a2)], select=[a1, b1], build=[rig
 :- Exchange(distribution=[hash[a1]])
 :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
 +- Exchange(distribution=[hash[a2]])
-   +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2], hints=[[[ALIAS options:[T2]]]])
+   +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
 ]]>
     </Resource>
   </TestCase>

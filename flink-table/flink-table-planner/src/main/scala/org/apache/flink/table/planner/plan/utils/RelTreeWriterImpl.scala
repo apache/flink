@@ -27,10 +27,11 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Aggregate, Correlate, Join, TableScan}
 import org.apache.calcite.rel.externalize.RelWriterImpl
 import org.apache.calcite.rel.hint.Hintable
+import org.apache.calcite.rex.RexSubQuery
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.util.Pair
 
-import java.io.PrintWriter
+import java.io.{PrintWriter, StringWriter}
 import java.util
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -48,7 +49,8 @@ class RelTreeWriterImpl(
     withQueryHint: Boolean = true,
     withQueryBlockAlias: Boolean = false,
     statementNum: Integer = 1,
-    withAdvice: Boolean = false)
+    withAdvice: Boolean = false,
+    withRicherDetailInSubQuery: Boolean = false)
   extends RelWriterImpl(pw, explainLevel, withIdPrefix) {
 
   val NODE_LEVEL_ADVICE = new util.HashMap[Integer, util.List[PlanAdvice]]()
@@ -189,7 +191,16 @@ class RelTreeWriterImpl(
         case value =>
           if (j == 0) s.append("(") else s.append(", ")
           j = j + 1
-          s.append(value.left).append("=[").append(value.right).append("]")
+          val rightStr = value.right match {
+            case subQuery: RexSubQuery =>
+              if (withRicherDetailInSubQuery) {
+                computeSubQueryRicherDigest(subQuery)
+              } else {
+                value.right.toString
+              }
+            case _ => value.right.toString
+          }
+          s.append(value.left).append("=[").append(rightStr).append("]")
       }
       if (j > 0) s.append(")")
     }
@@ -285,5 +296,46 @@ class RelTreeWriterImpl(
                 QUERY_LEVEL_ADVICE.add(analyzedResult.getAdvice)
               })
     }
+  }
+
+  private def copy(pw: PrintWriter): RelTreeWriterImpl = {
+    new RelTreeWriterImpl(
+      pw,
+      explainLevel,
+      withIdPrefix,
+      withChangelogTraits,
+      withRowType,
+      withTreeStyle,
+      withUpsertKey,
+      withQueryHint,
+      withQueryBlockAlias,
+      statementNum,
+      withAdvice,
+      withRicherDetailInSubQuery)
+  }
+
+  /**
+   * Mainly copy from [[RexSubQuery#computeDigest]].
+   *
+   * Modified to support explain sub-query with richer additional detail by [[RelTreeWriterImpl]] in
+   * Flink rather than Calcite.
+   */
+  private def computeSubQueryRicherDigest(subQuery: RexSubQuery): String = {
+    val sb = new StringBuilder(subQuery.getOperator.getName);
+    sb.append("(")
+    subQuery.getOperands.forEach(
+      operand => {
+        sb.append(operand)
+        sb.append(", ")
+      })
+    sb.append("{\n")
+
+    val sw = new StringWriter
+    val newRelTreeWriter = copy(new PrintWriter(sw))
+    subQuery.rel.explain(newRelTreeWriter)
+    sb.append(sw.toString)
+
+    sb.append("})")
+    sb.toString()
   }
 }

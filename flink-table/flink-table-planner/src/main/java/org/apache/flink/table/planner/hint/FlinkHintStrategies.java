@@ -58,7 +58,8 @@ import java.util.Optional;
  *       </ol>
  *   <li>Validate and modify query hints: The query hints are validated, and table names in the
  *       hints are replaced with LEFT or RIGHT to indicate the join input ordinal.
- *   <li>Clear query block aliases: The query block aliases are cleared from the sink to the source.
+ *   <li>Clear query block aliases: The query block aliases are cleared from the sink to the source
+ *       and within sub-queries.
  *   <li>Consume query hints in applicable scenes. For example, the join hints are consumed in
  *       specific rules where they are relevant.
  * </ol>

@@ -27,6 +27,7 @@ import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
 import org.apache.calcite.rel.RelNode;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.List;
@@ -100,5 +101,25 @@ class ClearQueryBlockAliasResolverTest extends JoinHintTestBase {
         ClearQueryBlockAliasResolver clearQueryBlockAliasResolver =
                 new ClearQueryBlockAliasResolver();
         return clearQueryBlockAliasResolver.resolve(relNodes);
+    }
+
+    @Test
+    void testNotClearTableHintsWithQueryHintsExist() {
+        // If there are query hints, table alias will be added. And the table hints should not be
+        // cleared.
+        String sql =
+                "select * from (select /*+ BROADCAST(T1) */ T1.* from T1 join T2/*+ OPTIONS('bounded' = 'true') */ on T1.a1 = T2.a2)";
+
+        verifyRelPlanByCustom(String.format(sql, getTestSingleJoinHint()));
+    }
+
+    @Test
+    void testNotClearTableHintsWithQueryHintsNotExist() {
+        // If there are no query hints, table alias is no need to be added. Then the table hints
+        // should not be cleared.
+        String sql =
+                "select * from (select T1.* from T1 join T2/*+ OPTIONS('bounded' = 'true') */ on T1.a1 = T2.a2)";
+
+        verifyRelPlanByCustom(String.format(sql, getTestSingleJoinHint()));
     }
 }
