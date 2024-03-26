@@ -19,8 +19,34 @@ package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.table.planner.plan.common.UnnestTestBase
 import org.apache.flink.table.planner.utils.TableTestUtil
+import org.apache.flink.types.Row
+import org.apache.flink.util.CollectionUtil
+
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
 
 class UnnestTest extends UnnestTestBase(true) {
 
   override def getTableTestUtil: TableTestUtil = batchTestUtil()
+
+  @Test
+  def testUnnestWithValuesBatch(): Unit = {
+    val src = util.tableEnv.sqlQuery("SELECT * FROM UNNEST(ARRAY[1,2,3])")
+    val rows: java.util.List[Row] = CollectionUtil.iteratorToList(src.execute.collect)
+    assertThat(rows.size()).isEqualTo(3)
+    assertThat(rows.get(0).toString).isEqualTo("+I[1]")
+    assertThat(rows.get(1).toString).isEqualTo("+I[2]")
+    assertThat(rows.get(2).toString).isEqualTo("+I[3]")
+  }
+
+  @Test
+  def testUnnestWithValuesBatch2(): Unit = {
+    val src =
+      util.tableEnv.sqlQuery("SELECT * FROM (VALUES('a')) CROSS JOIN UNNEST(ARRAY[1, 2, 3])")
+    val rows: java.util.List[Row] = CollectionUtil.iteratorToList(src.execute.collect)
+    assertThat(rows.size()).isEqualTo(3)
+    assertThat(rows.get(0).toString).isEqualTo("+I[a, 1]")
+    assertThat(rows.get(1).toString).isEqualTo("+I[a, 2]")
+    assertThat(rows.get(2).toString).isEqualTo("+I[a, 3]")
+  }
 }

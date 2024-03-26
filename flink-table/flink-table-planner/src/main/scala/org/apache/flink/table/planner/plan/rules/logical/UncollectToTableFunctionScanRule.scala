@@ -26,7 +26,7 @@ import org.apache.flink.table.runtime.functions.table.UnnestRowsFunction
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toRowType
 
 import com.google.common.collect.ImmutableList
-import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelOptRuleCall, RelOptRuleOperand, RelTraitSet}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand}
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.rel.RelNode
@@ -35,55 +35,34 @@ import org.apache.calcite.rel.logical._
 
 import java.util.Collections
 
-/**
- * Planner rule that rewrites UNNEST to explode function.
- *
- * Note: This class can only be used in HepPlanner.
- */
-class LogicalUnnestRule(operand: RelOptRuleOperand, description: String)
+/** Planner rule that converts Uncollect values to TableFunctionScan. */
+class UncollectToTableFunctionScanRule(operand: RelOptRuleOperand, description: String)
   extends RelOptRule(operand, description)
   with UnnestConversionUtil {
 
-  override def matches(call: RelOptRuleCall): Boolean = {
-    val join: LogicalCorrelate = call.rel(0)
-    val right = getRel(join.getRight)
-
-    right match {
-      // a filter is pushed above the table function
-      case filter: LogicalFilter =>
-        getRel(filter.getInput) match {
-          case u: Uncollect => !u.withOrdinality
-          case p: LogicalProject =>
-            getRel(p.getInput) match {
-              case u: Uncollect => !u.withOrdinality
-              case _ => false
-            }
-          case _ => false
-        }
-      case project: LogicalProject =>
-        getRel(project.getInput) match {
-          case u: Uncollect => !u.withOrdinality
-          case _ => false
-        }
-      case u: Uncollect => !u.withOrdinality
+  private def isProjectFilterValues(relNode: RelNode): Boolean = {
+    relNode match {
+      case p: LogicalProject => isProjectFilterValues(p.getInput())
+      case f: LogicalFilter => isProjectFilterValues(f.getInput())
+      case h: HepRelVertex => isProjectFilterValues(h.getCurrentRel)
+      case _: LogicalValues => true
       case _ => false
     }
   }
+  override def matches(call: RelOptRuleCall): Boolean = {
+    val array: Uncollect = call.rel(0)
+    isProjectFilterValues(array.getInput)
+  }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val correlate: LogicalCorrelate = call.rel(0)
-    val outer = getRel(correlate.getLeft)
-    val array = getRel(correlate.getRight)
-
-    // convert unnest into table function scan
-    val tableFunctionScan = convert(array, correlate.getCluster, correlate.getTraitSet)
-    // create correlate with table function scan as input
-    val newCorrelate =
-      correlate.copy(correlate.getTraitSet, ImmutableList.of(outer, tableFunctionScan))
-    call.transformTo(newCorrelate)
+    val array: Uncollect = call.rel(0)
+    val tableFunctionScan = convert(array, array.getCluster, array.getTraitSet)
+    call.transformTo(tableFunctionScan)
   }
 }
 
-object LogicalUnnestRule {
-  val INSTANCE = new LogicalUnnestRule(operand(classOf[LogicalCorrelate], any), "LogicalUnnestRule")
+object UncollectToTableFunctionScanRule {
+  val INSTANCE = new UncollectToTableFunctionScanRule(
+    operand(classOf[Uncollect], any()),
+    "UncollectToTableFunctionScanRule")
 }

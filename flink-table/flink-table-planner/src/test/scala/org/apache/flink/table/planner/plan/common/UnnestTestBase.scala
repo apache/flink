@@ -21,10 +21,15 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
+import org.apache.flink.types.Row
+import org.apache.flink.util.CollectionUtil
 
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
 import java.sql.Timestamp
+import java.util
+import java.util.List
 
 /** Test for UNNEST queries. */
 abstract class UnnestTestBase(withExecPlan: Boolean) extends TableTestBase {
@@ -91,6 +96,11 @@ abstract class UnnestTestBase(withExecPlan: Boolean) extends TableTestBase {
   def testCrossWithUnnest(): Unit = {
     util.addTableSource[(Int, Long, Array[String])]("MyTable", 'a, 'b, 'c)
     verifyPlan("SELECT a, s FROM MyTable, UNNEST(MyTable.c) as A (s)")
+  }
+
+  @Test
+  def testUnnestWithValues(): Unit = {
+    verifyPlan("SELECT * FROM UNNEST(ARRAY[1,2,3])")
   }
 
   @Test

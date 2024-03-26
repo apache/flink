@@ -120,6 +120,7 @@ object FlinkBatchRuleSets {
         CoreRules.FILTER_MERGE,
         // unnest rule
         LogicalUnnestRule.INSTANCE,
+        UncollectToTableFunctionScanRule.INSTANCE,
         // Wrap arguments for JSON aggregate functions
         WrapJsonAggFunctionArgumentsRule.INSTANCE
       )).asJava)
