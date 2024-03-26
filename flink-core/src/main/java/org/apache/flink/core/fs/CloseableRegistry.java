@@ -33,21 +33,11 @@ import java.util.Map;
 
 import static org.apache.flink.shaded.guava31.com.google.common.collect.Lists.reverse;
 
-/**
- * This class allows to register instances of {@link Closeable}, which are all closed if this
- * registry is closed.
- *
- * <p>Registering to an already closed registry will throw an exception and close the provided
- * {@link Closeable}
- *
- * <p>All methods in this class are thread-safe.
- *
- * <p>This class closes all registered {@link Closeable}s in the reverse registration order.
- */
+/** {@link ICloseableRegistry} implementation. */
 @Internal
 public class CloseableRegistry
         extends AbstractAutoCloseableRegistry<Closeable, Closeable, Object, IOException>
-        implements Closeable {
+        implements ICloseableRegistry {
 
     private static final Object DUMMY = new Object();
 
