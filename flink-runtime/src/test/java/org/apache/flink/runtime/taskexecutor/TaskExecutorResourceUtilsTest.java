@@ -124,6 +124,19 @@ class TaskExecutorResourceUtilsTest {
     }
 
     @Test
+    void testJvmOverheadMinMaxResetForLocalExecution() {
+        Configuration configuration = new Configuration();
+        configuration.set(TaskManagerOptions.JVM_OVERHEAD_MIN, MemorySize.ofMebiBytes(1));
+        configuration.set(TaskManagerOptions.JVM_OVERHEAD_MAX, MemorySize.ofMebiBytes(2));
+        TaskExecutorResourceUtils.adjustForLocalExecution(configuration);
+
+        assertThat(configuration.get(TaskManagerOptions.JVM_OVERHEAD_MIN))
+                .isEqualTo(TaskManagerOptions.JVM_OVERHEAD_MAX.defaultValue());
+        assertThat(configuration.get(TaskManagerOptions.JVM_OVERHEAD_MAX))
+                .isEqualTo(TaskManagerOptions.JVM_OVERHEAD_MAX.defaultValue());
+    }
+
+    @Test
     void testCalculateTotalFlinkMemoryWithAllFactorsBeingSet() {
         Configuration config = new Configuration();
 

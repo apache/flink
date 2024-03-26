@@ -209,15 +209,16 @@ public class TaskExecutorResourceUtils {
                 config,
                 TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY,
                 TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY.defaultValue());
-        silentlySetConfigOptionIfNotSet(
+
+        resetConfigOption(
                 config,
                 TaskManagerOptions.JVM_METASPACE,
                 TaskManagerOptions.JVM_METASPACE.defaultValue());
-        silentlySetConfigOptionIfNotSet(
+        resetConfigOption(
                 config,
                 TaskManagerOptions.JVM_OVERHEAD_MAX,
                 TaskManagerOptions.JVM_OVERHEAD_MAX.defaultValue());
-        silentlySetConfigOptionIfNotSet(
+        resetConfigOption(
                 config,
                 TaskManagerOptions.JVM_OVERHEAD_MIN,
                 TaskManagerOptions.JVM_OVERHEAD_MAX.defaultValue());
@@ -250,7 +251,7 @@ public class TaskExecutorResourceUtils {
                     "The resource configuration option {} is set but it will have no effect for local execution, "
                             + "only the following options matter for the resource configuration: {}",
                     option,
-                    UNUSED_CONFIG_OPTIONS);
+                    CONFIG_OPTIONS);
         }
     }
 
@@ -284,5 +285,16 @@ public class TaskExecutorResourceUtils {
                     defaultValueLogExt);
             config.set(option, defaultValue);
         }
+    }
+
+    private static <T> void resetConfigOption(
+            Configuration config, ConfigOption<T> option, T value) {
+        if (config.contains(option)) {
+            LOG.info(
+                    "The configuration option {} has no effect for local execution, resetting to {}",
+                    option.key(),
+                    value);
+        }
+        config.set(option, value);
     }
 }
