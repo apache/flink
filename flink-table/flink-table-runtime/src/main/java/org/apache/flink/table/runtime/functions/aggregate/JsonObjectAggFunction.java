@@ -90,6 +90,11 @@ public class JsonObjectAggFunction
                         "map",
                         MapView.newMapViewDataType(
                                 DataTypes.STRING().notNull().toInternal(),
+                                DataTypes.STRING().toInternal())),
+                DataTypes.FIELD(
+                        "retractMap",
+                        MapView.newMapViewDataType(
+                                DataTypes.STRING().notNull().toInternal(),
                                 DataTypes.STRING().toInternal())));
     }
 
@@ -119,14 +124,30 @@ public class JsonObjectAggFunction
 
     public void retract(Accumulator acc, StringData keyData, @Nullable StringData valueData)
             throws Exception {
-        acc.map.remove(keyData);
+        if (acc.map.contains(keyData) && acc.map.get(keyData).equals(valueData)) {
+            acc.map.remove(keyData);
+        } else {
+            acc.retractMap.put(keyData, valueData);
+        }
     }
 
     public void merge(Accumulator acc, Iterable<Accumulator> others) throws Exception {
         for (final Accumulator other : others) {
+            for (final StringData key : other.retractMap.keys()) {
+                if (acc.map.contains(key) && acc.map.get(key).equals(other.retractMap.get(key))) {
+                    acc.map.remove(key);
+                } else {
+                    acc.retractMap.put(key, other.retractMap.get(key));
+                }
+            }
             for (final StringData key : other.map.keys()) {
-                assertKeyNotPresent(acc, key);
-                acc.map.put(key, other.map.get(key));
+                if (acc.retractMap.contains(key)
+                        && acc.retractMap.get(key).equals(other.map.get(key))) {
+                    acc.retractMap.remove(key);
+                } else {
+                    assertKeyNotPresent(acc, key);
+                    acc.map.put(key, other.map.get(key));
+                }
             }
         }
     }
@@ -166,6 +187,7 @@ public class JsonObjectAggFunction
     public static class Accumulator {
 
         public MapView<StringData, StringData> map = new MapView<>();
+        public MapView<StringData, StringData> retractMap = new MapView<>();
 
         @Override
         public boolean equals(Object other) {
@@ -178,12 +200,12 @@ public class JsonObjectAggFunction
             }
 
             final Accumulator that = (Accumulator) other;
-            return Objects.equals(map, that.map);
+            return Objects.equals(map, that.map) && Objects.equals(retractMap, that.retractMap);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(map);
+            return Objects.hash(map, retractMap);
         }
     }
 }
