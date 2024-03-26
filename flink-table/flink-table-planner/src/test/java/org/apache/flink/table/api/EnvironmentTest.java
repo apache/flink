@@ -34,12 +34,16 @@ import org.apache.flink.table.catalog.listener.CatalogListener1;
 import org.apache.flink.table.catalog.listener.CatalogListener2;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.catalog.CommonCatalogOptions.TABLE_CATALOG_STORE_KIND;
+import static org.apache.flink.table.catalog.CommonCatalogOptions.TABLE_CATALOG_STORE_OPTION_PREFIX;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TableEnvironment} that require a planner. */
@@ -153,6 +157,36 @@ class EnvironmentTest {
                         env2.getCatalogManager().getCatalogModificationListeners().stream()
                                 .map(c -> c.getClass().getName())
                                 .collect(Collectors.toList()));
+    }
+
+    @Test
+    void testRegisterCatalogStoreVarTableEnvironment(@TempDir File tempFolder) {
+        Configuration configuration = new Configuration();
+
+        configuration.set(TABLE_CATALOG_STORE_KIND, "file");
+        configuration.setString(
+                TABLE_CATALOG_STORE_OPTION_PREFIX + "file.path", tempFolder.getAbsolutePath());
+        EnvironmentSettings settings =
+                EnvironmentSettings.newInstance().withConfiguration(configuration).build();
+
+        TableEnvironment env1 = TableEnvironment.create(settings);
+        Configuration catalogConfiguration = new Configuration();
+        catalogConfiguration.setString("type", "generic_in_memory");
+        env1.createCatalog(
+                "test_catalog", CatalogDescriptor.of("test_catalog", catalogConfiguration));
+
+        assertThat(env1.getCatalog("test_catalog").isPresent()).isTrue();
+
+        TableEnvironment env2 = TableEnvironment.create(settings);
+        assertThat(env2.getCatalog("test_catalog").isPresent()).isTrue();
+
+        TableEnvironment env3 = TableEnvironment.create(EnvironmentSettings.newInstance().build());
+        assertThat(env3.getCatalog("test_catalog").isPresent()).isFalse();
+
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+        StreamTableEnvironment env4 = StreamTableEnvironment.create(env);
+        assertThat(env4.getCatalog("test_catalog").isPresent()).isTrue();
     }
 
     @Test
