@@ -183,6 +183,24 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
     }
 
     @Override
+    public void renameDatabase(
+            String databaseName, String newDatabaseName, boolean ignoreIfNotExists)
+            throws DatabaseNotExistException, DatabaseAlreadyExistException {
+        checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName));
+        checkArgument(!StringUtils.isNullOrWhitespaceOnly(newDatabaseName));
+
+        if (databaseExists(databaseName)) {
+            if (databaseExists(newDatabaseName)) {
+                throw new DatabaseAlreadyExistException(getName(), newDatabaseName);
+            } else {
+                databases.put(newDatabaseName, databases.remove(databaseName));
+            }
+        } else if (!ignoreIfNotExists) {
+            throw new DatabaseNotExistException(getName(), databaseName);
+        }
+    }
+
+    @Override
     public List<String> listDatabases() {
         return new ArrayList<>(databases.keySet());
     }
