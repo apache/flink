@@ -64,7 +64,7 @@ class KvStateClientHandlerTest {
         assertThat(callback.onRequestCnt).isEqualTo(1);
         assertThat(callback.onRequestId).isEqualTo(1222112277L);
         assertThat(callback.onRequestBody).isInstanceOf(KvStateResponse.class);
-        assertThat(buf.refCnt()).isEqualTo(0).withFailMessage("Buffer not recycled");
+        assertThat(buf.refCnt()).withFailMessage("Buffer not recycled").isEqualTo(0);
         //
         // Request failure
         //
@@ -81,7 +81,7 @@ class KvStateClientHandlerTest {
         assertThat(callback.onRequestFailureCnt).isEqualTo(1);
         assertThat(callback.onRequestFailureId).isEqualTo(1222112278L);
         assertThat(callback.onRequestFailureBody).isInstanceOf(RuntimeException.class);
-        assertThat(buf.refCnt()).isEqualTo(0).withFailMessage("Buffer not recycled");
+        assertThat(buf.refCnt()).withFailMessage("Buffer not recycled").isEqualTo(0);
 
         //
         // Server failure
@@ -107,7 +107,7 @@ class KvStateClientHandlerTest {
         channel.writeInbound(buf);
         assertThat(callback.onFailureCnt).isEqualTo(1);
         assertThat(callback.onFailureBody).isInstanceOf(RuntimeException.class);
-        assertThat(buf.refCnt()).isEqualTo(0).withFailMessage("Buffer not recycled");
+        assertThat(buf.refCnt()).withFailMessage("Buffer not recycled").isEqualTo(0);
 
         //
         // Exception caught

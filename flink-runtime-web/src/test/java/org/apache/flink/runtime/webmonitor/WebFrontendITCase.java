@@ -299,7 +299,7 @@ class WebFrontendITCase {
             @InjectClusterRESTAddress URI restAddress)
             throws Exception {
         // this only works if there is no active job at this point
-        assertThat(getRunningJobs(clusterClient).isEmpty());
+        assertThat(getRunningJobs(clusterClient)).isEmpty();
 
         // Create a task
         final JobVertex sender = new JobVertex("Sender");
@@ -369,7 +369,7 @@ class WebFrontendITCase {
             @InjectClusterRESTAddress URI restAddress)
             throws Exception {
         // this only works if there is no active job at this point
-        assertThat(getRunningJobs(clusterClient).isEmpty());
+        assertThat(getRunningJobs(clusterClient)).isEmpty();
 
         // Create a task
         final JobVertex sender = new JobVertex("Sender");
@@ -413,7 +413,7 @@ class WebFrontendITCase {
             @InjectClusterRESTAddress URI restAddress)
             throws Exception {
         // this only works if there is no active job at this point
-        assertThat(getRunningJobs(clusterClient).isEmpty());
+        assertThat(getRunningJobs(clusterClient)).isEmpty();
 
         // Create a task
         final JobVertex sender = new JobVertex("Sender");
