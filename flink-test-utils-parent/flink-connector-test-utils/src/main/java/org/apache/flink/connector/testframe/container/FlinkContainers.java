@@ -410,7 +410,8 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
         clientConfiguration.set(RestOptions.ADDRESS, getJobManagerHost());
         clientConfiguration.set(
                 RestOptions.PORT, jobManager.getMappedPort(conf.get(RestOptions.PORT)));
-        return new RestClusterClient<>(clientConfiguration, StandaloneClusterId.getInstance());
+        return new RestClusterClient<>(
+                clientConfiguration, StandaloneClusterId.fromConfiguration(clientConfiguration));
     }
 
     private void waitUntilJobManagerRESTReachable(GenericContainer<?> jobManager) {
