@@ -192,6 +192,17 @@ public class PythonShellParser {
         formatter.printHelp(" ", YARN_OPTIONS);
     }
 
+    private static void printYarnWarnMessage() {
+        HelpFormatter formatter = new HelpFormatter();
+        formatter.setLeftPadding(5);
+        formatter.setWidth(80);
+        System.out.println("Command: yarn [options]");
+        System.out.println(
+            "Starts Flink Python shell connecting to a yarn cluster is going to be deprecated, "
+                + "please use --target yarn-per-job/yarn-session/kubernetes-application");
+        formatter.printHelp(" ", YARN_OPTIONS);
+    }
+
     private static void printRemoteHelp() {
         HelpFormatter formatter = new HelpFormatter();
         formatter.setLeftPadding(5);
@@ -238,7 +249,9 @@ public class PythonShellParser {
      * @param args Python shell yarn options.
      * @return Yarn options usrd in `flink run`.
      */
+    @Deprecated
     static List<String> parseYarn(String[] args) {
+        printYarnWarnMessage();
         String[] params = new String[args.length - 1];
         System.arraycopy(args, 1, params, 0, params.length);
         CommandLine commandLine = parse(YARN_OPTIONS, params);
