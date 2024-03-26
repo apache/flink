@@ -23,6 +23,8 @@ import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.runtime.highavailability.ReusableClientHAServices;
+import org.apache.flink.runtime.highavailability.zookeeper.DefaultReusableClientHAServicesFactory;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -32,8 +34,23 @@ public class StandaloneClusterDescriptor implements ClusterDescriptor<Standalone
 
     private final Configuration config;
 
+    private final ReusableClientHAServices reusableClientHAServices;
+
+    private final StandaloneClusterId standaloneClusterId;
+
     public StandaloneClusterDescriptor(Configuration config) {
         this.config = Preconditions.checkNotNull(config);
+        this.standaloneClusterId = StandaloneClusterId.fromConfiguration(config);
+        try {
+            this.reusableClientHAServices =
+                    DefaultReusableClientHAServicesFactory.INSTANCE.createReusableClientHAServices(
+                            config);
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Couldn't create reusable client high available services to standalone cluster: "
+                            + standaloneClusterId,
+                    e);
+        }
     }
 
     @Override
@@ -48,9 +65,11 @@ public class StandaloneClusterDescriptor implements ClusterDescriptor<Standalone
             StandaloneClusterId standaloneClusterId) throws ClusterRetrieveException {
         return () -> {
             try {
-                return new RestClusterClient<>(config, standaloneClusterId);
+                return new RestClusterClient<>(
+                        config, standaloneClusterId, reusableClientHAServices);
             } catch (Exception e) {
-                throw new RuntimeException("Couldn't retrieve standalone cluster", e);
+                throw new RuntimeException(
+                        "Couldn't retrieve standalone cluster: " + standaloneClusterId, e);
             }
         };
     }
