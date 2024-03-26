@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysical
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkStreamProgram, StreamOptimizeContext}
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
+import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext
 import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.util.Preconditions
@@ -246,7 +247,10 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
         if (inputBlocks.size == 1) {
           val childBlock = inputBlocks.head
           // propagate miniBatchInterval trait to child block
-          childBlock.setMiniBatchInterval(miniBatchIntervalTrait.getMiniBatchInterval)
+          val mergedMiniBatchInterval = FlinkRelOptUtil.mergeMiniBatchInterval(
+            childBlock.getMiniBatchInterval,
+            miniBatchIntervalTrait.getMiniBatchInterval)
+          childBlock.setMiniBatchInterval(mergedMiniBatchInterval)
           // propagate updateKind trait to child block
           val requireUB = updateKindTrait.updateKind == UpdateKind.BEFORE_AND_AFTER
           childBlock.setUpdateBeforeRequired(requireUB || childBlock.isUpdateBeforeRequired)
