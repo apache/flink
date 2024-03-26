@@ -74,6 +74,17 @@ class PrometheusPushGatewayReporterTest {
     }
 
     @Test
+    void testConnectToPushGatewayUsingHostUrlAndHavingBasicAuth() {
+        PrometheusPushGatewayReporterFactory factory = new PrometheusPushGatewayReporterFactory();
+        MetricConfig metricConfig = new MetricConfig();
+        // username: root
+        // password qazwsx#@!
+        metricConfig.setProperty(HOST_URL.key(), "https://root:qazwsx%23%40%21@localhost:18080");
+        String gatewayBaseURL = factory.createMetricReporter(metricConfig).hostUrl.toString();
+        assertThat(gatewayBaseURL).isEqualTo("https://root:qazwsx%23%40%21@localhost:18080");
+    }
+
+    @Test
     void testConnectToPushGatewayPreferHostUrl() {
         PrometheusPushGatewayReporterFactory factory = new PrometheusPushGatewayReporterFactory();
         MetricConfig metricConfig = new MetricConfig();
