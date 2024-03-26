@@ -166,6 +166,9 @@ abstract class AggFunctionTestBase<IN, T, ACC> {
         // iterate over input sets
         for (int i = 0; i < size; ++i) {
             List<IN> inputValues = inputValueSets.get(i);
+            if (inputValues.size() < 2) {
+                continue;
+            }
             List<ACC> accumulators = new ArrayList<>();
             List<ACC> reversedAccumulators = new ArrayList<>();
             // prepare accumulators

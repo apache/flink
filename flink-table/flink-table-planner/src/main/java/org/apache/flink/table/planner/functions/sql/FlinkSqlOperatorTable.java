@@ -1157,6 +1157,8 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                     .withSyntax(SqlSyntax.FUNCTION)
                     .withAllowsNullTreatment(true);
 
+    public static final SqlAggFunction MODE_AGG = SqlStdOperatorTable.MODE;
+
     // ARRAY OPERATORS
     public static final SqlOperator ARRAY_VALUE_CONSTRUCTOR = new SqlArrayConstructor();
     public static final SqlOperator ELEMENT = SqlStdOperatorTable.ELEMENT;

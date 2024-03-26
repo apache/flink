@@ -779,6 +779,14 @@ public final class BuiltInFunctionDefinitions {
                             TypeStrategies.aggArg0(LogicalTypeMerging::findAvgAggType, true))
                     .build();
 
+    public static final BuiltInFunctionDefinition MODE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("mode")
+                    .kind(AGGREGATE)
+                    .inputTypeStrategy(sequence(ANY))
+                    .outputTypeStrategy(TypeStrategies.aggArg0(t -> t, true))
+                    .build();
+
     public static final BuiltInFunctionDefinition VAR_POP =
             BuiltInFunctionDefinition.newBuilder()
                     .name("varPop")

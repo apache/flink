@@ -1190,6 +1190,10 @@ aggregate:
       将窗口分区中的所有数据按照顺序划分为 n 个分组，返回分配给各行数据的分组编号（从 1 开始，最大为 n）。
       如果不能均匀划分为 n 个分组，则剩余值从第 1 个分组开始，为每一分组分配一个。
       比如某个窗口分区有 6 行数据，划分为 4 个分组，则各行的分组编号为：1，1，2，2，3，4。
+  - sql: MODE(n)
+    description: Returns the most frequent value in a group of values.
+      If there are multiple values that appear the same number of times, one of them will be returned.
+      NULL values are ignored. If there is no non-null value, the function returns NULL.
   - sql: ARRAY_AGG([ ALL | DISTINCT ] expression [ RESPECT NULLS | IGNORE NULLS ])
     table: FIELD.arrayAgg
     description: |

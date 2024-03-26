@@ -1074,6 +1074,10 @@ aggregate:
       Divides the rows for each window partition into `n` buckets ranging from 1 to at most `n`.
       If the number of rows in the window partition doesn't divide evenly into the number of buckets, then the remainder values are distributed one per bucket, starting with the first bucket.
       For example, with 6 rows and 4 buckets, the bucket values would be as follows: 1 1 2 2 3 4
+  - sql: MODE(n)
+    description: Returns the most frequent value in a group of values. 
+      If there are multiple values that appear the same number of times, one of them will be returned. 
+      NULL values are ignored. If there is no non-null value, the function returns NULL.
   - sql: ARRAY_AGG([ ALL | DISTINCT ] expression [ RESPECT NULLS | IGNORE NULLS ])
     table: FIELD.arrayAgg
     description: |
