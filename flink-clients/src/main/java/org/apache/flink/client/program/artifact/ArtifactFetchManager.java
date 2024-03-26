@@ -159,7 +159,7 @@ public class ArtifactFetchManager {
 
     private boolean isRawHttp(String uriScheme) {
         if ("http".equals(uriScheme)) {
-            if (conf.getBoolean(ArtifactFetchOptions.RAW_HTTP_ENABLED)) {
+            if (conf.get(ArtifactFetchOptions.RAW_HTTP_ENABLED)) {
                 return true;
             }
             throw new IllegalArgumentException(

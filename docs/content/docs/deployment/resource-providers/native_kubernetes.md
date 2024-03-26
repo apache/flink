@@ -93,6 +93,9 @@ For high-level intuition behind the application mode, please refer to the [deplo
 
 The [Application Mode]({{< ref "docs/deployment/overview" >}}#application-mode) requires that the user code is bundled together with the Flink image because it runs the user code's `main()` method on the cluster.
 The Application Mode makes sure that all Flink components are properly cleaned up after the termination of the application.
+Bundling can be done by modifying the base Flink Docker image, or via the User Artifact Management, which makes it possible to upload and download artifacts that are not available locally.  
+
+#### Modify the Docker image
 
 The Flink community provides a [base Docker image]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#docker-hub-flink-images) which can be used to bundle the user code:
 
@@ -105,13 +108,44 @@ COPY /path/of/my-flink-job.jar $FLINK_HOME/usrlib/my-flink-job.jar
 After creating and publishing the Docker image under `custom-image-name`, you can start an Application cluster with the following command:
 
 ```bash
-# Local Schema
 $ ./bin/flink run-application \
     --target kubernetes-application \
     -Dkubernetes.cluster-id=my-first-application-cluster \
     -Dkubernetes.container.image.ref=custom-image-name \
     local:///opt/flink/usrlib/my-flink-job.jar
+```
 
+#### Configure User Artifact Management
+
+In case you have a locally available Flink job JAR, artifact upload can be used so Flink will upload the local artifact to DFS during deployment and fetch it on the deployed JobManager pod:
+
+```bash
+$ ./bin/flink run-application \
+    --target kubernetes-application \
+    -Dkubernetes.cluster-id=my-first-application-cluster \
+    -Dkubernetes.container.image=custom-image-name \
+    -Dkubernetes.artifacts.local-upload-enabled=true \
+    -Dkubernetes.artifacts.local-upload-target=s3://my-bucket/ \
+    local:///tmp/my-flink-job.jar
+```
+
+The `kubernetes.artifacts.local-upload-enabled` enables this feature, and `kubernetes.artifacts.local-upload-target` has to point to a valid remote target that exists and has the permissions configured properly.
+You can add additional artifacts via the `user.artifacts.artifact-list` config option, which can contain a mix of local and remote artifacts:
+
+```bash
+$ ./bin/flink run-application \
+    --target kubernetes-application \
+    -Dkubernetes.cluster-id=my-first-application-cluster \
+    -Dkubernetes.container.image=custom-image-name \
+    -Dkubernetes.artifacts.local-upload-enabled=true \
+    -Dkubernetes.artifacts.local-upload-target=s3://my-bucket/ \
+    -Duser.artifacts.artifact-list=local:///tmp/my-flink-udf1.jar\;s3://my-bucket/my-flink-udf2.jar \
+    local:///tmp/my-flink-job.jar
+```
+
+In case the job JAR or any additional artifact is already available remotely via DFS or HTTP(S), Flink will simply fetch it on the deployed JobManager pod:
+
+```bash
 # FileSystem
 $ ./bin/flink run-application \
     --target kubernetes-application \
@@ -126,13 +160,16 @@ $ ./bin/flink run-application \
     -Dkubernetes.container.image=custom-image-name \
     https://ip:port/my-flink-job.jar
 ```
+
+{{< hint warning >}}
+Please be aware that already existing artifacts will not be overwritten during a local upload!
+{{< /hint >}}
+
 {{< hint info >}}
 JAR fetching supports downloading from [filesystems]({{< ref "docs/deployment/filesystems/overview" >}}) or HTTP(S) in Application Mode.  
 The JAR will be downloaded to
 [user.artifacts.base-dir]({{< ref "docs/deployment/config" >}}#user-artifacts-base-dir)/[kubernetes.namespace]({{< ref "docs/deployment/config" >}}#kubernetes-namespace)/[kubernetes.cluster-id]({{< ref "docs/deployment/config" >}}#kubernetes-cluster-id) path in image.
 {{< /hint >}}
-
-<span class="label label-info">Note</span> `local` schema is still supported. If you use `local` schema, the JAR must be provided in the image or downloaded by an init container as described in [this example](#example-of-pod-template).
 
 The `kubernetes.cluster-id` option specifies the cluster name and must be unique.
 If you do not specify this option, then Flink will generate a random name.

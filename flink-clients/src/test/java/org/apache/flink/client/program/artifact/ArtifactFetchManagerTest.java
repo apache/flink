@@ -19,6 +19,7 @@ package org.apache.flink.client.program.artifact;
 
 import org.apache.flink.client.cli.ArtifactFetchOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.testutils.TestingUtils;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -37,11 +38,8 @@ import java.net.BindException;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Collection;
 import java.util.Collections;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -60,12 +58,12 @@ class ArtifactFetchManagerTest {
     @BeforeEach
     void setup() {
         configuration = new Configuration();
-        configuration.setString(ArtifactFetchOptions.BASE_DIR, tempDir.toAbsolutePath().toString());
+        configuration.set(ArtifactFetchOptions.BASE_DIR, tempDir.toAbsolutePath().toString());
     }
 
     @Test
     void testGetFetcher() throws Exception {
-        configuration.setBoolean(ArtifactFetchOptions.RAW_HTTP_ENABLED, true);
+        configuration.set(ArtifactFetchOptions.RAW_HTTP_ENABLED, true);
         ArtifactFetchManager fetchManager = new ArtifactFetchManager(configuration);
 
         ArtifactFetcher fetcher = fetchManager.getFetcher(new URI("local:///a.jar"));
@@ -86,7 +84,7 @@ class ArtifactFetchManagerTest {
 
     @Test
     void testFileSystemFetchWithoutAdditionalUri() throws Exception {
-        File sourceFile = getDummyArtifact(getClass());
+        File sourceFile = TestingUtils.getClassFile(getClass());
         String uriStr = "file://" + sourceFile.toURI().getPath();
 
         ArtifactFetchManager fetchMgr = new ArtifactFetchManager(configuration);
@@ -98,7 +96,7 @@ class ArtifactFetchManagerTest {
 
     @Test
     void testFileSystemFetchWithAdditionalUri() throws Exception {
-        File sourceFile = getDummyArtifact(getClass());
+        File sourceFile = TestingUtils.getClassFile(getClass());
         String uriStr = "file://" + sourceFile.toURI().getPath();
         File additionalSrcFile = getFlinkClientsJar();
         String additionalUriStr = "file://" + additionalSrcFile.toURI().getPath();
@@ -115,7 +113,7 @@ class ArtifactFetchManagerTest {
 
     @Test
     void testHttpFetch() throws Exception {
-        configuration.setBoolean(ArtifactFetchOptions.RAW_HTTP_ENABLED, true);
+        configuration.set(ArtifactFetchOptions.RAW_HTTP_ENABLED, true);
         HttpServer httpServer = null;
         try {
             httpServer = startHttpServer();
@@ -141,7 +139,7 @@ class ArtifactFetchManagerTest {
 
     @Test
     void testMixedArtifactFetch() throws Exception {
-        File sourceFile = getDummyArtifact(getClass());
+        File sourceFile = TestingUtils.getClassFile(getClass());
         String uriStr = "file://" + sourceFile.toURI().getPath();
         File sourceFile2 = getFlinkClientsJar();
         String uriStr2 = "file://" + sourceFile2.toURI().getPath();
@@ -161,7 +159,7 @@ class ArtifactFetchManagerTest {
                 new ArtifactFetchManager(
                         dummyFetcher, dummyFetcher, dummyFetcher, configuration, null);
 
-        File sourceFile = getDummyArtifact(getClass());
+        File sourceFile = TestingUtils.getClassFile(getClass());
         Path destFile = tempDir.resolve(sourceFile.getName());
         Files.copy(sourceFile.toPath(), destFile);
 
@@ -220,34 +218,13 @@ class ArtifactFetchManagerTest {
         return httpServer;
     }
 
-    private File getDummyArtifact(Class<?> cls) {
-        String className = String.format("%s.class", cls.getSimpleName());
-        URL url = cls.getResource(className);
-        assertThat(url).isNotNull();
-
-        return new File(url.getPath());
-    }
-
     private File getFlinkClientsJar() throws IOException {
-        String pathStr =
-                ArtifactFetchManager.class
-                        .getProtectionDomain()
-                        .getCodeSource()
-                        .getLocation()
-                        .getPath();
-        Path mvnTargetDir = Paths.get(pathStr).getParent();
-
-        Collection<Path> jarPaths =
-                org.apache.flink.util.FileUtils.listFilesInDirectory(
-                        mvnTargetDir,
-                        p ->
-                                org.apache.flink.util.FileUtils.isJarFile(p)
-                                        && p.toFile().getName().startsWith("flink-clients")
-                                        && !p.toFile().getName().contains("test-utils"));
-
-        assertThat(jarPaths).isNotEmpty();
-
-        return jarPaths.iterator().next().toFile();
+        return TestingUtils.getFileFromTargetDir(
+                ArtifactFetchManager.class,
+                p ->
+                        org.apache.flink.util.FileUtils.isJarFile(p)
+                                && p.toFile().getName().startsWith("flink-clients")
+                                && !p.toFile().getName().contains("test-utils"));
     }
 
     private static class DummyHttpDownloadHandler implements HttpHandler {
