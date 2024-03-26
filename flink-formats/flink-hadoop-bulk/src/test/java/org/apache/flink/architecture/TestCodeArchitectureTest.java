@@ -36,7 +36,7 @@ import com.tngtech.archunit.junit.ArchTests;
             ImportOptions.ExcludeScalaImportOption.class,
             ImportOptions.ExcludeShadedImportOption.class
         })
-public class TestCodeArchitectureTest {
+class TestCodeArchitectureTest {
 
     @ArchTest
     public static final ArchTests COMMON_TESTS = ArchTests.in(TestCodeArchitectureTestBase.class);
