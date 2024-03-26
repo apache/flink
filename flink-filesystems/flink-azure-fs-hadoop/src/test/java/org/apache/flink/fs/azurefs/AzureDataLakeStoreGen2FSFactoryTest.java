@@ -21,39 +21,43 @@ package org.apache.flink.fs.azurefs;
 import org.apache.flink.configuration.Configuration;
 
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.MethodSource;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.net.URI;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the ABFSAzureFSFactory. */
 class AzureDataLakeStoreGen2FSFactoryTest {
 
-    private AbstractAzureFSFactory getFactory(String scheme) {
-        return scheme.equals("abfs")
-                ? new AzureDataLakeStoreGen2FSFactory()
-                : new SecureAzureDataLakeStoreGen2FSFactory();
+    @ParameterizedTest(name = "Factory = {0}")
+    @MethodSource("getFactories")
+    @Retention(RetentionPolicy.RUNTIME)
+    private @interface TestAllFsImpl {}
+
+    @SuppressWarnings("unused")
+    private static Stream<AbstractAzureFSFactory> getFactories() {
+        return Stream.of(
+                new AzureDataLakeStoreGen2FSFactory(), new SecureAzureDataLakeStoreGen2FSFactory());
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = {"abfs", "abfss"})
-    void testNullFsURI(String scheme) throws Exception {
+    @TestAllFsImpl
+    void testNullFsURI(AbstractAzureFSFactory factory) throws Exception {
         URI uri = null;
-        AbstractAzureFSFactory factory = getFactory(scheme);
 
         assertThatThrownBy(() -> factory.create(uri))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessage("passed file system URI object should not be null");
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = {"abfs", "abfss"})
-    void testCreateFsWithMissingAuthority(String scheme) throws Exception {
-        String uriString = String.format("%s:///my/path", scheme);
+    @TestAllFsImpl
+    void testCreateFsWithMissingAuthority(AbstractAzureFSFactory factory) throws Exception {
+        String uriString = String.format("%s:///my/path", factory.getScheme());
         final URI uri = URI.create(uriString);
 
-        AbstractAzureFSFactory factory = getFactory(scheme);
         factory.configure(new Configuration());
 
         assertThatThrownBy(() -> factory.create(uri))
