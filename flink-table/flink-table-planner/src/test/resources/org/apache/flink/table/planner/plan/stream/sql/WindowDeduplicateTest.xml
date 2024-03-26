@@ -130,11 +130,9 @@ Calc(select=[window_start, window_end, EXPR$2, EXPR$3, EXPR$4, wAvg, uv])
          +- Calc(select=[d, IS TRUE(>(b, 1000)) AS $f3, b, e, c, window_time AS rowtime])
             +- WindowDeduplicate(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], keep=[LastRow], partitionKeys=[a], orderKey=[rowtime], order=[ROWTIME])
                +- Exchange(distribution=[hash[a]])
-                  +- Calc(select=[a, b, c, d, e, rowtime, window_start, window_end, window_time])
-                     +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])
-                        +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                           +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
-                              +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+                  +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])
+                     +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -205,11 +203,9 @@ LogicalProject(window_start=[$7], window_end=[$8], window_time=[$9], a=[$0], b=[
 Calc(select=[window_start, window_end, window_time, a, b, c, d, e])
 +- WindowDeduplicate(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], keep=[LastRow], partitionKeys=[a], orderKey=[rowtime], order=[ROWTIME])
    +- Exchange(distribution=[hash[a]])
-      +- Calc(select=[a, b, c, d, e, rowtime, window_start, window_end, window_time])
-         +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])
-            +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-               +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
-                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+      +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])
+         +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
 ]]>
     </Resource>
   </TestCase>

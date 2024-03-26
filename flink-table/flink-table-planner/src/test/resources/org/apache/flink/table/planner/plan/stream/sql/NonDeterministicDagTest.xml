@@ -2521,7 +2521,7 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, qmt, day]
             +- Deduplicate(keep=[LastRow], key=[a], order=[PROCTIME])
                +- Exchange(distribution=[hash[a]])
                   +- Calc(select=[a, b, PROCTIME() AS $4])
-                     +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[a, b, c, d])
+                     +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a, b], metadata=[]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>

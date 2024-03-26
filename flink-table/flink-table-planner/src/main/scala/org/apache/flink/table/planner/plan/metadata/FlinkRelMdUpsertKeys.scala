@@ -33,6 +33,7 @@ import org.apache.calcite.rel.{RelDistribution, RelNode, SingleRel}
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata._
 import org.apache.calcite.rex.{RexNode, RexUtil}
+import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.{Bug, ImmutableBitSet, Util}
 
 import java.util
@@ -186,6 +187,27 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
   }
 
   def getUpsertKeys(rel: Window, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
+    // If it's a ROW_NUMBER rank, then the upsert keys are partition by key and order key.
+    if (rel.groups.length == 1) {
+      val group = rel.groups.get(0)
+      val aggCalls = group.aggCalls
+      if (
+        aggCalls.length == 1 && aggCalls.get(0).getOperator.equals(SqlStdOperatorTable.ROW_NUMBER)
+      ) {
+        val inputKeys = filterKeys(
+          FlinkRelMetadataQuery
+            .reuseOrCreate(mq)
+            .getUpsertKeys(rel.getInput),
+          group.keys)
+        val orderKeys = ImmutableBitSet.of(group.orderKeys.getKeys)
+        val retSet = new JHashSet[ImmutableBitSet]
+        retSet.add(group.keys.union(orderKeys))
+        if (inputKeys != null && inputKeys.nonEmpty) {
+          inputKeys.foreach(uniqueKey => retSet.add(uniqueKey))
+        }
+        return retSet
+      }
+    }
     getUpsertKeysOnOver(rel, mq, rel.groups.map(_.keys): _*)
   }
 

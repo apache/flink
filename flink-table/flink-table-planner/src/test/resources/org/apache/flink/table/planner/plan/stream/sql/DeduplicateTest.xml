@@ -139,11 +139,9 @@ GlobalGroupAggregate(select=[COUNT_RETRACT(count$0) AS EXPR$0])
       +- Calc(select=[b])
          +- Deduplicate(keep=[FirstRow], key=[a], order=[ROWTIME])
             +- Exchange(distribution=[hash[a]])
-               +- Calc(select=[a, b, rowtime])
-                  +- MiniBatchAssigner(interval=[1000ms], mode=[RowTime])
-                     +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-                        +- Calc(select=[a, b, rowtime, PROCTIME() AS proctime])
-                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [CollectionTableSource(a, b, rowtime)]]], fields=[a, b, rowtime])
+               +- MiniBatchAssigner(interval=[1000ms], mode=[RowTime])
+                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [CollectionTableSource(a, b, rowtime)]]], fields=[a, b, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -180,11 +178,9 @@ GlobalGroupAggregate(select=[COUNT_RETRACT(count$0) AS EXPR$0])
       +- Calc(select=[b])
          +- Deduplicate(keep=[LastRow], key=[a], order=[ROWTIME])
             +- Exchange(distribution=[hash[a]])
-               +- Calc(select=[a, b, rowtime])
-                  +- MiniBatchAssigner(interval=[1000ms], mode=[RowTime])
-                     +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-                        +- Calc(select=[a, b, rowtime, PROCTIME() AS proctime])
-                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [CollectionTableSource(a, b, rowtime)]]], fields=[a, b, rowtime])
+               +- MiniBatchAssigner(interval=[1000ms], mode=[RowTime])
+                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [CollectionTableSource(a, b, rowtime)]]], fields=[a, b, rowtime])
 ]]>
     </Resource>
   </TestCase>
