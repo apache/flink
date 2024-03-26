@@ -27,7 +27,9 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
+import org.apache.flink.runtime.checkpoint.filemerging.SegmentFileStateHandle;
 import org.apache.flink.runtime.state.ChangelogTestUtils;
+import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -281,6 +283,26 @@ class MetadataV3SerializerTest {
                     dataStream.read(deserialized);
                     assertThat(deserialized).isEqualTo(data);
                 }
+            }
+        }
+    }
+
+    @Test
+    void testSerializeSegmentStateHandle() throws IOException {
+        StreamStateHandle streamStateHandle =
+                new SegmentFileStateHandle(
+                        new Path(TempDirUtils.newFolder(temporaryFolder).toURI().toString()),
+                        0,
+                        1,
+                        CheckpointedStateScope.SHARED);
+        try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
+            MetadataV2V3SerializerBase.serializeStreamStateHandle(
+                    streamStateHandle, new DataOutputStream(out));
+            try (ByteArrayInputStream in = new ByteArrayInputStream(out.toByteArray())) {
+                StreamStateHandle handle =
+                        MetadataV2V3SerializerBase.deserializeStreamStateHandle(
+                                new DataInputStream(in), null);
+                assertThat(handle).isEqualTo(streamStateHandle);
             }
         }
     }

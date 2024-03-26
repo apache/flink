@@ -26,6 +26,8 @@ import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
+import org.apache.flink.runtime.checkpoint.filemerging.SegmentFileStateHandle;
+import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
@@ -123,6 +125,9 @@ public abstract class MetadataV2V3SerializerBase {
     private static final byte CHANGELOG_FILE_INCREMENT_HANDLE_V2 = 13;
     // CHANGELOG_HANDLE_V2 is introduced to add new field of checkpointId.
     private static final byte CHANGELOG_HANDLE_V2 = 14;
+
+    // SEGMENT_FILE_HANDLE is introduced to support file merging
+    private static final byte SEGMENT_FILE_HANDLE = 15;
 
     // ------------------------------------------------------------------------
     //  (De)serialization entry points
@@ -677,6 +682,13 @@ public abstract class MetadataV2V3SerializerBase {
             RelativeFileStateHandle relativeFileStateHandle = (RelativeFileStateHandle) stateHandle;
             dos.writeUTF(relativeFileStateHandle.getRelativePath());
             dos.writeLong(relativeFileStateHandle.getStateSize());
+        } else if (stateHandle instanceof SegmentFileStateHandle) {
+            dos.writeByte(SEGMENT_FILE_HANDLE);
+            SegmentFileStateHandle segmentFileStateHandle = (SegmentFileStateHandle) stateHandle;
+            dos.writeLong(segmentFileStateHandle.getStartPos());
+            dos.writeLong(segmentFileStateHandle.getStateSize());
+            dos.writeInt(segmentFileStateHandle.getScope().ordinal());
+            dos.writeUTF(segmentFileStateHandle.getFilePath().toString());
         } else if (stateHandle instanceof FileStateHandle) {
             dos.writeByte(FILE_STREAM_STATE_HANDLE);
             FileStateHandle fileStateHandle = (FileStateHandle) stateHandle;
@@ -745,6 +757,12 @@ public abstract class MetadataV2V3SerializerBase {
                     new KeyGroupRangeOffsets(keyGroupRange, offsets);
             StreamStateHandle stateHandle = deserializeStreamStateHandle(dis, context);
             return new KeyGroupsStateHandle(keyGroupRangeOffsets, stateHandle);
+        } else if (SEGMENT_FILE_HANDLE == type) {
+            long startPos = dis.readLong();
+            long stateSize = dis.readLong();
+            CheckpointedStateScope scope = CheckpointedStateScope.values()[dis.readInt()];
+            Path physicalFilePath = new Path(dis.readUTF());
+            return new SegmentFileStateHandle(physicalFilePath, startPos, stateSize, scope);
         } else {
             throw new IOException("Unknown implementation of StreamStateHandle, code: " + type);
         }
