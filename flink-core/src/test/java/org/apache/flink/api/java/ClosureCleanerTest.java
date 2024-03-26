@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.util.regex.Pattern;
 
 /** Tests for {@link ClosureCleaner}. */
 public class ClosureCleanerTest {
@@ -119,6 +120,31 @@ public class ClosureCleanerTest {
         int result = complexMap.map(3);
 
         Assert.assertEquals(result, 5);
+    }
+
+    @Test
+    public void testCleanNonSerializableNestedMap() throws Exception {
+        MapFunction<Integer, Integer> complexMap =
+                new ComplexMap(
+                        new MapFunction<Integer, Integer>() {
+                            private final Object obj = new Object(); // non-serializable
+
+                            @Override
+                            public Integer map(Integer value) {
+                                return value + 1;
+                            }
+                        });
+        try {
+            ClosureCleaner.clean(complexMap, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+            Assert.fail("Should have failed with InvalidProgramException exception");
+        } catch (InvalidProgramException e) {
+            final String regex = ".*ComplexMap.*LocalMap.*ClosureCleanerTest.*Object.*";
+            Assert.assertTrue(
+                    String.format(
+                            "Exception message does not have expected exception message: %s",
+                            e.getMessage()),
+                    Pattern.matches(regex, e.getMessage()));
+        }
     }
 
     @Test
