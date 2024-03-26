@@ -304,3 +304,5 @@ JSON functions
     Expression.json_exists
     Expression.json_value
     Expression.json_query
+    Expression.json_quote
+    Expression.json_unquote
