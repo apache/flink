@@ -21,7 +21,6 @@ package org.apache.flink.sql.parser.ddl;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 
-import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
@@ -82,7 +81,7 @@ public class SqlCreateTableAs extends SqlCreateTable {
             SqlDistribution distribution,
             SqlNodeList partitionKeyList,
             @Nullable SqlWatermark watermark,
-            @Nullable SqlCharStringLiteral comment,
+            @Nullable SqlNode comment,
             SqlNode asQuery,
             boolean isTemporary,
             boolean ifNotExists) {

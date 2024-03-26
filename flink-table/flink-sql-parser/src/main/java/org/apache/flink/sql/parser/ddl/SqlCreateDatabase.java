@@ -18,7 +18,6 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlCreate;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -47,13 +46,13 @@ public class SqlCreateDatabase extends SqlCreate {
 
     private final SqlNodeList propertyList;
 
-    @Nullable private final SqlCharStringLiteral comment;
+    @Nullable private final SqlNode comment;
 
     public SqlCreateDatabase(
             SqlParserPos pos,
             SqlIdentifier databaseName,
             SqlNodeList propertyList,
-            SqlCharStringLiteral comment,
+            SqlNode comment,
             boolean ifNotExists) {
         super(OPERATOR, pos, false, ifNotExists);
         this.databaseName = requireNonNull(databaseName, "databaseName should not be null");
@@ -79,7 +78,7 @@ public class SqlCreateDatabase extends SqlCreate {
         return propertyList;
     }
 
-    public Optional<SqlCharStringLiteral> getComment() {
+    public Optional<SqlNode> getComment() {
         return Optional.ofNullable(comment);
     }
 

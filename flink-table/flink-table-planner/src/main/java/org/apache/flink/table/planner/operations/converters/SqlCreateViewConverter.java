@@ -48,7 +48,7 @@ public class SqlCreateViewConverter implements SqlNodeConverter<SqlCreateView> {
         String viewComment =
                 sqlCreateView
                         .getComment()
-                        .map(c -> c.getValueAs(NlsString.class).getValue())
+                        .map(SqlNode::toString)
                         .orElse(null);
         Map<String, String> viewOptions =
                 OperationConverterUtils.extractProperties(

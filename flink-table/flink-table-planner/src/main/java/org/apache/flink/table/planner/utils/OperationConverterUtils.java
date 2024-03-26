@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.utils;
 
+import org.apache.calcite.sql.SqlNode;
+
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.table.catalog.Column;
@@ -86,8 +88,8 @@ public class OperationConverterUtils {
                 .orElse(null);
     }
 
-    public static @Nullable String getTableComment(Optional<SqlCharStringLiteral> tableComment) {
-        return tableComment.map(comment -> comment.getValueAs(String.class)).orElse(null);
+    public static @Nullable String getTableComment(Optional<SqlNode> tableComment) {
+        return tableComment.map(SqlNode::toString).orElse(null);
     }
 
     public static Map<String, String> extractProperties(SqlNodeList propList) {

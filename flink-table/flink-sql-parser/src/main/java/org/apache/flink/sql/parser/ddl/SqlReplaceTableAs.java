@@ -99,7 +99,7 @@ public class SqlReplaceTableAs extends SqlCreate implements ExtendedSqlNode {
 
     private final SqlWatermark watermark;
 
-    private final SqlCharStringLiteral comment;
+    private final SqlNode comment;
 
     private final boolean isTemporary;
 
@@ -116,7 +116,7 @@ public class SqlReplaceTableAs extends SqlCreate implements ExtendedSqlNode {
             SqlDistribution distribution,
             SqlNodeList partitionKeyList,
             @Nullable SqlWatermark watermark,
-            @Nullable SqlCharStringLiteral comment,
+            @Nullable SqlNode comment,
             SqlNode asQuery,
             boolean isTemporary,
             boolean ifNotExists,
@@ -236,7 +236,7 @@ public class SqlReplaceTableAs extends SqlCreate implements ExtendedSqlNode {
         return Optional.ofNullable(watermark);
     }
 
-    public Optional<SqlCharStringLiteral> getComment() {
+    public Optional<SqlNode> getComment() {
         return Optional.ofNullable(comment);
     }
 
