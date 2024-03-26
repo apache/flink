@@ -172,6 +172,7 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
 
             assertFalse(dispatcherShutDownFuture.isDone());
 
+            leaderElection.notLeader();
             leaderElection.isLeader(secondLeaderSessionId);
 
             final ApplicationStatus finalApplicationStatus = ApplicationStatus.UNKNOWN;
@@ -231,6 +232,7 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
 
             assertThat(firstTestingDispatcherLeaderProcess.isStarted(), is(true));
 
+            leaderElection.notLeader();
             leaderElection.isLeader(secondLeaderSessionId);
 
             assertThat(secondTestingDispatcherLeaderProcess.isStarted(), is(false));
@@ -315,8 +317,13 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
 
         try {
             leaderElection.isLeader(firstLeaderSession);
+            leaderElection.notLeader();
+
             leaderElection.isLeader(secondLeaderSession);
+            leaderElection.notLeader();
+
             leaderElection.isLeader(thirdLeaderSession);
+            leaderElection.notLeader();
 
             firstDispatcherLeaderProcessTerminationFuture.complete(null);
 

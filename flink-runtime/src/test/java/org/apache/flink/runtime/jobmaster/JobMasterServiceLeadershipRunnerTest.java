@@ -565,14 +565,13 @@ class JobMasterServiceLeadershipRunnerTest {
 
         jobManagerRunner.start();
 
-        final CompletableFuture<LeaderInformation> leaderFuture =
-                leaderElection.isLeader(UUID.randomUUID());
-
+        final UUID leaderSessionID = UUID.randomUUID();
+        leaderElection.isLeader(leaderSessionID);
         leaderElection.notLeader();
 
         leaderAddressFuture.complete("foobar");
 
-        assertThatFuture(leaderFuture).willNotCompleteWithin(Duration.ofMillis(5));
+        assertThat(leaderElection.hasLeadership(leaderSessionID)).isFalse();
     }
 
     @Test
