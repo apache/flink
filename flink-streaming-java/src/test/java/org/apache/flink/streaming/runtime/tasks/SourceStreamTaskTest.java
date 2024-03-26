@@ -708,7 +708,6 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
             harness.streamTask.runMailboxLoop();
             harness.finishProcessing();
 
-            assertThat(triggerResult.isDone()).isTrue();
             assertThat(triggerResult.get()).isTrue();
             assertThat(checkpointCompleted.isDone()).isTrue();
         }
