@@ -20,6 +20,8 @@ package org.apache.flink.table.planner.codegen.calls
 import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.configuration.{ExecutionOptions, ReadableConfig}
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
+import org.apache.flink.table.api.config.ExecutionConfigOptions.TimeFunctionEvaluation
 import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, FlinkTimestampWithPrecisionDynamicFunction}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.isPrimitive
@@ -42,8 +44,13 @@ class FunctionGenerator private (tableConfig: ReadableConfig) {
   private val sqlFunctions: mutable.Map[(SqlOperator, Seq[LogicalTypeRoot]), CallGenerator] =
     mutable.Map()
 
-  val isStreamingMode =
-    RuntimeExecutionMode.STREAMING.equals(tableConfig.get(ExecutionOptions.RUNTIME_MODE))
+  private val useQueryTime =
+    tableConfig.get(ExecutionConfigOptions.TIME_FUNCTION_EVALUATION) match {
+      case TimeFunctionEvaluation.AUTO =>
+        !RuntimeExecutionMode.STREAMING.equals(tableConfig.get(ExecutionOptions.RUNTIME_MODE))
+      case TimeFunctionEvaluation.ROW => false
+      case TimeFunctionEvaluation.QUERY_START => true
+    }
   // ----------------------------------------------------------------------------------------------
   // Arithmetic functions
   // ----------------------------------------------------------------------------------------------
@@ -536,20 +543,20 @@ class FunctionGenerator private (tableConfig: ReadableConfig) {
     new NotCallGen(new MethodCallGen(BuiltInMethods.IS_JSON_SCALAR, argsNullable = true)))
 
   FlinkSqlOperatorTable
-    .dynamicFunctions(!isStreamingMode)
+    .dynamicFunctions(useQueryTime)
     .forEach(
       func => {
         if (
           func.getName == SqlStdOperatorTable.LOCALTIME.getName || func.getName == SqlStdOperatorTable.LOCALTIMESTAMP.getName
         ) {
-          addSqlFunction(func, Seq(), new CurrentTimePointCallGen(true, isStreamingMode))
+          addSqlFunction(func, Seq(), new CurrentTimePointCallGen(true, !useQueryTime))
         } else if (
           func.getName == SqlStdOperatorTable.CURRENT_DATE.getName
           || func.getName == SqlStdOperatorTable.CURRENT_TIME.getName
           || func.getName == SqlStdOperatorTable.CURRENT_TIMESTAMP.getName
           || func.getName == FlinkTimestampWithPrecisionDynamicFunction.NOW
         ) {
-          addSqlFunction(func, Seq(), new CurrentTimePointCallGen(false, isStreamingMode))
+          addSqlFunction(func, Seq(), new CurrentTimePointCallGen(false, !useQueryTime))
         } else {
           throw new TableException(
             s"Unsupported dynamic function ${func.getName} for FunctionGenerator")
