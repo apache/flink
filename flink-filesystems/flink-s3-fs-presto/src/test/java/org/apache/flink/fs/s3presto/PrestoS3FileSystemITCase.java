@@ -21,6 +21,7 @@ package org.apache.flink.fs.s3presto;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.fs.s3.common.MinioTestContainer;
 import org.apache.flink.runtime.fs.hdfs.AbstractHadoopFileSystemITTest;
 import org.apache.flink.testutils.s3.S3TestCredentials;
 
@@ -29,6 +30,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.testcontainers.junit.jupiter.Container;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -59,16 +61,22 @@ public class PrestoS3FileSystemITCase extends AbstractHadoopFileSystemITTest {
 
     private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
 
+    @Container
+    private static final MinioTestContainer MINIO = new MinioTestContainer().withReuse(true);
+
     @BeforeClass
     public static void setup() throws IOException {
-        S3TestCredentials.assumeCredentialsAvailable();
+//        S3TestCredentials.assumeCredentialsAvailable();
         // initialize configuration with valid credentials
         final Configuration conf = new Configuration();
-        conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
-        conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
-        FileSystem.initialize(conf);
+//        conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
+//        conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
+//        FileSystem.initialize(conf);
+        MINIO.setS3ConfigOptions(conf);
+        MINIO.initializeFileSystem(conf);
 
-        basePath = new Path(S3TestCredentials.getTestBucketUri() + TEST_DATA_DIR);
+//        basePath = new Path(S3TestCredentials.getTestBucketUri() + TEST_DATA_DIR);
+        basePath = new Path(MINIO.getS3UriForDefaultBucket() + TEST_DATA_DIR);
         fs = basePath.getFileSystem();
         consistencyToleranceNS = 30_000_000_000L; // 30 seconds
 
