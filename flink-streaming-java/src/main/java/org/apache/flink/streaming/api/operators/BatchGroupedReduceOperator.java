@@ -35,7 +35,9 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 @Internal
 public class BatchGroupedReduceOperator<IN, KEY>
         extends AbstractUdfStreamOperator<IN, ReduceFunction<IN>>
-        implements OneInputStreamOperator<IN, IN>, Triggerable<KEY, VoidNamespace> {
+        implements OneInputStreamOperator<IN, IN>,
+                Triggerable<KEY, VoidNamespace>,
+                BoundedOneInput {
 
     private static final long serialVersionUID = 1L;
 
@@ -82,9 +84,15 @@ public class BatchGroupedReduceOperator<IN, KEY>
         IN currentValue = values.value();
         if (currentValue != null) {
             output.collect(new StreamRecord<>(currentValue, Long.MAX_VALUE));
+            values.clear();
         }
     }
 
     @Override
     public void onProcessingTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {}
+
+    @Override
+    public void endInput() throws Exception {
+        onEventTime(null);
+    }
 }
