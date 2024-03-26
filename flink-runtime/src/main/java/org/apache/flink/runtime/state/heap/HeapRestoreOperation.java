@@ -52,6 +52,7 @@ import java.io.InputStream;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 import static org.apache.flink.runtime.state.StateUtil.unexpectedStateHandleException;
 
@@ -71,6 +72,9 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
     private final CloseableRegistry cancelStreamRegistry;
     @Nonnull private final KeyGroupRange keyGroupRange;
     private final HeapMetaInfoRestoreOperation<K> heapMetaInfoRestoreOperation;
+    private final KeyGroupReaderFactory keyGroupReaderFactory;
+    private final Function<ClassLoader, KeyedBackendSerializationProxy<K>>
+            serializationProxyProvider;
 
     HeapRestoreOperation(
             @Nonnull Collection<KeyedStateHandle> restoreStateHandles,
@@ -83,7 +87,9 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
             @Nonnull KeyGroupRange keyGroupRange,
             int numberOfKeyGroups,
             StateTableFactory<K> stateTableFactory,
-            InternalKeyContext<K> keyContext) {
+            InternalKeyContext<K> keyContext,
+            KeyGroupReaderFactory keyGroupReaderFactory,
+            Function<ClassLoader, KeyedBackendSerializationProxy<K>> serializationProxyProvider) {
         this.restoreStateHandles = restoreStateHandles;
         this.keySerializerProvider = keySerializerProvider;
         this.userCodeClassLoader = userCodeClassLoader;
@@ -99,6 +105,8 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
                         numberOfKeyGroups,
                         stateTableFactory,
                         keyContext);
+        this.keyGroupReaderFactory = keyGroupReaderFactory;
+        this.serializationProxyProvider = serializationProxyProvider;
     }
 
     @Override
@@ -130,7 +138,7 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
                         new DataInputViewStreamWrapper(fsDataInputStream);
 
                 KeyedBackendSerializationProxy<K> serializationProxy =
-                        new KeyedBackendSerializationProxy<>(userCodeClassLoader);
+                        serializationProxyProvider.apply(userCodeClassLoader);
 
                 serializationProxy.read(inView);
 
@@ -254,9 +262,13 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
                                     + ".");
             }
 
-            StateSnapshotKeyGroupReader keyGroupReader =
-                    registeredState.keyGroupReader(readVersion);
-            keyGroupReader.readMappingsInKeyGroup(inView, keyGroupIndex);
+            keyGroupReaderFactory
+                    .readerFor(registeredState, readVersion)
+                    .readMappingsInKeyGroup(inView, keyGroupIndex);
         }
+    }
+
+    public interface KeyGroupReaderFactory {
+        StateSnapshotKeyGroupReader readerFor(StateSnapshotRestore state, int version);
     }
 }
