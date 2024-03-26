@@ -765,13 +765,13 @@ HashAggregate(isMerge=[false], groupBy=[a1], auxGrouping=[d1], select=[a1, d1, C
   </TestCase>
   <TestCase name="testSingleAggOnlyConstantGroupKey">
     <Resource name="sql">
-      <![CDATA[SELECT count(c1) FROM T1 GROUP BY 1, true]]>
+      <![CDATA[SELECT count(c1) FROM T1 GROUP BY '1', true]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
-   +- LogicalProject($f0=[1], $f1=[true], c1=[$2])
+   +- LogicalProject($f0=[_UTF-16LE'1'], $f1=[true], c1=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
 ]]>
     </Resource>
@@ -781,7 +781,7 @@ Calc(select=[EXPR$0])
 +- HashAggregate(isMerge=[true], groupBy=[$f0], select=[$f0, Final_COUNT(count$0) AS EXPR$0])
    +- Exchange(distribution=[hash[$f0]])
       +- LocalHashAggregate(groupBy=[$f0], select=[$f0, Partial_COUNT(c1) AS count$0])
-         +- Calc(select=[1 AS $f0, c1])
+         +- Calc(select=['1' AS $f0, c1])
             +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>
     </Resource>
@@ -848,13 +848,13 @@ HashAggregate(isMerge=[false], groupBy=[b2], auxGrouping=[c2], select=[b2, c2, A
   </TestCase>
   <TestCase name="testSingleAggWithConstantGroupKey">
     <Resource name="sql">
-      <![CDATA[SELECT a1, b1, count(c1) FROM T1 GROUP BY a1, b1, 1, true]]>
+      <![CDATA[SELECT a1, b1, count(c1) FROM T1 GROUP BY a1, b1, '1', true]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], EXPR$2=[$4])
 +- LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$2=[COUNT($4)])
-   +- LogicalProject(a1=[$0], b1=[$1], $f2=[1], $f3=[true], c1=[$2])
+   +- LogicalProject(a1=[$0], b1=[$1], $f2=[_UTF-16LE'1'], $f3=[true], c1=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
 ]]>
     </Resource>
@@ -867,7 +867,27 @@ HashAggregate(isMerge=[false], groupBy=[a1], auxGrouping=[b1], select=[a1, b1, C
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSingleDistinctAgg1">
+  <TestCase name="testSingleAggWithOrdinalGroupKey">
+		<Resource name="sql">
+			<![CDATA[SELECT a1, b1, count(c1) FROM T1 GROUP BY 1, 2]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT($2)])
++- LogicalProject(a1=[$0], b1=[$1], c1=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+HashAggregate(isMerge=[false], groupBy=[a1], auxGrouping=[b1], select=[a1, b1, COUNT(c1) AS EXPR$2])
++- Exchange(distribution=[hash[a1]])
+   +- Calc(select=[a1, b1, c1])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testSingleDistinctAgg1">
     <Resource name="sql">
       <![CDATA[SELECT a1, COUNT(DISTINCT c1) FROM T1 GROUP BY a1]]>
     </Resource>

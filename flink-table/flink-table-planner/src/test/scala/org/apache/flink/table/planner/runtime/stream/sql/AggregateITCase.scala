@@ -347,6 +347,73 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
   }
 
   @TestTemplate
+  def testGroupRowsByColumnOrdinals1(): Unit = {
+    // this case covers LongArrayValueWithRetractionGenerator and LongValueWithRetractionGenerator
+    val data = new mutable.MutableList[(Int, Long, String)]
+    data.+=((1, 1L, "A"))
+    data.+=((1, 1L, "A"))
+    data.+=((1, 1L, "A"))
+    data.+=((2, 2L, "B"))
+    data.+=((3, 2L, "B"))
+    data.+=((4, 3L, "C"))
+    data.+=((5, 3L, "C"))
+    data.+=((6, 3L, "C"))
+    data.+=((7, 4L, "B"))
+    data.+=((8, 4L, "A"))
+    data.+=((9, 4L, "D"))
+    data.+=((10, 4L, "E"))
+    data.+=((11, 5L, "A"))
+    data.+=((12, 5L, "B"))
+
+    val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.createTemporaryView("T", t)
+
+    val sql =
+      """
+        | SELECT b, sum(a)
+        | FROM T
+        | GROUP BY 1
+      """.stripMargin
+
+    val t1 = tEnv.sqlQuery(sql)
+    val sink = new TestingRetractSink
+    t1.toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = List("1,3", "2,5", "3,15", "4,34", "5,23")
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testGroupRowsByColumnOrdinals2(): Unit = {
+    // this case covers LongArrayValueWithRetractionGenerator and LongValueWithRetractionGenerator
+    val data = new mutable.MutableList[(Int, Long, String)]
+    data.+=((1, 1L, "A"))
+    data.+=((1, 1L, "A"))
+    data.+=((1, 1L, "A"))
+    data.+=((2, 2L, "B"))
+    data.+=((3, 2L, "B"))
+
+    val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.createTemporaryView("T", t)
+
+    val sql =
+      """
+        | SELECT b, a, count(c)
+        | FROM T
+        | GROUP BY 2, 1
+      """.stripMargin
+
+    val t1 = tEnv.sqlQuery(sql)
+    val sink = new TestingRetractSink
+    t1.toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = List("1,1,3", "2,2,1", "2,3,1")
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
   def testDistinctWithRetract(): Unit = {
     // this case covers LongArrayValueWithRetractionGenerator and LongValueWithRetractionGenerator
     val data = new mutable.MutableList[(Int, Long, String)]

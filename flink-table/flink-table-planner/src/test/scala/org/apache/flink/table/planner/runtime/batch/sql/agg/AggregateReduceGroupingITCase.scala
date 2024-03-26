@@ -209,11 +209,19 @@ class AggregateReduceGroupingITCase extends BatchTestBase {
       "SELECT a2, b2, count(c2) FROM T2 GROUP BY a2, b2",
       Seq(row(1, 1, 1), row(1, 2, 1), row(2, 3, 0), row(2, 4, 1)))
 
+    // group by ordinal fields
+    checkResult(
+      "SELECT a3, b3, count(c3) FROM T3 GROUP BY 1, 2",
+      Seq(row(1, 10, 1), row(2, 20, 2), row(3, 10, 1), row(4, 20, 1), row(4, null, 1)))
+    checkResult(
+      "SELECT a2, b2, count(c2) FROM T2 GROUP BY 1, 2",
+      Seq(row(1, 1, 1), row(1, 2, 1), row(2, 3, 0), row(2, 4, 1)))
+
     // group by constants
     checkResult(
-      "SELECT a1, b1, count(c1) FROM T1 GROUP BY a1, b1, 1, true",
+      "SELECT a1, b1, count(c1) FROM T1 GROUP BY a1, b1, '1', true",
       Seq(row(2, 1, 1), row(3, 2, 1), row(5, 2, 1), row(6, 3, 1)))
-    checkResult("SELECT count(c1) FROM T1 GROUP BY 1, true", Seq(row(4)))
+    checkResult("SELECT count(c1) FROM T1 GROUP BY '1', true", Seq(row(4)))
 
     // large data, for hash agg mode it will fallback
     checkResult(
