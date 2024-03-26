@@ -19,11 +19,21 @@
 package org.apache.flink.fs.s3hadoop;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FileSystemFactory;
 import org.apache.flink.runtime.util.HadoopConfigLoader;
 
 import org.junit.Test;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Map;
+import java.util.ServiceLoader;
+
+import static org.apache.hadoop.fs.s3a.Constants.ASSUMED_ROLE_ARN;
+import static org.apache.hadoop.fs.s3a.Constants.ASSUMED_ROLE_CREDENTIALS_PROVIDER;
+import static org.apache.hadoop.fs.s3a.Constants.AWS_CREDENTIALS_PROVIDER;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 /**
  * Unit tests for the S3 file system support via Hadoop's {@link
@@ -79,6 +89,54 @@ public class HadoopS3FileSystemTest {
         conf.setString("s3.access-key", "clé d'accès");
         conf.setString("s3.secret-key", "clef secrète");
         checkHadoopAccessKeys(conf, "clé d'accès", "clef secrète");
+    }
+
+    @Test
+    public void testInitUriWithParams() throws URISyntaxException {
+        ServiceLoader<FileSystemFactory> serviceLoader =
+                ServiceLoader.load(FileSystemFactory.class);
+        S3FileSystemFactory s3Factory = null;
+        for (FileSystemFactory fs : serviceLoader) {
+            if ("s3".equals(fs.getScheme())) {
+                s3Factory = (S3FileSystemFactory) fs;
+                break;
+            }
+        }
+        assertNotNull("S3FileSystemFactory must be set", s3Factory);
+
+        String assumedRoleProvider = "org.apache.hadoop.fs.s3a.auth.AssumedRoleCredentialProvider";
+        String simpleProvider = "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider";
+        String roleArn = "arn:aws:iam::000000000000:role/some-role";
+        URI uri =
+                new URI(
+                        "s3://bucket"
+                                + "?fs.s3a.aws.credentials.provider="
+                                + assumedRoleProvider
+                                + "&fs.s3a.assumed.role.credentials.provider="
+                                + simpleProvider
+                                + "&fs.s3a.assumed.role.arn="
+                                + roleArn);
+
+        org.apache.hadoop.conf.Configuration conf = new org.apache.hadoop.conf.Configuration();
+        URI resultUri = s3Factory.getInitURI(uri, conf);
+
+        assertEquals("s3://bucket", resultUri.toString());
+        assertEquals(assumedRoleProvider, conf.get(AWS_CREDENTIALS_PROVIDER));
+        assertEquals(simpleProvider, conf.get(ASSUMED_ROLE_CREDENTIALS_PROVIDER));
+        assertEquals(roleArn, conf.get(ASSUMED_ROLE_ARN));
+    }
+
+    @Test
+    public void testParseQueryParams() throws URISyntaxException {
+        URI uri1 = new URI("s3://bucket/path");
+        Map<String, String> paramMap = S3FileSystemFactory.parseQueryParams(uri1);
+        assertEquals(0, paramMap.size());
+
+        URI uri2 = new URI("s3://bucket/path?foo=bar&baz=bot");
+        paramMap = S3FileSystemFactory.parseQueryParams(uri2);
+        assertEquals("bar", paramMap.get("foo"));
+        assertEquals("bot", paramMap.get("baz"));
+        assertEquals(2, paramMap.size());
     }
 
     private static void checkHadoopAccessKeys(
