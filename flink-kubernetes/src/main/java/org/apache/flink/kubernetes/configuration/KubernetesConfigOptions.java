@@ -593,6 +593,7 @@ public class KubernetesConfigOptions {
     public enum NodePortAddressType {
         InternalIP,
         ExternalIP,
+        Hostname
     }
 
     /** The container image pull policy. */
