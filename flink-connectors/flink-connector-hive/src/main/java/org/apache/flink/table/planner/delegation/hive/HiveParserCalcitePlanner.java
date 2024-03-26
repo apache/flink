@@ -98,6 +98,7 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.rex.RexWindowBound;
 import org.apache.calcite.sql.SqlAggFunction;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -1848,6 +1849,41 @@ public class HiveParserCalcitePlanner {
                             inputRR,
                             new HiveParserTypeCheckCtx(inputRR, frameworkConfig, cluster),
                             semanticAnalyzer);
+
+            // If all the order keys are literals, the order keys will be removed in
+            // ProjectToWindowRule#onMatch. In this rule, WindowedAggRelSplitter#makeRel will be
+            // called to create LogicWindow with skipping such order keys.
+            // Then it'll look like "xxx over() xxx", but flink doesn't support there's no order key
+            // inside over().
+            // So, construct a function call "int(1)" manually to support such case.
+            if (orderKeys.stream().allMatch(orderKey -> orderKey.getKey() instanceof RexLiteral)) {
+                RelDataType intRelDataType =
+                        cluster.getTypeFactory().createSqlType(SqlTypeName.INTEGER);
+                String funcName = "int";
+                if (HiveParserUtils.getAnySqlOperator(funcName, frameworkConfig.getOperatorTable())
+                        == null) {
+                    // int() is Hive's udf, need to load HiveModule
+                    throw new SemanticException("Please load HiveModule first.");
+                }
+                SqlOperator toIntSqlOp =
+                        HiveParserSqlFunctionConverter.getCalciteFn(
+                                funcName,
+                                Collections.singletonList(intRelDataType),
+                                intRelDataType,
+                                false);
+                RexCall reduceCall =
+                        (RexCall)
+                                cluster.getRexBuilder()
+                                        .makeCall(
+                                                toIntSqlOp,
+                                                Collections.singletonList(
+                                                        cluster.getRexBuilder().makeLiteral("1")));
+                orderKeys =
+                        Collections.singletonList(
+                                new RexFieldCollation(
+                                        reduceCall, Collections.singleton(SqlKind.NULLS_FIRST)));
+            }
+
             RexWindowBound lowerBound = getBound(wndSpec.getWindowFrame().getStart(), cluster);
             RexWindowBound upperBound = getBound(wndSpec.getWindowFrame().getEnd(), cluster);
             boolean isRows =
