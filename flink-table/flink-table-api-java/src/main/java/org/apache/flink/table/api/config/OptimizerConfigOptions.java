@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api.config;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
@@ -273,6 +274,18 @@ public class OptimizerConfigOptions {
                                             "Note: it is not recommended to turn on unless you are aware of possible side effects, "
                                                     + "such as causing the output of certain non-deterministic expressions to not meet expectations(see FLINK-20887).")
                                     .build());
+
+    // It is an experimental config, will may be removed later.
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+    @Experimental
+    public static final ConfigOption<Long> TABLE_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD =
+            key("table.optimizer.join.null-filter-threshold")
+                    .longType()
+                    .defaultValue(2000000L)
+                    .withDescription(
+                            "To avoid the impact of null values on the single join node, "
+                                    + "We will add a null filter (possibly be pushed down) before the join to filter"
+                                    + " null values when the source of InnerJoin has nullCount more than this value.");
 
     /** Strategy for handling non-deterministic updates. */
     @PublicEvolving

@@ -54,6 +54,12 @@ ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggre
             <td>Configures the maximum size in bytes for a table that will be broadcast to all worker nodes when performing a join. By setting this value to -1 to disable broadcasting.</td>
         </tr>
         <tr>
+            <td><h5>table.optimizer.join.null-filter-threshold</h5><br> <span class="label label-primary">Batch</span></td>
+            <td style="word-wrap: break-word;">2000000</td>
+            <td>Long</td>
+            <td>To avoid the impact of null values on the single join node, We will add a null filter (possibly be pushed down) before the join to filter null values when the source of InnerJoin has nullCount more than this value.</td>
+        </tr>
+        <tr>
             <td><h5>table.optimizer.multiple-input-enabled</h5><br> <span class="label label-primary">Batch</span></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>

@@ -21,13 +21,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
-import org.apache.flink.table.planner.plan.rules.logical.JoinDeriveNullFilterRule
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters
 
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 
+import java.lang.{Long => JLong}
 import java.util
 
 import scala.collection.JavaConversions._
@@ -511,8 +511,8 @@ abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTes
             )))
         .build())
 
-    util.getTableEnv.getConfig
-      .set(JoinDeriveNullFilterRule.TABLE_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD, Long.box(10000))
+    util.tableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD, JLong.valueOf(10000))
     val sql =
       s"""
          |SELECT * FROM T6
