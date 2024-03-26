@@ -128,6 +128,11 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testShowCreateCatalog() {
+        sql("show create catalog c1").ok("SHOW CREATE CATALOG `C1`");
+    }
+
+    @Test
     void testDropCatalog() {
         sql("drop catalog c1").ok("DROP CATALOG `C1`");
     }

@@ -111,6 +111,7 @@
     "org.apache.flink.sql.parser.dql.SqlShowCreate"
     "org.apache.flink.sql.parser.dql.SqlShowCreateTable"
     "org.apache.flink.sql.parser.dql.SqlShowCreateView"
+    "org.apache.flink.sql.parser.dql.SqlShowCreateCatalog"
     "org.apache.flink.sql.parser.dql.SqlShowViews"
     "org.apache.flink.sql.parser.dql.SqlRichDescribeTable"
     "org.apache.flink.sql.parser.dql.SqlUnloadModule"

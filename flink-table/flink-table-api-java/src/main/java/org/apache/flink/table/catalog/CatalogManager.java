@@ -138,6 +138,10 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         return catalogModificationListeners;
     }
 
+    public Optional<CatalogDescriptor> getCatalogDescriptor(String catalogName) {
+        return catalogStoreHolder.catalogStore().getCatalog(catalogName);
+    }
+
     public static Builder newBuilder() {
         return new Builder();
     }
@@ -402,8 +406,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         }
 
         // Get catalog from the CatalogStore.
-        Optional<CatalogDescriptor> optionalDescriptor =
-                catalogStoreHolder.catalogStore().getCatalog(catalogName);
+        Optional<CatalogDescriptor> optionalDescriptor = getCatalogDescriptor(catalogName);
         return optionalDescriptor.map(
                 descriptor -> {
                     Catalog catalog = initCatalog(catalogName, descriptor);

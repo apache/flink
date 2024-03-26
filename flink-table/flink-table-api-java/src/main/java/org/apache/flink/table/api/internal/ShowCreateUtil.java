@@ -21,6 +21,7 @@ package org.apache.flink.table.api.internal;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.CatalogDescriptor;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -33,9 +34,12 @@ import org.apache.flink.table.utils.EncodingUtils;
 
 import org.apache.commons.lang3.StringUtils;
 
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.table.utils.EncodingUtils.escapeIdentifier;
 
 /** SHOW CREATE statement Util. */
 @Internal
@@ -72,7 +76,7 @@ public class ShowCreateUtil {
                                 sb.append("PARTITIONED BY (")
                                         .append(partitionedInfoFormatted)
                                         .append(")\n"));
-        extractFormattedOptions(table, printIndent)
+        extractFormattedOptions(table.getOptions(), printIndent)
                 .ifPresent(v -> sb.append("WITH (\n").append(v).append("\n)\n"));
         return sb.toString();
     }
@@ -109,6 +113,18 @@ public class ShowCreateUtil {
                                         String.format(
                                                 " COMMENT '%s'%s", c, System.lineSeparator())));
         return stringBuilder.toString();
+    }
+
+    public static String buildShowCreateCatalogRow(CatalogDescriptor catalogDescriptor) {
+        final String printIndent = "  ";
+        return String.format(
+                "CREATE CATALOG %s WITH (%s%s%s)%s",
+                escapeIdentifier(catalogDescriptor.getCatalogName()),
+                System.lineSeparator(),
+                extractFormattedOptions(catalogDescriptor.getConfiguration().toMap(), printIndent)
+                        .orElse(""),
+                System.lineSeparator(),
+                System.lineSeparator());
     }
 
     static String buildCreateFormattedPrefix(
@@ -213,13 +229,12 @@ public class ShowCreateUtil {
                         .collect(Collectors.joining(", ")));
     }
 
-    static Optional<String> extractFormattedOptions(
-            ResolvedCatalogBaseTable<?> table, String printIndent) {
-        if (Objects.isNull(table.getOptions()) || table.getOptions().isEmpty()) {
+    static Optional<String> extractFormattedOptions(Map<String, String> conf, String printIndent) {
+        if (Objects.isNull(conf) || conf.isEmpty()) {
             return Optional.empty();
         }
         return Optional.of(
-                table.getOptions().entrySet().stream()
+                conf.entrySet().stream()
                         .map(
                                 entry ->
                                         String.format(
@@ -227,7 +242,7 @@ public class ShowCreateUtil {
                                                 printIndent,
                                                 EncodingUtils.escapeSingleQuotes(entry.getKey()),
                                                 EncodingUtils.escapeSingleQuotes(entry.getValue())))
-                        .collect(Collectors.joining(",\n")));
+                        .collect(Collectors.joining("," + System.lineSeparator())));
     }
 
     static String extractFormattedColumnNames(ResolvedCatalogBaseTable<?> baseTable) {
