@@ -669,6 +669,23 @@ public abstract class FileSystem {
     public abstract FileStatus[] listStatus(Path f) throws IOException;
 
     /**
+     * Returns an array of paths that match given path pattern.
+     *
+     * <p>This method is optional on file systems and various file system implementations may not
+     * support this method, throwing an {@code UnsupportedOperationException}.
+     *
+     * @param pathPattern path pattern to match
+     * @return the statuses of the files/directories that matches given path
+     * @throws IOException Thrown, if given path can not be found/resolved by filesystem
+     */
+    public FileStatus[] globStatus(Path pathPattern) throws IOException {
+        // UnsupportedOperationException if not implemented in subclass. GlobStatus is currently
+        // supported only for Hadoop File Systems. It is not supported for Local File System.
+        throw new UnsupportedOperationException(
+                "This file system does not support file paths with regular expression.");
+    }
+
+    /**
      * Check if exists.
      *
      * @param f source file
@@ -779,6 +796,17 @@ public abstract class FileSystem {
      * @return True, if this is a distributed file system, false otherwise.
      */
     public abstract boolean isDistributedFS();
+
+    /**
+     * Returns true if this is a file system with globPattern support. As of now, globPattern is
+     * supported only for Hadoop based file systems. Ex: Google Cloud Storage, Hadoop Distributed
+     * File System.
+     *
+     * @return True, when file system supports globStatus(globPattern) operation, false otherwise.
+     */
+    public boolean isGlobStatusSupported() {
+        return false;
+    }
 
     /**
      * Gets a description of the characteristics of this file system.

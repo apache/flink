@@ -329,6 +329,11 @@ public class LimitedConnectionsFileSystem extends FileSystem {
     }
 
     @Override
+    public boolean isGlobStatusSupported() {
+        return originalFs.isGlobStatusSupported();
+    }
+
+    @Override
     public Path getWorkingDirectory() {
         return originalFs.getWorkingDirectory();
     }
@@ -357,6 +362,11 @@ public class LimitedConnectionsFileSystem extends FileSystem {
     @Override
     public FileStatus[] listStatus(Path f) throws IOException {
         return originalFs.listStatus(f);
+    }
+
+    @Override
+    public FileStatus[] globStatus(Path f) throws IOException {
+        return originalFs.globStatus(f);
     }
 
     @Override
