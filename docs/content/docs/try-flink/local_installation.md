@@ -46,6 +46,8 @@ to have __Java 11__ installed. To check the Java version installed, type in your
 $ java -version
 ```
 
+**Notes**: JDK 17 and above is not supported yet!!!
+
 Next, [download the latest binary release]({{< downloads >}}) of Flink, 
 then extract the archive: 
 
