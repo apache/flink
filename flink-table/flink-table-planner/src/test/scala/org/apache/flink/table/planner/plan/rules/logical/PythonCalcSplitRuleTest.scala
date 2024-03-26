@@ -48,7 +48,7 @@ class PythonCalcSplitRuleTest extends TableTestBase {
       FlinkHepRuleSetProgramBuilder.newBuilder
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(FlinkStreamRuleSets.LOGICAL_REWRITE)
+        .add(FlinkBatchRuleSets.LOGICAL_REWRITE)
         .build()
     )
     util.replaceBatchProgram(programs)
