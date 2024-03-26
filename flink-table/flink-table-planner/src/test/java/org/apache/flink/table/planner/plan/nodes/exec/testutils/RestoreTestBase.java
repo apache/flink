@@ -191,7 +191,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                     if (!ignoreAfter) {
                         results.addAll(sinkTestStep.getExpectedAfterRestoreAsStrings());
                     }
-                    List<String> expectedResults = getExpectedResults(sinkTestStep, tableName);
+                    List<String> expectedResults = getActualResults(sinkTestStep, tableName);
                     final boolean shouldComplete =
                             CollectionUtils.isEqualCollection(expectedResults, results);
                     if (shouldComplete) {
@@ -332,15 +332,9 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         } else {
             compiledPlan.execute().await();
             for (SinkTestStep sinkTestStep : program.getSetupSinkTestSteps()) {
-                List<String> expectedResults = getExpectedResults(sinkTestStep, sinkTestStep.name);
-                assertThat(expectedResults)
-                        .containsExactlyInAnyOrder(
-                                Stream.concat(
-                                                sinkTestStep.getExpectedBeforeRestoreAsStrings()
-                                                        .stream(),
-                                                sinkTestStep.getExpectedAfterRestoreAsStrings()
-                                                        .stream())
-                                        .toArray(String[]::new));
+                List<String> actualResults = getActualResults(sinkTestStep, sinkTestStep.name);
+                String[] expectedResults = getExpectedResults(sinkTestStep);
+                assertThat(actualResults).containsExactlyInAnyOrder(expectedResults);
             }
         }
     }
@@ -360,11 +354,22 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                 System.getProperty("user.dir"), metadata.name(), metadata.version(), program.id);
     }
 
-    private static List<String> getExpectedResults(SinkTestStep sinkTestStep, String tableName) {
+    private static List<String> getActualResults(SinkTestStep sinkTestStep, String tableName) {
         if (sinkTestStep.getTestChangelogData()) {
             return TestValuesTableFactory.getRawResultsAsStrings(tableName);
         } else {
             return TestValuesTableFactory.getResultsAsStrings(tableName);
+        }
+    }
+
+    private static String[] getExpectedResults(SinkTestStep sinkTestStep) {
+        if (sinkTestStep.getTestChangelogData()) {
+            return Stream.concat(
+                            sinkTestStep.getExpectedBeforeRestoreAsStrings().stream(),
+                            sinkTestStep.getExpectedAfterRestoreAsStrings().stream())
+                    .toArray(String[]::new);
+        } else {
+            return sinkTestStep.getExpectedAfterRestoreAsStrings().stream().toArray(String[]::new);
         }
     }
 }
