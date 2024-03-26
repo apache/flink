@@ -415,19 +415,19 @@ class OverloadedFunction extends ScalarFunction {
 
   // define the precision and scale of a decimal
   @DataTypeHint("DECIMAL(12, 3)")
-  def eval(double a, double b): BigDecimal = {
-    java.lang.BigDecimal.valueOf(a + b)
+  def eval(a: Double, b: Double): BigDecimal = {
+    BigDecimal(a + b)
   }
 
   // define a nested data type
   @DataTypeHint("ROW<s STRING, t TIMESTAMP_LTZ(3)>")
-  def eval(Int i): Row = {
-    Row.of(java.lang.String.valueOf(i), java.time.Instant.ofEpochSecond(i))
+  def eval(i: Int): Row = {
+    Row.of(i.toString, java.time.Instant.ofEpochSecond(i))
   }
 
   // allow wildcard input and customly serialized output
   @DataTypeHint(value = "RAW", bridgedTo = classOf[java.nio.ByteBuffer])
-  def eval(@DataTypeHint(inputGroup = InputGroup.ANY) Object o): java.nio.ByteBuffer = {
+  def eval(@DataTypeHint(inputGroup = InputGroup.ANY) o: Any): java.nio.ByteBuffer = {
     MyUtils.serializeToByteBuffer(o)
   }
 }
