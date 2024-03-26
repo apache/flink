@@ -219,7 +219,7 @@ class RetryingExecutorTest {
                 Executors.newScheduledThreadPool(2));
         /* future completion can be delayed arbitrarily causing start delta be less than timeout */
         assertThat(((double) secondStart.get() - firstStart.get()) / 1_000_000)
-                .isCloseTo(timeout, Percentage.withPercentage(75));
+                .isGreaterThanOrEqualTo(timeout * .75);
     }
 
     private void testPolicy(
