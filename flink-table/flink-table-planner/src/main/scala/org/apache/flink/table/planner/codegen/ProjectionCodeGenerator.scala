@@ -204,7 +204,7 @@ object ProjectionCodeGenerator {
               inputTerm,
               sumAggFunction.getResultType.getLogicalType,
               aggInfo.agg.getArgList.get(0))
-          case _: MaxAggFunction | _: MinAggFunction =>
+          case _: MinAggFunction =>
             fieldExprs += reuseFieldExprForAggFunc(
               ctx,
               inputType,
