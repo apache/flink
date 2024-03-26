@@ -116,7 +116,8 @@ class CliFrontendSavepointTest extends CliFrontendTestBase {
         CliFrontend frontend =
                 new MockedCliFrontend(
                         new RestClusterClient<>(
-                                getConfiguration(), StandaloneClusterId.getInstance()));
+                                getConfiguration(),
+                                StandaloneClusterId.fromConfiguration(getConfiguration())));
 
         String[] parameters = {"invalid job id"};
         assertThatThrownBy(() -> frontend.savepoint(parameters))
@@ -304,7 +305,7 @@ class CliFrontendSavepointTest extends CliFrontendTestBase {
                 Function<String, CompletableFuture<Acknowledge>> disposeSavepointFunction,
                 Configuration configuration)
                 throws Exception {
-            super(configuration, StandaloneClusterId.getInstance());
+            super(configuration, StandaloneClusterId.fromConfiguration(configuration));
 
             this.disposeSavepointFunction = Preconditions.checkNotNull(disposeSavepointFunction);
         }

@@ -68,7 +68,9 @@ public class JobRetrievalITCase extends TestLogger {
         clientConfig.set(RestOptions.RETRY_DELAY, 0L);
         clientConfig.addAll(CLUSTER.getClientConfiguration());
 
-        client = new RestClusterClient<>(clientConfig, StandaloneClusterId.getInstance());
+        client =
+                new RestClusterClient<>(
+                        clientConfig, StandaloneClusterId.fromConfiguration(clientConfig));
     }
 
     @After
