@@ -30,6 +30,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequestGateway;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
+import org.apache.flink.streaming.api.operators.collect.CollectCoordinationRequest;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.commons.io.IOUtils;
@@ -56,6 +57,10 @@ public class ClusterClientJobClientAdapter<ClusterID>
 
     private final ClassLoader classLoader;
 
+    private ClusterClient<ClusterID> clusterClient;
+    // when select then isQuery = true;
+    private Boolean isQuery = false;
+
     public ClusterClientJobClientAdapter(
             final ClusterClientProvider<ClusterID> clusterClientProvider,
             final JobID jobID,
@@ -65,6 +70,13 @@ public class ClusterClientJobClientAdapter<ClusterID>
         this.classLoader = classLoader;
     }
 
+    private ClusterClient<ClusterID> getClusterClient() {
+        if (clusterClient == null) {
+            clusterClient = clusterClientProvider.getClusterClient();
+        }
+        return clusterClient;
+    }
+
     @Override
     public JobID getJobID() {
         return jobID;
@@ -72,8 +84,22 @@ public class ClusterClientJobClientAdapter<ClusterID>
 
     @Override
     public CompletableFuture<JobStatus> getJobStatus() {
-        return bridgeClientRequest(
-                clusterClientProvider, (clusterClient -> clusterClient.getJobStatus(jobID)));
+        if (!isQuery) {
+            return bridgeClientRequest(
+                    clusterClientProvider, (clusterClient -> clusterClient.getJobStatus(jobID)));
+        }
+        CompletableFuture<JobStatus> jobStatus = new CompletableFuture<JobStatus>();
+        try {
+            jobStatus = this.getClusterClient().getJobStatus(jobID);
+            if (jobStatus.get().isTerminalState() || jobStatus.get().isGloballyTerminalState()) {
+                if (clusterClient != null) {
+                    clusterClient.close();
+                }
+            }
+        } catch (Exception e) {
+            // do nothing
+        }
+        return jobStatus;
     }
 
     @Override
@@ -137,6 +163,10 @@ public class ClusterClientJobClientAdapter<ClusterID>
     @Override
     public CompletableFuture<CoordinationResponse> sendCoordinationRequest(
             OperatorID operatorId, CoordinationRequest request) {
+        if (request instanceof CollectCoordinationRequest) {
+            this.isQuery = true;
+            return this.getClusterClient().sendCoordinationRequest(jobID, operatorId, request);
+        }
         return bridgeClientRequest(
                 clusterClientProvider,
                 clusterClient -> clusterClient.sendCoordinationRequest(jobID, operatorId, request));
