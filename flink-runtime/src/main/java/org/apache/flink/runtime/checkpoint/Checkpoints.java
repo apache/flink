@@ -33,6 +33,7 @@ import org.apache.flink.runtime.state.CheckpointStorageLoader;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
+import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
@@ -177,19 +178,22 @@ public class Checkpoints {
                                 operatorState.getMaxParallelism())) {
                     operatorStates.put(operatorState.getOperatorID(), operatorState);
                 } else {
-                    String msg =
-                            String.format(
-                                    "Failed to rollback to checkpoint/savepoint %s. "
-                                            + "Max parallelism mismatch between checkpoint/savepoint state and new program. "
-                                            + "Cannot map operator %s with max parallelism %d to new program with "
-                                            + "max parallelism %d. This indicates that the program has been changed "
-                                            + "in a non-compatible way after the checkpoint/savepoint.",
-                                    checkpointMetadata,
-                                    operatorState.getOperatorID(),
-                                    operatorState.getMaxParallelism(),
-                                    executionJobVertex.getMaxParallelism());
+                    boolean hasKeyedState = StateUtil.hasKeyedState(operatorState);
+                    if (hasKeyedState) {
+                        String msg =
+                                String.format(
+                                        "Failed to rollback to checkpoint/savepoint %s. "
+                                                + "Max parallelism mismatch between checkpoint/savepoint state and new program. "
+                                                + "Cannot map operator %s with max parallelism %d to new program with "
+                                                + "max parallelism %d. This indicates that the program has been changed "
+                                                + "in a non-compatible way after the checkpoint/savepoint.",
+                                        checkpointMetadata,
+                                        operatorState.getOperatorID(),
+                                        operatorState.getMaxParallelism(),
+                                        executionJobVertex.getMaxParallelism());
 
-                    throw new IllegalStateException(msg);
+                        throw new IllegalStateException(msg);
+                    }
                 }
             } else if (allowNonRestoredState) {
                 LOG.info(
