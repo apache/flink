@@ -51,7 +51,9 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacityScheduler;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
@@ -122,6 +124,9 @@ class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
         YARN_CONFIGURATION.set("yarn.scheduler.capacity.root.queues", "default,qa-team");
         YARN_CONFIGURATION.setInt("yarn.scheduler.capacity.root.default.capacity", 40);
         YARN_CONFIGURATION.setInt("yarn.scheduler.capacity.root.qa-team.capacity", 60);
+        YARN_CONFIGURATION.set("yarn.scheduler.capacity.root.qa-team.queues", "p0,p1");
+        YARN_CONFIGURATION.setInt("yarn.scheduler.capacity.root.qa-team.p0.capacity", 50);
+        YARN_CONFIGURATION.setInt("yarn.scheduler.capacity.root.qa-team.p1.capacity", 50);
         YARN_CONFIGURATION.set(
                 YarnTestBase.TEST_CLUSTER_NAME_KEY, "flink-yarn-tests-capacityscheduler");
         startYARNWithConfig(YARN_CONFIGURATION);
@@ -754,5 +759,23 @@ class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
         if (checkForProhibitedLogContents) {
             ensureNoProhibitedStringInLogFiles(PROHIBITED_STRINGS, WHITELISTED_STRINGS);
         }
+    }
+
+    @BeforeEach
+    void beforeEach() {
+        checkForProhibitedLogContents = true;
+    }
+
+    @Test
+    void testCheckYarnQueues() {
+        checkForProhibitedLogContents = false;
+        Configuration configuration = new Configuration();
+        configuration.setString(YarnConfigOptions.APPLICATION_QUEUE, "root.a");
+        YarnClusterDescriptor yarnClusterDescriptor = createYarnClusterDescriptor(configuration);
+        Assertions.assertFalse(yarnClusterDescriptor.checkYarnQueues());
+
+        configuration.setString(YarnConfigOptions.APPLICATION_QUEUE, "root.qa-team.p0");
+        yarnClusterDescriptor = createYarnClusterDescriptor(configuration);
+        Assertions.assertTrue(yarnClusterDescriptor.checkYarnQueues());
     }
 }
