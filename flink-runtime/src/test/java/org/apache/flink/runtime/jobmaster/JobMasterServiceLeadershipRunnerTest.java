@@ -52,6 +52,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -159,35 +160,36 @@ class JobMasterServiceLeadershipRunnerTest {
     void testConcurrentLeadershipOperationsBlockingClose() throws Exception {
         final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
 
-        final JobManagerRunner jobManagerRunner =
+        try (final JobManagerRunner jobManagerRunner =
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .withJobMasterServiceProcesses(
                                 TestingJobMasterServiceProcess.newBuilder()
                                         .setCloseAsyncSupplier(() -> terminationFuture)
                                         .build(),
                                 TestingJobMasterServiceProcess.newBuilder().build())
-                        .build();
+                        .build()) {
 
-        jobManagerRunner.start();
+            jobManagerRunner.start();
 
-        leaderElection.isLeader(UUID.randomUUID()).get();
+            leaderElection.isLeader(UUID.randomUUID()).get();
 
-        leaderElection.notLeader();
+            leaderElection.notLeader();
 
-        final UUID expectedLeaderSessionID = UUID.randomUUID();
-        final CompletableFuture<LeaderInformation> confirmedLeaderInformation =
-                leaderElection.isLeader(expectedLeaderSessionID);
+            final UUID expectedLeaderSessionID = UUID.randomUUID();
+            final CompletableFuture<LeaderInformation> confirmedLeaderInformation =
+                    leaderElection.isLeader(expectedLeaderSessionID);
 
-        assertThatFuture(confirmedLeaderInformation)
-                .as("The new leadership should wait first for the suspension to happen.")
-                .willNotCompleteWithin(Duration.ofMillis(1));
+            assertThatFuture(confirmedLeaderInformation)
+                    .as("The new leadership should wait first for the suspension to happen.")
+                    .willNotCompleteWithin(Duration.ofMillis(1));
 
-        terminationFuture.complete(null);
+            terminationFuture.complete(null);
 
-        assertThatFuture(confirmedLeaderInformation)
-                .eventuallySucceeds()
-                .extracting(LeaderInformation::getLeaderSessionID)
-                .isEqualTo(expectedLeaderSessionID);
+            assertThatFuture(confirmedLeaderInformation)
+                    .eventuallySucceeds()
+                    .extracting(LeaderInformation::getLeaderSessionID)
+                    .isEqualTo(expectedLeaderSessionID);
+        }
     }
 
     @Test
@@ -199,22 +201,23 @@ class JobMasterServiceLeadershipRunnerTest {
                         .setGetResultFutureSupplier(() -> resultFuture)
                         .build();
 
-        JobManagerRunner jobManagerRunner =
+        try (JobManagerRunner jobManagerRunner =
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .withSingleJobMasterServiceProcess(testingJobMasterServiceProcess)
-                        .build();
+                        .build()) {
 
-        jobManagerRunner.start();
+            jobManagerRunner.start();
 
-        leaderElection.isLeader(UUID.randomUUID()).get();
+            leaderElection.isLeader(UUID.randomUUID()).get();
 
-        final FlinkException cause =
-                new FlinkException("The JobMasterService failed unexpectedly.");
-        resultFuture.completeExceptionally(cause);
+            final FlinkException cause =
+                    new FlinkException("The JobMasterService failed unexpectedly.");
+            resultFuture.completeExceptionally(cause);
 
-        assertThatFuture(jobManagerRunner.getResultFuture())
-                .eventuallyFailsWith(ExecutionException.class)
-                .withCause(cause);
+            assertThatFuture(jobManagerRunner.getResultFuture())
+                    .eventuallyFailsWith(ExecutionException.class)
+                    .withCause(cause);
+        }
     }
 
     @Test
@@ -227,23 +230,24 @@ class JobMasterServiceLeadershipRunnerTest {
                 CompletableFuture.completedFuture(
                         JobManagerRunnerResult.forInitializationFailure(
                                 createFailedExecutionGraphInfo(testException), testException));
-        final JobMasterServiceLeadershipRunner jobManagerRunner =
+        try (final JobMasterServiceLeadershipRunner jobManagerRunner =
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .withSingleJobMasterServiceProcess(
                                 TestingJobMasterServiceProcess.newBuilder()
                                         .setGetResultFutureSupplier(() -> completedResultFuture)
                                         .build())
-                        .build();
+                        .build()) {
 
-        jobManagerRunner.start();
+            jobManagerRunner.start();
 
-        leaderElection.isLeader(UUID.randomUUID());
+            leaderElection.isLeader(UUID.randomUUID());
 
-        final JobManagerRunnerResult jobManagerRunnerResult =
-                jobManagerRunner.getResultFuture().join();
-        assertThat(jobManagerRunnerResult.isInitializationFailure()).isTrue();
+            final JobManagerRunnerResult jobManagerRunnerResult =
+                    jobManagerRunner.getResultFuture().join();
+            assertThat(jobManagerRunnerResult.isInitializationFailure()).isTrue();
 
-        assertThat(jobManagerRunnerResult.getInitializationFailure()).isEqualTo(testException);
+            assertThat(jobManagerRunnerResult.getInitializationFailure()).isEqualTo(testException);
+        }
     }
 
     @Nonnull
@@ -287,7 +291,7 @@ class JobMasterServiceLeadershipRunnerTest {
     @Test
     void testJobMasterServiceProcessShutdownOnLeadershipLoss() throws Exception {
         final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
-        final JobManagerRunner jobManagerRunner =
+        try (final JobManagerRunner jobManagerRunner =
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .withSingleJobMasterServiceProcess(
                                 TestingJobMasterServiceProcess.newBuilder()
@@ -297,78 +301,81 @@ class JobMasterServiceLeadershipRunnerTest {
                                                     return terminationFuture;
                                                 })
                                         .build())
-                        .build();
+                        .build()) {
 
-        jobManagerRunner.start();
+            jobManagerRunner.start();
 
-        leaderElection.isLeader(UUID.randomUUID());
+            leaderElection.isLeader(UUID.randomUUID());
 
-        leaderElection.notLeader();
+            leaderElection.notLeader();
 
-        assertThat(terminationFuture).isDone();
+            assertThat(terminationFuture).isDone();
+        }
     }
 
     @Test
     void testCancellationIsForwardedToJobMasterService() throws Exception {
         final CompletableFuture<JobMasterGateway> jobMasterGatewayFuture =
                 new CompletableFuture<>();
-        final JobManagerRunner jobManagerRunner =
+        try (final JobManagerRunner jobManagerRunner =
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .withSingleJobMasterServiceProcess(
                                 TestingJobMasterServiceProcess.newBuilder()
                                         .setGetJobMasterGatewayFutureSupplier(
                                                 () -> jobMasterGatewayFuture)
                                         .build())
-                        .build();
+                        .build()) {
 
-        jobManagerRunner.start();
+            jobManagerRunner.start();
 
-        leaderElection.isLeader(UUID.randomUUID());
+            leaderElection.isLeader(UUID.randomUUID());
 
-        // cancel during init
-        CompletableFuture<Acknowledge> cancellationFuture =
-                jobManagerRunner.cancel(TESTING_TIMEOUT);
+            // cancel during init
+            CompletableFuture<Acknowledge> cancellationFuture =
+                    jobManagerRunner.cancel(TESTING_TIMEOUT);
 
-        assertThat(cancellationFuture).isNotDone();
+            assertThat(cancellationFuture).isNotDone();
 
-        AtomicBoolean cancelCalled = new AtomicBoolean(false);
-        JobMasterGateway jobMasterGateway =
-                new TestingJobMasterGatewayBuilder()
-                        .setCancelFunction(
-                                () -> {
-                                    cancelCalled.set(true);
-                                    return CompletableFuture.completedFuture(Acknowledge.get());
-                                })
-                        .build();
+            AtomicBoolean cancelCalled = new AtomicBoolean(false);
+            JobMasterGateway jobMasterGateway =
+                    new TestingJobMasterGatewayBuilder()
+                            .setCancelFunction(
+                                    () -> {
+                                        cancelCalled.set(true);
+                                        return CompletableFuture.completedFuture(Acknowledge.get());
+                                    })
+                            .build();
 
-        jobMasterGatewayFuture.complete(jobMasterGateway);
+            jobMasterGatewayFuture.complete(jobMasterGateway);
 
-        // assert that cancellation future completes when cancellation completes.
-        cancellationFuture.get();
-        assertThat(cancelCalled).isTrue();
+            // assert that cancellation future completes when cancellation completes.
+            cancellationFuture.get();
+            assertThat(cancelCalled).isTrue();
+        }
     }
 
     @Test
     void testJobInformationOperationsDuringInitialization() throws Exception {
 
-        final JobManagerRunner jobManagerRunner =
+        try (final JobManagerRunner jobManagerRunner =
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .withSingleJobMasterServiceProcess(
                                 TestingJobMasterServiceProcess.newBuilder()
                                         .setIsInitializedAndRunningSupplier(() -> false)
                                         .build())
-                        .build();
+                        .build()) {
 
-        jobManagerRunner.start();
+            jobManagerRunner.start();
 
-        // assert initializing while waiting for leadership
-        assertInitializingStates(jobManagerRunner);
+            // assert initializing while waiting for leadership
+            assertInitializingStates(jobManagerRunner);
 
-        // assign leadership
-        leaderElection.isLeader(UUID.randomUUID());
+            // assign leadership
+            leaderElection.isLeader(UUID.randomUUID());
 
-        // assert initializing while not yet initialized
-        assertInitializingStates(jobManagerRunner);
+            // assert initializing while not yet initialized
+            assertInitializingStates(jobManagerRunner);
+        }
     }
 
     private static void assertInitializingStates(JobManagerRunner jobManagerRunner)
@@ -455,7 +462,7 @@ class JobMasterServiceLeadershipRunnerTest {
             throws Exception {
         final CompletableFuture<JobManagerRunnerResult> jobManagerRunnerResultFuture =
                 new CompletableFuture<>();
-        final JobManagerRunner jobManagerRunner =
+        try (final JobManagerRunner jobManagerRunner =
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .withSingleJobMasterServiceProcess(
                                 TestingJobMasterServiceProcess.newBuilder()
@@ -465,21 +472,22 @@ class JobMasterServiceLeadershipRunnerTest {
                                                 () -> jobManagerRunnerResultFuture)
                                         .setIsInitializedAndRunningSupplier(() -> false)
                                         .build())
-                        .build();
+                        .build()) {
 
-        jobManagerRunner.start();
+            jobManagerRunner.start();
 
-        leaderElection.isLeader(UUID.randomUUID());
+            leaderElection.isLeader(UUID.randomUUID());
 
-        // cancel while initializing
-        assertThat(jobManagerRunner.requestJobStatus(TESTING_TIMEOUT).get())
-                .isEqualTo(JobStatus.INITIALIZING);
+            // cancel while initializing
+            assertThat(jobManagerRunner.requestJobStatus(TESTING_TIMEOUT).get())
+                    .isEqualTo(JobStatus.INITIALIZING);
 
-        CompletableFuture<Acknowledge> cancelFuture = jobManagerRunner.cancel(TESTING_TIMEOUT);
-        assertThat(cancelFuture).isNotDone();
+            CompletableFuture<Acknowledge> cancelFuture = jobManagerRunner.cancel(TESTING_TIMEOUT);
+            assertThat(cancelFuture).isNotDone();
 
-        testAction.accept(jobManagerRunnerResultFuture);
-        assertThatThrownBy(cancelFuture::get).hasMessageContaining("Cancellation failed.");
+            testAction.accept(jobManagerRunnerResultFuture);
+            assertThatThrownBy(cancelFuture::get).hasMessageContaining("Cancellation failed.");
+        }
     }
 
     @Test
@@ -530,78 +538,82 @@ class JobMasterServiceLeadershipRunnerTest {
 
     @Test
     void testJobMasterGatewayIsInvalidatedOnLeadershipChanges() throws Exception {
-        final JobMasterServiceLeadershipRunner jobManagerRunner =
+        try (final JobMasterServiceLeadershipRunner jobManagerRunner =
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .withSingleJobMasterServiceProcess(
                                 TestingJobMasterServiceProcess.newBuilder()
                                         .setGetJobMasterGatewayFutureSupplier(
                                                 CompletableFuture::new)
                                         .build())
-                        .build();
+                        .build()) {
 
-        jobManagerRunner.start();
+            jobManagerRunner.start();
 
-        final CompletableFuture<JobMasterGateway> jobMasterGateway =
-                jobManagerRunner.getJobMasterGateway();
+            final CompletableFuture<JobMasterGateway> jobMasterGateway =
+                    jobManagerRunner.getJobMasterGateway();
 
-        leaderElection.isLeader(UUID.randomUUID());
+            leaderElection.isLeader(UUID.randomUUID());
 
-        leaderElection.notLeader();
+            leaderElection.notLeader();
 
-        assertThatFuture(jobMasterGateway).eventuallyFails();
+            assertThatFuture(jobMasterGateway).eventuallyFails();
+        }
     }
 
     @Test
     void testLeaderAddressOfOutdatedLeaderIsIgnored() throws Exception {
         final CompletableFuture<String> leaderAddressFuture = new CompletableFuture<>();
-        final JobMasterServiceLeadershipRunner jobManagerRunner =
+        try (final JobMasterServiceLeadershipRunner jobManagerRunner =
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .withSingleJobMasterServiceProcess(
                                 TestingJobMasterServiceProcess.newBuilder()
                                         .setGetLeaderAddressFutureSupplier(
                                                 () -> leaderAddressFuture)
                                         .build())
-                        .build();
+                        .build()) {
 
-        jobManagerRunner.start();
+            jobManagerRunner.start();
 
-        final UUID leaderSessionID = UUID.randomUUID();
-        leaderElection.isLeader(leaderSessionID);
-        leaderElection.notLeader();
+            final UUID leaderSessionID = UUID.randomUUID();
+            leaderElection.isLeader(leaderSessionID);
+            leaderElection.notLeader();
 
-        leaderAddressFuture.complete("foobar");
+            leaderAddressFuture.complete("foobar");
 
-        assertThat(leaderElection.hasLeadership(leaderSessionID)).isFalse();
+            assertThat(leaderElection.hasLeadership(leaderSessionID)).isFalse();
+        }
     }
 
     @Test
     void testInitialJobStatusIsInitializing() throws Exception {
-        final JobMasterServiceLeadershipRunner jobManagerRunner =
-                newJobMasterServiceLeadershipRunnerBuilder().build();
+        try (final JobMasterServiceLeadershipRunner jobManagerRunner =
+                newJobMasterServiceLeadershipRunnerBuilder().build()) {
 
-        jobManagerRunner.start();
+            jobManagerRunner.start();
 
-        assertThat(jobManagerRunner.requestJobStatus(TESTING_TIMEOUT).join())
-                .isEqualTo(JobStatus.INITIALIZING);
+            assertThat(jobManagerRunner.requestJobStatus(TESTING_TIMEOUT).join())
+                    .isEqualTo(JobStatus.INITIALIZING);
+        }
     }
 
     @Test
     void testCancellationChangesJobStatusToCancelling() throws Exception {
-        final JobMasterServiceLeadershipRunner jobManagerRunner =
-                newJobMasterServiceLeadershipRunnerBuilder().build();
+        try (final JobMasterServiceLeadershipRunner jobManagerRunner =
+                newJobMasterServiceLeadershipRunnerBuilder().build()) {
 
-        jobManagerRunner.start();
+            jobManagerRunner.start();
 
-        jobManagerRunner.cancel(TESTING_TIMEOUT);
+            jobManagerRunner.cancel(TESTING_TIMEOUT);
 
-        assertThat(jobManagerRunner.requestJobStatus(TESTING_TIMEOUT).join())
-                .isEqualTo(JobStatus.CANCELLING);
+            assertThat(jobManagerRunner.requestJobStatus(TESTING_TIMEOUT).join())
+                    .isEqualTo(JobStatus.CANCELLING);
+        }
     }
 
     @Test
     void testJobStatusCancellingIsClearedOnLeadershipLoss() throws Exception {
         CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
-        final JobMasterServiceLeadershipRunner jobManagerRunner =
+        try (final JobMasterServiceLeadershipRunner jobManagerRunner =
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .withSingleJobMasterServiceProcess(
                                 TestingJobMasterServiceProcess.newBuilder()
@@ -613,41 +625,50 @@ class JobMasterServiceLeadershipRunnerTest {
                                         .setIsInitializedAndRunningSupplier(
                                                 () -> !terminationFuture.isDone())
                                         .build())
-                        .build();
+                        .build()) {
 
-        jobManagerRunner.start();
+            jobManagerRunner.start();
 
-        jobManagerRunner.cancel(TESTING_TIMEOUT);
+            jobManagerRunner.cancel(TESTING_TIMEOUT);
 
-        leaderElection.isLeader(UUID.randomUUID());
-        leaderElection.notLeader();
+            leaderElection.isLeader(UUID.randomUUID());
+            leaderElection.notLeader();
 
-        assertThat(jobManagerRunner.requestJobStatus(TESTING_TIMEOUT).join())
-                .isEqualTo(JobStatus.INITIALIZING);
+            assertThat(jobManagerRunner.requestJobStatus(TESTING_TIMEOUT).join())
+                    .isEqualTo(JobStatus.INITIALIZING);
+        }
     }
 
     @Test
     void testJobMasterServiceProcessClosingExceptionIsForwardedToResultFuture() throws Exception {
         final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
-        final JobMasterServiceLeadershipRunner jobManagerRunner =
+        try (final JobMasterServiceLeadershipRunner jobManagerRunner =
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .withSingleJobMasterServiceProcess(
                                 TestingJobMasterServiceProcess.newBuilder()
-                                        .setCloseAsyncSupplier(() -> terminationFuture)
+                                        .setCloseAsyncSupplier(
+                                                () ->
+                                                        !terminationFuture.isDone()
+                                                                ? terminationFuture
+                                                                // don't return the failed future to
+                                                                // make the final close call succeed
+                                                                // again
+                                                                : FutureUtils.completedVoidFuture())
                                         .build())
-                        .build();
+                        .build()) {
 
-        jobManagerRunner.start();
+            jobManagerRunner.start();
 
-        leaderElection.isLeader(UUID.randomUUID());
-        leaderElection.notLeader();
+            leaderElection.isLeader(UUID.randomUUID());
+            leaderElection.notLeader();
 
-        final FlinkException testException = new FlinkException("Test exception");
-        terminationFuture.completeExceptionally(testException);
+            final FlinkException testException = new FlinkException("Test exception");
+            terminationFuture.completeExceptionally(testException);
 
-        assertThatFuture(jobManagerRunner.getResultFuture())
-                .eventuallyFailsWith(ExecutionException.class)
-                .satisfies(cause -> assertThat(cause).hasRootCause(testException));
+            assertThatFuture(jobManagerRunner.getResultFuture())
+                    .eventuallyFailsWith(ExecutionException.class)
+                    .satisfies(cause -> assertThat(cause).hasRootCause(testException));
+        }
     }
 
     @Test
