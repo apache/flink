@@ -1971,7 +1971,7 @@ public class CheckpointCoordinator {
 
     public Map<Long, PendingCheckpoint> getPendingCheckpoints() {
         synchronized (lock) {
-            return new HashMap<>(this.pendingCheckpoints);
+            return new LinkedHashMap<>(this.pendingCheckpoints);
         }
     }
 
