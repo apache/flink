@@ -23,6 +23,8 @@ import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.runtime.highavailability.ReusableClientHAServices;
+import org.apache.flink.runtime.highavailability.zookeeper.DefaultReusableClientHAServicesFactory;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -32,8 +34,25 @@ public class StandaloneClusterDescriptor implements ClusterDescriptor<Standalone
 
     private final Configuration config;
 
+    private final RestClusterClient<StandaloneClusterId> restClusterClient;
+
+    private final ReusableClientHAServices reusableClientHAServices;
+
+    private final StandaloneClusterId standaloneClusterId;
+
     public StandaloneClusterDescriptor(Configuration config) {
         this.config = Preconditions.checkNotNull(config);
+        this.standaloneClusterId = StandaloneClusterId.fromConfiguration(config);
+        try {
+            this.reusableClientHAServices =
+                    DefaultReusableClientHAServicesFactory.INSTANCE.createReusableClientHAServices(
+                            config);
+            this.restClusterClient =
+                    new RestClusterClient<>(config, standaloneClusterId, reusableClientHAServices);
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Couldn't connect to standalone cluster: " + standaloneClusterId, e);
+        }
     }
 
     @Override
@@ -46,13 +65,7 @@ public class StandaloneClusterDescriptor implements ClusterDescriptor<Standalone
     @Override
     public ClusterClientProvider<StandaloneClusterId> retrieve(
             StandaloneClusterId standaloneClusterId) throws ClusterRetrieveException {
-        return () -> {
-            try {
-                return new RestClusterClient<>(config, standaloneClusterId);
-            } catch (Exception e) {
-                throw new RuntimeException("Couldn't retrieve standalone cluster", e);
-            }
-        };
+        return () -> restClusterClient;
     }
 
     @Override
@@ -83,6 +96,11 @@ public class StandaloneClusterDescriptor implements ClusterDescriptor<Standalone
 
     @Override
     public void close() {
-        // nothing to do
+        try {
+            restClusterClient.close();
+            reusableClientHAServices.close();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

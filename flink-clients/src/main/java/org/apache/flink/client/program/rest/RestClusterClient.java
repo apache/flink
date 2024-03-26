@@ -43,6 +43,8 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.highavailability.ClientHighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.ClientHighAvailabilityServicesFactory;
 import org.apache.flink.runtime.highavailability.DefaultClientHighAvailabilityServicesFactory;
+import org.apache.flink.runtime.highavailability.ReusableClientHAServices;
+import org.apache.flink.runtime.highavailability.zookeeper.DefaultReusableClientHAServicesFactory;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
@@ -176,6 +178,8 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 
     private static final Logger LOG = LoggerFactory.getLogger(RestClusterClient.class);
 
+    private static LeaderRetriever webMonitorLeaderRetriever = new LeaderRetriever();
+
     private final RestClusterClientConfiguration restClusterClientConfiguration;
 
     private final Configuration configuration;
@@ -184,7 +188,8 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 
     private final ExecutorService executorService =
             Executors.newFixedThreadPool(
-                    4, new ExecutorThreadFactory("Flink-RestClusterClient-IO"));
+                    Runtime.getRuntime().availableProcessors() * 2,
+                    new ExecutorThreadFactory("Flink-RestClusterClient-IO"));
 
     private final WaitStrategy waitStrategy;
 
@@ -193,9 +198,6 @@ public class RestClusterClient<T> implements ClusterClient<T> {
     private final ClientHighAvailabilityServices clientHAServices;
 
     private final LeaderRetrievalService webMonitorRetrievalService;
-
-    private final LeaderRetriever webMonitorLeaderRetriever = new LeaderRetriever();
-
     private final AtomicBoolean running = new AtomicBoolean(true);
 
     /** ExecutorService to run operations that can be retried on exceptions. */
@@ -210,6 +212,8 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 
     private final Collection<HttpHeader> customHttpHeaders;
 
+    private final boolean reusableHAService;
+
     public RestClusterClient(Configuration config, T clusterId) throws Exception {
         this(config, clusterId, DefaultClientHighAvailabilityServicesFactory.INSTANCE);
     }
@@ -218,6 +222,12 @@ public class RestClusterClient<T> implements ClusterClient<T> {
             Configuration config, T clusterId, ClientHighAvailabilityServicesFactory factory)
             throws Exception {
         this(config, null, clusterId, new ExponentialWaitStrategy(10L, 2000L), factory);
+    }
+
+    public RestClusterClient(
+            Configuration config, T clusterId, ClientHighAvailabilityServices clientHAServices)
+            throws Exception {
+        this(config, null, clusterId, new ExponentialWaitStrategy(10L, 2000L), clientHAServices);
     }
 
     @VisibleForTesting
@@ -232,7 +242,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                 restClient,
                 clusterId,
                 waitStrategy,
-                DefaultClientHighAvailabilityServicesFactory.INSTANCE);
+                DefaultReusableClientHAServicesFactory.INSTANCE);
     }
 
     private RestClusterClient(
@@ -241,6 +251,28 @@ public class RestClusterClient<T> implements ClusterClient<T> {
             T clusterId,
             WaitStrategy waitStrategy,
             ClientHighAvailabilityServicesFactory clientHAServicesFactory)
+            throws Exception {
+        this(
+                configuration,
+                restClient,
+                clusterId,
+                waitStrategy,
+                clientHAServicesFactory.create(
+                        configuration,
+                        exception ->
+                                webMonitorLeaderRetriever.handleError(
+                                        new FlinkException(
+                                                "Fatal error happened with client HA "
+                                                        + "services.",
+                                                exception))));
+    }
+
+    private RestClusterClient(
+            Configuration configuration,
+            @Nullable RestClient restClient,
+            T clusterId,
+            WaitStrategy waitStrategy,
+            ClientHighAvailabilityServices clientHAServices)
             throws Exception {
         this.configuration = checkNotNull(configuration);
 
@@ -263,24 +295,26 @@ public class RestClusterClient<T> implements ClusterClient<T> {
             this.restClient = RestClient.forUrl(configuration, executorService, jobmanagerUrl);
         }
 
+        this.retryExecutorService =
+                Executors.newScheduledThreadPool(
+                        4, new ExecutorThreadFactory("Flink-RestClusterClient-Retry"));
+
         this.waitStrategy = checkNotNull(waitStrategy);
         this.clusterId = checkNotNull(clusterId);
+        this.clientHAServices = clientHAServices;
 
-        this.clientHAServices =
-                clientHAServicesFactory.create(
-                        configuration,
-                        exception ->
-                                webMonitorLeaderRetriever.handleError(
-                                        new FlinkException(
-                                                "Fatal error happened with client HA "
-                                                        + "services.",
-                                                exception)));
-
-        this.webMonitorRetrievalService = clientHAServices.getClusterRestEndpointLeaderRetriever();
-        this.retryExecutorService =
-                Executors.newSingleThreadScheduledExecutor(
-                        new ExecutorThreadFactory("Flink-RestClusterClient-Retry"));
-        startLeaderRetrievers();
+        if (clientHAServices instanceof ReusableClientHAServices) {
+            this.reusableHAService = true;
+            webMonitorLeaderRetriever =
+                    ((ReusableClientHAServices) clientHAServices).getLeaderRetriever();
+            this.webMonitorRetrievalService =
+                    clientHAServices.getClusterRestEndpointLeaderRetriever();
+        } else {
+            this.reusableHAService = false;
+            this.webMonitorRetrievalService =
+                    clientHAServices.getClusterRestEndpointLeaderRetriever();
+            startLeaderRetrievers();
+        }
     }
 
     private void startLeaderRetrievers() throws Exception {
@@ -303,17 +337,21 @@ public class RestClusterClient<T> implements ClusterClient<T> {
             this.restClient.shutdown(Time.seconds(5));
             ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, this.executorService);
 
-            try {
-                webMonitorRetrievalService.stop();
-            } catch (Exception e) {
-                LOG.error("An error occurred during stopping the WebMonitorRetrievalService", e);
-            }
+            if (!reusableHAService) {
+                try {
+                    webMonitorRetrievalService.stop();
+                } catch (Exception e) {
+                    LOG.error(
+                            "An error occurred during stopping the WebMonitorRetrievalService", e);
+                }
 
-            try {
-                clientHAServices.close();
-            } catch (Exception e) {
-                LOG.error(
-                        "An error occurred during stopping the ClientHighAvailabilityServices", e);
+                try {
+                    clientHAServices.close();
+                } catch (Exception e) {
+                    LOG.error(
+                            "An error occurred during stopping the ClientHighAvailabilityServices",
+                            e);
+                }
             }
         }
     }
