@@ -27,6 +27,8 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.DefaultJobExecutionStatusEvent;
+import org.apache.flink.core.execution.JobStatusChangedListener;
 import org.apache.flink.core.execution.JobStatusHook;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
@@ -294,6 +296,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     private final List<JobStatusHook> jobStatusHooks;
 
+    private final List<JobStatusChangedListener> jobStatusChangedListeners;
+
     private final MarkPartitionFinishedStrategy markPartitionFinishedStrategy;
 
     private final TaskDeploymentDescriptorFactory taskDeploymentDescriptorFactory;
@@ -322,7 +326,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             ExecutionJobVertex.Factory executionJobVertexFactory,
             List<JobStatusHook> jobStatusHooks,
             MarkPartitionFinishedStrategy markPartitionFinishedStrategy,
-            TaskDeploymentDescriptorFactory taskDeploymentDescriptorFactory) {
+            TaskDeploymentDescriptorFactory taskDeploymentDescriptorFactory,
+            List<JobStatusChangedListener> jobStatusChangedListeners) {
 
         this.executionGraphId = new ExecutionGraphID();
 
@@ -387,6 +392,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         this.executionJobVertexFactory = checkNotNull(executionJobVertexFactory);
 
         this.jobStatusHooks = checkNotNull(jobStatusHooks);
+
+        this.jobStatusChangedListeners = checkNotNull(jobStatusChangedListeners);
 
         this.markPartitionFinishedStrategy = markPartitionFinishedStrategy;
 
@@ -1153,7 +1160,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                     error);
 
             stateTimestamps[newState.ordinal()] = System.currentTimeMillis();
-            notifyJobStatusChange(newState);
+            notifyJobStatusChange(current, newState, error);
             notifyJobStatusHooks(newState, error);
             return true;
         } else {
@@ -1588,7 +1595,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         }
     }
 
-    private void notifyJobStatusChange(JobStatus newState) {
+    private void notifyJobStatusChange(
+            JobStatus oldState, JobStatus newState, @Nullable Throwable cause) {
         if (jobStatusListeners.size() > 0) {
             final long timestamp = System.currentTimeMillis();
 
@@ -1599,6 +1607,14 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                     LOG.warn("Error while notifying JobStatusListener", t);
                 }
             }
+        }
+
+        if (jobStatusChangedListeners.size() > 0) {
+            jobStatusChangedListeners.forEach(
+                    listener ->
+                            listener.onEvent(
+                                    new DefaultJobExecutionStatusEvent(
+                                            getJobID(), getJobName(), oldState, newState, cause)));
         }
     }
 

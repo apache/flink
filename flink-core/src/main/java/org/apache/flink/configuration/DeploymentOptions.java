@@ -78,6 +78,14 @@ public class DeploymentOptions {
                             "Custom JobListeners to be registered with the execution environment."
                                     + " The registered listeners cannot have constructors with arguments.");
 
+    public static final ConfigOption<List<String>> JOB_STATUS_CHANGED_LISTENERS =
+            key("execution.job-status-changed-listeners")
+                    .stringType()
+                    .asList()
+                    .noDefaultValue()
+                    .withDescription(
+                            "When job is created or its status is changed, Flink will generate job event and notify job status changed listener.");
+
     public static final ConfigOption<Boolean> SHUTDOWN_ON_APPLICATION_FINISH =
             ConfigOptions.key("execution.shutdown-on-application-finish")
                     .booleanType()
