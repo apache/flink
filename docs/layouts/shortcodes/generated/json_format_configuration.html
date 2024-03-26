@@ -1,0 +1,55 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>decode.json-parser.enabled</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Optional flag to specify whether to use the Jackson JsonParser to decode json with better performance, true by default.</td>
+        </tr>
+        <tr>
+            <td><h5>encode.decimal-as-plain-number</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Optional flag to specify whether to encode all decimals as plain numbers instead of possible scientific notations, false by default.</td>
+        </tr>
+        <tr>
+            <td><h5>fail-on-missing-field</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Optional flag to specify whether to fail if a field is missing or not, false by default.</td>
+        </tr>
+        <tr>
+            <td><h5>ignore-parse-errors</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Optional flag to skip fields and rows with parse errors instead of failing;
+fields are set to null in case of errors, false by default.</td>
+        </tr>
+        <tr>
+            <td><h5>map-null-key.literal</h5></td>
+            <td style="word-wrap: break-word;">"null"</td>
+            <td>String</td>
+            <td>Optional flag to specify string literal for null keys when 'map-null-key.mode' is LITERAL, "null" by default.</td>
+        </tr>
+        <tr>
+            <td><h5>map-null-key.mode</h5></td>
+            <td style="word-wrap: break-word;">"FAIL"</td>
+            <td>String</td>
+            <td>Optional flag to control the handling mode when serializing null key for map data, FAIL by default. Option DROP will drop null key entries for map data. Option LITERAL will use 'map-null-key.literal' as key literal.</td>
+        </tr>
+        <tr>
+            <td><h5>timestamp-format.standard</h5></td>
+            <td style="word-wrap: break-word;">"SQL"</td>
+            <td>String</td>
+            <td>Optional flag to specify timestamp format, SQL by default. Option ISO-8601 will parse input timestamp in "yyyy-MM-ddTHH:mm:ss.s{precision}" format and output timestamp in the same format. Option SQL will parse input timestamp in "yyyy-MM-dd HH:mm:ss.s{precision}" format and output timestamp in the same format.</td>
+        </tr>
+    </tbody>
+</table>

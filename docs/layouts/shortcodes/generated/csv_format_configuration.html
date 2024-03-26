@@ -1,0 +1,72 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>allow-comments</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Optional flag to ignore comment lines that start with "#"
+(disabled by default);
+if enabled, make sure to also ignore parse errors to allow empty rows</td>
+        </tr>
+        <tr>
+            <td><h5>array-element-delimiter</h5></td>
+            <td style="word-wrap: break-word;">";<wbr>"</td>
+            <td>String</td>
+            <td>Optional array element delimiter string for separating
+array and row element values (";" by default)</td>
+        </tr>
+        <tr>
+            <td><h5>disable-quote-character</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Optional flag to disabled quote character for enclosing field values (false by default)
+if true, quote-character can not be set</td>
+        </tr>
+        <tr>
+            <td><h5>escape-character</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Optional escape character for escaping values (disabled by default)</td>
+        </tr>
+        <tr>
+            <td><h5>field-delimiter</h5></td>
+            <td style="word-wrap: break-word;">","</td>
+            <td>String</td>
+            <td>Optional field delimiter character (',' by default)</td>
+        </tr>
+        <tr>
+            <td><h5>ignore-parse-errors</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Optional flag to skip fields and rows with parse errors instead of failing;
+fields are set to null in case of errors</td>
+        </tr>
+        <tr>
+            <td><h5>null-literal</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Optional null literal string that is interpreted as a
+null value (disabled by default)</td>
+        </tr>
+        <tr>
+            <td><h5>quote-character</h5></td>
+            <td style="word-wrap: break-word;">"""</td>
+            <td>String</td>
+            <td>Optional quote character for enclosing field values ('"' by default)</td>
+        </tr>
+        <tr>
+            <td><h5>write-bigdecimal-in-scientific-notation</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Enables representation of BigDecimal data type in scientific notation (default is true). For example, 100000 is encoded as 1E+5 by default, and will be written as 100000 if set this option to false. Note: Only when the value is not 0 and a multiple of 10 is converted to scientific notation.</td>
+        </tr>
+    </tbody>
+</table>
