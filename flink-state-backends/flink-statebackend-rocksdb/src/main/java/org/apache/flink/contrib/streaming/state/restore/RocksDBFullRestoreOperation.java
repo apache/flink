@@ -22,6 +22,7 @@ import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDb
 import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBWriteBatchWrapper;
 import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
+import org.apache.flink.core.fs.ICloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -57,6 +58,7 @@ public class RocksDBFullRestoreOperation<K> implements RocksDBRestoreOperation {
     private final long writeBatchSize;
 
     private final RocksDBHandle rocksHandle;
+    private final ICloseableRegistry cancelStreamRegistryForRestore;
 
     public RocksDBFullRestoreOperation(
             KeyGroupRange keyGroupRange,
@@ -71,8 +73,10 @@ public class RocksDBFullRestoreOperation<K> implements RocksDBRestoreOperation {
             @Nonnull Collection<KeyedStateHandle> restoreStateHandles,
             @Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
             @Nonnegative long writeBatchSize,
-            Long writeBufferManagerCapacity) {
+            Long writeBufferManagerCapacity,
+            ICloseableRegistry cancelStreamRegistryForRestore) {
         this.writeBatchSize = writeBatchSize;
+        this.cancelStreamRegistryForRestore = cancelStreamRegistryForRestore;
         this.rocksHandle =
                 new RocksDBHandle(
                         kvStateInformation,
@@ -120,7 +124,8 @@ public class RocksDBFullRestoreOperation<K> implements RocksDBRestoreOperation {
         for (int i = 0; i < restoredMetaInfos.size(); i++) {
             StateMetaInfoSnapshot restoredMetaInfo = restoredMetaInfos.get(i);
             RocksDbKvStateInfo registeredStateCFHandle =
-                    this.rocksHandle.getOrRegisterStateColumnFamilyHandle(null, restoredMetaInfo);
+                    this.rocksHandle.getOrRegisterStateColumnFamilyHandle(
+                            null, restoredMetaInfo, cancelStreamRegistryForRestore);
             columnFamilyHandles.put(i, registeredStateCFHandle.columnFamilyHandle);
         }
 

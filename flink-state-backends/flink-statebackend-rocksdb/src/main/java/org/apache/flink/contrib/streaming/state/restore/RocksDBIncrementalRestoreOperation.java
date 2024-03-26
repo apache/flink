@@ -651,8 +651,11 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                 keyGroupRange,
                 operatorIdentifier);
         rocksHandle.openDB();
-        exportedColumnFamilyMetaData.forEach(
-                rocksHandle::registerStateColumnFamilyHandleWithImport);
+        for (Map.Entry<RegisteredStateMetaInfoBase.Key, List<ExportImportFilesMetaData>> entry :
+                exportedColumnFamilyMetaData.entrySet()) {
+            rocksHandle.registerStateColumnFamilyHandleWithImport(
+                    entry.getKey(), entry.getValue(), cancelStreamRegistryForRestore);
+        }
 
         // Use Range delete to clip the temp db to the target range of the backend
         RocksDBIncrementalCheckpointUtils.clipDBWithKeyGroupRange(
@@ -709,7 +712,8 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
         this.rocksHandle.openDB(
                 createColumnFamilyDescriptors(stateMetaInfoSnapshots, true),
                 stateMetaInfoSnapshots,
-                restoreSourcePath);
+                restoreSourcePath,
+                cancelStreamRegistryForRestore);
     }
 
     /**
@@ -816,7 +820,9 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
 
             ColumnFamilyHandle targetColumnFamilyHandle =
                     this.rocksHandle.getOrRegisterStateColumnFamilyHandle(
-                                    null, tmpRestoreDBInfo.stateMetaInfoSnapshots.get(descIdx))
+                                    null,
+                                    tmpRestoreDBInfo.stateMetaInfoSnapshots.get(descIdx),
+                                    cancelStreamRegistryForRestore)
                             .columnFamilyHandle;
 
             try (RocksIteratorWrapper iterator =
