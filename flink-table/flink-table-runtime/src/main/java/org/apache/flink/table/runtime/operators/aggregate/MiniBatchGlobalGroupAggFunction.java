@@ -144,17 +144,31 @@ public class MiniBatchGlobalGroupAggFunction
      * accumulator in merge method.
      */
     @Override
-    public RowData addInput(@Nullable RowData previousAcc, RowData input) throws Exception {
+    public RowData addInput(
+            RowData currentKey,
+            @Nullable RowData previousAcc,
+            RowData input,
+            Collector<RowData> out)
+            throws Exception {
         RowData currentAcc;
+        boolean firstRow = false;
         if (previousAcc == null) {
             currentAcc = localAgg.createAccumulators();
+            firstRow = true;
         } else {
             currentAcc = previousAcc;
         }
 
         localAgg.setAccumulators(currentAcc);
         localAgg.merge(input);
-        return localAgg.getAccumulators();
+        RowData localAggAccumulators = localAgg.getAccumulators();
+        if (firstRow
+                && accState.value() == null
+                && recordCounter.recordCountLessZero(localAggAccumulators)) {
+            // ignore expired retract data
+            return null;
+        }
+        return localAggAccumulators;
     }
 
     @Override
