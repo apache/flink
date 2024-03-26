@@ -18,11 +18,13 @@
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.hint.JoinStrategy
+import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.rules.physical.common.{BaseSnapshotOnCalcTableScanRule, BaseSnapshotOnTableScanRule}
+import org.apache.flink.table.planner.plan.utils.LookupJoinUtil
 
 import org.apache.calcite.plan.{RelOptRule, RelOptTable}
 import org.apache.calcite.rel.hint.RelHint
@@ -76,8 +78,10 @@ object StreamPhysicalLookupJoinRule {
     val cluster = join.getCluster
 
     val providedTrait = join.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-    val requiredTrait = input.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-
+    var requiredTrait = input.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
+    if (LookupJoinUtil.enableShuffleHashLookupJoin(join)) {
+      requiredTrait = requiredTrait.plus(FlinkRelDistribution.hash(joinInfo.leftKeys))
+    }
     val convInput = RelOptRule.convert(input, requiredTrait)
 
     val lookupRelHint = join.getHints

@@ -44,6 +44,8 @@ import org.apache.flink.table.functions.AsyncLookupFunction;
 import org.apache.flink.table.functions.LookupFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.hint.FlinkHints;
+import org.apache.flink.table.planner.hint.JoinStrategy;
 import org.apache.flink.table.planner.hint.LookupJoinHintOptions;
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
@@ -74,6 +76,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTyp
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
 import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rex.RexLiteral;
 
@@ -84,6 +87,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.planner.hint.LookupJoinHintOptions.ASYNC_CAPACITY;
@@ -477,6 +481,16 @@ public final class LookupJoinUtil {
             throw new TableException(errorMsg.toString());
         }
         return lookupFunction;
+    }
+
+    public static boolean enableShuffleHashLookupJoin(Join join) {
+        Optional<RelHint> shuffleHashHint =
+                join.getHints().stream()
+                        .filter(hint -> JoinStrategy.isShuffleHashHint(hint.hintName))
+                        .findFirst();
+        return shuffleHashHint.isPresent()
+                && shuffleHashHint.get().listOptions.contains(FlinkHints.RIGHT_INPUT)
+                && !join.analyzeCondition().pairs().isEmpty();
     }
 
     /**

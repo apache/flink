@@ -92,4 +92,10 @@ public enum JoinStrategy {
         return isJoinStrategy(formalizedHintName)
                 && JoinStrategy.valueOf(formalizedHintName) == LOOKUP;
     }
+
+    public static boolean isShuffleHashHint(String hintName) {
+        String formalizedHintName = hintName.toUpperCase(Locale.ROOT);
+        return isJoinStrategy(formalizedHintName)
+                && JoinStrategy.valueOf(formalizedHintName) == SHUFFLE_HASH;
+    }
 }

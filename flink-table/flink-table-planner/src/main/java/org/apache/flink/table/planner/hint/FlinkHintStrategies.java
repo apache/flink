@@ -100,7 +100,9 @@ public abstract class FlinkHintStrategies {
                                 .build())
                 .hintStrategy(
                         JoinStrategy.SHUFFLE_HASH.getJoinHintName(),
-                        HintStrategy.builder(HintPredicates.JOIN)
+                        HintStrategy.builder(
+                                        HintPredicates.or(
+                                                HintPredicates.CORRELATE, HintPredicates.JOIN))
                                 .optionChecker(NON_EMPTY_LIST_OPTION_CHECKER)
                                 .build())
                 .hintStrategy(
