@@ -23,13 +23,16 @@ import org.apache.flink.runtime.rest.handler.AbstractHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
+import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.webmonitor.NonLeaderRetrievalRestfulGateway;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
+import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
@@ -39,6 +42,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -96,6 +100,22 @@ public abstract class AbstractSqlGatewayRestHandler<
                                 resp,
                                 messageHeaders.getResponseStatusCode(),
                                 responseHeaders));
+    }
+
+    @Override
+    protected CompletableFuture<Void> handleException(
+            Throwable throwable, ChannelHandlerContext ctx, HttpRequest httpRequest) {
+        if (throwable instanceof SqlGatewayException) {
+            return HandlerUtils.sendErrorResponse(
+                    ctx,
+                    httpRequest,
+                    new ErrorResponseBody(
+                            Collections.singletonList(
+                                    ExceptionUtils.stringifyException(throwable, false))),
+                    HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                    responseHeaders);
+        }
+        return super.handleException(throwable, ctx, httpRequest);
     }
 
     /**
