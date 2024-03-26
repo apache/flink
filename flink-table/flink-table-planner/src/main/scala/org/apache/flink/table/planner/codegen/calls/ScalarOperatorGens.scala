@@ -384,6 +384,13 @@ object ScalarOperatorGens {
     else if (isNumeric(left.resultType) && isNumeric(right.resultType)) {
       generateComparison(ctx, operator, left, right, resultType)
     }
+    // both sides are timestamp family (timestamp or timestamp_ltz)
+    else if (
+      left.resultType.is(LogicalTypeFamily.TIMESTAMP) && right.resultType.is(
+        LogicalTypeFamily.TIMESTAMP)
+    ) {
+      generateComparison(ctx, operator, left, right, resultType)
+    }
     // array types
     else if (isArray(left.resultType) && canEqual) {
       wrapExpressionIfNonEq(
@@ -552,15 +559,10 @@ object ScalarOperatorGens {
         (leftTerm, rightTerm) => s"$leftTerm $operator $rightTerm"
       }
 
-      // both sides are timestamp
-      else if (isTimestamp(left.resultType) && isTimestamp(right.resultType)) {
-        (leftTerm, rightTerm) => s"$leftTerm.compareTo($rightTerm) $operator 0"
-      }
-
-      // both sides are timestamp with local zone
+      // both sides are timestamp family (timestamp or timestamp_ltz)
       else if (
-        isTimestampWithLocalZone(left.resultType) &&
-        isTimestampWithLocalZone(right.resultType)
+        left.resultType.is(LogicalTypeFamily.TIMESTAMP) && right.resultType.is(
+          LogicalTypeFamily.TIMESTAMP)
       ) { (leftTerm, rightTerm) => s"$leftTerm.compareTo($rightTerm) $operator 0" }
 
       // both sides are temporal of same type
