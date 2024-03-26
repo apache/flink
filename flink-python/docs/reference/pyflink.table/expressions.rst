@@ -225,6 +225,7 @@ advanced type helper functions
     Expression.cardinality
     Expression.element
     Expression.array_contains
+    Expression.array_slice
 
 
 time definition functions
