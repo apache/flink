@@ -38,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test {@link GSResumeRecoverable}. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class GSResumeRecoverableTest {
+class GSResumeRecoverableTest {
 
     @Parameter public int position;
 

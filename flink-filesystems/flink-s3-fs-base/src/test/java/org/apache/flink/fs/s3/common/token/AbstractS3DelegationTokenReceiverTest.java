@@ -29,7 +29,7 @@ import static org.apache.flink.fs.s3.common.token.AbstractS3DelegationTokenRecei
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link AbstractS3DelegationTokenReceiver}. */
-public class AbstractS3DelegationTokenReceiverTest {
+class AbstractS3DelegationTokenReceiverTest {
 
     private static final String PROVIDER_CLASS_NAME = "TestProvider";
     private static final String REGION = "testRegion";

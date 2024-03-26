@@ -41,22 +41,22 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test {@link GSChecksumWriteChannel}. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class GSChecksumWriteChannelTest {
+class GSChecksumWriteChannelTest {
 
     /* The sizes of each buffer of bytes used for writing. */
     @Parameter(value = 0)
-    public int[] bufferSizes;
+    int[] bufferSizes;
 
     /* The start positions in write buffers. */
     @Parameter(value = 1)
-    public int[] writeStarts;
+    int[] writeStarts;
 
     /* The length of each write. */
     @Parameter(value = 2)
-    public int[] writeLengths;
+    int[] writeLengths;
 
     @Parameter(value = 3)
-    public String description;
+    String description;
 
     @Parameters(name = "{3}")
     public static Collection<Object[]> data() {

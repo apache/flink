@@ -47,7 +47,7 @@ import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests of various write and recovery scenarios. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class GSFileSystemScenarioTest {
+class GSFileSystemScenarioTest {
 
     /* The temporary bucket name to use. */
     @Parameter public String temporaryBucketName;

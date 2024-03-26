@@ -40,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test {@link GSResumeRecoverable}. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class GSCommitRecoverableTest {
+class GSCommitRecoverableTest {
 
     @Parameter public List<UUID> componentObjectIds;
 

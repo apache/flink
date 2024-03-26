@@ -43,7 +43,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test {@link GSRecoverableWriter}. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class GSRecoverableWriterTest {
+class GSRecoverableWriterTest {
 
     @Parameter public long position = 16;
 

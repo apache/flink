@@ -46,7 +46,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test {@link GSResumeRecoverable}. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class GSRecoverableFsDataOutputStreamTest {
+class GSRecoverableFsDataOutputStreamTest {
 
     @Parameter public boolean empty;
 

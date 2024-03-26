@@ -27,7 +27,7 @@ import static org.apache.flink.core.security.token.DelegationTokenProvider.CONFI
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link AbstractS3DelegationTokenProvider}. */
-public class AbstractS3DelegationTokenProviderTest {
+class AbstractS3DelegationTokenProviderTest {
 
     private static final String REGION = "testRegion";
     private static final String ACCESS_KEY_ID = "testAccessKeyId";

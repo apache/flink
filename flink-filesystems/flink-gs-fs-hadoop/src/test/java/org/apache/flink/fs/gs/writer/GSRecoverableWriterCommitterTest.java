@@ -48,7 +48,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test {@link GSRecoverableWriterCommitter}. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class GSRecoverableWriterCommitterTest {
+class GSRecoverableWriterCommitterTest {
 
     @Parameter @Nullable public String temporaryBucketName;
 

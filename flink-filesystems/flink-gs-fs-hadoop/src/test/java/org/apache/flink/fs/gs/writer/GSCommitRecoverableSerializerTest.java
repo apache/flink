@@ -36,7 +36,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test recoverable writer serializer. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class GSCommitRecoverableSerializerTest {
+class GSCommitRecoverableSerializerTest {
 
     @Parameter public String bucketName;
 

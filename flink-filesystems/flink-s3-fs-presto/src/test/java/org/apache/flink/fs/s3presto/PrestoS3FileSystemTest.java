@@ -40,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Unit tests for the S3 file system support via Presto's PrestoS3FileSystem. These tests do not
  * actually read from or write to S3.
  */
-public class PrestoS3FileSystemTest {
+class PrestoS3FileSystemTest {
 
     @Test
     void testConfigPropagation() throws Exception {

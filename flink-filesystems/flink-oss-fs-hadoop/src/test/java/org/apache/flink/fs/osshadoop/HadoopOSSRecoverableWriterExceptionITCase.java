@@ -36,7 +36,7 @@ import static org.apache.flink.fs.osshadoop.OSSFileSystemFactory.MAX_CONCURRENT_
  * Tests for exception throwing in the {@link
  * org.apache.flink.fs.osshadoop.writer.OSSRecoverableWriter OSSRecoverableWriter}.
  */
-public class HadoopOSSRecoverableWriterExceptionITCase
+class HadoopOSSRecoverableWriterExceptionITCase
         extends AbstractHadoopRecoverableWriterExceptionITCase {
 
     // ----------------------- OSS general configuration -----------------------

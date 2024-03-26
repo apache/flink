@@ -42,30 +42,31 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test construction of Hadoop config in GSFileSystemFactory. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class ConfigUtilsHadoopTest {
+class ConfigUtilsHadoopTest {
 
     /* The test case description. */
     @Parameter public String description;
 
     /* The value to use for the HADOOP_CONF_DIR environment variable. */
     @Parameter(value = 1)
-    public @Nullable String envHadoopConfDir;
+    @Nullable
+    String envHadoopConfDir;
 
     /* The value to use for the Flink config. */
     @Parameter(value = 2)
-    public Configuration flinkConfig;
+    Configuration flinkConfig;
 
     /* The Hadoop resources to load from the config dir. */
     @Parameter(value = 3)
-    public org.apache.hadoop.conf.Configuration loadedHadoopConfig;
+    org.apache.hadoop.conf.Configuration loadedHadoopConfig;
 
     /* The expected Hadoop configuration directory. */
     @Parameter(value = 4)
-    public String expectedHadoopConfigDir;
+    String expectedHadoopConfigDir;
 
     /* The expected Hadoop configuration. */
     @Parameter(value = 5)
-    public org.apache.hadoop.conf.Configuration expectedHadoopConfig;
+    org.apache.hadoop.conf.Configuration expectedHadoopConfig;
 
     @Parameters(name = "description={0}")
     public static Collection<Object[]> data() {
@@ -255,7 +256,7 @@ public class ConfigUtilsHadoopTest {
     }
 
     @TestTemplate
-    public void shouldProperlyCreateHadoopConfig() {
+    void shouldProperlyCreateHadoopConfig() {
 
         // construct the testing config context
         HashMap<String, String> envs = new HashMap<>();

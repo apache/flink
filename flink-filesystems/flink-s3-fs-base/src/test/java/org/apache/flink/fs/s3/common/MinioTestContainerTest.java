@@ -38,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * {@code MinioTestContainerTest} tests some basic functionality provided by {@link
  * MinioTestContainer}.
  */
-public class MinioTestContainerTest {
+class MinioTestContainerTest {
 
     private static final String DEFAULT_BUCKET_NAME = "test-bucket";
 

@@ -39,7 +39,7 @@ import static org.apache.flink.fs.osshadoop.OSSFileSystemFactory.PART_UPLOAD_MIN
  * Tests for the {@link org.apache.flink.fs.osshadoop.writer.OSSRecoverableWriter
  * OSSRecoverableWriter}.
  */
-public class HadoopOSSRecoverableWriterITCase extends AbstractHadoopRecoverableWriterITCase {
+class HadoopOSSRecoverableWriterITCase extends AbstractHadoopRecoverableWriterITCase {
 
     // ----------------------- OSS general configuration -----------------------
 
