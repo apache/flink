@@ -75,12 +75,14 @@ public class ForStFlinkFileSystem extends FileSystem {
 
     @Override
     public ByteBufferReadableFSDataInputStream open(Path path, int bufferSize) throws IOException {
-        return new ByteBufferReadableFSDataInputStream(delegateFS.open(path, bufferSize));
+        return new ByteBufferReadableFSDataInputStream(
+                delegateFS.open(path, bufferSize), () -> delegateFS.open(path, bufferSize), 32);
     }
 
     @Override
     public ByteBufferReadableFSDataInputStream open(Path path) throws IOException {
-        return new ByteBufferReadableFSDataInputStream(delegateFS.open(path));
+        return new ByteBufferReadableFSDataInputStream(
+                delegateFS.open(path), () -> delegateFS.open(path), 32);
     }
 
     @Override
