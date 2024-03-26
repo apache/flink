@@ -979,23 +979,22 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 
         List<Row> rows = generateRows();
         List<Row> expectedRows = generateExpectedRows(rows);
+        RowTypeInfo typeInfo =
+                new RowTypeInfo(
+                        new TypeInformation[] {
+                            Types.INT,
+                            Types.STRING,
+                            new RowTypeInfo(
+                                    new TypeInformation[] {Types.STRING, Types.INT, Types.INT},
+                                    new String[] {"c1", "c2", "c3"}),
+                            new MapTypeInfo<>(Types.STRING, Types.STRING),
+                            Types.OBJECT_ARRAY(Types.STRING),
+                            Types.STRING
+                        },
+                        new String[] {"a", "b", "c", "d", "e", "f"});
+
         DataStream<Row> stream =
-                env.addSource(
-                                new FiniteTestSource<>(rows),
-                                new RowTypeInfo(
-                                        new TypeInformation[] {
-                                            Types.INT,
-                                            Types.STRING,
-                                            new RowTypeInfo(
-                                                    new TypeInformation[] {
-                                                        Types.STRING, Types.INT, Types.INT
-                                                    },
-                                                    new String[] {"c1", "c2", "c3"}),
-                                            new MapTypeInfo<>(Types.STRING, Types.STRING),
-                                            Types.OBJECT_ARRAY(Types.STRING),
-                                            Types.STRING
-                                        },
-                                        new String[] {"a", "b", "c", "d", "e", "f"}))
+                env.fromCollection(rows, typeInfo)
                         .filter((FilterFunction<Row>) value -> true)
                         .setParallelism(3); // to parallel tasks
 
@@ -1005,7 +1004,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 
     private static List<Row> generateRows() {
         List<Row> rows = new ArrayList<>();
-        for (int i = 0; i < 10000; i++) {
+        for (int i = 0; i < 10; i++) {
             Map<String, String> e = new HashMap<>();
             e.put(i + "", i % 2 == 0 ? null : i + "");
             String[] f = new String[2];

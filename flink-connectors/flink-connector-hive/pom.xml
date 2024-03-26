@@ -1215,7 +1215,7 @@ under the License.
 						     shaded flink-table-planner jar and then we will miss the calcite-core dependency.
 						     When you encounter such exception when runing test in IntelliJ, please remember to remove the following line temporarily.
 						 -->
-						<classpathDependencyExclude>org.apache.calcite:calcite-core</classpathDependencyExclude>
+<!--						<classpathDependencyExclude>org.apache.calcite:calcite-core</classpathDependencyExclude>-->
 					</classpathDependencyExcludes>
 				</configuration>
 			</plugin>
