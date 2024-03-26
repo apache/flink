@@ -143,11 +143,16 @@ public class ParquetSchemaConverter {
                         convertToParquetType(LIST_ELEMENT_NAME, arrayType.getElementType(), conf));
             case MAP:
                 MapType mapType = (MapType) type;
+                if (mapType.getKeyType().isNullable()) {
+                    throw new UnsupportedOperationException(
+                            "Nullable map keys are not supported in Parquet.");
+                }
                 return ConversionPatterns.mapType(
                         repetition,
                         name,
                         MAP_REPEATED_NAME,
-                        convertToParquetType("key", mapType.getKeyType(), conf),
+                        convertToParquetType(
+                                "key", mapType.getKeyType(), Type.Repetition.REQUIRED, conf),
                         convertToParquetType("value", mapType.getValueType(), conf));
             case MULTISET:
                 MultisetType multisetType = (MultisetType) type;

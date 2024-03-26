@@ -112,6 +112,7 @@ Currently, Parquet format type mapping is compatible with Apache Hive, but by de
 - Timestamp: mapping timestamp type to int96 whatever the precision is.
 - Spark compatibility requires int64 via config option `write.int64.timestamp` (see above).
 - Decimal: mapping decimal type to fixed length byte array according to the precision.
+- Map: the key of the map must be not null.
 
 The following table lists the type mapping from Flink type to Parquet type.
 

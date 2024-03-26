@@ -111,6 +111,7 @@ Parquet 格式也支持 [ParquetOutputFormat](https://www.javadoc.io/doc/org.apa
 
 - Timestamp：不论精度，映射 timestamp 类型至 int96。
 - Decimal：根据精度，映射 decimal 类型至固定长度字节的数组。
+- Map: Map类型的key必须非空。
 
 下表列举了 Flink 中的数据类型与 JSON 中的数据类型的映射关系。
 

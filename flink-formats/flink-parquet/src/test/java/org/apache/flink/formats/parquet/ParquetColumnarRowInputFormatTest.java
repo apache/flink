@@ -54,6 +54,7 @@ import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.apache.hadoop.conf.Configuration;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -66,6 +67,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -78,6 +80,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.connector.file.src.util.Utils.forEachRemaining;
+import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionPath;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -419,6 +422,18 @@ class ParquetColumnarRowInputFormatTest {
         testPath = createTempParquetFile(new File(folder, partPath), records, rowGroupSize);
 
         innerTestPartitionValues(testPath, partitionKeys, true);
+    }
+
+    @Test
+    void testNullableMapKeyNotAllowed() {
+        RowType rowType =
+                RowType.of(
+                        new VarCharType(true, VarCharType.MAX_LENGTH),
+                        new MapType(new VarCharType(VarCharType.MAX_LENGTH), new IntType()));
+        assertThrows(
+                "Nullable map keys are not supported in Parquet.",
+                UnsupportedOperationException.class,
+                () -> createTempParquetFile(folder, rowType, Collections.emptyList(), 1));
     }
 
     private void innerTestTypes(File folder, List<Integer> records, int rowGroupSize)
