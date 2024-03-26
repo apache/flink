@@ -32,7 +32,7 @@ under the License.
     name="{{ $group }}"
     id="{{ printf "%s-%d" $group $index }}"
     {{ if not $index }}checked="checked"{{ end }} 
-    onclick="onSwitch('{{ $tab.Name }}')"
+    onclick="onSwitch('{{ $tab.Name }}', '{{ $group }}', '{{ $index }}')"
   />
   <label for="{{ printf "%s-%d" $group $index }}">
     {{- $tab.Name -}}
