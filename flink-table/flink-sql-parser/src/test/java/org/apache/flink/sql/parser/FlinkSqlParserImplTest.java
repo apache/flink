@@ -107,6 +107,10 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     void testStringAgg() {}
     // END
 
+    @Disabled
+    @Test
+    void testMixedFrom() {}
+
     @Test
     void testUseCatalog() {
         sql("use catalog a").ok("USE CATALOG `A`");
