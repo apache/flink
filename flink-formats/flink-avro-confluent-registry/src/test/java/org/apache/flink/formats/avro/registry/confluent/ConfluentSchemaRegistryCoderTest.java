@@ -57,6 +57,29 @@ class ConfluentSchemaRegistryCoderTest {
     }
 
     @Test
+    void test8ByteSchemaIdIsReadable() throws Exception {
+        MockSchemaRegistryClient client = new MockSchemaRegistryClient();
+
+        Schema schema =
+                SchemaBuilder.record("testRecord").fields().optionalString("testField").endRecord();
+        int schemaId = client.register("testTopic", schema);
+
+        ConfluentSchemaRegistryCoder registryCoder = new ConfluentSchemaRegistryCoder(client);
+        ByteArrayOutputStream byteOutStream = new ByteArrayOutputStream();
+        DataOutputStream dataOutputStream = new DataOutputStream(byteOutStream);
+        dataOutputStream.writeByte(0);
+        // This one differs from `testSpecificRecordWithConfluentSchemaRegistry` to write a long
+        dataOutputStream.writeLong(schemaId);
+        dataOutputStream.flush();
+
+        ByteArrayInputStream byteInStream = new ByteArrayInputStream(byteOutStream.toByteArray());
+        Schema readSchema = registryCoder.readSchema(byteInStream);
+
+        assertThat(readSchema).isEqualTo(schema);
+        assertThat(byteInStream).isEmpty();
+    }
+
+    @Test
     void testMagicByteVerification() throws Exception {
         MockSchemaRegistryClient client = new MockSchemaRegistryClient();
         int schemaId = client.register("testTopic", Schema.create(Schema.Type.BOOLEAN));
