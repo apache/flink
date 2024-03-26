@@ -53,6 +53,7 @@ public class CastRuleProvider {
                 .addRule(NumericPrimitiveToDecimalCastRule.INSTANCE)
                 .addRule(DecimalToNumericPrimitiveCastRule.INSTANCE)
                 .addRule(NumericPrimitiveCastRule.INSTANCE)
+                .addRule(BinaryToNumericCastRule.INSTANCE)
                 // Boolean <-> numeric rules
                 .addRule(BooleanToNumericCastRule.INSTANCE)
                 .addRule(NumericToBooleanCastRule.INSTANCE)
@@ -88,6 +89,7 @@ public class CastRuleProvider {
                 // To binary rules
                 .addRule(BinaryToBinaryCastRule.INSTANCE)
                 .addRule(RawToBinaryCastRule.INSTANCE)
+                .addRule(NumericToBinaryCastRule.INSTANCE)
                 // Collection rules
                 .addRule(ArrayToArrayCastRule.INSTANCE)
                 .addRule(MapToMapAndMultisetToMultisetCastRule.INSTANCE)
