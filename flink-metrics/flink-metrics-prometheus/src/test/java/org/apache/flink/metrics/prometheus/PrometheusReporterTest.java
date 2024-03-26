@@ -40,8 +40,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
@@ -161,7 +161,7 @@ class PrometheusReporterTest {
         Counter metric1 = new SimpleCounter();
         Counter metric2 = new SimpleCounter();
 
-        final Map<String, String> variables2 = new HashMap<>(metricGroup.getAllVariables());
+        final Map<String, String> variables2 = new LinkedHashMap<>(metricGroup.getAllVariables());
         final Map.Entry<String, String> entryToModify = variables2.entrySet().iterator().next();
         final String labelValueThatShouldBeRemoved = entryToModify.getValue();
         variables2.put(entryToModify.getKey(), "some_value");
