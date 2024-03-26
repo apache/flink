@@ -80,9 +80,10 @@ class FlinkCost(
     other.isInstanceOf[FlinkCost] &&
     (this.rowCount == other.asInstanceOf[FlinkCost].rowCount) &&
     (this.cpu == other.asInstanceOf[FlinkCost].cpu) &&
-    (this.io == other.asInstanceOf[FlinkCost].io) &&
-    (this.network == other.asInstanceOf[FlinkCost].network) &&
-    (this.memory == other.asInstanceOf[FlinkCost].memory)
+    normalizeCost(this.memory, this.network, this.io) == normalizeCost(
+      other.asInstanceOf[FlinkCost].memory,
+      other.asInstanceOf[FlinkCost].network,
+      other.asInstanceOf[FlinkCost].io)
   }
 
   /**
