@@ -293,6 +293,14 @@ public class FileSourceSplit implements SourceSplit, Serializable {
                 id, filePath, offset, length, fileModificationTime, fileSize, hostnames, position);
     }
 
+    /**
+     * Gets a combined string of path, offset and length. Used to determine whether this split has
+     * been processed.
+     */
+    public String pathAndOffset() {
+        return String.format("%s [%d, %d)", filePath, offset, length);
+    }
+
     // ------------------------------------------------------------------------
     //  utils
     // ------------------------------------------------------------------------
