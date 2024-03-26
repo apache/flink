@@ -95,29 +95,27 @@ Flink 完全支持 Avro 状态类型的升级，只要数据结构的修改是�
 
 一个例外是如果新的 Avro 数据 schema 生成的类无法被重定位或者使用了不同的命名空间，在作业恢复时状态数据会被认为是不兼容的。
 
-## Schema Migration Limitations
+## 数据结构迁移限制
 
-Flink's schema migration has some limitations that are required to ensure correctness. For users that need to work
-around these limitations, and understand them to be safe in their specific use-case, consider using
-a [custom serializer]({{< ref "docs/dev/datastream/fault-tolerance/serialization/custom_serialization" >}}) or the
-[state processor api]({{< ref "docs/libs/state_processor_api" >}}).
+对 Flink 进行数据结构迁移时，需要遵循迁移的限制。如果你需要绕开这些限制并了解它们在特定用例中的安全性，请考虑使用
+[自定义序列化器]({{< ref "docs/dev/datastream/fault-tolerance/serialization/custom_serialization" >}}) 或者
+[状态处理器 API]({{< ref "docs/libs/state_processor_api" >}})。
 
-### Schema evolution of keys is not supported.
+### 不支持用作键的数据结构升级
 
-The structure of a key cannot be migrated as this may lead to non-deterministic behavior.
-For example, if a POJO is used as a key and one field is dropped then there may suddenly be
-multiple separate keys that are now identical. Flink has no way to merge the corresponding values.
+用作键的数据结构无法被迁移，因为这可能会导致不确定的行为。
+例如，将 POJO 作为键并且删除了其中的一个字段，可能会出现多个相同的键。Flink 不能合并相应的值。
 
-Additionally, the RocksDB state backend relies on binary object identity, rather than the `hashCode` method. Any change to the keys' object structure can lead to non-deterministic behavior.
+另外，RocksDB 状态后端依赖二进制对象作为标识，而不是 `hashCode` 方法。任何对于键对象的结构更改都可能导致不确定的行为。
 
-### **Kryo** cannot be used for schema evolution.
+### 不支持使用 **Kryo** 的数据结构升级
 
-When Kryo is used, there is no possibility for the framework to verify if any incompatible changes have been made.
+使用 Kryo 时，Flink 框架无法验证是否进行了不兼容的更改。
 
 {{< hint warning >}}
-This means that if a data-structure containing a given type is serialized via Kryo, then that contained type can **not** undergo schema evolution.
+这意味着如果包含给定类型的数据结构通过 Kryo 序列化，则包含的数据类型**不能**进行数据结构升级。
 
-For example, if a POJO contains a `List<SomeOtherPojo>`, then the `List` _and_ its contents are serialized via Kryo and schema evolution is **not** supported for `SomeOtherPojo`.
+例如，如果一个 POJO 包含 `List<SomeOtherPojo>`，并且 `List` 及其内容通过 Kryo 序列化，则 `SomeOtherPojo` **不能**进行数据结构升级。
 {{< /hint >}}
 
 {{< top >}}
