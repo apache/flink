@@ -67,8 +67,9 @@ public class SinkUpsertMaterializer extends TableStreamOperator<RowData>
     private static final Logger LOG = LoggerFactory.getLogger(SinkUpsertMaterializer.class);
 
     private static final String STATE_CLEARED_WARN_MSG =
-            "The state is cleared because of state ttl. This will result in incorrect result. "
-                    + "You can increase the state ttl to avoid this.";
+            "A delete or retract message is dropped, which may lead to wrong results. "
+                    + "You can try to increase the state TTL or ensure that "
+                    + "no non-deterministic functions or metadata fields are used.";
 
     private final StateTtlConfig ttlConfig;
     private final GeneratedRecordEqualiser generatedRecordEqualiser;
