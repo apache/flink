@@ -101,6 +101,17 @@ class ParquetRowDataWriterTest {
                             new VarCharType(VarCharType.MAX_LENGTH)),
                     RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType()));
 
+    private static final RowType NESTED_ARRAY_MAP_TYPE =
+            RowType.of(
+                    new IntType(),
+                    new ArrayType(true, new ArrayType(true, new IntType())),
+                    new ArrayType(
+                            true,
+                            new MapType(
+                                    true,
+                                    new VarCharType(VarCharType.MAX_LENGTH),
+                                    new VarCharType(VarCharType.MAX_LENGTH))));
+
     @SuppressWarnings("unchecked")
     private static final DataFormatConverters.DataFormatConverter<RowData, Row> CONVERTER_COMPLEX =
             DataFormatConverters.getConverterForDataType(
@@ -111,6 +122,12 @@ class ParquetRowDataWriterTest {
             DataFormatConverters.getConverterForDataType(
                     TypeConversions.fromLogicalToDataType(ROW_TYPE));
 
+    @SuppressWarnings("unchecked")
+    private static final DataFormatConverters.DataFormatConverter<RowData, Row>
+            NESTED_ARRAY_MAP_CONVERTER =
+                    DataFormatConverters.getConverterForDataType(
+                            TypeConversions.fromLogicalToDataType(NESTED_ARRAY_MAP_TYPE));
+
     @Test
     void testTypes(@TempDir java.nio.file.Path folder) throws Exception {
         Configuration conf = new Configuration();
@@ -118,6 +135,8 @@ class ParquetRowDataWriterTest {
         innerTest(folder, conf, false);
         complexTypeTest(folder, conf, true);
         complexTypeTest(folder, conf, false);
+        nestedArrayAndMapTest(folder, conf, true);
+        nestedArrayAndMapTest(folder, conf, false);
     }
 
     @Test
@@ -128,6 +147,8 @@ class ParquetRowDataWriterTest {
         innerTest(folder, conf, false);
         complexTypeTest(folder, conf, true);
         complexTypeTest(folder, conf, false);
+        nestedArrayAndMapTest(folder, conf, true);
+        nestedArrayAndMapTest(folder, conf, false);
     }
 
     @Test
@@ -230,6 +251,43 @@ class ParquetRowDataWriterTest {
         assertThat(fileContent).isEqualTo(rows);
     }
 
+    public void nestedArrayAndMapTest(
+            java.nio.file.Path folder, Configuration conf, boolean utcTimestamp) throws Exception {
+        Path path = new Path(folder.toString(), UUID.randomUUID().toString());
+        int number = 1000;
+        List<Row> rows = new ArrayList<>(number);
+
+        for (int i = 0; i < number; i++) {
+            Integer v = i;
+            Map<String, String> mp1 = new HashMap<>();
+            mp1.put(null, "val_" + i);
+            Map<String, String> mp2 = new HashMap<>();
+            mp2.put("key_" + i, null);
+            mp2.put("key@" + i, "val@" + i);
+
+            rows.add(
+                    Row.of(
+                            v,
+                            new Integer[][] {{i, i + 1, null}, {i, i + 2, null}, null},
+                            new Map[] {null, mp1, mp2}));
+        }
+
+        ParquetWriterFactory<RowData> factory =
+                ParquetRowDataBuilder.createWriterFactory(
+                        NESTED_ARRAY_MAP_TYPE, conf, utcTimestamp);
+        BulkWriter<RowData> writer =
+                factory.create(path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE));
+        for (int i = 0; i < number; i++) {
+            writer.addElement(NESTED_ARRAY_MAP_CONVERTER.toInternal(rows.get(i)));
+        }
+        writer.flush();
+        writer.finish();
+
+        File file = new File(path.getPath());
+        final List<Row> fileContent = readNestedArrayAndMap(file);
+        assertThat(fileContent).isEqualTo(rows);
+    }
+
     private static List<Row> readParquetFile(File file) throws IOException {
         InputFile inFile =
                 HadoopInputFile.fromPath(
@@ -253,6 +311,70 @@ class ParquetRowDataWriterTest {
                 }
 
                 Row row = Row.of(new Integer[] {c0}, c1, Row.of(c21, c22));
+                results.add(row);
+            }
+        }
+
+        return results;
+    }
+
+    // TODO: If parquet vectorized reader support nested array or map, remove this function
+    private static List<Row> readNestedArrayAndMap(File file) throws IOException {
+        InputFile inFile =
+                HadoopInputFile.fromPath(
+                        new org.apache.hadoop.fs.Path(file.toURI()), new Configuration());
+
+        ArrayList<Row> results = new ArrayList<>();
+        try (ParquetReader<GenericRecord> reader =
+                AvroParquetReader.<GenericRecord>builder(inFile).build()) {
+            GenericRecord next;
+            while ((next = reader.read()) != null) {
+                Integer c0 = (Integer) next.get(0);
+
+                // read array<array<int>>
+                List<Integer[]> nestedArray = new ArrayList<>();
+                ArrayList<GenericData.Record> recordList =
+                        (ArrayList<GenericData.Record>) next.get(1);
+                recordList.forEach(
+                        record -> {
+                            ArrayList<GenericData.Record> origVals =
+                                    (ArrayList<GenericData.Record>) record.get(0);
+                            List<Integer> intArrays = (origVals == null) ? null : new ArrayList<>();
+                            if (origVals != null) {
+                                origVals.forEach(
+                                        r -> {
+                                            intArrays.add((Integer) r.get(0));
+                                        });
+                            }
+                            nestedArray.add(
+                                    origVals == null ? null : intArrays.toArray(new Integer[0]));
+                        });
+
+                // read array<map<String, String>>
+                List<Map<String, String>> nestedMap = new ArrayList<>();
+                recordList = (ArrayList<GenericData.Record>) next.get(2);
+                recordList.forEach(
+                        record -> {
+                            Map<Utf8, Utf8> origMp = (Map<Utf8, Utf8>) record.get(0);
+                            Map<String, String> mp = (origMp == null) ? null : new HashMap<>();
+                            if (origMp != null) {
+                                for (Utf8 key : origMp.keySet()) {
+                                    String k = key == null ? null : key.toString();
+                                    String v =
+                                            origMp.get(key) == null
+                                                    ? null
+                                                    : origMp.get(key).toString();
+                                    mp.put(k, v);
+                                }
+                            }
+                            nestedMap.add(mp);
+                        });
+
+                Row row =
+                        Row.of(
+                                c0,
+                                nestedArray.toArray(new Integer[0][0]),
+                                nestedMap.toArray(new Map[0]));
                 results.add(row);
             }
         }
