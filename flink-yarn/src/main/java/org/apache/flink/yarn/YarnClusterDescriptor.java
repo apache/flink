@@ -1102,7 +1102,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
             fileUploader.registerSingleLocalResource(
                     flinkConfigFileName,
-                    new Path(tmpConfigurationFile.getAbsolutePath()),
+                    new Path(tmpConfigurationFile.toURI()),
                     "",
                     LocalResourceType.FILE,
                     true,
@@ -1132,7 +1132,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             LOG.info(
                     "Adding Yarn configuration {} to the AM container local resource bucket",
                     f.getAbsolutePath());
-            Path yarnSitePath = new Path(f.getAbsolutePath());
+            Path yarnSitePath = new Path(f.toURI());
             remoteYarnSiteXmlPath =
                     fileUploader
                             .registerSingleLocalResource(
@@ -1158,7 +1158,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             LOG.info(
                     "Adding KRB5 configuration {} to the AM container local resource bucket",
                     krb5.getAbsolutePath());
-            final Path krb5ConfPath = new Path(krb5.getAbsolutePath());
+            final Path krb5ConfPath = new Path(krb5.toURI());
             remoteKrb5Path =
                     fileUploader
                             .registerSingleLocalResource(
