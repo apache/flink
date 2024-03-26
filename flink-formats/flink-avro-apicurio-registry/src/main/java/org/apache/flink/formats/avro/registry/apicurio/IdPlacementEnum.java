@@ -18,17 +18,16 @@
 
 package org.apache.flink.formats.avro.registry.apicurio;
 
-/** Enumeration of where to put the GlobalId. */
-enum GlobalIdPlacementEnum {
-    HEADER("HEADER", "global ID is put in the header."),
-    LEGACY("LEGACY", "global ID is put in the message as a long."),
-    CONFLUENT("CONFLUENT", "global ID is put in the message as an int."),
-    ;
+/** Enumeration detailing the location of the schema ID. */
+enum IdPlacementEnum {
+    HEADER("HEADER", "Schema ID is put in the header."),
+    LEGACY("LEGACY", "Schema ID is put in the message as a long."),
+    CONFLUENT("CONFLUENT", "Schema ID is put in the message as an int.");
 
     private final String value;
     private final String description;
 
-    GlobalIdPlacementEnum(String value, String description) {
+    IdPlacementEnum(String value, String description) {
         this.value = value;
         this.description = description;
     }

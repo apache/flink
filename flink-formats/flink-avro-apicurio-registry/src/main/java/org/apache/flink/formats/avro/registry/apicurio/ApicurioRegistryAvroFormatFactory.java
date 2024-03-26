@@ -64,7 +64,8 @@ import java.util.stream.Stream;
 import static java.lang.String.format;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.BASIC_AUTH_CREDENTIALS_PASSWORD;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.BASIC_AUTH_CREDENTIALS_USERID;
-import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.GLOBALID_PLACEMENT;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.ID_OPTION;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.ID_PLACEMENT;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.PROPERTIES;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.REGISTERED_ARTIFACT_DESCRIPTION;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.REGISTERED_ARTIFACT_ID;
@@ -82,6 +83,7 @@ import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormat
 public class ApicurioRegistryAvroFormatFactory
         implements DeserializationFormatFactory, SerializationFormatFactory {
 
+    // used this key rather than apicurio-avro (the format name) to be consistent with Confluent.
     public static final String IDENTIFIER = "avro-apicurio";
 
     @Override
@@ -180,7 +182,8 @@ public class ApicurioRegistryAvroFormatFactory
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
         Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(GLOBALID_PLACEMENT);
+        options.add(ID_PLACEMENT);
+        options.add(ID_OPTION);
         options.add(SCHEMA);
         options.add(REGISTERED_ARTIFACT_NAME);
         options.add(REGISTERED_ARTIFACT_DESCRIPTION);
@@ -200,7 +203,8 @@ public class ApicurioRegistryAvroFormatFactory
     public Set<ConfigOption<?>> forwardOptions() {
         return Stream.of(
                         URL,
-                        GLOBALID_PLACEMENT,
+                        ID_PLACEMENT,
+                        ID_OPTION,
                         SCHEMA,
                         REGISTERED_ARTIFACT_NAME,
                         REGISTERED_ARTIFACT_DESCRIPTION,
@@ -215,22 +219,6 @@ public class ApicurioRegistryAvroFormatFactory
                         BASIC_AUTH_CREDENTIALS_PASSWORD)
                 .collect(Collectors.toSet());
     }
-    //    protected static void updatePropertiesWithConfigOptionEnum(
-    //            ReadableConfig formatOptions,
-    //            Map<String, Object> properties,
-    //            ConfigOption<GlobalIdPlacementEnum> configOption,
-    //            String propertyKey) {
-    //        Optional formatOption = formatOptions.getOptional(configOption);
-    //        if (formatOption.isPresent()) {
-    //            properties.put(propertyKey, formatOption.get());
-    //        } else {
-    //            properties.put(propertyKey, configOption.defaultValue());
-    //        }
-    //        if (properties.get(propertyKey) == null) {
-    //            throw new RuntimeException(
-    //                    "updatePropertiesWithConfigOptionEnum for " + propertyKey);
-    //        }
-    //    }
 
     public static @Nullable Map<String, Object> buildOptionalPropertiesMap(
             ReadableConfig formatOptions) {
@@ -240,82 +228,20 @@ public class ApicurioRegistryAvroFormatFactory
                 .getOptional(AvroApicurioFormatOptions.PROPERTIES)
                 .ifPresent(properties::putAll);
         // options with defaults
-        // we are java 8, so we cannot use ifPresentElse which would be a better implementation
 
-        //        // handle enum
-        //        Optional globalIdPresentformatOption =
-        //                formatOptions.getOptional(AvroApicurioFormatOptions.GLOBALID_PLACEMENT);
-        //        String globalPlaceMentKey = GLOBALID_PLACEMENT.key();
-        //
-        //        if (globalIdPresentformatOption.isPresent()) {
-        //            properties.put(globalPlaceMentKey, globalIdPresentformatOption.get());
-        //        } else {
-        //            properties.put(
-        //                    globalPlaceMentKey,
-        //                    AvroApicurioFormatOptions.GLOBALID_PLACEMENT.defaultValue());
-        //        }
-        //        if (properties.get(globalPlaceMentKey) == null) {
-        //            throw new RuntimeException(
-        //                    "updatePropertiesWithConfigOptionEnum for " + globalPlaceMentKey);
-        //        }
-        //
-        //        updatePropertiesWithConfigOptionString(
-        //                formatOptions,
-        //                properties,
-        //                AvroApicurioFormatOptions.REGISTERED_ARTIFACT_NAME,
-        //                REGISTERED_ARTIFACT_NAME.key());
-        //        updatePropertiesWithConfigOptionString(
-        //                formatOptions,
-        //                properties,
-        //                REGISTERED_ARTIFACT_DESCRIPTION,
-        //                REGISTERED_ARTIFACT_DESCRIPTION.key());
-        //        updatePropertiesWithConfigOptionString(
-        //                formatOptions,
-        //                properties,
-        //                REGISTERED_ARTIFACT_VERSION,
-        //                REGISTERED_ARTIFACT_VERSION.key());
-        //
-        //        // options without defaults.
-        //        formatOptions
-        //                .getOptional(AvroApicurioFormatOptions.REGISTERED_ARTIFACT_ID)
-        //                .ifPresent(
-        //                        v ->
-        //                                properties.put(
-        //
-        // AvroApicurioFormatOptions.REGISTERED_ARTIFACT_ID.key(), v));
-        //        formatOptions
-        //                .getOptional(AvroApicurioFormatOptions.SSL_KEYSTORE_LOCATION)
-        //                .ifPresent(
-        //                        v ->
-        //                                properties.put(
-        //
-        // AvroApicurioFormatOptions.SSL_KEYSTORE_LOCATION.key(), v));
-        formatOptions
-                .getOptional(AvroApicurioFormatOptions.SSL_KEYSTORE_PASSWORD)
-                .ifPresent(
-                        v ->
-                                properties.put(
-                                        AvroApicurioFormatOptions.SSL_KEYSTORE_PASSWORD.key(), v));
-        formatOptions
-                .getOptional(AvroApicurioFormatOptions.SSL_TRUSTSTORE_LOCATION)
-                .ifPresent(
-                        v ->
-                                properties.put(
-                                        AvroApicurioFormatOptions.SSL_TRUSTSTORE_LOCATION.key(),
-                                        v));
-        formatOptions
-                .getOptional(AvroApicurioFormatOptions.SSL_TRUSTSTORE_PASSWORD)
-                .ifPresent(
-                        v ->
-                                properties.put(
-                                        AvroApicurioFormatOptions.SSL_TRUSTSTORE_PASSWORD.key(),
-                                        v));
-        formatOptions
-                .getOptional(BASIC_AUTH_CREDENTIALS_USERID)
-                .ifPresent(v -> properties.put("basic.auth.credentials.source", v));
-        formatOptions
-                .getOptional(BASIC_AUTH_CREDENTIALS_PASSWORD)
-                .ifPresent(v -> properties.put(BASIC_AUTH_CREDENTIALS_PASSWORD.key(), v));
+        ConfigOption[] configOptionsArray = {
+            ID_PLACEMENT,
+            ID_OPTION,
+            SSL_KEYSTORE_PASSWORD,
+            SSL_KEYSTORE_LOCATION,
+            SSL_TRUSTSTORE_PASSWORD,
+            SSL_TRUSTSTORE_LOCATION,
+            BASIC_AUTH_CREDENTIALS_PASSWORD
+        };
+        for (ConfigOption configOption : configOptionsArray) {
+            populatePropertiesFromConfig(
+                    formatOptions, configOption, properties, configOption.key());
+        }
         // null pointers later if left as null TODO assess what behaviour we want for this.
         //        if (properties.isEmpty()) {
         //            return null;
@@ -323,20 +249,15 @@ public class ApicurioRegistryAvroFormatFactory
         return properties;
     }
 
-    protected static void updatePropertiesWithConfigOptionString(
+    protected static void populatePropertiesFromConfig(
             ReadableConfig formatOptions,
+            ConfigOption configOption,
             Map<String, Object> properties,
-            ConfigOption<String> configOption,
-            String propertyKey) {
-        Optional formatOption = formatOptions.getOptional(configOption);
-        if (formatOption.isPresent()) {
-            properties.put(propertyKey, formatOption.get());
-        } else {
-            properties.put(propertyKey, configOption.defaultValue());
-        }
-        if (properties.get(propertyKey) == null) {
-            throw new RuntimeException(
-                    "updatePropertiesWithConfigOptionBoolean null for " + propertyKey);
+            String configOptionKey) {
+        formatOptions.getOptional(configOption).ifPresent(v -> properties.put(configOptionKey, v));
+        // we are java 8, so we cannot use ifPresentElse which would be a better implementation
+        if (properties.get(configOptionKey) == null && configOption.hasDefaultValue()) {
+            properties.put(configOptionKey, configOption.defaultValue());
         }
     }
 

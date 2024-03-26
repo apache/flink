@@ -38,8 +38,7 @@ public class ApicurioSchemaRegistryCoderTest {
     @Test
     public void readSchemaWithHeaders() throws IOException {
         Map<String, Object> registryConfigs = new HashMap<>();
-        registryConfigs.put(
-                AvroApicurioFormatOptions.GLOBALID_PLACEMENT.key(), GlobalIdPlacementEnum.HEADER);
+        registryConfigs.put(AvroApicurioFormatOptions.ID_PLACEMENT.key(), IdPlacementEnum.HEADER);
         // TODO either populate with Mockito instead?
         MockRegistryClient registryClient = new MockRegistryClient();
         Schema schemaFromFile =
@@ -53,7 +52,7 @@ public class ApicurioSchemaRegistryCoderTest {
         ApicurioSchemaRegistryCoder apicurioSchemaRegistryCoder =
                 new ApicurioSchemaRegistryCoder(registryClient, registryConfigs);
         Map<String, Object> headers = new HashMap<>();
-        headers.put(ApicurioSchemaRegistryCoder.APICURIO_VALUE_GLOBAL_ID, longToBytes(1));
+        headers.put(ApicurioSchemaRegistryCoder.APICURIO_GLOBAL_ID_HEADER, longToBytes(1));
         //        Schema schema = apicurioSchemaRegistryCoder.readSchemaWithHeaders(in, headers);
         //        assertThat(schemaFromFile.equals(schema));
     }

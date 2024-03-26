@@ -54,7 +54,6 @@ class RegistryAvroFormatFactoryTest {
     private static final RowType ROW_TYPE =
             (RowType) SCHEMA.toPhysicalRowDataType().getLogicalType();
 
-    private static final String SUBJECT = "test-subject";
     private static final String REGISTRY_URL = "http://localhost:8080//apis/registry/v2";
     private static final String SCHEMA_STRING =
             "{\n"
@@ -100,12 +99,6 @@ class RegistryAvroFormatFactoryTest {
         EXPECTED_OPTIONAL_PROPERTIES.put("basic.auth.credentials.source", "USER_INFO");
         EXPECTED_OPTIONAL_PROPERTIES.put("basic.auth.user.info", "user:pwd");
         EXPECTED_OPTIONAL_PROPERTIES.put("bearer.auth.token", "CUSTOM");
-    }
-
-    @Test
-    void test1() {
-        int a = 1;
-        assertThat(a == 1);
     }
 
     @Test

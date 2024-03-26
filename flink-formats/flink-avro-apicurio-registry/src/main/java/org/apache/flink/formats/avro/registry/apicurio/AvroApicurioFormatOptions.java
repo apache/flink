@@ -36,20 +36,32 @@ public class AvroApicurioFormatOptions {
                     .noDefaultValue()
                     .withDescription("The URL of the Apicurio Registry to fetch/register schemas.");
 
-    public static final ConfigOption<GlobalIdPlacementEnum> GLOBALID_PLACEMENT =
-            ConfigOptions.key("globalid-placement")
-                    .enumType(GlobalIdPlacementEnum.class)
-                    .defaultValue(GlobalIdPlacementEnum.HEADER)
+    public static final ConfigOption<IdPlacementEnum> ID_PLACEMENT =
+            ConfigOptions.key("id-placement")
+                    .enumType(IdPlacementEnum.class)
+                    .defaultValue(IdPlacementEnum.HEADER)
                     .withDescription(
-                            "Specifies where the globalId should be put when serialising Avro messages. The Valid options are:\n"
+                            "Specifies where the schema ID should be worked with Avro messages. The Valid options are:\n"
                                     + "HEADER - "
-                                    + GlobalIdPlacementEnum.HEADER.getDescription()
+                                    + IdPlacementEnum.HEADER.getDescription()
                                     + "\n"
                                     + "LEGACY - "
-                                    + GlobalIdPlacementEnum.LEGACY.getDescription()
+                                    + IdPlacementEnum.LEGACY.getDescription()
                                     + "\n"
                                     + "CONFLUENT - "
-                                    + GlobalIdPlacementEnum.CONFLUENT.getDescription());
+                                    + IdPlacementEnum.CONFLUENT.getDescription());
+
+    public static final ConfigOption<IdOptionEnum> ID_OPTION =
+            ConfigOptions.key("id-option")
+                    .enumType(IdOptionEnum.class)
+                    .defaultValue(IdOptionEnum.GLOBAL_ID)
+                    .withDescription(
+                            "Specifies whether gloabl IDs or content IDs should be used to identifity the Avro schema ID . The Valid options are:\n"
+                                    + "GLOBAL_ID - "
+                                    + IdOptionEnum.GLOBAL_ID.getDescription()
+                                    + "\n"
+                                    + "CONTENT_ID - "
+                                    + IdOptionEnum.CONTENT_ID.getDescription());
 
     public static final ConfigOption<String> GROUP_ID =
             ConfigOptions.key("groupId")

@@ -100,7 +100,9 @@ public class RegistryAvroDeserializationSchema<T> extends AvroDeserializationSch
         if (message == null) {
             return null;
         }
+
         checkAvroInitialized();
+
         getInputStream().setBuffer(message);
         // get the schema passing headers
         Schema writerSchema =
