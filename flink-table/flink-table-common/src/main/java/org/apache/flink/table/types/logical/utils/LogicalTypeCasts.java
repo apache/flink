@@ -156,38 +156,62 @@ public final class LogicalTypeCasts {
 
         castTo(TINYINT)
                 .implicitFrom(TINYINT)
-                .explicitFromFamily(NUMERIC, CHARACTER_STRING, INTERVAL)
-                .explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+                .explicitFromFamily(NUMERIC, CHARACTER_STRING, INTERVAL, BINARY_STRING)
+                .explicitFrom(
+                        BOOLEAN,
+                        TIMESTAMP_WITHOUT_TIME_ZONE,
+                        TIMESTAMP_WITH_LOCAL_TIME_ZONE,
+                        VARBINARY)
                 .build();
 
         castTo(SMALLINT)
                 .implicitFrom(TINYINT, SMALLINT)
-                .explicitFromFamily(NUMERIC, CHARACTER_STRING, INTERVAL)
-                .explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+                .explicitFromFamily(NUMERIC, CHARACTER_STRING, INTERVAL, BINARY_STRING)
+                .explicitFrom(
+                        BOOLEAN,
+                        TIMESTAMP_WITHOUT_TIME_ZONE,
+                        TIMESTAMP_WITH_LOCAL_TIME_ZONE,
+                        VARBINARY)
                 .build();
 
         castTo(INTEGER)
                 .implicitFrom(TINYINT, SMALLINT, INTEGER)
-                .explicitFromFamily(NUMERIC, CHARACTER_STRING, INTERVAL)
-                .explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+                .explicitFromFamily(NUMERIC, CHARACTER_STRING, INTERVAL, BINARY_STRING)
+                .explicitFrom(
+                        BOOLEAN,
+                        TIMESTAMP_WITHOUT_TIME_ZONE,
+                        TIMESTAMP_WITH_LOCAL_TIME_ZONE,
+                        VARBINARY)
                 .build();
 
         castTo(BIGINT)
                 .implicitFrom(TINYINT, SMALLINT, INTEGER, BIGINT)
-                .explicitFromFamily(NUMERIC, CHARACTER_STRING, INTERVAL)
-                .explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+                .explicitFromFamily(NUMERIC, CHARACTER_STRING, INTERVAL, BINARY_STRING)
+                .explicitFrom(
+                        BOOLEAN,
+                        TIMESTAMP_WITHOUT_TIME_ZONE,
+                        TIMESTAMP_WITH_LOCAL_TIME_ZONE,
+                        VARBINARY)
                 .build();
 
         castTo(FLOAT)
                 .implicitFrom(TINYINT, SMALLINT, INTEGER, BIGINT, FLOAT, DECIMAL)
-                .explicitFromFamily(NUMERIC, CHARACTER_STRING)
-                .explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+                .explicitFromFamily(NUMERIC, CHARACTER_STRING, BINARY_STRING)
+                .explicitFrom(
+                        BOOLEAN,
+                        TIMESTAMP_WITHOUT_TIME_ZONE,
+                        TIMESTAMP_WITH_LOCAL_TIME_ZONE,
+                        VARBINARY)
                 .build();
 
         castTo(DOUBLE)
                 .implicitFromFamily(NUMERIC)
-                .explicitFromFamily(CHARACTER_STRING)
-                .explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+                .explicitFromFamily(CHARACTER_STRING, BINARY_STRING)
+                .explicitFrom(
+                        BOOLEAN,
+                        TIMESTAMP_WITHOUT_TIME_ZONE,
+                        TIMESTAMP_WITH_LOCAL_TIME_ZONE,
+                        VARBINARY)
                 .build();
 
         castTo(DATE)
