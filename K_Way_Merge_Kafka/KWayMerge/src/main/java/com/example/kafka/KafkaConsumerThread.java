@@ -47,7 +47,7 @@ public class KafkaConsumerThread implements Runnable{
                     if(matcher.matches()){
                         int seqNum = Integer.parseInt(matcher.group(1));
                         int value = Integer.parseInt(matcher.group(2));
-                        kafkaMessage message = new kafkaMessage(seqNum, value);
+                        kafkaMessage message = new kafkaMessage(seqNum, value, System.nanoTime());
                         partitionQueue[record.partition()].offer(message);
                     }
                     else {
