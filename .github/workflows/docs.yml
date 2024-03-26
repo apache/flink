@@ -19,6 +19,9 @@ on:
     - cron: '0 0 * * *' # Deploy every day
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build-documentation:
     if: github.repository == 'apache/flink'
