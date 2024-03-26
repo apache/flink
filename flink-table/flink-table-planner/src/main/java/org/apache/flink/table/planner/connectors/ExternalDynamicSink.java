@@ -124,7 +124,7 @@ final class ExternalDynamicSink implements DynamicTableSink, SupportsWritingMeta
 
     private String generateOperatorDesc() {
         return String.format(
-                "TableToDataSteam(type=%s, rowtime=%s)",
+                "TableToDataStream(type=%s, rowtime=%s)",
                 physicalDataType.toString(), consumeRowtimeMetadata);
     }
 
