@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
@@ -74,7 +75,8 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
 
     private final BiFunction<AllocationID, Exception, ResourceCounter> releaseSlotFunction;
 
-    private final BiFunction<AllocationID, ResourceProfile, PhysicalSlot> reserveFreeSlotFunction;
+    private final BiFunction<AllocationID, LoadableResourceProfile, PhysicalSlot>
+            reserveFreeSlotFunction;
 
     private final TriFunction<AllocationID, Throwable, Long, ResourceCounter>
             freeReservedSlotFunction;
@@ -110,7 +112,7 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
             Supplier<Collection<? extends SlotInfo>> getAllSlotsInformationSupplier,
             BiFunction<ResourceID, Exception, ResourceCounter> releaseSlotsFunction,
             BiFunction<AllocationID, Exception, ResourceCounter> releaseSlotFunction,
-            BiFunction<AllocationID, ResourceProfile, PhysicalSlot> reserveFreeSlotFunction,
+            BiFunction<AllocationID, LoadableResourceProfile, PhysicalSlot> reserveFreeSlotFunction,
             TriFunction<AllocationID, Throwable, Long, ResourceCounter> freeReservedSlotFunction,
             Function<ResourceID, Boolean> containsSlotsFunction,
             Function<AllocationID, Boolean> containsFreeSlotFunction,
@@ -190,6 +192,12 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
     }
 
     @Override
+    public PhysicalSlot reserveFreeSlot(
+            AllocationID allocationId, LoadableResourceProfile requiredSlotProfile) {
+        return reserveFreeSlotFunction.apply(allocationId, requiredSlotProfile);
+    }
+
+    @Override
     public ResourceCounter releaseSlots(ResourceID owner, Exception cause) {
         return releaseSlotsFunction.apply(owner, cause);
     }
@@ -202,7 +210,8 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
     @Override
     public PhysicalSlot reserveFreeSlot(
             AllocationID allocationId, ResourceProfile requiredSlotProfile) {
-        return reserveFreeSlotFunction.apply(allocationId, requiredSlotProfile);
+        return reserveFreeSlotFunction.apply(
+                allocationId, requiredSlotProfile.toEmptyLoadsResourceProfile());
     }
 
     @Override

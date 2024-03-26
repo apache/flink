@@ -58,7 +58,7 @@ class TaskSlotTest {
     private static <T extends TaskSlotPayload> TaskSlot<T> createTaskSlot() {
         return new TaskSlot<>(
                 0,
-                ResourceProfile.ZERO,
+                ResourceProfile.ZERO.toEmptyLoadsResourceProfile(),
                 MemoryManager.MIN_PAGE_SIZE,
                 JOB_ID,
                 ALLOCATION_ID,

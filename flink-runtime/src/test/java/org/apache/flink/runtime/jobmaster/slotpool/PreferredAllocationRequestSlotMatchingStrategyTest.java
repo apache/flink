@@ -30,6 +30,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -43,8 +44,9 @@ public class PreferredAllocationRequestSlotMatchingStrategyTest {
      */
     @Test
     public void testNewSlotsAreMatchedAgainstPreferredAllocationIDs() throws Exception {
-        final PreferredAllocationRequestSlotMatchingStrategy strategy =
-                PreferredAllocationRequestSlotMatchingStrategy.INSTANCE;
+        final RequestSlotMatchingStrategy strategy =
+                PreferredAllocationRequestSlotMatchingStrategy.create(
+                        SimpleRequestSlotMatchingStrategy.INSTANCE);
 
         final AllocationID allocationId1 = new AllocationID();
         final AllocationID allocationId2 = new AllocationID();
@@ -65,7 +67,7 @@ public class PreferredAllocationRequestSlotMatchingStrategyTest {
                                 Collections.singleton(allocationId1)));
 
         final Collection<RequestSlotMatchingStrategy.RequestSlotMatch> requestSlotMatches =
-                strategy.matchRequestsAndSlots(slots, pendingRequests);
+                strategy.matchRequestsAndSlots(slots, pendingRequests, new HashMap<>());
 
         assertThat(requestSlotMatches).hasSize(2);
 

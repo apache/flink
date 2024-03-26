@@ -17,7 +17,7 @@
 
 package org.apache.flink.runtime.slots;
 
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.util.ResourceCounter;
 
 import java.util.Optional;
@@ -29,14 +29,14 @@ public interface RequirementMatcher {
     /**
      * Attempts to match the given resource profile with one of the given requirements.
      *
-     * @param resourceProfile resource profile to match
+     * @param loadableResourceProfile loadable resource profile to match
      * @param totalRequirements the total requirements
      * @param numAssignedResourcesLookup a lookup for how many resources have already been assigned
      *     to a requirement
      * @return matching requirement profile, if one exists
      */
-    Optional<ResourceProfile> match(
-            ResourceProfile resourceProfile,
+    Optional<LoadableResourceProfile> match(
+            LoadableResourceProfile loadableResourceProfile,
             ResourceCounter totalRequirements,
-            Function<ResourceProfile, Integer> numAssignedResourcesLookup);
+            Function<LoadableResourceProfile, Integer> numAssignedResourcesLookup);
 }

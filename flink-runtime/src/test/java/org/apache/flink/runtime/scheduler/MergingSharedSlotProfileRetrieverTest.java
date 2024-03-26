@@ -24,6 +24,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -69,7 +70,8 @@ public class MergingSharedSlotProfileRetrieverTest extends TestLogger {
 
         SlotProfile slotProfile =
                 sharedSlotProfileRetriever.getSlotProfile(
-                        new ExecutionSlotSharingGroup(), ResourceProfile.ZERO);
+                        new ExecutionSlotSharingGroup(new SlotSharingGroup()),
+                        ResourceProfile.ZERO);
 
         assertThat(slotProfile.getTaskResourceProfile(), is(ResourceProfile.ZERO));
         assertThat(slotProfile.getPhysicalSlotResourceProfile(), is(ResourceProfile.ZERO));
@@ -210,7 +212,8 @@ public class MergingSharedSlotProfileRetrieverTest extends TestLogger {
                                 () -> new HashSet<>(reservedAllocationIds))
                         .createFromBulk(new HashSet<>(executions));
 
-        ExecutionSlotSharingGroup executionSlotSharingGroup = new ExecutionSlotSharingGroup();
+        ExecutionSlotSharingGroup executionSlotSharingGroup =
+                new ExecutionSlotSharingGroup(new SlotSharingGroup());
         executions.stream()
                 .limit(executionSlotSharingGroupSize)
                 .forEach(executionSlotSharingGroup::addVertex);

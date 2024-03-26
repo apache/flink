@@ -20,8 +20,12 @@ package org.apache.flink.runtime.taskexecutor.slot;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+
+import javax.annotation.Nullable;
 
 import java.util.Objects;
 
@@ -34,14 +38,14 @@ public class SlotAllocationSnapshot implements java.io.Serializable {
     private final JobID jobId;
     private final String jobTargetAddress;
     private final AllocationID allocationId;
-    private final ResourceProfile resourceProfile;
+    private final LoadableResourceProfile resourceProfile;
 
     public SlotAllocationSnapshot(
             SlotID slotID,
             JobID jobId,
             String jobTargetAddress,
             AllocationID allocationId,
-            ResourceProfile resourceProfile) {
+            LoadableResourceProfile resourceProfile) {
         this.slotID = slotID;
         this.jobId = jobId;
         this.jobTargetAddress = jobTargetAddress;
@@ -66,7 +70,15 @@ public class SlotAllocationSnapshot implements java.io.Serializable {
     }
 
     public ResourceProfile getResourceProfile() {
+        return resourceProfile.getResourceProfile();
+    }
+
+    public LoadableResourceProfile getLoadableResourceProfile() {
         return resourceProfile;
+    }
+
+    public @Nullable LoadingWeight getLoadingWeight() {
+        return resourceProfile.getLoading();
     }
 
     public int getSlotIndex() {

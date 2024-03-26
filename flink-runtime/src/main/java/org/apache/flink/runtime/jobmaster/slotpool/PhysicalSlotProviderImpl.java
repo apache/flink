@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 
@@ -59,12 +59,7 @@ public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
     public Map<SlotRequestId, CompletableFuture<PhysicalSlotRequest.Result>> allocatePhysicalSlots(
             Collection<PhysicalSlotRequest> physicalSlotRequests) {
 
-        for (PhysicalSlotRequest physicalSlotRequest : physicalSlotRequests) {
-            LOG.debug(
-                    "Received slot request [{}] with resource requirements: {}",
-                    physicalSlotRequest.getSlotRequestId(),
-                    physicalSlotRequest.getSlotProfile().getPhysicalSlotResourceProfile());
-        }
+        logRequestInfo(physicalSlotRequests);
 
         Map<SlotRequestId, PhysicalSlotRequest> physicalSlotRequestsById =
                 physicalSlotRequests.stream()
@@ -85,8 +80,8 @@ public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
                                     PhysicalSlotRequest physicalSlotRequest =
                                             physicalSlotRequestsById.get(slotRequestId);
                                     SlotProfile slotProfile = physicalSlotRequest.getSlotProfile();
-                                    ResourceProfile resourceProfile =
-                                            slotProfile.getPhysicalSlotResourceProfile();
+                                    LoadableResourceProfile resourceProfile =
+                                            physicalSlotRequest.getPhysicalSlotResourceProfile();
 
                                     CompletableFuture<PhysicalSlot> slotFuture =
                                             availablePhysicalSlot
@@ -108,6 +103,15 @@ public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
                                 }));
     }
 
+    private void logRequestInfo(Collection<PhysicalSlotRequest> physicalSlotRequests) {
+        for (PhysicalSlotRequest physicalSlotRequest : physicalSlotRequests) {
+            LOG.debug(
+                    "Received slot request [{}] with resource requirements: {}",
+                    physicalSlotRequest.getSlotRequestId(),
+                    physicalSlotRequest.getSlotProfile().getPhysicalSlotResourceProfile());
+        }
+    }
+
     private Map<SlotRequestId, Optional<PhysicalSlot>> tryAllocateFromAvailable(
             Collection<PhysicalSlotRequest> slotRequests) {
         FreeSlotInfoTracker freeSlotInfoTracker = slotPool.getFreeSlotInfoTracker();
@@ -126,7 +130,7 @@ public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
                                 return slotPool.allocateAvailableSlot(
                                         request.getSlotRequestId(),
                                         slotInfoAndLocality.getSlotInfo().getAllocationId(),
-                                        request.getSlotProfile().getPhysicalSlotResourceProfile());
+                                        request.getPhysicalSlotResourceProfile());
                             }));
         }
         return allocateResult;
@@ -134,7 +138,7 @@ public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
 
     private CompletableFuture<PhysicalSlot> requestNewSlot(
             SlotRequestId slotRequestId,
-            ResourceProfile resourceProfile,
+            LoadableResourceProfile resourceProfile,
             Collection<AllocationID> preferredAllocations,
             boolean willSlotBeOccupiedIndefinitely) {
         if (willSlotBeOccupiedIndefinitely) {

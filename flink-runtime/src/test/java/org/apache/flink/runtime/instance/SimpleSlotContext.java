@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.instance;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotContext;
@@ -36,7 +37,7 @@ public class SimpleSlotContext implements SlotContext {
 
     private final TaskManagerGateway taskManagerGateway;
 
-    private final ResourceProfile resourceProfile;
+    private final LoadableResourceProfile resourceProfile;
 
     public SimpleSlotContext(
             AllocationID allocationId,
@@ -48,7 +49,7 @@ public class SimpleSlotContext implements SlotContext {
                 taskManagerLocation,
                 physicalSlotNumber,
                 taskManagerGateway,
-                ResourceProfile.ANY);
+                ResourceProfile.ANY.toEmptyLoadsResourceProfile());
     }
 
     public SimpleSlotContext(
@@ -57,6 +58,19 @@ public class SimpleSlotContext implements SlotContext {
             int physicalSlotNumber,
             TaskManagerGateway taskManagerGateway,
             ResourceProfile resourceProfile) {
+        this.allocationId = Preconditions.checkNotNull(allocationId);
+        this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);
+        this.physicalSlotNumber = physicalSlotNumber;
+        this.taskManagerGateway = Preconditions.checkNotNull(taskManagerGateway);
+        this.resourceProfile = resourceProfile.toEmptyLoadsResourceProfile();
+    }
+
+    public SimpleSlotContext(
+            AllocationID allocationId,
+            TaskManagerLocation taskManagerLocation,
+            int physicalSlotNumber,
+            TaskManagerGateway taskManagerGateway,
+            LoadableResourceProfile resourceProfile) {
         this.allocationId = Preconditions.checkNotNull(allocationId);
         this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);
         this.physicalSlotNumber = physicalSlotNumber;
@@ -86,7 +100,7 @@ public class SimpleSlotContext implements SlotContext {
 
     @Override
     public ResourceProfile getResourceProfile() {
-        return resourceProfile;
+        return resourceProfile.getResourceProfile();
     }
 
     @Override

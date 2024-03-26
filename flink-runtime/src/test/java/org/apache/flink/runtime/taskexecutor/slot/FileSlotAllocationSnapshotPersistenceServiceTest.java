@@ -146,7 +146,7 @@ class FileSlotAllocationSnapshotPersistenceServiceTest {
                             new JobID(),
                             "foobar",
                             new AllocationID(),
-                            ResourceProfile.UNKNOWN));
+                            ResourceProfile.UNKNOWN.toEmptyLoadsResourceProfile()));
         }
 
         return result;

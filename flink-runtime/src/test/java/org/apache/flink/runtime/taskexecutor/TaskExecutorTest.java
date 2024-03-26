@@ -31,6 +31,7 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.NoOpTaskExecutorBlobService;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
@@ -2943,19 +2944,10 @@ class TaskExecutorTest {
 
         @Override
         public boolean allocateSlot(
-                int index, JobID jobId, AllocationID allocationId, Duration slotTimeout) {
-            final boolean result = super.allocateSlot(index, jobId, allocationId, slotTimeout);
-            allocateSlotLatch.trigger();
-
-            return result;
-        }
-
-        @Override
-        public boolean allocateSlot(
                 int index,
                 JobID jobId,
                 AllocationID allocationId,
-                ResourceProfile resourceProfile,
+                LoadableResourceProfile resourceProfile,
                 Duration slotTimeout) {
             final boolean result =
                     super.allocateSlot(index, jobId, allocationId, resourceProfile, slotTimeout);

@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.util.ResourceCounter;
 
@@ -92,32 +92,32 @@ public class ResourceAllocationResult {
         public Builder addAllocationOnPendingResource(
                 JobID jobId,
                 PendingTaskManagerId pendingTaskManagerId,
-                ResourceProfile resourceProfile) {
+                LoadableResourceProfile resourceProfile) {
             this.allocationsOnPendingResources
                     .computeIfAbsent(pendingTaskManagerId, ignored -> new HashMap<>())
                     .compute(
                             jobId,
                             (id, counter) -> {
                                 if (counter == null) {
-                                    return ResourceCounter.withResource(resourceProfile, 1);
+                                    return ResourceCounter.withResource(resourceProfile);
                                 } else {
-                                    return counter.add(resourceProfile, 1);
+                                    return counter.add(resourceProfile);
                                 }
                             });
             return this;
         }
 
         public Builder addAllocationOnRegisteredResource(
-                JobID jobId, InstanceID instanceId, ResourceProfile resourceProfile) {
+                JobID jobId, InstanceID instanceId, LoadableResourceProfile resourceProfile) {
             this.allocationsOnRegisteredResources
                     .computeIfAbsent(jobId, jobID -> new HashMap<>())
                     .compute(
                             instanceId,
                             (id, counter) -> {
                                 if (counter == null) {
-                                    return ResourceCounter.withResource(resourceProfile, 1);
+                                    return ResourceCounter.withResource(resourceProfile);
                                 } else {
-                                    return counter.add(resourceProfile, 1);
+                                    return counter.add(resourceProfile);
                                 }
                             });
             return this;

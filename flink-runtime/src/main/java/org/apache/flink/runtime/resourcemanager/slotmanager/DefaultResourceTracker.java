@@ -20,6 +20,7 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.util.Preconditions;
@@ -63,15 +64,21 @@ public class DefaultResourceTracker implements ResourceTracker {
         }
     }
 
-    @Override
+    @VisibleForTesting
     public void notifyAcquiredResource(JobID jobId, ResourceProfile resourceProfile) {
+        notifyAcquiredResource(jobId, resourceProfile.toEmptyLoadsResourceProfile());
+    }
+
+    @Override
+    public void notifyAcquiredResource(
+            JobID jobId, LoadableResourceProfile loadableResourceProfile) {
         Preconditions.checkNotNull(jobId);
-        Preconditions.checkNotNull(resourceProfile);
+        Preconditions.checkNotNull(loadableResourceProfile);
         LOG.trace(
                 "Received notification for job {} having acquired resource {}.",
                 jobId,
-                resourceProfile);
-        getOrCreateTracker(jobId).notifyAcquiredResource(resourceProfile);
+                loadableResourceProfile);
+        getOrCreateTracker(jobId).notifyAcquiredResource(loadableResourceProfile);
     }
 
     private JobScopedResourceTracker getOrCreateTracker(JobID jobId) {
@@ -83,11 +90,18 @@ public class DefaultResourceTracker implements ResourceTracker {
                 });
     }
 
-    @Override
+    @VisibleForTesting
     public void notifyLostResource(JobID jobId, ResourceProfile resourceProfile) {
+        notifyLostResource(jobId, resourceProfile.toEmptyLoadsResourceProfile());
+    }
+
+    @Override
+    public void notifyLostResource(JobID jobId, LoadableResourceProfile resourceProfile) {
         Preconditions.checkNotNull(jobId);
         Preconditions.checkNotNull(resourceProfile);
         JobScopedResourceTracker tracker = trackers.get(jobId);
+
+        LOG.debug("notifyLostResource, resourceProfile: {}", resourceProfile);
 
         // during shutdown the tracker is cleared before task executors are unregistered,
         // to prevent the loss of resources triggering new allocations

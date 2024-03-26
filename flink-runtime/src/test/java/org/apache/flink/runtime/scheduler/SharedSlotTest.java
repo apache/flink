@@ -90,7 +90,11 @@ public class SharedSlotTest extends TestLogger {
         SimpleAckingTaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
         slotContextFuture.complete(
                 new TestingPhysicalSlot(
-                        allocationId, taskManagerLocation, 3, taskManagerGateway, RP));
+                        allocationId,
+                        taskManagerLocation,
+                        3,
+                        taskManagerGateway,
+                        RP.toEmptyLoadsResourceProfile()));
 
         assertThat(sharedSlot.isEmpty(), is(false));
         assertThat(released.isDone(), is(false));

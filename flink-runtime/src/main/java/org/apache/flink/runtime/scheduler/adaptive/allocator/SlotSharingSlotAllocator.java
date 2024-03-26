@@ -78,7 +78,9 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
                 SlotSharingGroupMetaInfo.from(vertices).values()) {
             numTotalRequiredSlots += slotSharingGroupMetaInfo.getMaxUpperBound();
         }
-        return ResourceCounter.withResource(ResourceProfile.UNKNOWN, numTotalRequiredSlots);
+
+        return ResourceCounter.withResource(
+                ResourceProfile.UNKNOWN.toEmptyLoadsResourceProfile(), numTotalRequiredSlots);
     }
 
     @Override
@@ -265,7 +267,8 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
     private SharedSlot reserveSharedSlot(SlotInfo slotInfo) {
         final PhysicalSlot physicalSlot =
                 reserveSlotFunction.reserveSlot(
-                        slotInfo.getAllocationId(), ResourceProfile.UNKNOWN);
+                        slotInfo.getAllocationId(),
+                        ResourceProfile.UNKNOWN.toEmptyLoadsResourceProfile());
 
         return new SharedSlot(
                 new SlotRequestId(),

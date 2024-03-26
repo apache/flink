@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.SimpleSlotContext;
@@ -49,7 +50,12 @@ public class TestingPhysicalSlot extends SimpleSlotContext implements PhysicalSl
             TaskManagerLocation taskManagerLocation,
             TaskManagerGateway taskManagerGateway,
             ResourceProfile resourceProfile) {
-        this(allocationID, taskManagerLocation, 0, taskManagerGateway, resourceProfile);
+        this(
+                allocationID,
+                taskManagerLocation,
+                0,
+                taskManagerGateway,
+                resourceProfile.toEmptyLoadsResourceProfile());
     }
 
     TestingPhysicalSlot(
@@ -57,7 +63,7 @@ public class TestingPhysicalSlot extends SimpleSlotContext implements PhysicalSl
             TaskManagerLocation taskManagerLocation,
             int physicalSlotNumber,
             TaskManagerGateway taskManagerGateway,
-            ResourceProfile resourceProfile) {
+            LoadableResourceProfile resourceProfile) {
         super(
                 allocationId,
                 taskManagerLocation,
@@ -98,7 +104,8 @@ public class TestingPhysicalSlot extends SimpleSlotContext implements PhysicalSl
         private TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
         private int physicalSlotNumber = 0;
         private TaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
-        private ResourceProfile resourceProfile = ResourceProfile.ANY;
+        private LoadableResourceProfile resourceProfile =
+                ResourceProfile.ANY.toEmptyLoadsResourceProfile();
 
         private Builder() {}
 
@@ -122,8 +129,13 @@ public class TestingPhysicalSlot extends SimpleSlotContext implements PhysicalSl
             return this;
         }
 
-        public Builder withResourceProfile(ResourceProfile resourceProfile) {
+        public Builder withResourceProfile(LoadableResourceProfile resourceProfile) {
             this.resourceProfile = resourceProfile;
+            return this;
+        }
+
+        public Builder withResourceProfile(ResourceProfile resourceProfile) {
+            this.resourceProfile = resourceProfile.toEmptyLoadsResourceProfile();
             return this;
         }
 

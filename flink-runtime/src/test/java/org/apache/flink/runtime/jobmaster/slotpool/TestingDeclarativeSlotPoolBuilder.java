@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.slots.ResourceRequirement;
@@ -63,8 +63,8 @@ public class TestingDeclarativeSlotPoolBuilder {
             (ignoredA, ignoredB) -> ResourceCounter.empty();
     private BiFunction<AllocationID, Exception, ResourceCounter> releaseSlotFunction =
             (ignoredA, ignoredB) -> ResourceCounter.empty();
-    private BiFunction<AllocationID, ResourceProfile, PhysicalSlot> reserveFreeSlotFunction =
-            (ignoredA, ignoredB) -> null;
+    private BiFunction<AllocationID, LoadableResourceProfile, PhysicalSlot>
+            reserveFreeSlotFunction = (ignoredA, ignoredB) -> null;
     private TriFunction<AllocationID, Throwable, Long, ResourceCounter> freeReservedSlotFunction =
             (ignoredA, ignoredB, ignoredC) -> ResourceCounter.empty();
     private Function<ResourceID, Boolean> containsSlotsFunction = ignored -> false;
@@ -159,7 +159,7 @@ public class TestingDeclarativeSlotPoolBuilder {
     }
 
     public TestingDeclarativeSlotPoolBuilder setReserveFreeSlotFunction(
-            BiFunction<AllocationID, ResourceProfile, PhysicalSlot>
+            BiFunction<AllocationID, LoadableResourceProfile, PhysicalSlot>
                     allocateFreeSlotForResourceFunction) {
         this.reserveFreeSlotFunction = allocateFreeSlotForResourceFunction;
         return this;

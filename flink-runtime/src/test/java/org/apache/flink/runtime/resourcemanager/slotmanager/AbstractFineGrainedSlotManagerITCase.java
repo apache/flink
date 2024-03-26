@@ -20,8 +20,8 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
@@ -168,7 +168,7 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
                                 SlotID,
                                 JobID,
                                 AllocationID,
-                                ResourceProfile,
+                                LoadableResourceProfile,
                                 String,
                                 ResourceManagerId>>
                 requestFuture = new CompletableFuture<>();
@@ -226,7 +226,8 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
                                                     slotId,
                                                     jobId,
                                                     assertFutureCompleteAndReturn(requestFuture).f2,
-                                                    DEFAULT_SLOT_RESOURCE_PROFILE,
+                                                    DEFAULT_SLOT_RESOURCE_PROFILE
+                                                            .toEmptyLoadsResourceProfile(),
                                                     targetAddress,
                                                     getResourceManagerId()));
 

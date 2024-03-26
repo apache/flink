@@ -961,9 +961,10 @@ public class AdaptiveScheduler
             final ResourceProfile resourceProfile = slotInfo.getResourceProfile();
 
             if (outstandingResources.containsResource(resourceProfile)) {
-                outstandingResources = outstandingResources.subtract(resourceProfile, 1);
+                outstandingResources = outstandingResources.subtractIgnoreLoading(resourceProfile);
             } else {
-                outstandingResources = outstandingResources.subtract(ResourceProfile.UNKNOWN, 1);
+                outstandingResources =
+                        outstandingResources.subtractIgnoreLoading(ResourceProfile.UNKNOWN);
             }
         }
 

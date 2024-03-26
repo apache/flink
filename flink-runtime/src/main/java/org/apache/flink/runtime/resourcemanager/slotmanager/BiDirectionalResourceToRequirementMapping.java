@@ -18,7 +18,7 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.Preconditions;
 
@@ -28,13 +28,13 @@ import java.util.Set;
 
 /** A bi-directional mapping between required and acquired resources. */
 class BiDirectionalResourceToRequirementMapping {
-    private final Map<ResourceProfile, ResourceCounter> requirementToFulfillingResources =
+    private final Map<LoadableResourceProfile, ResourceCounter> requirementToFulfillingResources =
             new HashMap<>();
-    private final Map<ResourceProfile, ResourceCounter> resourceToFulfilledRequirement =
+    private final Map<LoadableResourceProfile, ResourceCounter> resourceToFulfilledRequirement =
             new HashMap<>();
 
     public void incrementCount(
-            ResourceProfile requirement, ResourceProfile resource, int increment) {
+            LoadableResourceProfile requirement, LoadableResourceProfile resource, int increment) {
         Preconditions.checkNotNull(requirement);
         Preconditions.checkNotNull(resource);
         Preconditions.checkArgument(increment > 0);
@@ -43,7 +43,7 @@ class BiDirectionalResourceToRequirementMapping {
     }
 
     public void decrementCount(
-            ResourceProfile requirement, ResourceProfile resource, int decrement) {
+            LoadableResourceProfile requirement, LoadableResourceProfile resource, int decrement) {
         Preconditions.checkNotNull(requirement);
         Preconditions.checkNotNull(resource);
         Preconditions.checkArgument(decrement > 0);
@@ -52,13 +52,13 @@ class BiDirectionalResourceToRequirementMapping {
     }
 
     private static void internalIncrementCount(
-            Map<ResourceProfile, ResourceCounter> primaryMap,
-            ResourceProfile primaryKey,
-            ResourceProfile secondaryKey,
+            Map<LoadableResourceProfile, ResourceCounter> primaryMap,
+            LoadableResourceProfile primaryKey,
+            LoadableResourceProfile secondaryKey,
             int increment) {
         primaryMap.compute(
                 primaryKey,
-                (resourceProfile, resourceCounter) -> {
+                (loadableResourceProfile, resourceCounter) -> {
                     if (resourceCounter == null) {
                         return ResourceCounter.withResource(secondaryKey, increment);
                     } else {
@@ -68,17 +68,17 @@ class BiDirectionalResourceToRequirementMapping {
     }
 
     private static void internalDecrementCount(
-            Map<ResourceProfile, ResourceCounter> primaryMap,
-            ResourceProfile primaryKey,
-            ResourceProfile secondaryKey,
+            Map<LoadableResourceProfile, ResourceCounter> primaryMap,
+            LoadableResourceProfile primaryKey,
+            LoadableResourceProfile secondaryKey,
             int decrement) {
         primaryMap.compute(
                 primaryKey,
-                (resourceProfile, resourceCounter) -> {
+                (loadableResourceProfile, resourceCounter) -> {
                     Preconditions.checkState(
                             resourceCounter != null,
                             "Attempting to decrement count of %s->%s, but primary key was unknown.",
-                            resourceProfile,
+                            loadableResourceProfile,
                             secondaryKey);
                     final ResourceCounter newCounter =
                             resourceCounter.subtract(secondaryKey, decrement);
@@ -86,32 +86,32 @@ class BiDirectionalResourceToRequirementMapping {
                 });
     }
 
-    public ResourceCounter getResourcesFulfilling(ResourceProfile requirement) {
+    public ResourceCounter getLoadableResourcesFulfilling(LoadableResourceProfile requirement) {
         Preconditions.checkNotNull(requirement);
         return requirementToFulfillingResources.getOrDefault(requirement, ResourceCounter.empty());
     }
 
-    public ResourceCounter getRequirementsFulfilledBy(ResourceProfile resource) {
+    public ResourceCounter getLoadableRequirementsFulfilledBy(LoadableResourceProfile resource) {
         Preconditions.checkNotNull(resource);
         return resourceToFulfilledRequirement.getOrDefault(resource, ResourceCounter.empty());
     }
 
-    public Set<ResourceProfile> getAllResourceProfiles() {
+    public Set<LoadableResourceProfile> getAllLoadableResourceProfiles() {
         return resourceToFulfilledRequirement.keySet();
     }
 
-    public Set<ResourceProfile> getAllRequirementProfiles() {
+    public Set<LoadableResourceProfile> getAllRequirementLoadableProfiles() {
         return requirementToFulfillingResources.keySet();
     }
 
-    public int getNumFulfillingResources(ResourceProfile requirement) {
+    public int getNumFulfillingLoadableResources(LoadableResourceProfile requirement) {
         Preconditions.checkNotNull(requirement);
         return requirementToFulfillingResources
                 .getOrDefault(requirement, ResourceCounter.empty())
                 .getTotalResourceCount();
     }
 
-    public int getNumFulfilledRequirements(ResourceProfile resource) {
+    public int getNumFulfilledLoadableRequirements(LoadableResourceProfile resource) {
         Preconditions.checkNotNull(resource);
         return resourceToFulfilledRequirement
                 .getOrDefault(resource, ResourceCounter.empty())
@@ -122,5 +122,15 @@ class BiDirectionalResourceToRequirementMapping {
     boolean isEmpty() {
         return requirementToFulfillingResources.isEmpty()
                 && resourceToFulfilledRequirement.isEmpty();
+    }
+
+    @Override
+    public String toString() {
+        return "BiDirectionalResourceToRequirementMapping{"
+                + "requirementToFulfillingResources="
+                + requirementToFulfillingResources
+                + ", resourceToFulfilledRequirement="
+                + resourceToFulfilledRequirement
+                + '}';
     }
 }

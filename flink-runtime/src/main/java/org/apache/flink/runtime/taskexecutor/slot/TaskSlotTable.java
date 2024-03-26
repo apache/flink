@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskexecutor.slot;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -106,8 +107,8 @@ public interface TaskSlotTable<T extends TaskSlotPayload>
      * @param index of the task slot to allocate, use negative value for dynamic slot allocation
      * @param jobId to allocate the task slot for
      * @param allocationId identifying the allocation
-     * @param resourceProfile of the requested slot, used only for dynamic slot allocation and will
-     *     be ignored otherwise
+     * @param loadableResourceProfile of the requested slot, used only for dynamic slot allocation
+     *     and will be ignored otherwise
      * @param slotTimeout until the slot times out
      * @return True if the task slot could be allocated; otherwise false
      */
@@ -115,8 +116,23 @@ public interface TaskSlotTable<T extends TaskSlotPayload>
             int index,
             JobID jobId,
             AllocationID allocationId,
-            ResourceProfile resourceProfile,
+            LoadableResourceProfile loadableResourceProfile,
             Duration slotTimeout);
+
+    @VisibleForTesting
+    default boolean allocateSlot(
+            int index,
+            JobID jobId,
+            AllocationID allocationId,
+            ResourceProfile resourceProfile,
+            Duration slotTimeout) {
+        return allocateSlot(
+                index,
+                jobId,
+                allocationId,
+                resourceProfile.toEmptyLoadsResourceProfile(),
+                slotTimeout);
+    }
 
     /**
      * Marks the slot under the given allocation id as active. If the slot could not be found, then

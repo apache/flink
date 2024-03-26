@@ -19,10 +19,12 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.util.ResourceCounter;
 
 import java.util.Collection;
@@ -98,15 +100,21 @@ interface TaskManagerTracker
      * @param allocationId of the slot
      * @param jobId of the slot
      * @param instanceId of the slot
-     * @param resourceProfile of the slot
+     * @param loadableResourceProfile of the slot
      * @param slotState of the slot
      */
     void notifySlotStatus(
             AllocationID allocationId,
             JobID jobId,
             InstanceID instanceId,
-            ResourceProfile resourceProfile,
+            LoadableResourceProfile loadableResourceProfile,
             SlotState slotState);
+
+    void tryUpdateAllocatedSlotLoadingWeight(
+            AllocationID allocationId,
+            InstanceID instanceID,
+            SlotState slotState,
+            LoadingWeight loadingWeight);
 
     /**
      * Clear all previous pending slot allocation records if any, and record new pending slot

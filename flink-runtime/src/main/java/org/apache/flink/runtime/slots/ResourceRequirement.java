@@ -17,40 +17,94 @@
 
 package org.apache.flink.runtime.slots;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nonnull;
+
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /** Represents the number of required resources for a specific {@link ResourceProfile}. */
 public class ResourceRequirement implements Serializable {
 
+    public static final Logger LOG = LoggerFactory.getLogger(ResourceRequirement.class);
+
     private static final long serialVersionUID = 1L;
 
-    private final ResourceProfile resourceProfile;
+    private final @Nonnull LoadableResourceProfile loadableResourceProfile;
 
     private final int numberOfRequiredSlots;
 
-    private ResourceRequirement(ResourceProfile resourceProfile, int numberOfRequiredSlots) {
-        Preconditions.checkNotNull(resourceProfile);
-        Preconditions.checkArgument(numberOfRequiredSlots > 0);
-
-        this.resourceProfile = resourceProfile;
+    private ResourceRequirement(
+            LoadableResourceProfile loadableResourceProfile, int numberOfRequiredSlots) {
+        this.loadableResourceProfile = Preconditions.checkNotNull(loadableResourceProfile);
+        Preconditions.checkArgument(numberOfRequiredSlots >= 0);
+        if (numberOfRequiredSlots == 0) {
+            LOG.warn("The numberOfRequiredSlots is 0.");
+        }
         this.numberOfRequiredSlots = numberOfRequiredSlots;
     }
 
+    @Nonnull
     public ResourceProfile getResourceProfile() {
-        return resourceProfile;
+        return loadableResourceProfile.getResourceProfile();
+    }
+
+    @Nonnull
+    public LoadableResourceProfile getLoadableResourceProfile() {
+        return loadableResourceProfile;
     }
 
     public int getNumberOfRequiredSlots() {
         return numberOfRequiredSlots;
     }
 
+    @VisibleForTesting
     public static ResourceRequirement create(
             ResourceProfile resourceProfile, int numberOfRequiredSlots) {
-        return new ResourceRequirement(resourceProfile, numberOfRequiredSlots);
+        return new ResourceRequirement(
+                resourceProfile.toEmptyLoadsResourceProfile(), numberOfRequiredSlots);
+    }
+
+    public static ResourceRequirement create(
+            LoadableResourceProfile loadableResourceProfile, int numberOfRequiredSlots) {
+        return new ResourceRequirement(loadableResourceProfile, numberOfRequiredSlots);
+    }
+
+    public static ResourceRequirement create(
+            Map.Entry<LoadableResourceProfile, Integer> loadableResourceProfiles) {
+        return new ResourceRequirement(
+                loadableResourceProfiles.getKey(), loadableResourceProfiles.getValue());
+    }
+
+    public static Collection<ResourceRequirement> create(
+            Map<LoadableResourceProfile, Integer> resources) {
+        final List<ResourceRequirement> result = new ArrayList<>(resources.size());
+        resources.forEach(
+                (loadableResourceProfile, count) ->
+                        result.add(ResourceRequirement.create(loadableResourceProfile, count)));
+        return result;
+    }
+
+    @Nonnull
+    public LoadingWeight getLoadingUnit() {
+        return loadableResourceProfile.getLoading();
+    }
+
+    @Nonnull
+    public LoadingWeight getTotalLoading() {
+        return getLoadingUnit().multiply(numberOfRequiredSlots);
     }
 
     @Override
@@ -63,19 +117,19 @@ public class ResourceRequirement implements Serializable {
         }
         ResourceRequirement that = (ResourceRequirement) o;
         return numberOfRequiredSlots == that.numberOfRequiredSlots
-                && Objects.equals(resourceProfile, that.resourceProfile);
+                && Objects.equals(loadableResourceProfile, that.loadableResourceProfile);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(resourceProfile, numberOfRequiredSlots);
+        return Objects.hash(loadableResourceProfile, numberOfRequiredSlots);
     }
 
     @Override
     public String toString() {
         return "ResourceRequirement{"
-                + "resourceProfile="
-                + resourceProfile
+                + "loadableResourceProfile="
+                + loadableResourceProfile
                 + ", numberOfRequiredSlots="
                 + numberOfRequiredSlots
                 + '}';

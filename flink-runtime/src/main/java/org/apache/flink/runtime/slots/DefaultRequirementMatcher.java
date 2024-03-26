@@ -17,7 +17,7 @@
 
 package org.apache.flink.runtime.slots;
 
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.util.ResourceCounter;
 
 import java.util.Map;
@@ -30,28 +30,28 @@ import java.util.function.Function;
  */
 public class DefaultRequirementMatcher implements RequirementMatcher {
     @Override
-    public Optional<ResourceProfile> match(
-            ResourceProfile resourceProfile,
+    public Optional<LoadableResourceProfile> match(
+            LoadableResourceProfile loadableResourceProfile,
             ResourceCounter totalRequirements,
-            Function<ResourceProfile, Integer> numAssignedResourcesLookup) {
+            Function<LoadableResourceProfile, Integer> numAssignedResourcesLookup) {
         // Short-cut for fine-grained resource management. If there is already exactly equal
         // requirement, we can directly match with it.
-        if (totalRequirements.getResourceCount(resourceProfile)
-                > numAssignedResourcesLookup.apply(resourceProfile)) {
-            return Optional.of(resourceProfile);
+        if (totalRequirements.getLoadableResourceCount(loadableResourceProfile)
+                > numAssignedResourcesLookup.apply(loadableResourceProfile)) {
+            return Optional.of(loadableResourceProfile);
         }
 
-        for (Map.Entry<ResourceProfile, Integer> requirementCandidate :
-                totalRequirements.getResourcesWithCount()) {
-            ResourceProfile requirementProfile = requirementCandidate.getKey();
+        for (Map.Entry<LoadableResourceProfile, Integer> requirementCandidate :
+                totalRequirements.getLoadableResourcesWithCount()) {
+            LoadableResourceProfile requirementLoadableProfile = requirementCandidate.getKey();
 
             // beware the order when matching resources to requirements, because
             // ResourceProfile.UNKNOWN (which only
             // occurs as a requirement) does not match any resource!
-            if (resourceProfile.isMatching(requirementProfile)
+            if (loadableResourceProfile.isMatching(requirementLoadableProfile)
                     && requirementCandidate.getValue()
-                            > numAssignedResourcesLookup.apply(requirementProfile)) {
-                return Optional.of(requirementProfile);
+                            > numAssignedResourcesLookup.apply(loadableResourceProfile)) {
+                return Optional.of(requirementLoadableProfile);
             }
         }
         return Optional.empty();

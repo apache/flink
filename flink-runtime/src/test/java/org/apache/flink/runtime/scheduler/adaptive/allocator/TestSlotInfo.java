@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
@@ -27,7 +28,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 public class TestSlotInfo implements SlotInfo {
 
     private final AllocationID allocationId;
-    private final ResourceProfile resourceProfile;
+    private final LoadableResourceProfile resourceProfile;
 
     public TestSlotInfo() {
         this(new AllocationID(), ResourceProfile.ANY);
@@ -43,7 +44,7 @@ public class TestSlotInfo implements SlotInfo {
 
     public TestSlotInfo(AllocationID allocationId, ResourceProfile resourceProfile) {
         this.allocationId = allocationId;
-        this.resourceProfile = resourceProfile;
+        this.resourceProfile = resourceProfile.toEmptyLoadsResourceProfile();
     }
 
     @Override
@@ -63,7 +64,7 @@ public class TestSlotInfo implements SlotInfo {
 
     @Override
     public ResourceProfile getResourceProfile() {
-        return resourceProfile;
+        return resourceProfile.getResourceProfile();
     }
 
     @Override

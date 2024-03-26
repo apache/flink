@@ -50,7 +50,10 @@ class JobScopedResourceTrackerTest {
     void testLossOfUntrackedResourceThrowsException() {
         JobScopedResourceTracker tracker = new JobScopedResourceTracker(JobID.generate());
 
-        assertThatThrownBy(() -> tracker.notifyLostResource(ResourceProfile.UNKNOWN))
+        assertThatThrownBy(
+                        () ->
+                                tracker.notifyLostResource(
+                                        ResourceProfile.UNKNOWN.toEmptyLoadsResourceProfile()))
                 .withFailMessage(
                         "If no resource were acquired, then a loss of resource should fail with an exception.")
                 .isInstanceOf(IllegalStateException.class);
@@ -60,9 +63,9 @@ class JobScopedResourceTrackerTest {
     void testIsEmptyForRequirementNotifications() {
         JobScopedResourceTracker tracker = new JobScopedResourceTracker(JobID.generate());
 
-        tracker.notifyAcquiredResource(ResourceProfile.ANY);
+        tracker.notifyAcquiredResource(ResourceProfile.ANY.toEmptyLoadsResourceProfile());
         assertThat(tracker.isEmpty()).isFalse();
-        tracker.notifyLostResource(ResourceProfile.ANY);
+        tracker.notifyLostResource(ResourceProfile.ANY.toEmptyLoadsResourceProfile());
         assertThat(tracker.isEmpty()).isTrue();
     }
 
@@ -71,7 +74,9 @@ class JobScopedResourceTrackerTest {
         JobScopedResourceTracker tracker = new JobScopedResourceTracker(JobID.generate());
 
         tracker.notifyResourceRequirements(
-                Collections.singleton(ResourceRequirement.create(ResourceProfile.UNKNOWN, 1)));
+                Collections.singleton(
+                        ResourceRequirement.create(
+                                ResourceProfile.UNKNOWN.toEmptyLoadsResourceProfile(), 1)));
         assertThat(tracker.isEmpty()).isFalse();
         tracker.notifyResourceRequirements(Collections.emptyList());
         assertThat(tracker.isEmpty()).isTrue();
@@ -84,7 +89,7 @@ class JobScopedResourceTrackerTest {
         ResourceRequirement[][] resourceRequirements =
                 new ResourceRequirement[][] {
                     new ResourceRequirement[] {
-                        ResourceRequirement.create(PROFILE_1, 4),
+                        ResourceRequirement.create(PROFILE_1.toEmptyLoadsResourceProfile(), 4),
                         ResourceRequirement.create(PROFILE_2, 2)
                     },
                     new ResourceRequirement[] {
@@ -136,10 +141,10 @@ class JobScopedResourceTrackerTest {
         int numAcquiredSlotsP2 = resourceRequirements[0][1].getNumberOfRequiredSlots();
 
         for (int x = 0; x < numAcquiredSlotsP1; x++) {
-            tracker.notifyAcquiredResource(PROFILE_1);
+            tracker.notifyAcquiredResource(PROFILE_1.toEmptyLoadsResourceProfile());
         }
         for (int x = 0; x < numAcquiredSlotsP2; x++) {
-            tracker.notifyAcquiredResource(PROFILE_2);
+            tracker.notifyAcquiredResource(PROFILE_2.toEmptyLoadsResourceProfile());
         }
 
         for (ResourceRequirement[] resourceRequirement : resourceRequirements) {
@@ -171,9 +176,10 @@ class JobScopedResourceTrackerTest {
     void testMatchingWithResourceExceedingRequirement() {
         JobScopedResourceTracker tracker = new JobScopedResourceTracker(JobID.generate());
 
-        tracker.notifyResourceRequirements(Arrays.asList(ResourceRequirement.create(PROFILE_1, 1)));
+        tracker.notifyResourceRequirements(
+                Collections.singletonList(ResourceRequirement.create(PROFILE_1, 1)));
 
-        tracker.notifyAcquiredResource(PROFILE_2);
+        tracker.notifyAcquiredResource(PROFILE_2.toEmptyLoadsResourceProfile());
 
         assertThat(tracker.getAcquiredResources())
                 .contains(ResourceRequirement.create(PROFILE_2, 1));
@@ -183,9 +189,10 @@ class JobScopedResourceTrackerTest {
     void testMatchingWithResourceLessThanRequirement() {
         JobScopedResourceTracker tracker = new JobScopedResourceTracker(JobID.generate());
 
-        tracker.notifyResourceRequirements(Arrays.asList(ResourceRequirement.create(PROFILE_2, 1)));
+        tracker.notifyResourceRequirements(
+                Collections.singletonList(ResourceRequirement.create(PROFILE_2, 1)));
 
-        tracker.notifyAcquiredResource(PROFILE_1);
+        tracker.notifyAcquiredResource(PROFILE_1.toEmptyLoadsResourceProfile());
 
         assertThat(tracker.getAcquiredResources())
                 .contains(ResourceRequirement.create(PROFILE_1, 1));
@@ -197,28 +204,28 @@ class JobScopedResourceTrackerTest {
     void testResourceNotificationsWithoutRequirements() {
         JobScopedResourceTracker tracker = new JobScopedResourceTracker(JobID.generate());
 
-        tracker.notifyAcquiredResource(ResourceProfile.ANY);
+        tracker.notifyAcquiredResource(ResourceProfile.ANY.toEmptyLoadsResourceProfile());
 
         assertThat(tracker.isEmpty()).isFalse();
         assertThat(tracker.getAcquiredResources())
                 .contains(ResourceRequirement.create(ResourceProfile.ANY, 1));
         assertThat(tracker.getMissingResources()).isEmpty();
 
-        tracker.notifyAcquiredResource(ResourceProfile.ANY);
+        tracker.notifyAcquiredResource(ResourceProfile.ANY.toEmptyLoadsResourceProfile());
 
         assertThat(tracker.isEmpty()).isFalse();
         assertThat(tracker.getAcquiredResources())
                 .contains(ResourceRequirement.create(ResourceProfile.ANY, 2));
         assertThat(tracker.getMissingResources()).isEmpty();
 
-        tracker.notifyLostResource(ResourceProfile.ANY);
+        tracker.notifyLostResource(ResourceProfile.ANY.toEmptyLoadsResourceProfile());
 
         assertThat(tracker.isEmpty()).isFalse();
         assertThat(tracker.getAcquiredResources())
                 .contains(ResourceRequirement.create(ResourceProfile.ANY, 1));
         assertThat(tracker.getMissingResources()).isEmpty();
 
-        tracker.notifyLostResource(ResourceProfile.ANY);
+        tracker.notifyLostResource(ResourceProfile.ANY.toEmptyLoadsResourceProfile());
 
         assertThat(tracker.isEmpty()).isTrue();
         assertThat(tracker.getAcquiredResources()).isEmpty();
@@ -238,7 +245,7 @@ class JobScopedResourceTrackerTest {
         tracker.notifyResourceRequirements(Arrays.asList(resourceRequirementsArray));
 
         for (int x = 0; x < 2; x++) {
-            tracker.notifyAcquiredResource(PROFILE_1);
+            tracker.notifyAcquiredResource(PROFILE_1.toEmptyLoadsResourceProfile());
         }
 
         assertThat(tracker.getAcquiredResources())
@@ -246,7 +253,7 @@ class JobScopedResourceTrackerTest {
         assertThat(tracker.getMissingResources())
                 .contains(ResourceRequirement.create(PROFILE_2, 1));
 
-        tracker.notifyLostResource(PROFILE_1);
+        tracker.notifyLostResource(PROFILE_1.toEmptyLoadsResourceProfile());
 
         assertThat(tracker.getAcquiredResources())
                 .contains(ResourceRequirement.create(PROFILE_1, 1));
@@ -263,7 +270,7 @@ class JobScopedResourceTrackerTest {
         tracker.notifyResourceRequirements(
                 Collections.singleton(ResourceRequirement.create(ResourceProfile.UNKNOWN, 1)));
 
-        tracker.notifyAcquiredResource(ResourceProfile.ANY);
+        tracker.notifyAcquiredResource(ResourceProfile.ANY.toEmptyLoadsResourceProfile());
 
         tracker.notifyResourceRequirements(Collections.emptyList());
 
@@ -283,7 +290,7 @@ class JobScopedResourceTrackerTest {
     void testExcessResourcesAreAssignedOnRequirementIncrease() {
         JobScopedResourceTracker tracker = new JobScopedResourceTracker(JobID.generate());
 
-        tracker.notifyAcquiredResource(ResourceProfile.ANY);
+        tracker.notifyAcquiredResource(ResourceProfile.ANY.toEmptyLoadsResourceProfile());
 
         tracker.notifyResourceRequirements(
                 Collections.singleton(ResourceRequirement.create(ResourceProfile.UNKNOWN, 1)));
@@ -297,13 +304,13 @@ class JobScopedResourceTrackerTest {
     void testExcessResourcesAreAssignedOnResourceLoss() {
         JobScopedResourceTracker tracker = new JobScopedResourceTracker(JobID.generate());
 
-        tracker.notifyAcquiredResource(ResourceProfile.ANY);
-        tracker.notifyAcquiredResource(ResourceProfile.ANY);
+        tracker.notifyAcquiredResource(ResourceProfile.ANY.toEmptyLoadsResourceProfile());
+        tracker.notifyAcquiredResource(ResourceProfile.ANY.toEmptyLoadsResourceProfile());
 
         tracker.notifyResourceRequirements(
                 Collections.singleton(ResourceRequirement.create(ResourceProfile.UNKNOWN, 1)));
 
-        tracker.notifyLostResource(ResourceProfile.ANY);
+        tracker.notifyLostResource(ResourceProfile.ANY.toEmptyLoadsResourceProfile());
 
         assertThat(tracker.getAcquiredResources())
                 .contains(ResourceRequirement.create(ResourceProfile.ANY, 1));

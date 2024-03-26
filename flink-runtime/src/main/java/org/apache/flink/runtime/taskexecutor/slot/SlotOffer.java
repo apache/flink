@@ -18,9 +18,13 @@
 
 package org.apache.flink.runtime.taskexecutor.slot;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nonnull;
 
 import java.io.Serializable;
 
@@ -36,15 +40,26 @@ public class SlotOffer implements Serializable {
     private final int slotIndex;
 
     /** The resource profile of the offered slot */
-    private final ResourceProfile resourceProfile;
+    private final @Nonnull LoadableResourceProfile resourceProfile;
 
+    @VisibleForTesting
     public SlotOffer(
             final AllocationID allocationID,
             final int index,
             final ResourceProfile resourceProfile) {
         this.allocationId = Preconditions.checkNotNull(allocationID);
         this.slotIndex = index;
-        this.resourceProfile = Preconditions.checkNotNull(resourceProfile);
+        this.resourceProfile =
+                Preconditions.checkNotNull(resourceProfile).toEmptyLoadsResourceProfile();
+    }
+
+    public SlotOffer(
+            final AllocationID allocationID,
+            final int index,
+            final LoadableResourceProfile loadableResourceProfile) {
+        this.allocationId = Preconditions.checkNotNull(allocationID);
+        this.slotIndex = index;
+        this.resourceProfile = Preconditions.checkNotNull(loadableResourceProfile);
     }
 
     public AllocationID getAllocationId() {
@@ -56,6 +71,10 @@ public class SlotOffer implements Serializable {
     }
 
     public ResourceProfile getResourceProfile() {
+        return resourceProfile.getResourceProfile();
+    }
+
+    public LoadableResourceProfile getLoadableResourceProfile() {
         return resourceProfile;
     }
 

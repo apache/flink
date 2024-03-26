@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.util.ResourceCounter;
 
@@ -32,18 +33,18 @@ class BiDirectionalResourceToRequirementMappingTest {
         BiDirectionalResourceToRequirementMapping mapping =
                 new BiDirectionalResourceToRequirementMapping();
 
-        ResourceProfile requirement = ResourceProfile.UNKNOWN;
-        ResourceProfile resource = ResourceProfile.ANY;
+        LoadableResourceProfile requirement = ResourceProfile.UNKNOWN.toEmptyLoadsResourceProfile();
+        LoadableResourceProfile resource = ResourceProfile.ANY.toEmptyLoadsResourceProfile();
 
         mapping.incrementCount(requirement, resource, 1);
 
-        assertThat(mapping.getRequirementsFulfilledBy(resource))
+        assertThat(mapping.getLoadableRequirementsFulfilledBy(resource))
                 .isEqualTo(ResourceCounter.withResource(requirement, 1));
-        assertThat(mapping.getResourcesFulfilling(requirement))
+        assertThat(mapping.getLoadableResourcesFulfilling(requirement))
                 .isEqualTo(ResourceCounter.withResource(resource, 1));
 
-        assertThat(mapping.getAllRequirementProfiles()).contains(requirement);
-        assertThat(mapping.getAllResourceProfiles()).contains(resource);
+        assertThat(mapping.getAllRequirementLoadableProfiles()).contains(requirement);
+        assertThat(mapping.getAllLoadableResourceProfiles()).contains(resource);
     }
 
     @Test
@@ -51,17 +52,17 @@ class BiDirectionalResourceToRequirementMappingTest {
         BiDirectionalResourceToRequirementMapping mapping =
                 new BiDirectionalResourceToRequirementMapping();
 
-        ResourceProfile requirement = ResourceProfile.UNKNOWN;
-        ResourceProfile resource = ResourceProfile.ANY;
+        LoadableResourceProfile requirement = ResourceProfile.UNKNOWN.toEmptyLoadsResourceProfile();
+        LoadableResourceProfile resource = ResourceProfile.ANY.toEmptyLoadsResourceProfile();
 
         mapping.incrementCount(requirement, resource, 1);
         mapping.decrementCount(requirement, resource, 1);
 
-        assertThat(mapping.getRequirementsFulfilledBy(resource).isEmpty()).isTrue();
-        assertThat(mapping.getResourcesFulfilling(requirement).isEmpty()).isTrue();
+        assertThat(mapping.getLoadableRequirementsFulfilledBy(resource).isEmpty()).isTrue();
+        assertThat(mapping.getLoadableResourcesFulfilling(requirement).isEmpty()).isTrue();
 
-        assertThat(mapping.getAllRequirementProfiles()).isEmpty();
-        assertThat(mapping.getAllResourceProfiles()).isEmpty();
+        assertThat(mapping.getAllRequirementLoadableProfiles()).isEmpty();
+        assertThat(mapping.getAllLoadableResourceProfiles()).isEmpty();
 
         assertThat(mapping.isEmpty()).isTrue();
     }

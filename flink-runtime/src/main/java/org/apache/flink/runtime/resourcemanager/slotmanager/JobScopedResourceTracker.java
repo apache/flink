@@ -18,7 +18,7 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.slots.DefaultRequirementMatcher;
 import org.apache.flink.runtime.slots.RequirementMatcher;
 import org.apache.flink.runtime.slots.ResourceRequirement;
@@ -64,46 +64,48 @@ class JobScopedResourceTracker {
         for (ResourceRequirement newResourceRequirement : newResourceRequirements) {
             resourceRequirements =
                     resourceRequirements.add(
-                            newResourceRequirement.getResourceProfile(),
+                            newResourceRequirement.getLoadableResourceProfile(),
                             newResourceRequirement.getNumberOfRequiredSlots());
         }
         findExcessSlots();
         tryAssigningExcessSlots();
     }
 
-    public void notifyAcquiredResource(ResourceProfile resourceProfile) {
+    public void notifyAcquiredResource(LoadableResourceProfile resourceProfile) {
         Preconditions.checkNotNull(resourceProfile);
-        final Optional<ResourceProfile> matchingRequirement =
+        final Optional<LoadableResourceProfile> matchingRequirement =
                 findMatchingRequirement(resourceProfile);
         if (matchingRequirement.isPresent()) {
             resourceToRequirementMapping.incrementCount(
                     matchingRequirement.get(), resourceProfile, 1);
         } else {
             LOG.debug("Job {} acquired excess resource {}.", resourceProfile, jobId);
-            excessResources = excessResources.add(resourceProfile, 1);
+            excessResources = excessResources.add(resourceProfile);
         }
     }
 
-    private Optional<ResourceProfile> findMatchingRequirement(ResourceProfile resourceProfile) {
+    private Optional<LoadableResourceProfile> findMatchingRequirement(
+            LoadableResourceProfile resourceProfile) {
         return requirementMatcher.match(
                 resourceProfile,
                 resourceRequirements,
-                resourceToRequirementMapping::getNumFulfillingResources);
+                resourceToRequirementMapping::getNumFulfillingLoadableResources);
     }
 
-    public void notifyLostResource(ResourceProfile resourceProfile) {
+    public void notifyLostResource(LoadableResourceProfile resourceProfile) {
         Preconditions.checkNotNull(resourceProfile);
-        if (excessResources.getResourceCount(resourceProfile) > 0) {
+        if (excessResources.getLoadableResourceCount(resourceProfile) > 0) {
             LOG.trace("Job {} lost excess resource {}.", jobId, resourceProfile);
-            excessResources = excessResources.subtract(resourceProfile, 1);
+            excessResources = excessResources.subtract(resourceProfile);
             return;
         }
 
-        Set<ResourceProfile> fulfilledRequirements =
+        Set<LoadableResourceProfile> fulfilledRequirements =
                 resourceToRequirementMapping
-                        .getRequirementsFulfilledBy(resourceProfile)
-                        .getResources();
-
+                        .getLoadableRequirementsFulfilledBy(resourceProfile)
+                        .getLoadableResources();
+        LOG.debug(
+                "notifyLostResource resourceToRequirementMapping {}", resourceToRequirementMapping);
         if (!fulfilledRequirements.isEmpty()) {
             // deduct the resource from any requirement
             // from a correctness standpoint the choice is arbitrary
@@ -112,7 +114,7 @@ class JobScopedResourceTracker {
             // distance to the resource profile (i.e., the smallest requirement), but it may not
             // matter since we are
             // likely to get back a similarly-sized resource later on
-            ResourceProfile assignedRequirement = fulfilledRequirements.iterator().next();
+            LoadableResourceProfile assignedRequirement = fulfilledRequirements.iterator().next();
 
             resourceToRequirementMapping.decrementCount(assignedRequirement, resourceProfile, 1);
 
@@ -127,14 +129,19 @@ class JobScopedResourceTracker {
 
     public Collection<ResourceRequirement> getMissingResources() {
         final Collection<ResourceRequirement> missingResources = new ArrayList<>();
-        for (Map.Entry<ResourceProfile, Integer> requirement :
-                resourceRequirements.getResourcesWithCount()) {
-            ResourceProfile requirementProfile = requirement.getKey();
+        LOG.debug("getMissingResources, resourceRequirements: {}", resourceRequirements);
+        for (Map.Entry<LoadableResourceProfile, Integer> requirement :
+                resourceRequirements.getLoadableResourcesWithCount()) {
+            LoadableResourceProfile requirementProfile = requirement.getKey();
 
             int numRequiredResources = requirement.getValue();
             int numAcquiredResources =
-                    resourceToRequirementMapping.getNumFulfillingResources(requirementProfile);
+                    resourceToRequirementMapping.getNumFulfillingLoadableResources(
+                            requirementProfile);
 
+            LOG.debug(
+                    "getMissingResources resourceToRequirementMapping {}",
+                    resourceToRequirementMapping);
             if (numAcquiredResources < numRequiredResources) {
                 missingResources.add(
                         ResourceRequirement.create(
@@ -145,15 +152,16 @@ class JobScopedResourceTracker {
     }
 
     public Collection<ResourceRequirement> getAcquiredResources() {
-        final Set<ResourceProfile> knownResourceProfiles = new HashSet<>();
-        knownResourceProfiles.addAll(resourceToRequirementMapping.getAllResourceProfiles());
-        knownResourceProfiles.addAll(excessResources.getResources());
+        final Set<LoadableResourceProfile> knownResourceProfiles = new HashSet<>();
+        knownResourceProfiles.addAll(resourceToRequirementMapping.getAllLoadableResourceProfiles());
+        knownResourceProfiles.addAll(excessResources.getLoadableResources());
 
         final List<ResourceRequirement> acquiredResources = new ArrayList<>();
-        for (ResourceProfile knownResourceProfile : knownResourceProfiles) {
+        for (LoadableResourceProfile knownResourceProfile : knownResourceProfiles) {
             int numTotalAcquiredResources =
-                    resourceToRequirementMapping.getNumFulfilledRequirements(knownResourceProfile)
-                            + excessResources.getResourceCount(knownResourceProfile);
+                    resourceToRequirementMapping.getNumFulfilledLoadableRequirements(
+                                    knownResourceProfile)
+                            + excessResources.getLoadableResourceCount(knownResourceProfile);
             ResourceRequirement resourceRequirement =
                     ResourceRequirement.create(knownResourceProfile, numTotalAcquiredResources);
             acquiredResources.add(resourceRequirement);
@@ -173,21 +181,22 @@ class JobScopedResourceTracker {
     private void findExcessSlots() {
         final Collection<ExcessResource> excessResources = new ArrayList<>();
 
-        for (ResourceProfile requirementProfile :
-                resourceToRequirementMapping.getAllRequirementProfiles()) {
+        for (LoadableResourceProfile requirementProfile :
+                resourceToRequirementMapping.getAllRequirementLoadableProfiles()) {
             int numTotalRequiredResources =
-                    resourceRequirements.getResourceCount(requirementProfile);
+                    resourceRequirements.getLoadableResourceCount(requirementProfile);
             int numTotalAcquiredResources =
-                    resourceToRequirementMapping.getNumFulfillingResources(requirementProfile);
+                    resourceToRequirementMapping.getNumFulfillingLoadableResources(
+                            requirementProfile);
 
             if (numTotalAcquiredResources > numTotalRequiredResources) {
                 int numExcessResources = numTotalAcquiredResources - numTotalRequiredResources;
 
-                for (Map.Entry<ResourceProfile, Integer> acquiredResource :
+                for (Map.Entry<LoadableResourceProfile, Integer> acquiredResource :
                         resourceToRequirementMapping
-                                .getResourcesFulfilling(requirementProfile)
-                                .getResourcesWithCount()) {
-                    ResourceProfile acquiredResourceProfile = acquiredResource.getKey();
+                                .getLoadableResourcesFulfilling(requirementProfile)
+                                .getLoadableResourcesWithCount()) {
+                    LoadableResourceProfile acquiredResourceProfile = acquiredResource.getKey();
                     int numAcquiredResources = acquiredResource.getValue();
 
                     if (numAcquiredResources <= numExcessResources) {
@@ -233,11 +242,11 @@ class JobScopedResourceTracker {
         }
 
         ResourceCounter assignedResources = ResourceCounter.empty();
-        for (Map.Entry<ResourceProfile, Integer> excessResource :
-                excessResources.getResourcesWithCount()) {
+        for (Map.Entry<LoadableResourceProfile, Integer> excessResource :
+                excessResources.getLoadableResourcesWithCount()) {
             for (int i = 0; i < excessResource.getValue(); i++) {
-                final ResourceProfile resourceProfile = excessResource.getKey();
-                final Optional<ResourceProfile> matchingRequirement =
+                final LoadableResourceProfile resourceProfile = excessResource.getKey();
+                final Optional<LoadableResourceProfile> matchingRequirement =
                         findMatchingRequirement(resourceProfile);
                 if (matchingRequirement.isPresent()) {
                     resourceToRequirementMapping.incrementCount(
@@ -249,8 +258,8 @@ class JobScopedResourceTracker {
             }
         }
 
-        for (Map.Entry<ResourceProfile, Integer> assignedResource :
-                assignedResources.getResourcesWithCount()) {
+        for (Map.Entry<LoadableResourceProfile, Integer> assignedResource :
+                assignedResources.getLoadableResourcesWithCount()) {
             excessResources =
                     excessResources.subtract(
                             assignedResource.getKey(), assignedResource.getValue());
@@ -264,14 +273,30 @@ class JobScopedResourceTracker {
         }
     }
 
+    @Override
+    public String toString() {
+        return "JobScopedResourceTracker{"
+                + "jobId="
+                + jobId
+                + ", resourceToRequirementMapping="
+                + resourceToRequirementMapping
+                + ", requirementMatcher="
+                + requirementMatcher
+                + ", resourceRequirements="
+                + resourceRequirements
+                + ", excessResources="
+                + excessResources
+                + '}';
+    }
+
     private static class ExcessResource {
-        private final ResourceProfile requirementProfile;
-        private final ResourceProfile resourceProfile;
+        private final LoadableResourceProfile requirementProfile;
+        private final LoadableResourceProfile resourceProfile;
         private final int numExcessResources;
 
         private ExcessResource(
-                ResourceProfile requirementProfile,
-                ResourceProfile resourceProfile,
+                LoadableResourceProfile requirementProfile,
+                LoadableResourceProfile resourceProfile,
                 int numExcessResources) {
             this.requirementProfile = requirementProfile;
             this.resourceProfile = resourceProfile;

@@ -18,12 +18,14 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
@@ -73,10 +75,29 @@ public interface TaskExecutorGateway
             SlotID slotId,
             JobID jobId,
             AllocationID allocationId,
-            ResourceProfile resourceProfile,
+            LoadableResourceProfile resourceProfile,
             String targetAddress,
             ResourceManagerId resourceManagerId,
             @RpcTimeout Time timeout);
+
+    @VisibleForTesting
+    default CompletableFuture<Acknowledge> requestSlot(
+            SlotID slotId,
+            JobID jobId,
+            AllocationID allocationId,
+            ResourceProfile resourceProfile,
+            String targetAddress,
+            ResourceManagerId resourceManagerId,
+            @RpcTimeout Time timeout) {
+        return requestSlot(
+                slotId,
+                jobId,
+                allocationId,
+                resourceProfile.toEmptyLoadsResourceProfile(),
+                targetAddress,
+                resourceManagerId,
+                timeout);
+    }
 
     /**
      * Submit a {@link Task} to the {@link TaskExecutor}.

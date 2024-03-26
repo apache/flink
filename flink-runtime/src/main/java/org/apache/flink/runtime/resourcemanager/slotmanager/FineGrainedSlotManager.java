@@ -25,6 +25,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.blocklist.BlockedTaskManagerChecker;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
@@ -715,8 +716,8 @@ public class FineGrainedSlotManager implements SlotManager {
             final JobID jobID = jobEntry.getKey();
             for (Map.Entry<InstanceID, ResourceCounter> tmEntry : jobEntry.getValue().entrySet()) {
                 final InstanceID instanceID = tmEntry.getKey();
-                for (Map.Entry<ResourceProfile, Integer> slotEntry :
-                        tmEntry.getValue().getResourcesWithCount()) {
+                for (Map.Entry<LoadableResourceProfile, Integer> slotEntry :
+                        tmEntry.getValue().getLoadableResourcesWithCount()) {
                     for (int i = 0; i < slotEntry.getValue(); ++i) {
                         allocationFutures.add(
                                 slotStatusSyncer.allocateSlot(

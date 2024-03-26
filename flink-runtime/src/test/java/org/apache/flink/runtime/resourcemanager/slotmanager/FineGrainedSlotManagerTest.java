@@ -21,6 +21,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
@@ -243,7 +244,7 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                             builder.addAllocationOnPendingResource(
                                     jobID,
                                     pendingTaskManager.getPendingTaskManagerId(),
-                                    DEFAULT_SLOT_RESOURCE_PROFILE);
+                                    DEFAULT_SLOT_RESOURCE_PROFILE.toEmptyLoadsResourceProfile());
                             return builder.build();
                         });
 
@@ -354,7 +355,7 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                 SlotID,
                                 JobID,
                                 AllocationID,
-                                ResourceProfile,
+                                LoadableResourceProfile,
                                 String,
                                 ResourceManagerId>>
                 requestSlotFuture = new CompletableFuture<>();
@@ -378,7 +379,8 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                         .addAllocationOnRegisteredResource(
                                                 jobId,
                                                 taskManagerConnection.getInstanceID(),
-                                                DEFAULT_SLOT_RESOURCE_PROFILE)
+                                                DEFAULT_SLOT_RESOURCE_PROFILE
+                                                        .toEmptyLoadsResourceProfile())
                                         .build()));
                 runTest(
                         () -> {
@@ -398,12 +400,15 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                             SlotID,
                                             JobID,
                                             AllocationID,
-                                            ResourceProfile,
+                                            LoadableResourceProfile,
                                             String,
                                             ResourceManagerId>
                                     requestSlot = assertFutureCompleteAndReturn(requestSlotFuture);
                             assertThat(requestSlot.f1).isEqualTo(jobId);
-                            assertThat(requestSlot.f3).isEqualTo(DEFAULT_SLOT_RESOURCE_PROFILE);
+                            assertThat(requestSlot.f3)
+                                    .isEqualTo(
+                                            DEFAULT_SLOT_RESOURCE_PROFILE
+                                                    .toEmptyLoadsResourceProfile());
                         });
             }
         };
@@ -437,7 +442,8 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                         .addAllocationOnPendingResource(
                                                 jobId,
                                                 pendingTaskManager.getPendingTaskManagerId(),
-                                                DEFAULT_SLOT_RESOURCE_PROFILE)
+                                                DEFAULT_SLOT_RESOURCE_PROFILE
+                                                        .toEmptyLoadsResourceProfile())
                                         .build()));
                 runTest(
                         () -> {
@@ -466,7 +472,7 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                 SlotID,
                                 JobID,
                                 AllocationID,
-                                ResourceProfile,
+                                LoadableResourceProfile,
                                 String,
                                 ResourceManagerId>>
                 requestSlotFuture = new CompletableFuture<>();
@@ -489,7 +495,8 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                         .addAllocationOnPendingResource(
                                                 jobId,
                                                 pendingTaskManager.getPendingTaskManagerId(),
-                                                DEFAULT_SLOT_RESOURCE_PROFILE)
+                                                DEFAULT_SLOT_RESOURCE_PROFILE
+                                                        .toEmptyLoadsResourceProfile())
                                         .build()));
                 resourceAllocatorBuilder.setDeclareResourceNeededConsumer(
                         (resourceDeclarations) -> {
@@ -517,12 +524,15 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                             SlotID,
                                             JobID,
                                             AllocationID,
-                                            ResourceProfile,
+                                            LoadableResourceProfile,
                                             String,
                                             ResourceManagerId>
                                     requestSlot = assertFutureCompleteAndReturn(requestSlotFuture);
                             assertThat(requestSlot.f1).isEqualTo(jobId);
-                            assertThat(requestSlot.f3).isEqualTo(DEFAULT_SLOT_RESOURCE_PROFILE);
+                            assertThat(requestSlot.f3)
+                                    .isEqualTo(
+                                            DEFAULT_SLOT_RESOURCE_PROFILE
+                                                    .toEmptyLoadsResourceProfile());
                         });
             }
         };
@@ -811,11 +821,13 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                         .addAllocationOnPendingResource(
                                                 jobId,
                                                 pendingTaskManager1.getPendingTaskManagerId(),
-                                                DEFAULT_SLOT_RESOURCE_PROFILE)
+                                                DEFAULT_SLOT_RESOURCE_PROFILE
+                                                        .toEmptyLoadsResourceProfile())
                                         .addAllocationOnPendingResource(
                                                 jobId,
                                                 pendingTaskManager2.getPendingTaskManagerId(),
-                                                DEFAULT_SLOT_RESOURCE_PROFILE)
+                                                DEFAULT_SLOT_RESOURCE_PROFILE
+                                                        .toEmptyLoadsResourceProfile())
                                         .build()));
                 runTest(
                         () -> {
@@ -926,6 +938,7 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                 });
     }
 
+    // TODO FLIP-370 flix: Failed test case
     @Test
     void testReclaimInactiveSlotsOnClearRequirements() throws Exception {
         new Context() {
@@ -1015,11 +1028,13 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                         .addAllocationOnPendingResource(
                                                 jobId,
                                                 pendingTaskManager1.getPendingTaskManagerId(),
-                                                DEFAULT_SLOT_RESOURCE_PROFILE)
+                                                DEFAULT_SLOT_RESOURCE_PROFILE
+                                                        .toEmptyLoadsResourceProfile())
                                         .addAllocationOnPendingResource(
                                                 jobId,
                                                 pendingTaskManager2.getPendingTaskManagerId(),
-                                                DEFAULT_SLOT_RESOURCE_PROFILE)
+                                                DEFAULT_SLOT_RESOURCE_PROFILE
+                                                        .toEmptyLoadsResourceProfile())
                                         .build()));
                 runTest(
                         () -> {

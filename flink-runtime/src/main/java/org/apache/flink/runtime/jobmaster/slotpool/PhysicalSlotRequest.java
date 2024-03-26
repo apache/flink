@@ -18,11 +18,18 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.WeightLoadable;
+import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nonnull;
 
 /** Represents a request for a physical slot. */
-public class PhysicalSlotRequest {
+public class PhysicalSlotRequest implements WeightLoadable {
 
     private final SlotRequestId slotRequestId;
 
@@ -30,13 +37,24 @@ public class PhysicalSlotRequest {
 
     private final boolean slotWillBeOccupiedIndefinitely;
 
+    private @Nonnull final LoadingWeight loadingWeight;
+
+    @VisibleForTesting
     public PhysicalSlotRequest(
             final SlotRequestId slotRequestId,
             final SlotProfile slotProfile,
             final boolean slotWillBeOccupiedIndefinitely) {
+        this(slotRequestId, slotProfile, slotWillBeOccupiedIndefinitely, LoadingWeight.EMPTY);
+    }
 
+    public PhysicalSlotRequest(
+            final SlotRequestId slotRequestId,
+            final SlotProfile slotProfile,
+            final boolean slotWillBeOccupiedIndefinitely,
+            final @Nonnull LoadingWeight loadingWeight) {
         this.slotRequestId = slotRequestId;
         this.slotProfile = slotProfile;
+        this.loadingWeight = Preconditions.checkNotNull(loadingWeight);
         this.slotWillBeOccupiedIndefinitely = slotWillBeOccupiedIndefinitely;
     }
 
@@ -48,8 +66,19 @@ public class PhysicalSlotRequest {
         return slotProfile;
     }
 
+    public LoadableResourceProfile getPhysicalSlotResourceProfile() {
+        return getSlotProfile()
+                .getPhysicalSlotResourceProfile()
+                .toLoadableResourceProfile(loadingWeight);
+    }
+
     public boolean willSlotBeOccupiedIndefinitely() {
         return slotWillBeOccupiedIndefinitely;
+    }
+
+    @Override
+    public @Nonnull LoadingWeight getLoading() {
+        return loadingWeight;
     }
 
     /** Result of a {@link PhysicalSlotRequest}. */

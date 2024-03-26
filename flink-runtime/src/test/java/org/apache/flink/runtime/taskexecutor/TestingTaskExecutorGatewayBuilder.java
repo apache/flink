@@ -22,8 +22,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -66,7 +66,13 @@ public class TestingTaskExecutorGatewayBuilder {
             NOOP_SUBMIT_TASK_CONSUMER =
                     (ignoredA, ignoredB) -> CompletableFuture.completedFuture(Acknowledge.get());
     private static final Function<
-                    Tuple6<SlotID, JobID, AllocationID, ResourceProfile, String, ResourceManagerId>,
+                    Tuple6<
+                            SlotID,
+                            JobID,
+                            AllocationID,
+                            LoadableResourceProfile,
+                            String,
+                            ResourceManagerId>,
                     CompletableFuture<Acknowledge>>
             NOOP_REQUEST_SLOT_FUNCTION =
                     ignored -> CompletableFuture.completedFuture(Acknowledge.get());
@@ -126,7 +132,13 @@ public class TestingTaskExecutorGatewayBuilder {
     private BiFunction<TaskDeploymentDescriptor, JobMasterId, CompletableFuture<Acknowledge>>
             submitTaskConsumer = NOOP_SUBMIT_TASK_CONSUMER;
     private Function<
-                    Tuple6<SlotID, JobID, AllocationID, ResourceProfile, String, ResourceManagerId>,
+                    Tuple6<
+                            SlotID,
+                            JobID,
+                            AllocationID,
+                            LoadableResourceProfile,
+                            String,
+                            ResourceManagerId>,
                     CompletableFuture<Acknowledge>>
             requestSlotFunction = NOOP_REQUEST_SLOT_FUNCTION;
     private BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction =
@@ -208,7 +220,7 @@ public class TestingTaskExecutorGatewayBuilder {
                                     SlotID,
                                     JobID,
                                     AllocationID,
-                                    ResourceProfile,
+                                    LoadableResourceProfile,
                                     String,
                                     ResourceManagerId>,
                             CompletableFuture<Acknowledge>>

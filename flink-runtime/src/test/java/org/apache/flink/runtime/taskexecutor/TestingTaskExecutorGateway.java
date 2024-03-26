@@ -24,6 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
@@ -76,7 +77,13 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
             submitTaskConsumer;
 
     private final Function<
-                    Tuple6<SlotID, JobID, AllocationID, ResourceProfile, String, ResourceManagerId>,
+                    Tuple6<
+                            SlotID,
+                            JobID,
+                            AllocationID,
+                            LoadableResourceProfile,
+                            String,
+                            ResourceManagerId>,
                     CompletableFuture<Acknowledge>>
             requestSlotFunction;
 
@@ -135,7 +142,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
                                     SlotID,
                                     JobID,
                                     AllocationID,
-                                    ResourceProfile,
+                                    LoadableResourceProfile,
                                     String,
                                     ResourceManagerId>,
                             CompletableFuture<Acknowledge>>
@@ -197,7 +204,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
             SlotID slotId,
             JobID jobId,
             AllocationID allocationId,
-            ResourceProfile resourceProfile,
+            LoadableResourceProfile resourceProfile,
             String targetAddress,
             ResourceManagerId resourceManagerId,
             Time timeout) {
@@ -207,6 +214,25 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
                         jobId,
                         allocationId,
                         resourceProfile,
+                        targetAddress,
+                        resourceManagerId));
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> requestSlot(
+            SlotID slotId,
+            JobID jobId,
+            AllocationID allocationId,
+            ResourceProfile resourceProfile,
+            String targetAddress,
+            ResourceManagerId resourceManagerId,
+            Time timeout) {
+        return requestSlotFunction.apply(
+                Tuple6.of(
+                        slotId,
+                        jobId,
+                        allocationId,
+                        resourceProfile.toEmptyLoadsResourceProfile(),
                         targetAddress,
                         resourceManagerId));
     }

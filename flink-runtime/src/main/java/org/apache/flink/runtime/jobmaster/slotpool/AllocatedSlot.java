@@ -18,12 +18,17 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+
+import javax.annotation.Nonnull;
 
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -50,7 +55,7 @@ class AllocatedSlot implements PhysicalSlot {
     private final TaskManagerLocation taskManagerLocation;
 
     /** The resource profile of the slot provides. */
-    private final ResourceProfile resourceProfile;
+    private final LoadableResourceProfile resourceProfile;
 
     /** RPC gateway to call the TaskManager that holds this slot. */
     private final TaskManagerGateway taskManagerGateway;
@@ -58,10 +63,13 @@ class AllocatedSlot implements PhysicalSlot {
     /** The number of the slot on the TaskManager to which slot belongs. Purely informational. */
     private final int physicalSlotNumber;
 
+    private LoadingWeight loadingWeight;
+
     private final AtomicReference<Payload> payloadReference;
 
     // ------------------------------------------------------------------------
 
+    @VisibleForTesting
     public AllocatedSlot(
             AllocationID allocationId,
             TaskManagerLocation location,
@@ -71,8 +79,25 @@ class AllocatedSlot implements PhysicalSlot {
         this.allocationId = checkNotNull(allocationId);
         this.taskManagerLocation = checkNotNull(location);
         this.physicalSlotNumber = physicalSlotNumber;
+        this.resourceProfile = checkNotNull(resourceProfile).toEmptyLoadsResourceProfile();
+        this.taskManagerGateway = checkNotNull(taskManagerGateway);
+        this.loadingWeight = null;
+
+        payloadReference = new AtomicReference<>(null);
+    }
+
+    public AllocatedSlot(
+            AllocationID allocationId,
+            TaskManagerLocation location,
+            int physicalSlotNumber,
+            LoadableResourceProfile resourceProfile,
+            TaskManagerGateway taskManagerGateway) {
+        this.allocationId = checkNotNull(allocationId);
+        this.taskManagerLocation = checkNotNull(location);
+        this.physicalSlotNumber = physicalSlotNumber;
         this.resourceProfile = checkNotNull(resourceProfile);
         this.taskManagerGateway = checkNotNull(taskManagerGateway);
+        this.loadingWeight = LoadingWeight.EMPTY;
 
         payloadReference = new AtomicReference<>(null);
     }
@@ -102,6 +127,10 @@ class AllocatedSlot implements PhysicalSlot {
 
     @Override
     public ResourceProfile getResourceProfile() {
+        return resourceProfile.getResourceProfile();
+    }
+
+    public LoadableResourceProfile getLoadableResourceProfile() {
         return resourceProfile;
     }
 
@@ -175,6 +204,18 @@ class AllocatedSlot implements PhysicalSlot {
                 + " @ "
                 + taskManagerLocation
                 + " - "
-                + physicalSlotNumber;
+                + physicalSlotNumber
+                + " resourceProfile="
+                + resourceProfile;
+    }
+
+    @Nonnull
+    @Override
+    public LoadingWeight getLoading() {
+        return loadingWeight;
+    }
+
+    public void setLoading(LoadingWeight loadingWeight) {
+        this.loadingWeight = loadingWeight;
     }
 }

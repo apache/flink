@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskexecutor.slot;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -109,6 +110,16 @@ public class TestingTaskSlotTable<T extends TaskSlotPayload> implements TaskSlot
             JobID jobId,
             AllocationID allocationId,
             ResourceProfile resourceProfile,
+            Duration slotTimeout) {
+        return allocateSlotSupplier.get();
+    }
+
+    @Override
+    public boolean allocateSlot(
+            int index,
+            JobID jobId,
+            AllocationID allocationId,
+            LoadableResourceProfile loadableResourceProfile,
             Duration slotTimeout) {
         return allocateSlotSupplier.get();
     }

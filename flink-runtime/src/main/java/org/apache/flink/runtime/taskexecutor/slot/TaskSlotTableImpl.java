@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskexecutor.slot;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceBudgetManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -113,6 +114,7 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
     /** {@link Executor} for background actions, e.g. verify all managed memory released. */
     private final Executor memoryVerificationExecutor;
 
+    @VisibleForTesting
     public TaskSlotTableImpl(
             final int numberSlots,
             final ResourceProfile totalAvailableResourceProfile,
@@ -241,11 +243,16 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
                 slotStatus =
                         new SlotStatus(
                                 slotId,
-                                taskSlot.getResourceProfile(),
+                                taskSlot.getLoadableResourceProfile(),
                                 taskSlot.getJobId(),
                                 taskSlot.getAllocationId());
             } else {
-                slotStatus = new SlotStatus(slotId, defaultSlotResourceProfile, null, null);
+                slotStatus =
+                        new SlotStatus(
+                                slotId,
+                                defaultSlotResourceProfile.toEmptyLoadsResourceProfile(),
+                                null,
+                                null);
             }
 
             slotStatuses.add(slotStatus);
@@ -256,7 +263,7 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
                 SlotStatus slotStatus =
                         new SlotStatus(
                                 new SlotID(resourceId, taskSlot.getIndex()),
-                                taskSlot.getResourceProfile(),
+                                taskSlot.getLoadableResourceProfile(),
                                 taskSlot.getJobId(),
                                 taskSlot.getAllocationId());
                 slotStatuses.add(slotStatus);
@@ -276,7 +283,12 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
     @Override
     public boolean allocateSlot(
             int index, JobID jobId, AllocationID allocationId, Duration slotTimeout) {
-        return allocateSlot(index, jobId, allocationId, defaultSlotResourceProfile, slotTimeout);
+        return allocateSlot(
+                index,
+                jobId,
+                allocationId,
+                defaultSlotResourceProfile.toEmptyLoadsResourceProfile(),
+                slotTimeout);
     }
 
     @Override
@@ -284,7 +296,7 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
             int requestedIndex,
             JobID jobId,
             AllocationID allocationId,
-            ResourceProfile resourceProfile,
+            LoadableResourceProfile resourceProfile,
             Duration slotTimeout) {
         checkRunning();
 
@@ -294,9 +306,9 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
         // transfer the index to an increasing number not less than the numberSlots.
         int index = requestedIndex < 0 ? nextDynamicSlotIndex() : requestedIndex;
         ResourceProfile effectiveResourceProfile =
-                resourceProfile.equals(ResourceProfile.UNKNOWN)
+                resourceProfile.getResourceProfile().equals(ResourceProfile.UNKNOWN)
                         ? defaultSlotResourceProfile
-                        : resourceProfile;
+                        : resourceProfile.getResourceProfile();
 
         TaskSlot<T> taskSlot = allocatedSlots.get(allocationId);
         if (taskSlot != null) {
@@ -324,7 +336,8 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
         taskSlot =
                 new TaskSlot<>(
                         index,
-                        effectiveResourceProfile,
+                        effectiveResourceProfile.toLoadableResourceProfile(
+                                resourceProfile.getLoading()),
                         memoryPageSize,
                         jobId,
                         allocationId,

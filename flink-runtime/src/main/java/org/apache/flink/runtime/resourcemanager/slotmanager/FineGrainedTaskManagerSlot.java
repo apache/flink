@@ -18,13 +18,17 @@
 
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nonnull;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -51,17 +55,37 @@ public class FineGrainedTaskManagerSlot implements TaskManagerSlotInformation {
     /** Current state of this slot. Should be either PENDING or ALLOCATED. */
     private SlotState state;
 
+    private @Nonnull LoadingWeight loadingWeight;
+
+    @VisibleForTesting
     public FineGrainedTaskManagerSlot(
             AllocationID allocationId,
             JobID jobId,
             ResourceProfile resourceProfile,
             TaskExecutorConnection taskManagerConnection,
             SlotState slotState) {
+        this(
+                allocationId,
+                jobId,
+                resourceProfile,
+                taskManagerConnection,
+                slotState,
+                LoadingWeight.EMPTY);
+    }
+
+    public FineGrainedTaskManagerSlot(
+            AllocationID allocationId,
+            JobID jobId,
+            ResourceProfile resourceProfile,
+            TaskExecutorConnection taskManagerConnection,
+            SlotState slotState,
+            LoadingWeight loadingWeight) {
         this.resourceProfile = checkNotNull(resourceProfile);
         this.taskManagerConnection = checkNotNull(taskManagerConnection);
         this.allocationId = checkNotNull(allocationId);
         this.jobId = checkNotNull(jobId);
         this.state = checkNotNull(slotState);
+        this.loadingWeight = Preconditions.checkNotNull(loadingWeight);
         checkArgument(
                 !slotState.equals(SlotState.FREE),
                 "The slot of fine-grained resource management should be dynamically created in allocation. Thus it should not in FREE state.");
@@ -108,5 +132,14 @@ public class FineGrainedTaskManagerSlot implements TaskManagerSlotInformation {
                 "In order to complete an allocation, the slot has to be allocated.");
 
         state = SlotState.ALLOCATED;
+    }
+
+    @Override
+    public @Nonnull LoadingWeight getLoading() {
+        return loadingWeight;
+    }
+
+    public void setLoading(@Nonnull LoadingWeight loadingWeight) {
+        this.loadingWeight = Preconditions.checkNotNull(loadingWeight);
     }
 }

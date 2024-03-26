@@ -31,6 +31,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -54,7 +55,8 @@ public class SimpleRequestSlotMatchingStrategyTest {
                 Arrays.asList(pendingRequest1, pendingRequest2);
 
         final Collection<RequestSlotMatchingStrategy.RequestSlotMatch> requestSlotMatches =
-                simpleRequestSlotMatchingStrategy.matchRequestsAndSlots(slots, pendingRequests);
+                simpleRequestSlotMatchingStrategy.matchRequestsAndSlots(
+                        slots, pendingRequests, new HashMap<>());
 
         assertThat(requestSlotMatches).hasSize(1);
         assertThat(
@@ -87,7 +89,8 @@ public class SimpleRequestSlotMatchingStrategyTest {
                 Arrays.asList(pendingRequest1, pendingRequest2);
 
         final Collection<RequestSlotMatchingStrategy.RequestSlotMatch> requestSlotMatches =
-                simpleRequestSlotMatchingStrategy.matchRequestsAndSlots(slots, pendingRequests);
+                simpleRequestSlotMatchingStrategy.matchRequestsAndSlots(
+                        slots, pendingRequests, new HashMap<>());
 
         assertThat(requestSlotMatches).hasSize(1);
         assertThat(

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
@@ -36,16 +37,19 @@ public class DefaultFreeSlotInfoTracker implements FreeSlotInfoTracker {
     private final Function<AllocationID, SlotInfo> slotInfoLookup;
     private final Function<AllocationID, AllocatedSlotPool.FreeSlotInfo> freeSlotInfoLookup;
     private final Function<ResourceID, Double> taskExecutorUtilizationLookup;
+    private final Function<ResourceID, LoadingWeight> taskExecutorLoadingWeightLookup;
 
     public DefaultFreeSlotInfoTracker(
             Set<AllocationID> freeSlots,
             Function<AllocationID, SlotInfo> slotInfoLookup,
             Function<AllocationID, AllocatedSlotPool.FreeSlotInfo> freeSlotInfoLookup,
-            Function<ResourceID, Double> taskExecutorUtilizationLookup) {
+            Function<ResourceID, Double> taskExecutorUtilizationLookup,
+            Function<ResourceID, LoadingWeight> taskExecutorLoadingWeightLookup) {
         this.freeSlots = new HashSet<>(freeSlots);
         this.slotInfoLookup = slotInfoLookup;
         this.freeSlotInfoLookup = freeSlotInfoLookup;
         this.taskExecutorUtilizationLookup = taskExecutorUtilizationLookup;
+        this.taskExecutorLoadingWeightLookup = taskExecutorLoadingWeightLookup;
     }
 
     @Override
@@ -75,6 +79,12 @@ public class DefaultFreeSlotInfoTracker implements FreeSlotInfoTracker {
     }
 
     @Override
+    public LoadingWeight getTaskExecutorLoadingWeight(SlotInfo slotInfo) {
+        return taskExecutorLoadingWeightLookup.apply(
+                slotInfo.getTaskManagerLocation().getResourceID());
+    }
+
+    @Override
     public void reserveSlot(AllocationID allocationId) {
         Preconditions.checkState(
                 freeSlots.remove(allocationId),
@@ -95,6 +105,7 @@ public class DefaultFreeSlotInfoTracker implements FreeSlotInfoTracker {
                 freeSlotInfoTrackerWithoutBlockedSlots,
                 slotInfoLookup,
                 freeSlotInfoLookup,
-                taskExecutorUtilizationLookup);
+                taskExecutorUtilizationLookup,
+                taskExecutorLoadingWeightLookup);
     }
 }

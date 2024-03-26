@@ -35,8 +35,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -1149,7 +1149,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             final SlotID slotId,
             final JobID jobId,
             final AllocationID allocationId,
-            final ResourceProfile resourceProfile,
+            final LoadableResourceProfile resourceProfile,
             final String targetAddress,
             final ResourceManagerId resourceManagerId,
             final Time timeout) {
@@ -1197,7 +1197,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             JobID jobId,
             SlotID slotId,
             AllocationID allocationId,
-            ResourceProfile resourceProfile,
+            LoadableResourceProfile resourceProfile,
             String targetAddress)
             throws SlotAllocationException {
         allocateSlot(slotId, jobId, allocationId, resourceProfile);
@@ -1245,7 +1245,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     }
 
     private void allocateSlot(
-            SlotID slotId, JobID jobId, AllocationID allocationId, ResourceProfile resourceProfile)
+            SlotID slotId,
+            JobID jobId,
+            AllocationID allocationId,
+            LoadableResourceProfile resourceProfile)
             throws SlotAllocationException {
         if (taskSlotTable.isSlotFree(slotId.getSlotNumber())) {
             if (!taskSlotTable.allocateSlot(
@@ -2244,7 +2247,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                         slotAllocationSnapshot.getJobId(),
                         slotAllocationSnapshot.getSlotID(),
                         slotAllocationSnapshot.getAllocationId(),
-                        slotAllocationSnapshot.getResourceProfile(),
+                        slotAllocationSnapshot.getLoadableResourceProfile(),
                         slotAllocationSnapshot.getJobTargetAddress());
 
             } catch (SlotAllocationException e) {

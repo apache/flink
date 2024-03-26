@@ -18,7 +18,7 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 
@@ -42,9 +42,9 @@ public interface ResourceTracker {
      * the given job.
      *
      * @param jobId the job that acquired the resource
-     * @param resourceProfile profile of the resource
+     * @param loadableResourceProfile profile of the resource
      */
-    void notifyAcquiredResource(JobID jobId, ResourceProfile resourceProfile);
+    void notifyAcquiredResource(JobID jobId, LoadableResourceProfile loadableResourceProfile);
 
     /**
      * Notifies the tracker about the loss of a resource with the given resource profile, for the
@@ -53,7 +53,7 @@ public interface ResourceTracker {
      * @param jobId the job that lost the resource
      * @param resourceProfile profile of the resource
      */
-    void notifyLostResource(JobID jobId, ResourceProfile resourceProfile);
+    void notifyLostResource(JobID jobId, LoadableResourceProfile resourceProfile);
 
     /**
      * Returns a collection of {@link ResourceRequirements} that describe which resources the

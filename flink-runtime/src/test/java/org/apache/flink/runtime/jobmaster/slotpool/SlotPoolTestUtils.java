@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -91,10 +92,10 @@ public final class SlotPoolTestUtils {
         Collection<SlotOffer> slotOffers = new ArrayList<>();
         int slotIndex = 0;
 
-        for (Map.Entry<ResourceProfile, Integer> resourceWithCount :
-                resourceRequirements.getResourcesWithCount()) {
+        for (Map.Entry<LoadableResourceProfile, Integer> resourceWithCount :
+                resourceRequirements.getLoadableResourcesWithCount()) {
             for (int i = 0; i < resourceWithCount.getValue(); i++) {
-                ResourceProfile slotProfile = resourceWithCount.getKey();
+                ResourceProfile slotProfile = resourceWithCount.getKey().getResourceProfile();
                 slotOffers.add(
                         new SlotOffer(
                                 new AllocationID(),

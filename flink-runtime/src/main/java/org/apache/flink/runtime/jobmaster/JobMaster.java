@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
@@ -339,7 +340,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                         .createSlotPoolService(
                                 jid,
                                 createDeclarativeSlotPoolFactory(
-                                        jobMasterConfiguration.getConfiguration()));
+                                        jobMasterConfiguration.getConfiguration()),
+                                getMainThreadExecutor());
 
         this.partitionTracker =
                 checkNotNull(partitionTrackerFactory)
@@ -973,6 +975,11 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
             JobResourceRequirements jobResourceRequirements) {
         schedulerNG.updateJobResourceRequirements(jobResourceRequirements);
         return CompletableFuture.completedFuture(Acknowledge.get());
+    }
+
+    @VisibleForTesting
+    public SlotPoolService getSlotPoolService() {
+        return slotPoolService;
     }
 
     // ----------------------------------------------------------------------------------------------

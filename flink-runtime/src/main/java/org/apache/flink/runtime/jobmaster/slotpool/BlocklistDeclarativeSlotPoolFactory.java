@@ -21,8 +21,12 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.blocklist.BlockedTaskManagerChecker;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 
+import javax.annotation.Nonnull;
+
+import java.time.Duration;
 import java.util.Collection;
 import java.util.function.Consumer;
 
@@ -43,13 +47,17 @@ public class BlocklistDeclarativeSlotPoolFactory implements DeclarativeSlotPoolF
             JobID jobId,
             Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements,
             Time idleSlotTimeout,
-            Time rpcTimeout) {
+            Time rpcTimeout,
+            Duration slotRequestMaxInterval,
+            @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor) {
         return new BlocklistDeclarativeSlotPool(
                 jobId,
                 new DefaultAllocatedSlotPool(),
                 notifyNewResourceRequirements,
                 blockedTaskManagerChecker,
                 idleSlotTimeout,
-                rpcTimeout);
+                rpcTimeout,
+                slotRequestMaxInterval,
+                componentMainThreadExecutor);
     }
 }

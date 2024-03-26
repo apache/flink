@@ -22,11 +22,16 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.WeightLoadable;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nonnull;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * A FineGrainedTaskManagerRegistration represents a TaskManager. It maintains states of the
@@ -82,6 +87,16 @@ public class FineGrainedTaskManagerRegistration implements TaskManagerInfo {
     @Override
     public Map<AllocationID, TaskManagerSlotInformation> getAllocatedSlots() {
         return Collections.unmodifiableMap(slots);
+    }
+
+    @Override
+    public void tryUpdateAllocatedSlotLoadingWeight(
+            AllocationID allocationId, LoadingWeight loadingWeight) {
+        FineGrainedTaskManagerSlot slot = slots.get(allocationId);
+        if (Objects.nonNull(slot)) {
+            Preconditions.checkState(slot.getState() == SlotState.ALLOCATED);
+            slot.setLoading(loadingWeight);
+        }
     }
 
     @Override
@@ -162,5 +177,13 @@ public class FineGrainedTaskManagerRegistration implements TaskManagerInfo {
         }
         slots.put(allocationId, taskManagerSlot);
         idleSince = Long.MAX_VALUE;
+    }
+
+    @Nonnull
+    @Override
+    public LoadingWeight getLoading() {
+        return slots.values().stream()
+                .map(WeightLoadable::getLoading)
+                .reduce(LoadingWeight.EMPTY, LoadingWeight::merge);
     }
 }

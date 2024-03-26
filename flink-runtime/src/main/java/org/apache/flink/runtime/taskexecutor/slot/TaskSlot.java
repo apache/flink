@@ -20,9 +20,11 @@ package org.apache.flink.runtime.taskexecutor.slot;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkException;
@@ -31,6 +33,8 @@ import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nonnull;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -68,7 +72,7 @@ public class TaskSlot<T extends TaskSlotPayload> implements AutoCloseableAsync {
     private final int index;
 
     /** Resource characteristics for this slot. */
-    private final ResourceProfile resourceProfile;
+    private @Nonnull final LoadableResourceProfile resourceProfile;
 
     /** Tasks running in this slot. */
     private final Map<ExecutionAttemptID, T> tasks;
@@ -92,14 +96,14 @@ public class TaskSlot<T extends TaskSlotPayload> implements AutoCloseableAsync {
 
     public TaskSlot(
             final int index,
-            final ResourceProfile resourceProfile,
+            final LoadableResourceProfile loadableResourceProfile,
             final int memoryPageSize,
             final JobID jobId,
             final AllocationID allocationId,
             final Executor asyncExecutor) {
 
         this.index = index;
-        this.resourceProfile = Preconditions.checkNotNull(resourceProfile);
+        this.resourceProfile = Preconditions.checkNotNull(loadableResourceProfile);
         this.asyncExecutor = Preconditions.checkNotNull(asyncExecutor);
 
         this.tasks = CollectionUtil.newHashMapWithExpectedSize(4);
@@ -108,7 +112,8 @@ public class TaskSlot<T extends TaskSlotPayload> implements AutoCloseableAsync {
         this.jobId = jobId;
         this.allocationId = allocationId;
 
-        this.memoryManager = createMemoryManager(resourceProfile, memoryPageSize);
+        this.memoryManager =
+                createMemoryManager(resourceProfile.getResourceProfile(), memoryPageSize);
 
         this.closingFuture = new CompletableFuture<>();
     }
@@ -122,6 +127,10 @@ public class TaskSlot<T extends TaskSlotPayload> implements AutoCloseableAsync {
     }
 
     public ResourceProfile getResourceProfile() {
+        return resourceProfile.getResourceProfile();
+    }
+
+    public LoadableResourceProfile getLoadableResourceProfile() {
         return resourceProfile;
     }
 
@@ -170,6 +179,10 @@ public class TaskSlot<T extends TaskSlotPayload> implements AutoCloseableAsync {
      */
     public Iterator<T> getTasks() {
         return tasks.values().iterator();
+    }
+
+    public LoadingWeight getCurrentLoading() {
+        return LoadingWeight.ofDefaultLoadingWeight(tasks.size());
     }
 
     public MemoryManager getMemoryManager() {
