@@ -42,7 +42,7 @@ public class ComparisonFunctionITCase extends BuiltInFunctionTestBase {
     Configuration getConfiguration() {
         final Configuration config = new Configuration();
         // make the LTZ stable across all environments
-        config.set(TableConfigOptions.LOCAL_TIME_ZONE, "UTC");
+        config.set(TableConfigOptions.LOCAL_TIME_ZONE, "GMT-08:00");
         return config;
     }
 
@@ -50,7 +50,7 @@ public class ComparisonFunctionITCase extends BuiltInFunctionTestBase {
     Stream<TestSetSpec> getTestSetSpecs() {
         final Instant ltz3 = Instant.ofEpochMilli(1_123);
         final Instant ltz0 = Instant.ofEpochMilli(1_000);
-        final LocalDateTime tmstmp3 = ltz3.atOffset(ZoneOffset.UTC).toLocalDateTime();
+        final LocalDateTime tmstmp3 = ltz3.atOffset(ZoneOffset.ofHours(-8)).toLocalDateTime();
         return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.EQUALS)
                         .onFieldsWithData(ltz3, ltz0, tmstmp3)
@@ -89,5 +89,5 @@ public class ComparisonFunctionITCase extends BuiltInFunctionTestBase {
                         // compare different types, same precision
                         .testResult($("f0").isLess($("f2")), "f0 < f2", false, DataTypes.BOOLEAN())
                         .testResult($("f2").isLess($("f0")), "f2 < f0", true, DataTypes.BOOLEAN()));
-    };
+    }
 }
