@@ -31,7 +31,7 @@ import java.util.Map;
  * statement.
  */
 @Internal
-public class DescribeTableOperation implements Operation, ExecutableOperation {
+public class DescribeTableOperation implements DescribeOperator {
 
     private final ObjectIdentifier sqlIdentifier;
     private final boolean isExtended;

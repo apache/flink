@@ -2002,6 +2002,11 @@ public class HiveCatalog extends AbstractCatalog {
         return hiveDB;
     }
 
+    @Override
+    protected Map<String, String> extraExplainInfo() {
+        return Collections.singletonMap("hiveVersion", hiveVersion);
+    }
+
     enum CatalogTableType {
         HIVE_TABLE,
         FLINK_MANAGED_TABLE,

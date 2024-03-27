@@ -60,6 +60,7 @@ import org.apache.flink.sql.parser.dml.SqlEndStatementSet;
 import org.apache.flink.sql.parser.dml.SqlExecute;
 import org.apache.flink.sql.parser.dml.SqlExecutePlan;
 import org.apache.flink.sql.parser.dml.SqlStatementSet;
+import org.apache.flink.sql.parser.dql.SqlDescribeCatalog;
 import org.apache.flink.sql.parser.dql.SqlLoadModule;
 import org.apache.flink.sql.parser.dql.SqlRichDescribeTable;
 import org.apache.flink.sql.parser.dql.SqlRichExplain;
@@ -116,6 +117,7 @@ import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
 import org.apache.flink.table.operations.CompileAndExecutePlanOperation;
 import org.apache.flink.table.operations.DeleteFromFilterOperation;
+import org.apache.flink.table.operations.DescribeCatalogOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
@@ -284,6 +286,8 @@ public class SqlNodeToOperationConversion {
         } else if (validated instanceof SqlShowCurrentCatalog) {
             return Optional.of(
                     converter.convertShowCurrentCatalog((SqlShowCurrentCatalog) validated));
+        } else if (validated instanceof SqlDescribeCatalog) {
+            return Optional.of(converter.convertDescribeCatalog((SqlDescribeCatalog) validated));
         } else if (validated instanceof SqlShowModules) {
             return Optional.of(converter.convertShowModules((SqlShowModules) validated));
         } else if (validated instanceof SqlUnloadModule) {
@@ -890,6 +894,10 @@ public class SqlNodeToOperationConversion {
     /** Convert SHOW CURRENT CATALOG statement. */
     private Operation convertShowCurrentCatalog(SqlShowCurrentCatalog sqlShowCurrentCatalog) {
         return new ShowCurrentCatalogOperation();
+    }
+
+    private Operation convertDescribeCatalog(SqlDescribeCatalog sqlDescribeCatalog) {
+        return new DescribeCatalogOperation(sqlDescribeCatalog.getCatalogName());
     }
 
     /** Convert SHOW CURRENT DATABASE statement. */

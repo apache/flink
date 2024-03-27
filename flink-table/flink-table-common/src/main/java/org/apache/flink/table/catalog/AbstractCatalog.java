@@ -21,6 +21,10 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.StringUtils;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Abstract class for catalogs. */
@@ -46,5 +50,32 @@ public abstract class AbstractCatalog implements Catalog {
     @Override
     public String getDefaultDatabase() {
         return defaultDatabase;
+    }
+
+    @Override
+    public String explainCatalog() {
+        StringBuilder sb = new StringBuilder();
+        Map<String, String> extraExplainInfo = extraExplainInfo();
+        sb.append("default database: ").append(defaultDatabase);
+        if (!extraExplainInfo.isEmpty()) {
+            sb.append("\n");
+            sb.append(
+                    extraExplainInfo.entrySet().stream()
+                            .map(entry -> entry.getKey() + ": " + entry.getValue())
+                            .collect(Collectors.joining("\n")));
+        }
+
+        // put the class name at the end
+        sb.append("\n").append(Catalog.super.explainCatalog());
+        return sb.toString();
+    }
+
+    /**
+     * Extra explain information used to print by DESCRIBE CATALOG catalogName statement.
+     *
+     * <p>Note: The class name and default database name of this catalog are no need to be added.
+     */
+    protected Map<String, String> extraExplainInfo() {
+        return new HashMap<>();
     }
 }
