@@ -78,7 +78,6 @@ public class FutureUtils {
      * Returns an exceptionally completed future with an {@link UnsupportedOperationException}.
      *
      * @param <T> type of the future
-     *
      * @return exceptionally completed future
      */
     public static <T> CompletableFuture<T> unsupportedOperationFuture() {
@@ -112,7 +111,6 @@ public class FutureUtils {
      * @param retries if the operation failed
      * @param executor to use to run the futures
      * @param <T> type of the result
-     *
      * @return Future containing either the result of the operation or a {@link RetryException}
      */
     public static <T> CompletableFuture<T> retry(
@@ -132,7 +130,6 @@ public class FutureUtils {
      * @param retryPredicate Predicate to test whether an exception is retryable
      * @param executor to use to run the futures
      * @param <T> type of the result
-     *
      * @return Future containing either the result of the operation or a {@link RetryException}
      */
     public static <T> CompletableFuture<T> retry(
@@ -197,22 +194,27 @@ public class FutureUtils {
                                                             + "has been exhausted.",
                                                     throwable));
                                 } else {
-                                    Runnable retryRunnable = () ->
-                                            retryOperation(
-                                                    scheduled,
-                                                    resultFuture,
-                                                    operation,
-                                                    retryStrategy.getNextRetryStrategy(),
-                                                    retryPredicate,
-                                                    executor);
+                                    Runnable retryRunnable =
+                                            () ->
+                                                    retryOperation(
+                                                            scheduled,
+                                                            resultFuture,
+                                                            operation,
+                                                            retryStrategy.getNextRetryStrategy(),
+                                                            retryPredicate,
+                                                            executor);
 
                                     if (!scheduled) {
                                         retryRunnable.run();
                                     } else {
-                                        final ScheduledFuture<?> scheduledFuture = ((ScheduledExecutor) executor).schedule(
-                                                retryRunnable,
-                                                retryStrategy.getRetryDelay().toMillis(),
-                                                TimeUnit.MILLISECONDS);
+                                        final ScheduledFuture<?> scheduledFuture =
+                                                ((ScheduledExecutor) executor)
+                                                        .schedule(
+                                                                retryRunnable,
+                                                                retryStrategy
+                                                                        .getRetryDelay()
+                                                                        .toMillis(),
+                                                                TimeUnit.MILLISECONDS);
 
                                         resultFuture.whenComplete(
                                                 (innerT, innerThrowable) ->
@@ -237,9 +239,8 @@ public class FutureUtils {
      * @param retryPredicate Predicate to test whether an exception is retryable
      * @param scheduledExecutor executor to be used for the retry operation
      * @param <T> type of the result
-     *
      * @return Future which retries the given operation a given amount of times and delays the retry
-     *         in case of failures
+     *     in case of failures
      */
     public static <T> CompletableFuture<T> retryWithDelay(
             final Supplier<CompletableFuture<T>> operation,
@@ -262,9 +263,8 @@ public class FutureUtils {
      * @param retryStrategy the RetryStrategy
      * @param scheduledExecutor executor to be used for the retry operation
      * @param <T> type of the result
-     *
      * @return Future which retries the given operation a given amount of times and delays the retry
-     *         in case of failures
+     *     in case of failures
      */
     public static <T> CompletableFuture<T> retryWithDelay(
             final Supplier<CompletableFuture<T>> operation,
@@ -281,12 +281,7 @@ public class FutureUtils {
             final ScheduledExecutor scheduledExecutor) {
 
         retryOperation(
-                true,
-                resultFuture,
-                operation,
-                retryStrategy,
-                retryPredicate,
-                scheduledExecutor);
+                true, resultFuture, operation, retryStrategy, retryPredicate, scheduledExecutor);
     }
 
     /**
@@ -299,9 +294,8 @@ public class FutureUtils {
      * @param acceptancePredicate Predicate to test whether the result is acceptable
      * @param scheduledExecutor executor to be used for the retry operation
      * @param <T> type of the result
-     *
      * @return Future which retries the given operation a given amount of times and delays the retry
-     *         in case the predicate isn't matched
+     *     in case the predicate isn't matched
      */
     public static <T> CompletableFuture<T> retrySuccessfulWithDelay(
             final Supplier<CompletableFuture<T>> operation,
@@ -402,7 +396,6 @@ public class FutureUtils {
      * @param timeUnit time unit of the timeout
      * @param timeoutMsg timeout message for exception
      * @param <T> type of the given future
-     *
      * @return The timeout enriched future
      */
     public static <T> CompletableFuture<T> orTimeout(
@@ -420,10 +413,9 @@ public class FutureUtils {
      * @param timeout after which the given future is timed out
      * @param timeUnit time unit of the timeout
      * @param timeoutFailExecutor executor that will complete the future exceptionally after the
-     *         timeout is reached
+     *     timeout is reached
      * @param timeoutMsg timeout message for exception
      * @param <T> type of the given future
-     *
      * @return The timeout enriched future
      */
     public static <T> CompletableFuture<T> orTimeout(
@@ -475,9 +467,7 @@ public class FutureUtils {
      *
      * @param future to run if not done and get
      * @param <T> type of the result
-     *
      * @return the result after running the future
-     *
      * @throws ExecutionException if a problem occurred
      * @throws InterruptedException if the current thread has been interrupted
      */
@@ -502,9 +492,8 @@ public class FutureUtils {
      *
      * @param future to wait for its completion
      * @param runnable action which is triggered after the future's completion
-     *
      * @return Future which is completed after the action has completed. This future can contain an
-     *         exception, if an error occurred in the given future or action.
+     *     exception, if an error occurred in the given future or action.
      */
     public static CompletableFuture<Void> runAfterwards(
             CompletableFuture<?> future, RunnableWithException runnable) {
@@ -518,9 +507,8 @@ public class FutureUtils {
      *
      * @param future to wait for its completion
      * @param runnable action which is triggered after the future's completion
-     *
      * @return Future which is completed after the action has completed. This future can contain an
-     *         exception, if an error occurred in the given future or action.
+     *     exception, if an error occurred in the given future or action.
      */
     public static CompletableFuture<Void> runAfterwardsAsync(
             CompletableFuture<?> future, RunnableWithException runnable) {
@@ -535,9 +523,8 @@ public class FutureUtils {
      * @param future to wait for its completion
      * @param runnable action which is triggered after the future's completion
      * @param executor to run the given action
-     *
      * @return Future which is completed after the action has completed. This future can contain an
-     *         exception, if an error occurred in the given future or action.
+     *     exception, if an error occurred in the given future or action.
      */
     public static CompletableFuture<Void> runAfterwardsAsync(
             CompletableFuture<?> future, RunnableWithException runnable, Executor executor) {
@@ -569,9 +556,8 @@ public class FutureUtils {
      *
      * @param future to wait for its completion
      * @param composedAction asynchronous action which is triggered after the future's completion
-     *
      * @return Future which is completed after the asynchronous action has completed. This future
-     *         can contain an exception if an error occurred in the given future or asynchronous action.
+     *     can contain an exception if an error occurred in the given future or asynchronous action.
      */
     public static CompletableFuture<Void> composeAfterwards(
             CompletableFuture<?> future, Supplier<CompletableFuture<?>> composedAction) {
@@ -611,7 +597,6 @@ public class FutureUtils {
      * completed successfully, via {@link ConjunctFuture#getNumFuturesCompleted()}.
      *
      * @param futures The futures that make up the conjunction. No null entries are allowed.
-     *
      * @return The ConjunctFuture that completes once all given futures are complete (or one fails).
      */
     public static <T> ConjunctFuture<Collection<T>> combineAll(
@@ -629,7 +614,6 @@ public class FutureUtils {
      * via {@link ConjunctFuture#getNumFuturesCompleted()}.
      *
      * @param futures The futures to wait on. No null entries are allowed.
-     *
      * @return The WaitingFuture that completes once all given futures are complete (or one fails).
      */
     public static ConjunctFuture<Void> waitForAll(
@@ -802,7 +786,6 @@ public class FutureUtils {
      * exception occurs, then the resulting future will be completed exceptionally.
      *
      * @param futuresToComplete futures to complete
-     *
      * @return Future which is completed after all given futures have been completed.
      */
     public static ConjunctFuture<Void> completeAll(
@@ -882,7 +865,6 @@ public class FutureUtils {
      *
      * @param cause to complete the future with
      * @param <T> type of the future
-     *
      * @return An exceptionally completed CompletableFuture
      */
     public static <T> CompletableFuture<T> completedExceptionally(Throwable cause) {
@@ -898,7 +880,6 @@ public class FutureUtils {
      * @param supplier to provide the future's value
      * @param executor to execute the supplier
      * @param <T> type of the result
-     *
      * @return Future which is completed with the value of the supplier
      */
     public static <T> CompletableFuture<T> supplyAsync(
@@ -919,7 +900,6 @@ public class FutureUtils {
      *
      * @param runnable represents the task
      * @param executor to execute the runnable
-     *
      * @return Future which is completed when runnable is finished
      */
     public static CompletableFuture<Void> runAsync(
@@ -950,7 +930,6 @@ public class FutureUtils {
      * @param applyFun the function to apply.
      * @param <IN> type of the input future.
      * @param <OUT> type of the output future.
-     *
      * @return a completable future that is applying the given function to the input future.
      */
     public static <IN, OUT> CompletableFuture<OUT> thenApplyAsyncIfNotDone(
@@ -973,7 +952,6 @@ public class FutureUtils {
      * @param composeFun the function to compose.
      * @param <IN> type of the input future.
      * @param <OUT> type of the output future.
-     *
      * @return a completable future that is a composition of the input future and the function.
      */
     public static <IN, OUT> CompletableFuture<OUT> thenComposeAsyncIfNotDone(
@@ -995,7 +973,6 @@ public class FutureUtils {
      * @param executor the executor to run the whenComplete function if the future is not yet done.
      * @param whenCompleteFun the bi-consumer function to call when the future is completed.
      * @param <IN> type of the input future.
-     *
      * @return the new completion stage.
      */
     public static <IN> CompletableFuture<IN> whenCompleteAsyncIfNotDone(
@@ -1017,7 +994,6 @@ public class FutureUtils {
      * @param executor the executor to run the thenAccept function if the future is not yet done.
      * @param consumer the consumer function to call when the future is completed.
      * @param <IN> type of the input future.
-     *
      * @return the new completion stage.
      */
     public static <IN> CompletableFuture<Void> thenAcceptAsyncIfNotDone(
@@ -1040,7 +1016,6 @@ public class FutureUtils {
      * @param handler the handler function to call when the future is completed.
      * @param <IN> type of the handler input argument.
      * @param <OUT> type of the handler return value.
-     *
      * @return the new completion stage.
      */
     public static <IN, OUT> CompletableFuture<OUT> handleAsyncIfNotDone(
@@ -1061,9 +1036,8 @@ public class FutureUtils {
      * Perform check state that future has completed normally and return the result.
      *
      * @return the result of completable future.
-     *
      * @throws IllegalStateException Thrown, if future has not completed or it has completed
-     *         exceptionally.
+     *     exceptionally.
      */
     public static <T> T checkStateAndGet(CompletableFuture<T> future) {
         checkCompletedNormally(future);
@@ -1075,9 +1049,8 @@ public class FutureUtils {
      *
      * @param future the completable future specified.
      * @param <T> the type of result
-     *
      * @return the result of completable future, or null if it's unfinished or finished
-     *         exceptionally
+     *     exceptionally
      */
     @Nullable
     public static <T> T getWithoutException(CompletableFuture<T> future) {
@@ -1132,7 +1105,6 @@ public class FutureUtils {
          * @param runnable to execute after the given delay
          * @param delay after which to execute the runnable
          * @param timeUnit time unit of the delay
-         *
          * @return Future of the scheduled action
          */
         private static ScheduledFuture<?> delay(Runnable runnable, long delay, TimeUnit timeUnit) {
@@ -1162,8 +1134,7 @@ public class FutureUtils {
      * @param completableFuture to assert for a given exception
      * @param exceptionClass exception class to assert for
      * @param exceptionHandler to call if the future is completed exceptionally with the specific
-     *         exception
-     *
+     *     exception
      * @return completable future, that can recover from a specified exception
      */
     public static <T, E extends Throwable> CompletableFuture<T> handleException(
@@ -1261,7 +1232,6 @@ public class FutureUtils {
      * nothing.
      *
      * @param future the future to check.
-     *
      * @throws Exception when the future is completed exceptionally.
      */
     public static void throwIfCompletedExceptionally(CompletableFuture<?> future) throws Exception {
@@ -1299,7 +1269,6 @@ public class FutureUtils {
      * @param source source to switch the execution context for
      * @param executor executor representing the new execution context
      * @param <T> type of the source
-     *
      * @return future which is executed by the given executor
      */
     public static <T> CompletableFuture<T> switchExecutor(
