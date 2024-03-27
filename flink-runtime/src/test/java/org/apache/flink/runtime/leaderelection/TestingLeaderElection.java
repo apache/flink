@@ -21,6 +21,7 @@ package org.apache.flink.runtime.leaderelection;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -50,6 +51,26 @@ public class TestingLeaderElection implements LeaderElection {
 
     private CompletableFuture<Void> startFuture = new CompletableFuture<>();
 
+    private final boolean skipLeadershipConsistencyChecks;
+
+    /**
+     * {@code TestingLeaderElection} generally ensures consistency of leadership events internally.
+     * This method creates a {@code TestingLeaderElection} instance that skips the consistency check
+     * to allow testing the handling of malfunctioned leader election in {@link LeaderContender}
+     * implementations.
+     */
+    public static TestingLeaderElection createWithLeadershipConsistencyChecksDisabled() {
+        return new TestingLeaderElection(true);
+    }
+
+    public TestingLeaderElection() {
+        this(false);
+    }
+
+    private TestingLeaderElection(boolean skipLeadershipConsistencyChecks) {
+        this.skipLeadershipConsistencyChecks = skipLeadershipConsistencyChecks;
+    }
+
     @Override
     public synchronized void startLeaderElection(LeaderContender contender) throws Exception {
         Preconditions.checkNotNull(contender);
@@ -66,16 +87,24 @@ public class TestingLeaderElection implements LeaderElection {
 
     @Override
     public synchronized void confirmLeadership(UUID leaderSessionID, String leaderAddress) {
-        if (confirmationFuture != null && !confirmationFuture.isDone()) {
+        if (issuedLeaderSessionId != null
+                && issuedLeaderSessionId.equals(leaderSessionID)
+                && confirmationFuture != null
+                && !confirmationFuture.isDone()) {
             confirmationFuture.complete(LeaderInformation.known(leaderSessionID, leaderAddress));
         }
     }
 
-    @Override
-    public synchronized boolean hasLeadership(UUID leaderSessionId) {
-        return hasLeadership() && leaderSessionId.equals(issuedLeaderSessionId);
+    /**
+     * Returns {@code true} if the passed {@code sessionId} is the active one. The leadership is
+     * acquired even before it's confirmed by the contender. This allows for the contender to
+     * execute leader-specific logic during initialization.
+     */
+    public synchronized boolean hasLeadership(UUID sessionId) {
+        return sessionId.equals(issuedLeaderSessionId);
     }
 
+    @GuardedBy("this")
     private boolean hasLeadership() {
         return issuedLeaderSessionId != null;
     }
@@ -86,13 +115,7 @@ public class TestingLeaderElection implements LeaderElection {
             this.contender.revokeLeadership();
         }
 
-        if (confirmationFuture != null) {
-            // the confirmationFuture is kind of bound to the LeaderContender which response to the
-            // grantLeadership call - resetting the LeaderElection should also inform the contender
-            // of such a state change
-            confirmationFuture.cancel(true);
-            confirmationFuture = null;
-        }
+        cancelAndResetConfirmationFuture();
 
         this.contender = null;
         startFuture.cancel(false);
@@ -108,9 +131,12 @@ public class TestingLeaderElection implements LeaderElection {
      *     being written to the HA backend.
      */
     public synchronized CompletableFuture<LeaderInformation> isLeader(UUID leaderSessionID) {
-        if (confirmationFuture != null) {
-            confirmationFuture.cancel(false);
-        }
+        Preconditions.checkState(
+                skipLeadershipConsistencyChecks || issuedLeaderSessionId == null,
+                "No leadership should have been acquired.");
+        Preconditions.checkState(
+                skipLeadershipConsistencyChecks || confirmationFuture == null,
+                "No leadership should have been confirmed.");
 
         confirmationFuture = new CompletableFuture<>();
         issuedLeaderSessionId = leaderSessionID;
@@ -129,8 +155,22 @@ public class TestingLeaderElection implements LeaderElection {
                 "Leadership should have been acquired before calling this method.");
         issuedLeaderSessionId = null;
 
+        // cancelling the confirmation future simulates that any confirmation would be ignored by
+        // the LeaderElection backend
+        cancelAndResetConfirmationFuture();
+
         if (contender != null) {
             contender.revokeLeadership();
+        }
+    }
+
+    private void cancelAndResetConfirmationFuture() {
+        if (confirmationFuture != null) {
+            // the confirmationFuture is kind of bound to the LeaderContender which response to the
+            // grantLeadership call - resetting the LeaderElection should also inform the contender
+            // of such a state change
+            confirmationFuture.cancel(true);
+            confirmationFuture = null;
         }
     }
 

@@ -182,6 +182,9 @@ class ResourceManagerServiceImplTest {
 
     @Test
     void grantLeadership_withExistingLeader_stopExistLeader() throws Exception {
+        leaderElection = TestingLeaderElection.createWithLeadershipConsistencyChecksDisabled();
+        haService.setResourceManagerLeaderElection(leaderElection);
+
         final UUID leaderSessionId1 = UUID.randomUUID();
         final UUID leaderSessionId2 = UUID.randomUUID();
         final CompletableFuture<UUID> startRmFuture1 = new CompletableFuture<>();
@@ -238,6 +241,7 @@ class ResourceManagerServiceImplTest {
 
         // first time grant leadership
         leaderElection.isLeader(leaderSessionId1).join();
+        leaderElection.notLeader();
 
         // second time grant leadership
         final CompletableFuture<LeaderInformation> confirmedLeaderInformation =

@@ -333,6 +333,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         secondDispatcher.start();
 
         toTerminate.add(secondDispatcher);
+        leaderElection.notLeader();
         leaderElection.isLeader(UUID.randomUUID());
 
         CommonTestUtils.waitUntilCondition(
