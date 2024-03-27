@@ -152,6 +152,48 @@ public class FutureUtils {
     }
 
     /**
+     * Retry the given operation with the given delay in between failures.
+     *
+     * @param operation to retry
+     * @param retryStrategy the RetryStrategy
+     * @param retryPredicate Predicate to test whether an exception is retryable
+     * @param scheduledExecutor executor to be used for the retry operation
+     * @param <T> type of the result
+     * @return Future which retries the given operation a given amount of times and delays the retry
+     *     in case of failures
+     */
+    public static <T> CompletableFuture<T> retryWithDelay(
+            final Supplier<CompletableFuture<T>> operation,
+            final RetryStrategy retryStrategy,
+            final Predicate<Throwable> retryPredicate,
+            final ScheduledExecutor scheduledExecutor) {
+
+        final CompletableFuture<T> resultFuture = new CompletableFuture<>();
+
+        retryOperation(
+                true, resultFuture, operation, retryStrategy, retryPredicate, scheduledExecutor);
+
+        return resultFuture;
+    }
+
+    /**
+     * Retry the given operation with the given delay in between failures.
+     *
+     * @param operation to retry
+     * @param retryStrategy the RetryStrategy
+     * @param scheduledExecutor executor to be used for the retry operation
+     * @param <T> type of the result
+     * @return Future which retries the given operation a given amount of times and delays the retry
+     *     in case of failures
+     */
+    public static <T> CompletableFuture<T> retryWithDelay(
+            final Supplier<CompletableFuture<T>> operation,
+            final RetryStrategy retryStrategy,
+            final ScheduledExecutor scheduledExecutor) {
+        return retryWithDelay(operation, retryStrategy, (throwable) -> true, scheduledExecutor);
+    }
+
+    /**
      * Helper method which retryStrategy the provided operation in case of a failure.
      *
      * @param scheduled whether the retry execution is scheduled
@@ -229,59 +271,6 @@ public class FutureUtils {
 
             resultFuture.whenComplete((t, throwable) -> operationFuture.cancel(false));
         }
-    }
-
-    /**
-     * Retry the given operation with the given delay in between failures.
-     *
-     * @param operation to retry
-     * @param retryStrategy the RetryStrategy
-     * @param retryPredicate Predicate to test whether an exception is retryable
-     * @param scheduledExecutor executor to be used for the retry operation
-     * @param <T> type of the result
-     * @return Future which retries the given operation a given amount of times and delays the retry
-     *     in case of failures
-     */
-    public static <T> CompletableFuture<T> retryWithDelay(
-            final Supplier<CompletableFuture<T>> operation,
-            final RetryStrategy retryStrategy,
-            final Predicate<Throwable> retryPredicate,
-            final ScheduledExecutor scheduledExecutor) {
-
-        final CompletableFuture<T> resultFuture = new CompletableFuture<>();
-
-        retryOperationWithDelay(
-                resultFuture, operation, retryStrategy, retryPredicate, scheduledExecutor);
-
-        return resultFuture;
-    }
-
-    /**
-     * Retry the given operation with the given delay in between failures.
-     *
-     * @param operation to retry
-     * @param retryStrategy the RetryStrategy
-     * @param scheduledExecutor executor to be used for the retry operation
-     * @param <T> type of the result
-     * @return Future which retries the given operation a given amount of times and delays the retry
-     *     in case of failures
-     */
-    public static <T> CompletableFuture<T> retryWithDelay(
-            final Supplier<CompletableFuture<T>> operation,
-            final RetryStrategy retryStrategy,
-            final ScheduledExecutor scheduledExecutor) {
-        return retryWithDelay(operation, retryStrategy, (throwable) -> true, scheduledExecutor);
-    }
-
-    private static <T> void retryOperationWithDelay(
-            final CompletableFuture<T> resultFuture,
-            final Supplier<CompletableFuture<T>> operation,
-            final RetryStrategy retryStrategy,
-            final Predicate<Throwable> retryPredicate,
-            final ScheduledExecutor scheduledExecutor) {
-
-        retryOperation(
-                true, resultFuture, operation, retryStrategy, retryPredicate, scheduledExecutor);
     }
 
     /**
