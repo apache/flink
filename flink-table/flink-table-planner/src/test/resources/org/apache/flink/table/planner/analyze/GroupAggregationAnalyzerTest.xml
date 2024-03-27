@@ -391,7 +391,7 @@ SELECT * FROM r r1, r r2 WHERE r1.a = CAST(r2.b AS BIGINT) AND r2.a > 1]]>
     <Resource name="optimized rel plan with advice">
       <![CDATA[
 Calc(select=[c, a, b, c0, a0, b0])
-+- Join(joinType=[InnerJoin], where=[=(a, b00)], select=[c, a, b, c0, a0, b0, b00], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
++- Join(joinType=[InnerJoin], where=[=(a, b00)], select=[c, a, b, c0, a0, b0, b00], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], miniBatch=[true])
    :- Exchange(distribution=[hash[a]])
    :  +- GlobalGroupAggregate(groupBy=[c], select=[c, SUM(sum$0) AS a, SUM(sum$1) AS b])
    :     +- Exchange(distribution=[hash[c]])
@@ -419,7 +419,7 @@ SELECT * FROM r r1, r r2 WHERE r1.a = CAST(r2.b AS BIGINT) AND r2.a > 1]]>
     <Resource name="optimized rel plan with advice">
       <![CDATA[
 Calc(select=[c, a, b, c0, a0, b0])
-+- Join(joinType=[InnerJoin], where=[=(a, b00)], select=[c, a, b, c0, a0, b0, b00], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
++- Join(joinType=[InnerJoin], where=[=(a, b00)], select=[c, a, b, c0, a0, b0, b00], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], miniBatch=[true])
    :- Exchange(distribution=[hash[a]])
    :  +- GroupAggregate(advice=[1], groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b])
    :     +- Exchange(distribution=[hash[c]])

@@ -470,7 +470,8 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                         tableAgg.getInput(),
                         tableAgg.getGroupSet(),
                         tableAgg.getGroupSets(),
-                        tableAgg.getAggCallList());
+                        tableAgg.getAggCallList(),
+                        Collections.emptyList());
         FlinkLogicalAggregate convertedAgg = visitAggregate(correspondingAgg);
         return new FlinkLogicalTableAggregate(
                 tableAgg.getCluster(),

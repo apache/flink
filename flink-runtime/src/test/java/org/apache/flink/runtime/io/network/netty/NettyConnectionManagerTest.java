@@ -27,23 +27,22 @@ import org.apache.flink.shaded.netty4.io.netty.bootstrap.Bootstrap;
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
 import org.apache.flink.shaded.netty4.io.netty.channel.EventLoopGroup;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
 import java.net.InetAddress;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Simple netty connection manager test. */
-public class NettyConnectionManagerTest {
+class NettyConnectionManagerTest {
 
     /**
      * Tests that the number of arenas and number of threads of the client and server are set to the
      * same number, that is the number of configured task slots.
      */
     @Test
-    public void testMatchingNumberOfArenasAndThreadsAsDefault() throws Exception {
+    void testMatchingNumberOfArenasAndThreadsAsDefault() throws Exception {
         // Expected number of arenas and threads
         int numberOfSlots = 2;
         NettyConnectionManager connectionManager;
@@ -59,10 +58,11 @@ public class NettyConnectionManagerTest {
             connectionManager = createNettyConnectionManager(config);
             connectionManager.start();
         }
-        assertNotNull(
-                "connectionManager is null due to fail to get a free port", connectionManager);
+        assertThat(connectionManager)
+                .withFailMessage("connectionManager is null due to fail to get a free port")
+                .isNotNull();
 
-        assertEquals(numberOfSlots, connectionManager.getBufferPool().getNumberOfArenas());
+        assertThat(connectionManager.getBufferPool().getNumberOfArenas()).isEqualTo(numberOfSlots);
 
         {
             // Client event loop group
@@ -73,7 +73,7 @@ public class NettyConnectionManagerTest {
             f.setAccessible(true);
             Object[] eventExecutors = (Object[]) f.get(group);
 
-            assertEquals(numberOfSlots, eventExecutors.length);
+            assertThat(eventExecutors).hasSize(numberOfSlots);
         }
 
         {
@@ -85,7 +85,7 @@ public class NettyConnectionManagerTest {
             f.setAccessible(true);
             Object[] eventExecutors = (Object[]) f.get(group);
 
-            assertEquals(numberOfSlots, eventExecutors.length);
+            assertThat(eventExecutors).hasSize(numberOfSlots);
         }
 
         {
@@ -97,13 +97,13 @@ public class NettyConnectionManagerTest {
             f.setAccessible(true);
             Object[] eventExecutors = (Object[]) f.get(group);
 
-            assertEquals(numberOfSlots, eventExecutors.length);
+            assertThat(eventExecutors).hasSize(numberOfSlots);
         }
     }
 
     /** Tests that the number of arenas and threads can be configured manually. */
     @Test
-    public void testManualConfiguration() throws Exception {
+    void testManualConfiguration() throws Exception {
         // Expected numbers
         int numberOfArenas = 1;
         int numberOfClientThreads = 3;
@@ -111,9 +111,9 @@ public class NettyConnectionManagerTest {
 
         // Expected number of threads
         Configuration flinkConfig = new Configuration();
-        flinkConfig.setInteger(NettyShuffleEnvironmentOptions.NUM_ARENAS, numberOfArenas);
-        flinkConfig.setInteger(NettyShuffleEnvironmentOptions.NUM_THREADS_CLIENT, 3);
-        flinkConfig.setInteger(NettyShuffleEnvironmentOptions.NUM_THREADS_SERVER, 4);
+        flinkConfig.set(NettyShuffleEnvironmentOptions.NUM_ARENAS, numberOfArenas);
+        flinkConfig.set(NettyShuffleEnvironmentOptions.NUM_THREADS_CLIENT, 3);
+        flinkConfig.set(NettyShuffleEnvironmentOptions.NUM_THREADS_SERVER, 4);
 
         NettyConnectionManager connectionManager;
         {
@@ -123,10 +123,12 @@ public class NettyConnectionManagerTest {
             connectionManager = createNettyConnectionManager(config);
             connectionManager.start();
 
-            assertEquals(numberOfArenas, connectionManager.getBufferPool().getNumberOfArenas());
+            assertThat(connectionManager.getBufferPool().getNumberOfArenas())
+                    .isEqualTo(numberOfArenas);
         }
-        assertNotNull(
-                "connectionManager is null due to fail to get a free port", connectionManager);
+        assertThat(connectionManager)
+                .withFailMessage("connectionManager is null due to fail to get a free port")
+                .isNotNull();
 
         {
             // Client event loop group
@@ -137,7 +139,7 @@ public class NettyConnectionManagerTest {
             f.setAccessible(true);
             Object[] eventExecutors = (Object[]) f.get(group);
 
-            assertEquals(numberOfClientThreads, eventExecutors.length);
+            assertThat(eventExecutors).hasSize(numberOfClientThreads);
         }
 
         {
@@ -149,7 +151,7 @@ public class NettyConnectionManagerTest {
             f.setAccessible(true);
             Object[] eventExecutors = (Object[]) f.get(group);
 
-            assertEquals(numberOfServerThreads, eventExecutors.length);
+            assertThat(eventExecutors).hasSize(numberOfServerThreads);
         }
 
         {
@@ -161,7 +163,7 @@ public class NettyConnectionManagerTest {
             f.setAccessible(true);
             Object[] eventExecutors = (Object[]) f.get(group);
 
-            assertEquals(numberOfServerThreads, eventExecutors.length);
+            assertThat(eventExecutors).hasSize(numberOfServerThreads);
         }
     }
 

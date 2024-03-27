@@ -87,8 +87,7 @@ public class MemoryBackwardsCompatibilityUtils {
         }
 
         if (configuration.contains(legacyMemoryOptions.getHeapMb())) {
-            final long legacyHeapMemoryMB =
-                    configuration.getInteger(legacyMemoryOptions.getHeapMb());
+            final long legacyHeapMemoryMB = configuration.get(legacyMemoryOptions.getHeapMb());
             if (legacyHeapMemoryMB < 0) {
                 throw new IllegalConfigurationException(
                         "Configured total process memory size ("

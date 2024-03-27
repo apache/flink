@@ -24,7 +24,8 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager.SubtaskKey;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
+import org.apache.flink.runtime.state.CheckpointStreamFactory;
 
 import javax.annotation.Nullable;
 
@@ -53,21 +54,60 @@ public class FsMergingCheckpointStorageAccess extends FsCheckpointStorageAccess 
                 fs,
                 checkpointBaseDirectory,
                 defaultSavepointDirectory,
+                false,
                 jobId,
                 fileSizeThreshold,
                 writeBufferSize);
         this.fileMergingSnapshotManager = fileMergingSnapshotManager;
-        this.subtaskKey =
-                new SubtaskKey(
-                        OperatorID.fromJobVertexID(environment.getJobVertexId()),
-                        environment.getTaskInfo());
+        this.subtaskKey = SubtaskKey.of(environment);
     }
 
     @Override
     public void initializeBaseLocationsForCheckpoint() throws IOException {
         super.initializeBaseLocationsForCheckpoint();
         fileMergingSnapshotManager.initFileSystem(
-                fileSystem, checkpointsDirectory, sharedStateDirectory, taskOwnedStateDirectory);
+                fileSystem,
+                checkpointsDirectory,
+                sharedStateDirectory,
+                taskOwnedStateDirectory,
+                writeBufferSize);
         fileMergingSnapshotManager.registerSubtaskForSharedStates(subtaskKey);
+    }
+
+    @Override
+    public CheckpointStreamFactory resolveCheckpointStorageLocation(
+            long checkpointId, CheckpointStorageLocationReference reference) throws IOException {
+        if (reference.isDefaultReference()) {
+            // default reference, construct the default location for that particular checkpoint
+            final Path checkpointDir =
+                    createCheckpointDirectory(checkpointsDirectory, checkpointId);
+
+            return new FsMergingCheckpointStorageLocation(
+                    subtaskKey,
+                    fileSystem,
+                    checkpointDir,
+                    sharedStateDirectory,
+                    taskOwnedStateDirectory,
+                    reference,
+                    fileSizeThreshold,
+                    writeBufferSize,
+                    fileMergingSnapshotManager,
+                    checkpointId);
+        } else {
+            // location encoded in the reference
+            final Path path = decodePathFromReference(reference);
+
+            return new FsMergingCheckpointStorageLocation(
+                    subtaskKey,
+                    path.getFileSystem(),
+                    path,
+                    path,
+                    path,
+                    reference,
+                    fileSizeThreshold,
+                    writeBufferSize,
+                    fileMergingSnapshotManager,
+                    checkpointId);
+        }
     }
 }

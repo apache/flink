@@ -34,6 +34,8 @@ import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributesBuilder;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
@@ -46,21 +48,20 @@ import org.apache.flink.util.Preconditions;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import static junit.framework.TestCase.assertTrue;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.empty;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.HamcrestCondition.matching;
 
 /**
  * Tests for the facilities provided by {@link AbstractStreamOperator}. This mostly tests timers and
@@ -98,7 +99,7 @@ public class AbstractStreamOperatorTest {
     }
 
     @Test
-    public void testStateDoesNotInterfere() throws Exception {
+    void testStateDoesNotInterfere() throws Exception {
         try (KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
                 testHarness = createTestHarness()) {
             testHarness.open();
@@ -109,9 +110,8 @@ public class AbstractStreamOperatorTest {
             testHarness.processElement(new Tuple2<>(1, "EMIT_STATE"), 0);
             testHarness.processElement(new Tuple2<>(0, "EMIT_STATE"), 0);
 
-            assertThat(
-                    extractResult(testHarness),
-                    contains("ON_ELEMENT:1:CIAO", "ON_ELEMENT:0:HELLO"));
+            assertThat(extractResult(testHarness))
+                    .contains("ON_ELEMENT:1:CIAO", "ON_ELEMENT:0:HELLO");
         }
     }
 
@@ -120,7 +120,7 @@ public class AbstractStreamOperatorTest {
      * was set.
      */
     @Test
-    public void testEventTimeTimersDontInterfere() throws Exception {
+    void testEventTimeTimersDontInterfere() throws Exception {
         try (KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
                 testHarness = createTestHarness()) {
             testHarness.open();
@@ -136,11 +136,11 @@ public class AbstractStreamOperatorTest {
 
             testHarness.processWatermark(10L);
 
-            assertThat(extractResult(testHarness), contains("ON_EVENT_TIME:HELLO"));
+            assertThat(extractResult(testHarness)).contains("ON_EVENT_TIME:HELLO");
 
             testHarness.processWatermark(20L);
 
-            assertThat(extractResult(testHarness), contains("ON_EVENT_TIME:CIAO"));
+            assertThat(extractResult(testHarness)).contains("ON_EVENT_TIME:CIAO");
         }
     }
 
@@ -149,7 +149,7 @@ public class AbstractStreamOperatorTest {
      * timer was set.
      */
     @Test
-    public void testProcessingTimeTimersDontInterfere() throws Exception {
+    void testProcessingTimeTimersDontInterfere() throws Exception {
         try (KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
                 testHarness = createTestHarness()) {
             testHarness.open();
@@ -165,17 +165,17 @@ public class AbstractStreamOperatorTest {
 
             testHarness.setProcessingTime(10L);
 
-            assertThat(extractResult(testHarness), contains("ON_PROC_TIME:HELLO"));
+            assertThat(extractResult(testHarness)).contains("ON_PROC_TIME:HELLO");
 
             testHarness.setProcessingTime(20L);
 
-            assertThat(extractResult(testHarness), contains("ON_PROC_TIME:CIAO"));
+            assertThat(extractResult(testHarness)).contains("ON_PROC_TIME:CIAO");
         }
     }
 
     /** Verify that a low-level timer is set for processing-time timers in case of restore. */
     @Test
-    public void testEnsureProcessingTimeTimerRegisteredOnRestore() throws Exception {
+    void testEnsureProcessingTimeTimerRegisteredOnRestore() throws Exception {
         OperatorSubtaskState snapshot;
         try (KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
                 testHarness = createTestHarness()) {
@@ -203,17 +203,17 @@ public class AbstractStreamOperatorTest {
 
             testHarness1.setProcessingTime(10L);
 
-            assertThat(extractResult(testHarness1), contains("ON_PROC_TIME:HELLO"));
+            assertThat(extractResult(testHarness1)).contains("ON_PROC_TIME:HELLO");
 
             testHarness1.setProcessingTime(20L);
 
-            assertThat(extractResult(testHarness1), contains("ON_PROC_TIME:CIAO"));
+            assertThat(extractResult(testHarness1)).contains("ON_PROC_TIME:CIAO");
         }
     }
 
     /** Verify that timers for the different time domains don't clash. */
     @Test
-    public void testProcessingTimeAndEventTimeDontInterfere() throws Exception {
+    void testProcessingTimeAndEventTimeDontInterfere() throws Exception {
         try (KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
                 testHarness = createTestHarness()) {
             testHarness.open();
@@ -228,11 +228,11 @@ public class AbstractStreamOperatorTest {
 
             testHarness.processWatermark(20L);
 
-            assertThat(extractResult(testHarness), contains("ON_EVENT_TIME:HELLO"));
+            assertThat(extractResult(testHarness)).contains("ON_EVENT_TIME:HELLO");
 
             testHarness.setProcessingTime(10L);
 
-            assertThat(extractResult(testHarness), contains("ON_PROC_TIME:HELLO"));
+            assertThat(extractResult(testHarness)).contains("ON_PROC_TIME:HELLO");
         }
     }
 
@@ -241,7 +241,7 @@ public class AbstractStreamOperatorTest {
      * assigned to operator subtasks when restoring.
      */
     @Test
-    public void testStateAndTimerStateShufflingScalingUp() throws Exception {
+    void testStateAndTimerStateShufflingScalingUp() throws Exception {
         final int maxParallelism = 10;
 
         // first get two keys that will fall into different key-group ranges that go
@@ -274,7 +274,7 @@ public class AbstractStreamOperatorTest {
             testHarness.processElement(new Tuple2<>(key1, "SET_STATE:HELLO"), 0);
             testHarness.processElement(new Tuple2<>(key2, "SET_STATE:CIAO"), 0);
 
-            assertTrue(extractResult(testHarness).isEmpty());
+            assertThat(extractResult(testHarness)).isEmpty();
 
             snapshot = testHarness.snapshot(0, 0);
         }
@@ -292,27 +292,27 @@ public class AbstractStreamOperatorTest {
 
             testHarness1.processWatermark(10L);
 
-            assertThat(extractResult(testHarness1), contains("ON_EVENT_TIME:HELLO"));
+            assertThat(extractResult(testHarness1)).contains("ON_EVENT_TIME:HELLO");
 
-            assertTrue(extractResult(testHarness1).isEmpty());
+            assertThat(extractResult(testHarness1)).isEmpty();
 
             // this should not trigger anything, the trigger for WM=20 should sit in the
             // other operator subtask
             testHarness1.processWatermark(20L);
 
-            assertTrue(extractResult(testHarness1).isEmpty());
+            assertThat(extractResult(testHarness1)).isEmpty();
 
             testHarness1.setProcessingTime(10L);
 
-            assertThat(extractResult(testHarness1), contains("ON_PROC_TIME:HELLO"));
+            assertThat(extractResult(testHarness1)).contains("ON_PROC_TIME:HELLO");
 
-            assertTrue(extractResult(testHarness1).isEmpty());
+            assertThat(extractResult(testHarness1)).isEmpty();
 
             // this should not trigger anything, the trigger for TIME=20 should sit in the
             // other operator subtask
             testHarness1.setProcessingTime(20L);
 
-            assertTrue(extractResult(testHarness1).isEmpty());
+            assertThat(extractResult(testHarness1)).isEmpty();
         }
 
         // now, for the second operator
@@ -329,27 +329,27 @@ public class AbstractStreamOperatorTest {
             testHarness2.processWatermark(10L);
 
             // nothing should happen because this timer is in the other subtask
-            assertTrue(extractResult(testHarness2).isEmpty());
+            assertThat(extractResult(testHarness2)).isEmpty();
 
             testHarness2.processWatermark(20L);
 
-            assertThat(extractResult(testHarness2), contains("ON_EVENT_TIME:CIAO"));
+            assertThat(extractResult(testHarness2)).contains("ON_EVENT_TIME:CIAO");
 
             testHarness2.setProcessingTime(10L);
 
             // nothing should happen because this timer is in the other subtask
-            assertTrue(extractResult(testHarness2).isEmpty());
+            assertThat(extractResult(testHarness2)).isEmpty();
 
             testHarness2.setProcessingTime(20L);
 
-            assertThat(extractResult(testHarness2), contains("ON_PROC_TIME:CIAO"));
+            assertThat(extractResult(testHarness2)).contains("ON_PROC_TIME:CIAO");
 
-            assertTrue(extractResult(testHarness2).isEmpty());
+            assertThat(extractResult(testHarness2)).isEmpty();
         }
     }
 
     @Test
-    public void testStateAndTimerStateShufflingScalingDown() throws Exception {
+    void testStateAndTimerStateShufflingScalingDown() throws Exception {
         final int maxParallelism = 10;
 
         // first get two keys that will fall into different key-group ranges that go
@@ -413,25 +413,25 @@ public class AbstractStreamOperatorTest {
             testHarness3.open();
 
             testHarness3.processWatermark(30L);
-            assertThat(extractResult(testHarness3), contains("ON_EVENT_TIME:HELLO"));
-            assertTrue(extractResult(testHarness3).isEmpty());
+            assertThat(extractResult(testHarness3)).contains("ON_EVENT_TIME:HELLO");
+            assertThat(extractResult(testHarness3)).isEmpty();
 
             testHarness3.processWatermark(40L);
-            assertThat(extractResult(testHarness3), contains("ON_EVENT_TIME:CIAO"));
-            assertTrue(extractResult(testHarness3).isEmpty());
+            assertThat(extractResult(testHarness3)).contains("ON_EVENT_TIME:CIAO");
+            assertThat(extractResult(testHarness3)).isEmpty();
 
             testHarness3.setProcessingTime(30L);
-            assertThat(extractResult(testHarness3), contains("ON_PROC_TIME:HELLO"));
-            assertTrue(extractResult(testHarness3).isEmpty());
+            assertThat(extractResult(testHarness3)).contains("ON_PROC_TIME:HELLO");
+            assertThat(extractResult(testHarness3)).isEmpty();
 
             testHarness3.setProcessingTime(40L);
-            assertThat(extractResult(testHarness3), contains("ON_PROC_TIME:CIAO"));
-            assertTrue(extractResult(testHarness3).isEmpty());
+            assertThat(extractResult(testHarness3)).contains("ON_PROC_TIME:CIAO");
+            assertThat(extractResult(testHarness3)).isEmpty();
         }
     }
 
     @Test
-    public void testCustomRawKeyedStateSnapshotAndRestore() throws Exception {
+    void testCustomRawKeyedStateSnapshotAndRestore() throws Exception {
         // setup: 10 key groups, all assigned to single subtask
         final int maxParallelism = 10;
         final int numSubtasks = 1;
@@ -470,13 +470,12 @@ public class AbstractStreamOperatorTest {
             testHarness.open();
         }
 
-        assertThat(
-                testOperator.restoredRawKeyedState,
-                hasRestoredKeyGroupsWith(testSnapshotData, keyGroupsToWrite));
+        assertThat(testOperator.restoredRawKeyedState)
+                .is(matching(hasRestoredKeyGroupsWith(testSnapshotData, keyGroupsToWrite)));
     }
 
     @Test
-    public void testIdleWatermarkHandling() throws Exception {
+    void testIdleWatermarkHandling() throws Exception {
         final WatermarkTestingOperator testOperator = new WatermarkTestingOperator();
 
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -493,7 +492,7 @@ public class AbstractStreamOperatorTest {
             testHarness.processElement1(3L, 3L);
             testHarness.processElement1(4L, 4L);
             testHarness.processWatermark1(new Watermark(1L));
-            assertThat(testHarness.getOutput(), empty());
+            assertThat(testHarness.getOutput()).isEmpty();
 
             testHarness.processWatermarkStatus2(WatermarkStatus.IDLE);
             expectedOutput.add(new StreamRecord<>(1L));
@@ -516,7 +515,7 @@ public class AbstractStreamOperatorTest {
     }
 
     @Test
-    public void testIdlenessForwarding() throws Exception {
+    void testIdlenessForwarding() throws Exception {
         final WatermarkTestingOperator testOperator = new WatermarkTestingOperator();
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
         KeySelector<Long, Integer> dummyKeySelector = l -> 0;
@@ -532,6 +531,62 @@ public class AbstractStreamOperatorTest {
             testHarness.processWatermarkStatus1(WatermarkStatus.IDLE);
             testHarness.processWatermarkStatus2(WatermarkStatus.IDLE);
             expectedOutput.add(WatermarkStatus.IDLE);
+            TestHarnessUtil.assertOutputEquals(
+                    "Output was not correct", expectedOutput, testHarness.getOutput());
+        }
+    }
+
+    @Test
+    void testTwoInputsRecordAttributesForwarding() throws Exception {
+        final WatermarkTestingOperator testOperator = new WatermarkTestingOperator();
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        KeySelector<Long, Integer> dummyKeySelector = l -> 0;
+        try (KeyedTwoInputStreamOperatorTestHarness<Integer, Long, Long, Long> testHarness =
+                new KeyedTwoInputStreamOperatorTestHarness<>(
+                        testOperator,
+                        dummyKeySelector,
+                        dummyKeySelector,
+                        BasicTypeInfo.INT_TYPE_INFO)) {
+            testHarness.setup();
+            testHarness.open();
+
+            final RecordAttributes backlogRecordAttributes =
+                    new RecordAttributesBuilder(Collections.emptyList()).setBacklog(true).build();
+            final RecordAttributes nonBacklogRecordAttributes =
+                    new RecordAttributesBuilder(Collections.emptyList()).setBacklog(false).build();
+
+            testHarness.processRecordAttributes1(backlogRecordAttributes);
+            testHarness.processRecordAttributes2(backlogRecordAttributes);
+            expectedOutput.add(backlogRecordAttributes);
+            expectedOutput.add(backlogRecordAttributes);
+            TestHarnessUtil.assertOutputEquals(
+                    "Output was not correct", expectedOutput, testHarness.getOutput());
+            testHarness.processRecordAttributes1(nonBacklogRecordAttributes);
+            testHarness.processRecordAttributes2(nonBacklogRecordAttributes);
+            expectedOutput.add(backlogRecordAttributes);
+            expectedOutput.add(nonBacklogRecordAttributes);
+            TestHarnessUtil.assertOutputEquals(
+                    "Output was not correct", expectedOutput, testHarness.getOutput());
+        }
+    }
+
+    @Test
+    void testOneInputRecordAttributesForwarding() throws Exception {
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        try (KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
+                testHarness = createTestHarness()) {
+            testHarness.open();
+
+            final RecordAttributes backlogRecordAttributes =
+                    new RecordAttributesBuilder(Collections.emptyList()).setBacklog(true).build();
+            final RecordAttributes nonBacklogRecordAttributes =
+                    new RecordAttributesBuilder(Collections.emptyList()).setBacklog(false).build();
+
+            testHarness.processRecordAttributes(backlogRecordAttributes);
+            testHarness.processRecordAttributes(nonBacklogRecordAttributes);
+            expectedOutput.add(backlogRecordAttributes);
+            expectedOutput.add(nonBacklogRecordAttributes);
+
             TestHarnessUtil.assertOutputEquals(
                     "Output was not correct", expectedOutput, testHarness.getOutput());
         }

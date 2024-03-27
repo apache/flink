@@ -36,7 +36,7 @@ class TableConfig(object):
     This class is a pure API class that abstracts configuration from various sources. Currently,
     configuration can be set in any of the following layers (in the given order):
 
-    - flink-conf.yaml
+    - config.yaml
     - CLI parameters
     - :class:`~pyflink.datastream.StreamExecutionEnvironment` when bridging to DataStream API
     - :func:`~EnvironmentSettings.Builder.with_configuration`
@@ -106,8 +106,8 @@ class TableConfig(object):
         jars_key = jvm.org.apache.flink.configuration.PipelineOptions.JARS.key()
         classpaths_key = jvm.org.apache.flink.configuration.PipelineOptions.CLASSPATHS.key()
         if key in [jars_key, classpaths_key]:
-            add_jars_to_context_class_loader(value.split(";"))
-
+            jar_urls = Configuration.parse_jars_value(value, jvm)
+            add_jars_to_context_class_loader(jar_urls)
         return self
 
     def get_local_timezone(self) -> str:
@@ -280,6 +280,13 @@ class TableConfig(object):
         :param configuration: Key-value configuration to be added.
         """
         self._j_table_config.addConfiguration(configuration._j_configuration)
+
+    def to_map(self) -> dict:
+        """
+        Calls the toMap method of the underlying Java TableConfig to get the configuration map.
+        :return: A Python dictionary containing the configuration key value pairs.
+        """
+        return dict(self._j_table_config.toMap())
 
     def get_sql_dialect(self) -> SqlDialect:
         """

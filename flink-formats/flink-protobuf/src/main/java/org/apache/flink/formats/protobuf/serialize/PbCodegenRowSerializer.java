@@ -130,13 +130,7 @@ public class PbCodegenRowSerializer implements PbCodegenSerializer {
             index += 1;
         }
         if (!splitAppender.code().isEmpty()) {
-            String splitMethod =
-                    formatContext.splitSerializerRowTypeMethod(
-                            flinkRowDataVar,
-                            pbMessageTypeStr + ".Builder",
-                            messageBuilderVar,
-                            splitAppender.code());
-            appender.appendSegment(splitMethod);
+            appender.appendSegment(splitAppender.code());
         }
         appender.appendLine(resultVar + " = " + messageBuilderVar + ".build()");
         return appender.code();

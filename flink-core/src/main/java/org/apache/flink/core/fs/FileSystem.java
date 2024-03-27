@@ -353,8 +353,7 @@ public abstract class FileSystem {
             FALLBACK_FACTORY.configure(config);
 
             // also read the default file system scheme
-            final String stringifiedUri =
-                    config.getString(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, null);
+            final String stringifiedUri = config.get(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, null);
             if (stringifiedUri == null) {
                 defaultScheme = null;
             } else {
@@ -375,7 +374,7 @@ public abstract class FileSystem {
                     Splitter.on(';')
                             .omitEmptyStrings()
                             .trimResults()
-                            .split(config.getString(CoreOptions.ALLOWED_FALLBACK_FILESYSTEMS));
+                            .split(config.get(CoreOptions.ALLOWED_FALLBACK_FILESYSTEMS));
             allowedFallbackFilesystems.forEach(ALLOWED_FALLBACK_FILESYSTEMS::add);
         } finally {
             LOCK.unlock();

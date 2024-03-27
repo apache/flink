@@ -307,7 +307,8 @@ public class JavaApiPostPass implements OptimizerPostPass {
     }
 
     private <T> TypeSerializerFactory<?> createSerializer(TypeInformation<T> typeInfo) {
-        TypeSerializer<T> serializer = typeInfo.createSerializer(executionConfig);
+        TypeSerializer<T> serializer =
+                typeInfo.createSerializer(executionConfig.getSerializerConfig());
 
         return new RuntimeSerializerFactory<T>(serializer, typeInfo.getTypeClass());
     }

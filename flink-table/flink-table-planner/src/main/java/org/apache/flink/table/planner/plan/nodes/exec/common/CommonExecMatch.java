@@ -31,6 +31,7 @@ import org.apache.flink.cep.pattern.Quantifier;
 import org.apache.flink.cep.pattern.conditions.BooleanConditions;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.table.api.TableException;
@@ -146,7 +147,8 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
         final InternalTypeInfo<RowData> inputTypeInfo =
                 (InternalTypeInfo<RowData>) inputTransform.getOutputType();
         final TypeSerializer<RowData> inputSerializer =
-                inputTypeInfo.createSerializer(planner.getExecEnv().getConfig());
+                inputTypeInfo.createSerializer(
+                        planner.getExecEnv().getConfig().getSerializerConfig());
         final NFACompiler.NFAFactory<RowData> nfaFactory =
                 NFACompiler.compileFactory(cepPattern, false);
         final MatchCodeGenerator generator =
@@ -187,6 +189,9 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
                         planner.getFlinkContext().getClassLoader(), partitionKeys, inputTypeInfo);
         transform.setStateKeySelector(selector);
         transform.setStateKeyType(selector.getProducedType());
+
+        // should be chained with the timestamp inserter
+        transform.setChainingStrategy(ChainingStrategy.ALWAYS);
 
         if (inputsContainSingleton()) {
             transform.setParallelism(1);

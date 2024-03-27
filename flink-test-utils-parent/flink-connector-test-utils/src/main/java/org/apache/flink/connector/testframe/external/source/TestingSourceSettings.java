@@ -19,7 +19,7 @@
 package org.apache.flink.connector.testframe.external.source;
 
 import org.apache.flink.api.connector.source.Boundedness;
-import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.core.execution.CheckpointingMode;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 

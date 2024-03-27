@@ -23,6 +23,7 @@ import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.functions.AsyncScalarFunction;
 import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
@@ -49,7 +50,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.types.extraction.ExtractionUtils.extractionError;
+import static org.apache.flink.table.types.extraction.FunctionMappingExtractor.createGenericParameterWithArgumentAndReturnTypeVerification;
 import static org.apache.flink.table.types.extraction.FunctionMappingExtractor.createGenericResultExtraction;
+import static org.apache.flink.table.types.extraction.FunctionMappingExtractor.createGenericResultExtractionFromMethod;
 import static org.apache.flink.table.types.extraction.FunctionMappingExtractor.createParameterAndReturnTypeVerification;
 import static org.apache.flink.table.types.extraction.FunctionMappingExtractor.createParameterSignatureExtraction;
 import static org.apache.flink.table.types.extraction.FunctionMappingExtractor.createParameterVerification;
@@ -82,6 +85,22 @@ public final class TypeInferenceExtractor {
                         null,
                         createReturnTypeResultExtraction(),
                         createParameterAndReturnTypeVerification());
+        return extractTypeInference(mappingExtractor);
+    }
+
+    /** Extracts a type inference from a {@link AsyncScalarFunction}. */
+    public static TypeInference forAsyncScalarFunction(
+            DataTypeFactory typeFactory, Class<? extends AsyncScalarFunction> function) {
+        final FunctionMappingExtractor mappingExtractor =
+                new FunctionMappingExtractor(
+                        typeFactory,
+                        function,
+                        UserDefinedFunctionHelper.ASYNC_SCALAR_EVAL,
+                        createParameterSignatureExtraction(1),
+                        null,
+                        createGenericResultExtractionFromMethod(0, 0, true),
+                        createGenericParameterWithArgumentAndReturnTypeVerification(
+                                function, CompletableFuture.class, 0, 0));
         return extractTypeInference(mappingExtractor);
     }
 
@@ -210,6 +229,7 @@ public final class TypeInferenceExtractor {
         final TypeInference.Builder builder = TypeInference.newBuilder();
 
         configureNamedArguments(builder, outputMapping);
+        configureOptionalArguments(builder, outputMapping);
         configureTypedArguments(builder, outputMapping);
 
         builder.inputTypeStrategy(translateInputTypeStrategy(outputMapping));
@@ -235,18 +255,36 @@ public final class TypeInferenceExtractor {
         if (signatures.stream().anyMatch(s -> s.isVarArgs || s.argumentNames == null)) {
             return;
         }
-        final Set<List<String>> argumentNames =
+        final List<List<String>> argumentNames =
                 signatures.stream()
                         .map(
                                 s -> {
                                     assert s.argumentNames != null;
                                     return Arrays.asList(s.argumentNames);
                                 })
-                        .collect(Collectors.toSet());
+                        .collect(Collectors.toList());
         if (argumentNames.size() != 1) {
             return;
         }
         builder.namedArguments(argumentNames.iterator().next());
+    }
+
+    private static void configureOptionalArguments(
+            TypeInference.Builder builder,
+            Map<FunctionSignatureTemplate, FunctionResultTemplate> outputMapping) {
+        final Set<FunctionSignatureTemplate> signatures = outputMapping.keySet();
+        if (signatures.stream().anyMatch(s -> s.isVarArgs || s.argumentNames == null)) {
+            return;
+        }
+        final List<List<Boolean>> argumentOptional =
+                signatures.stream()
+                        .filter(s -> s.argumentOptionals != null)
+                        .map(s -> Arrays.asList(s.argumentOptionals))
+                        .collect(Collectors.toList());
+        if (argumentOptional.size() != 1 || argumentOptional.size() != signatures.size()) {
+            return;
+        }
+        builder.optionalArguments(argumentOptional.get(0));
     }
 
     private static void configureTypedArguments(
@@ -272,7 +310,8 @@ public final class TypeInferenceExtractor {
                         .collect(
                                 Collectors.toMap(
                                         e -> e.getKey().toInputTypeStrategy(),
-                                        e -> e.getValue().toTypeStrategy()));
+                                        e -> e.getValue().toTypeStrategy(),
+                                        (t1, t2) -> t2));
         return TypeStrategies.mapping(mappings);
     }
 

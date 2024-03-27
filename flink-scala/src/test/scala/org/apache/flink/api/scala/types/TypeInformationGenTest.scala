@@ -18,6 +18,8 @@
 package org.apache.flink.api.scala.types
 
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfig
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.api.common.typeutils.base.IntSerializer
 import org.apache.flink.api.java.io.CollectionInputFormat
@@ -588,7 +590,7 @@ class TypeInformationGenTest {
 
     val traversableTypeInfo = createTraversableTypeInfo[Int]
     val outerTraversableSerializer = traversableTypeInfo
-      .createSerializer(new ExecutionConfig)
+      .createSerializer(new SerializerConfigImpl)
       .asInstanceOf[TraversableSerializer[Seq[Seq[Int]], Seq[Int]]]
 
     // make sure that we still create the correct inner element serializer, despite the generics
@@ -612,7 +614,7 @@ class TypeInformationGenTest {
 
     val traversableTypeInfo = createTypeInformation[Seq[Seq[Int]]]
     val outerTraversableSerializer = traversableTypeInfo
-      .createSerializer(new ExecutionConfig)
+      .createSerializer(new SerializerConfigImpl)
       .asInstanceOf[TraversableSerializer[Seq[Seq[Int]], Seq[Int]]]
 
     val innerTraversableSerializer = outerTraversableSerializer.elementSerializer

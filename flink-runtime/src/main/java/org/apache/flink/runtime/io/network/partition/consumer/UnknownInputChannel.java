@@ -29,6 +29,7 @@ import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -68,7 +69,7 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
             SingleInputGate gate,
             int channelIndex,
             ResultPartitionID partitionId,
-            int consumedSubpartitionIndex,
+            ResultSubpartitionIndexSet consumedSubpartitionIndexSet,
             ResultPartitionManager partitionManager,
             TaskEventPublisher taskEventPublisher,
             ConnectionManager connectionManager,
@@ -82,7 +83,7 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
                 gate,
                 channelIndex,
                 partitionId,
-                consumedSubpartitionIndex,
+                consumedSubpartitionIndexSet,
                 initialBackoff,
                 maxBackoff,
                 null,
@@ -110,8 +111,13 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
     }
 
     @Override
-    public void requestSubpartition() throws IOException {
+    public void requestSubpartitions() throws IOException {
         // Nothing to do here
+    }
+
+    @Override
+    protected int peekNextBufferSubpartitionIdInternal() {
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -167,7 +173,7 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
                 inputGate,
                 getChannelIndex(),
                 partitionId,
-                consumedSubpartitionIndex,
+                consumedSubpartitionIndexSet,
                 checkNotNull(producerAddress),
                 connectionManager,
                 initialBackoff,
@@ -184,7 +190,7 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
                 inputGate,
                 getChannelIndex(),
                 resultPartitionID,
-                consumedSubpartitionIndex,
+                consumedSubpartitionIndexSet,
                 partitionManager,
                 taskEventPublisher,
                 initialBackoff,

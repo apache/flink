@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -70,8 +71,15 @@ public class VoidNamespaceTypeInfo extends TypeInformation<VoidNamespace> {
 
     @Override
     @PublicEvolving
-    public TypeSerializer<VoidNamespace> createSerializer(ExecutionConfig config) {
+    public TypeSerializer<VoidNamespace> createSerializer(SerializerConfig config) {
         return VoidNamespaceSerializer.INSTANCE;
+    }
+
+    @Override
+    @Deprecated
+    @PublicEvolving
+    public TypeSerializer<VoidNamespace> createSerializer(ExecutionConfig config) {
+        return createSerializer(config.getSerializerConfig());
     }
 
     @Override

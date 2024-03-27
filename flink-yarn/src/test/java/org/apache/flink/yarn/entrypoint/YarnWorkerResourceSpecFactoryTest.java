@@ -35,9 +35,9 @@ class YarnWorkerResourceSpecFactoryTest {
     @Test
     void testGetCpuCoresCommonOption() {
         final Configuration configuration = new Configuration();
-        configuration.setDouble(TaskManagerOptions.CPU_CORES, 1.0);
-        configuration.setInteger(YarnConfigOptions.VCORES, 2);
-        configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
+        configuration.set(TaskManagerOptions.CPU_CORES, 1.0);
+        configuration.set(YarnConfigOptions.VCORES, 2);
+        configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, 3);
         assertThat(YarnWorkerResourceSpecFactory.getDefaultCpus(configuration))
                 .isEqualTo(new CPUResource(1.0));
     }
@@ -45,8 +45,8 @@ class YarnWorkerResourceSpecFactoryTest {
     @Test
     void testGetCpuCoresYarnOption() {
         final Configuration configuration = new Configuration();
-        configuration.setInteger(YarnConfigOptions.VCORES, 2);
-        configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
+        configuration.set(YarnConfigOptions.VCORES, 2);
+        configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, 3);
 
         assertThat(YarnWorkerResourceSpecFactory.getDefaultCpus(configuration))
                 .isEqualTo(new CPUResource(2.0));
@@ -55,7 +55,7 @@ class YarnWorkerResourceSpecFactoryTest {
     @Test
     void testGetCpuCoresNumSlots() {
         final Configuration configuration = new Configuration();
-        configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
+        configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, 3);
 
         assertThat(YarnWorkerResourceSpecFactory.getDefaultCpus(configuration))
                 .isEqualTo(new CPUResource(3.0));
@@ -64,7 +64,7 @@ class YarnWorkerResourceSpecFactoryTest {
     @Test
     void testGetCpuRoundUp() {
         final Configuration configuration = new Configuration();
-        configuration.setDouble(TaskManagerOptions.CPU_CORES, 0.5);
+        configuration.set(TaskManagerOptions.CPU_CORES, 0.5);
 
         assertThat(YarnWorkerResourceSpecFactory.getDefaultCpus(configuration))
                 .isEqualTo(new CPUResource(1.0));
@@ -73,7 +73,7 @@ class YarnWorkerResourceSpecFactoryTest {
     @Test
     void testGetCpuExceedMaxInt() {
         final Configuration configuration = new Configuration();
-        configuration.setDouble(TaskManagerOptions.CPU_CORES, Double.MAX_VALUE);
+        configuration.set(TaskManagerOptions.CPU_CORES, Double.MAX_VALUE);
         assertThatThrownBy(() -> YarnWorkerResourceSpecFactory.getDefaultCpus(configuration))
                 .isInstanceOf(IllegalConfigurationException.class);
     }

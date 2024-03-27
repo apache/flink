@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.ProcedureHint;
@@ -68,6 +69,7 @@ final class FunctionTemplate {
                         typeFactory,
                         defaultAsNull(hint, FunctionHint::input),
                         defaultAsNull(hint, FunctionHint::argumentNames),
+                        defaultAsNull(hint, FunctionHint::argument),
                         hint.isVarArgs()),
                 createResultTemplate(typeFactory, defaultAsNull(hint, FunctionHint::accumulator)),
                 createResultTemplate(typeFactory, defaultAsNull(hint, FunctionHint::output)));
@@ -83,6 +85,7 @@ final class FunctionTemplate {
                         typeFactory,
                         defaultAsNull(hint, ProcedureHint::input),
                         defaultAsNull(hint, ProcedureHint::argumentNames),
+                        defaultAsNull(hint, ProcedureHint::argument),
                         hint.isVarArgs()),
                 null,
                 createResultTemplate(typeFactory, defaultAsNull(hint, ProcedureHint::output)));
@@ -145,6 +148,7 @@ final class FunctionTemplate {
 
     @ProcedureHint
     @FunctionHint
+    @ArgumentHint
     private static class DefaultAnnotationHelper {
         // no implementation
     }
@@ -161,6 +165,10 @@ final class FunctionTemplate {
         return defaultAsNull(hint, getDefaultAnnotation(ProcedureHint.class), accessor);
     }
 
+    private static <T> T defaultAsNull(ArgumentHint hint, Function<ArgumentHint, T> accessor) {
+        return defaultAsNull(hint, getDefaultAnnotation(ArgumentHint.class), accessor);
+    }
+
     private static <T, H extends Annotation> T defaultAsNull(
             H hint, H defaultHint, Function<H, T> accessor) {
         final T defaultValue = accessor.apply(defaultHint);
@@ -173,18 +181,60 @@ final class FunctionTemplate {
 
     private static @Nullable FunctionSignatureTemplate createSignatureTemplate(
             DataTypeFactory typeFactory,
-            @Nullable DataTypeHint[] input,
+            @Nullable DataTypeHint[] inputs,
             @Nullable String[] argumentNames,
+            @Nullable ArgumentHint[] argumentHints,
             boolean isVarArg) {
-        if (input == null) {
-            return null;
+
+        String[] argumentHintNames;
+        DataTypeHint[] argumentHintTypes;
+
+        if (argumentHints != null && inputs != null) {
+            throw extractionError(
+                    "Argument and input hints cannot be declared in the same function hint.");
         }
+
+        Boolean[] argumentOptionals = null;
+        if (argumentHints != null) {
+            argumentHintNames = new String[argumentHints.length];
+            argumentHintTypes = new DataTypeHint[argumentHints.length];
+            argumentOptionals = new Boolean[argumentHints.length];
+            boolean allArgumentNameNotSet = true;
+            for (int i = 0; i < argumentHints.length; i++) {
+                ArgumentHint argumentHint = argumentHints[i];
+                argumentHintNames[i] = defaultAsNull(argumentHint, ArgumentHint::name);
+                argumentHintTypes[i] = defaultAsNull(argumentHint, ArgumentHint::type);
+                argumentOptionals[i] = argumentHint.isOptional();
+                if (argumentHintTypes[i] == null) {
+                    throw extractionError("The type of the argument at position %d is not set.", i);
+                }
+                if (argumentHintNames[i] != null) {
+                    allArgumentNameNotSet = false;
+                } else if (!allArgumentNameNotSet) {
+                    throw extractionError(
+                            "The argument name in function hint must be either fully set or not set at all.");
+                }
+            }
+            if (allArgumentNameNotSet) {
+                argumentHintNames = null;
+            }
+        } else {
+            if (inputs == null) {
+                return null;
+            }
+            argumentHintTypes = inputs;
+            argumentHintNames = argumentNames;
+            argumentOptionals = new Boolean[inputs.length];
+            Arrays.fill(argumentOptionals, false);
+        }
+
         return FunctionSignatureTemplate.of(
-                Arrays.stream(input)
+                Arrays.stream(argumentHintTypes)
                         .map(dataTypeHint -> createArgumentTemplate(typeFactory, dataTypeHint))
                         .collect(Collectors.toList()),
                 isVarArg,
-                argumentNames);
+                argumentHintNames,
+                argumentOptionals);
     }
 
     private static FunctionArgumentTemplate createArgumentTemplate(

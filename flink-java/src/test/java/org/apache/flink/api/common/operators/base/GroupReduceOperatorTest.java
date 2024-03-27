@@ -20,6 +20,7 @@ package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
@@ -146,9 +147,10 @@ class GroupReduceOperatorTest implements Serializable {
                                 public void open(OpenContext openContext) throws Exception {
                                     opened.set(true);
                                     RuntimeContext ctx = getRuntimeContext();
-                                    assertThat(ctx.getIndexOfThisSubtask()).isZero();
-                                    assertThat(ctx.getNumberOfParallelSubtasks()).isOne();
-                                    assertThat(ctx.getTaskName()).isEqualTo(taskName);
+                                    assertThat(ctx.getTaskInfo().getIndexOfThisSubtask()).isZero();
+                                    assertThat(ctx.getTaskInfo().getNumberOfParallelSubtasks())
+                                            .isOne();
+                                    assertThat(ctx.getTaskInfo().getTaskName()).isEqualTo(taskName);
                                 }
 
                                 @Override
@@ -177,7 +179,7 @@ class GroupReduceOperatorTest implements Serializable {
                                     new Tuple2<>("bar", 2),
                                     new Tuple2<>("bar", 4)));
 
-            final TaskInfo taskInfo = new TaskInfo(taskName, 1, 0, 1, 0);
+            final TaskInfo taskInfo = new TaskInfoImpl(taskName, 1, 0, 1, 0);
 
             ExecutionConfig executionConfig = new ExecutionConfig();
             executionConfig.disableObjectReuse();

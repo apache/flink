@@ -523,7 +523,7 @@ We recommend setting all configuration options in DataStream API early before sw
 {{< tab "Java" >}}
 ```java
 import java.time.ZoneId;
-import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.core.execution.CheckpointingMode.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
@@ -537,7 +537,7 @@ env.setMaxParallelism(256);
 
 env.getConfig().addDefaultKryoSerializer(MyCustomType.class, CustomKryoSerializer.class);
 
-env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+env.getCheckpointConfig().setCheckpointingConsistencyMode(CheckpointingMode.EXACTLY_ONCE);
 
 // then switch to Java Table API
 
@@ -553,9 +553,9 @@ tableEnv.getConfig().setLocalTimeZone(ZoneId.of("Europe/Berlin"));
 {{< tab "Scala" >}}
 ```scala
 import java.time.ZoneId
+import org.apache.flink.core.execution.CheckpointingMode
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.streaming.api.CheckpointingMode
 import org.apache.flink.table.api.bridge.scala._
 
 // create Scala DataStream API
@@ -568,7 +568,7 @@ env.setMaxParallelism(256)
 
 env.getConfig.addDefaultKryoSerializer(classOf[MyCustomType], classOf[CustomKryoSerializer])
 
-env.getCheckpointConfig.setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE)
+env.getCheckpointConfig.setCheckpointingConsistencyMode(CheckpointingMode.EXACTLY_ONCE)
 
 // then switch to Scala Table API
 

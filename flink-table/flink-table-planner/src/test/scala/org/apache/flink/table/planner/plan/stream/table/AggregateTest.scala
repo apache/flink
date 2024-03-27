@@ -123,7 +123,7 @@ class AggregateTest extends TableTestBase {
 
     val resultTable = table
       .groupBy('b)
-      .select('b, 'a.cast(BasicTypeInfo.DOUBLE_TYPE_INFO).avg)
+      .select('b, 'a.cast(DataTypes.DOUBLE()).avg)
 
     util.verifyExecPlan(resultTable)
   }

@@ -23,7 +23,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
-import org.apache.flink.util.TernaryBoolean;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -84,13 +83,13 @@ public class RocksDBStateBackendFactoryTest {
         // to guard against config-breaking changes of the name
         final Configuration config1 = new Configuration();
         config1.setString(backendKey, "rocksdb");
-        config1.setString(RocksDBOptions.LOCAL_DIRECTORIES, localDirs);
-        config1.setBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, incremental);
+        config1.set(RocksDBOptions.LOCAL_DIRECTORIES, localDirs);
+        config1.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, incremental);
 
         final Configuration config2 = new Configuration();
         config2.setString(backendKey, EmbeddedRocksDBStateBackendFactory.class.getName());
-        config2.setString(RocksDBOptions.LOCAL_DIRECTORIES, localDirs);
-        config2.setBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, incremental);
+        config2.set(RocksDBOptions.LOCAL_DIRECTORIES, localDirs);
+        config2.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, incremental);
 
         StateBackend backend1 = StateBackendLoader.loadStateBackendFromConfig(config1, cl, null);
         StateBackend backend2 = StateBackendLoader.loadStateBackendFromConfig(config2, cl, null);
@@ -126,16 +125,16 @@ public class RocksDBStateBackendFactoryTest {
 
         final Configuration config = new Configuration();
         config.setString(backendKey, "hashmap"); // this should not be picked up
-        config.setBoolean(
+        config.set(
                 CheckpointingOptions.INCREMENTAL_CHECKPOINTS,
                 !incremental); // this should not be picked up
-        config.setString(
+        config.set(
                 RocksDBOptions.LOCAL_DIRECTORIES,
                 localDir3 + ":" + localDir4); // this should not be picked up
 
         final StateBackend loadedBackend =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                        backend, TernaryBoolean.UNDEFINED, config, cl, null);
+                        backend, new Configuration(), config, cl, null);
         assertTrue(loadedBackend instanceof EmbeddedRocksDBStateBackend);
 
         final EmbeddedRocksDBStateBackend loadedRocks = (EmbeddedRocksDBStateBackend) loadedBackend;

@@ -21,7 +21,7 @@ import org.apache.flink.api.common.state.CheckpointListener
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.connector.file.table.FileSystemConnectorOptions._
-import org.apache.flink.streaming.api.CheckpointingMode
+import org.apache.flink.core.execution.CheckpointingMode
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.api.watermark.Watermark
@@ -72,7 +72,7 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
 
     env.setParallelism(1)
     env.enableCheckpointing(100)
-    env.getCheckpointConfig.setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE)
+    env.getCheckpointConfig.setCheckpointingConsistencyMode(CheckpointingMode.EXACTLY_ONCE)
   }
 
   def additionalProperties(): Array[String] = Array()

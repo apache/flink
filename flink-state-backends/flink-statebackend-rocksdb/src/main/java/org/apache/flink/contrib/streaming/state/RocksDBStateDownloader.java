@@ -27,8 +27,6 @@ import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.ThrowingRunnable;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Streams;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
@@ -41,6 +39,7 @@ import java.util.stream.Stream;
 
 /** Help class for downloading RocksDB state files. */
 public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
+
     public RocksDBStateDownloader(int restoringThreadNum) {
         super(restoringThreadNum);
     }
@@ -95,7 +94,7 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
                 .flatMap(
                         downloadRequest ->
                                 // Take all files from shared and private state.
-                                Streams.concat(
+                                Stream.concat(
                                                 downloadRequest.getStateHandle().getSharedState()
                                                         .stream(),
                                                 downloadRequest.getStateHandle().getPrivateState()

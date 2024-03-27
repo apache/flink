@@ -24,7 +24,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -32,7 +32,6 @@ import org.apache.flink.runtime.operators.util.CorruptConfigurationException;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.util.config.memory.ManagedMemoryUtils;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
@@ -249,7 +248,7 @@ public class StreamConfig implements Serializable {
                         "%s should be in range [0.0, 1.0], but was: %s",
                         configOption.key(), fraction));
 
-        config.setDouble(configOption, fraction);
+        config.set(configOption, fraction);
     }
 
     /**
@@ -258,12 +257,14 @@ public class StreamConfig implements Serializable {
      */
     public double getManagedMemoryFractionOperatorUseCaseOfSlot(
             ManagedMemoryUseCase managedMemoryUseCase,
+            Configuration jobConfig,
             Configuration taskManagerConfig,
             ClassLoader cl) {
         return ManagedMemoryUtils.convertToFractionOfSlot(
                 managedMemoryUseCase,
-                config.getDouble(getManagedMemoryFractionConfigOption(managedMemoryUseCase)),
+                config.get(getManagedMemoryFractionConfigOption(managedMemoryUseCase)),
                 getAllManagedMemoryUseCases(),
+                jobConfig,
                 taskManagerConfig,
                 config.getOptional(STATE_BACKEND_USE_MANAGED_MEMORY),
                 cl);
@@ -525,11 +526,11 @@ public class StreamConfig implements Serializable {
     }
 
     public void setUnalignedCheckpointsEnabled(boolean enabled) {
-        config.setBoolean(ExecutionCheckpointingOptions.ENABLE_UNALIGNED, enabled);
+        config.set(ExecutionCheckpointingOptions.ENABLE_UNALIGNED, enabled);
     }
 
     public boolean isUnalignedCheckpointsEnabled() {
-        return config.getBoolean(ExecutionCheckpointingOptions.ENABLE_UNALIGNED, false);
+        return config.get(ExecutionCheckpointingOptions.ENABLE_UNALIGNED, false);
     }
 
     public boolean isExactlyOnceCheckpointMode() {
@@ -546,12 +547,12 @@ public class StreamConfig implements Serializable {
     }
 
     public void setMaxConcurrentCheckpoints(int maxConcurrentCheckpoints) {
-        config.setInteger(
+        config.set(
                 ExecutionCheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS, maxConcurrentCheckpoints);
     }
 
     public int getMaxConcurrentCheckpoints() {
-        return config.getInteger(
+        return config.get(
                 ExecutionCheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS,
                 ExecutionCheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS.defaultValue());
     }
@@ -655,7 +656,7 @@ public class StreamConfig implements Serializable {
 
     @VisibleForTesting
     public void setStateBackendUsesManagedMemory(boolean usesManagedMemory) {
-        this.config.setBoolean(STATE_BACKEND_USE_MANAGED_MEMORY, usesManagedMemory);
+        this.config.set(STATE_BACKEND_USE_MANAGED_MEMORY, usesManagedMemory);
     }
 
     public StateBackend getStateBackend(ClassLoader cl) {
@@ -673,20 +674,6 @@ public class StreamConfig implements Serializable {
         } catch (Exception e) {
             throw new StreamTaskException(
                     "Could not instantiate change log state backend enable flag.", e);
-        }
-    }
-
-    public void setSavepointDir(Path directory) {
-        if (directory != null) {
-            toBeSerializedConfigObjects.put(SAVEPOINT_DIR, directory);
-        }
-    }
-
-    public Path getSavepointDir(ClassLoader cl) {
-        try {
-            return InstantiationUtil.readObjectFromConfig(this.config, SAVEPOINT_DIR, cl);
-        } catch (Exception e) {
-            throw new StreamTaskException("Could not instantiate savepoint directory.", e);
         }
     }
 

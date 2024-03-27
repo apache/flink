@@ -285,7 +285,7 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
 
         // try loading a potential yarn properties file
         this.yarnPropertiesFileLocation =
-                configuration.getString(YarnConfigOptions.PROPERTIES_FILE_LOCATION);
+                configuration.get(YarnConfigOptions.PROPERTIES_FILE_LOCATION);
         final File yarnPropertiesLocation = getYarnPropertiesLocation(yarnPropertiesFileLocation);
 
         yarnPropertiesFile = new Properties();
@@ -401,16 +401,14 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
                 zooKeeperNamespace = commandLine.getOptionValue(zookeeperNamespace.getOpt());
             } else {
                 zooKeeperNamespace =
-                        effectiveConfiguration.getString(HA_CLUSTER_ID, applicationId.toString());
+                        effectiveConfiguration.get(HA_CLUSTER_ID, applicationId.toString());
             }
 
-            effectiveConfiguration.setString(HA_CLUSTER_ID, zooKeeperNamespace);
-            effectiveConfiguration.setString(
-                    YarnConfigOptions.APPLICATION_ID, applicationId.toString());
-            effectiveConfiguration.setString(
-                    DeploymentOptions.TARGET, YarnSessionClusterExecutor.NAME);
+            effectiveConfiguration.set(HA_CLUSTER_ID, zooKeeperNamespace);
+            effectiveConfiguration.set(YarnConfigOptions.APPLICATION_ID, applicationId.toString());
+            effectiveConfiguration.set(DeploymentOptions.TARGET, YarnSessionClusterExecutor.NAME);
         } else {
-            effectiveConfiguration.setString(DeploymentOptions.TARGET, YarnJobClusterExecutor.NAME);
+            effectiveConfiguration.set(DeploymentOptions.TARGET, YarnJobClusterExecutor.NAME);
         }
 
         if (commandLine.hasOption(jmMemory.getOpt())) {
@@ -432,7 +430,7 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
         }
 
         if (commandLine.hasOption(slots.getOpt())) {
-            effectiveConfiguration.setInteger(
+            effectiveConfiguration.set(
                     TaskManagerOptions.NUM_TASK_SLOTS,
                     Integer.parseInt(commandLine.getOptionValue(slots.getOpt())));
         }
@@ -471,44 +469,44 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
 
         final Path localJarPath = getLocalFlinkDistPathFromCmd(commandLine);
         if (localJarPath != null) {
-            configuration.setString(YarnConfigOptions.FLINK_DIST_JAR, localJarPath.toString());
+            configuration.set(YarnConfigOptions.FLINK_DIST_JAR, localJarPath.toString());
         }
 
         encodeFilesToShipToCluster(configuration, commandLine);
 
         if (commandLine.hasOption(queue.getOpt())) {
             final String queueName = commandLine.getOptionValue(queue.getOpt());
-            configuration.setString(YarnConfigOptions.APPLICATION_QUEUE, queueName);
+            configuration.set(YarnConfigOptions.APPLICATION_QUEUE, queueName);
         }
 
         final boolean detached =
                 commandLine.hasOption(YARN_DETACHED_OPTION.getOpt())
                         || commandLine.hasOption(DETACHED_OPTION.getOpt());
-        configuration.setBoolean(DeploymentOptions.ATTACHED, !detached);
+        configuration.set(DeploymentOptions.ATTACHED, !detached);
 
         if (commandLine.hasOption(name.getOpt())) {
             final String appName = commandLine.getOptionValue(name.getOpt());
-            configuration.setString(YarnConfigOptions.APPLICATION_NAME, appName);
+            configuration.set(YarnConfigOptions.APPLICATION_NAME, appName);
         }
 
         if (commandLine.hasOption(applicationType.getOpt())) {
             final String appType = commandLine.getOptionValue(applicationType.getOpt());
-            configuration.setString(YarnConfigOptions.APPLICATION_TYPE, appType);
+            configuration.set(YarnConfigOptions.APPLICATION_TYPE, appType);
         }
 
         if (commandLine.hasOption(zookeeperNamespace.getOpt())) {
             String zookeeperNamespaceValue =
                     commandLine.getOptionValue(zookeeperNamespace.getOpt());
-            configuration.setString(HA_CLUSTER_ID, zookeeperNamespaceValue);
+            configuration.set(HA_CLUSTER_ID, zookeeperNamespaceValue);
         } else if (commandLine.hasOption(zookeeperNamespaceOption.getOpt())) {
             String zookeeperNamespaceValue =
                     commandLine.getOptionValue(zookeeperNamespaceOption.getOpt());
-            configuration.setString(HA_CLUSTER_ID, zookeeperNamespaceValue);
+            configuration.set(HA_CLUSTER_ID, zookeeperNamespaceValue);
         }
 
         if (commandLine.hasOption(nodeLabel.getOpt())) {
             final String nodeLabelValue = commandLine.getOptionValue(this.nodeLabel.getOpt());
-            configuration.setString(YarnConfigOptions.NODE_LABEL, nodeLabelValue);
+            configuration.set(YarnConfigOptions.NODE_LABEL, nodeLabelValue);
         }
 
         configuration.set(DeploymentOptionsInternal.CONF_DIR, configurationDirectory);
@@ -542,7 +540,7 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
 
         String applicationId = yarnPropertiesFile.getProperty(YARN_APPLICATION_ID_KEY);
         if (applicationId != null) {
-            effectiveConfiguration.setString(YarnConfigOptions.APPLICATION_ID, applicationId);
+            effectiveConfiguration.set(YarnConfigOptions.APPLICATION_ID, applicationId);
         }
 
         // handle the YARN client's dynamic properties
@@ -633,7 +631,7 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
                     }
                 }
 
-                if (!effectiveConfiguration.getBoolean(DeploymentOptions.ATTACHED)) {
+                if (!effectiveConfiguration.get(DeploymentOptions.ATTACHED)) {
                     YarnClusterDescriptor.logDetachedClusterInformation(yarnApplicationId, LOG);
                 } else {
                     ScheduledExecutorService scheduledExecutorService =

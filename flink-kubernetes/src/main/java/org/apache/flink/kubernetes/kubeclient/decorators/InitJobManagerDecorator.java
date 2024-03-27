@@ -91,6 +91,16 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
                 .withDnsPolicy(dnsPolicy)
                 .endSpec();
 
+        // Specify volume for user artifact(s)
+        basicPodBuilder
+                .editOrNewSpec()
+                .addNewVolume()
+                .withName(Constants.USER_ARTIFACTS_VOLUME)
+                .withNewEmptyDir()
+                .endEmptyDir()
+                .endVolume()
+                .endSpec();
+
         // Merge fields
         basicPodBuilder
                 .editOrNewMetadata()
@@ -150,6 +160,13 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
                 .withImagePullPolicy(imagePullPolicy)
                 .withResources(requirements);
 
+        // Mount volume for user artifact(s)
+        mainContainerBuilder
+                .addNewVolumeMount()
+                .withName(Constants.USER_ARTIFACTS_VOLUME)
+                .withMountPath(kubernetesJobManagerParameters.getUserArtifactsBaseDir())
+                .endVolumeMount();
+
         // Merge fields
         mainContainerBuilder
                 .addAllToPorts(getContainerPorts())
@@ -161,6 +178,7 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
                                 .withNewFieldRef(API_VERSION, POD_IP_FIELD_PATH)
                                 .build())
                 .endEnv();
+
         getFlinkLogDirEnv().ifPresent(mainContainerBuilder::addToEnv);
         return mainContainerBuilder.build();
     }

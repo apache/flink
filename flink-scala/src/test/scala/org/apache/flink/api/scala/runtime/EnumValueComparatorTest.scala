@@ -18,6 +18,7 @@
 package org.apache.flink.api.scala.runtime
 
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeutils.{ComparatorTestBase, TypeComparator, TypeSerializer}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.EnumValueTypeInfo
@@ -31,7 +32,7 @@ class EnumValueComparatorTest extends ComparatorTestBase[Suit.Value] {
 
   protected def createSerializer: TypeSerializer[Suit.Value] = {
     val ti = createTypeInformation[Suit.Value]
-    ti.createSerializer(new ExecutionConfig)
+    ti.createSerializer(new SerializerConfigImpl)
   }
 
   protected def getSortedTestData: Array[Suit.Value] = {

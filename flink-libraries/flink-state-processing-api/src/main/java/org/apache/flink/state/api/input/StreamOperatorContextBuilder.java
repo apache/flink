@@ -19,9 +19,11 @@
 package org.apache.flink.state.api.input;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.execution.Environment;
@@ -35,7 +37,6 @@ import org.apache.flink.streaming.api.operators.StreamOperatorStateContext;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
 import org.apache.flink.util.DynamicCodeLoadingException;
-import org.apache.flink.util.TernaryBoolean;
 
 import org.slf4j.Logger;
 
@@ -48,6 +49,8 @@ import java.io.IOException;
 class StreamOperatorContextBuilder {
 
     private final RuntimeContext ctx;
+
+    private final ExecutionConfig executionConfig;
 
     private final Configuration configuration;
 
@@ -71,14 +74,16 @@ class StreamOperatorContextBuilder {
             OperatorState operatorState,
             PrioritizedOperatorSubtaskStateInputSplit split,
             CloseableRegistry registry,
-            @Nullable StateBackend applicationStateBackend) {
+            @Nullable StateBackend applicationStateBackend,
+            ExecutionConfig executionConfig) {
         this.ctx = ctx;
-        this.maxParallelism = ctx.getMaxNumberOfParallelSubtasks();
+        this.maxParallelism = ctx.getTaskInfo().getMaxNumberOfParallelSubtasks();
         this.configuration = configuration;
         this.operatorState = operatorState;
         this.split = split;
         this.registry = registry;
         this.applicationStateBackend = applicationStateBackend;
+        this.executionConfig = executionConfig;
     }
 
     StreamOperatorContextBuilder withMaxParallelism(int maxParallelism) {
@@ -94,7 +99,7 @@ class StreamOperatorContextBuilder {
 
     StreamOperatorStateContext build(Logger logger) throws IOException {
         final Environment environment =
-                new SavepointEnvironment.Builder(ctx, maxParallelism)
+                new SavepointEnvironment.Builder(ctx, executionConfig, maxParallelism)
                         .setConfiguration(configuration)
                         .setSubtaskIndex(split.getSplitNumber())
                         .setPrioritizedOperatorSubtaskState(
@@ -103,11 +108,14 @@ class StreamOperatorContextBuilder {
 
         StateBackend stateBackend;
         try {
+            Configuration jobConfig = environment.getJobConfiguration();
+            jobConfig.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, false);
+            Configuration clusterConfig = new Configuration(configuration);
             stateBackend =
                     StateBackendLoader.fromApplicationOrConfigOrDefault(
                             applicationStateBackend,
-                            TernaryBoolean.FALSE,
-                            configuration,
+                            jobConfig,
+                            clusterConfig,
                             ctx.getUserCodeClassLoader(),
                             logger);
         } catch (DynamicCodeLoadingException e) {

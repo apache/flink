@@ -19,14 +19,9 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.execution.SavepointFormatType;
-import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractManagedMemoryStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -34,13 +29,9 @@ import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
-import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
-import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
-import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.TernaryBoolean;
 
 import org.slf4j.Logger;
@@ -52,7 +43,6 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
-import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -71,8 +61,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * 		env.getCheckpointConfig().setCheckpointStorage("hdfs://checkpoints");
  * }</pre>
  *
- * <p>If you are configuring your state backend via the {@code flink-conf.yaml} no changes are
- * required.
+ * <p>If you are configuring your state backend via the {@code config.yaml} no changes are required.
  *
  * <p>A State Backend that stores its state in {@code RocksDB}. This state backend can store very
  * large state that exceeds memory and spills to disk.
@@ -314,71 +303,14 @@ public class RocksDBStateBackend extends AbstractManagedMemoryStateBackend
 
     @Override
     public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-            Environment env,
-            JobID jobID,
-            String operatorIdentifier,
-            TypeSerializer<K> keySerializer,
-            int numberOfKeyGroups,
-            KeyGroupRange keyGroupRange,
-            TaskKvStateRegistry kvStateRegistry,
-            TtlTimeProvider ttlTimeProvider,
-            MetricGroup metricGroup,
-            @Nonnull Collection<KeyedStateHandle> stateHandles,
-            CloseableRegistry cancelStreamRegistry)
-            throws IOException {
-        return rocksDBStateBackend.createKeyedStateBackend(
-                env,
-                jobID,
-                operatorIdentifier,
-                keySerializer,
-                numberOfKeyGroups,
-                keyGroupRange,
-                kvStateRegistry,
-                ttlTimeProvider,
-                metricGroup,
-                stateHandles,
-                cancelStreamRegistry);
-    }
-
-    @Override
-    public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-            Environment env,
-            JobID jobID,
-            String operatorIdentifier,
-            TypeSerializer<K> keySerializer,
-            int numberOfKeyGroups,
-            KeyGroupRange keyGroupRange,
-            TaskKvStateRegistry kvStateRegistry,
-            TtlTimeProvider ttlTimeProvider,
-            MetricGroup metricGroup,
-            @Nonnull Collection<KeyedStateHandle> stateHandles,
-            CloseableRegistry cancelStreamRegistry,
-            double managedMemoryFraction)
-            throws IOException {
-        return rocksDBStateBackend.createKeyedStateBackend(
-                env,
-                jobID,
-                operatorIdentifier,
-                keySerializer,
-                numberOfKeyGroups,
-                keyGroupRange,
-                kvStateRegistry,
-                ttlTimeProvider,
-                metricGroup,
-                stateHandles,
-                cancelStreamRegistry,
-                managedMemoryFraction);
+            KeyedStateBackendParameters<K> parameters) throws IOException {
+        return rocksDBStateBackend.createKeyedStateBackend(parameters);
     }
 
     @Override
     public OperatorStateBackend createOperatorStateBackend(
-            Environment env,
-            String operatorIdentifier,
-            @Nonnull Collection<OperatorStateHandle> stateHandles,
-            CloseableRegistry cancelStreamRegistry)
-            throws Exception {
-        return rocksDBStateBackend.createOperatorStateBackend(
-                env, operatorIdentifier, stateHandles, cancelStreamRegistry);
+            OperatorStateBackendParameters parameters) throws Exception {
+        return rocksDBStateBackend.createOperatorStateBackend(parameters);
     }
 
     // ------------------------------------------------------------------------
@@ -466,7 +398,7 @@ public class RocksDBStateBackend extends AbstractManagedMemoryStateBackend
      * Sets the predefined options for RocksDB.
      *
      * <p>If user-configured options within {@link RocksDBConfigurableOptions} is set (through
-     * flink-conf.yaml) or a user-defined options factory is set (via {@link
+     * config.yaml) or a user-defined options factory is set (via {@link
      * #setRocksDBOptions(RocksDBOptionsFactory)}), then the options from the factory are applied on
      * top of the here specified predefined options and customized options.
      *
@@ -482,7 +414,7 @@ public class RocksDBStateBackend extends AbstractManagedMemoryStateBackend
      * PredefinedOptions#DEFAULT}.
      *
      * <p>If user-configured options within {@link RocksDBConfigurableOptions} is set (through
-     * flink-conf.yaml) of a user-defined options factory is set (via {@link
+     * config.yaml) of a user-defined options factory is set (via {@link
      * #setRocksDBOptions(RocksDBOptionsFactory)}), then the options from the factory are applied on
      * top of the predefined and customized options.
      *

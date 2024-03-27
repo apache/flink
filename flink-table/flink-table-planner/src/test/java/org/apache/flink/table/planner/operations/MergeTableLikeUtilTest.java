@@ -32,6 +32,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.planner.utils.PlannerMocks;
@@ -57,6 +58,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -750,6 +752,65 @@ class MergeTableLikeUtilTest {
                         .build();
 
         assertThat(mergedSchema).isEqualTo(expectedSchema);
+    }
+
+    @Test
+    void mergeDistributionFromBaseTable() {
+        Optional<TableDistribution> sourceDistribution =
+                Optional.of(TableDistribution.ofHash(Collections.singletonList("a"), 3));
+        Optional<TableDistribution> mergePartitions =
+                util.mergeDistribution(
+                        getDefaultMergingStrategies().get(FeatureOption.DISTRIBUTION),
+                        sourceDistribution,
+                        Optional.empty());
+
+        assertThat(mergePartitions).isEqualTo(sourceDistribution);
+    }
+
+    @Test
+    void mergeDistributionFromDerivedTable() {
+        Optional<TableDistribution> derivedDistribution =
+                Optional.of(TableDistribution.ofHash(Collections.singletonList("a"), 3));
+        Optional<TableDistribution> mergePartitions =
+                util.mergeDistribution(
+                        getDefaultMergingStrategies().get(FeatureOption.DISTRIBUTION),
+                        Optional.empty(),
+                        derivedDistribution);
+
+        assertThat(mergePartitions).isEqualTo(derivedDistribution);
+    }
+
+    @Test
+    void mergeIncludingDistributionFailsOnDuplicate() {
+        Optional<TableDistribution> sourceDistribution =
+                Optional.of(TableDistribution.ofHash(Collections.singletonList("a"), 3));
+        Optional<TableDistribution> derivedDistribution =
+                Optional.of(TableDistribution.ofHash(Collections.singletonList("b"), 3));
+
+        assertThatThrownBy(
+                        () ->
+                                util.mergeDistribution(
+                                        MergingStrategy.INCLUDING,
+                                        sourceDistribution,
+                                        derivedDistribution))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "The base table already has a distribution defined. You might want "
+                                + "to specify EXCLUDING DISTRIBUTION.");
+    }
+
+    @Test
+    void mergeExcludingDistributionOnDuplicate() {
+        Optional<TableDistribution> sourceDistribution =
+                Optional.of(TableDistribution.ofHash(Collections.singletonList("a"), 3));
+        Optional<TableDistribution> derivedDistribution =
+                Optional.of(TableDistribution.ofHash(Collections.singletonList("b"), 3));
+
+        Optional<TableDistribution> mergedPartitions =
+                util.mergeDistribution(
+                        MergingStrategy.EXCLUDING, sourceDistribution, derivedDistribution);
+
+        assertThat(mergedPartitions).isEqualTo(derivedDistribution);
     }
 
     @Test

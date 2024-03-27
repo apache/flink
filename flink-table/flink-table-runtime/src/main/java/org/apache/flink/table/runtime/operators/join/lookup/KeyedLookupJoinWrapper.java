@@ -129,40 +129,55 @@ public class KeyedLookupJoinWrapper extends KeyedProcessFunction<RowData, RowDat
 
         // do lookup for acc msg
         if (RowDataUtil.isAccumulateMsg(in)) {
-            // clear local state first
-            deleteState();
+            if (lookupJoinRunner.preFilter(in)) {
+                // clear local state first
+                deleteState();
 
-            // fetcher has copied the input field when object reuse is enabled
-            lookupJoinRunner.doFetch(in);
+                // fetcher has copied the input field when object reuse is enabled
+                lookupJoinRunner.doFetch(in);
 
-            // update state with empty row if lookup miss or pre-filtered
-            if (!collectListener.collected) {
-                updateState(emptyRow);
+                // update state with empty row if join condition unsatisfied
+                if (!collectListener.collected) {
+                    updateState(emptyRow);
+                }
             }
-
             lookupJoinRunner.padNullForLeftJoin(in, out);
         } else {
-            // do state access for non-acc msg
-            if (lookupKeyContainsPrimaryKey) {
-                RowData rightRow = uniqueState.value();
-                // should distinguish null from empty(lookup miss)
-                if (null == rightRow) {
-                    stateStaledErrorHandle(in, out);
+            boolean collected = false;
+            if (lookupJoinRunner.preFilter(in)) {
+                // do state access for non-acc msg
+                if (lookupKeyContainsPrimaryKey) {
+                    RowData rightRow = uniqueState.value();
+                    // should distinguish null from empty(join condition unsatisfied)
+                    if (null == rightRow) {
+                        stateStaledErrorHandle();
+                    } else if (!emptyRow.equals(rightRow)) {
+                        collectDeleteRow(in, rightRow, out);
+                        collected = true;
+                    }
                 } else {
-                    collectDeleteRow(in, rightRow, out);
-                }
-            } else {
-                List<RowData> rightRows = state.value();
-                if (null == rightRows) {
-                    stateStaledErrorHandle(in, out);
-                } else {
-                    for (RowData row : rightRows) {
-                        collectDeleteRow(in, row, out);
+                    List<RowData> rightRows = state.value();
+                    if (null == rightRows) {
+                        stateStaledErrorHandle();
+                    } else {
+                        for (RowData row : rightRows) {
+                            if (!emptyRow.equals(row)) {
+                                collectDeleteRow(in, row, out);
+                                collected = true;
+                            }
+                        }
                     }
                 }
+                // clear state at last
+                deleteState();
             }
-            // clear state at last
-            deleteState();
+
+            // pad null for left join if no delete row collected from state, here we can't use the
+            // collector's status to determine whether the row is collected or not, because data
+            // fetched from state is not collected by the collector
+            if (lookupJoinRunner.isLeftOuterJoin && !collected) {
+                collectDeleteRow(in, lookupJoinRunner.nullRow, out);
+            }
         }
     }
 
@@ -223,12 +238,9 @@ public class KeyedLookupJoinWrapper extends KeyedProcessFunction<RowData, RowDat
         }
     }
 
-    private void stateStaledErrorHandle(RowData in, Collector out) {
+    private void stateStaledErrorHandle() {
         if (lenient) {
             LOG.warn(STATE_CLEARED_WARN_MSG);
-            if (lookupJoinRunner.isLeftOuterJoin) {
-                lookupJoinRunner.padNullForLeftJoin(in, out);
-            }
         } else {
             throw new RuntimeException(STATE_CLEARED_WARN_MSG);
         }

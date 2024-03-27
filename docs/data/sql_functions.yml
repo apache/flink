@@ -66,14 +66,14 @@ comparison:
   - sql: EXISTS (sub-query)
     description: Returns TRUE if sub-query returns at least one row. Only supported if the operation can be rewritten in a join and group operation. For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size.
   - sql: value IN (sub-query)
-    table: value1.in(TABLE)
+    table: value.in(TABLE)
     description: Returns TRUE if value is equal to a row returned by sub-query.
   - sql: value NOT IN (sub-query)
     description: Returns TRUE if value is not equal to a row returned by sub-query.
   - table: value1.between(value2, value3)
-    description: Returns TRUE if value is greater than or equal to value2 and less than or equal to value3. When either value2 or value3 is NULL, returns FALSE or UNKNOWN.
+    description: Returns TRUE if value1 is greater than or equal to value2 and less than or equal to value3. When either value2 or value3 is NULL, returns FALSE or UNKNOWN.
   - table: value1.notBetween(value2, value3)
-    description: Returns FALSE if value is greater than or equal to value2 and less than or equal to value3. When either value2 or value3 is NULL, returns TRUE or UNKNOWN.
+    description: Returns FALSE if value1 is greater than or equal to value2 and less than or equal to value3. When either value2 or value3 is NULL, returns TRUE or UNKNOWN.
 
 logical:
   - sql: boolean1 OR boolean2
@@ -239,8 +239,8 @@ arithmetic:
       STRING.hex()
     description: Returns a string representation of an integer NUMERIC value or a STRING in hex format. Returns NULL if the argument is NULL. E.g. a numeric 20 leads to "14", a numeric 100 leads to "64", a string "hello,world" leads to "68656C6C6F2C776F726C64".
   - sql: TRUNCATE(numeric1, integer2)
-    table: numeric1.truncate(INTEGER2)
-    description: Returns a numeric of truncated to integer2 decimal places. Returns NULL if numeric1 or integer2 is NULL. If integer2 is 0, the result has no decimal point or fractional part. integer2 can be negative to cause integer2 digits left of the decimal point of the value to become zero. This function can also pass in only one numeric1 parameter and not set Integer2 to use. If Integer2 is not set, the function truncates as if Integer2 were 0. E.g. 42.324.truncate(2) to 42.32. and 42.324.truncate() to 42.0.
+    table: NUMERIC1.truncate(INTEGER2)
+    description: Returns a numeric of truncated to integer2 decimal places. Returns NULL if numeric1 or integer2 is NULL. If integer2 is 0, the result has no decimal point or fractional part. integer2 can be negative to cause integer2 digits left of the decimal point of the value to become zero. This function can also pass in only one numeric1 parameter and not set integer2 to use. If integer2 is not set, the function truncates as if integer2 were 0. E.g. 42.324.truncate(2) to 42.32. and 42.324.truncate() to 42.0.
 
 string:
   - sql: string1 || string2
@@ -628,6 +628,9 @@ collection:
   - sql: map ‘[’ value ‘]’
     table: MAP.at(ANY)
     description: Returns the value specified by key value in map.
+  - sql: ARRAY_APPEND(array, element)
+    table: array.arrayAppend(element)
+    description: Appends an element to the end of the array and returns the result. If the array itself is null, the function will return null. If an element to add is null, the null element will be added to the end of the array.
   - sql: ARRAY_CONTAINS(haystack, needle)
     table: haystack.arrayContains(needle)
     description: Returns whether the given element exists in an array. Checking for null elements in the array is supported. If the array itself is null, the function will return null. The given element is cast implicitly to the array's element type if necessary.
@@ -637,6 +640,9 @@ collection:
   - sql: ARRAY_POSITION(haystack, needle)
     table: haystack.arrayPosition(needle)
     description: Returns the position of the first occurrence of element in the given array as int. Returns 0 if the given value could not be found in the array. Returns null if either of the arguments are null. And this is not zero based, but 1-based index. The first element in the array has index 1.
+  - sql: ARRAY_PREPEND(array, element)
+    table: array.arrayPrepend(element)
+    description: Appends an element to the beginning of the array and returns the result. If the array itself is null, the function will return null. If an element to add is null, the null element will be added to the beginning of the array.
   - sql: ARRAY_REMOVE(haystack, needle)
     table: haystack.arrayRemove(needle)
     description: Removes all elements that equal to element from array. If the array itself is null, the function will return null. Keeps ordering of elements.
@@ -646,6 +652,9 @@ collection:
   - sql: ARRAY_SLICE(array, start_offset[, end_offset])
     table: array.arraySlice(start_offset[, end_offset])
     description: Returns a subarray of the input array between 'start_offset' and 'end_offset' inclusive. The offsets are 1-based however 0 is also treated as the beginning of the array. Positive values are counted from the beginning of the array while negative from the end. If 'end_offset' is omitted then this offset is treated as the length of the array. If 'start_offset' is after 'end_offset' or both are out of array bounds an empty array will be returned. Returns null if any input is null.
+  - sql: ARRAY_SORT(array[, ascending_order[, null_first]])
+    table: array.arraySort([, ascendingOrder[, null_first]])
+    description: Returns the array in sorted order.The function sorts an array, defaulting to ascending order with NULLs at the start when only the array is input. Specifying ascending_order as true orders the array in ascending with NULLs first, and setting it to false orders it in descending with NULLs last. Independently, null_first as true moves NULLs to the beginning, and as false to the end, irrespective of the sorting order. The function returns null if any input is null.
   - sql: ARRAY_UNION(array1, array2)
     table: haystack.arrayUnion(array)
     description: Returns an array of the elements in the union of array1 and array2, without duplicates. If any of the array is null, the function will return null.
@@ -658,9 +667,15 @@ collection:
   - sql: ARRAY_JOIN(array, delimiter[, nullReplacement])
     table: array.arrayJoin(delimiter[, nullReplacement])
     description: Returns a string that represents the concatenation of the elements in the given array and the elements' data type in the given array is string. The delimiter is a string that separates each pair of consecutive elements of the array. The optional nullReplacement is a string that replaces null elements in the array. If nullReplacement is not specified, null elements in the array will be omitted from the resulting string. Returns null if input array or delimiter or nullReplacement are null.
+  - sql: ARRAY_MIN(array)
+    table: array.arrayMin()
+    description: Returns the minimum value from the array, if array itself is null, the function returns null.
   - sql: MAP_KEYS(map)
     table: MAP.mapKeys()
     description: Returns the keys of the map as array. No order guaranteed.
+  - sql: MAP_UNION(map1, ...)
+    table: map1.mapUnion(...)
+    description: Returns a map created by merging at least one map. These maps should have a common map type. If there are overlapping keys, the value from 'map2' will overwrite the value from 'map1',  the value from 'map3' will overwrite the value from 'map2',  the value from 'mapn' will overwrite the value from 'map(n-1)'. If any of maps is null, return null.
   - sql: MAP_VALUES(map)
     table: MAP.mapValues()
     description: Returns the values of the map as array. No order guaranteed.
@@ -670,7 +685,10 @@ collection:
   - sql: MAP_FROM_ARRAYS(array_of_keys, array_of_values)
     table: mapFromArrays(array_of_keys, array_of_values)
     description: Returns a map created from an arrays of keys and values. Note that the lengths of two arrays should be the same.
-
+  - sql: ARRAY_EXCEPT(array1, array2)
+    table: arrayOne.arrayExcept(arrayTwo)
+    description: Returns an ARRAY that contains the elements from array1 that are not in array2. If no elements remain after excluding the elements in array2 from array1, the function returns an empty ARRAY. If one or both arguments are NULL, the function returns NULL. The order of the elements from array1 is kept.
+    
 json:
   - sql: IS JSON [ { VALUE | SCALAR | ARRAY | OBJECT } ]
     table: STRING.isJson([JsonType type])
@@ -758,7 +776,7 @@ json:
 
       This method searches a JSON string for a given path expression and returns the value if the
       value at that path is scalar. Non-scalar values cannot be returned. By default, the value is
-      returned as `STRING`. Using `returningType` a different type can be chosen, with the following
+      returned as `STRING`. Using `dataType` a different type can be chosen, with the following
       types being supported:
 
       * `VARCHAR` / `STRING`
@@ -1056,6 +1074,13 @@ aggregate:
       Divides the rows for each window partition into `n` buckets ranging from 1 to at most `n`.
       If the number of rows in the window partition doesn't divide evenly into the number of buckets, then the remainder values are distributed one per bucket, starting with the first bucket.
       For example, with 6 rows and 4 buckets, the bucket values would be as follows: 1 1 2 2 3 4
+  - sql: ARRAY_AGG([ ALL | DISTINCT ] expression [ RESPECT NULLS | IGNORE NULLS ])
+    table: FIELD.arrayAgg
+    description: |
+      By default or with keyword `ALL` and, return an array that concatenates the input rows
+      and returns `NULL` if there are no input rows. Use `DISTINCT` for one unique instance of each value.
+      By default `NULL` values are respected, use `IGNORE NULLS` to skip `NULL` values.
+      The `ORDER BY` clause is currently not supported.
   - sql: JSON_OBJECTAGG([KEY] key VALUE value [ { NULL | ABSENT } ON NULL ])
     table: jsonObjectAgg(JsonOnNull, keyExpression, valueExpression)
     description: |

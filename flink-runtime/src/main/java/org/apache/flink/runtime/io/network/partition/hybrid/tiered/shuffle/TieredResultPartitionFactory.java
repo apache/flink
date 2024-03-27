@@ -91,7 +91,8 @@ public class TieredResultPartitionFactory {
             SupplierWithException<BufferPool, IOException> bufferPoolFactory,
             FileChannelManager fileChannelManager,
             BatchShuffleReadBufferPool batchShuffleReadBufferPool,
-            ScheduledExecutorService batchShuffleReadIOExecutor) {
+            ScheduledExecutorService batchShuffleReadIOExecutor,
+            boolean isNumberOfPartitionConsumerUndefined) {
 
         // Create memory manager.
         TieredStorageMemoryManager memoryManager =
@@ -103,7 +104,11 @@ public class TieredResultPartitionFactory {
                 tieredStorageConfiguration.getAccumulatorExclusiveBuffers();
         BufferAccumulator bufferAccumulator =
                 createBufferAccumulator(
-                        numSubpartitions, numAccumulatorExclusiveBuffers, memoryManager);
+                        numSubpartitions,
+                        numAccumulatorExclusiveBuffers,
+                        tieredStorageConfiguration.getMemoryDecouplingEnabled(),
+                        memoryManager,
+                        isNumberOfPartitionConsumerUndefined);
 
         // Create producer agents and memory specs.
         Tuple2<List<TierProducerAgent>, List<TieredStorageMemorySpec>>
@@ -149,15 +154,31 @@ public class TieredResultPartitionFactory {
     private BufferAccumulator createBufferAccumulator(
             int numSubpartitions,
             int numAccumulatorExclusiveBuffers,
-            TieredStorageMemoryManager storageMemoryManager) {
+            boolean enableMemoryDecoupling,
+            TieredStorageMemoryManager storageMemoryManager,
+            boolean isNumberOfPartitionConsumerUndefined) {
         int bufferSize = tieredStorageConfiguration.getTieredStorageBufferSize();
-        return (numSubpartitions + 1) > numAccumulatorExclusiveBuffers
-                ? new SortBufferAccumulator(
-                        numSubpartitions,
-                        numAccumulatorExclusiveBuffers,
-                        bufferSize,
-                        storageMemoryManager)
-                : new HashBufferAccumulator(numSubpartitions, bufferSize, storageMemoryManager);
+        long poolSizeCheckInterval = tieredStorageConfiguration.getPoolSizeCheckInterval();
+
+        BufferAccumulator bufferAccumulator;
+        if (enableMemoryDecoupling || (numSubpartitions + 1) > numAccumulatorExclusiveBuffers) {
+            bufferAccumulator =
+                    new SortBufferAccumulator(
+                            numSubpartitions,
+                            Math.min(numSubpartitions + 1, numAccumulatorExclusiveBuffers),
+                            bufferSize,
+                            enableMemoryDecoupling ? poolSizeCheckInterval : 0,
+                            storageMemoryManager,
+                            !isNumberOfPartitionConsumerUndefined);
+        } else {
+            bufferAccumulator =
+                    new HashBufferAccumulator(
+                            numSubpartitions,
+                            bufferSize,
+                            storageMemoryManager,
+                            !isNumberOfPartitionConsumerUndefined);
+        }
+        return bufferAccumulator;
     }
 
     private Tuple2<List<TierProducerAgent>, List<TieredStorageMemorySpec>>
@@ -176,13 +197,16 @@ public class TieredResultPartitionFactory {
         List<TieredStorageMemorySpec> tieredStorageMemorySpecs = new ArrayList<>();
 
         tieredStorageMemorySpecs.add(
+                // Accumulators are also treated as {@code guaranteedReclaimable}, since these
+                // buffers can always be transferred to the other tiers.
                 new TieredStorageMemorySpec(
                         bufferAccumulator,
                         2
                                 * Math.min(
                                         numberOfSubpartitions + 1,
                                         tieredStorageConfiguration
-                                                .getAccumulatorExclusiveBuffers())));
+                                                .getAccumulatorExclusiveBuffers()),
+                        true));
         List<Integer> tierExclusiveBuffers =
                 tieredStorageConfiguration.getEachTierExclusiveBufferNum();
 
@@ -208,8 +232,16 @@ public class TieredResultPartitionFactory {
                                     numberOfSubpartitions),
                             tieredStorageConfiguration.getDiskIOSchedulerBufferRequestTimeout());
             tierProducerAgents.add(producerAgent);
-            tieredStorageMemorySpecs.add(
-                    new TieredStorageMemorySpec(producerAgent, tierExclusiveBuffers.get(index)));
+
+            if (tierFactory.getClass() == MemoryTierFactory.class) {
+                tieredStorageMemorySpecs.add(
+                        new TieredStorageMemorySpec(
+                                producerAgent, tierExclusiveBuffers.get(index), false));
+            } else {
+                tieredStorageMemorySpecs.add(
+                        new TieredStorageMemorySpec(
+                                producerAgent, tierExclusiveBuffers.get(index), true));
+            }
         }
         return Tuple2.of(tierProducerAgents, tieredStorageMemorySpecs);
     }

@@ -27,7 +27,6 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureManager;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorage;
@@ -67,7 +66,6 @@ import org.junit.Test;
 
 import javax.annotation.Nonnull;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.concurrent.ThreadLocalRandom;
@@ -201,16 +199,13 @@ public class CheckpointFailureManagerITCase extends TestLogger {
 
         @Override
         public OperatorStateBackend createOperatorStateBackend(
-                Environment env,
-                String operatorIdentifier,
-                @Nonnull Collection<OperatorStateHandle> stateHandles,
-                CloseableRegistry cancelStreamRegistry) {
+                OperatorStateBackendParameters parameters) {
             return new DefaultOperatorStateBackendBuilder(
-                    env.getUserCodeClassLoader().asClassLoader(),
-                    env.getExecutionConfig(),
+                    parameters.getEnv().getUserCodeClassLoader().asClassLoader(),
+                    parameters.getEnv().getExecutionConfig(),
                     true,
-                    stateHandles,
-                    cancelStreamRegistry) {
+                    parameters.getStateHandles(),
+                    parameters.getCancelStreamRegistry()) {
                 @Override
                 @SuppressWarnings("unchecked")
                 public DefaultOperatorStateBackend build() {

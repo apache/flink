@@ -389,6 +389,7 @@ public class TaskManagerServices {
         final TaskExecutorLocalStateStoresManager taskStateManager =
                 new TaskExecutorLocalStateStoresManager(
                         taskManagerServicesConfiguration.isLocalRecoveryEnabled(),
+                        taskManagerServicesConfiguration.isLocalBackupEnabled(),
                         taskManagerServicesConfiguration.getLocalRecoveryStateDirectories(),
                         ioExecutor);
 
@@ -404,11 +405,11 @@ public class TaskManagerServices {
         final boolean failOnJvmMetaspaceOomError =
                 taskManagerServicesConfiguration
                         .getConfiguration()
-                        .getBoolean(CoreOptions.FAIL_ON_USER_CLASS_LOADING_METASPACE_OOM);
+                        .get(CoreOptions.FAIL_ON_USER_CLASS_LOADING_METASPACE_OOM);
         final boolean checkClassLoaderLeak =
                 taskManagerServicesConfiguration
                         .getConfiguration()
-                        .getBoolean(CoreOptions.CHECK_LEAKED_CLASSLOADER);
+                        .get(CoreOptions.CHECK_LEAKED_CLASSLOADER);
         final LibraryCacheManager libraryCacheManager =
                 new BlobLibraryCacheManager(
                         permanentBlobService,

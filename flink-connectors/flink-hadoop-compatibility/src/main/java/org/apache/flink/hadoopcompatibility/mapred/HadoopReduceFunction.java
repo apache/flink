@@ -101,8 +101,7 @@ public final class HadoopReduceFunction<KEYIN, VALUEIN, KEYOUT, VALUEOUT>
         Class<KEYIN> inKeyClass =
                 (Class<KEYIN>) TypeExtractor.getParameterType(Reducer.class, reducer.getClass(), 0);
         TypeSerializer<KEYIN> keySerializer =
-                TypeExtractor.getForClass(inKeyClass)
-                        .createSerializer(getRuntimeContext().getExecutionConfig());
+                getRuntimeContext().createSerializer(TypeExtractor.getForClass(inKeyClass));
         this.valueIterator = new HadoopTupleUnwrappingIterator<KEYIN, VALUEIN>(keySerializer);
     }
 

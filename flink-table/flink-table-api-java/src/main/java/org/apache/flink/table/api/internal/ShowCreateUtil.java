@@ -27,6 +27,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.utils.EncodingUtils;
 
@@ -64,6 +65,7 @@ public class ShowCreateUtil {
         extractFormattedComment(table)
                 .ifPresent(
                         c -> sb.append(String.format("COMMENT '%s'%s", c, System.lineSeparator())));
+        extractFormattedDistributedInfo((ResolvedCatalogTable) table).ifPresent(sb::append);
         extractFormattedPartitionedInfo((ResolvedCatalogTable) table)
                 .ifPresent(
                         partitionedInfoFormatted ->
@@ -195,6 +197,10 @@ public class ShowCreateUtil {
             return Optional.of(EncodingUtils.escapeSingleQuotes(comment));
         }
         return Optional.empty();
+    }
+
+    static Optional<String> extractFormattedDistributedInfo(ResolvedCatalogTable catalogTable) {
+        return catalogTable.getDistribution().map(TableDistribution::toString);
     }
 
     static Optional<String> extractFormattedPartitionedInfo(ResolvedCatalogTable catalogTable) {

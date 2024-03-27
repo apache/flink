@@ -134,6 +134,20 @@ class WindowJoinTest extends TableTestBase {
   }
 
   @Test
+  def testWindowJoinWithoutProjections(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM
+        |  TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE)) AS L
+        |JOIN
+        |  TABLE(TUMBLE(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE)) AS R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
   def testUnsupportedWindowTVF_TumbleOnProctime(): Unit = {
     val sql =
       """

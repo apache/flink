@@ -194,7 +194,7 @@ class StreamTableEnvironmentITCase extends StreamingTestBase {
   @Test
   def testTableConfigInheritsEnvironmentSettings(): Unit = {
     val config = new Configuration
-    config.setString(TableConfigOptions.TABLE_CATALOG_NAME, "myCatalog")
+    config.set(TableConfigOptions.TABLE_CATALOG_NAME, "myCatalog")
     val env = StreamExecutionEnvironment.getExecutionEnvironment(config)
     val tEnv = StreamTableEnvironment.create(env)
     assertThat(tEnv.getConfig.get(TableConfigOptions.TABLE_CATALOG_NAME)).isEqualTo("myCatalog")

@@ -106,10 +106,10 @@ class ZooKeeperLeaderElectionTest {
     void before() {
         configuration = new Configuration();
 
-        configuration.setString(
+        configuration.set(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
                 zooKeeperResource.getCustomExtension().getConnectString());
-        configuration.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
+        configuration.set(HighAvailabilityOptions.HA_MODE, "zookeeper");
     }
 
     /** Tests that the ZooKeeperLeaderElection/RetrievalService return both the correct URL. */

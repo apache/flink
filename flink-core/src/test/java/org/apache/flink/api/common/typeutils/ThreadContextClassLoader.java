@@ -19,7 +19,6 @@
 package org.apache.flink.api.common.typeutils;
 
 import java.io.Closeable;
-import java.io.IOException;
 
 /** Utility class to temporarily use a different classloader as the thread context classloader. */
 public class ThreadContextClassLoader implements Closeable {
@@ -32,7 +31,7 @@ public class ThreadContextClassLoader implements Closeable {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         Thread.currentThread().setContextClassLoader(originalThreadContextClassLoader);
     }
 }

@@ -84,10 +84,12 @@ public class PrintSink<IN> implements Sink<IN>, SupportsConcurrentExecutionAttem
     }
 
     @Override
-    public SinkWriter<IN> createWriter(WriterInitContext context) throws IOException {
+    public SinkWriter<IN> createWriter(InitContext context) throws IOException {
         final PrintSinkOutputWriter<IN> writer =
                 new PrintSinkOutputWriter<>(sinkIdentifier, stdErr);
-        writer.open(context.getSubtaskId(), context.getNumberOfParallelSubtasks());
+        writer.open(
+                context.getTaskInfo().getIndexOfThisSubtask(),
+                context.getTaskInfo().getNumberOfParallelSubtasks());
         return writer;
     }
 

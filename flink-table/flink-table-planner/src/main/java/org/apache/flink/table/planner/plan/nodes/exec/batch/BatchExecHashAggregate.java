@@ -170,9 +170,9 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
 
     @Override
     protected OpFusionCodegenSpecGenerator translateToFusionCodegenSpecInternal(
-            PlannerBase planner, ExecNodeConfig config) {
+            PlannerBase planner, ExecNodeConfig config, CodeGeneratorContext parentCtx) {
         OpFusionCodegenSpecGenerator input =
-                getInputEdges().get(0).translateToFusionCodegenSpec(planner);
+                getInputEdges().get(0).translateToFusionCodegenSpec(planner, parentCtx);
 
         final AggregateInfoList aggInfos =
                 AggregateUtil.transformToBatchAggregateInfoList(
@@ -194,7 +194,9 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
                         (RowType) getOutputType(),
                         new HashAggFusionCodegenSpec(
                                 new CodeGeneratorContext(
-                                        config, planner.getFlinkContext().getClassLoader()),
+                                        config,
+                                        planner.getFlinkContext().getClassLoader(),
+                                        parentCtx),
                                 planner.createRelBuilder(),
                                 aggInfos,
                                 grouping,

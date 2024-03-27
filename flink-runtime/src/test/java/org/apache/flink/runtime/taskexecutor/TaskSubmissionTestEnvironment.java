@@ -158,6 +158,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
         TaskExecutorLocalStateStoresManager localStateStoresManager =
                 new TaskExecutorLocalStateStoresManager(
                         false,
+                        false,
                         Reference.owned(new File[] {temporaryFolder.newFolder()}),
                         Executors.directExecutor());
 
@@ -289,7 +290,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
             final InetSocketAddress socketAddress =
                     new InetSocketAddress(
                             InetAddress.getByName(testingRpcService.getAddress()),
-                            configuration.getInteger(NettyShuffleEnvironmentOptions.DATA_PORT));
+                            configuration.get(NettyShuffleEnvironmentOptions.DATA_PORT));
 
             final NettyConfig nettyConfig =
                     new NettyConfig(
@@ -303,11 +304,11 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
                     new NettyShuffleEnvironmentBuilder()
                             .setTaskManagerLocation(taskManagerLocation)
                             .setPartitionRequestInitialBackoff(
-                                    configuration.getInteger(
+                                    configuration.get(
                                             NettyShuffleEnvironmentOptions
                                                     .NETWORK_REQUEST_BACKOFF_INITIAL))
                             .setPartitionRequestMaxBackoff(
-                                    configuration.getInteger(
+                                    configuration.get(
                                             NettyShuffleEnvironmentOptions
                                                     .NETWORK_REQUEST_BACKOFF_MAX))
                             .setResultPartitionManager(

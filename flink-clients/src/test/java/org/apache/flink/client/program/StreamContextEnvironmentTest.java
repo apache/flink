@@ -18,18 +18,17 @@
 
 package org.apache.flink.client.program;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.StateRecoveryOptions;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
-import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -57,7 +56,7 @@ class StreamContextEnvironmentTest {
         final Configuration clusterConfig = new Configuration();
         clusterConfig.set(DeploymentOptions.PROGRAM_CONFIG_ENABLED, false);
         clusterConfig.set(DeploymentOptions.TARGET, "local");
-        clusterConfig.set(SavepointConfigOptions.SAVEPOINT_PATH, "/flink/savepoints");
+        clusterConfig.set(StateRecoveryOptions.SAVEPOINT_PATH, "/flink/savepoints");
         clusterConfig.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
 
         final Configuration programConfig = new Configuration();
@@ -84,9 +83,7 @@ class StreamContextEnvironmentTest {
                 .hasMessageContainingAll(
                         ExecutionOptions.RUNTIME_MODE.key(),
                         ExecutionOptions.SORT_INPUTS.key(),
-                        CheckpointConfig.class.getSimpleName(),
                         ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL.key(),
-                        ExecutionConfig.class.getSimpleName(),
                         PipelineOptions.MAX_PARALLELISM.key());
     }
 

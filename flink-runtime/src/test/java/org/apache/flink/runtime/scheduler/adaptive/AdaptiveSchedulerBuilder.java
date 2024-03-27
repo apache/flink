@@ -19,7 +19,6 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
@@ -53,6 +52,7 @@ import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Function;
 
 /** Builder for {@link AdaptiveScheduler}. */
 public class AdaptiveSchedulerBuilder {
@@ -115,6 +115,12 @@ public class AdaptiveSchedulerBuilder {
     public AdaptiveSchedulerBuilder setJobMasterConfiguration(
             final Configuration jobMasterConfiguration) {
         this.jobMasterConfiguration = jobMasterConfiguration;
+        return this;
+    }
+
+    public AdaptiveSchedulerBuilder withConfigurationOverride(
+            Function<Configuration, Configuration> modifyFn) {
+        this.jobMasterConfiguration = modifyFn.apply(jobMasterConfiguration);
         return this;
     }
 
@@ -215,6 +221,7 @@ public class AdaptiveSchedulerBuilder {
                         partitionTracker);
 
         return new AdaptiveScheduler(
+                AdaptiveScheduler.Settings.of(jobMasterConfiguration),
                 jobGraph,
                 jobResourceRequirements,
                 jobMasterConfiguration,
@@ -227,8 +234,6 @@ public class AdaptiveSchedulerBuilder {
                 userCodeLoader,
                 checkpointsCleaner,
                 checkpointRecoveryFactory,
-                jobMasterConfiguration.get(JobManagerOptions.RESOURCE_WAIT_TIMEOUT),
-                jobMasterConfiguration.get(JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT),
                 jobManagerJobMetricGroup,
                 restartBackoffTimeStrategy,
                 initializationTimestamp,

@@ -92,6 +92,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
 import org.apache.flink.runtime.rest.messages.LogInfo;
+import org.apache.flink.runtime.rest.messages.ProfilingInfo;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
@@ -134,12 +135,15 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.util.GroupCache;
+import org.apache.flink.runtime.util.profiler.ProfilingService;
 import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoSamplesRequest;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkExpectedException;
+import org.apache.flink.util.MdcUtils;
+import org.apache.flink.util.MdcUtils.MdcCloseable;
 import org.apache.flink.util.OptionalConsumer;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
@@ -305,6 +309,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     private final GroupCache<JobID, PermanentBlobKey, ShuffleDescriptorGroup>
             shuffleDescriptorsCache;
 
+    private final ProfilingService profilingService;
+
     public TaskExecutor(
             RpcService rpcService,
             TaskManagerConfiguration taskManagerConfiguration,
@@ -375,6 +381,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         ScheduledExecutorService sampleExecutor =
                 Executors.newSingleThreadScheduledExecutor(sampleThreadFactory);
         this.threadInfoSampleService = new ThreadInfoSampleService(sampleExecutor);
+        this.profilingService =
+                ProfilingService.getInstance(taskManagerConfiguration.getConfiguration());
 
         this.slotAllocationSnapshotPersistenceService =
                 taskExecutorServices.getSlotAllocationSnapshotPersistenceService();
@@ -634,8 +642,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     public CompletableFuture<Acknowledge> submitTask(
             TaskDeploymentDescriptor tdd, JobMasterId jobMasterId, Time timeout) {
 
-        try {
-            final JobID jobId = tdd.getJobId();
+        final JobID jobId = tdd.getJobId();
+        // todo: consider adding task info
+        try (MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobId))) {
+
             final ExecutionAttemptID executionAttemptID = tdd.getExecutionAttemptId();
 
             final JobTable.Connection jobManagerConnection =
@@ -811,7 +821,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             taskManagerConfiguration,
                             taskMetricGroup,
                             partitionStateChecker,
-                            getRpcService().getScheduledExecutor(),
+                            MdcUtils.scopeToJob(jobId, getRpcService().getScheduledExecutor()),
                             channelStateExecutorFactoryManager.getOrCreateExecutorFactory(jobId));
 
             taskMetricGroup.gauge(MetricNames.IS_BACK_PRESSURED, task::isBackPressured);
@@ -899,13 +909,17 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         final Task task = taskSlotTable.getTask(executionAttemptID);
 
         if (task != null) {
-            try {
-                task.cancelExecution();
-                return CompletableFuture.completedFuture(Acknowledge.get());
-            } catch (Throwable t) {
-                return FutureUtils.completedExceptionally(
-                        new TaskException(
-                                "Cannot cancel task for execution " + executionAttemptID + '.', t));
+            try (MdcCloseable ignored =
+                    MdcUtils.withContext(MdcUtils.asContextData(task.getJobID()))) {
+                try {
+                    task.cancelExecution();
+                    return CompletableFuture.completedFuture(Acknowledge.get());
+                } catch (Throwable t) {
+                    return FutureUtils.completedExceptionally(
+                            new TaskException(
+                                    "Cannot cancel task for execution " + executionAttemptID + '.',
+                                    t));
+                }
             }
         } else {
             final String message =
@@ -1033,18 +1047,19 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             long checkpointId,
             long checkpointTimestamp,
             CheckpointOptions checkpointOptions) {
-        log.debug(
-                "Trigger checkpoint {}@{} for {}.",
-                checkpointId,
-                checkpointTimestamp,
-                executionAttemptID);
-
         final Task task = taskSlotTable.getTask(executionAttemptID);
-
         if (task != null) {
-            task.triggerCheckpointBarrier(checkpointId, checkpointTimestamp, checkpointOptions);
+            try (MdcCloseable ignored =
+                    MdcUtils.withContext(MdcUtils.asContextData(task.getJobID()))) {
+                log.debug(
+                        "Trigger checkpoint {}@{} for {}.",
+                        checkpointId,
+                        checkpointTimestamp,
+                        executionAttemptID);
+                task.triggerCheckpointBarrier(checkpointId, checkpointTimestamp, checkpointOptions);
 
-            return CompletableFuture.completedFuture(Acknowledge.get());
+                return CompletableFuture.completedFuture(Acknowledge.get());
+            }
         } else {
             final String message =
                     "TaskManager received a checkpoint request for unknown task "
@@ -1064,20 +1079,21 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             long completedCheckpointId,
             long completedCheckpointTimestamp,
             long lastSubsumedCheckpointId) {
-        log.debug(
-                "Confirm completed checkpoint {}@{} and last subsumed checkpoint {} for {}.",
-                completedCheckpointId,
-                completedCheckpointTimestamp,
-                lastSubsumedCheckpointId,
-                executionAttemptID);
-
         final Task task = taskSlotTable.getTask(executionAttemptID);
-
         if (task != null) {
-            task.notifyCheckpointComplete(completedCheckpointId);
+            try (MdcCloseable ignored =
+                    MdcUtils.withContext(MdcUtils.asContextData(task.getJobID()))) {
+                log.debug(
+                        "Confirm completed checkpoint {}@{} and last subsumed checkpoint {} for {}.",
+                        completedCheckpointId,
+                        completedCheckpointTimestamp,
+                        lastSubsumedCheckpointId,
+                        executionAttemptID);
+                task.notifyCheckpointComplete(completedCheckpointId);
 
-            task.notifyCheckpointSubsumed(lastSubsumedCheckpointId);
-            return CompletableFuture.completedFuture(Acknowledge.get());
+                task.notifyCheckpointSubsumed(lastSubsumedCheckpointId);
+                return CompletableFuture.completedFuture(Acknowledge.get());
+            }
         } else {
             final String message =
                     "TaskManager received a checkpoint confirmation for unknown task "
@@ -1140,37 +1156,40 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         // TODO: Filter invalid requests from the resource manager by using the
         // instance/registration Id
 
-        log.info(
-                "Receive slot request {} for job {} from resource manager with leader id {}.",
-                allocationId,
-                jobId,
-                resourceManagerId);
+        try (MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobId))) {
+            log.info(
+                    "Receive slot request {} for job {} from resource manager with leader id {}.",
+                    allocationId,
+                    jobId,
+                    resourceManagerId);
 
-        if (!isConnectedToResourceManager(resourceManagerId)) {
-            final String message =
-                    String.format(
-                            "TaskManager is not connected to the resource manager %s.",
-                            resourceManagerId);
-            log.debug(message);
-            return FutureUtils.completedExceptionally(new TaskManagerException(message));
-        }
-
-        tryPersistAllocationSnapshot(
-                new SlotAllocationSnapshot(
-                        slotId, jobId, targetAddress, allocationId, resourceProfile));
-
-        try {
-            final boolean isConnected =
-                    allocateSlotForJob(jobId, slotId, allocationId, resourceProfile, targetAddress);
-
-            if (isConnected) {
-                offerSlotsToJobManager(jobId);
+            if (!isConnectedToResourceManager(resourceManagerId)) {
+                final String message =
+                        String.format(
+                                "TaskManager is not connected to the resource manager %s.",
+                                resourceManagerId);
+                log.debug(message);
+                return FutureUtils.completedExceptionally(new TaskManagerException(message));
             }
 
-            return CompletableFuture.completedFuture(Acknowledge.get());
-        } catch (SlotAllocationException e) {
-            log.debug("Could not allocate slot for allocation id {}.", allocationId, e);
-            return FutureUtils.completedExceptionally(e);
+            tryPersistAllocationSnapshot(
+                    new SlotAllocationSnapshot(
+                            slotId, jobId, targetAddress, allocationId, resourceProfile));
+
+            try {
+                final boolean isConnected =
+                        allocateSlotForJob(
+                                jobId, slotId, allocationId, resourceProfile, targetAddress);
+
+                if (isConnected) {
+                    offerSlotsToJobManager(jobId);
+                }
+
+                return CompletableFuture.completedFuture(Acknowledge.get());
+            } catch (SlotAllocationException e) {
+                log.debug("Could not allocate slot for allocation id {}.", allocationId, e);
+                return FutureUtils.completedExceptionally(e);
+            }
         }
     }
 
@@ -1260,15 +1279,17 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     @Override
     public void freeInactiveSlots(JobID jobId, Time timeout) {
-        log.debug("Freeing inactive slots for job {}.", jobId);
+        try (MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobId))) {
+            log.debug("Freeing inactive slots for job {}.", jobId);
 
-        // need a copy to prevent ConcurrentModificationExceptions
-        final ImmutableList<TaskSlot<Task>> inactiveSlots =
-                ImmutableList.copyOf(taskSlotTable.getAllocatedSlots(jobId));
-        for (TaskSlot<Task> slot : inactiveSlots) {
-            freeSlotInternal(
-                    slot.getAllocationId(),
-                    new FlinkException("Slot was re-claimed by resource manager."));
+            // need a copy to prevent ConcurrentModificationExceptions
+            final ImmutableList<TaskSlot<Task>> inactiveSlots =
+                    ImmutableList.copyOf(taskSlotTable.getAllocatedSlots(jobId));
+            for (TaskSlot<Task> slot : inactiveSlots) {
+                freeSlotInternal(
+                        slot.getAllocationId(),
+                        new FlinkException("Slot was re-claimed by resource manager."));
+            }
         }
     }
 
@@ -1291,14 +1312,30 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     @Override
     public CompletableFuture<TransientBlobKey> requestFileUploadByName(
-            String fileName, Time timeout) {
+            String fileName, Duration timeout) {
+        return requestFileUploadByNameAndType(fileName, FileType.LOG, timeout);
+    }
+
+    @Override
+    public CompletableFuture<TransientBlobKey> requestFileUploadByNameAndType(
+            String fileName, FileType fileType, Duration timeout) {
         final String filePath;
-        final String logDir = taskManagerConfiguration.getTaskManagerLogDir();
-        if (StringUtils.isNullOrWhitespaceOnly(logDir)
+        final String baseDir;
+        switch (fileType) {
+            case LOG:
+                baseDir = taskManagerConfiguration.getTaskManagerLogDir();
+                break;
+            case PROFILER:
+                baseDir = profilingService.getProfilingResultDir();
+                break;
+            default:
+                baseDir = null;
+        }
+        if (StringUtils.isNullOrWhitespaceOnly(baseDir)
                 || StringUtils.isNullOrWhitespaceOnly(fileName)) {
             filePath = null;
         } else {
-            filePath = new File(logDir, new File(fileName).getName()).getPath();
+            filePath = new File(baseDir, new File(fileName).getName()).getPath();
         }
         return requestFileUploadByFilePath(filePath, fileName);
     }
@@ -1316,16 +1353,22 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     @Override
     public void disconnectJobManager(JobID jobId, Exception cause) {
-        jobTable.getConnection(jobId)
-                .ifPresent(
-                        jobManagerConnection ->
-                                disconnectAndTryReconnectToJobManager(jobManagerConnection, cause));
+        try (MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobId))) {
+            jobTable.getConnection(jobId)
+                    .ifPresent(
+                            jobManagerConnection ->
+                                    disconnectAndTryReconnectToJobManager(
+                                            jobManagerConnection, cause));
+        }
     }
 
     private void disconnectAndTryReconnectToJobManager(
             JobTable.Connection jobManagerConnection, Exception cause) {
-        disconnectJobManagerConnection(jobManagerConnection, cause);
-        jobLeaderService.reconnect(jobManagerConnection.getJobId());
+        try (MdcCloseable ignored =
+                MdcUtils.withContext(MdcUtils.asContextData(jobManagerConnection.getJobId()))) {
+            disconnectJobManagerConnection(jobManagerConnection, cause);
+            jobLeaderService.reconnect(jobManagerConnection.getJobId());
+        }
     }
 
     @Override
@@ -1396,6 +1439,18 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             ExceptionUtils.rethrowIfFatalError(t);
             return FutureUtils.completedExceptionally(t);
         }
+    }
+
+    @Override
+    public CompletableFuture<ProfilingInfo> requestProfiling(
+            int duration, ProfilingInfo.ProfilingMode mode, Duration timeout) {
+        return profilingService.requestProfiling(
+                getResourceID().getResourceIdString(), duration, mode);
+    }
+
+    @Override
+    public CompletableFuture<Collection<ProfilingInfo>> requestProfilingList(Duration timeout) {
+        return profilingService.getProfilingList(getResourceID().getResourceIdString());
     }
 
     // ------------------------------------------------------------------------
@@ -1624,7 +1679,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             acceptedSlotsFuture.whenCompleteAsync(
                     handleAcceptedSlotOffers(
                             jobId, jobMasterGateway, jobMasterId, reservedSlots, slotOfferId),
-                    getMainThreadExecutor());
+                    getMainThreadExecutor(jobId));
         } else {
             log.debug("There are no unassigned slots for the job {}.", jobId);
         }
@@ -2027,13 +2082,17 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         // only respond to freeing slots when not shutting down to avoid freeing slot allocation
         // information
         if (isRunning()) {
-            log.debug(
-                    "Free slot with allocation id {} because: {}",
-                    allocationId,
-                    cause.getMessage());
+            final JobID jobId = taskSlotTable.getOwningJob(allocationId);
+            try (MdcCloseable ignored =
+                    MdcUtils.withContext(
+                            jobId == null
+                                    ? Collections.emptyMap()
+                                    : MdcUtils.asContextData(jobId))) {
 
-            try {
-                final JobID jobId = taskSlotTable.getOwningJob(allocationId);
+                log.debug(
+                        "Free slot with allocation id {} because: {}",
+                        allocationId,
+                        cause.getMessage());
 
                 final int slotIndex = taskSlotTable.freeSlot(allocationId, cause);
 

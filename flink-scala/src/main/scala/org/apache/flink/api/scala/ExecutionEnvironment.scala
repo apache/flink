@@ -401,7 +401,9 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     CollectionInputFormat.checkCollection(data.asJavaCollection, typeInfo.getTypeClass)
     val dataSource = new DataSource[T](
       javaEnv,
-      new CollectionInputFormat[T](data.asJavaCollection, typeInfo.createSerializer(getConfig)),
+      new CollectionInputFormat[T](
+        data.asJavaCollection,
+        typeInfo.createSerializer(getConfig.getSerializerConfig)),
       typeInfo,
       getCallLocationName())
     wrap(dataSource)

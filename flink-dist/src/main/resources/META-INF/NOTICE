@@ -1,5 +1,5 @@
 flink-dist
-Copyright 2014-2023 The Apache Software Foundation
+Copyright 2014-2024 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -20,6 +20,8 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.lz4:lz4-java:1.8.0
 - org.objenesis:objenesis:2.1
 - org.xerial.snappy:snappy-java:1.1.10.4
+- tools.profiler:async-profiler:2.9
+- org.snakeyaml:snakeyaml-engine:2.6
 
 This project bundles the following dependencies under the BSD license.
 See bundled license files for details.

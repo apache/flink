@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.DefaultCompletedCheckpointStore;
@@ -34,7 +35,6 @@ import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointStoreUtil;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobmanager.DefaultJobGraphStore;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
@@ -187,23 +187,21 @@ public class ZooKeeperUtils {
                             + "'.");
         }
 
-        int sessionTimeout =
-                configuration.getInteger(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT);
+        int sessionTimeout = configuration.get(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT);
 
         int connectionTimeout =
-                configuration.getInteger(HighAvailabilityOptions.ZOOKEEPER_CONNECTION_TIMEOUT);
+                configuration.get(HighAvailabilityOptions.ZOOKEEPER_CONNECTION_TIMEOUT);
 
-        int retryWait = configuration.getInteger(HighAvailabilityOptions.ZOOKEEPER_RETRY_WAIT);
+        int retryWait = configuration.get(HighAvailabilityOptions.ZOOKEEPER_RETRY_WAIT);
 
         int maxRetryAttempts =
-                configuration.getInteger(HighAvailabilityOptions.ZOOKEEPER_MAX_RETRY_ATTEMPTS);
+                configuration.get(HighAvailabilityOptions.ZOOKEEPER_MAX_RETRY_ATTEMPTS);
 
         String root = configuration.getValue(HighAvailabilityOptions.HA_ZOOKEEPER_ROOT);
 
         String namespace = configuration.getValue(HighAvailabilityOptions.HA_CLUSTER_ID);
 
-        boolean disableSaslClient =
-                configuration.getBoolean(SecurityOptions.ZOOKEEPER_SASL_DISABLE);
+        boolean disableSaslClient = configuration.get(SecurityOptions.ZOOKEEPER_SASL_DISABLE);
 
         ACLProvider aclProvider;
 
@@ -234,7 +232,7 @@ public class ZooKeeperUtils {
         LOG.info("Using '{}' as Zookeeper namespace.", rootWithNamespace);
 
         boolean ensembleTracking =
-                configuration.getBoolean(HighAvailabilityOptions.ZOOKEEPER_ENSEMBLE_TRACKING);
+                configuration.get(HighAvailabilityOptions.ZOOKEEPER_ENSEMBLE_TRACKING);
 
         final CuratorFrameworkFactory.Builder curatorFrameworkBuilder =
                 CuratorFrameworkFactory.builder()
@@ -485,7 +483,7 @@ public class ZooKeeperUtils {
 
         // ZooKeeper submitted jobs root dir
         String zooKeeperJobsPath =
-                configuration.getString(HighAvailabilityOptions.HA_ZOOKEEPER_JOBGRAPHS_PATH);
+                configuration.get(HighAvailabilityOptions.HA_ZOOKEEPER_JOBGRAPHS_PATH);
 
         // Ensure that the job graphs path exists
         client.newNamespaceAwareEnsurePath(zooKeeperJobsPath).ensure(client.getZookeeperClient());
@@ -772,7 +770,7 @@ public class ZooKeeperUtils {
          *     HighAvailabilityOptions#ZOOKEEPER_CLIENT_ACL} if not configured.
          */
         public static ZkClientACLMode fromConfig(Configuration config) {
-            String aclMode = config.getString(HighAvailabilityOptions.ZOOKEEPER_CLIENT_ACL);
+            String aclMode = config.get(HighAvailabilityOptions.ZOOKEEPER_CLIENT_ACL);
             if (aclMode == null || aclMode.equalsIgnoreCase(OPEN.name())) {
                 return OPEN;
             } else if (aclMode.equalsIgnoreCase(CREATOR.name())) {

@@ -21,9 +21,9 @@ package org.apache.flink.streaming.api.environment;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
-import org.apache.flink.streaming.api.CheckpointingMode;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -43,11 +43,37 @@ public class CheckpointConfigFromConfigurationTest {
 
     private static Stream<TestSpec<?>> specs() {
         return Stream.of(
-                TestSpec.testValue(CheckpointingMode.AT_LEAST_ONCE)
+                TestSpec.testValue(org.apache.flink.streaming.api.CheckpointingMode.AT_LEAST_ONCE)
                         .whenSetFromFile("execution.checkpointing.mode", "AT_LEAST_ONCE")
                         .viaSetter(CheckpointConfig::setCheckpointingMode)
                         .getterVia(CheckpointConfig::getCheckpointingMode)
+                        .nonDefaultValue(
+                                org.apache.flink.streaming.api.CheckpointingMode.AT_LEAST_ONCE),
+                TestSpec.testValue(CheckpointingMode.AT_LEAST_ONCE)
+                        .whenSetFromFile("execution.checkpointing.mode", "AT_LEAST_ONCE")
+                        .viaSetter(CheckpointConfig::setCheckpointingConsistencyMode)
+                        .getterVia(CheckpointConfig::getCheckpointingConsistencyMode)
                         .nonDefaultValue(CheckpointingMode.AT_LEAST_ONCE),
+                TestSpec.testValue(CheckpointingMode.AT_LEAST_ONCE)
+                        .whenSetFromFile("execution.checkpointing.mode", "AT_LEAST_ONCE")
+                        .viaSetter(
+                                (config, v) -> {
+                                    config.setCheckpointingMode(
+                                            org.apache.flink.streaming.api.CheckpointingMode
+                                                    .valueOf(v.name()));
+                                })
+                        .getterVia(CheckpointConfig::getCheckpointingConsistencyMode)
+                        .nonDefaultValue(CheckpointingMode.AT_LEAST_ONCE),
+                TestSpec.testValue(org.apache.flink.streaming.api.CheckpointingMode.AT_LEAST_ONCE)
+                        .whenSetFromFile("execution.checkpointing.mode", "AT_LEAST_ONCE")
+                        .viaSetter(
+                                (config, v) -> {
+                                    config.setCheckpointingConsistencyMode(
+                                            CheckpointingMode.valueOf(v.name()));
+                                })
+                        .getterVia(CheckpointConfig::getCheckpointingMode)
+                        .nonDefaultValue(
+                                org.apache.flink.streaming.api.CheckpointingMode.AT_LEAST_ONCE),
                 TestSpec.testValue(10000L)
                         .whenSetFromFile("execution.checkpointing.interval", "10 s")
                         .viaSetter(CheckpointConfig::setCheckpointInterval)

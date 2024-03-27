@@ -37,6 +37,14 @@ Then build the docs from source:
 $ ./build_docs.sh
 ```
 
+The shell `./build_docs.sh` will integrate external connector docs, referencing `setup_docs.sh#integrate_connector_docs`.
+This process involves cloning the repo of some external connectors, which can be time-consuming and prone to network issues.
+So, if the connector docs have been synced before, and you wish to skip this step, you can do so by adding the following arg:
+
+```sh
+$ ./build_docs.sh --skip-integrate-connector-docs
+```
+
 The site can be viewed at http://localhost:1313/
 
 ## Include externally hosted documentation
@@ -56,18 +64,9 @@ Replace <connector_name> with the name of your connector, e.g., `elasticsearch` 
 
 ## Generate configuration tables
 
-Configuration descriptions are auto generated from code. To trigger the generation you need to run in the project root:
+Configuration descriptions are auto generated from code. To trigger the generation, you need to run a command in the project root (see [Configuration documentation](https://github.com/apache/flink/blob/master/flink-docs/README.md#configuration-documentation).)
 
-```
-mvn -Pgenerate-config-docs install -Dfast -DskipTests
-```
-
-The resulting html files will be written to `layouts/shortcodes/generated`. Tables are regenerated each time the command is invoked.
-These tables can be directly included into the documentation:
-
-```
-{{< generated/file_name >}}
-```
+The resulting html files will be written to `layouts/shortcodes/generated`.
 
 # Contribute
 

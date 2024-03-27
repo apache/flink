@@ -22,6 +22,7 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.table.data.RowData;
@@ -63,6 +64,15 @@ public class SecondInputOfTwoInputStreamOperatorOutput extends OutputBase {
     public void emitLatencyMarker(LatencyMarker latencyMarker) {
         try {
             operator.processLatencyMarker2(latencyMarker);
+        } catch (Exception e) {
+            throw new ExceptionInMultipleInputOperatorException(e);
+        }
+    }
+
+    @Override
+    public void emitRecordAttributes(RecordAttributes recordAttributes) {
+        try {
+            operator.processRecordAttributes2(recordAttributes);
         } catch (Exception e) {
             throw new ExceptionInMultipleInputOperatorException(e);
         }

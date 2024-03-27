@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.utils
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.io.InputFormat
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.io.{CollectionInputFormat, RowCsvInputFormat}
@@ -739,7 +740,9 @@ class TestInputFormatTableSource[T](tableSchema: TableSchema, values: Seq[T])
 
   override def getInputFormat: InputFormat[T, _ <: InputSplit] = {
     val returnType = tableSchema.toRowType.asInstanceOf[TypeInformation[T]]
-    new CollectionInputFormat[T](values.asJava, returnType.createSerializer(new ExecutionConfig))
+    new CollectionInputFormat[T](
+      values.asJava,
+      returnType.createSerializer(new SerializerConfigImpl))
   }
 
   override def getReturnType: TypeInformation[T] =
@@ -795,7 +798,7 @@ class TestDataTypeTableSource(tableSchema: TableSchema, values: Seq[Row])
     new CollectionInputFormat[Row](
       values.asJava,
       fromDataTypeToTypeInfo(getProducedDataType)
-        .createSerializer(new ExecutionConfig)
+        .createSerializer(new SerializerConfigImpl)
         .asInstanceOf[TypeSerializer[Row]])
   }
 
@@ -857,7 +860,7 @@ class TestDataTypeTableSourceWithTime(
     new CollectionInputFormat[Row](
       values.asJava,
       fromDataTypeToTypeInfo(getProducedDataType)
-        .createSerializer(new ExecutionConfig)
+        .createSerializer(new SerializerConfigImpl)
         .asInstanceOf[TypeSerializer[Row]])
   }
 

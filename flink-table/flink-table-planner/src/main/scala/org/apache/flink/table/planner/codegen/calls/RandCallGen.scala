@@ -39,11 +39,12 @@ class RandCallGen(isRandInteger: Boolean, hasSeed: Boolean) extends CallGenerato
     }
 
     if (isRandInteger) {
-      generateCallIfArgsNotNull(ctx, new IntType(), operands) {
+      generateCallIfArgsNotNull(ctx, new IntType(returnType.isNullable), operands) {
         terms => s"$randField.nextInt(${terms.last})"
       }
     } else {
-      generateCallIfArgsNotNull(ctx, new DoubleType(), operands)(_ => s"$randField.nextDouble()")
+      generateCallIfArgsNotNull(ctx, new DoubleType(returnType.isNullable), operands)(
+        _ => s"$randField.nextDouble()")
     }
   }
 

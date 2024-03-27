@@ -347,7 +347,7 @@ public class ContinuousFileProcessingTest {
                 new ContinuousFileReaderOperatorFactory(
                         format, TypeExtractor.getInputFormatTypes(format), config),
                 TypeExtractor.getForClass(TimestampedFileInputSplit.class)
-                        .createSerializer(config));
+                        .createSerializer(config.getSerializerConfig()));
     }
 
     private SteppingMailboxProcessor createLocalMailbox(
@@ -1134,7 +1134,7 @@ public class ContinuousFileProcessingTest {
             FileInputFormat<OUT> format, FileProcessingMode fileProcessingMode) {
         ContinuousFileMonitoringFunction<OUT> monitoringFunction =
                 new ContinuousFileMonitoringFunction<>(format, fileProcessingMode, 1, INTERVAL);
-        monitoringFunction.setRuntimeContext(new MockStreamingRuntimeContext(false, 0, 0));
+        monitoringFunction.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
         return monitoringFunction;
     }
 }

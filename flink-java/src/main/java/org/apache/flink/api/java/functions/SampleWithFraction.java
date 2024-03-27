@@ -56,7 +56,7 @@ public class SampleWithFraction<T> extends RichMapPartitionFunction<T, T> {
     @Override
     public void mapPartition(Iterable<T> values, Collector<T> out) throws Exception {
         RandomSampler<T> sampler;
-        long seedAndIndex = seed + getRuntimeContext().getIndexOfThisSubtask();
+        long seedAndIndex = seed + getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
         if (withReplacement) {
             sampler = new PoissonSampler<>(fraction, seedAndIndex);
         } else {

@@ -166,6 +166,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.configuration.RestartStrategyOptions.RestartStrategyType.FIXED_DELAY;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -233,7 +234,7 @@ class JobMasterTest {
         rmLeaderRetrievalService = new SettableLeaderRetrievalService(null, null);
         haServices.setResourceManagerLeaderRetriever(rmLeaderRetrievalService);
 
-        configuration.setString(
+        configuration.set(
                 BlobServerOptions.STORAGE_DIRECTORY,
                 Files.createTempDirectory(temporaryFolder, UUID.randomUUID().toString())
                         .toString());
@@ -1018,10 +1019,12 @@ class JobMasterTest {
      * if this execution fails.
      */
     @Test
-    @Tag("org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler") // FLINK-21450
+    // The AdaptiveScheduler doesn't support partial recovery but restarts all Executions in case of
+    // a local failure.
+    @Tag("org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler")
     void testRequestNextInputSplitWithLocalFailover() throws Exception {
 
-        configuration.setString(
+        configuration.set(
                 JobManagerOptions.EXECUTION_FAILOVER_STRATEGY,
                 FailoverStrategyFactoryLoader.PIPELINED_REGION_RESTART_STRATEGY_NAME);
 
@@ -1033,10 +1036,10 @@ class JobMasterTest {
 
     @Test
     void testRequestNextInputSplitWithGlobalFailover() throws Exception {
-        configuration.setInteger(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
         configuration.set(
                 RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofSeconds(0));
-        configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
+        configuration.set(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
 
         final Function<List<List<InputSplit>>, Collection<InputSplit>>
                 expectAllRemainingInputSplits = this::flattenCollection;
@@ -1847,7 +1850,7 @@ class JobMasterTest {
 
     @Test
     void testJobMasterAcceptsSlotsWhenJobIsRestarting() throws Exception {
-        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, FIXED_DELAY.getMainValue());
         configuration.set(
                 RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofDays(1));
         final int numberSlots = 1;

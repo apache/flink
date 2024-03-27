@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.testutils.statemigration;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -138,7 +139,7 @@ public class TestType extends AbstractHeapPriorityQueueElement
 
         @Override
         public TypeSerializerSnapshot<TestType> snapshotConfiguration() {
-            return new V1TestTypeSerializerSnapshot();
+            return new V2TestTypeSerializerSnapshot();
         }
     }
 
@@ -164,8 +165,47 @@ public class TestType extends AbstractHeapPriorityQueueElement
 
         @Override
         public TypeSerializerSnapshot<TestType> snapshotConfiguration() {
-            throw new UnsupportedOperationException(
-                    "The serializer should have been reconfigured as a new instance; shouldn't be used.");
+            return new ReconfigurationRequiringTestTypeSerializerSnapshot();
+        }
+
+        public static class ReconfigurationRequiringTestTypeSerializerSnapshot
+                implements TypeSerializerSnapshot<TestType> {
+
+            @Override
+            public int getCurrentVersion() {
+                return 0;
+            }
+
+            @Override
+            public void writeSnapshot(DataOutputView out) {
+                // do nothing
+            }
+
+            @Override
+            public void readSnapshot(
+                    int readVersion, DataInputView in, ClassLoader userCodeClassLoader) {
+                // do nothing
+            }
+
+            @Override
+            public TypeSerializer<TestType> restoreSerializer() {
+                return new ReconfigurationRequiringTestTypeSerializer();
+            }
+
+            @Override
+            public TypeSerializerSchemaCompatibility<TestType> resolveSchemaCompatibility(
+                    TypeSerializerSnapshot<TestType> oldSerializerSnapshot) {
+                // mimic the reconfiguration by just re-instantiating the correct serializer
+                if (oldSerializerSnapshot instanceof V1TestTypeSerializerSnapshot) {
+                    return TypeSerializerSchemaCompatibility.compatibleWithReconfiguredSerializer(
+                            new TestType.V1TestTypeSerializer());
+                } else if (oldSerializerSnapshot instanceof V2TestTypeSerializerSnapshot) {
+                    return TypeSerializerSchemaCompatibility.compatibleWithReconfiguredSerializer(
+                            new TestType.V2TestTypeSerializer());
+                } else {
+                    return TypeSerializerSchemaCompatibility.incompatible();
+                }
+            }
         }
     }
 
@@ -188,8 +228,38 @@ public class TestType extends AbstractHeapPriorityQueueElement
 
         @Override
         public TypeSerializerSnapshot<TestType> snapshotConfiguration() {
-            throw new UnsupportedOperationException(
-                    "This is an incompatible serializer; shouldn't be used.");
+            return new IncompatibleTestTypeSerializerSnapshot();
+        }
+
+        public static class IncompatibleTestTypeSerializerSnapshot
+                implements TypeSerializerSnapshot<TestType> {
+
+            @Override
+            public int getCurrentVersion() {
+                return 0;
+            }
+
+            @Override
+            public void writeSnapshot(DataOutputView out) {
+                // do nothing
+            }
+
+            @Override
+            public void readSnapshot(
+                    int readVersion, DataInputView in, ClassLoader userCodeClassLoader) {
+                // do nothing
+            }
+
+            @Override
+            public TypeSerializer<TestType> restoreSerializer() {
+                return new IncompatibleTestTypeSerializer();
+            }
+
+            @Override
+            public TypeSerializerSchemaCompatibility<TestType> resolveSchemaCompatibility(
+                    TypeSerializerSnapshot<TestType> oldSerializerSnapshot) {
+                return TypeSerializerSchemaCompatibility.incompatible();
+            }
         }
     }
 

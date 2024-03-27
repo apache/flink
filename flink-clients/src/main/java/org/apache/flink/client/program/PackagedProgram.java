@@ -18,6 +18,7 @@
 
 package org.apache.flink.client.program;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.configuration.Configuration;
@@ -681,6 +682,11 @@ public class PackagedProgram implements AutoCloseable {
                 SavepointRestoreSettings savepointRestoreSettings) {
             this.savepointRestoreSettings = savepointRestoreSettings;
             return this;
+        }
+
+        @VisibleForTesting
+        public List<URL> getUserClassPaths() {
+            return userClassPaths;
         }
 
         public PackagedProgram build() throws ProgramInvocationException {

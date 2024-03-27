@@ -19,9 +19,6 @@
 package org.apache.flink.api.connector.sink2;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.connector.sink2.StatefulSink.StatefulSinkWriter;
-import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -38,20 +35,26 @@ import java.util.Collection;
  *
  * @param <InputT> The type of the sink's input
  * @param <CommT> The type of the committables.
+ * @deprecated Please implement {@link Sink} {@link SupportsCommitter} instead.
  */
 @PublicEvolving
-public interface TwoPhaseCommittingSink<InputT, CommT> extends Sink<InputT> {
+@Deprecated
+public interface TwoPhaseCommittingSink<InputT, CommT>
+        extends Sink<InputT>, SupportsCommitter<CommT> {
 
     /**
-     * Creates a {@link PrecommittingSinkWriter} that creates committables on checkpoint or end of
-     * input.
+     * Creates a {@link Committer} that permanently makes the previously written data visible
+     * through {@link Committer#commit(Collection)}.
      *
-     * @param context the runtime context.
-     * @return A sink writer for the two-phase commit protocol.
+     * @return A committer for the two-phase commit protocol.
      * @throws IOException for any failure during creation.
+     * @deprecated Please use {@link #createCommitter(CommitterInitContext)}
      */
-    PrecommittingSinkWriter<InputT, CommT> createWriter(WriterInitContext context)
-            throws IOException;
+    @Deprecated
+    default Committer<CommT> createCommitter() throws IOException {
+        throw new UnsupportedOperationException(
+                "Deprecated, please use createCommitter(CommitterInitContext)");
+    }
 
     /**
      * Creates a {@link Committer} that permanently makes the previously written data visible
@@ -61,31 +64,12 @@ public interface TwoPhaseCommittingSink<InputT, CommT> extends Sink<InputT> {
      * @return A committer for the two-phase commit protocol.
      * @throws IOException for any failure during creation.
      */
-    Committer<CommT> createCommitter(CommitterInitContext context) throws IOException;
-
-    /** Returns the serializer of the committable type. */
-    SimpleVersionedSerializer<CommT> getCommittableSerializer();
+    default Committer<CommT> createCommitter(CommitterInitContext context) throws IOException {
+        return createCommitter();
+    }
 
     /** A {@link SinkWriter} that performs the first part of a two-phase commit protocol. */
     @PublicEvolving
-    interface PrecommittingSinkWriter<InputT, CommT> extends SinkWriter<InputT> {
-        /**
-         * Prepares for a commit.
-         *
-         * <p>This method will be called after {@link #flush(boolean)} and before {@link
-         * StatefulSinkWriter#snapshotState(long)}.
-         *
-         * @return The data to commit as the second step of the two-phase commit protocol.
-         * @throws IOException if fail to prepare for a commit.
-         */
-        Collection<CommT> prepareCommit() throws IOException, InterruptedException;
-    }
-
-    /** The interface exposes some runtime info for creating a {@link Committer}. */
-    @PublicEvolving
-    interface CommitterInitContext extends org.apache.flink.api.connector.sink2.InitContext {
-
-        /** @return The metric group this committer belongs to. */
-        SinkCommitterMetricGroup metricGroup();
-    }
+    @Deprecated
+    interface PrecommittingSinkWriter<InputT, CommT> extends CommittingSinkWriter<InputT, CommT> {}
 }

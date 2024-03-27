@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.rpc.pekko;
 
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.runtime.rpc.Local;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
@@ -51,7 +51,7 @@ class MessageSerializationTest {
     @BeforeAll
     static void setup() throws Exception {
         Configuration configuration = new Configuration();
-        configuration.setString(AkkaOptions.FRAMESIZE, maxFrameSize + "b");
+        configuration.set(RpcOptions.FRAMESIZE, maxFrameSize + "b");
 
         rpcService1 =
                 PekkoRpcServiceUtils.remoteServiceBuilder(configuration, "localhost", 0)

@@ -79,11 +79,12 @@ public class FailureRateRestartBackoffTimeStrategy implements RestartBackoffTime
     }
 
     @Override
-    public void notifyFailure(Throwable cause) {
+    public boolean notifyFailure(Throwable cause) {
         if (isFailureTimestampsQueueFull()) {
             failureTimestamps.remove();
         }
         failureTimestamps.add(clock.absoluteTimeMillis());
+        return true;
     }
 
     @Override
@@ -111,7 +112,7 @@ public class FailureRateRestartBackoffTimeStrategy implements RestartBackoffTime
     public static FailureRateRestartBackoffTimeStrategyFactory createFactory(
             final Configuration configuration) {
         int maxFailuresPerInterval =
-                configuration.getInteger(
+                configuration.get(
                         RestartStrategyOptions
                                 .RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL);
         long failuresInterval =

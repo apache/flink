@@ -18,19 +18,20 @@
 
 package org.apache.flink.streaming.runtime.metrics;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link WatermarkGauge}. */
-public class WatermarkGaugeTest {
+class WatermarkGaugeTest {
 
     @Test
-    public void testSetCurrentLowWatermark() {
+    void testSetCurrentLowWatermark() {
         WatermarkGauge metric = new WatermarkGauge();
 
-        Assert.assertEquals(Long.MIN_VALUE, metric.getValue().longValue());
+        assertThat(metric.getValue()).isEqualTo(Long.MIN_VALUE);
 
         metric.setCurrentWatermark(64);
-        Assert.assertEquals(64, metric.getValue().longValue());
+        assertThat(metric.getValue()).isEqualTo(64L);
     }
 }

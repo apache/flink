@@ -18,7 +18,7 @@
 
 package org.apache.flink.connector.testframe.external.sink;
 
-import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.core.execution.CheckpointingMode;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 

@@ -65,18 +65,17 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 /**
@@ -84,7 +83,7 @@ import static org.mockito.Mockito.mock;
  * exit is enabled inside relevant methods that can call user-defined functions in {@code
  * StreamTask}.
  */
-public class StreamTaskSystemExitTest extends TestLogger {
+class StreamTaskSystemExitTest {
     private static final int TEST_EXIT_CODE = 123;
     private SecurityManager originalSecurityManager;
 
@@ -99,8 +98,8 @@ public class StreamTaskSystemExitTest extends TestLogger {
         }
     }
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         Configuration configuration = new Configuration();
         configuration.set(
                 ClusterOptions.INTERCEPT_USER_SYSTEM_EXIT, ClusterOptions.UserSystemExitMode.THROW);
@@ -108,44 +107,49 @@ public class StreamTaskSystemExitTest extends TestLogger {
         FlinkSecurityManager.setFromConfiguration(configuration);
     }
 
-    @After
-    public void tearDown() {
+    @AfterEach
+    void tearDown() {
         System.setSecurityManager(originalSecurityManager);
     }
 
     @Test
-    public void testInitSystemExitStreamTask() throws Exception {
+    void testInitSystemExitStreamTask() throws Exception {
         Task task = createSystemExitTask(InitSystemExitStreamTask.class.getName(), null);
         task.run();
-        assertNotNull(task.getFailureCause());
-        assertEquals(task.getFailureCause().getClass(), UserSystemExitException.class);
+        assertThat(task.getFailureCause())
+                .isNotNull()
+                .isExactlyInstanceOf(UserSystemExitException.class);
     }
 
     @Test
-    public void testProcessInputSystemExitStreamTask() throws Exception {
+    void testProcessInputSystemExitStreamTask() throws Exception {
         Task task = createSystemExitTask(ProcessInputSystemExitStreamTask.class.getName(), null);
         task.run();
-        assertNotNull(task.getFailureCause());
-        assertEquals(task.getFailureCause().getClass(), UserSystemExitException.class);
+        assertThat(task.getFailureCause())
+                .isNotNull()
+                .isExactlyInstanceOf(UserSystemExitException.class);
     }
 
-    @Test(expected = UserSystemExitException.class)
-    public void testCancelSystemExitStreamTask() throws Exception {
+    @Test
+    void testCancelSystemExitStreamTask() throws Exception {
         Environment mockEnvironment = new MockEnvironmentBuilder().build();
         SystemExitStreamTask systemExitStreamTask =
                 new SystemExitStreamTask(mockEnvironment, SystemExitStreamTask.ExitPoint.CANCEL);
-        systemExitStreamTask.cancel();
+
+        assertThatThrownBy(() -> systemExitStreamTask.cancel())
+                .isInstanceOf(UserSystemExitException.class);
     }
 
     @Test
-    public void testStreamSourceSystemExitStreamTask() throws Exception {
+    void testStreamSourceSystemExitStreamTask() throws Exception {
         final TestStreamSource<String, SystemExitSourceFunction> testStreamSource =
                 new TestStreamSource<>(new SystemExitSourceFunction());
         Task task =
                 createSystemExitTask(SystemExitSourceStreamTask.class.getName(), testStreamSource);
         task.run();
-        assertNotNull(task.getFailureCause());
-        assertEquals(task.getFailureCause().getClass(), UserSystemExitException.class);
+        assertThat(task.getFailureCause())
+                .isNotNull()
+                .isExactlyInstanceOf(UserSystemExitException.class);
     }
 
     private Task createSystemExitTask(final String invokableClassName, StreamOperator<?> operator)

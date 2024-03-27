@@ -93,6 +93,12 @@
             <td>Defines whether user-jars are included in the system class path as well as their positioning in the path.<br /><br />Possible values:<ul><li>"DISABLED": Exclude user jars from the system class path</li><li>"FIRST": Position at the beginning</li><li>"LAST": Position at the end</li><li>"ORDER": Position based on the name of the jar</li></ul></td>
         </tr>
         <tr>
+            <td><h5>yarn.container-start-command-template</h5></td>
+            <td style="word-wrap: break-word;">"%java% %jvmmem% %jvmopts% %logging% %class% %args% %redirects%"</td>
+            <td>String</td>
+            <td>This configuration parameter allows users to pass custom settings (such as JVM paths, arguments etc.) to start the YARN. The following placeholders will be replaced: <ul><li>%java%: Path to the Java executable</li><li>%jvmmem%: JVM memory limits and tweaks</li><li>%jvmopts%: Options for the Java VM</li><li>%logging%: Logging-related configuration settings</li><li>%class%: Main class to execute</li><li>%args%: Arguments for the main class</li><li>%redirects%: Output redirects</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>yarn.containers.vcores</h5></td>
             <td style="word-wrap: break-word;">-1</td>
             <td>Integer</td>

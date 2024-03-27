@@ -232,7 +232,7 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 
     private static Configuration createConfiguration() {
         Configuration configuration = new Configuration();
-        configuration.setString(
+        configuration.set(
                 JobManagerOptions.EXECUTION_FAILOVER_STRATEGY,
                 PIPELINED_REGION_RESTART_STRATEGY_NAME);
         return configuration;

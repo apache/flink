@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph.failover;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.util.clock.Clock;
@@ -27,6 +28,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Restart strategy which tries to restart indefinitely number of times with an exponential backoff
@@ -36,6 +38,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>If the tasks are running smoothly for some time, backoff is reset to its initial value.
  */
 public class ExponentialDelayRestartBackoffTimeStrategy implements RestartBackoffTimeStrategy {
+
+    private static final long DEFAULT_NEXT_RESTART_TIMESTAMP = Integer.MIN_VALUE;
 
     private final long initialBackoffMS;
 
@@ -47,13 +51,13 @@ public class ExponentialDelayRestartBackoffTimeStrategy implements RestartBackof
 
     private final double jitterFactor;
 
-    private final String strategyString;
+    private final int attemptsBeforeResetBackoff;
 
     private final Clock clock;
 
-    private long currentBackoffMS;
+    private int currentRestartAttempt;
 
-    private long lastFailureTimestamp;
+    private long nextRestartTimestamp;
 
     ExponentialDelayRestartBackoffTimeStrategy(
             Clock clock,
@@ -61,7 +65,8 @@ public class ExponentialDelayRestartBackoffTimeStrategy implements RestartBackof
             long maxBackoffMS,
             double backoffMultiplier,
             long resetBackoffThresholdMS,
-            double jitterFactor) {
+            double jitterFactor,
+            int attemptsBeforeResetBackoff) {
 
         checkArgument(initialBackoffMS >= 1, "Initial backoff must be at least 1.");
         checkArgument(maxBackoffMS >= 1, "Maximum backoff must be at least 1.");
@@ -74,6 +79,9 @@ public class ExponentialDelayRestartBackoffTimeStrategy implements RestartBackof
                 "Threshold duration for exponential backoff reset must be at least 1.");
         checkArgument(
                 0 <= jitterFactor && jitterFactor <= 1, "Jitter factor must be >= 0 and <= 1.");
+        checkArgument(
+                attemptsBeforeResetBackoff >= 1,
+                "The attemptsBeforeResetBackoff must be at least 1.");
 
         this.initialBackoffMS = initialBackoffMS;
         setInitialBackoff();
@@ -81,68 +89,74 @@ public class ExponentialDelayRestartBackoffTimeStrategy implements RestartBackof
         this.backoffMultiplier = backoffMultiplier;
         this.resetBackoffThresholdMS = resetBackoffThresholdMS;
         this.jitterFactor = jitterFactor;
+        this.attemptsBeforeResetBackoff = attemptsBeforeResetBackoff;
 
         this.clock = checkNotNull(clock);
-        this.lastFailureTimestamp = 0;
-        this.strategyString = generateStrategyString();
+        this.nextRestartTimestamp = DEFAULT_NEXT_RESTART_TIMESTAMP;
     }
 
     @Override
     public boolean canRestart() {
-        return true;
+        return currentRestartAttempt <= attemptsBeforeResetBackoff;
     }
 
     @Override
     public long getBackoffTime() {
-        long backoffWithJitter = currentBackoffMS + calculateJitterBackoffMS();
-        return Math.min(backoffWithJitter, maxBackoffMS);
+        checkState(
+                nextRestartTimestamp != DEFAULT_NEXT_RESTART_TIMESTAMP,
+                "Please call notifyFailure first.");
+        return Math.max(0, nextRestartTimestamp - clock.absoluteTimeMillis());
     }
 
     @Override
-    public void notifyFailure(Throwable cause) {
+    public boolean notifyFailure(Throwable cause) {
         long now = clock.absoluteTimeMillis();
-        if ((now - lastFailureTimestamp) >= (resetBackoffThresholdMS + currentBackoffMS)) {
-            setInitialBackoff();
-        } else {
-            increaseBackoff();
+
+        // Merge multiple failures into one attempt if there are tasks will be restarted later.
+        if (now <= nextRestartTimestamp) {
+            return false;
         }
-        lastFailureTimestamp = now;
+
+        if ((now - nextRestartTimestamp) >= resetBackoffThresholdMS) {
+            setInitialBackoff();
+        }
+        nextRestartTimestamp = now + calculateActualBackoffTime();
+        currentRestartAttempt++;
+        return true;
+    }
+
+    @VisibleForTesting
+    long getInitialBackoffMS() {
+        return initialBackoffMS;
+    }
+
+    @VisibleForTesting
+    long getMaxBackoffMS() {
+        return maxBackoffMS;
+    }
+
+    @VisibleForTesting
+    double getBackoffMultiplier() {
+        return backoffMultiplier;
+    }
+
+    @VisibleForTesting
+    long getResetBackoffThresholdMS() {
+        return resetBackoffThresholdMS;
+    }
+
+    @VisibleForTesting
+    double getJitterFactor() {
+        return jitterFactor;
+    }
+
+    @VisibleForTesting
+    int getAttemptsBeforeResetBackoff() {
+        return attemptsBeforeResetBackoff;
     }
 
     @Override
     public String toString() {
-        return strategyString;
-    }
-
-    private void setInitialBackoff() {
-        currentBackoffMS = initialBackoffMS;
-    }
-
-    private void increaseBackoff() {
-        if (currentBackoffMS < maxBackoffMS) {
-            currentBackoffMS *= backoffMultiplier;
-        }
-        currentBackoffMS = Math.max(initialBackoffMS, Math.min(currentBackoffMS, maxBackoffMS));
-    }
-
-    /**
-     * Calculate jitter offset to avoid thundering herd scenario. The offset range increases with
-     * the number of restarts.
-     *
-     * <p>F.e. for backoff time 8 with jitter 0.25, it generates random number in range [-2, 2].
-     *
-     * @return random value in interval [-n, n], where n represents jitter * current backoff
-     */
-    private long calculateJitterBackoffMS() {
-        if (jitterFactor == 0) {
-            return 0;
-        } else {
-            long offset = (long) (currentBackoffMS * jitterFactor);
-            return ThreadLocalRandom.current().nextLong(-offset, offset + 1);
-        }
-    }
-
-    private String generateStrategyString() {
         return "ExponentialDelayRestartBackoffTimeStrategy(initialBackoffMS="
                 + initialBackoffMS
                 + ", maxBackoffMS="
@@ -153,11 +167,44 @@ public class ExponentialDelayRestartBackoffTimeStrategy implements RestartBackof
                 + resetBackoffThresholdMS
                 + ", jitterFactor="
                 + jitterFactor
-                + ", currentBackoffMS="
-                + currentBackoffMS
-                + ", lastFailureTimestamp="
-                + lastFailureTimestamp
+                + ", attemptsBeforeResetBackoff="
+                + attemptsBeforeResetBackoff
+                + ", currentRestartAttempt="
+                + currentRestartAttempt
+                + ", nextRestartTimestamp="
+                + nextRestartTimestamp
                 + ")";
+    }
+
+    private void setInitialBackoff() {
+        currentRestartAttempt = 0;
+    }
+
+    private long calculateActualBackoffTime() {
+        long currentBackoffTime =
+                (long) (initialBackoffMS * Math.pow(backoffMultiplier, currentRestartAttempt));
+        return Math.max(
+                initialBackoffMS,
+                Math.min(
+                        currentBackoffTime + calculateJitterBackoffMS(currentBackoffTime),
+                        maxBackoffMS));
+    }
+
+    /**
+     * Calculate jitter offset to avoid thundering herd scenario. The offset range increases with
+     * the number of restarts.
+     *
+     * <p>F.e. for backoff time 8 with jitter 0.25, it generates random number in range [-2, 2].
+     *
+     * @return random value in interval [-n, n], where n represents jitter * current backoff
+     */
+    private long calculateJitterBackoffMS(long currentBackoffMS) {
+        if (jitterFactor == 0) {
+            return 0;
+        } else {
+            long offset = (long) (currentBackoffMS * jitterFactor);
+            return ThreadLocalRandom.current().nextLong(-offset, offset + 1);
+        }
     }
 
     public static ExponentialDelayRestartBackoffTimeStrategyFactory createFactory(
@@ -186,45 +233,75 @@ public class ExponentialDelayRestartBackoffTimeStrategy implements RestartBackof
                 configuration.get(
                         RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_JITTER_FACTOR);
 
+        int attemptsBeforeResetBackoff =
+                configuration.get(
+                        RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_ATTEMPTS);
+
         return new ExponentialDelayRestartBackoffTimeStrategyFactory(
                 initialBackoffMS,
                 maxBackoffMS,
                 backoffMultiplier,
                 resetBackoffThresholdMS,
-                jitterFactor);
+                jitterFactor,
+                attemptsBeforeResetBackoff);
     }
 
     /** The factory for creating {@link ExponentialDelayRestartBackoffTimeStrategy}. */
     public static class ExponentialDelayRestartBackoffTimeStrategyFactory implements Factory {
 
+        private final Clock clock;
         private final long initialBackoffMS;
         private final long maxBackoffMS;
         private final double backoffMultiplier;
         private final long resetBackoffThresholdMS;
         private final double jitterFactor;
+        private final int attemptsBeforeResetBackoff;
 
         public ExponentialDelayRestartBackoffTimeStrategyFactory(
                 long initialBackoffMS,
                 long maxBackoffMS,
                 double backoffMultiplier,
                 long resetBackoffThresholdMS,
-                double jitterFactor) {
-            this.initialBackoffMS = initialBackoffMS;
-            this.maxBackoffMS = maxBackoffMS;
-            this.backoffMultiplier = backoffMultiplier;
-            this.resetBackoffThresholdMS = resetBackoffThresholdMS;
-            this.jitterFactor = jitterFactor;
-        }
-
-        @Override
-        public RestartBackoffTimeStrategy create() {
-            return new ExponentialDelayRestartBackoffTimeStrategy(
+                double jitterFactor,
+                int attemptsBeforeResetBackoff) {
+            this(
                     SystemClock.getInstance(),
                     initialBackoffMS,
                     maxBackoffMS,
                     backoffMultiplier,
                     resetBackoffThresholdMS,
-                    jitterFactor);
+                    jitterFactor,
+                    attemptsBeforeResetBackoff);
+        }
+
+        @VisibleForTesting
+        ExponentialDelayRestartBackoffTimeStrategyFactory(
+                Clock clock,
+                long initialBackoffMS,
+                long maxBackoffMS,
+                double backoffMultiplier,
+                long resetBackoffThresholdMS,
+                double jitterFactor,
+                int attemptsBeforeResetBackoff) {
+            this.clock = clock;
+            this.initialBackoffMS = initialBackoffMS;
+            this.maxBackoffMS = maxBackoffMS;
+            this.backoffMultiplier = backoffMultiplier;
+            this.resetBackoffThresholdMS = resetBackoffThresholdMS;
+            this.jitterFactor = jitterFactor;
+            this.attemptsBeforeResetBackoff = attemptsBeforeResetBackoff;
+        }
+
+        @Override
+        public RestartBackoffTimeStrategy create() {
+            return new ExponentialDelayRestartBackoffTimeStrategy(
+                    clock,
+                    initialBackoffMS,
+                    maxBackoffMS,
+                    backoffMultiplier,
+                    resetBackoffThresholdMS,
+                    jitterFactor,
+                    attemptsBeforeResetBackoff);
         }
     }
 }

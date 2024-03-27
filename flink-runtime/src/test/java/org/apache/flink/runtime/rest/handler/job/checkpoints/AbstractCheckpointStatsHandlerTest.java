@@ -63,7 +63,9 @@ class AbstractCheckpointStatsHandlerTest {
 
     private static final CheckpointStatsTracker checkpointStatsTracker =
             new CheckpointStatsTracker(
-                    10, UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup());
+                    10,
+                    UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+                    new JobID());
 
     @Test
     void testRetrieveSnapshotFromCache() throws Exception {

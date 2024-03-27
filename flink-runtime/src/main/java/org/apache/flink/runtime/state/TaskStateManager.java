@@ -24,6 +24,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
@@ -49,6 +50,8 @@ import java.util.Optional;
  * state of operator instances in the task for restore purposes.
  */
 public interface TaskStateManager extends CheckpointListener, AutoCloseable {
+
+    void reportInitializationMetrics(SubTaskInitializationMetrics subTaskInitializationMetrics);
 
     /**
      * Report the state snapshots for the operator instances running in the owning task.
@@ -113,5 +116,6 @@ public interface TaskStateManager extends CheckpointListener, AutoCloseable {
     StateChangelogStorageView<?> getStateChangelogStorageView(
             Configuration configuration, ChangelogStateHandle changelogStateHandle);
 
+    @Nullable
     FileMergingSnapshotManager getFileMergingSnapshotManager();
 }

@@ -93,7 +93,9 @@ public abstract class AbstractStreamingWriter<IN, OUT> extends AbstractStreamOpe
     @Override
     public void initializeState(StateInitializationContext context) throws Exception {
         super.initializeState(context);
-        buckets = bucketsBuilder.createBuckets(getRuntimeContext().getIndexOfThisSubtask());
+        buckets =
+                bucketsBuilder.createBuckets(
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
 
         // Set listener before the initialization of Buckets.
         buckets.setBucketLifeCycleListener(

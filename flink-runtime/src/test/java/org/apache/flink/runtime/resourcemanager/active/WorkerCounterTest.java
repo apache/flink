@@ -19,56 +19,56 @@
 package org.apache.flink.runtime.resourcemanager.active;
 
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.Is.is;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link WorkerCounter}. */
-public class WorkerCounterTest extends TestLogger {
+class WorkerCounterTest {
 
     @Test
-    public void testWorkerCounterIncreaseAndDecrease() {
+    void testWorkerCounterIncreaseAndDecrease() {
         final WorkerResourceSpec spec1 = new WorkerResourceSpec.Builder().setCpuCores(1.0).build();
         final WorkerResourceSpec spec2 = new WorkerResourceSpec.Builder().setCpuCores(2.0).build();
 
         final WorkerCounter counter = new WorkerCounter();
-        assertThat(counter.getTotalNum(), is(0));
-        assertThat(counter.getNum(spec1), is(0));
-        assertThat(counter.getNum(spec2), is(0));
+        assertThat(counter.getTotalNum()).isZero();
+        assertThat(counter.getNum(spec1)).isZero();
+        assertThat(counter.getNum(spec2)).isZero();
 
-        assertThat(counter.increaseAndGet(spec1), is(1));
-        assertThat(counter.getTotalNum(), is(1));
-        assertThat(counter.getNum(spec1), is(1));
-        assertThat(counter.getNum(spec2), is(0));
+        assertThat(counter.increaseAndGet(spec1)).isOne();
+        assertThat(counter.getTotalNum()).isOne();
+        assertThat(counter.getNum(spec1)).isOne();
+        assertThat(counter.getNum(spec2)).isZero();
 
-        assertThat(counter.increaseAndGet(spec1), is(2));
-        assertThat(counter.getTotalNum(), is(2));
-        assertThat(counter.getNum(spec1), is(2));
-        assertThat(counter.getNum(spec2), is(0));
+        assertThat(counter.increaseAndGet(spec1)).isEqualTo(2);
+        assertThat(counter.getTotalNum()).isEqualTo(2);
+        assertThat(counter.getNum(spec1)).isEqualTo(2);
+        assertThat(counter.getNum(spec2)).isZero();
 
-        assertThat(counter.increaseAndGet(spec2), is(1));
-        assertThat(counter.getTotalNum(), is(3));
-        assertThat(counter.getNum(spec1), is(2));
-        assertThat(counter.getNum(spec2), is(1));
+        assertThat(counter.increaseAndGet(spec2)).isOne();
+        assertThat(counter.getTotalNum()).isEqualTo(3);
+        assertThat(counter.getNum(spec1)).isEqualTo(2);
+        assertThat(counter.getNum(spec2)).isOne();
 
-        assertThat(counter.decreaseAndGet(spec1), is(1));
-        assertThat(counter.getTotalNum(), is(2));
-        assertThat(counter.getNum(spec1), is(1));
-        assertThat(counter.getNum(spec2), is(1));
+        assertThat(counter.decreaseAndGet(spec1)).isOne();
+        assertThat(counter.getTotalNum()).isEqualTo(2);
+        assertThat(counter.getNum(spec1)).isOne();
+        assertThat(counter.getNum(spec2)).isOne();
 
-        assertThat(counter.decreaseAndGet(spec2), is(0));
-        assertThat(counter.getTotalNum(), is(1));
-        assertThat(counter.getNum(spec1), is(1));
-        assertThat(counter.getNum(spec2), is(0));
+        assertThat(counter.decreaseAndGet(spec2)).isZero();
+        assertThat(counter.getTotalNum()).isOne();
+        assertThat(counter.getNum(spec1)).isOne();
+        assertThat(counter.getNum(spec2)).isZero();
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void testWorkerCounterDecreaseOnZero() {
+    @Test
+    void testWorkerCounterDecreaseOnZero() {
         final WorkerResourceSpec spec = new WorkerResourceSpec.Builder().build();
         final WorkerCounter counter = new WorkerCounter();
-        counter.decreaseAndGet(spec);
+        assertThatThrownBy(() -> counter.decreaseAndGet(spec))
+                .isInstanceOf(IllegalStateException.class);
     }
 }

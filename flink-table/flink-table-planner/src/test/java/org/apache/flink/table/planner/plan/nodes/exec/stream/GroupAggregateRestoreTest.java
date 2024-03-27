@@ -22,13 +22,14 @@ import org.apache.flink.table.planner.plan.nodes.exec.testutils.RestoreTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /** Restore tests for {@link StreamExecGroupAggregate}. */
 public class GroupAggregateRestoreTest extends RestoreTestBase {
 
     public GroupAggregateRestoreTest() {
-        super(StreamExecGroupAggregate.class);
+        super(StreamExecGroupAggregate.class, Collections.singletonList(StreamExecExchange.class));
     }
 
     @Override
@@ -41,6 +42,7 @@ public class GroupAggregateRestoreTest extends RestoreTestBase {
                 GroupAggregateTestPrograms.GROUP_BY_UDF_WITH_MERGE,
                 GroupAggregateTestPrograms.GROUP_BY_UDF_WITH_MERGE_MINI_BATCH,
                 GroupAggregateTestPrograms.GROUP_BY_UDF_WITHOUT_MERGE,
-                GroupAggregateTestPrograms.GROUP_BY_UDF_WITHOUT_MERGE_MINI_BATCH);
+                GroupAggregateTestPrograms.GROUP_BY_UDF_WITHOUT_MERGE_MINI_BATCH,
+                GroupAggregateTestPrograms.AGG_WITH_STATE_TTL_HINT);
     }
 }

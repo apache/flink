@@ -76,6 +76,17 @@ public class CheckpointingOptions {
      * CheckpointStorageFactory#createFromConfig(ReadableConfig, ClassLoader)} method is called.
      *
      * <p>Recognized shortcut names are 'jobmanager' and 'filesystem'.
+     *
+     * <p>{@link #CHECKPOINT_STORAGE} and {@link #CHECKPOINTS_DIRECTORY} are usually combined to
+     * configure the checkpoint location. By default, the checkpoint meta data and actual program
+     * state will be stored in the JobManager's memory directly.
+     * <li>When {@link #CHECKPOINT_STORAGE} is set to 'jobmanager', if {@link
+     *     #CHECKPOINTS_DIRECTORY} is configured, the meta data of checkpoints will be persisted to
+     *     the path specified by {@link #CHECKPOINTS_DIRECTORY}. Otherwise, the meta data will be
+     *     stored in the JobManager's memory.
+     * <li>When {@link #CHECKPOINT_STORAGE} is set to 'filesystem', a valid path must be configured
+     *     to {@link #CHECKPOINTS_DIRECTORY}, and the checkpoint meta data and actual program state
+     *     will both be persisted to the path.
      */
     @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS, position = 2)
     public static final ConfigOption<String> CHECKPOINT_STORAGE =
@@ -99,6 +110,15 @@ public class CheckpointingOptions {
                                     .linebreak()
                                     .text(
                                             "Recognized shortcut names are 'jobmanager' and 'filesystem'.")
+                                    .linebreak()
+                                    .text(
+                                            "'state.checkpoint-storage' and 'state.checkpoints.dir' are usually combined to configure the checkpoint location."
+                                                    + " By default,  the checkpoint meta data and actual program state will be stored in the JobManager's memory directly."
+                                                    + " When 'state.checkpoint-storage' is set to 'jobmanager', if 'state.checkpoints.dir' is configured,"
+                                                    + " the meta data of checkpoints will be persisted to the path specified by 'state.checkpoints.dir'."
+                                                    + " Otherwise, the meta data will be stored in the JobManager's memory."
+                                                    + " When 'state.checkpoint-storage' is set to 'filesystem', a valid path must be configured to 'state.checkpoints.dir',"
+                                                    + " and the checkpoint meta data and actual program state will both be persisted to the path.")
                                     .build());
 
     /** The maximum number of completed checkpoints to retain. */
@@ -158,8 +178,13 @@ public class CheckpointingOptions {
      *
      * <p>Local recovery currently only covers keyed state backends (including both the
      * EmbeddedRocksDBStateBackend and the HashMapStateBackend).
+     *
+     * @deprecated use {@link StateRecoveryOptions#LOCAL_RECOVERY} and {@link
+     *     CheckpointingOptions#LOCAL_BACKUP_ENABLED} instead.
      */
     @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
+    @Deprecated
     public static final ConfigOption<Boolean> LOCAL_RECOVERY =
             ConfigOptions.key("state.backend.local-recovery")
                     .booleanType()
@@ -215,7 +240,8 @@ public class CheckpointingOptions {
     /**
      * The default directory used for storing the data files and meta data of checkpoints in a Flink
      * supported filesystem. The storage path must be accessible from all participating
-     * processes/nodes(i.e. all TaskManagers and JobManagers).
+     * processes/nodes(i.e. all TaskManagers and JobManagers). If {@link #CHECKPOINT_STORAGE} is set
+     * to 'jobmanager', only the meta data of checkpoints will be stored in this directory.
      */
     @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS, position = 2)
     public static final ConfigOption<String> CHECKPOINTS_DIRECTORY =
@@ -226,7 +252,35 @@ public class CheckpointingOptions {
                     .withDescription(
                             "The default directory used for storing the data files and meta data of checkpoints "
                                     + "in a Flink supported filesystem. The storage path must be accessible from all participating processes/nodes"
-                                    + "(i.e. all TaskManagers and JobManagers).");
+                                    + "(i.e. all TaskManagers and JobManagers). If the '"
+                                    + CHECKPOINT_STORAGE.key()
+                                    + "' is set to 'jobmanager', only the meta data of checkpoints will be stored in this directory.");
+
+    /**
+     * Whether to create sub-directories named by job id to store the data files and meta data of
+     * checkpoints. The default value is true to enable user could run several jobs with the same
+     * checkpoint directory at the same time. If this value is set to false, pay attention not to
+     * run several jobs with the same directory simultaneously.
+     */
+    @Documentation.Section(Documentation.Sections.EXPERT_STATE_BACKENDS)
+    public static final ConfigOption<Boolean> CREATE_CHECKPOINT_SUB_DIR =
+            ConfigOptions.key("state.checkpoints.create-subdir")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Whether to create sub-directories named by job id under the '%s' to store the data files and meta data "
+                                                    + "of checkpoints. The default value is true to enable user could run several jobs with the same "
+                                                    + "checkpoint directory at the same time. If this value is set to false, pay attention not to "
+                                                    + "run several jobs with the same directory simultaneously. ",
+                                            TextElement.code(CHECKPOINTS_DIRECTORY.key()))
+                                    .linebreak()
+                                    .text(
+                                            "WARNING: This is an advanced configuration. If set to false, users must ensure that no multiple jobs are run "
+                                                    + "with the same checkpoint directory, and that no files exist other than those necessary for the "
+                                                    + "restoration of the current job when starting a new job.")
+                                    .build());
 
     /**
      * The minimum size of state data files. All state chunks smaller than that are stored inline in
@@ -256,4 +310,25 @@ public class CheckpointingOptions {
                                             + "The actual write buffer size is determined to be the maximum of the value of this option and option '%s'.",
                                     FS_SMALL_FILE_THRESHOLD.key()))
                     .withDeprecatedKeys("state.backend.fs.write-buffer-size");
+
+    /**
+     * This option configures local backup for the state backend, which indicates whether to make
+     * backup checkpoint on local disk. If not configured, fallback to {@link
+     * StateRecoveryOptions#LOCAL_RECOVERY}. By default, local backup is deactivated. Local backup
+     * currently only covers keyed state backends (including both the EmbeddedRocksDBStateBackend
+     * and the HashMapStateBackend).
+     */
+    public static final ConfigOption<Boolean> LOCAL_BACKUP_ENABLED =
+            ConfigOptions.key("execution.checkpointing.local-backup.enabled")
+                    .booleanType()
+                    .defaultValue(StateRecoveryOptions.LOCAL_RECOVERY.defaultValue())
+                    .withFallbackKeys(StateRecoveryOptions.LOCAL_RECOVERY.key())
+                    .withDeprecatedKeys(LOCAL_RECOVERY.key())
+                    .withDescription(
+                            "This option configures local backup for the state backend, "
+                                    + "which indicates whether to make backup checkpoint on local disk.  "
+                                    + "If not configured, fallback to "
+                                    + StateRecoveryOptions.LOCAL_RECOVERY.key()
+                                    + ". By default, local backup is deactivated. Local backup currently only "
+                                    + "covers keyed state backends (including both the EmbeddedRocksDBStateBackend and the HashMapStateBackend).");
 }

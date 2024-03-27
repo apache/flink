@@ -20,7 +20,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
@@ -73,7 +73,7 @@ public class RowSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Row,
                         BasicTypeInfo.LONG_TYPE_INFO,
                         BasicTypeInfo.STRING_TYPE_INFO,
                         BasicTypeInfo.STRING_TYPE_INFO);
-        return rowTypeInfo.createSerializer(new ExecutionConfig());
+        return rowTypeInfo.createSerializer(new SerializerConfigImpl());
     }
 
     // ----------------------------------------------------------------------------------------------

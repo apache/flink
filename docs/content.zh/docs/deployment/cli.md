@@ -30,7 +30,7 @@ under the License.
 Flink provides a Command-Line Interface (CLI) `bin/flink` to run programs that 
 are packaged as JAR files and to control their execution. The CLI is part of any 
 Flink setup, available in local single node setups and in distributed setups. 
-It connects to the running JobManager specified in `conf/flink-conf.yaml`.
+It connects to the running JobManager specified in [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}).
 
 
 
@@ -125,6 +125,43 @@ Lastly, you can optionally provide what should be the [binary format]({{< ref "d
 
 The path to the savepoint can be used later on to [restart the Flink job](#starting-a-job-from-a-savepoint).
 
+If the state size of the job is quite big, the client will get a timeout exception since it has to wait for the savepoint finished.
+```
+Triggering savepoint for job bec5244e09634ad71a80785937a9732d.
+Waiting for response...
+
+--------------------------------------------------------------
+The program finished with the following exception:
+
+org.apache.flink.util.FlinkException: Triggering a savepoint for the job bec5244e09634ad71a80785937a9732d failed.
+        at org.apache.flink.client.cli.CliFrontend.triggerSavepoint(CliFrontend. java:828)
+        at org.apache.flink.client.cli.CliFrontend.lambda$savepopint$8(CliFrontend.java:794)
+        at org.apache.flink.client.cli.CliFrontend.runClusterAction(CliFrontend.java:1078)
+        at org.apache.flink.client.cli.CliFrontend.savepoint(CliFrontend.java:779)
+        at org.apache.flink.client.cli.CliFrontend.parseAndRun(CliFrontend.java:1150)
+        at org.apache.flink.client.cli.CliFrontend.lambda$mainInternal$9(CliFrontend.java:1226)
+        at org.apache.flink.runtime.security.contexts.NoOpSecurityContext.runSecured(NoOpSecurityContext.java:28)
+        at org.apache.flink.client.cli.CliFrontend.mainInternal(CliFrontend.java:1226)
+        at org.apache.flink.client.cli.CliFrontend.main(CliFronhtend.java:1194)
+Caused by: java.util.concurrent.TimeoutException
+        at java.util.concurrent.CompletableFuture.timedGet(CompletableFuture.java:1784)
+        at java.util.concurrent.CompletableFuture.get(CompletableFuture.java:1928)
+        at org.apache.flink.client.cli.CliFrontend.triggerSavepoint(CliFrontend.java:822)
+        ... 8 more
+```
+In this case, we could use "-detached" option to trigger a detached savepoint, the client will return the trigger id immediately.
+```bash
+$ ./bin/flink savepoint \
+      $JOB_ID \ 
+      /tmp/flink-savepoints
+      -detached
+```
+```
+Triggering savepoint in detached mode for job bec5244e09634ad71a80785937a9732d.
+Successfully trigger manual savepoint, triggerId: 2505bbd12c5b58fd997d0f193db44b97
+```
+We can get the status of the detached savepoint by [rest api]({{< ref "docs/ops/rest_api" >}}/#jobs-jobid-checkpoints-triggerid).
+
 #### Disposing a Savepoint
 
 The `savepoint` action can be also used to remove savepoints. `--dispose` with the corresponding 
@@ -214,6 +251,8 @@ Use the `--drain` flag if you want to terminate the job permanently.
 If you want to resume the job at a later point in time, then do not drain the pipeline because it could lead to incorrect results when the job is resumed.
 {{< /hint >}}
 
+If you want to trigger the savepoint in detached mode, add option `-detached` to the command.
+
 Lastly, you can optionally provide what should be the [binary format]({{< ref "docs/ops/state/savepoints" >}}#savepoint-format) of the savepoint.
 
 #### Cancelling a Job Ungracefully
@@ -276,7 +315,7 @@ $ ./bin/flink run \
 ```
 This is useful if your program dropped an operator that was part of the savepoint.
 
-You can also select the [restore mode]({{< ref "docs/ops/state/savepoints" >}}#restore-mode)
+You can also select the [claim mode]({{< ref "docs/ops/state/savepoints" >}}#claim-mode)
 which should be used for the savepoint. The mode controls who takes ownership of the files of
 the specified savepoint.
 
@@ -327,7 +366,7 @@ Here's an overview of actions supported by Flink's CLI tool:
                 This action can be used to create or disposing savepoints for a given job. It might be
                 necessary to specify a savepoint directory besides the JobID, if the 
                 <a href="{{< ref "docs/deployment/config" >}}#state-savepoints-dir">state.savepoints.dir</a> 
-                parameter was not specified in <code class="highlighter-rouge">conf/flink-conf.yaml</code>.
+                parameter was not specified in <code class="highlighter-rouge">Flink configuration file</code>.
             </td>
         </tr>
         <tr>
@@ -392,7 +431,7 @@ parameter combinations:
   * `./bin/flink run --target remote`: Submission to an already running Flink cluster
 
 The `--target` will overwrite the [execution.target]({{< ref "docs/deployment/config" >}}#execution-target) 
-specified in the `conf/flink-conf.yaml`.
+specified in the [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}).
 
 For more details on the commands and the available options, please refer to the Resource Provider-specific 
 pages of the documentation.

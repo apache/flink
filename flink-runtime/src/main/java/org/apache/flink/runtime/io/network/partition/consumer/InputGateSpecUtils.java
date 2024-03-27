@@ -20,11 +20,13 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageConfiguration;
+
+import javax.annotation.Nullable;
 
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /** Utils to manage the specs of the {@link InputGate}, for example, {@link GateBuffersSpec}. */
 public class InputGateSpecUtils {
@@ -39,43 +41,39 @@ public class InputGateSpecUtils {
             int configuredFloatingNetworkBuffersPerGate,
             ResultPartitionType partitionType,
             int numInputChannels,
-            boolean enableTieredStorage) {
+            @Nullable TieredStorageConfiguration tieredStorageConfiguration) {
+        boolean enableTieredStorage = tieredStorageConfiguration != null;
         int maxRequiredBuffersThresholdPerGate =
                 getEffectiveMaxRequiredBuffersPerGate(
                         partitionType, configuredMaxRequiredBuffersPerGate, enableTieredStorage);
-        int targetRequiredBuffersPerGate =
-                getRequiredBuffersTargetPerGate(
+        int targetExpectedBuffersPerGate =
+                getExpectedBuffersTargetPerGate(
                         numInputChannels, configuredNetworkBuffersPerChannel);
-        int targetTotalBuffersPerGate =
-                getTotalBuffersTargetPerGate(
+        int maxBuffersPerGate =
+                getMaxBuffersPerGate(
                         numInputChannels,
                         configuredNetworkBuffersPerChannel,
                         configuredFloatingNetworkBuffersPerGate);
-        int requiredBuffersPerGate =
-                Math.min(maxRequiredBuffersThresholdPerGate, targetRequiredBuffersPerGate);
-
+        int expectedBuffersPerGate =
+                Math.min(maxRequiredBuffersThresholdPerGate, targetExpectedBuffersPerGate);
         int effectiveExclusiveBuffersPerChannel =
                 getExclusiveBuffersPerChannel(
                         configuredNetworkBuffersPerChannel,
                         numInputChannels,
-                        requiredBuffersPerGate);
-        int effectiveExclusiveBuffersPerGate =
-                getEffectiveExclusiveBuffersPerGate(
-                        numInputChannels, effectiveExclusiveBuffersPerChannel);
-
-        int requiredFloatingBuffers = requiredBuffersPerGate - effectiveExclusiveBuffersPerGate;
-        int totalFloatingBuffers = targetTotalBuffersPerGate - effectiveExclusiveBuffersPerGate;
-
-        checkState(requiredFloatingBuffers > 0, "Must be positive.");
-        checkState(
-                requiredFloatingBuffers <= totalFloatingBuffers,
-                "Wrong number of floating buffers.");
+                        expectedBuffersPerGate);
+        int minBuffersPerGate =
+                partitionType.isHybridResultPartition()
+                                && enableTieredStorage
+                                && tieredStorageConfiguration.getMemoryDecouplingEnabled()
+                        ? tieredStorageConfiguration.getMinBuffersPerGate()
+                        : expectedBuffersPerGate;
+        expectedBuffersPerGate = Math.max(minBuffersPerGate, expectedBuffersPerGate);
 
         return new GateBuffersSpec(
                 effectiveExclusiveBuffersPerChannel,
-                requiredFloatingBuffers,
-                totalFloatingBuffers,
-                targetTotalBuffersPerGate);
+                expectedBuffersPerGate,
+                minBuffersPerGate,
+                maxBuffersPerGate);
     }
 
     @VisibleForTesting
@@ -105,28 +103,25 @@ public class InputGateSpecUtils {
             int configuredNetworkBuffersPerChannel,
             int numInputChannels,
             int requiredBuffersPerGate) {
-        checkArgument(numInputChannels > 0, "Must be positive.");
         checkArgument(requiredBuffersPerGate >= 1, "Require at least 1 buffer per gate.");
-        return Math.min(
-                configuredNetworkBuffersPerChannel,
-                (requiredBuffersPerGate - 1) / numInputChannels);
+
+        return numInputChannels == 0
+                ? 0
+                : Math.min(
+                        configuredNetworkBuffersPerChannel,
+                        (requiredBuffersPerGate - 1) / numInputChannels);
     }
 
-    private static int getRequiredBuffersTargetPerGate(
+    private static int getExpectedBuffersTargetPerGate(
             int numInputChannels, int configuredNetworkBuffersPerChannel) {
         return numInputChannels * configuredNetworkBuffersPerChannel + 1;
     }
 
-    private static int getTotalBuffersTargetPerGate(
+    private static int getMaxBuffersPerGate(
             int numInputChannels,
             int configuredNetworkBuffersPerChannel,
             int configuredFloatingBuffersPerGate) {
         return numInputChannels * configuredNetworkBuffersPerChannel
                 + configuredFloatingBuffersPerGate;
-    }
-
-    private static int getEffectiveExclusiveBuffersPerGate(
-            int numInputChannels, int effectiveExclusiveBuffersPerChannel) {
-        return effectiveExclusiveBuffersPerChannel * numInputChannels;
     }
 }

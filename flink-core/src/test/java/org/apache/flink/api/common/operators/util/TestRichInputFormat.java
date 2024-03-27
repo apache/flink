@@ -21,8 +21,6 @@ package org.apache.flink.api.common.operators.util;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.io.NonParallelInput;
 
-import java.io.IOException;
-
 /** Same as the non rich test input format, except it provide access to runtime context. */
 public class TestRichInputFormat extends GenericInputFormat<String> implements NonParallelInput {
 
@@ -34,17 +32,16 @@ public class TestRichInputFormat extends GenericInputFormat<String> implements N
     private boolean closeCalled = false;
 
     @Override
-    public boolean reachedEnd() throws IOException {
+    public boolean reachedEnd() {
         return count >= NUM;
     }
 
     @Override
-    public String nextRecord(String reuse) throws IOException {
+    public String nextRecord(String reuse) {
         count++;
         return NAMES[count - 1]
-                + getRuntimeContext().getIndexOfThisSubtask()
-                + ""
-                + getRuntimeContext().getNumberOfParallelSubtasks();
+                + getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()
+                + getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
     }
 
     public void reset() {

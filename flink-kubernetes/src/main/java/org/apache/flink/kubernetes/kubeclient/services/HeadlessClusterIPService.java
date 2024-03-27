@@ -50,6 +50,7 @@ public class HeadlessClusterIPService extends ClusterIPService {
                 .withNewMetadata()
                 .withName(serviceName)
                 .withLabels(kubernetesJobManagerParameters.getCommonLabels())
+                .withAnnotations(kubernetesJobManagerParameters.getInternalServiceAnnotations())
                 .endMetadata()
                 .withNewSpec()
                 .withClusterIP(HEADLESS_CLUSTER_IP)

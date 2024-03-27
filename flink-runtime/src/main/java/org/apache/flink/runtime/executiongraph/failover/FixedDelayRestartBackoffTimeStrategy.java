@@ -60,13 +60,10 @@ public class FixedDelayRestartBackoffTimeStrategy implements RestartBackoffTimeS
         return backoffTimeMS;
     }
 
-    public int getMaxNumberRestartAttempts() {
-        return maxNumberRestartAttempts;
-    }
-
     @Override
-    public void notifyFailure(Throwable cause) {
+    public boolean notifyFailure(Throwable cause) {
         currentRestartAttempt++;
+        return true;
     }
 
     @Override
@@ -88,8 +85,7 @@ public class FixedDelayRestartBackoffTimeStrategy implements RestartBackoffTimeS
     public static FixedDelayRestartBackoffTimeStrategyFactory createFactory(
             final Configuration configuration) {
         int maxAttempts =
-                configuration.getInteger(
-                        RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS);
+                configuration.get(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS);
         long delay =
                 configuration
                         .get(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY)

@@ -21,13 +21,13 @@ package org.apache.flink.streaming.api.functions.source;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.watermark.Watermark;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Tests for the {@link org.apache.flink.streaming.api.functions.source.FileMonitoringFunction}. */
-public class FileMonitoringFunctionTest {
+class FileMonitoringFunctionTest {
 
     @Test
-    public void testForEmptyLocation() throws Exception {
+    void testForEmptyLocation() throws Exception {
         final FileMonitoringFunction fileMonitoringFunction =
                 new FileMonitoringFunction(
                         "?non-existing-path", 1L, FileMonitoringFunction.WatchType.ONLY_NEW_FILES);

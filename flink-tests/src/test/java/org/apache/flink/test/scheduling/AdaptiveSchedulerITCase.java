@@ -28,6 +28,7 @@ import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
@@ -39,7 +40,6 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -393,7 +393,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         public void run(SourceContext<Integer> ctx) throws Exception {
             while (running && !hasFailedBefore) {
                 synchronized (ctx.getCheckpointLock()) {
-                    ctx.collect(getRuntimeContext().getIndexOfThisSubtask());
+                    ctx.collect(getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
 
                     Thread.sleep(5L);
                 }
@@ -440,7 +440,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         public void run(SourceContext<Integer> ctx) throws Exception {
             while (running) {
                 synchronized (ctx.getCheckpointLock()) {
-                    ctx.collect(getRuntimeContext().getIndexOfThisSubtask());
+                    ctx.collect(getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
                     Thread.sleep(5L);
                 }
             }

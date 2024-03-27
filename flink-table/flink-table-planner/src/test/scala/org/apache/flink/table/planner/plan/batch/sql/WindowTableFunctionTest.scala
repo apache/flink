@@ -206,4 +206,31 @@ class WindowTableFunctionTest extends TableTestBase {
         |""".stripMargin
     util.verifyExecPlan(sql)
   }
+
+  @Test
+  def testSessionTVF(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(
+        | SESSION(TABLE MyTable1, DESCRIPTOR(ts), INTERVAL '10' MINUTE))
+        |""".stripMargin
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining("Unaligned windows like session are not supported in batch mode yet.")
+      .isInstanceOf[TableException]
+  }
+
+  @Test
+  def testSessionTVFProctime(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(
+        | SESSION(TABLE MyTable2, DESCRIPTOR(c), INTERVAL '10' MINUTE))
+        |""".stripMargin
+
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining("Processing time Window TableFunction is not supported yet.")
+      .isInstanceOf[TableException]
+  }
 }

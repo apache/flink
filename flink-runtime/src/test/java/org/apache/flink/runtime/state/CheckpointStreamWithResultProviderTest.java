@@ -53,7 +53,7 @@ class CheckpointStreamWithResultProviderTest {
                     .isInstanceOf(CheckpointStreamWithResultProvider.PrimaryStreamOnly.class);
         }
 
-        LocalRecoveryDirectoryProvider directoryProvider = createLocalRecoveryDirectoryProvider();
+        LocalSnapshotDirectoryProvider directoryProvider = createLocalRecoveryDirectoryProvider();
         try (CheckpointStreamWithResultProvider primaryAndSecondary =
                 CheckpointStreamWithResultProvider.createDuplicatingStream(
                         42L, CheckpointedStateScope.EXCLUSIVE, primaryFactory, directoryProvider)) {
@@ -87,7 +87,7 @@ class CheckpointStreamWithResultProviderTest {
     @Test
     void testCloseAndFinalizeCheckpointStreamResultPrimaryAndSecondary() throws Exception {
         CheckpointStreamFactory primaryFactory = createCheckpointStreamFactory();
-        LocalRecoveryDirectoryProvider directoryProvider = createLocalRecoveryDirectoryProvider();
+        LocalSnapshotDirectoryProvider directoryProvider = createLocalRecoveryDirectoryProvider();
 
         CheckpointStreamWithResultProvider resultProvider =
                 CheckpointStreamWithResultProvider.createDuplicatingStream(
@@ -201,13 +201,13 @@ class CheckpointStreamWithResultProviderTest {
         resultProvider.close();
     }
 
-    private LocalRecoveryDirectoryProvider createLocalRecoveryDirectoryProvider()
+    private LocalSnapshotDirectoryProvider createLocalRecoveryDirectoryProvider()
             throws IOException {
         File localStateDir = TempDirUtils.newFolder(temporaryFolder);
         JobID jobID = new JobID();
         JobVertexID jobVertexID = new JobVertexID();
         int subtaskIdx = 0;
-        return new LocalRecoveryDirectoryProviderImpl(
+        return new LocalSnapshotDirectoryProviderImpl(
                 localStateDir, jobID, jobVertexID, subtaskIdx);
     }
 }

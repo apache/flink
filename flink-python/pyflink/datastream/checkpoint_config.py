@@ -76,7 +76,7 @@ class CheckpointConfig(object):
         :return: The :class:`CheckpointingMode`.
         """
         return CheckpointingMode._from_j_checkpointing_mode(
-            self._j_checkpoint_config.getCheckpointingMode())
+            self._j_checkpoint_config.getCheckpointingConsistencyMode())
 
     def set_checkpointing_mode(self, checkpointing_mode: CheckpointingMode) -> 'CheckpointConfig':
         """
@@ -90,7 +90,7 @@ class CheckpointConfig(object):
 
         :param checkpointing_mode: The :class:`CheckpointingMode`.
         """
-        self._j_checkpoint_config.setCheckpointingMode(
+        self._j_checkpoint_config.setCheckpointingConsistencyMode(
             CheckpointingMode._to_j_checkpointing_mode(checkpointing_mode))
         return self
 

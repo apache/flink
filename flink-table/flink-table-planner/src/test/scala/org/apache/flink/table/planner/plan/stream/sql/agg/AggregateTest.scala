@@ -100,7 +100,32 @@ class AggregateTest extends TableTestBase {
       .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
-    util.verifyExecPlan("SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c)  FROM MyTable GROUP BY b")
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, Long.box(5000L))
+    util.verifyExplain("SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c) FROM MyTable GROUP BY b")
+  }
+
+  @Test
+  def testMiniBatchAggWithNegativeMiniBatchSize(): Unit = {
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
+
+    val sql = "SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c) FROM MyTable GROUP BY b";
+    // without setting mini-batch size
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessage(
+        "Key: 'table.exec.mini-batch.size' , default: -1 (fallback keys: []) must be > 0.")
+      .isInstanceOf[IllegalArgumentException]
+
+    // set negative mini-batch size
+    util.tableEnv.getConfig.getConfiguration
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, Long.box(-500L))
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessage(
+        "Key: 'table.exec.mini-batch.size' , default: -1 (fallback keys: []) must be > 0.")
+      .isInstanceOf[IllegalArgumentException]
   }
 
   @Test

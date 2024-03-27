@@ -30,6 +30,7 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
+import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.util.function.QuadFunction;
 import org.apache.flink.util.function.TriFunction;
 
@@ -55,10 +56,19 @@ public class TestingClusterClient<T> implements ClusterClient<T> {
             stopWithSavepointFunction =
                     (ignore1, ignore2, savepointPath, formatType) ->
                             CompletableFuture.completedFuture(savepointPath);
+    private QuadFunction<JobID, Boolean, String, SavepointFormatType, CompletableFuture<String>>
+            stopWithDetachedSavepointFunction =
+                    (ignore1, ignore2, savepointPath, formatType) ->
+                            CompletableFuture.completedFuture(new TriggerId().toString());
+
     private TriFunction<JobID, String, SavepointFormatType, CompletableFuture<String>>
             triggerSavepointFunction =
                     (ignore, savepointPath, formatType) ->
                             CompletableFuture.completedFuture(savepointPath);
+    private TriFunction<JobID, String, SavepointFormatType, CompletableFuture<String>>
+            triggerDetachedSavepointFunction =
+                    (ignore, savepointPath, formatType) ->
+                            CompletableFuture.completedFuture(new TriggerId().toString());
 
     private BiFunction<JobID, CheckpointType, CompletableFuture<Long>> triggerCheckpointFunction =
             (ignore, checkpointType) -> CompletableFuture.completedFuture(1L);
@@ -79,10 +89,22 @@ public class TestingClusterClient<T> implements ClusterClient<T> {
         this.stopWithSavepointFunction = stopWithSavepointFunction;
     }
 
+    public void setStopWithDetachedSavepointFunction(
+            QuadFunction<JobID, Boolean, String, SavepointFormatType, CompletableFuture<String>>
+                    stopWithDetachedSavepointFunction) {
+        this.stopWithDetachedSavepointFunction = stopWithDetachedSavepointFunction;
+    }
+
     public void setTriggerSavepointFunction(
             TriFunction<JobID, String, SavepointFormatType, CompletableFuture<String>>
                     triggerSavepointFunction) {
         this.triggerSavepointFunction = triggerSavepointFunction;
+    }
+
+    public void setTriggerDetachedSavepointFunction(
+            TriFunction<JobID, String, SavepointFormatType, CompletableFuture<String>>
+                    triggerDetachedSavepointFunction) {
+        this.triggerDetachedSavepointFunction = triggerDetachedSavepointFunction;
     }
 
     public void setTriggerCheckpointFunction(
@@ -162,6 +184,16 @@ public class TestingClusterClient<T> implements ClusterClient<T> {
     }
 
     @Override
+    public CompletableFuture<String> stopWithDetachedSavepoint(
+            JobID jobId,
+            boolean advanceToEndOfEventTime,
+            @org.jetbrains.annotations.Nullable String savepointDirectory,
+            SavepointFormatType formatType) {
+        return stopWithDetachedSavepointFunction.apply(
+                jobId, advanceToEndOfEventTime, savepointDirectory, formatType);
+    }
+
+    @Override
     public CompletableFuture<String> triggerSavepoint(
             JobID jobId, @Nullable String savepointDirectory, SavepointFormatType formatType) {
         return triggerSavepointFunction.apply(jobId, savepointDirectory, formatType);
@@ -170,6 +202,14 @@ public class TestingClusterClient<T> implements ClusterClient<T> {
     @Override
     public CompletableFuture<Long> triggerCheckpoint(JobID jobId, CheckpointType checkpointType) {
         return triggerCheckpointFunction.apply(jobId, checkpointType);
+    }
+
+    @Override
+    public CompletableFuture<String> triggerDetachedSavepoint(
+            JobID jobId,
+            @org.jetbrains.annotations.Nullable String savepointDirectory,
+            SavepointFormatType formatType) {
+        return triggerDetachedSavepointFunction.apply(jobId, savepointDirectory, formatType);
     }
 
     @Override

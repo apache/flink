@@ -214,7 +214,7 @@ class ExecutionTimeBasedSlowTaskDetectorTest {
         final JobVertex jobVertex2 = new JobVertex("vertex2");
         jobVertex2.setInvokableClass(NoOpInvokable.class);
         jobVertex2.connectNewDataSetAsInput(
-                jobVertex1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+                jobVertex1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
         final ExecutionGraph executionGraph = createDynamicExecutionGraph(jobVertex1, jobVertex2);
 
         final ExecutionTimeBasedSlowTaskDetector slowTaskDetector =
@@ -431,7 +431,7 @@ class ExecutionTimeBasedSlowTaskDetectorTest {
     }
 
     private ExecutionGraph createDynamicExecutionGraph(JobVertex... jobVertices) throws Exception {
-        final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(jobVertices);
+        final JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(jobVertices);
 
         final SchedulerBase scheduler =
                 new DefaultSchedulerBuilder(

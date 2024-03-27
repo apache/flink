@@ -31,7 +31,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.execution.CheckpointType;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobClient;
@@ -65,8 +67,6 @@ import org.apache.flink.runtime.io.network.partition.ClusterPartitionManager;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
-import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -77,6 +77,7 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.ReporterSetup;
+import org.apache.flink.runtime.metrics.TraceReporterSetup;
 import org.apache.flink.runtime.metrics.groups.ProcessMetricGroup;
 import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
@@ -665,7 +666,7 @@ public class MiniCluster implements AutoCloseableAsync {
                     final long shutdownTimeoutMillis =
                             miniClusterConfiguration
                                     .getConfiguration()
-                                    .getLong(ClusterOptions.CLUSTER_SERVICES_SHUTDOWN_TIMEOUT);
+                                    .get(ClusterOptions.CLUSTER_SERVICES_SHUTDOWN_TIMEOUT);
                     final int numComponents = 2 + miniClusterConfiguration.getNumTaskManagers();
                     final Collection<CompletableFuture<Void>> componentTerminationFutures =
                             new ArrayList<>(numComponents);
@@ -890,6 +891,26 @@ public class MiniCluster implements AutoCloseableAsync {
                                 rpcTimeout));
     }
 
+    public CompletableFuture<String> triggerDetachedSavepoint(
+            JobID jobId,
+            String targetDirectory,
+            boolean cancelJob,
+            SavepointFormatType formatType) {
+        return runDispatcherCommand(
+                dispatcherGateway -> {
+                    dispatcherGateway.triggerSavepointAndGetLocation(
+                            jobId,
+                            targetDirectory,
+                            formatType,
+                            cancelJob
+                                    ? TriggerSavepointMode.CANCEL_WITH_SAVEPOINT
+                                    : TriggerSavepointMode.SAVEPOINT,
+                            rpcTimeout);
+                    // return immediately, no need to wait for the future savepoint path
+                    return CompletableFuture.completedFuture("");
+                });
+    }
+
     public CompletableFuture<String> triggerCheckpoint(JobID jobID) {
         return runDispatcherCommand(
                 dispatcherGateway -> dispatcherGateway.triggerCheckpoint(jobID, rpcTimeout));
@@ -917,6 +938,26 @@ public class MiniCluster implements AutoCloseableAsync {
                                         ? TriggerSavepointMode.TERMINATE_WITH_SAVEPOINT
                                         : TriggerSavepointMode.SUSPEND_WITH_SAVEPOINT,
                                 rpcTimeout));
+    }
+
+    public CompletableFuture<String> stopWithDetachedSavepoint(
+            JobID jobId,
+            String targetDirectory,
+            boolean terminate,
+            SavepointFormatType formatType) {
+        return runDispatcherCommand(
+                dispatcherGateway -> {
+                    dispatcherGateway.stopWithSavepointAndGetLocation(
+                            jobId,
+                            targetDirectory,
+                            formatType,
+                            terminate
+                                    ? TriggerSavepointMode.TERMINATE_WITH_SAVEPOINT
+                                    : TriggerSavepointMode.SUSPEND_WITH_SAVEPOINT,
+                            rpcTimeout);
+                    // return immediately, no need to wait for the future savepoint path
+                    return CompletableFuture.completedFuture("");
+                });
     }
 
     public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath) {
@@ -1054,7 +1095,7 @@ public class MiniCluster implements AutoCloseableAsync {
                 && savepointRestoreSettings.getRestoreMode() == RestoreMode.NO_CLAIM) {
             final Configuration conf = new Configuration();
             SavepointRestoreSettings.toConfiguration(savepointRestoreSettings, conf);
-            conf.set(SavepointConfigOptions.RESTORE_MODE, RestoreMode.LEGACY);
+            conf.set(StateRecoveryOptions.RESTORE_MODE, RestoreMode.LEGACY);
             jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.fromConfiguration(conf));
         }
     }
@@ -1134,6 +1175,8 @@ public class MiniCluster implements AutoCloseableAsync {
         return new MetricRegistryImpl(
                 MetricRegistryConfiguration.fromConfiguration(config, maximumMessageSizeInBytes),
                 ReporterSetup.fromConfiguration(
+                        config, miniClusterConfiguration.getPluginManager()),
+                TraceReporterSetup.fromConfiguration(
                         config, miniClusterConfiguration.getPluginManager()));
     }
 

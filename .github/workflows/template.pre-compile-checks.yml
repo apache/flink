@@ -1,0 +1,77 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This workflow collects all checks that do not require compilation and are, therefore,
+# JDK independent.
+
+name: "Pre-compile Checks"
+
+on:
+  workflow_dispatch:
+    inputs:
+      jdk_version:
+        description: "The JDK version that shall be used as a default within the Flink CI Docker container."
+        default: "8"
+        type: choice
+        options: ["8", "11", "17", "21"]
+
+  workflow_call:
+    inputs:
+      jdk_version:
+        description: "The JDK version that shall be used as a default within the Flink CI Docker container."
+        default: 8
+        type: number
+
+permissions: read-all
+
+# This workflow should only contain steps that do not require the compilation of Flink (and therefore, are
+# independent of the used JDK)
+jobs:
+  qa:
+    name: "Basic QA"
+    runs-on: ubuntu-22.04
+    container:
+      image: mapohl/flink-ci:FLINK-34194
+      # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
+      # --privileged allows writing coredumps in docker (FLINK-16973)
+      options: --init --privileged
+
+    steps:
+      - name: "Flink Checkout"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: "Initialize job"
+        uses: "./.github/actions/job_init"
+        with:
+          jdk_version: ${{ inputs.jdk_version }}
+
+      - name: "Checkstyle"
+        uses: "./.github/actions/run_mvn"
+        with:
+          maven-parameters: "checkstyle:check -T1C"
+
+      - name: "Spotless"
+        if: (success() || failure())
+        uses: "./.github/actions/run_mvn"
+        with:
+          maven-parameters: "spotless:check -T1C"
+
+      - name: "License Headers"
+        if: (success() || failure())
+        uses: "./.github/actions/run_mvn"
+        with:
+          maven-parameters: "org.apache.rat:apache-rat-plugin:check -N"

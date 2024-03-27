@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.planner.factories;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.source.Boundedness;
@@ -44,6 +44,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.WatermarkSpec;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.RuntimeConverter;
@@ -51,6 +52,8 @@ import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.OutputFormatProvider;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
+import org.apache.flink.table.connector.sink.abilities.SupportsBucketing;
+import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
 import org.apache.flink.table.connector.source.AsyncTableFunctionProvider;
@@ -433,6 +436,14 @@ public final class TestValuesTableFactory
                     .booleanType()
                     .defaultValue(false)
                     .withDescription("Option to determine whether to discard the late event.");
+
+    private static final ConfigOption<Boolean> SINK_BUCKET_COUNT_REQUIRED =
+            ConfigOptions.key("sink.bucket-count-required")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Option to determine whether or not to require the distribution bucket count");
+
     private static final ConfigOption<Integer> SOURCE_NUM_ELEMENT_TO_SKIP =
             ConfigOptions.key("source.num-element-to-skip")
                     .intType()
@@ -465,6 +476,8 @@ public final class TestValuesTableFactory
     private static final ConfigOption<String> SINK_CHANGELOG_MODE_ENFORCED =
             ConfigOptions.key("sink-changelog-mode-enforced").stringType().noDefaultValue();
 
+    private static final ConfigOption<Integer> SOURCE_PARALLELISM = FactoryUtil.SOURCE_PARALLELISM;
+
     private static final ConfigOption<Integer> SINK_PARALLELISM = FactoryUtil.SINK_PARALLELISM;
 
     @Override
@@ -496,6 +509,7 @@ public final class TestValuesTableFactory
         int lookupThreshold = helper.getOptions().get(LOOKUP_THRESHOLD);
         int sleepAfterElements = helper.getOptions().get(SOURCE_SLEEP_AFTER_ELEMENTS);
         long sleepTimeMillis = helper.getOptions().get(SOURCE_SLEEP_TIME).toMillis();
+        Integer parallelism = helper.getOptions().get(SOURCE_PARALLELISM);
         DefaultLookupCache cache = null;
         if (helper.getOptions().get(CACHE_TYPE).equals(LookupOptions.LookupCacheType.PARTIAL)) {
             cache = DefaultLookupCache.fromConfig(helper.getOptions());
@@ -570,7 +584,8 @@ public final class TestValuesTableFactory
                         Long.MAX_VALUE,
                         partitions,
                         readableMetadata,
-                        null);
+                        null,
+                        parallelism);
             }
 
             if (disableLookup) {
@@ -678,6 +693,7 @@ public final class TestValuesTableFactory
         TableSchema tableSchema =
                 TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
 
+        boolean requireBucketCount = helper.getOptions().get(SINK_BUCKET_COUNT_REQUIRED);
         if (sinkClass.equals("DEFAULT")) {
             int rowTimeIndex =
                     validateAndExtractRowtimeIndex(
@@ -693,7 +709,8 @@ public final class TestValuesTableFactory
                     parallelism,
                     changelogMode,
                     rowTimeIndex,
-                    tableSchema);
+                    tableSchema,
+                    requireBucketCount);
         } else {
             try {
                 return InstantiationUtil.instantiate(
@@ -742,9 +759,11 @@ public final class TestValuesTableFactory
                         WRITABLE_METADATA,
                         ENABLE_WATERMARK_PUSH_DOWN,
                         SINK_DROP_LATE_EVENT,
+                        SINK_BUCKET_COUNT_REQUIRED,
                         SOURCE_NUM_ELEMENT_TO_SKIP,
                         SOURCE_SLEEP_AFTER_ELEMENTS,
                         SOURCE_SLEEP_TIME,
+                        SOURCE_PARALLELISM,
                         INTERNAL_DATA,
                         CACHE_TYPE,
                         PARTIAL_CACHE_EXPIRE_AFTER_ACCESS,
@@ -915,6 +934,7 @@ public final class TestValuesTableFactory
         private @Nullable int[] groupingSet;
         private List<AggregateExpression> aggregateExpressions;
         private List<String> acceptedPartitionFilterFields;
+        private final Integer parallelism;
 
         private TestValuesScanTableSourceWithoutProjectionPushDown(
                 DataType producedDataType,
@@ -933,7 +953,8 @@ public final class TestValuesTableFactory
                 long limit,
                 List<Map<String, String>> allPartitions,
                 Map<String, DataType> readableMetadata,
-                @Nullable int[] projectedMetadataFields) {
+                @Nullable int[] projectedMetadataFields,
+                @Nullable Integer parallelism) {
             this.producedDataType = producedDataType;
             this.changelogMode = changelogMode;
             this.boundedness = boundedness;
@@ -953,6 +974,7 @@ public final class TestValuesTableFactory
             this.projectedMetadataFields = projectedMetadataFields;
             this.groupingSet = null;
             this.aggregateExpressions = Collections.emptyList();
+            this.parallelism = parallelism;
         }
 
         @Override
@@ -964,7 +986,7 @@ public final class TestValuesTableFactory
         public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
             TypeInformation<RowData> type =
                     runtimeProviderContext.createTypeInformation(producedDataType);
-            TypeSerializer<RowData> serializer = type.createSerializer(new ExecutionConfig());
+            TypeSerializer<RowData> serializer = type.createSerializer(new SerializerConfigImpl());
             DataStructureConverter converter =
                     runtimeProviderContext.createDataStructureConverter(producedDataType);
             converter.open(
@@ -986,7 +1008,7 @@ public final class TestValuesTableFactory
                             sourceFunction = new FromElementsFunction<>(serializer, values);
                         }
                         return SourceFunctionProvider.of(
-                                sourceFunction, boundedness == Boundedness.BOUNDED);
+                                sourceFunction, boundedness == Boundedness.BOUNDED, parallelism);
                     } catch (IOException e) {
                         throw new TableException("Fail to init source function", e);
                     }
@@ -998,7 +1020,8 @@ public final class TestValuesTableFactory
                             terminating == TerminatingLogic.FINITE,
                             "Values Source doesn't support infinite InputFormat.");
                     Collection<RowData> values = convertToRowData(converter);
-                    return InputFormatProvider.of(new CollectionInputFormat<>(values, serializer));
+                    return InputFormatProvider.of(
+                            new CollectionInputFormat<>(values, serializer), parallelism);
                 case "DataStream":
                     checkArgument(
                             !failingSource,
@@ -1024,6 +1047,11 @@ public final class TestValuesTableFactory
                             }
 
                             @Override
+                            public Optional<Integer> getParallelism() {
+                                return Optional.ofNullable(parallelism);
+                            }
+
+                            @Override
                             public boolean isBounded() {
                                 return boundedness == Boundedness.BOUNDED;
                             }
@@ -1038,7 +1066,8 @@ public final class TestValuesTableFactory
                             || acceptedPartitionFilterFields.isEmpty()) {
                         Collection<RowData> values2 = convertToRowData(converter);
                         return SourceProvider.of(
-                                new ValuesSource(terminating, boundedness, values2, serializer));
+                                new ValuesSource(terminating, boundedness, values2, serializer),
+                                parallelism);
                     } else {
                         Map<Map<String, String>, Collection<RowData>> partitionValues =
                                 convertToPartitionedRowData(converter);
@@ -1049,7 +1078,7 @@ public final class TestValuesTableFactory
                                         partitionValues,
                                         serializer,
                                         acceptedPartitionFilterFields);
-                        return SourceProvider.of(source);
+                        return SourceProvider.of(source, parallelism);
                     }
                 default:
                     throw new IllegalArgumentException(
@@ -1113,7 +1142,8 @@ public final class TestValuesTableFactory
                     limit,
                     allPartitions,
                     readableMetadata,
-                    projectedMetadataFields);
+                    projectedMetadataFields,
+                    parallelism);
         }
 
         @Override
@@ -1476,7 +1506,8 @@ public final class TestValuesTableFactory
                     limit,
                     allPartitions,
                     readableMetadata,
-                    projectedMetadataFields);
+                    projectedMetadataFields,
+                    null);
         }
 
         @Override
@@ -1576,7 +1607,7 @@ public final class TestValuesTableFactory
         public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
             TypeInformation<RowData> type =
                     runtimeProviderContext.createTypeInformation(producedDataType);
-            TypeSerializer<RowData> serializer = type.createSerializer(new ExecutionConfig());
+            TypeSerializer<RowData> serializer = type.createSerializer(new SerializerConfigImpl());
             DataStructureConverter converter =
                     runtimeProviderContext.createDataStructureConverter(producedDataType);
             converter.open(
@@ -1937,7 +1968,11 @@ public final class TestValuesTableFactory
 
     /** Values {@link DynamicTableSink} for testing. */
     private static class TestValuesTableSink
-            implements DynamicTableSink, SupportsWritingMetadata, SupportsPartitioning {
+            implements DynamicTableSink,
+                    SupportsWritingMetadata,
+                    SupportsPartitioning,
+                    SupportsOverwrite,
+                    SupportsBucketing {
 
         private DataType consumedDataType;
         private int[] primaryKeyIndices;
@@ -1950,6 +1985,7 @@ public final class TestValuesTableFactory
         private final ChangelogMode changelogModeEnforced;
         private final int rowtimeIndex;
         private final TableSchema tableSchema;
+        private final boolean requireBucketCount;
 
         private TestValuesTableSink(
                 DataType consumedDataType,
@@ -1962,7 +1998,8 @@ public final class TestValuesTableFactory
                 @Nullable Integer parallelism,
                 @Nullable ChangelogMode changelogModeEnforced,
                 int rowtimeIndex,
-                TableSchema tableSchema) {
+                TableSchema tableSchema,
+                boolean requireBucketCount) {
             this.consumedDataType = consumedDataType;
             this.primaryKeyIndices = primaryKeyIndices;
             this.tableName = tableName;
@@ -1974,6 +2011,7 @@ public final class TestValuesTableFactory
             this.changelogModeEnforced = changelogModeEnforced;
             this.rowtimeIndex = rowtimeIndex;
             this.tableSchema = tableSchema;
+            this.requireBucketCount = requireBucketCount;
         }
 
         @Override
@@ -2110,7 +2148,8 @@ public final class TestValuesTableFactory
                     parallelism,
                     changelogModeEnforced,
                     rowtimeIndex,
-                    tableSchema);
+                    tableSchema,
+                    requireBucketCount);
         }
 
         @Override
@@ -2134,6 +2173,19 @@ public final class TestValuesTableFactory
         @Override
         public boolean requiresPartitionGrouping(boolean supportsGrouping) {
             return supportsGrouping;
+        }
+
+        @Override
+        public void applyOverwrite(boolean overwrite) {}
+
+        public Set<TableDistribution.Kind> listAlgorithms() {
+            return new HashSet<>(
+                    Arrays.asList(TableDistribution.Kind.UNKNOWN, TableDistribution.Kind.HASH));
+        }
+
+        @Override
+        public boolean requiresBucketCount() {
+            return requireBucketCount;
         }
     }
 

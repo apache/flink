@@ -172,10 +172,7 @@ public class HadoopFSDelegationTokenProvider implements DelegationTokenProvider 
                         });
 
         // YARN staging dir
-        if (flinkConfiguration
-                .getString(DeploymentOptions.TARGET, "")
-                .toLowerCase()
-                .contains("yarn")) {
+        if (flinkConfiguration.get(DeploymentOptions.TARGET, "").toLowerCase().contains("yarn")) {
             LOG.debug("Running on YARN, trying to add staging directory to file systems to access");
             String yarnStagingDirectory =
                     flinkConfiguration.getString("yarn.staging-directory", "");

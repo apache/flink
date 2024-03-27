@@ -27,7 +27,7 @@ import java.lang.annotation.Target;
 
 /**
  * Marks the field in test class defining supported semantic: {@link
- * org.apache.flink.streaming.api.CheckpointingMode}.
+ * org.apache.flink.core.execution.CheckpointingMode}.
  *
  * <p>Only one field can be annotated in test class.
  */

@@ -213,8 +213,8 @@ public class JavaUserDefinedAggFunctions {
 
     /** Accumulator of ConcatDistinctAgg. */
     public static class ConcatAcc {
-        public MapView<String, Boolean> map = new MapView<>(Types.STRING, Types.BOOLEAN);
-        public ListView<String> list = new ListView<>(Types.STRING);
+        public MapView<String, Boolean> map = new MapView<>();
+        public ListView<String> list = new ListView<>();
     }
 
     /** Concat distinct aggregate. */
@@ -289,10 +289,7 @@ public class JavaUserDefinedAggFunctions {
         @Override
         public CountDistinctAccum createAccumulator() {
             CountDistinctAccum accum = new CountDistinctAccum();
-            accum.map =
-                    new MapView<>(
-                            org.apache.flink.table.api.Types.STRING(),
-                            org.apache.flink.table.api.Types.INT());
+            accum.map = new MapView<>();
             accum.count = 0L;
             return accum;
         }

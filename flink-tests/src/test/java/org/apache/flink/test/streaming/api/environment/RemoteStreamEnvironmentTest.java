@@ -90,8 +90,8 @@ public class RemoteStreamEnvironmentTest extends TestLogger {
         JobExecutionResult actualResult = env.execute("fakeJobName");
         TestClusterClient testClient = testExecutorServiceLoader.getCreatedClusterClient();
         assertThat(actualResult.getJobID(), is(jobId));
-        assertThat(testClient.getConfiguration().getString(RestOptions.ADDRESS), is(host));
-        assertThat(testClient.getConfiguration().getInteger(RestOptions.PORT), is(99));
+        assertThat(testClient.getConfiguration().get(RestOptions.ADDRESS), is(host));
+        assertThat(testClient.getConfiguration().get(RestOptions.PORT), is(99));
     }
 
     @Test
@@ -270,6 +270,15 @@ public class RemoteStreamEnvironmentTest extends TestLogger {
         }
 
         @Override
+        public CompletableFuture<String> stopWithDetachedSavepoint(
+                JobID jobId,
+                boolean advanceToEndOfEventTime,
+                @org.jetbrains.annotations.Nullable String savepointDirectory,
+                SavepointFormatType formatType) {
+            return null;
+        }
+
+        @Override
         public CompletableFuture<String> triggerSavepoint(
                 JobID jobId, @Nullable String savepointDirectory, SavepointFormatType formatType) {
             return null;
@@ -278,6 +287,14 @@ public class RemoteStreamEnvironmentTest extends TestLogger {
         @Override
         public CompletableFuture<Long> triggerCheckpoint(
                 JobID jobId, CheckpointType checkpointType) {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<String> triggerDetachedSavepoint(
+                JobID jobId,
+                @org.jetbrains.annotations.Nullable String savepointDirectory,
+                SavepointFormatType formatType) {
             return null;
         }
 

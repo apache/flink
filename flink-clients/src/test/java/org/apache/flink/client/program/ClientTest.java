@@ -33,13 +33,13 @@ import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.client.cli.ExecutionConfigAccessor;
 import org.apache.flink.client.deployment.ClusterClientJobClientAdapter;
 import org.apache.flink.client.testjar.ForbidConfigurationJob;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.PipelineExecutor;
@@ -99,16 +99,15 @@ class ClientTest {
         plan = env.createProgramPlan();
 
         config = new Configuration();
-        config.setString(JobManagerOptions.ADDRESS, "localhost");
+        config.set(JobManagerOptions.ADDRESS, "localhost");
 
-        config.set(
-                AkkaOptions.ASK_TIMEOUT_DURATION, AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue());
+        config.set(RpcOptions.ASK_TIMEOUT_DURATION, RpcOptions.ASK_TIMEOUT_DURATION.defaultValue());
     }
 
     private Configuration fromPackagedProgram(
             final PackagedProgram program, final int parallelism, final boolean detached) {
         final Configuration configuration = new Configuration();
-        configuration.setString(DeploymentOptions.TARGET, TEST_EXECUTOR_NAME);
+        configuration.set(DeploymentOptions.TARGET, TEST_EXECUTOR_NAME);
         configuration.set(CoreOptions.DEFAULT_PARALLELISM, parallelism);
         configuration.set(DeploymentOptions.ATTACHED, !detached);
         ConfigUtils.encodeCollectionToConfig(
@@ -490,13 +489,13 @@ class ClientTest {
                 @Override
                 public boolean isCompatibleWith(@Nonnull Configuration configuration) {
                     return TEST_EXECUTOR_NAME.equalsIgnoreCase(
-                            configuration.getString(DeploymentOptions.TARGET));
+                            configuration.get(DeploymentOptions.TARGET));
                 }
 
                 @Override
                 public PipelineExecutor getExecutor(@Nonnull Configuration configuration) {
                     return (pipeline, config, classLoader) -> {
-                        final int parallelism = config.getInteger(CoreOptions.DEFAULT_PARALLELISM);
+                        final int parallelism = config.get(CoreOptions.DEFAULT_PARALLELISM);
                         final JobGraph jobGraph =
                                 FlinkPipelineTranslationUtil.getJobGraph(
                                         classLoader, plan, config, parallelism);

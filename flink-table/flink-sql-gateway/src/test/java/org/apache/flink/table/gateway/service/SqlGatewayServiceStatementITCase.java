@@ -31,6 +31,7 @@ import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.MockedEndpointVersion;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
@@ -126,7 +127,10 @@ public class SqlGatewayServiceStatementITCase extends AbstractSqlGatewayStatemen
                         resultSet.getResultSchema().toPhysicalRowDataType(),
                         DateTimeUtils.UTC_ZONE.toZoneId(),
                         SqlGatewayServiceStatementITCase.class.getClassLoader(),
-                        false),
+                        false,
+                        new CodeGeneratorContext(
+                                new Configuration(),
+                                SqlGatewayServiceStatementITCase.class.getClassLoader())),
                 new RowDataIterator(sessionHandle, operationHandle));
     }
 

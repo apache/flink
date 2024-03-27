@@ -36,7 +36,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 
 import java.time.Duration;
 
@@ -122,7 +121,7 @@ public class WindowJoin {
         return grades.join(salaries)
                 .where(new NameKeySelector())
                 .equalTo(new NameKeySelector())
-                .window(TumblingEventTimeWindows.of(Time.milliseconds(windowSize)))
+                .window(TumblingEventTimeWindows.of(Duration.ofMillis(windowSize)))
                 .apply(
                         new JoinFunction<
                                 Tuple2<String, Integer>,

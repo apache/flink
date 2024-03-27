@@ -27,25 +27,17 @@ import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Matchers;
 
 import java.util.Collection;
 
-import static org.apache.flink.streaming.util.StreamRecordMatchers.timeWindow;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.Matchers.contains;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 import static org.mockito.Matchers.anyCollection;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
@@ -56,10 +48,10 @@ import static org.mockito.Mockito.when;
 import static org.mockito.hamcrest.MockitoHamcrest.argThat;
 
 /** Tests for {@link ProcessingTimeSessionWindows}. */
-public class ProcessingTimeSessionWindowsTest extends TestLogger {
+class ProcessingTimeSessionWindowsTest {
 
     @Test
-    public void testWindowAssignment() {
+    void testWindowAssignment() {
         WindowAssigner.WindowAssignerContext mockContext =
                 mock(WindowAssigner.WindowAssignerContext.class);
 
@@ -67,23 +59,20 @@ public class ProcessingTimeSessionWindowsTest extends TestLogger {
                 ProcessingTimeSessionWindows.withGap(Time.milliseconds(5000));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(0L);
-        assertThat(
-                assigner.assignWindows("String", Long.MIN_VALUE, mockContext),
-                contains(timeWindow(0, 5000)));
+        assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
+                .containsExactly(new TimeWindow(0, 5000));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(4999L);
-        assertThat(
-                assigner.assignWindows("String", Long.MIN_VALUE, mockContext),
-                contains(timeWindow(4999, 9999)));
+        assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
+                .containsExactly(new TimeWindow(4999, 9999));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(5000L);
-        assertThat(
-                assigner.assignWindows("String", Long.MIN_VALUE, mockContext),
-                contains(timeWindow(5000, 10000)));
+        assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
+                .containsExactly(new TimeWindow(5000, 10000));
     }
 
     @Test
-    public void testMergeSinglePointWindow() {
+    void testMergeSinglePointWindow() {
         MergingWindowAssigner.MergeCallback callback =
                 mock(MergingWindowAssigner.MergeCallback.class);
 
@@ -96,7 +85,7 @@ public class ProcessingTimeSessionWindowsTest extends TestLogger {
     }
 
     @Test
-    public void testMergeSingleWindow() {
+    void testMergeSingleWindow() {
         MergingWindowAssigner.MergeCallback callback =
                 mock(MergingWindowAssigner.MergeCallback.class);
 
@@ -109,7 +98,7 @@ public class ProcessingTimeSessionWindowsTest extends TestLogger {
     }
 
     @Test
-    public void testMergeConsecutiveWindows() {
+    void testMergeConsecutiveWindows() {
         MergingWindowAssigner.MergeCallback callback =
                 mock(MergingWindowAssigner.MergeCallback.class);
 
@@ -147,7 +136,7 @@ public class ProcessingTimeSessionWindowsTest extends TestLogger {
     }
 
     @Test
-    public void testMergeCoveringWindow() {
+    void testMergeCoveringWindow() {
         MergingWindowAssigner.MergeCallback callback =
                 mock(MergingWindowAssigner.MergeCallback.class);
 
@@ -182,7 +171,7 @@ public class ProcessingTimeSessionWindowsTest extends TestLogger {
     }
 
     @Test
-    public void testTimeUnits() {
+    void testTimeUnits() {
         // sanity check with one other time unit
 
         WindowAssigner.WindowAssignerContext mockContext =
@@ -192,56 +181,47 @@ public class ProcessingTimeSessionWindowsTest extends TestLogger {
                 ProcessingTimeSessionWindows.withGap(Time.seconds(5));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(0L);
-        assertThat(
-                assigner.assignWindows("String", Long.MIN_VALUE, mockContext),
-                contains(timeWindow(0, 5000)));
+        assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
+                .containsExactly(new TimeWindow(0, 5000));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(4999L);
-        assertThat(
-                assigner.assignWindows("String", Long.MIN_VALUE, mockContext),
-                contains(timeWindow(4999, 9999)));
+        assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
+                .containsExactly(new TimeWindow(4999, 9999));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(5000L);
-        assertThat(
-                assigner.assignWindows("String", Long.MIN_VALUE, mockContext),
-                contains(timeWindow(5000, 10000)));
+        assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
+                .containsExactly(new TimeWindow(5000, 10000));
     }
 
     @Test
-    public void testInvalidParameters() {
-        try {
-            ProcessingTimeSessionWindows.withGap(Time.seconds(-1));
-            fail("should fail");
-        } catch (IllegalArgumentException e) {
-            assertThat(e.toString(), containsString("0 < size"));
-        }
+    void testInvalidParameters() {
+        assertThatThrownBy(() -> ProcessingTimeSessionWindows.withGap(Time.seconds(-1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("0 < size");
 
-        try {
-            ProcessingTimeSessionWindows.withGap(Time.seconds(0));
-            fail("should fail");
-        } catch (IllegalArgumentException e) {
-            assertThat(e.toString(), containsString("0 < size"));
-        }
+        assertThatThrownBy(() -> ProcessingTimeSessionWindows.withGap(Time.seconds(0)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("0 < size");
     }
 
     @Test
-    public void testProperties() {
+    void testProperties() {
         ProcessingTimeSessionWindows assigner =
                 ProcessingTimeSessionWindows.withGap(Time.seconds(5));
 
-        assertFalse(assigner.isEventTime());
-        assertEquals(
-                new TimeWindow.Serializer(), assigner.getWindowSerializer(new ExecutionConfig()));
-        assertThat(assigner.getDefaultTrigger(), instanceOf(ProcessingTimeTrigger.class));
+        assertThat(assigner.isEventTime()).isFalse();
+        assertThat(assigner.getWindowSerializer(new ExecutionConfig()))
+                .isEqualTo(new TimeWindow.Serializer());
+        assertThat(assigner.getDefaultTrigger()).isInstanceOf(ProcessingTimeTrigger.class);
     }
 
     @Test
-    public void testDynamicGapProperties() {
+    void testDynamicGapProperties() {
         SessionWindowTimeGapExtractor<String> extractor = mock(SessionWindowTimeGapExtractor.class);
         DynamicProcessingTimeSessionWindows<String> assigner =
                 ProcessingTimeSessionWindows.withDynamicGap(extractor);
 
-        assertNotNull(assigner);
-        assertFalse(assigner.isEventTime());
+        assertThat(assigner).isNotNull();
+        assertThat(assigner.isEventTime()).isFalse();
     }
 }

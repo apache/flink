@@ -20,16 +20,15 @@ package org.apache.flink.streaming.api.functions;
 
 import org.apache.flink.streaming.api.watermark.Watermark;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link IngestionTimeExtractor}. */
-public class IngestionTimeExtractorTest {
+class IngestionTimeExtractorTest {
 
     @Test
-    public void testMonotonousTimestamps() {
+    void testMonotonousTimestamps() {
         AssignerWithPeriodicWatermarks<String> assigner = new IngestionTimeExtractor<>();
 
         long maxRecordSoFar = 0L;
@@ -38,22 +37,22 @@ public class IngestionTimeExtractorTest {
         for (int i = 0; i < 1343; i++) {
             if (i % 7 == 1) {
                 Watermark mark = assigner.getCurrentWatermark();
-                assertNotNull(mark);
+                assertThat(mark).isNotNull();
 
                 // increasing watermarks
-                assertTrue(mark.getTimestamp() >= maxWatermarkSoFar);
+                assertThat(mark.getTimestamp()).isGreaterThanOrEqualTo(maxWatermarkSoFar);
                 maxWatermarkSoFar = mark.getTimestamp();
 
                 // tight watermarks
-                assertTrue(mark.getTimestamp() >= maxRecordSoFar - 1);
+                assertThat(mark.getTimestamp()).isGreaterThanOrEqualTo(maxRecordSoFar - 1);
             } else {
                 long next = assigner.extractTimestamp("a", Long.MIN_VALUE);
 
                 // increasing timestamps
-                assertTrue(next >= maxRecordSoFar);
+                assertThat(next).isGreaterThanOrEqualTo(maxRecordSoFar);
 
                 // timestamps are never below or at the watermark
-                assertTrue(next > maxWatermarkSoFar);
+                assertThat(next).isGreaterThanOrEqualTo(maxWatermarkSoFar);
 
                 maxRecordSoFar = next;
             }

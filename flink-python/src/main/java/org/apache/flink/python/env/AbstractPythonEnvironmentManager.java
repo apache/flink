@@ -123,9 +123,16 @@ public abstract class AbstractPythonEnvironmentManager implements PythonEnvironm
                                         "Could not create the base directory: " + baseDirectory);
                             }
 
-                            Map<String, String> env = constructEnvironmentVariables(baseDirectory);
-                            installRequirements(baseDirectory, env);
-                            return Tuple2.of(baseDirectory, env);
+                            try {
+                                Map<String, String> env =
+                                        constructEnvironmentVariables(baseDirectory);
+                                installRequirements(baseDirectory, env);
+                                return Tuple2.of(baseDirectory, env);
+                            } catch (Throwable e) {
+                                deleteBaseDirectory(baseDirectory);
+                                LOG.warn("Failed to create resource.", e);
+                                throw e;
+                            }
                         });
         shutdownHook =
                 ShutdownHookUtil.addShutdownHook(
@@ -211,6 +218,32 @@ public abstract class AbstractPythonEnvironmentManager implements PythonEnvironm
                 "Could not find a unique directory name in '"
                         + Arrays.toString(tmpDirectories)
                         + "' for storing the generated files of python dependency.");
+    }
+
+    private static void deleteBaseDirectory(String baseDirectory) {
+        int retries = 0;
+        while (true) {
+            try {
+                FileUtils.deleteDirectory(new File(baseDirectory));
+                break;
+            } catch (Throwable t) {
+                retries++;
+                if (retries <= CHECK_TIMEOUT / CHECK_INTERVAL) {
+                    LOG.warn(
+                            String.format(
+                                    "Failed to delete the working directory %s of the Python UDF worker. Retrying...",
+                                    baseDirectory),
+                            t);
+                } else {
+                    LOG.warn(
+                            String.format(
+                                    "Failed to delete the working directory %s of the Python UDF worker.",
+                                    baseDirectory),
+                            t);
+                    break;
+                }
+            }
+        }
     }
 
     private void installRequirements(String baseDirectory, Map<String, String> env)
@@ -475,29 +508,7 @@ public abstract class AbstractPythonEnvironmentManager implements PythonEnvironm
 
         @Override
         public void close() throws Exception {
-            int retries = 0;
-            while (true) {
-                try {
-                    FileUtils.deleteDirectory(new File(baseDirectory));
-                    break;
-                } catch (Throwable t) {
-                    retries++;
-                    if (retries <= CHECK_TIMEOUT / CHECK_INTERVAL) {
-                        LOG.warn(
-                                String.format(
-                                        "Failed to delete the working directory %s of the Python UDF worker. Retrying...",
-                                        baseDirectory),
-                                t);
-                    } else {
-                        LOG.warn(
-                                String.format(
-                                        "Failed to delete the working directory %s of the Python UDF worker.",
-                                        baseDirectory),
-                                t);
-                        break;
-                    }
-                }
-            }
+            deleteBaseDirectory(baseDirectory);
         }
     }
 }

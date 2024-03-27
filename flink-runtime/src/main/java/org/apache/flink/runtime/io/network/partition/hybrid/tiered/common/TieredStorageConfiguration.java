@@ -37,7 +37,15 @@ public class TieredStorageConfiguration {
 
     private static final String DEFAULT_REMOTE_STORAGE_BASE_PATH = null;
 
+    private static final boolean DEFAULT_MEMORY_DECOUPLING_ENABLED = false;
+
+    private static final long DEFAULT_POOL_SIZE_CHECK_INTERVAL = 1000;
+
     private static final int DEFAULT_TIERED_STORAGE_BUFFER_SIZE = 32 * 1024;
+
+    private static final int DEFAULT_MIN_BUFFERS_PER_GATE = 2;
+
+    private static final int DEFAULT_MIN_BUFFERS_PER_RESULT_PARTITION = 8;
 
     private static final int DEFAULT_MEMORY_TIER_EXCLUSIVE_BUFFERS = 100;
 
@@ -73,6 +81,10 @@ public class TieredStorageConfiguration {
 
     private final int tieredStorageBufferSize;
 
+    private final int minBuffersPerGate;
+
+    private final int minBuffersPerResultPartition;
+
     private final int memoryTierExclusiveBuffers;
 
     private final int diskTierExclusiveBuffers;
@@ -93,6 +105,10 @@ public class TieredStorageConfiguration {
 
     private final float minReserveDiskSpaceFraction;
 
+    private final boolean memoryDecouplingEnabled;
+
+    private final long poolSizeCheckInterval;
+
     private final List<TierFactory> tierFactories;
 
     private final List<Integer> tierExclusiveBuffers;
@@ -100,6 +116,8 @@ public class TieredStorageConfiguration {
     public TieredStorageConfiguration(
             String remoteStorageBasePath,
             int tieredStorageBufferSize,
+            int minBuffersPerGate,
+            int minBuffersPerResultPartition,
             int memoryTierExclusiveBuffers,
             int diskTierExclusiveBuffers,
             int remoteTierExclusiveBuffers,
@@ -110,10 +128,14 @@ public class TieredStorageConfiguration {
             float numBuffersTriggerFlushRatio,
             Duration diskIOSchedulerRequestTimeout,
             float minReserveDiskSpaceFraction,
+            boolean memoryDecouplingEnabled,
+            long poolSizeCheckInterval,
             List<TierFactory> tierFactories,
             List<Integer> tierExclusiveBuffers) {
         this.remoteStorageBasePath = remoteStorageBasePath;
         this.tieredStorageBufferSize = tieredStorageBufferSize;
+        this.minBuffersPerGate = minBuffersPerGate;
+        this.minBuffersPerResultPartition = minBuffersPerResultPartition;
         this.memoryTierExclusiveBuffers = memoryTierExclusiveBuffers;
         this.diskTierExclusiveBuffers = diskTierExclusiveBuffers;
         this.remoteTierExclusiveBuffers = remoteTierExclusiveBuffers;
@@ -124,6 +146,8 @@ public class TieredStorageConfiguration {
         this.numBuffersTriggerFlushRatio = numBuffersTriggerFlushRatio;
         this.diskIOSchedulerRequestTimeout = diskIOSchedulerRequestTimeout;
         this.minReserveDiskSpaceFraction = minReserveDiskSpaceFraction;
+        this.memoryDecouplingEnabled = memoryDecouplingEnabled;
+        this.poolSizeCheckInterval = poolSizeCheckInterval;
         this.tierFactories = tierFactories;
         this.tierExclusiveBuffers = tierExclusiveBuffers;
     }
@@ -155,6 +179,26 @@ public class TieredStorageConfiguration {
      */
     public int getTieredStorageBufferSize() {
         return tieredStorageBufferSize;
+    }
+
+    /**
+     * Get the number of minimum buffers per gate.
+     *
+     * @return the buffer number.
+     */
+    public int getMinBuffersPerGate() {
+        return minBuffersPerGate;
+    }
+
+    /**
+     * *
+     *
+     * <p>Get the number of minimum buffers per result partition.
+     *
+     * @return the buffer number.
+     */
+    public int getMinBuffersPerResultPartition() {
+        return minBuffersPerResultPartition;
     }
 
     /**
@@ -257,6 +301,24 @@ public class TieredStorageConfiguration {
     }
 
     /**
+     * Whether the memory is decoupled from job topology.
+     *
+     * @return true if enabled, false otherwise.
+     */
+    public boolean getMemoryDecouplingEnabled() {
+        return memoryDecouplingEnabled;
+    }
+
+    /**
+     * Get the interval in which the buffer pool size is checked.
+     *
+     * @return the interval.
+     */
+    public long getPoolSizeCheckInterval() {
+        return poolSizeCheckInterval;
+    }
+
+    /**
      * Get the total exclusive buffer number.
      *
      * @return the total exclusive buffer number.
@@ -286,7 +348,15 @@ public class TieredStorageConfiguration {
 
         private String remoteStorageBasePath = DEFAULT_REMOTE_STORAGE_BASE_PATH;
 
+        private boolean memoryDecouplingEnabled = DEFAULT_MEMORY_DECOUPLING_ENABLED;
+
+        private long poolSizeCheckInterval = DEFAULT_POOL_SIZE_CHECK_INTERVAL;
+
         private int tieredStorageBufferSize = DEFAULT_TIERED_STORAGE_BUFFER_SIZE;
+
+        private int minBuffersPerGate = DEFAULT_MIN_BUFFERS_PER_GATE;
+
+        private int minBuffersPerResultPartition = DEFAULT_MIN_BUFFERS_PER_RESULT_PARTITION;
 
         private int memoryTierExclusiveBuffers = DEFAULT_MEMORY_TIER_EXCLUSIVE_BUFFERS;
 
@@ -324,6 +394,21 @@ public class TieredStorageConfiguration {
 
         public Builder setRemoteStorageBasePath(String remoteStorageBasePath) {
             this.remoteStorageBasePath = remoteStorageBasePath;
+            return this;
+        }
+
+        public Builder setMemoryDecouplingEnabled(boolean memoryDecouplingEnabled) {
+            this.memoryDecouplingEnabled = memoryDecouplingEnabled;
+            return this;
+        }
+
+        public Builder setMinBuffersPerGate(int minBuffersPerGate) {
+            this.minBuffersPerGate = minBuffersPerGate;
+            return this;
+        }
+
+        public Builder setMinBuffersPerResultPartition(int minBuffersPerResultPartition) {
+            this.minBuffersPerResultPartition = minBuffersPerResultPartition;
             return this;
         }
 
@@ -404,11 +489,18 @@ public class TieredStorageConfiguration {
             return this;
         }
 
+        public Builder setPoolSizeCheckInterval(long poolSizeCheckInterval) {
+            this.poolSizeCheckInterval = poolSizeCheckInterval;
+            return this;
+        }
+
         public TieredStorageConfiguration build() {
             setupTierFactoriesAndExclusiveBuffers();
             return new TieredStorageConfiguration(
                     remoteStorageBasePath,
                     tieredStorageBufferSize,
+                    minBuffersPerGate,
+                    minBuffersPerResultPartition,
                     memoryTierExclusiveBuffers,
                     diskTierExclusiveBuffers,
                     remoteTierExclusiveBuffers,
@@ -419,6 +511,8 @@ public class TieredStorageConfiguration {
                     numBuffersTriggerFlushRatio,
                     diskTierBufferRequestTimeout,
                     minReserveDiskSpaceFraction,
+                    memoryDecouplingEnabled,
+                    poolSizeCheckInterval,
                     tierFactories,
                     tierExclusiveBuffers);
         }

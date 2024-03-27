@@ -24,9 +24,7 @@ import org.apache.flink.metrics.MetricGroup;
 
 import java.io.IOException;
 
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * A mocked {@link DeserializationSchema} that verifies that {@link
@@ -35,14 +33,14 @@ import static org.junit.Assert.assertThat;
  *
  * <p>It does not implement any of the deserialization methods.
  */
-public class MockDeserializationSchema<T> implements DeserializationSchema<T> {
+class MockDeserializationSchema<T> implements DeserializationSchema<T> {
 
     private boolean openCalled = false;
 
     @Override
     public void open(InitializationContext context) throws Exception {
-        assertThat("Open was called multiple times", openCalled, is(false));
-        assertThat(context.getMetricGroup(), notNullValue(MetricGroup.class));
+        assertThat(openCalled).as("Open was called multiple times").isFalse();
+        assertThat(context.getMetricGroup()).isNotNull();
         this.openCalled = true;
     }
 

@@ -168,7 +168,7 @@ public class OneInputTransformation<IN, OUT> extends PhysicalTransformation<OUT>
     }
 
     @Override
-    public List<Transformation<?>> getTransitivePredecessors() {
+    protected List<Transformation<?>> getTransitivePredecessorsInternal() {
         List<Transformation<?>> result = Lists.newArrayList();
         result.add(this);
         result.addAll(input.getTransitivePredecessors());
@@ -183,5 +183,9 @@ public class OneInputTransformation<IN, OUT> extends PhysicalTransformation<OUT>
     @Override
     public final void setChainingStrategy(ChainingStrategy strategy) {
         operatorFactory.setChainingStrategy(strategy);
+    }
+
+    public boolean isOutputOnlyAfterEndOfStream() {
+        return operatorFactory.getOperatorAttributes().isOutputOnlyAfterEndOfStream();
     }
 }

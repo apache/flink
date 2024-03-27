@@ -34,9 +34,11 @@ public class SpeculativeExecutionJobVertex extends ExecutionJobVertex {
     public SpeculativeExecutionJobVertex(
             InternalExecutionGraphAccessor graph,
             JobVertex jobVertex,
-            VertexParallelismInformation parallelismInfo)
+            VertexParallelismInformation parallelismInfo,
+            CoordinatorStore coordinatorStore,
+            JobManagerJobMetricGroup jobManagerJobMetricGroup)
             throws JobException {
-        super(graph, jobVertex, parallelismInfo);
+        super(graph, jobVertex, parallelismInfo, coordinatorStore, jobManagerJobMetricGroup);
     }
 
     @Override
@@ -81,9 +83,12 @@ public class SpeculativeExecutionJobVertex extends ExecutionJobVertex {
         ExecutionJobVertex createExecutionJobVertex(
                 InternalExecutionGraphAccessor graph,
                 JobVertex jobVertex,
-                VertexParallelismInformation parallelismInfo)
+                VertexParallelismInformation parallelismInfo,
+                CoordinatorStore coordinatorStore,
+                JobManagerJobMetricGroup jobManagerJobMetricGroup)
                 throws JobException {
-            return new SpeculativeExecutionJobVertex(graph, jobVertex, parallelismInfo);
+            return new SpeculativeExecutionJobVertex(
+                    graph, jobVertex, parallelismInfo, coordinatorStore, jobManagerJobMetricGroup);
         }
     }
 }

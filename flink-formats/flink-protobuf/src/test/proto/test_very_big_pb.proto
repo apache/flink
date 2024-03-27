@@ -1,0 +1,98 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+package org.apache.flink.formats.protobuf.testproto;
+
+option java_package = "org.apache.flink.formats.protobuf.testproto";
+option java_outer_classname = "VeryBigPbClass";
+
+message VeryBigPbMessage {
+  NestedType1 nested_field1 = 1;
+  NestedType1 nested_field2 = 2;
+}
+
+message NestedType1 {
+  NestedType2 nested_field1 = 1;
+  NestedType2 nested_field2 = 2;
+}
+
+message NestedType2 {
+  NestedType3 nested_field1 = 1;
+  NestedType3 nested_field2 = 2;
+}
+
+message NestedType3 {
+  NestedType4 nested_field1 = 1;
+  NestedType4 nested_field2 = 2;
+}
+
+message NestedType4 {
+  NestedType5 nested_field1 = 1;
+  NestedType5 nested_field2 = 2;
+}
+
+message NestedType5 {
+  NestedType6 nested_field1 = 1;
+  NestedType6 nested_field2 = 2;
+}
+
+message NestedType6 {
+  NestedType7 nested_field1 = 1;
+  NestedType7 nested_field2 = 2;
+}
+
+message NestedType7 {
+  NestedType8 nested_field1 = 1;
+  NestedType8 nested_field2 = 2;
+}
+
+message NestedType8 {
+  NestedType9 nested_field1 = 1;
+  NestedType9 nested_field2 = 2;
+}
+
+message NestedType9 {
+  NestedType10 nested_field1 = 1;
+  NestedType10 nested_field2 = 2;
+}
+
+message NestedType10 {
+  NestedType11 nested_field1 = 1;
+  NestedType11 nested_field2 = 2;
+}
+
+message NestedType11 {
+  NestedType12 nested_field1 = 1;
+  NestedType12 nested_field2 = 2;
+}
+
+message NestedType12 {
+  NestedType13 nested_field1 = 1;
+  NestedType13 nested_field2 = 2;
+}
+
+message NestedType13 {
+  NestedType14 nested_field1 = 1;
+  NestedType14 nested_field2 = 2;
+}
+
+message NestedType14 {
+  int32 nested_field1 = 1;
+}

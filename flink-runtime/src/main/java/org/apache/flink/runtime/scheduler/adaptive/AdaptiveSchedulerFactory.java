@@ -47,7 +47,6 @@ import org.apache.flink.runtime.shuffle.ShuffleMaster;
 
 import org.slf4j.Logger;
 
-import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
@@ -55,14 +54,7 @@ import java.util.concurrent.ScheduledExecutorService;
 /** Factory for the adaptive scheduler. */
 public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
 
-    private final Duration initialResourceAllocationTimeout;
-    private final Duration resourceStabilizationTimeout;
-
-    public AdaptiveSchedulerFactory(
-            Duration initialResourceAllocationTimeout, Duration resourceStabilizationTimeout) {
-        this.initialResourceAllocationTimeout = initialResourceAllocationTimeout;
-        this.resourceStabilizationTimeout = resourceStabilizationTimeout;
-    }
+    public AdaptiveSchedulerFactory() {}
 
     @Override
     public SchedulerNG createInstance(
@@ -100,6 +92,7 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
                                 jobGraph.getSerializedExecutionConfig()
                                         .deserializeValue(userCodeLoader)
                                         .getRestartStrategy(),
+                                jobGraph.getJobConfiguration(),
                                 jobMasterConfiguration,
                                 jobGraph.isCheckpointingEnabled())
                         .create();
@@ -126,6 +119,7 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
                         partitionTracker);
 
         return new AdaptiveScheduler(
+                AdaptiveScheduler.Settings.of(jobMasterConfiguration),
                 jobGraph,
                 JobResourceRequirements.readFromJobGraph(jobGraph).orElse(null),
                 jobMasterConfiguration,
@@ -135,8 +129,6 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
                 userCodeLoader,
                 new CheckpointsCleaner(),
                 checkpointRecoveryFactory,
-                initialResourceAllocationTimeout,
-                resourceStabilizationTimeout,
                 jobManagerJobMetricGroup,
                 restartBackoffTimeStrategy,
                 initializationTimestamp,

@@ -94,7 +94,7 @@ class ShuffleMasterTest {
 
     private MiniClusterConfiguration createClusterConfiguration(boolean stopTrackingPartition) {
         Configuration configuration = new Configuration();
-        configuration.setString(
+        configuration.set(
                 ShuffleServiceOptions.SHUFFLE_SERVICE_FACTORY_CLASS,
                 TestShuffleServiceFactory.class.getName());
         configuration.setBoolean(STOP_TRACKING_PARTITION_KEY, stopTrackingPartition);

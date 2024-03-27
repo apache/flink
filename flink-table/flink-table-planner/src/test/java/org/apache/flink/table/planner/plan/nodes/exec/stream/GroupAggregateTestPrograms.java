@@ -371,4 +371,35 @@ public class GroupAggregateTestPrograms {
                                     .build())
                     .runSql(GROUP_BY_UDF_WITHOUT_MERGE.getRunSqlTestStep().sql)
                     .build();
+
+    static final TableTestProgram AGG_WITH_STATE_TTL_HINT =
+            TableTestProgram.of("agg-with-state-ttl-hint", "agg with state ttl hint")
+                    .setupTableSource(SOURCE_ONE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(
+                                            "b BIGINT",
+                                            "cnt BIGINT",
+                                            "avg_a DOUBLE",
+                                            "min_c VARCHAR",
+                                            "PRIMARY KEY (b) NOT ENFORCED")
+                                    .consumedBeforeRestore(
+                                            "+I[1, 1, null, Hi]",
+                                            "+I[2, 1, 2.0, Hello]",
+                                            "+U[2, 2, 2.0, Hello]")
+                                    // Due to state TTL in hint, the state in the metadata
+                                    // savepoint has expired.
+                                    .consumedAfterRestore(
+                                            "+I[1, 1, null, Hi Again!]",
+                                            "+I[2, 1, 2.0, Hello Again!]",
+                                            "+U[2, 2, 2.0, Hello Again!]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT /*+ STATE_TTL('source_t' = '1s') */"
+                                    + "b, "
+                                    + "COUNT(*) AS cnt, "
+                                    + "AVG(a) FILTER (WHERE a > 1) AS avg_a, "
+                                    + "MIN(c) AS min_c "
+                                    + "FROM source_t GROUP BY b")
+                    .build();
 }

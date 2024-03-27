@@ -21,6 +21,7 @@ import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 
 /**
  * Common interface for the runtime {@link ExecutionJobVertex} and {@link
@@ -47,6 +48,13 @@ public interface AccessExecutionJobVertex {
      * @return max parallelism for this job vertex.
      */
     int getMaxParallelism();
+
+    /**
+     * Returns the slot sharing group for this job vertex.
+     *
+     * @return slot sharing group for this job vertex.
+     */
+    SlotSharingGroup getSlotSharingGroup();
 
     /**
      * Returns the resource profile for this job vertex.

@@ -58,7 +58,7 @@ class NettyConnectionReaderTest {
         Supplier<InputChannel> inputChannelSupplier =
                 createInputChannelSupplier(bufferNumber, requiredSegmentIdFuture);
         NettyConnectionReader reader = createNettyConnectionReader(inputChannelSupplier);
-        Optional<Buffer> buffer = reader.readBuffer(0);
+        Optional<Buffer> buffer = reader.readBuffer(0, 0);
         assertThat(buffer).isPresent();
         assertThat(buffer.get().isBuffer()).isTrue();
         assertThat(requiredSegmentIdFuture).isNotDone();
@@ -70,7 +70,7 @@ class NettyConnectionReaderTest {
         Supplier<InputChannel> inputChannelSupplier =
                 createInputChannelSupplier(bufferNumber, requiredSegmentIdFuture);
         NettyConnectionReader reader = createNettyConnectionReader(inputChannelSupplier);
-        Optional<Buffer> buffer = reader.readBuffer(0);
+        Optional<Buffer> buffer = reader.readBuffer(0, 0);
         assertThat(buffer).isNotPresent();
         assertThat(requiredSegmentIdFuture).isNotDone();
     }
@@ -81,10 +81,19 @@ class NettyConnectionReaderTest {
         Supplier<InputChannel> inputChannelSupplier =
                 createInputChannelSupplier(bufferNumber, requiredSegmentIdFuture);
         NettyConnectionReader reader = createNettyConnectionReader(inputChannelSupplier);
-        reader.readBuffer(0);
+        reader.readBuffer(0, 0);
         assertThat(requiredSegmentIdFuture).isNotDone();
-        reader.readBuffer(1);
+        reader.readBuffer(0, 1);
         assertThat(requiredSegmentIdFuture.get()).isEqualTo(1);
+    }
+
+    @Test
+    void testPeekNextBufferSubpartitionId() throws IOException {
+        int bufferNumber = 0;
+        Supplier<InputChannel> inputChannelSupplier =
+                createInputChannelSupplier(bufferNumber, requiredSegmentIdFuture);
+        NettyConnectionReader reader = createNettyConnectionReader(inputChannelSupplier);
+        assertThat(reader.peekNextBufferSubpartitionId()).isZero();
     }
 
     private static Supplier<InputChannel> createInputChannelSupplier(

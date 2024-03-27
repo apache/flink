@@ -29,7 +29,12 @@ public class RocksDBNativeMetricOptionsTest {
     public void testNativeMetricsConfigurable() {
         for (RocksDBProperty property : RocksDBProperty.values()) {
             Configuration config = new Configuration();
-            config.setBoolean(property.getConfigKey(), true);
+            if (property.getConfigKey().contains("num-files-at-level")) {
+                config.setBoolean(
+                        RocksDBNativeMetricOptions.MONITOR_NUM_FILES_AT_LEVEL.key(), true);
+            } else {
+                config.setBoolean(property.getConfigKey(), true);
+            }
 
             RocksDBNativeMetricOptions options = RocksDBNativeMetricOptions.fromConfig(config);
 
@@ -43,7 +48,7 @@ public class RocksDBNativeMetricOptionsTest {
                     String.format(
                             "Failed to enable native metric %s using config",
                             property.getConfigKey()),
-                    options.getProperties().contains(property.getRocksDBProperty()));
+                    options.getProperties().contains(property));
         }
     }
 }

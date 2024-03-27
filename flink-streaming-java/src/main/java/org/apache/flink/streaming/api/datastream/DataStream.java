@@ -51,7 +51,7 @@ import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.configuration.AkkaOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
@@ -1433,7 +1433,9 @@ public class DataStream<T> {
     @Experimental
     public void collectAsync(Collector<T> collector) {
         TypeSerializer<T> serializer =
-                getType().createSerializer(getExecutionEnvironment().getConfig());
+                getType()
+                        .createSerializer(
+                                getExecutionEnvironment().getConfig().getSerializerConfig());
         String accumulatorName = "dataStreamCollect_" + UUID.randomUUID().toString();
 
         StreamExecutionEnvironment env = getExecutionEnvironment();
@@ -1441,7 +1443,7 @@ public class DataStream<T> {
                 new CollectSinkOperatorFactory<>(serializer, accumulatorName);
         CollectSinkOperator<T> operator = (CollectSinkOperator<T>) factory.getOperator();
         long resultFetchTimeout =
-                env.getConfiguration().get(AkkaOptions.ASK_TIMEOUT_DURATION).toMillis();
+                env.getConfiguration().get(RpcOptions.ASK_TIMEOUT_DURATION).toMillis();
         CollectResultIterator<T> iterator =
                 new CollectResultIterator<>(
                         operator.getOperatorIdFuture(),
@@ -1455,6 +1457,18 @@ public class DataStream<T> {
 
         env.registerCollectIterator(iterator);
         collector.setIterator(iterator);
+    }
+
+    /**
+     * Collect records from each partition into a separate full window. The window emission will be
+     * triggered at the end of inputs. For this non-keyed data stream(each record has no key), a
+     * partition contains all records of a subtask.
+     *
+     * @return The full windowed data stream on partition.
+     */
+    @PublicEvolving
+    public PartitionWindowedStream<T> fullWindowPartition() {
+        return new NonKeyedPartitionWindowedStream<>(environment, this);
     }
 
     /**

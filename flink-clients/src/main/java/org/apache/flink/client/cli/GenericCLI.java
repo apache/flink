@@ -114,12 +114,12 @@ public class GenericCLI implements CustomCommandLine {
 
         final String executorName = commandLine.getOptionValue(executorOption.getOpt());
         if (executorName != null) {
-            resultConfiguration.setString(DeploymentOptions.TARGET, executorName);
+            resultConfiguration.set(DeploymentOptions.TARGET, executorName);
         }
 
         final String targetName = commandLine.getOptionValue(targetOption.getOpt());
         if (targetName != null) {
-            resultConfiguration.setString(DeploymentOptions.TARGET, targetName);
+            resultConfiguration.set(DeploymentOptions.TARGET, targetName);
         }
 
         DynamicPropertiesUtil.encodeDynamicProperties(commandLine, resultConfiguration);

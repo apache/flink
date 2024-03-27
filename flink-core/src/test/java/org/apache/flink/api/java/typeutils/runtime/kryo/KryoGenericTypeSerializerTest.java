@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest;
@@ -40,7 +40,7 @@ import static org.junit.Assert.fail;
 @SuppressWarnings("unchecked")
 public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializerTest {
 
-    ExecutionConfig ec = new ExecutionConfig();
+    SerializerConfigImpl serializerConfigImpl = new SerializerConfigImpl();
 
     @Test
     public void testJavaList() {
@@ -76,7 +76,7 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
 
     @Override
     protected <T> TypeSerializer<T> createSerializer(Class<T> type) {
-        return new KryoSerializer<T>(type, ec);
+        return new KryoSerializer<T>(type, serializerConfigImpl);
     }
 
     /** Make sure that the kryo serializer forwards EOF exceptions properly when serializing */
@@ -99,7 +99,7 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
             // construct a memory target that is too small for the string
             TestDataOutputSerializer target = new TestDataOutputSerializer(10000, 30000);
             KryoSerializer<String> serializer =
-                    new KryoSerializer<String>(String.class, new ExecutionConfig());
+                    new KryoSerializer<String>(String.class, new SerializerConfigImpl());
 
             try {
                 serializer.serialize(str, target);
@@ -126,7 +126,7 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
             TestDataOutputSerializer target =
                     new TestDataOutputSerializer(5 * numElements, 5 * numElements);
             KryoSerializer<Integer> serializer =
-                    new KryoSerializer<>(Integer.class, new ExecutionConfig());
+                    new KryoSerializer<>(Integer.class, new SerializerConfigImpl());
 
             for (int i = 0; i < numElements; i++) {
                 serializer.serialize(i, target);
@@ -159,7 +159,7 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
     @Test
     public void validateReferenceMappingEnabled() {
         KryoSerializer<String> serializer =
-                new KryoSerializer<>(String.class, new ExecutionConfig());
+                new KryoSerializer<>(String.class, new SerializerConfigImpl());
         Kryo kryo = serializer.getKryo();
         assertTrue(kryo.getReferences());
     }

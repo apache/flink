@@ -630,20 +630,20 @@ public class SecurityOptions {
      */
     public static boolean isInternalSSLEnabled(Configuration sslConfig) {
         @SuppressWarnings("deprecation")
-        final boolean fallbackFlag = sslConfig.getBoolean(SSL_ENABLED);
-        return sslConfig.getBoolean(SSL_INTERNAL_ENABLED, fallbackFlag);
+        final boolean fallbackFlag = sslConfig.get(SSL_ENABLED);
+        return sslConfig.get(SSL_INTERNAL_ENABLED, fallbackFlag);
     }
 
     /** Checks whether SSL for the external REST endpoint is enabled. */
     public static boolean isRestSSLEnabled(Configuration sslConfig) {
         @SuppressWarnings("deprecation")
-        final boolean fallbackFlag = sslConfig.getBoolean(SSL_ENABLED);
-        return sslConfig.getBoolean(SSL_REST_ENABLED, fallbackFlag);
+        final boolean fallbackFlag = sslConfig.get(SSL_ENABLED);
+        return sslConfig.get(SSL_REST_ENABLED, fallbackFlag);
     }
 
     /** Checks whether mutual SSL authentication for the external REST endpoint is enabled. */
     public static boolean isRestSSLAuthenticationEnabled(Configuration sslConfig) {
         checkNotNull(sslConfig, "sslConfig");
-        return isRestSSLEnabled(sslConfig) && sslConfig.getBoolean(SSL_REST_AUTHENTICATION_ENABLED);
+        return isRestSSLEnabled(sslConfig) && sslConfig.get(SSL_REST_AUTHENTICATION_ENABLED);
     }
 }

@@ -21,8 +21,8 @@ package org.apache.flink.table.planner.plan.nodes.exec.testutils;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.core.execution.SavepointFormatType;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.table.api.CompiledPlan;
@@ -38,10 +38,12 @@ import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.SqlTestStep;
+import org.apache.flink.table.test.program.StatementSetTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.table.test.program.TableTestProgramRunner;
 import org.apache.flink.table.test.program.TestStep.TestKind;
 import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.types.Row;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.junit.jupiter.api.AfterEach;
@@ -62,6 +64,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -87,16 +90,30 @@ import static org.assertj.core.api.Assertions.assertThat;
 public abstract class RestoreTestBase implements TableTestProgramRunner {
 
     private final Class<? extends ExecNode<?>> execNodeUnderTest;
+    private final List<Class<? extends ExecNode<?>>> childExecNodesUnderTest;
     private final AfterRestoreSource afterRestoreSource;
 
     protected RestoreTestBase(Class<? extends ExecNode<?>> execNodeUnderTest) {
-        this.execNodeUnderTest = execNodeUnderTest;
-        this.afterRestoreSource = AfterRestoreSource.FINITE;
+        this(execNodeUnderTest, new ArrayList<>(), AfterRestoreSource.FINITE);
+    }
+
+    protected RestoreTestBase(
+            Class<? extends ExecNode<?>> execNodeUnderTest,
+            List<Class<? extends ExecNode<?>>> childExecNodesUnderTest) {
+        this(execNodeUnderTest, childExecNodesUnderTest, AfterRestoreSource.FINITE);
     }
 
     protected RestoreTestBase(
             Class<? extends ExecNode<?>> execNodeUnderTest, AfterRestoreSource state) {
+        this(execNodeUnderTest, new ArrayList<>(), state);
+    }
+
+    protected RestoreTestBase(
+            Class<? extends ExecNode<?>> execNodeUnderTest,
+            List<Class<? extends ExecNode<?>>> childExecNodesUnderTest,
+            AfterRestoreSource state) {
         this.execNodeUnderTest = execNodeUnderTest;
+        this.childExecNodesUnderTest = childExecNodesUnderTest;
         this.afterRestoreSource = state;
     }
 
@@ -106,7 +123,18 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
      */
     protected enum AfterRestoreSource {
         FINITE,
-        INFINITE
+        INFINITE,
+        NO_RESTORE
+    }
+
+    // Used for testing Restore Test Completeness
+    public Class<? extends ExecNode<?>> getExecNode() {
+        return execNodeUnderTest;
+    }
+
+    // Used for testing Restore Test Completeness
+    public List<Class<? extends ExecNode<?>>> getChildExecNodes() {
+        return childExecNodesUnderTest;
     }
 
     @Override
@@ -114,13 +142,16 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         return EnumSet.of(
                 TestKind.CONFIG,
                 TestKind.FUNCTION,
+                TestKind.TEMPORAL_FUNCTION,
                 TestKind.SOURCE_WITH_RESTORE_DATA,
-                TestKind.SINK_WITH_RESTORE_DATA);
+                TestKind.SOURCE_WITH_DATA,
+                TestKind.SINK_WITH_RESTORE_DATA,
+                TestKind.SINK_WITH_DATA);
     }
 
     @Override
     public EnumSet<TestKind> supportedRunSteps() {
-        return EnumSet.of(TestKind.SQL);
+        return EnumSet.of(TestKind.SQL, TestKind.STATEMENT_SET);
     }
 
     @AfterEach
@@ -193,7 +224,6 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
             options.put("connector", "values");
             options.put("data-id", id);
             options.put("terminating", "false");
-            options.put("disable-lookup", "true");
             options.put("runtime-source", "NewSource");
             sourceTestStep.apply(tEnv, options);
         }
@@ -203,16 +233,22 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
             registerSinkObserver(futures, sinkTestStep, true);
             final Map<String, String> options = new HashMap<>();
             options.put("connector", "values");
-            options.put("disable-lookup", "true");
             options.put("sink-insert-only", "false");
             sinkTestStep.apply(tEnv, options);
         }
 
         program.getSetupFunctionTestSteps().forEach(s -> s.apply(tEnv));
+        program.getSetupTemporalFunctionTestSteps().forEach(s -> s.apply(tEnv));
 
-        final SqlTestStep sqlTestStep = program.getRunSqlTestStep();
+        final CompiledPlan compiledPlan;
+        if (program.runSteps.get(0).getKind() == TestKind.STATEMENT_SET) {
+            final StatementSetTestStep statementSetTestStep = program.getRunStatementSetTestStep();
+            compiledPlan = statementSetTestStep.compiledPlan(tEnv);
+        } else {
+            final SqlTestStep sqlTestStep = program.getRunSqlTestStep();
+            compiledPlan = tEnv.compilePlanSql(sqlTestStep.sql);
+        }
 
-        final CompiledPlan compiledPlan = tEnv.compilePlanSql(sqlTestStep.sql);
         compiledPlan.writeToFile(getPlanPath(program, getLatestMetadata()));
 
         final TableResult tableResult = compiledPlan.execute();
@@ -234,11 +270,16 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
     @Order(1)
     void testRestore(TableTestProgram program, ExecNodeMetadata metadata) throws Exception {
         final EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
-        final SavepointRestoreSettings restoreSettings =
-                SavepointRestoreSettings.forPath(
-                        getSavepointPath(program, metadata).toString(),
-                        false,
-                        RestoreMode.NO_CLAIM);
+        final SavepointRestoreSettings restoreSettings;
+        if (afterRestoreSource == AfterRestoreSource.NO_RESTORE) {
+            restoreSettings = SavepointRestoreSettings.none();
+        } else {
+            restoreSettings =
+                    SavepointRestoreSettings.forPath(
+                            getSavepointPath(program, metadata).toString(),
+                            false,
+                            RestoreMode.NO_CLAIM);
+        }
         SavepointRestoreSettings.toConfiguration(restoreSettings, settings.getConfiguration());
         settings.getConfiguration().set(StateBackendOptions.STATE_BACKEND, "rocksdb");
         final TableEnvironment tEnv = TableEnvironment.create(settings);
@@ -247,12 +288,17 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                         TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS,
                         TableConfigOptions.CatalogPlanRestore.IDENTIFIER);
 
+        program.getSetupConfigOptionTestSteps().forEach(s -> s.apply(tEnv));
+
         for (SourceTestStep sourceTestStep : program.getSetupSourceTestSteps()) {
-            final String id = TestValuesTableFactory.registerData(sourceTestStep.dataAfterRestore);
+            final Collection<Row> data =
+                    afterRestoreSource == AfterRestoreSource.NO_RESTORE
+                            ? sourceTestStep.dataBeforeRestore
+                            : sourceTestStep.dataAfterRestore;
+            final String id = TestValuesTableFactory.registerData(data);
             final Map<String, String> options = new HashMap<>();
             options.put("connector", "values");
             options.put("data-id", id);
-            options.put("disable-lookup", "true");
             options.put("runtime-source", "NewSource");
             if (afterRestoreSource == AfterRestoreSource.INFINITE) {
                 options.put("terminating", "false");
@@ -274,6 +320,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         }
 
         program.getSetupFunctionTestSteps().forEach(s -> s.apply(tEnv));
+        program.getSetupTemporalFunctionTestSteps().forEach(s -> s.apply(tEnv));
 
         final CompiledPlan compiledPlan =
                 tEnv.loadPlan(PlanReference.fromFile(getPlanPath(program, metadata)));

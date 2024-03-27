@@ -77,8 +77,8 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.NO_ARGS
 import static org.apache.flink.table.types.inference.InputTypeStrategies.OUTPUT_IF_NULL;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.TYPE_LITERAL;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.and;
-import static org.apache.flink.table.types.inference.InputTypeStrategies.arrayFullyComparableElementType;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.commonArrayType;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.commonMapType;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.commonMultipleArrayType;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.commonType;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.comparable;
@@ -99,9 +99,11 @@ import static org.apache.flink.table.types.inference.TypeStrategies.nullableIfAl
 import static org.apache.flink.table.types.inference.TypeStrategies.nullableIfArgs;
 import static org.apache.flink.table.types.inference.TypeStrategies.varyingString;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ARRAY_ELEMENT_ARG;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ARRAY_FULLY_COMPARABLE;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.JSON_ARGUMENT;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_FULLY_COMPARABLE;
+import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.ARRAY_APPEND_PREPEND;
 
 /** Dictionary of function definitions for all built-in functions. */
 @PublicEvolving
@@ -166,6 +168,16 @@ public final class BuiltInFunctionDefinitions {
                             "org.apache.flink.table.runtime.functions.scalar.MapValuesFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition MAP_UNION =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("MAP_UNION")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(commonMapType(1))
+                    .outputTypeStrategy(COMMON)
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.MapUnionFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition MAP_ENTRIES =
             BuiltInFunctionDefinition.newBuilder()
                     .name("MAP_ENTRIES")
@@ -215,6 +227,20 @@ public final class BuiltInFunctionDefinitions {
                             "org.apache.flink.table.runtime.functions.scalar.CoalesceFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition ARRAY_APPEND =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ARRAY_APPEND")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Arrays.asList("array", "element"),
+                                    Arrays.asList(
+                                            logical(LogicalTypeRoot.ARRAY), ARRAY_ELEMENT_ARG)))
+                    .outputTypeStrategy(nullableIfArgs(nullableIfArgs(ARRAY_APPEND_PREPEND)))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ArrayAppendFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition ARRAY_CONTAINS =
             BuiltInFunctionDefinition.newBuilder()
                     .name("ARRAY_CONTAINS")
@@ -229,6 +255,25 @@ public final class BuiltInFunctionDefinitions {
                                     ConstantArgumentCount.of(0), explicit(DataTypes.BOOLEAN())))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.ArrayContainsFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition ARRAY_SORT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ARRAY_SORT")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(ARRAY_FULLY_COMPARABLE),
+                                    sequence(
+                                            ARRAY_FULLY_COMPARABLE,
+                                            logical(LogicalTypeRoot.BOOLEAN)),
+                                    sequence(
+                                            ARRAY_FULLY_COMPARABLE,
+                                            logical(LogicalTypeRoot.BOOLEAN),
+                                            logical(LogicalTypeRoot.BOOLEAN))))
+                    .outputTypeStrategy(nullableIfArgs(argument(0)))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ArraySortFunction")
                     .build();
 
     public static final BuiltInFunctionDefinition ARRAY_DISTINCT =
@@ -256,6 +301,20 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.INT())))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.ArrayPositionFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition ARRAY_PREPEND =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ARRAY_PREPEND")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Arrays.asList("array", "element"),
+                                    Arrays.asList(
+                                            logical(LogicalTypeRoot.ARRAY), ARRAY_ELEMENT_ARG)))
+                    .outputTypeStrategy(nullableIfArgs(ARRAY_APPEND_PREPEND))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ArrayPrependFunction")
                     .build();
 
     public static final BuiltInFunctionDefinition ARRAY_REMOVE =
@@ -327,7 +386,7 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("ARRAY_MAX")
                     .kind(SCALAR)
-                    .inputTypeStrategy(arrayFullyComparableElementType())
+                    .inputTypeStrategy(sequence(ARRAY_FULLY_COMPARABLE))
                     .outputTypeStrategy(forceNullable(SpecificTypeStrategies.ARRAY_ELEMENT))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.ArrayMaxFunction")
@@ -351,6 +410,16 @@ public final class BuiltInFunctionDefinitions {
                             "org.apache.flink.table.runtime.functions.scalar.ArrayJoinFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition ARRAY_MIN =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ARRAY_MIN")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(ARRAY_FULLY_COMPARABLE))
+                    .outputTypeStrategy(forceNullable(SpecificTypeStrategies.ARRAY_ELEMENT))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ArrayMinFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition INTERNAL_REPLICATE_ROWS =
             BuiltInFunctionDefinition.newBuilder()
                     .name("$REPLICATE_ROWS$1")
@@ -369,6 +438,26 @@ public final class BuiltInFunctionDefinitions {
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.table.UnnestRowsFunction")
                     .internal()
+                    .build();
+
+    public static final BuiltInFunctionDefinition INTERNAL_HASHCODE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("$HASHCODE$1")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(ANY))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.INT().notNull())))
+                    .runtimeProvided()
+                    .internal()
+                    .build();
+
+    public static final BuiltInFunctionDefinition ARRAY_EXCEPT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ARRAY_EXCEPT")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(commonArrayType(2))
+                    .outputTypeStrategy(nullableIfArgs(COMMON))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ArrayExceptFunction")
                     .build();
 
     // --------------------------------------------------------------------------------------------
@@ -725,6 +814,13 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(argument(0))
                     .build();
 
+    public static final BuiltInFunctionDefinition ARRAY_AGG =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ARRAY_AGG")
+                    .kind(AGGREGATE)
+                    .outputTypeStrategy(nullableIfArgs(SpecificTypeStrategies.ARRAY))
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // String functions
     // --------------------------------------------------------------------------------------------
@@ -807,7 +903,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition SUBSTR =
             BuiltInFunctionDefinition.newBuilder()
                     .name("substr")
-                    .callSyntax("SUBSTR", SqlCallSyntax.SUBSTRING)
+                    .sqlName("SUBSTR")
                     .kind(SCALAR)
                     .inputTypeStrategy(
                             or(
@@ -1644,7 +1740,7 @@ public final class BuiltInFunctionDefinitions {
                     .kind(SCALAR)
                     .notDeterministic()
                     .inputTypeStrategy(or(NO_ARGS, sequence(logical(LogicalTypeRoot.INTEGER))))
-                    .outputTypeStrategy(explicit(DataTypes.DOUBLE().notNull()))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.DOUBLE())))
                     .build();
 
     public static final BuiltInFunctionDefinition RAND_INTEGER =
@@ -1658,7 +1754,7 @@ public final class BuiltInFunctionDefinitions {
                                     sequence(
                                             logical(LogicalTypeRoot.INTEGER),
                                             logical(LogicalTypeRoot.INTEGER))))
-                    .outputTypeStrategy(explicit(INT().notNull()))
+                    .outputTypeStrategy(nullableIfArgs(explicit(INT())))
                     .build();
 
     public static final BuiltInFunctionDefinition BIN =
@@ -2095,6 +2191,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition WINDOW_START =
             BuiltInFunctionDefinition.newBuilder()
                     .name("start")
+                    .callSyntax("window_start", SqlCallSyntax.WINDOW_START_END)
                     .kind(OTHER)
                     .inputTypeStrategy(SpecificInputTypeStrategies.windowTimeIndicator())
                     .outputTypeStrategy(explicit(DataTypes.TIMESTAMP(3)))
@@ -2103,6 +2200,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition WINDOW_END =
             BuiltInFunctionDefinition.newBuilder()
                     .name("end")
+                    .callSyntax("window_end", SqlCallSyntax.WINDOW_START_END)
                     .kind(OTHER)
                     .inputTypeStrategy(SpecificInputTypeStrategies.windowTimeIndicator())
                     .outputTypeStrategy(explicit(DataTypes.TIMESTAMP(3)))
@@ -2115,6 +2213,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition ORDER_ASC =
             BuiltInFunctionDefinition.newBuilder()
                     .name("asc")
+                    .callSyntax("ASC", SqlCallSyntax.UNARY_SUFFIX_OP)
                     .kind(OTHER)
                     .inputTypeStrategy(sequence(ANY))
                     .outputTypeStrategy(argument(0))
@@ -2123,6 +2222,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition ORDER_DESC =
             BuiltInFunctionDefinition.newBuilder()
                     .name("desc")
+                    .callSyntax("DESC", SqlCallSyntax.UNARY_SUFFIX_OP)
                     .kind(OTHER)
                     .inputTypeStrategy(sequence(ANY))
                     .outputTypeStrategy(argument(0))

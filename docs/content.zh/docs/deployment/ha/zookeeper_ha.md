@@ -68,7 +68,7 @@ Flink 利用 **[ZooKeeper](http://zookeeper.apache.org)** 在所有运行的 Job
 
 ### 配置示例
 
-在 `conf/flink-conf.yaml` 中配置高可用模式和 ZooKeeper 复制组（quorum）:
+在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 中配置高可用模式和 ZooKeeper 复制组（quorum）:
 
 ```bash
 high-availability.type: zookeeper
@@ -82,7 +82,7 @@ high-availability.storageDir: hdfs:///flink/recovery
 
 ## ZooKeeper 安全配置
 
-如果 ZooKeeper 使用 Kerberos 以安全模式运行，必要时可以在 `flink-conf.yaml` 中覆盖以下配置:
+如果 ZooKeeper 使用 Kerberos 以安全模式运行，必要时可以在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 中覆盖以下配置:
 
 ```bash
 # 默认配置为 "zookeeper". 如果 ZooKeeper quorum 配置了不同的服务名称，

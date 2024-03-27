@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.api.common.typeutils.base.LocalDateSerializer;
 import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -33,6 +34,7 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.binary.BinaryStringDataUtil;
 import org.apache.flink.table.data.utils.CastExecutor;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.functions.CastFunctionITCase;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.StructuredType;
@@ -106,12 +108,16 @@ class CastRulesTest {
 
     private static final ZoneId CET = ZoneId.of("CET");
 
+    private static final CodeGeneratorContext CTX =
+            new CodeGeneratorContext(
+                    new Configuration(), Thread.currentThread().getContextClassLoader());
+
     private static final CastRule.Context CET_CONTEXT =
             CastRule.Context.create(
-                    false, false, CET, Thread.currentThread().getContextClassLoader());
+                    false, false, CET, Thread.currentThread().getContextClassLoader(), CTX);
     private static final CastRule.Context CET_CONTEXT_LEGACY =
             CastRule.Context.create(
-                    false, true, CET, Thread.currentThread().getContextClassLoader());
+                    false, true, CET, Thread.currentThread().getContextClassLoader(), CTX);
 
     private static final byte DEFAULT_POSITIVE_TINY_INT = (byte) 5;
     private static final byte DEFAULT_NEGATIVE_TINY_INT = (byte) -5;
@@ -1597,7 +1603,8 @@ class CastRulesTest {
                             false,
                             false,
                             DateTimeUtils.UTC_ZONE.toZoneId(),
-                            Thread.currentThread().getContextClassLoader()),
+                            Thread.currentThread().getContextClassLoader(),
+                            CTX),
                     src,
                     target);
         }
@@ -1610,7 +1617,8 @@ class CastRulesTest {
                             true,
                             false,
                             DateTimeUtils.UTC_ZONE.toZoneId(),
-                            Thread.currentThread().getContextClassLoader()),
+                            Thread.currentThread().getContextClassLoader(),
+                            CTX),
                     src,
                     target);
         }
@@ -1623,7 +1631,8 @@ class CastRulesTest {
                             false,
                             true,
                             DateTimeUtils.UTC_ZONE.toZoneId(),
-                            Thread.currentThread().getContextClassLoader()),
+                            Thread.currentThread().getContextClassLoader(),
+                            CTX),
                     src,
                     target);
         }
@@ -1653,7 +1662,8 @@ class CastRulesTest {
                             false,
                             false,
                             DateTimeUtils.UTC_ZONE.toZoneId(),
-                            Thread.currentThread().getContextClassLoader()),
+                            Thread.currentThread().getContextClassLoader(),
+                            CTX),
                     src,
                     exception);
         }

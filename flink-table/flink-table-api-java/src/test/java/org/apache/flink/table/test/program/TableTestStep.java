@@ -22,6 +22,9 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.catalog.TableDistribution;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,6 +32,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /** Abstract class for {@link SourceTestStep} and {@link SinkTestStep}. */
@@ -36,16 +40,19 @@ public abstract class TableTestStep implements TestStep {
 
     public final String name;
     public final List<String> schemaComponents;
+    public final @Nullable TableDistribution distribution;
     public final List<String> partitionKeys;
     public final Map<String, String> options;
 
     TableTestStep(
             String name,
             List<String> schemaComponents,
+            @Nullable TableDistribution distribution,
             List<String> partitionKeys,
             Map<String, String> options) {
         this.name = name;
         this.schemaComponents = schemaComponents;
+        this.distribution = distribution;
         this.partitionKeys = partitionKeys;
         this.options = options;
     }
@@ -58,15 +65,18 @@ public abstract class TableTestStep implements TestStep {
         final Map<String, String> allOptions = new HashMap<>(options);
         allOptions.putAll(extraOptions);
 
+        final String distributedBy =
+                Optional.ofNullable(distribution).map(TableDistribution::toString).orElse("");
         final String partitionedBy =
                 partitionKeys.isEmpty()
                         ? ""
                         : "PARTITIONED BY (" + String.join(", ", partitionKeys) + ")\n";
         final String createTable =
                 String.format(
-                        "CREATE TABLE %s (\n%s)\n%sWITH (\n%s)",
+                        "CREATE TABLE %s (\n%s)\n%s%sWITH (\n%s)",
                         name,
                         String.join(",\n", schemaComponents),
+                        distributedBy,
                         partitionedBy,
                         allOptions.entrySet().stream()
                                 .map(e -> String.format("'%s'='%s'", e.getKey(), e.getValue()))
@@ -83,6 +93,7 @@ public abstract class TableTestStep implements TestStep {
         protected final String name;
 
         protected final List<String> schemaComponents = new ArrayList<>();
+        protected @Nullable TableDistribution distribution;
         protected final List<String> partitionKeys = new ArrayList<>();
         protected final Map<String, String> options = new HashMap<>();
 
@@ -128,6 +139,11 @@ public abstract class TableTestStep implements TestStep {
          */
         public <T> SpecificBuilder addOption(ConfigOption<T> option, String value) {
             this.options.put(option.key(), ConfigurationUtils.convertValue(value, String.class));
+            return (SpecificBuilder) this;
+        }
+
+        public SpecificBuilder addDistribution(@Nullable TableDistribution distribution) {
+            this.distribution = distribution;
             return (SpecificBuilder) this;
         }
 

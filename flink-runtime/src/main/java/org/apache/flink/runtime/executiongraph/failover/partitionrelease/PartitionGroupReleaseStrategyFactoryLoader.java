@@ -28,7 +28,7 @@ public final class PartitionGroupReleaseStrategyFactoryLoader {
     public static PartitionGroupReleaseStrategy.Factory loadPartitionGroupReleaseStrategyFactory(
             final Configuration configuration) {
         final boolean partitionReleaseDuringJobExecution =
-                configuration.getBoolean(JobManagerOptions.PARTITION_RELEASE_DURING_JOB_EXECUTION);
+                configuration.get(JobManagerOptions.PARTITION_RELEASE_DURING_JOB_EXECUTION);
         if (partitionReleaseDuringJobExecution) {
             return new RegionPartitionGroupReleaseStrategy.Factory();
         } else {

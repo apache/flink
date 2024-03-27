@@ -42,8 +42,7 @@ class PartitionGroupReleaseStrategyFactoryLoaderTest {
     @Test
     public void featureCanBeDisabled() {
         final Configuration emptyConfiguration = new Configuration();
-        emptyConfiguration.setBoolean(
-                JobManagerOptions.PARTITION_RELEASE_DURING_JOB_EXECUTION, false);
+        emptyConfiguration.set(JobManagerOptions.PARTITION_RELEASE_DURING_JOB_EXECUTION, false);
 
         final PartitionGroupReleaseStrategy.Factory factory =
                 PartitionGroupReleaseStrategyFactoryLoader.loadPartitionGroupReleaseStrategyFactory(

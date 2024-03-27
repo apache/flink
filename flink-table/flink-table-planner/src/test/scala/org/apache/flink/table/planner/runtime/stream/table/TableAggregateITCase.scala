@@ -21,7 +21,8 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingRetractSink}
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import org.apache.flink.table.planner.runtime.utils.{JavaUserDefinedTableAggFunctions, StreamingWithStateTestBase, TestData, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverloadedDoubleMaxFunction
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData.tupleData3
@@ -33,6 +34,8 @@ import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
+import java.time.Duration
+
 /** Tests of groupby (without window) table aggregations */
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
@@ -40,7 +43,88 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
   @BeforeEach
   override def before(): Unit = {
     super.before()
-    tEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    tEnv.getConfig.setIdleStateRetention(Duration.ofHours(1))
+    // Create a Table from the array of Rows
+    tEnv.executeSql(s"""
+                       |CREATE TABLE myTable (
+                       |  `id` INT,
+                       |  `name` STRING,
+                       |  `price` INT
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '${TestValuesTableFactory.registerData(TestData.tupleData4)}'
+                       |)
+                       |""".stripMargin)
+  }
+
+  @TestTemplate
+  def testFlatAggregateWithoutIncrementalUpdate(): Unit = {
+    // Register the table aggregate function which does not implement emitUpdateWithRetract
+    tEnv.createTemporarySystemFunction("top2", new JavaUserDefinedTableAggFunctions.Top2)
+
+    checkRank(
+      "top2",
+      List(
+        // output triggered by (1, "Latte", 6)
+        "(true,6,1)",
+        // output triggered by (2, "Milk", 3)
+        "(false,6,1)",
+        "(true,6,1)",
+        "(true,3,2)",
+        // output triggered by (3, "Breve", 5)
+        "(false,6,1)",
+        "(false,3,2)",
+        "(true,6,1)",
+        "(true,5,2)",
+        // output triggered by (4, "Mocha", 8)
+        "(false,6,1)",
+        "(false,5,2)",
+        "(true,8,1)",
+        "(true,6,2)",
+        // output triggered by (5, "Tea", 4)
+        "(false,8,1)",
+        "(false,6,2)",
+        "(true,8,1)",
+        "(true,6,2)"
+      )
+    )
+  }
+
+  @TestTemplate
+  def testFlatAggregateWithIncrementalUpdate(): Unit = {
+    tEnv.createTemporarySystemFunction(
+      "incrementalTop2",
+      new JavaUserDefinedTableAggFunctions.IncrementalTop2)
+    checkRank(
+      "incrementalTop2",
+      List(
+        // output triggered by (1, "Latte", 6)
+        "(true,6,1)",
+        // output triggered by (2, "Milk", 3)
+        "(true,3,2)",
+        // output triggered by (3, "Breve", 5)
+        "(false,3,2)",
+        "(true,5,2)",
+        // output triggered by (4, "Mocha", 8)
+        "(false,6,1)",
+        "(true,8,1)",
+        "(false,5,2)",
+        "(true,6,2)"
+      )
+    )
+  }
+
+  def checkRank(func: String, expectedResult: List[String]): Unit = {
+    val resultTable =
+      tEnv
+        .from("myTable")
+        .flatAggregate(call(func, $("price")).as("top_price", "rank"))
+        .select($("top_price"), $("rank"))
+
+    val sink = new TestingRetractSink()
+    resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+    assertThat(sink.getRawResults).isEqualTo(expectedResult)
   }
 
   @TestTemplate

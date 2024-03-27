@@ -84,7 +84,7 @@ class BinaryToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<byte
             String returnVariable,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        final String resultStringTerm = newName("resultString");
+        final String resultStringTerm = newName(context.getCodeGeneratorContext(), "resultString");
         final CastRuleUtils.CodeWriter writer = new CastRuleUtils.CodeWriter();
 
         writer.declStmt(String.class, resultStringTerm);
@@ -103,7 +103,8 @@ class BinaryToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<byte
         }
 
         if (!context.legacyBehaviour() && !context.isPrinting()) {
-            final String resultPadOrTrim = newName("resultPadOrTrim");
+            final String resultPadOrTrim =
+                    newName(context.getCodeGeneratorContext(), "resultPadOrTrim");
             final int length = LogicalTypeChecks.getLength(targetLogicalType);
             CharVarCharTrimPadCastRule.padAndTrimStringIfNeeded(
                     writer,
@@ -111,7 +112,8 @@ class BinaryToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<byte
                     context.legacyBehaviour(),
                     length,
                     resultPadOrTrim,
-                    resultStringTerm);
+                    resultStringTerm,
+                    context.getCodeGeneratorContext());
             writer.assignStmt(resultStringTerm, resultPadOrTrim);
         }
         return writer

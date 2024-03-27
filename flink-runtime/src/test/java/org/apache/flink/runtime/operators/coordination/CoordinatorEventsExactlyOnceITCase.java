@@ -186,7 +186,7 @@ public class CoordinatorEventsExactlyOnceITCase {
 
         vertex.setParallelism(1);
         vertex.setInvokableClass(EventCollectingTask.class);
-        vertex.getConfiguration().setString(ACC_NAME, name);
+        vertex.getConfiguration().set(ACC_NAME, name);
 
         final OperatorCoordinator.Provider provider =
                 new OperatorCoordinator.Provider() {

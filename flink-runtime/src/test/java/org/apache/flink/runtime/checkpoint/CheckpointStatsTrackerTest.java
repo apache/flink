@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
@@ -27,6 +28,10 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.traces.Span;
+import org.apache.flink.traces.SpanBuilder;
+
+import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -36,8 +41,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.stream.Collectors;
 
 import static java.util.Collections.singletonMap;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -59,7 +66,7 @@ class CheckpointStatsTrackerTest {
         ExecutionJobVertex jobVertex = graph.getJobVertex(jobVertexID);
 
         CheckpointStatsTracker tracker =
-                new CheckpointStatsTracker(0, new UnregisteredMetricsGroup());
+                new CheckpointStatsTracker(0, new UnregisteredMetricsGroup(), new JobID());
 
         PendingCheckpointStats pending =
                 tracker.reportPendingCheckpoint(
@@ -107,7 +114,7 @@ class CheckpointStatsTrackerTest {
                 singletonMap(jobVertexID, jobVertex.getParallelism());
 
         CheckpointStatsTracker tracker =
-                new CheckpointStatsTracker(10, new UnregisteredMetricsGroup());
+                new CheckpointStatsTracker(10, new UnregisteredMetricsGroup(), new JobID());
 
         // Completed checkpoint
         PendingCheckpointStats completed1 =
@@ -164,7 +171,9 @@ class CheckpointStatsTrackerTest {
                         CheckpointProperties.forCheckpoint(
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
                         123,
-                        null);
+                        null,
+                        42);
+        tracker.reportInitializationStartTs(123);
         tracker.reportRestoredCheckpoint(restored);
 
         CheckpointStatsSnapshot snapshot = tracker.createSnapshot();
@@ -231,7 +240,7 @@ class CheckpointStatsTrackerTest {
     void testCreateSnapshot() {
         JobVertexID jobVertexID = new JobVertexID();
         CheckpointStatsTracker tracker =
-                new CheckpointStatsTracker(10, new UnregisteredMetricsGroup());
+                new CheckpointStatsTracker(10, new UnregisteredMetricsGroup(), new JobID());
 
         CheckpointStatsSnapshot snapshot1 = tracker.createSnapshot();
 
@@ -258,17 +267,143 @@ class CheckpointStatsTrackerTest {
         assertThat(snapshot3).isNotEqualTo(snapshot2);
 
         // Restore operation => new snapshot
+        tracker.reportInitializationStartTs(0);
         tracker.reportRestoredCheckpoint(
                 new RestoredCheckpointStats(
                         12,
                         CheckpointProperties.forCheckpoint(
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
                         12,
-                        null));
+                        null,
+                        42));
 
         CheckpointStatsSnapshot snapshot4 = tracker.createSnapshot();
         assertThat(snapshot4).isNotEqualTo(snapshot3);
         assertThat(tracker.createSnapshot()).isEqualTo(snapshot4);
+    }
+
+    @Test
+    public void testSpanCreation() throws Exception {
+        JobVertexID jobVertexID = new JobVertexID();
+        final List<Span> reportedSpans = new ArrayList<>();
+
+        MetricGroup metricGroup =
+                new UnregisteredMetricsGroup() {
+                    @Override
+                    public void addSpan(SpanBuilder spanBuilder) {
+                        reportedSpans.add(spanBuilder.build());
+                    }
+                };
+
+        CheckpointStatsTracker tracker = new CheckpointStatsTracker(10, metricGroup, new JobID());
+
+        PendingCheckpointStats pending =
+                tracker.reportPendingCheckpoint(
+                        42,
+                        1,
+                        CheckpointProperties.forCheckpoint(
+                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                        singletonMap(jobVertexID, 1));
+
+        pending.reportSubtaskStats(jobVertexID, createSubtaskStats(0));
+
+        // Complete checkpoint => new snapshot
+        tracker.reportCompletedCheckpoint(pending.toCompletedCheckpointStats(null));
+
+        assertThat(reportedSpans.size()).isEqualTo(1);
+        assertThat(
+                        reportedSpans.stream()
+                                .map(span -> span.getAttributes().get("checkpointId"))
+                                .collect(Collectors.toList()))
+                .containsExactly(42L);
+    }
+
+    @Test
+    public void testInitializationSpanCreation() throws Exception {
+        final List<Span> reportedSpans = new ArrayList<>();
+
+        MetricGroup metricGroup =
+                new UnregisteredMetricsGroup() {
+                    @Override
+                    public void addSpan(SpanBuilder spanBuilder) {
+                        reportedSpans.add(spanBuilder.build());
+                    }
+                };
+
+        CheckpointStatsTracker tracker =
+                new CheckpointStatsTracker(10, metricGroup, new JobID(), 2);
+
+        tracker.reportInitializationStartTs(100);
+        tracker.reportRestoredCheckpoint(
+                new RestoredCheckpointStats(
+                        42,
+                        CheckpointProperties.forCheckpoint(
+                                CheckpointRetentionPolicy.RETAIN_ON_FAILURE),
+                        100,
+                        null,
+                        1024));
+
+        SubTaskInitializationMetricsBuilder subTaskInitializationMetricsBuilder3 =
+                new SubTaskInitializationMetricsBuilder(110)
+                        .setStatus(InitializationStatus.COMPLETED);
+        subTaskInitializationMetricsBuilder3.addDurationMetric("MailboxStartDurationMs", 10);
+        subTaskInitializationMetricsBuilder3.addDurationMetric("ReadOutputDataDurationMs", 20);
+        subTaskInitializationMetricsBuilder3.addDurationMetric("InitializeStateDurationMs", 30);
+        subTaskInitializationMetricsBuilder3.addDurationMetric("GateRestoreDurationMs", 40);
+        tracker.reportInitializationMetrics(subTaskInitializationMetricsBuilder3.build(215));
+        assertThat(reportedSpans).isEmpty();
+
+        SubTaskInitializationMetricsBuilder subTaskInitializationMetricsBuilder2 =
+                new SubTaskInitializationMetricsBuilder(110)
+                        .setStatus(InitializationStatus.COMPLETED);
+        subTaskInitializationMetricsBuilder2.addDurationMetric("MailboxStartDurationMs", 10);
+        subTaskInitializationMetricsBuilder2.addDurationMetric("ReadOutputDataDurationMs", 20);
+        subTaskInitializationMetricsBuilder2.addDurationMetric("InitializeStateDurationMs", 30);
+        subTaskInitializationMetricsBuilder2.addDurationMetric("GateRestoreDurationMs", 40);
+        tracker.reportInitializationMetrics(subTaskInitializationMetricsBuilder2.build(215));
+
+        assertThat(reportedSpans.size()).isEqualTo(1);
+        Span reportedSpan = Iterables.getOnlyElement(reportedSpans);
+        assertThat(reportedSpan.getStartTsMillis()).isEqualTo(100L);
+        assertThat(reportedSpan.getEndTsMillis()).isEqualTo(215L);
+        assertThat(reportedSpan.getAttributes().get("checkpointId")).isEqualTo(42L);
+        assertThat(reportedSpan.getAttributes().get("fullSize")).isEqualTo(1024L);
+
+        // simulate another failover with the same instance
+        reportedSpans.clear();
+
+        tracker.reportInitializationStartTs(100);
+        tracker.reportRestoredCheckpoint(
+                new RestoredCheckpointStats(
+                        44,
+                        CheckpointProperties.forCheckpoint(
+                                CheckpointRetentionPolicy.RETAIN_ON_FAILURE),
+                        100,
+                        null,
+                        1024));
+
+        SubTaskInitializationMetricsBuilder subTaskInitializationMetricsBuilder1 =
+                new SubTaskInitializationMetricsBuilder(110)
+                        .setStatus(InitializationStatus.COMPLETED);
+        subTaskInitializationMetricsBuilder1.addDurationMetric("MailboxStartDurationMs", 10);
+        subTaskInitializationMetricsBuilder1.addDurationMetric("ReadOutputDataDurationMs", 20);
+        subTaskInitializationMetricsBuilder1.addDurationMetric("InitializeStateDurationMs", 30);
+        subTaskInitializationMetricsBuilder1.addDurationMetric("GateRestoreDurationMs", 40);
+        tracker.reportInitializationMetrics(subTaskInitializationMetricsBuilder1.build(215));
+        assertThat(reportedSpans).isEmpty();
+
+        SubTaskInitializationMetricsBuilder subTaskInitializationMetricsBuilder =
+                new SubTaskInitializationMetricsBuilder(110)
+                        .setStatus(InitializationStatus.COMPLETED);
+        subTaskInitializationMetricsBuilder.addDurationMetric("MailboxStartDurationMs", 10);
+        subTaskInitializationMetricsBuilder.addDurationMetric("ReadOutputDataDurationMs", 20);
+        subTaskInitializationMetricsBuilder.addDurationMetric("InitializeStateDurationMs", 30);
+        subTaskInitializationMetricsBuilder.addDurationMetric("GateRestoreDurationMs", 40);
+        tracker.reportInitializationMetrics(subTaskInitializationMetricsBuilder.build(215));
+
+        assertThat(reportedSpans.size()).isEqualTo(1);
+        reportedSpan = Iterables.getOnlyElement(reportedSpans);
+        assertThat(reportedSpan.getAttributes().get("checkpointId")).isEqualTo(44L);
     }
 
     /** Tests the registration of the checkpoint metrics. */
@@ -287,7 +422,7 @@ class CheckpointStatsTrackerTest {
                     }
                 };
 
-        new CheckpointStatsTracker(0, metricGroup);
+        new CheckpointStatsTracker(0, metricGroup, new JobID());
 
         // Make sure this test is adjusted when further metrics are added
         assertThat(registeredGaugeNames)
@@ -336,7 +471,7 @@ class CheckpointStatsTrackerTest {
                         .build(EXECUTOR_RESOURCE.getExecutor());
         ExecutionJobVertex jobVertex = graph.getJobVertex(jobVertexID);
 
-        CheckpointStatsTracker stats = new CheckpointStatsTracker(0, metricGroup);
+        CheckpointStatsTracker stats = new CheckpointStatsTracker(0, metricGroup, new JobID());
 
         // Make sure to adjust this test if metrics are added/removed
         assertThat(registeredGauges).hasSize(12);
@@ -489,7 +624,9 @@ class CheckpointStatsTrackerTest {
                         CheckpointProperties.forCheckpoint(
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
                         restoreTimestamp,
-                        null);
+                        null,
+                        42);
+        stats.reportInitializationStartTs(restoreTimestamp);
         stats.reportRestoredCheckpoint(restored);
 
         assertThat(numCheckpoints.getValue()).isEqualTo(2);

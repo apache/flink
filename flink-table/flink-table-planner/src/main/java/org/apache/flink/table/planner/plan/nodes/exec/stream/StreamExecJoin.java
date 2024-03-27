@@ -37,10 +37,12 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
+import org.apache.flink.table.planner.plan.utils.MinibatchUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.stream.AbstractStreamingJoinOperator;
+import org.apache.flink.table.runtime.operators.join.stream.MiniBatchStreamingJoinOperator;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingJoinOperator;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingSemiAntiJoinOperator;
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec;
@@ -55,6 +57,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import javax.annotation.Nullable;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -107,6 +110,7 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
             List<int[]> rightUpsertKeys,
             InputProperty leftInputProperty,
             InputProperty rightInputProperty,
+            Map<Integer, Long> stateTtlFromHint,
             RowType outputType,
             String description) {
         this(
@@ -117,7 +121,7 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
                 leftUpsertKeys,
                 rightUpsertKeys,
                 StateMetadata.getMultiInputOperatorDefaultMeta(
-                        tableConfig, LEFT_STATE_NAME, RIGHT_STATE_NAME),
+                        stateTtlFromHint, tableConfig, LEFT_STATE_NAME, RIGHT_STATE_NAME),
                 Lists.newArrayList(leftInputProperty, rightInputProperty),
                 outputType,
                 description);
@@ -193,6 +197,7 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
 
         AbstractStreamingJoinOperator operator;
         FlinkJoinType joinType = joinSpec.getJoinType();
+        final boolean isMiniBatchEnabled = MinibatchUtil.isMiniBatchEnabled(config);
         if (joinType == FlinkJoinType.ANTI || joinType == FlinkJoinType.SEMI) {
             operator =
                     new StreamingSemiAntiJoinOperator(
@@ -209,18 +214,35 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
             boolean leftIsOuter = joinType == FlinkJoinType.LEFT || joinType == FlinkJoinType.FULL;
             boolean rightIsOuter =
                     joinType == FlinkJoinType.RIGHT || joinType == FlinkJoinType.FULL;
-            operator =
-                    new StreamingJoinOperator(
-                            leftTypeInfo,
-                            rightTypeInfo,
-                            generatedCondition,
-                            leftInputSpec,
-                            rightInputSpec,
-                            leftIsOuter,
-                            rightIsOuter,
-                            joinSpec.getFilterNulls(),
-                            leftStateRetentionTime,
-                            rightStateRetentionTime);
+            if (isMiniBatchEnabled) {
+                operator =
+                        MiniBatchStreamingJoinOperator.newMiniBatchStreamJoinOperator(
+                                joinType,
+                                leftTypeInfo,
+                                rightTypeInfo,
+                                generatedCondition,
+                                leftInputSpec,
+                                rightInputSpec,
+                                leftIsOuter,
+                                rightIsOuter,
+                                joinSpec.getFilterNulls(),
+                                leftStateRetentionTime,
+                                rightStateRetentionTime,
+                                MinibatchUtil.createMiniBatchCoTrigger(config));
+            } else {
+                operator =
+                        new StreamingJoinOperator(
+                                leftTypeInfo,
+                                rightTypeInfo,
+                                generatedCondition,
+                                leftInputSpec,
+                                rightInputSpec,
+                                leftIsOuter,
+                                rightIsOuter,
+                                joinSpec.getFilterNulls(),
+                                leftStateRetentionTime,
+                                rightStateRetentionTime);
+            }
         }
 
         final RowType returnType = (RowType) getOutputType();

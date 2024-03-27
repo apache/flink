@@ -91,7 +91,7 @@ object FlinkRelOptUtil {
       withRowType,
       withTreeStyle = true,
       withUpsertKey,
-      withJoinHint = true,
+      withQueryHint = true,
       withQueryBlockAlias)
     rel.explain(planWriter)
     sw.toString
@@ -132,7 +132,7 @@ object FlinkRelOptUtil {
       withRowType = false,
       withTreeStyle = true,
       withUpsertKey = false,
-      withJoinHint = true,
+      withQueryHint = true,
       withQueryBlockAlias = false,
       relNodes.length,
       withAdvice = withAdvice)
@@ -205,7 +205,7 @@ object FlinkRelOptUtil {
         withRowType = true,
         // ignore tree style, only contains RelNode's attributes
         withTreeStyle = false,
-        withJoinHint = true))
+        withQueryHint = true))
     sw.toString
   }
 

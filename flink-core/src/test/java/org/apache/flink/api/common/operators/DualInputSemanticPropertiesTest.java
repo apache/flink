@@ -20,16 +20,15 @@ package org.apache.flink.api.common.operators;
 
 import org.apache.flink.api.common.operators.util.FieldSet;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class DualInputSemanticPropertiesTest {
+class DualInputSemanticPropertiesTest {
 
     @Test
-    public void testGetTargetFields() {
+    void testGetTargetFields() {
 
         // first input
         DualInputSemanticProperties sp = new DualInputSemanticProperties();
@@ -38,16 +37,16 @@ public class DualInputSemanticPropertiesTest {
         sp.addForwardedField(0, 2, 3);
         sp.addForwardedField(0, 3, 2);
 
-        assertEquals(1, sp.getForwardingTargetFields(0, 0).size());
-        assertEquals(1, sp.getForwardingTargetFields(0, 1).size());
-        assertEquals(1, sp.getForwardingTargetFields(0, 2).size());
-        assertEquals(1, sp.getForwardingTargetFields(0, 3).size());
-        assertTrue(sp.getForwardingTargetFields(0, 0).contains(1));
-        assertTrue(sp.getForwardingTargetFields(0, 1).contains(4));
-        assertTrue(sp.getForwardingTargetFields(0, 2).contains(3));
-        assertTrue(sp.getForwardingTargetFields(0, 3).contains(2));
-        assertNotNull(sp.getForwardingTargetFields(0, 4));
-        assertEquals(0, sp.getForwardingTargetFields(0, 4).size());
+        assertThat(sp.getForwardingTargetFields(0, 0)).hasSize(1);
+        assertThat(sp.getForwardingTargetFields(0, 1)).hasSize(1);
+        assertThat(sp.getForwardingTargetFields(0, 2)).hasSize(1);
+        assertThat(sp.getForwardingTargetFields(0, 3)).hasSize(1);
+        assertThat(sp.getForwardingTargetFields(0, 0).contains(1)).isTrue();
+        assertThat(sp.getForwardingTargetFields(0, 1).contains(4)).isTrue();
+        assertThat(sp.getForwardingTargetFields(0, 2).contains(3)).isTrue();
+        assertThat(sp.getForwardingTargetFields(0, 3).contains(2)).isTrue();
+        assertThat(sp.getForwardingTargetFields(0, 4)).isNotNull();
+        assertThat(sp.getForwardingTargetFields(0, 4)).isEmpty();
 
         sp = new DualInputSemanticProperties();
         sp.addForwardedField(0, 0, 0);
@@ -56,15 +55,15 @@ public class DualInputSemanticPropertiesTest {
         sp.addForwardedField(0, 1, 2);
         sp.addForwardedField(0, 1, 3);
 
-        assertEquals(2, sp.getForwardingTargetFields(0, 0).size());
-        assertEquals(3, sp.getForwardingTargetFields(0, 1).size());
-        assertTrue(sp.getForwardingTargetFields(0, 0).contains(0));
-        assertTrue(sp.getForwardingTargetFields(0, 0).contains(4));
-        assertTrue(sp.getForwardingTargetFields(0, 1).contains(1));
-        assertTrue(sp.getForwardingTargetFields(0, 1).contains(2));
-        assertTrue(sp.getForwardingTargetFields(0, 1).contains(3));
-        assertNotNull(sp.getForwardingTargetFields(0, 2));
-        assertEquals(0, sp.getForwardingTargetFields(0, 2).size());
+        assertThat(sp.getForwardingTargetFields(0, 0)).hasSize(2);
+        assertThat(sp.getForwardingTargetFields(0, 1)).hasSize(3);
+        assertThat(sp.getForwardingTargetFields(0, 0).contains(0)).isTrue();
+        assertThat(sp.getForwardingTargetFields(0, 0).contains(4)).isTrue();
+        assertThat(sp.getForwardingTargetFields(0, 1).contains(1)).isTrue();
+        assertThat(sp.getForwardingTargetFields(0, 1).contains(2)).isTrue();
+        assertThat(sp.getForwardingTargetFields(0, 1).contains(3)).isTrue();
+        assertThat(sp.getForwardingTargetFields(0, 2)).isNotNull();
+        assertThat(sp.getForwardingTargetFields(0, 2)).isEmpty();
 
         // second input
         sp = new DualInputSemanticProperties();
@@ -73,16 +72,16 @@ public class DualInputSemanticPropertiesTest {
         sp.addForwardedField(1, 2, 3);
         sp.addForwardedField(1, 3, 2);
 
-        assertEquals(1, sp.getForwardingTargetFields(1, 0).size());
-        assertEquals(1, sp.getForwardingTargetFields(1, 1).size());
-        assertEquals(1, sp.getForwardingTargetFields(1, 2).size());
-        assertEquals(1, sp.getForwardingTargetFields(1, 3).size());
-        assertTrue(sp.getForwardingTargetFields(1, 0).contains(1));
-        assertTrue(sp.getForwardingTargetFields(1, 1).contains(4));
-        assertTrue(sp.getForwardingTargetFields(1, 2).contains(3));
-        assertTrue(sp.getForwardingTargetFields(1, 3).contains(2));
-        assertNotNull(sp.getForwardingTargetFields(1, 4));
-        assertEquals(0, sp.getForwardingTargetFields(1, 4).size());
+        assertThat(sp.getForwardingTargetFields(1, 0)).hasSize(1);
+        assertThat(sp.getForwardingTargetFields(1, 1)).hasSize(1);
+        assertThat(sp.getForwardingTargetFields(1, 2)).hasSize(1);
+        assertThat(sp.getForwardingTargetFields(1, 3)).hasSize(1);
+        assertThat(sp.getForwardingTargetFields(1, 0).contains(1)).isTrue();
+        assertThat(sp.getForwardingTargetFields(1, 1).contains(4)).isTrue();
+        assertThat(sp.getForwardingTargetFields(1, 2).contains(3)).isTrue();
+        assertThat(sp.getForwardingTargetFields(1, 3).contains(2)).isTrue();
+        assertThat(sp.getForwardingTargetFields(1, 4)).isNotNull();
+        assertThat(sp.getForwardingTargetFields(1, 4)).isEmpty();
 
         sp = new DualInputSemanticProperties();
         sp.addForwardedField(1, 0, 0);
@@ -91,15 +90,15 @@ public class DualInputSemanticPropertiesTest {
         sp.addForwardedField(1, 1, 2);
         sp.addForwardedField(1, 1, 3);
 
-        assertEquals(2, sp.getForwardingTargetFields(1, 0).size());
-        assertEquals(3, sp.getForwardingTargetFields(1, 1).size());
-        assertTrue(sp.getForwardingTargetFields(1, 0).contains(0));
-        assertTrue(sp.getForwardingTargetFields(1, 0).contains(4));
-        assertTrue(sp.getForwardingTargetFields(1, 1).contains(1));
-        assertTrue(sp.getForwardingTargetFields(1, 1).contains(2));
-        assertTrue(sp.getForwardingTargetFields(1, 1).contains(3));
-        assertNotNull(sp.getForwardingTargetFields(1, 2));
-        assertEquals(0, sp.getForwardingTargetFields(1, 2).size());
+        assertThat(sp.getForwardingTargetFields(1, 0)).hasSize(2);
+        assertThat(sp.getForwardingTargetFields(1, 1)).hasSize(3);
+        assertThat(sp.getForwardingTargetFields(1, 0).contains(0)).isTrue();
+        assertThat(sp.getForwardingTargetFields(1, 0).contains(4)).isTrue();
+        assertThat(sp.getForwardingTargetFields(1, 1).contains(1)).isTrue();
+        assertThat(sp.getForwardingTargetFields(1, 1).contains(2)).isTrue();
+        assertThat(sp.getForwardingTargetFields(1, 1).contains(3)).isTrue();
+        assertThat(sp.getForwardingTargetFields(1, 2)).isNotNull();
+        assertThat(sp.getForwardingTargetFields(1, 2)).isEmpty();
 
         // both inputs
         sp = new DualInputSemanticProperties();
@@ -108,18 +107,18 @@ public class DualInputSemanticPropertiesTest {
         sp.addForwardedField(1, 0, 1);
         sp.addForwardedField(1, 1, 4);
 
-        assertEquals(1, sp.getForwardingTargetFields(0, 2).size());
-        assertEquals(1, sp.getForwardingTargetFields(0, 7).size());
-        assertEquals(1, sp.getForwardingTargetFields(1, 0).size());
-        assertEquals(1, sp.getForwardingTargetFields(1, 1).size());
-        assertTrue(sp.getForwardingTargetFields(0, 2).contains(6));
-        assertTrue(sp.getForwardingTargetFields(0, 7).contains(8));
-        assertTrue(sp.getForwardingTargetFields(1, 0).contains(1));
-        assertTrue(sp.getForwardingTargetFields(1, 1).contains(4));
-        assertNotNull(sp.getForwardingTargetFields(0, 1));
-        assertNotNull(sp.getForwardingTargetFields(1, 4));
-        assertEquals(0, sp.getForwardingTargetFields(0, 1).size());
-        assertEquals(0, sp.getForwardingTargetFields(1, 4).size());
+        assertThat(sp.getForwardingTargetFields(0, 2)).hasSize(1);
+        assertThat(sp.getForwardingTargetFields(0, 7)).hasSize(1);
+        assertThat(sp.getForwardingTargetFields(1, 0)).hasSize(1);
+        assertThat(sp.getForwardingTargetFields(1, 1)).hasSize(1);
+        assertThat(sp.getForwardingTargetFields(0, 2).contains(6)).isTrue();
+        assertThat(sp.getForwardingTargetFields(0, 7).contains(8)).isTrue();
+        assertThat(sp.getForwardingTargetFields(1, 0).contains(1)).isTrue();
+        assertThat(sp.getForwardingTargetFields(1, 1).contains(4)).isTrue();
+        assertThat(sp.getForwardingTargetFields(0, 1)).isNotNull();
+        assertThat(sp.getForwardingTargetFields(1, 4)).isNotNull();
+        assertThat(sp.getForwardingTargetFields(0, 1)).isEmpty();
+        assertThat(sp.getForwardingTargetFields(1, 4)).isEmpty();
 
         sp = new DualInputSemanticProperties();
         sp.addForwardedField(0, 0, 0);
@@ -129,20 +128,20 @@ public class DualInputSemanticPropertiesTest {
         sp.addForwardedField(1, 1, 2);
         sp.addForwardedField(1, 4, 8);
 
-        assertEquals(2, sp.getForwardingTargetFields(0, 0).size());
-        assertEquals(1, sp.getForwardingTargetFields(0, 3).size());
-        assertEquals(2, sp.getForwardingTargetFields(1, 1).size());
-        assertEquals(1, sp.getForwardingTargetFields(1, 4).size());
-        assertTrue(sp.getForwardingTargetFields(0, 0).contains(0));
-        assertTrue(sp.getForwardingTargetFields(0, 0).contains(4));
-        assertTrue(sp.getForwardingTargetFields(0, 3).contains(8));
-        assertTrue(sp.getForwardingTargetFields(1, 1).contains(1));
-        assertTrue(sp.getForwardingTargetFields(1, 1).contains(1));
-        assertTrue(sp.getForwardingTargetFields(1, 4).contains(8));
+        assertThat(sp.getForwardingTargetFields(0, 0)).hasSize(2);
+        assertThat(sp.getForwardingTargetFields(0, 3)).hasSize(1);
+        assertThat(sp.getForwardingTargetFields(1, 1)).hasSize(2);
+        assertThat(sp.getForwardingTargetFields(1, 4)).hasSize(1);
+        assertThat(sp.getForwardingTargetFields(0, 0).contains(0)).isTrue();
+        assertThat(sp.getForwardingTargetFields(0, 0).contains(4)).isTrue();
+        assertThat(sp.getForwardingTargetFields(0, 3).contains(8)).isTrue();
+        assertThat(sp.getForwardingTargetFields(1, 1).contains(1)).isTrue();
+        assertThat(sp.getForwardingTargetFields(1, 1).contains(1)).isTrue();
+        assertThat(sp.getForwardingTargetFields(1, 4).contains(8)).isTrue();
     }
 
     @Test
-    public void testGetSourceField() {
+    void testGetSourceField() {
 
         // first input
         DualInputSemanticProperties sp = new DualInputSemanticProperties();
@@ -151,12 +150,12 @@ public class DualInputSemanticPropertiesTest {
         sp.addForwardedField(0, 2, 3);
         sp.addForwardedField(0, 3, 2);
 
-        assertEquals(0, sp.getForwardingSourceField(0, 1));
-        assertEquals(1, sp.getForwardingSourceField(0, 4));
-        assertEquals(2, sp.getForwardingSourceField(0, 3));
-        assertEquals(3, sp.getForwardingSourceField(0, 2));
-        assertTrue(sp.getForwardingSourceField(0, 0) < 0);
-        assertTrue(sp.getForwardingSourceField(0, 5) < 0);
+        assertThat(sp.getForwardingSourceField(0, 1)).isZero();
+        assertThat(sp.getForwardingSourceField(0, 4)).isOne();
+        assertThat(sp.getForwardingSourceField(0, 3)).isEqualTo(2);
+        assertThat(sp.getForwardingSourceField(0, 2)).isEqualTo(3);
+        assertThat(sp.getForwardingSourceField(0, 0)).isNegative();
+        assertThat(sp.getForwardingSourceField(0, 5)).isNegative();
 
         sp = new DualInputSemanticProperties();
         sp.addForwardedField(0, 0, 0);
@@ -165,12 +164,12 @@ public class DualInputSemanticPropertiesTest {
         sp.addForwardedField(0, 1, 2);
         sp.addForwardedField(0, 1, 3);
 
-        assertEquals(0, sp.getForwardingSourceField(0, 0));
-        assertEquals(0, sp.getForwardingSourceField(0, 4));
-        assertEquals(1, sp.getForwardingSourceField(0, 1));
-        assertEquals(1, sp.getForwardingSourceField(0, 2));
-        assertEquals(1, sp.getForwardingSourceField(0, 3));
-        assertTrue(sp.getForwardingSourceField(0, 5) < 0);
+        assertThat(sp.getForwardingSourceField(0, 0)).isZero();
+        assertThat(sp.getForwardingSourceField(0, 4)).isZero();
+        assertThat(sp.getForwardingSourceField(0, 1)).isOne();
+        assertThat(sp.getForwardingSourceField(0, 2)).isOne();
+        assertThat(sp.getForwardingSourceField(0, 3)).isOne();
+        assertThat(sp.getForwardingSourceField(0, 5)).isNegative();
 
         // second input
         sp = new DualInputSemanticProperties();
@@ -179,12 +178,12 @@ public class DualInputSemanticPropertiesTest {
         sp.addForwardedField(1, 2, 3);
         sp.addForwardedField(1, 3, 2);
 
-        assertEquals(0, sp.getForwardingSourceField(1, 1));
-        assertEquals(1, sp.getForwardingSourceField(1, 4));
-        assertEquals(2, sp.getForwardingSourceField(1, 3));
-        assertEquals(3, sp.getForwardingSourceField(1, 2));
-        assertTrue(sp.getForwardingSourceField(1, 0) < 0);
-        assertTrue(sp.getForwardingSourceField(1, 5) < 0);
+        assertThat(sp.getForwardingSourceField(1, 1)).isZero();
+        assertThat(sp.getForwardingSourceField(1, 4)).isOne();
+        assertThat(sp.getForwardingSourceField(1, 3)).isEqualTo(2);
+        assertThat(sp.getForwardingSourceField(1, 2)).isEqualTo(3);
+        assertThat(sp.getForwardingSourceField(1, 0)).isNegative();
+        assertThat(sp.getForwardingSourceField(1, 5)).isNegative();
 
         sp = new DualInputSemanticProperties();
         sp.addForwardedField(1, 0, 0);
@@ -193,61 +192,69 @@ public class DualInputSemanticPropertiesTest {
         sp.addForwardedField(1, 1, 2);
         sp.addForwardedField(1, 1, 3);
 
-        assertEquals(0, sp.getForwardingSourceField(1, 0));
-        assertEquals(0, sp.getForwardingSourceField(1, 4));
-        assertEquals(1, sp.getForwardingSourceField(1, 1));
-        assertEquals(1, sp.getForwardingSourceField(1, 2));
-        assertEquals(1, sp.getForwardingSourceField(1, 3));
-        assertTrue(sp.getForwardingSourceField(1, 5) < 0);
+        assertThat(sp.getForwardingSourceField(1, 0)).isZero();
+        assertThat(sp.getForwardingSourceField(1, 4)).isZero();
+        assertThat(sp.getForwardingSourceField(1, 1)).isOne();
+        assertThat(sp.getForwardingSourceField(1, 2)).isOne();
+        assertThat(sp.getForwardingSourceField(1, 3)).isOne();
+        assertThat(sp.getForwardingSourceField(1, 5)).isNegative();
     }
 
     @Test
-    public void testGetReadSet() {
+    void testGetReadSet() {
 
         // first input
         DualInputSemanticProperties sp = new DualInputSemanticProperties();
         sp.addReadFields(0, new FieldSet(0, 1));
 
-        assertEquals(2, sp.getReadFields(0).size());
-        assertTrue(sp.getReadFields(0).contains(0));
-        assertTrue(sp.getReadFields(0).contains(1));
+        assertThat(sp.getReadFields(0)).hasSize(2);
+        assertThat(sp.getReadFields(0).contains(0)).isTrue();
+        assertThat(sp.getReadFields(0).contains(1)).isTrue();
 
         sp.addReadFields(0, new FieldSet(3));
 
-        assertEquals(3, sp.getReadFields(0).size());
-        assertTrue(sp.getReadFields(0).contains(0));
-        assertTrue(sp.getReadFields(0).contains(1));
-        assertTrue(sp.getReadFields(0).contains(3));
+        assertThat(sp.getReadFields(0)).hasSize(3);
+        assertThat(sp.getReadFields(0).contains(0)).isTrue();
+        assertThat(sp.getReadFields(0).contains(1)).isTrue();
+        assertThat(sp.getReadFields(0).contains(3)).isTrue();
 
         // second input
         sp = new DualInputSemanticProperties();
         sp.addReadFields(1, new FieldSet(0, 1));
 
-        assertEquals(2, sp.getReadFields(1).size());
-        assertTrue(sp.getReadFields(1).contains(0));
-        assertTrue(sp.getReadFields(1).contains(1));
+        assertThat(sp.getReadFields(1)).hasSize(2);
+        assertThat(sp.getReadFields(1).contains(0)).isTrue();
+        assertThat(sp.getReadFields(1).contains(1)).isTrue();
 
         sp.addReadFields(1, new FieldSet(3));
 
-        assertEquals(3, sp.getReadFields(1).size());
-        assertTrue(sp.getReadFields(1).contains(0));
-        assertTrue(sp.getReadFields(1).contains(1));
-        assertTrue(sp.getReadFields(1).contains(3));
+        assertThat(sp.getReadFields(1)).hasSize(3);
+        assertThat(sp.getReadFields(1).contains(0)).isTrue();
+        assertThat(sp.getReadFields(1).contains(1)).isTrue();
+        assertThat(sp.getReadFields(1).contains(3)).isTrue();
     }
 
-    @Test(expected = SemanticProperties.InvalidSemanticAnnotationException.class)
-    public void testAddForwardedFieldsTargetTwice1() {
+    @Test
+    void testAddForwardedFieldsTargetTwice1() {
 
-        DualInputSemanticProperties sp = new DualInputSemanticProperties();
-        sp.addForwardedField(0, 0, 2);
-        sp.addForwardedField(0, 1, 2);
+        assertThatThrownBy(
+                        () -> {
+                            DualInputSemanticProperties sp = new DualInputSemanticProperties();
+                            sp.addForwardedField(0, 0, 2);
+                            sp.addForwardedField(0, 1, 2);
+                        })
+                .isInstanceOf(SemanticProperties.InvalidSemanticAnnotationException.class);
     }
 
-    @Test(expected = SemanticProperties.InvalidSemanticAnnotationException.class)
-    public void testAddForwardedFieldsTargetTwice2() {
+    @Test
+    void testAddForwardedFieldsTargetTwice2() {
 
-        DualInputSemanticProperties sp = new DualInputSemanticProperties();
-        sp.addForwardedField(1, 0, 2);
-        sp.addForwardedField(1, 1, 2);
+        assertThatThrownBy(
+                        () -> {
+                            DualInputSemanticProperties sp = new DualInputSemanticProperties();
+                            sp.addForwardedField(1, 0, 2);
+                            sp.addForwardedField(1, 1, 2);
+                        })
+                .isInstanceOf(SemanticProperties.InvalidSemanticAnnotationException.class);
     }
 }

@@ -28,6 +28,7 @@ import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -43,7 +44,6 @@ import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
-import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
@@ -105,8 +105,6 @@ public interface SchedulerNG extends GlobalFailureHandler, AutoCloseableAsync {
 
     JobStatus requestJobStatus();
 
-    JobDetails requestJobDetails();
-
     // ------------------------------------------------------------------------------------
     // Methods below do not belong to Scheduler but are included due to historical reasons
     // ------------------------------------------------------------------------------------
@@ -155,6 +153,9 @@ public interface SchedulerNG extends GlobalFailureHandler, AutoCloseableAsync {
             CheckpointMetrics checkpointMetrics);
 
     void declineCheckpoint(DeclineCheckpoint decline);
+
+    void reportInitializationMetrics(
+            JobID jobId, SubTaskInitializationMetrics initializationMetrics);
 
     CompletableFuture<String> stopWithSavepoint(
             String targetDirectory, boolean terminate, SavepointFormatType formatType);

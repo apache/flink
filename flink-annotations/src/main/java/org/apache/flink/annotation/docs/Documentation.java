@@ -77,10 +77,9 @@ public final class Documentation {
 
         public static final String STATE_BACKEND_ROCKSDB = "state_backend_rocksdb";
 
-        public static final String STATE_BACKEND_LATENCY_TRACKING =
-                "state_backend_latency_tracking";
+        public static final String STATE_LATENCY_TRACKING = "state_latency_tracking";
 
-        public static final String STATE_BACKEND_CHANGELOG = "state_backend_changelog";
+        public static final String STATE_CHANGELOG = "state_changelog";
 
         public static final String EXPERT_CLASS_LOADING = "expert_class_loading";
         public static final String EXPERT_DEBUGGING_AND_TUNING = "expert_debugging_and_tuning";
@@ -105,6 +104,8 @@ public final class Documentation {
         public static final String DEPRECATED_FILE_SINKS = "deprecated_file_sinks";
 
         public static final String METRIC_REPORTERS = "metric_reporters";
+
+        public static final String TRACE_REPORTERS = "trace_reporters";
 
         private Sections() {}
     }

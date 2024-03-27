@@ -241,7 +241,7 @@ public class PartitionerITCase extends AbstractTestBase {
         public void open(OpenContext openContext) throws Exception {
             super.open(openContext);
             RuntimeContext runtimeContext = getRuntimeContext();
-            indexOfSubtask = runtimeContext.getIndexOfThisSubtask();
+            indexOfSubtask = runtimeContext.getTaskInfo().getIndexOfThisSubtask();
         }
 
         @Override

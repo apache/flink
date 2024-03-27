@@ -24,6 +24,7 @@ import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -188,16 +189,19 @@ class BlobServerDeleteTest {
         }
     }
 
+    @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
     @Test
     void testDeleteTransientFailsNoJob() throws IOException {
         testDeleteBlobFails(null, TRANSIENT_BLOB);
     }
 
+    @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
     @Test
     void testDeleteTransientFailsForJob() throws IOException {
         testDeleteBlobFails(new JobID(), TRANSIENT_BLOB);
     }
 
+    @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
     @Test
     void testDeletePermanentFailsForJob() throws IOException {
         testDeleteBlobFails(new JobID(), PERMANENT_BLOB);

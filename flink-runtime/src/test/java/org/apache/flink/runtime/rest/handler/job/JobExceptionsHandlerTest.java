@@ -30,6 +30,7 @@ import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionHistory;
 import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
 import org.apache.flink.runtime.rest.handler.legacy.DefaultExecutionGraphCache;
@@ -476,6 +477,7 @@ class JobExceptionsHandlerTest {
                 jobVertexID.toString(),
                 1,
                 1,
+                new SlotSharingGroup(),
                 ResourceProfile.UNKNOWN,
                 emptyAccumulators);
     }

@@ -87,7 +87,7 @@ class ChannelStateWriteRequestExecutorImplTest {
         Object registerLock = new Object();
         ChannelStateWriteRequestExecutorImpl worker =
                 new ChannelStateWriteRequestExecutorImpl(
-                        NO_OP, closingDeque, 5, registerLock, e -> {});
+                        NO_OP, closingDeque, 5, registerLock, e -> {}, new JobID());
         closingDeque.setWorker(worker);
         synchronized (registerLock) {
             worker.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
@@ -109,7 +109,7 @@ class ChannelStateWriteRequestExecutorImplTest {
             Object registerLock = new Object();
             ChannelStateWriteRequestExecutorImpl executor =
                     new ChannelStateWriteRequestExecutorImpl(
-                            NO_OP, deque, 5, registerLock, e -> {});
+                            NO_OP, deque, 5, registerLock, e -> {}, new JobID());
             synchronized (registerLock) {
                 executor.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
             }
@@ -134,7 +134,7 @@ class ChannelStateWriteRequestExecutorImplTest {
         Object registerLock = new Object();
         ChannelStateWriteRequestExecutorImpl worker =
                 new ChannelStateWriteRequestExecutorImpl(
-                        requestProcessor, deque, 5, registerLock, e -> {});
+                        requestProcessor, deque, 5, registerLock, e -> {}, new JobID());
         synchronized (registerLock) {
             worker.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
         }
@@ -153,7 +153,7 @@ class ChannelStateWriteRequestExecutorImplTest {
         Object registerLock = new Object();
         ChannelStateWriteRequestExecutorImpl worker =
                 new ChannelStateWriteRequestExecutorImpl(
-                        requestProcessor, deque, 5, registerLock, e -> {});
+                        requestProcessor, deque, 5, registerLock, e -> {}, new JobID());
         synchronized (registerLock) {
             worker.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
         }
@@ -180,7 +180,8 @@ class ChannelStateWriteRequestExecutorImplTest {
                         new ChannelStateSerializerImpl());
         Object registerLock = new Object();
         ChannelStateWriteRequestExecutorImpl worker =
-                new ChannelStateWriteRequestExecutorImpl(processor, 5, e -> {}, registerLock);
+                new ChannelStateWriteRequestExecutorImpl(
+                        processor, 5, e -> {}, registerLock, new JobID());
         synchronized (registerLock) {
             worker.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
         }
@@ -273,7 +274,7 @@ class ChannelStateWriteRequestExecutorImplTest {
         Object registerLock = new Object();
         ChannelStateWriteRequestExecutorImpl worker =
                 new ChannelStateWriteRequestExecutorImpl(
-                        throwingRequestProcessor, 5, e -> {}, registerLock);
+                        throwingRequestProcessor, 5, e -> {}, registerLock, new JobID());
         synchronized (registerLock) {
             worker.registerSubtask(JOB_VERTEX_ID, subtaskIndex0);
             worker.registerSubtask(JOB_VERTEX_ID, subtaskIndex1);
@@ -319,7 +320,7 @@ class ChannelStateWriteRequestExecutorImplTest {
         Object registerLock = new Object();
         ChannelStateWriteRequestExecutorImpl worker =
                 new ChannelStateWriteRequestExecutorImpl(
-                        throwingRequestProcessor, deque, 5, registerLock, e -> {});
+                        throwingRequestProcessor, deque, 5, registerLock, e -> {}, new JobID());
         synchronized (registerLock) {
             worker.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
         }
@@ -342,7 +343,8 @@ class ChannelStateWriteRequestExecutorImplTest {
     void testSubmitRequestOfUnregisteredSubtask() throws Exception {
         Object registerLock = new Object();
         ChannelStateWriteRequestExecutorImpl worker =
-                new ChannelStateWriteRequestExecutorImpl(NO_OP, 5, e -> {}, registerLock);
+                new ChannelStateWriteRequestExecutorImpl(
+                        NO_OP, 5, e -> {}, registerLock, new JobID());
         synchronized (registerLock) {
             worker.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
         }
@@ -366,7 +368,8 @@ class ChannelStateWriteRequestExecutorImplTest {
     void testSubmitPriorityUnreadyRequest() throws Exception {
         Object registerLock = new Object();
         ChannelStateWriteRequestExecutorImpl worker =
-                new ChannelStateWriteRequestExecutorImpl(NO_OP, 5, e -> {}, registerLock);
+                new ChannelStateWriteRequestExecutorImpl(
+                        NO_OP, 5, e -> {}, registerLock, new JobID());
         synchronized (registerLock) {
             worker.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
         }
@@ -390,7 +393,7 @@ class ChannelStateWriteRequestExecutorImplTest {
         Object registerLock = new Object();
         ChannelStateWriteRequestExecutorImpl worker =
                 new ChannelStateWriteRequestExecutorImpl(
-                        NO_OP, maxSubtasksPerChannelStateFile, e -> {}, registerLock);
+                        NO_OP, maxSubtasksPerChannelStateFile, e -> {}, registerLock, new JobID());
         synchronized (registerLock) {
             for (int i = 0; i < maxSubtasksPerChannelStateFile; i++) {
                 assertThat(worker.isRegistering()).isTrue();
@@ -429,7 +432,8 @@ class ChannelStateWriteRequestExecutorImplTest {
                         dispatcher,
                         maxSubtasksPerChannelStateFile,
                         workerFuture::complete,
-                        registerLock);
+                        registerLock,
+                        new JobID());
         worker.start();
         synchronized (registerLock) {
             worker.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);
@@ -467,7 +471,8 @@ class ChannelStateWriteRequestExecutorImplTest {
                         new TestRequestDispatcher(),
                         maxSubtasksPerChannelStateFile,
                         workerFuture::complete,
-                        registerLock);
+                        registerLock,
+                        new JobID());
         worker.start();
         synchronized (registerLock) {
             worker.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX);

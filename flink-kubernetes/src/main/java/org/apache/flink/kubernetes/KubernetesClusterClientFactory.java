@@ -45,7 +45,7 @@ public class KubernetesClusterClientFactory
     @Override
     public boolean isCompatibleWith(Configuration configuration) {
         checkNotNull(configuration);
-        final String deploymentTarget = configuration.getString(DeploymentOptions.TARGET);
+        final String deploymentTarget = configuration.get(DeploymentOptions.TARGET);
         return KubernetesDeploymentTarget.isValidKubernetesTarget(deploymentTarget);
     }
 
@@ -54,7 +54,7 @@ public class KubernetesClusterClientFactory
         checkNotNull(configuration);
         if (!configuration.contains(KubernetesConfigOptions.CLUSTER_ID)) {
             final String clusterId = generateClusterId();
-            configuration.setString(KubernetesConfigOptions.CLUSTER_ID, clusterId);
+            configuration.set(KubernetesConfigOptions.CLUSTER_ID, clusterId);
         }
         return new KubernetesClusterDescriptor(configuration, FlinkKubeClientFactory.getInstance());
     }
@@ -63,7 +63,7 @@ public class KubernetesClusterClientFactory
     @Override
     public String getClusterId(Configuration configuration) {
         checkNotNull(configuration);
-        return configuration.getString(KubernetesConfigOptions.CLUSTER_ID);
+        return configuration.get(KubernetesConfigOptions.CLUSTER_ID);
     }
 
     @Override

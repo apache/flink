@@ -22,6 +22,7 @@ import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.StatefulSink;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.connector.base.sink.writer.config.AsyncSinkWriterConfiguration;
 import org.apache.flink.connector.base.sink.writer.strategy.BasicRequestInfo;
 import org.apache.flink.connector.base.sink.writer.strategy.BasicResultInfo;
@@ -208,7 +209,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
     @Deprecated
     public AsyncSinkWriter(
             ElementConverter<InputT, RequestEntryT> elementConverter,
-            Sink.WriterInitContext context,
+            Sink.InitContext context,
             int maxBatchSize,
             int maxInFlightRequests,
             int maxBufferedRequests,
@@ -234,7 +235,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
     @Deprecated
     public AsyncSinkWriter(
             ElementConverter<InputT, RequestEntryT> elementConverter,
-            Sink.WriterInitContext context,
+            Sink.InitContext context,
             int maxBatchSize,
             int maxInFlightRequests,
             int maxBufferedRequests,
@@ -256,9 +257,14 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
                 states);
     }
 
+    /**
+     * Should be removed along {@link
+     * org.apache.flink.api.connector.sink2.StatefulSink.StatefulSinkWriter}.
+     */
+    @Deprecated
     public AsyncSinkWriter(
             ElementConverter<InputT, RequestEntryT> elementConverter,
-            Sink.WriterInitContext context,
+            Sink.InitContext context,
             AsyncSinkWriterConfiguration configuration,
             Collection<BufferedRequestState<RequestEntryT>> states) {
         this.elementConverter = elementConverter;
@@ -305,6 +311,14 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
 
         elementConverter.open(context);
         initializeState(states);
+    }
+
+    public AsyncSinkWriter(
+            ElementConverter<InputT, RequestEntryT> elementConverter,
+            WriterInitContext context,
+            AsyncSinkWriterConfiguration configuration,
+            Collection<BufferedRequestState<RequestEntryT>> states) {
+        this(elementConverter, new Sink.InitContextWrapper(context), configuration, states);
     }
 
     private void registerCallback() {

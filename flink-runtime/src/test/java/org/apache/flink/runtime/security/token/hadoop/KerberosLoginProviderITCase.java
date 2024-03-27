@@ -56,9 +56,9 @@ public class KerberosLoginProviderITCase {
     public void isLoginPossibleMustNotDoAccidentalLoginWithKeytab(
             boolean supportProxyUser, @TempDir Path tmpDir) throws IOException {
         Configuration configuration = new Configuration();
-        configuration.setString(KERBEROS_LOGIN_PRINCIPAL, "principal");
+        configuration.set(KERBEROS_LOGIN_PRINCIPAL, "principal");
         final Path keyTab = Files.createFile(tmpDir.resolve("test.keytab"));
-        configuration.setString(KERBEROS_LOGIN_KEYTAB, keyTab.toAbsolutePath().toString());
+        configuration.set(KERBEROS_LOGIN_KEYTAB, keyTab.toAbsolutePath().toString());
         KerberosLoginProvider kerberosLoginProvider = new KerberosLoginProvider(configuration);
 
         try (MockedStatic<UserGroupInformation> ugi = mockStatic(UserGroupInformation.class)) {
@@ -107,9 +107,9 @@ public class KerberosLoginProviderITCase {
     public void isLoginPossibleMustReturnTrueWithKeytab(
             boolean supportProxyUser, @TempDir Path tmpDir) throws IOException {
         Configuration configuration = new Configuration();
-        configuration.setString(KERBEROS_LOGIN_PRINCIPAL, "principal");
+        configuration.set(KERBEROS_LOGIN_PRINCIPAL, "principal");
         final Path keyTab = Files.createFile(tmpDir.resolve("test.keytab"));
-        configuration.setString(KERBEROS_LOGIN_KEYTAB, keyTab.toAbsolutePath().toString());
+        configuration.set(KERBEROS_LOGIN_KEYTAB, keyTab.toAbsolutePath().toString());
         KerberosLoginProvider kerberosLoginProvider = new KerberosLoginProvider(configuration);
 
         try (MockedStatic<UserGroupInformation> ugi = mockStatic(UserGroupInformation.class)) {
@@ -125,7 +125,7 @@ public class KerberosLoginProviderITCase {
     @ValueSource(booleans = {true, false})
     public void isLoginPossibleMustReturnTrueWithTGT(boolean supportProxyUser) throws IOException {
         Configuration configuration = new Configuration();
-        configuration.setBoolean(KERBEROS_LOGIN_USETICKETCACHE, true);
+        configuration.set(KERBEROS_LOGIN_USETICKETCACHE, true);
         KerberosLoginProvider kerberosLoginProvider = new KerberosLoginProvider(configuration);
 
         try (MockedStatic<UserGroupInformation> ugi = mockStatic(UserGroupInformation.class)) {
@@ -177,9 +177,9 @@ public class KerberosLoginProviderITCase {
     public void doLoginMustLoginWithKeytab(boolean supportProxyUser, @TempDir Path tmpDir)
             throws IOException {
         Configuration configuration = new Configuration();
-        configuration.setString(KERBEROS_LOGIN_PRINCIPAL, "principal");
+        configuration.set(KERBEROS_LOGIN_PRINCIPAL, "principal");
         final Path keyTab = Files.createFile(tmpDir.resolve("test.keytab"));
-        configuration.setString(KERBEROS_LOGIN_KEYTAB, keyTab.toAbsolutePath().toString());
+        configuration.set(KERBEROS_LOGIN_KEYTAB, keyTab.toAbsolutePath().toString());
         KerberosLoginProvider kerberosLoginProvider = new KerberosLoginProvider(configuration);
 
         try (MockedStatic<UserGroupInformation> ugi = mockStatic(UserGroupInformation.class)) {
@@ -195,7 +195,7 @@ public class KerberosLoginProviderITCase {
     @ValueSource(booleans = {true, false})
     public void doLoginMustLoginWithTGT(boolean supportProxyUser) throws IOException {
         Configuration configuration = new Configuration();
-        configuration.setBoolean(KERBEROS_LOGIN_USETICKETCACHE, true);
+        configuration.set(KERBEROS_LOGIN_USETICKETCACHE, true);
         KerberosLoginProvider kerberosLoginProvider = new KerberosLoginProvider(configuration);
 
         try (MockedStatic<UserGroupInformation> ugi = mockStatic(UserGroupInformation.class)) {
@@ -244,9 +244,9 @@ public class KerberosLoginProviderITCase {
     @Test
     public void doLoginAndReturnUGIMustLoginWithKeytab(@TempDir Path tmpDir) throws IOException {
         Configuration configuration = new Configuration();
-        configuration.setString(KERBEROS_LOGIN_PRINCIPAL, "principal");
+        configuration.set(KERBEROS_LOGIN_PRINCIPAL, "principal");
         final Path keyTab = Files.createFile(tmpDir.resolve("test.keytab"));
-        configuration.setString(KERBEROS_LOGIN_KEYTAB, keyTab.toAbsolutePath().toString());
+        configuration.set(KERBEROS_LOGIN_KEYTAB, keyTab.toAbsolutePath().toString());
         KerberosLoginProvider kerberosLoginProvider = new KerberosLoginProvider(configuration);
 
         try (MockedStatic<UserGroupInformation> ugi = mockStatic(UserGroupInformation.class)) {
@@ -264,7 +264,7 @@ public class KerberosLoginProviderITCase {
     @Test
     public void doLoginAndReturnUGIMustLoginWithTGT() throws IOException {
         Configuration configuration = new Configuration();
-        configuration.setBoolean(KERBEROS_LOGIN_USETICKETCACHE, true);
+        configuration.set(KERBEROS_LOGIN_USETICKETCACHE, true);
         KerberosLoginProvider kerberosLoginProvider = new KerberosLoginProvider(configuration);
 
         try (MockedStatic<UserGroupInformation> ugi = mockStatic(UserGroupInformation.class)) {

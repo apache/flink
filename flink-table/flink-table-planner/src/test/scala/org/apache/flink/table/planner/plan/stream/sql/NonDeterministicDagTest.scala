@@ -99,6 +99,20 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
                                | 'connector' = 'values',
                                | 'changelog-mode' = 'I,UA,D'
                                |)""".stripMargin)
+    util.tableEnv.executeSql("""
+                               |create temporary table upsert_src_with_meta (
+                               | a int,
+                               | b bigint,
+                               | c string,
+                               | d boolean,
+                               | metadata_1 int metadata,
+                               | metadata_2 string metadata,
+                               | primary key (a) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,D',
+                               | 'readable-metadata' = 'metadata_1:INT, metadata_2:STRING'
+                               |)""".stripMargin)
 
     util.tableEnv.executeSql("""
                                |create temporary table cdc_with_computed_col (
@@ -1012,6 +1026,100 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
                                  |insert into sink_without_pk
                                  |select a, b, c
                                  |from upsert_src
+                                 |""".stripMargin)
+  }
+
+  @TestTemplate
+  def testUpsertSourceWithMetaSinkWithPk(): Unit = {
+    // contains normalize
+    util.verifyExecPlanInsert(s"""
+                                 |insert into sink_with_pk
+                                 |select metadata_1, b, metadata_2
+                                 |from upsert_src_with_meta
+                                 |""".stripMargin)
+  }
+
+  @TestTemplate
+  def testUpsertSourceWithMetaSinkWithoutPk(): Unit = {
+    // contains normalize
+    util.verifyExecPlanInsert(s"""
+                                 |insert into sink_without_pk
+                                 |select metadata_1, b, metadata_2
+                                 |from upsert_src_with_meta
+                                 |""".stripMargin)
+  }
+
+  @TestTemplate
+  def testCdcSourceWithoutPkSinkWithoutPk(): Unit = {
+    util.tableEnv.executeSql("""
+                               |create temporary table cdc_without_pk (
+                               | a int,
+                               | b bigint,
+                               | c string,
+                               | d boolean,
+                               | metadata_1 int metadata,
+                               | metadata_2 string metadata
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,UB,D',
+                               | 'readable-metadata' = 'metadata_1:INT, metadata_2:STRING'
+                               |)""".stripMargin)
+
+    // doesn't contain changelog normalize
+    val callable: ThrowingCallable = () =>
+      util.verifyExecPlanInsert(s"""
+                                   |insert into sink_without_pk
+                                   |select metadata_1, b, metadata_2
+                                   |from cdc_without_pk
+                                   |""".stripMargin)
+
+    if (tryResolve) {
+      assertThatThrownBy(callable)
+        .hasMessageContaining(
+          "The metadata column(s): 'metadata_1, metadata_2' in cdc source may cause wrong result or error on downstream operators")
+        .isInstanceOf[TableException]
+    } else {
+      assertThatCode(callable).doesNotThrowAnyException()
+    }
+  }
+
+  @TestTemplate
+  def testTemporalJoinSinkWithoutPk(): Unit = {
+    util.addTable("""
+                    |CREATE TABLE Orders (
+                    | amount INT,
+                    | currency STRING,
+                    | rowtime TIMESTAMP(3),
+                    | proctime AS PROCTIME(),
+                    | WATERMARK FOR rowtime AS rowtime
+                    |) WITH (
+                    | 'connector' = 'values'
+                    |)
+      """.stripMargin)
+    util.addTable("""
+                    |CREATE TABLE UpsertRates (
+                    | currency STRING,
+                    | rate INT,
+                    | valid VARCHAR,
+                    | metadata_1 INT METADATA,
+                    | rowtime TIMESTAMP(3),
+                    | WATERMARK FOR rowtime AS rowtime,
+                    | PRIMARY KEY(currency) NOT ENFORCED
+                    |) WITH (
+                    | 'connector' = 'values',
+                    | 'changelog-mode' = 'I,UA,D',
+                    | 'disable-lookup' = 'true',
+                    | 'readable-metadata' = 'metadata_1:INT'
+                    |)
+      """.stripMargin)
+
+    // temporal join output insert-only result, expect no NDU issues
+    util.verifyExecPlanInsert(s"""
+                                 |INSERT INTO sink_without_pk
+                                 |SELECT metadata_1, rate, o.currency
+                                 |FROM Orders AS o JOIN
+                                 |  UpsertRates FOR SYSTEM_TIME AS OF o.rowtime AS r
+                                 |    ON o.currency = r.currency WHERE valid = 'true'
                                  |""".stripMargin)
   }
 

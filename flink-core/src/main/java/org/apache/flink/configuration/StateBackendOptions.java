@@ -18,11 +18,13 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 
 /** A collection of all configuration options that relate to state backend. */
+@PublicEvolving
 public class StateBackendOptions {
 
     // ------------------------------------------------------------------------
@@ -44,7 +46,7 @@ public class StateBackendOptions {
     public static final ConfigOption<String> STATE_BACKEND =
             ConfigOptions.key("state.backend.type")
                     .stringType()
-                    .noDefaultValue()
+                    .defaultValue("hashmap")
                     .withDeprecatedKeys("state.backend")
                     .withDescription(
                             Description.builder()
@@ -63,7 +65,9 @@ public class StateBackendOptions {
                                     .text("Recognized shortcut names are 'hashmap' and 'rocksdb'.")
                                     .build());
 
-    @Documentation.Section(Documentation.Sections.STATE_BACKEND_LATENCY_TRACKING)
+    /** @deprecated Use {@link StateLatencyTrackOptions#LATENCY_TRACK_ENABLED} instead. */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
     public static final ConfigOption<Boolean> LATENCY_TRACK_ENABLED =
             ConfigOptions.key("state.backend.latency-track.keyed-state-enabled")
                     .booleanType()
@@ -71,7 +75,9 @@ public class StateBackendOptions {
                     .withDescription(
                             "Whether to track latency of keyed state operations, e.g value state put/get/clear.");
 
-    @Documentation.Section(Documentation.Sections.STATE_BACKEND_LATENCY_TRACKING)
+    /** @deprecated Use {@link StateLatencyTrackOptions#LATENCY_TRACK_SAMPLE_INTERVAL} instead. */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
     public static final ConfigOption<Integer> LATENCY_TRACK_SAMPLE_INTERVAL =
             ConfigOptions.key("state.backend.latency-track.sample-interval")
                     .intType()
@@ -82,7 +88,9 @@ public class StateBackendOptions {
                                             + "The default value is 100, which means we would track the latency every 100 access requests.",
                                     LATENCY_TRACK_ENABLED.key()));
 
-    @Documentation.Section(Documentation.Sections.STATE_BACKEND_LATENCY_TRACKING)
+    /** @deprecated Use {@link StateLatencyTrackOptions#LATENCY_TRACK_HISTORY_SIZE} instead. */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
     public static final ConfigOption<Integer> LATENCY_TRACK_HISTORY_SIZE =
             ConfigOptions.key("state.backend.latency-track.history-size")
                     .intType()
@@ -90,7 +98,12 @@ public class StateBackendOptions {
                     .withDescription(
                             "Defines the number of measured latencies to maintain at each state access operation.");
 
-    @Documentation.Section(Documentation.Sections.STATE_BACKEND_LATENCY_TRACKING)
+    /**
+     * @deprecated Use {@link StateLatencyTrackOptions#LATENCY_TRACK_STATE_NAME_AS_VARIABLE}
+     *     instead.
+     */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
     public static final ConfigOption<Boolean> LATENCY_TRACK_STATE_NAME_AS_VARIABLE =
             ConfigOptions.key("state.backend.latency-track.state-name-as-variable")
                     .booleanType()

@@ -17,12 +17,16 @@
 
 package org.apache.flink.runtime.executiongraph.failover;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TraceOptions;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.failure.FailureEnricher.Context;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.failure.FailureEnricherUtils;
+import org.apache.flink.runtime.scheduler.adaptive.JobFailureMetricReporter;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
@@ -47,6 +51,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ExecutionFailureHandler {
 
+    public static final String FAILURE_LABEL_ATTRIBUTE_PREFIX = "failureLabel.";
+
     private final SchedulingTopology schedulingTopology;
 
     /** Strategy to judge which tasks should be restarted. */
@@ -62,6 +68,9 @@ public class ExecutionFailureHandler {
     private final Context globalFailureCtx;
     private final Collection<FailureEnricher> failureEnrichers;
     private final ComponentMainThreadExecutor mainThreadExecutor;
+    private final MetricGroup metricGroup;
+    private final boolean reportEventsAsSpans;
+    private final JobFailureMetricReporter jobFailureMetricReporter;
 
     /**
      * Creates the handler to deal with task failures.
@@ -76,13 +85,15 @@ public class ExecutionFailureHandler {
      * @param globalFailureCtx Global failure Context used by FailureEnrichers
      */
     public ExecutionFailureHandler(
+            final Configuration jobMasterConfig,
             final SchedulingTopology schedulingTopology,
             final FailoverStrategy failoverStrategy,
             final RestartBackoffTimeStrategy restartBackoffTimeStrategy,
             final ComponentMainThreadExecutor mainThreadExecutor,
             final Collection<FailureEnricher> failureEnrichers,
             final Context taskFailureCtx,
-            final Context globalFailureCtx) {
+            final Context globalFailureCtx,
+            final MetricGroup metricGroup) {
 
         this.schedulingTopology = checkNotNull(schedulingTopology);
         this.failoverStrategy = checkNotNull(failoverStrategy);
@@ -91,6 +102,9 @@ public class ExecutionFailureHandler {
         this.failureEnrichers = checkNotNull(failureEnrichers);
         this.taskFailureCtx = taskFailureCtx;
         this.globalFailureCtx = globalFailureCtx;
+        this.metricGroup = metricGroup;
+        this.reportEventsAsSpans = jobMasterConfig.get(TraceOptions.REPORT_EVENTS_AS_SPANS);
+        this.jobFailureMetricReporter = new JobFailureMetricReporter(metricGroup);
     }
 
     /**
@@ -104,7 +118,7 @@ public class ExecutionFailureHandler {
      */
     public FailureHandlingResult getFailureHandlingResult(
             Execution failedExecution, Throwable cause, long timestamp) {
-        return handleFailure(
+        return handleFailureAndReport(
                 failedExecution,
                 cause,
                 timestamp,
@@ -123,7 +137,7 @@ public class ExecutionFailureHandler {
      */
     public FailureHandlingResult getGlobalFailureHandlingResult(
             final Throwable cause, long timestamp) {
-        return handleFailure(
+        return handleFailureAndReport(
                 null,
                 cause,
                 timestamp,
@@ -139,6 +153,31 @@ public class ExecutionFailureHandler {
         }
         final Context ctx = isGlobal ? globalFailureCtx : taskFailureCtx;
         return FailureEnricherUtils.labelFailure(cause, ctx, mainThreadExecutor, failureEnrichers);
+    }
+
+    private FailureHandlingResult handleFailureAndReport(
+            @Nullable final Execution failedExecution,
+            final Throwable cause,
+            long timestamp,
+            final Set<ExecutionVertexID> verticesToRestart,
+            final boolean globalFailure) {
+
+        FailureHandlingResult failureHandlingResult =
+                handleFailure(failedExecution, cause, timestamp, verticesToRestart, globalFailure);
+
+        if (reportEventsAsSpans) {
+            // TODO: replace with reporting as event once events are supported.
+            // Add reporting as callback for when the failure labeling is completed.
+            failureHandlingResult
+                    .getFailureLabels()
+                    .thenAcceptAsync(
+                            labels ->
+                                    jobFailureMetricReporter.reportJobFailure(
+                                            failureHandlingResult, labels),
+                            mainThreadExecutor);
+        }
+
+        return failureHandlingResult;
     }
 
     private FailureHandlingResult handleFailure(
@@ -157,12 +196,15 @@ public class ExecutionFailureHandler {
                     new JobException("The failure is not recoverable", cause),
                     timestamp,
                     failureLabels,
-                    globalFailure);
+                    globalFailure,
+                    true);
         }
 
-        restartBackoffTimeStrategy.notifyFailure(cause);
+        boolean isNewAttempt = restartBackoffTimeStrategy.notifyFailure(cause);
         if (restartBackoffTimeStrategy.canRestart()) {
-            numberOfRestarts++;
+            if (isNewAttempt) {
+                numberOfRestarts++;
+            }
 
             return FailureHandlingResult.restartable(
                     failedExecution,
@@ -171,7 +213,8 @@ public class ExecutionFailureHandler {
                     failureLabels,
                     verticesToRestart,
                     restartBackoffTimeStrategy.getBackoffTime(),
-                    globalFailure);
+                    globalFailure,
+                    isNewAttempt);
         } else {
             return FailureHandlingResult.unrecoverable(
                     failedExecution,
@@ -179,7 +222,8 @@ public class ExecutionFailureHandler {
                             "Recovery is suppressed by " + restartBackoffTimeStrategy, cause),
                     timestamp,
                     failureLabels,
-                    globalFailure);
+                    globalFailure,
+                    isNewAttempt);
         }
     }
 

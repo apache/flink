@@ -143,7 +143,7 @@ class KubernetesSessionCliTest {
                 JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(jobManagerMemory));
         configuration.set(
                 TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(taskManagerMemory));
-        configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
+        configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
 
         final String[] args = {
             "-e",
@@ -179,7 +179,7 @@ class KubernetesSessionCliTest {
         configuration.set(
                 TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(taskManagerMemory));
         final int slotsPerTaskManager = 42;
-        configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
+        configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
 
         final String[] args = {"-e", KubernetesSessionClusterExecutor.NAME};
         final KubernetesSessionCli cli =
@@ -244,8 +244,8 @@ class KubernetesSessionCliTest {
     void testHeapMemoryPropertyWithOldConfigKey() throws Exception {
         Configuration configuration = new Configuration();
         configuration.set(DeploymentOptions.TARGET, KubernetesSessionClusterExecutor.NAME);
-        configuration.setInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB, 2048);
-        configuration.setInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB, 4096);
+        configuration.set(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB, 2048);
+        configuration.set(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB, 4096);
 
         final KubernetesSessionCli cli =
                 new KubernetesSessionCli(configuration, confDirPath.toAbsolutePath().toString());

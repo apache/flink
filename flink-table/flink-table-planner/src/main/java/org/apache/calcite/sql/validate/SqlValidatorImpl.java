@@ -16,6 +16,8 @@
  */
 package org.apache.calcite.sql.validate;
 
+import org.apache.flink.table.planner.calcite.FlinkSqlCallBinding;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -158,13 +160,17 @@ import static org.apache.calcite.util.Static.RESOURCE;
  * Default implementation of {@link SqlValidator}, the class was copied over because of
  * CALCITE-4554.
  *
- * <p>Lines 1954 ~ 1977, Flink improves error message for functions without appropriate arguments in
+ * <p>Lines 1961 ~ 1981, Flink improves error message for functions without appropriate arguments in
  * handleUnresolvedFunction at {@link SqlValidatorImpl#handleUnresolvedFunction}.
  *
- * <p>Lines 5101 ~ 5114, Flink enables TIMESTAMP and TIMESTAMP_LTZ for system time period
+ * <p>Lines 3739 ~ 3743, 6333 ~ 6339, Flink improves validating the SqlCall that uses named
+ * parameters, rearrange the order of sub-operands, and fill in missing operands with the default
+ * node.
+ *
+ * <p>Lines 5111 ~ 5124, Flink enables TIMESTAMP and TIMESTAMP_LTZ for system time period
  * specification type at {@link org.apache.calcite.sql.validate.SqlValidatorImpl#validateSnapshot}.
  *
- * <p>Lines 5458 ~ 5464, Flink enables TIMESTAMP and TIMESTAMP_LTZ for first orderBy column in
+ * <p>Lines 5468 ~ 5474, Flink enables TIMESTAMP and TIMESTAMP_LTZ for first orderBy column in
  * matchRecognize at {@link SqlValidatorImpl#validateMatchRecognize}.
  */
 public class SqlValidatorImpl implements SqlValidatorWithHints {
@@ -3730,7 +3736,11 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                 // can be another SqlCall, or an SqlIdentifier.
                 checkRollUp(grandParent, parent, stripDot, scope, contextClause);
             } else {
-                List<? extends @Nullable SqlNode> children = ((SqlCall) stripDot).getOperandList();
+                // ----- FLINK MODIFICATION BEGIN -----
+                SqlCall call = (SqlCall) stripDot;
+                List<? extends @Nullable SqlNode> children =
+                        new SqlCallBinding(this, scope, call).operands();
+                // ----- FLINK MODIFICATION END -----
                 for (SqlNode child : children) {
                     checkRollUp(parent, current, child, scope, contextClause);
                 }
@@ -6320,8 +6330,13 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 
         @Override
         public RelDataType visit(SqlCall call) {
+            // ----- FLINK MODIFICATION BEGIN -----
+            FlinkSqlCallBinding flinkSqlCallBinding =
+                    new FlinkSqlCallBinding(this.scope.getValidator(), scope, call);
             final SqlOperator operator = call.getOperator();
-            return operator.deriveType(SqlValidatorImpl.this, scope, call);
+            return operator.deriveType(
+                    SqlValidatorImpl.this, scope, flinkSqlCallBinding.permutedCall());
+            // ----- FLINK MODIFICATION END -----
         }
 
         @Override

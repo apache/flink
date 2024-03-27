@@ -63,6 +63,9 @@ public class SqlWindowTableFunction extends org.apache.calcite.sql.SqlWindowTabl
     /** The slide interval, only used for HOP window. */
     protected static final String PARAM_STEP = "STEP";
 
+    /** The gap interval, only used for SESSION window. */
+    protected static final String GAP = "GAP";
+
     /**
      * Type-inference strategy whereby the row type of a table function call is a ROW, which is
      * combined from the row type of operand #0 (which is a TABLE) and two additional fields. The

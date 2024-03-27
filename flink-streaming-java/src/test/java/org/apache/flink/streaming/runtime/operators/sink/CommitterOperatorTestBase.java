@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
+import org.apache.flink.api.connector.sink2.SupportsCommitter;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
@@ -340,7 +340,7 @@ abstract class CommitterOperatorTestBase {
     private OneInputStreamOperatorTestHarness<
                     CommittableMessage<String>, CommittableMessage<String>>
             createTestHarness(
-                    TwoPhaseCommittingSink<?, String> sink,
+                    SupportsCommitter<String> sink,
                     boolean isBatchMode,
                     boolean isCheckpointingEnabled)
                     throws Exception {
@@ -351,7 +351,7 @@ abstract class CommitterOperatorTestBase {
     private OneInputStreamOperatorTestHarness<
                     CommittableMessage<String>, CommittableMessage<String>>
             createTestHarness(
-                    TwoPhaseCommittingSink<?, String> sink,
+                    SupportsCommitter<String> sink,
                     boolean isBatchMode,
                     boolean isCheckpointingEnabled,
                     int maxParallelism,
@@ -372,10 +372,10 @@ abstract class CommitterOperatorTestBase {
     abstract SinkAndCounters sinkWithoutPostCommit();
 
     static class SinkAndCounters {
-        TwoPhaseCommittingSink<?, String> sink;
+        SupportsCommitter<String> sink;
         IntSupplier commitCounter;
 
-        public SinkAndCounters(TwoPhaseCommittingSink<?, String> sink, IntSupplier commitCounter) {
+        public SinkAndCounters(SupportsCommitter<String> sink, IntSupplier commitCounter) {
             this.sink = sink;
             this.commitCounter = commitCounter;
         }

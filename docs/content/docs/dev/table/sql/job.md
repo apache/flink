@@ -53,7 +53,7 @@ Flink SQL> SHOW JOBS;
 +----------------------------------+----------+---------+-------------------------+
 
 Flink SQL> SET 'state.savepoints.dir'='file:/tmp/';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> STOP JOB '228d70913eab60dda85c5e7f78b5782c' WITH SAVEPOINT;
 +-----------------------------------------+

@@ -415,7 +415,10 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 
         @Override
         public void open(OpenContext openContext) {
-            rnd = new Random(0xC0FFEBADBEEFDEADL + getRuntimeContext().getIndexOfThisSubtask());
+            rnd =
+                    new Random(
+                            0xC0FFEBADBEEFDEADL
+                                    + getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
         }
 
         @Override

@@ -27,29 +27,44 @@ import java.time.Duration;
 @PublicEvolving
 public class StateChangelogOptions {
 
-    @Documentation.Section(Documentation.Sections.STATE_BACKEND_CHANGELOG)
+    @Documentation.Section(Documentation.Sections.STATE_CHANGELOG)
+    public static final ConfigOption<Boolean> PERIODIC_MATERIALIZATION_ENABLED =
+            ConfigOptions.key("state.changelog.periodic-materialize.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDeprecatedKeys("state.backend.changelog.periodic-materialize.enabled")
+                    .withDescription(
+                            "Defines whether to enable periodic materialization, "
+                                    + "all changelogs will not be truncated which may increase the space of checkpoint if disabled");
+
+    @Documentation.Section(Documentation.Sections.STATE_CHANGELOG)
     public static final ConfigOption<Duration> PERIODIC_MATERIALIZATION_INTERVAL =
-            ConfigOptions.key("state.backend.changelog.periodic-materialize.interval")
+            ConfigOptions.key("state.changelog.periodic-materialize.interval")
                     .durationType()
                     .defaultValue(Duration.ofMinutes(10))
+                    .withDeprecatedKeys("state.backend.changelog.periodic-materialize.interval")
                     .withDescription(
                             "Defines the interval in milliseconds to perform "
                                     + "periodic materialization for state backend. "
-                                    + "The periodic materialization will be disabled when the value is negative");
+                                    + "It only takes effect when "
+                                    + PERIODIC_MATERIALIZATION_ENABLED.key()
+                                    + " is true");
 
-    @Documentation.Section(Documentation.Sections.STATE_BACKEND_CHANGELOG)
+    @Documentation.Section(Documentation.Sections.STATE_CHANGELOG)
     public static final ConfigOption<Integer> MATERIALIZATION_MAX_FAILURES_ALLOWED =
-            ConfigOptions.key("state.backend.changelog.max-failures-allowed")
+            ConfigOptions.key("state.changelog.max-failures-allowed")
                     .intType()
                     .defaultValue(3)
+                    .withDeprecatedKeys("state.backend.changelog.max-failures-allowed")
                     .withDescription("Max number of consecutive materialization failures allowed.");
 
     /** Whether to enable state change log. */
-    @Documentation.Section(value = Documentation.Sections.STATE_BACKEND_CHANGELOG)
+    @Documentation.Section(value = Documentation.Sections.STATE_CHANGELOG)
     public static final ConfigOption<Boolean> ENABLE_STATE_CHANGE_LOG =
-            ConfigOptions.key("state.backend.changelog.enabled")
+            ConfigOptions.key("state.changelog.enabled")
                     .booleanType()
                     .defaultValue(false)
+                    .withDeprecatedKeys("state.backend.changelog.enabled")
                     .withDescription(
                             "Whether to enable state backend to write state changes to StateChangelog. "
                                     + "If this config is not set explicitly, it means no preference "
@@ -64,11 +79,12 @@ public class StateChangelogOptions {
      * <p>Recognized shortcut name is 'memory' from {@code
      * InMemoryStateChangelogStorageFactory.getIdentifier()}, which is also the default value.
      */
-    @Documentation.Section(value = Documentation.Sections.STATE_BACKEND_CHANGELOG)
+    @Documentation.Section(value = Documentation.Sections.STATE_CHANGELOG)
     public static final ConfigOption<String> STATE_CHANGE_LOG_STORAGE =
-            ConfigOptions.key("state.backend.changelog.storage")
+            ConfigOptions.key("state.changelog.storage")
                     .stringType()
                     .defaultValue("memory")
+                    .withDeprecatedKeys("state.backend.changelog.storage")
                     .withDescription(
                             Description.builder()
                                     .text("The storage to be used to store state changelog.")

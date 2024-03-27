@@ -54,6 +54,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.RestartStrategyOptions.RestartStrategyType.FIXED_DELAY;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
@@ -88,7 +89,7 @@ public class PipelinedRegionSchedulingITCase extends TestLogger {
     @Test(timeout = 120000)
     public void testRecoverFromPartitionException() throws Exception {
         final Configuration configuration = new Configuration();
-        configuration.setString(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, FIXED_DELAY.getMainValue());
         configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
 
         OneTimeFailingReceiverWithPartitionException.hasFailed.set(false);
@@ -104,7 +105,7 @@ public class PipelinedRegionSchedulingITCase extends TestLogger {
 
     private JobResult executeSchedulingTest(
             JobGraph jobGraph, int numSlots, Configuration configuration) throws Exception {
-        configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 30000L);
+        configuration.set(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 30000L);
         configuration.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Default);
 
         final MiniClusterConfiguration miniClusterConfiguration =

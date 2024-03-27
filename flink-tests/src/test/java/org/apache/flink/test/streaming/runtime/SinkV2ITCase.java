@@ -104,6 +104,32 @@ public class SinkV2ITCase extends AbstractTestBase {
     }
 
     @Test
+    public void writerAndPrecommitToplogyAndCommitterExecuteInStreamingMode() throws Exception {
+        final StreamExecutionEnvironment env = buildStreamEnv();
+        final FiniteTestSource<Integer> source =
+                new FiniteTestSource<>(COMMIT_QUEUE_RECEIVE_ALL_DATA, SOURCE_DATA);
+
+        env.addSource(source, IntegerTypeInfo.INT_TYPE_INFO)
+                .sinkTo(
+                        TestSinkV2.<Integer>newBuilder()
+                                .setDefaultCommitter(
+                                        (Supplier<Queue<Committer.CommitRequest<String>>>
+                                                        & Serializable)
+                                                () -> COMMIT_QUEUE)
+                                .setWithPreCommitTopology(true)
+                                .build());
+        env.execute();
+        assertThat(
+                COMMIT_QUEUE.stream()
+                        .map(Committer.CommitRequest::getCommittable)
+                        .collect(Collectors.toList()),
+                containsInAnyOrder(
+                        EXPECTED_COMMITTED_DATA_IN_STREAMING_MODE.stream()
+                                .map(s -> s + "Transformed")
+                                .toArray()));
+    }
+
+    @Test
     public void writerAndCommitterExecuteInBatchMode() throws Exception {
         final StreamExecutionEnvironment env = buildBatchEnv();
 
@@ -121,6 +147,30 @@ public class SinkV2ITCase extends AbstractTestBase {
                         .map(Committer.CommitRequest::getCommittable)
                         .collect(Collectors.toList()),
                 containsInAnyOrder(EXPECTED_COMMITTED_DATA_IN_BATCH_MODE.toArray()));
+    }
+
+    @Test
+    public void writerAndPrecommitToplogyAndCommitterExecuteInBatchMode() throws Exception {
+        final StreamExecutionEnvironment env = buildBatchEnv();
+
+        env.fromData(SOURCE_DATA)
+                .sinkTo(
+                        TestSinkV2.<Integer>newBuilder()
+                                .setDefaultCommitter(
+                                        (Supplier<Queue<Committer.CommitRequest<String>>>
+                                                        & Serializable)
+                                                () -> COMMIT_QUEUE)
+                                .setWithPreCommitTopology(true)
+                                .build());
+        env.execute();
+        assertThat(
+                COMMIT_QUEUE.stream()
+                        .map(Committer.CommitRequest::getCommittable)
+                        .collect(Collectors.toList()),
+                containsInAnyOrder(
+                        EXPECTED_COMMITTED_DATA_IN_BATCH_MODE.stream()
+                                .map(s -> s + "Transformed")
+                                .toArray()));
     }
 
     private StreamExecutionEnvironment buildStreamEnv() {

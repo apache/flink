@@ -20,6 +20,7 @@ package org.apache.flink.connector.base.sink.writer;
 
 import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 
@@ -45,7 +46,7 @@ public class AsyncSinkWriterThrottlingTest {
         int numberOfBatchesToSend = 1000;
         Queue<String> testRequests = getTestRequestsBuffer();
 
-        TestSinkInitContext context = new TestSinkInitContext();
+        TestSinkInitContext context = new TestSinkInitContextAnyThreadMailbox();
         TestProcessingTimeService tpts = context.getTestProcessingTimeService();
 
         ThrottlingWriter writer =
@@ -98,7 +99,19 @@ public class AsyncSinkWriterThrottlingTest {
 
         public ThrottlingWriter(
                 ElementConverter<String, Long> elementConverter,
-                Sink.WriterInitContext context,
+                WriterInitContext context,
+                int maxBatchSize,
+                int maxInFlightRequests) {
+            this(
+                    elementConverter,
+                    new Sink.InitContextWrapper(context),
+                    maxBatchSize,
+                    maxInFlightRequests);
+        }
+
+        public ThrottlingWriter(
+                ElementConverter<String, Long> elementConverter,
+                Sink.InitContext context,
                 int maxBatchSize,
                 int maxInFlightRequests) {
             super(

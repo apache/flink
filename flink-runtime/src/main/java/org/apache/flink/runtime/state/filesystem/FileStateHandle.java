@@ -26,6 +26,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 
 import java.io.IOException;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -37,6 +38,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class FileStateHandle implements StreamStateHandle {
 
     private static final long serialVersionUID = 350284443258002355L;
+
+    private static final Pattern NOT_LOCAL_FILER = Pattern.compile("(?!file\\b)\\w+?://.*");
 
     /** The path to the file in the filesystem, fully describing the file system. */
     private final Path filePath;
@@ -117,6 +120,17 @@ public class FileStateHandle implements StreamStateHandle {
     @Override
     public long getStateSize() {
         return stateSize;
+    }
+
+    @Override
+    public void collectSizeStats(StateObjectSizeStatsCollector collector) {
+        final StateObjectLocation location;
+        if (NOT_LOCAL_FILER.matcher(filePath.toUri().toString()).matches()) {
+            location = StateObjectLocation.REMOTE;
+        } else {
+            location = StateObjectLocation.LOCAL_DISK;
+        }
+        collector.add(location, getStateSize());
     }
 
     /**

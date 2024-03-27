@@ -21,6 +21,7 @@ package org.apache.flink.connector.datagen.table;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.table.factories.FactoryUtil;
 
 import java.time.Duration;
 
@@ -52,6 +53,8 @@ public class DataGenConnectorOptions {
                     .noDefaultValue()
                     .withDescription(
                             "Total number of rows to emit. By default, the source is unbounded.");
+
+    public static final ConfigOption<Integer> SOURCE_PARALLELISM = FactoryUtil.SOURCE_PARALLELISM;
 
     // --------------------------------------------------------------------------------------------
     // Placeholder options
@@ -118,10 +121,10 @@ public class DataGenConnectorOptions {
                     .withDescription("The proportion of null values.");
 
     /** Placeholder {@link ConfigOption}. Not used for retrieving values. */
-    public static final ConfigOption<Float> FIELD_VAR_LEN =
+    public static final ConfigOption<Boolean> FIELD_VAR_LEN =
             ConfigOptions.key(String.format("%s.#.%s", FIELDS, VAR_LEN))
-                    .floatType()
-                    .defaultValue(0f)
+                    .booleanType()
+                    .defaultValue(false)
                     .withDescription(
                             "Whether to generate a variable-length data, please notice that it should only be used for variable-length types (varchar, string, varbinary, bytes).");
 

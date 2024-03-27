@@ -42,23 +42,23 @@ public class TestingResultPartitionProvider implements ResultPartitionProvider {
     @Override
     public ResultSubpartitionView createSubpartitionView(
             ResultPartitionID partitionId,
-            int index,
+            ResultSubpartitionIndexSet indexSet,
             BufferAvailabilityListener availabilityListener)
             throws IOException {
         return createSubpartitionViewFunction.createSubpartitionView(
-                partitionId, index, availabilityListener);
+                partitionId, indexSet, availabilityListener);
     }
 
     @Override
     public Optional<ResultSubpartitionView> createSubpartitionViewOrRegisterListener(
             ResultPartitionID partitionId,
-            int index,
+            ResultSubpartitionIndexSet indexSet,
             BufferAvailabilityListener availabilityListener,
             PartitionRequestListener notifier)
             throws IOException {
         return createSubpartitionViewOrRegisterListenerFunction
                 .createSubpartitionViewOrRegisterListener(
-                        partitionId, index, availabilityListener, notifier);
+                        partitionId, indexSet, availabilityListener, notifier);
     }
 
     @Override
@@ -73,10 +73,10 @@ public class TestingResultPartitionProvider implements ResultPartitionProvider {
     /** Factory for {@link TestingResultPartitionProvider}. */
     public static class TestingResultPartitionProviderBuilder {
         private CreateSubpartitionView createSubpartitionViewFunction =
-                (resultPartitionID, index, availabilityListener) -> null;
+                (resultPartitionID, indexSet, availabilityListener) -> null;
         private CreateSubpartitionViewOrRegisterListener
                 createSubpartitionViewOrRegisterListenerFunction =
-                        (partitionId, index, availabilityListener, partitionRequestListener) ->
+                        (partitionId, indexSet, availabilityListener, partitionRequestListener) ->
                                 Optional.empty();
         private ReleasePartitionRequestListener releasePartitionRequestListenerConsumer =
                 listener -> {};
@@ -113,7 +113,7 @@ public class TestingResultPartitionProvider implements ResultPartitionProvider {
     public interface CreateSubpartitionView {
         ResultSubpartitionView createSubpartitionView(
                 ResultPartitionID partitionId,
-                int index,
+                ResultSubpartitionIndexSet indexSet,
                 BufferAvailabilityListener availabilityListener)
                 throws IOException;
     }
@@ -122,7 +122,7 @@ public class TestingResultPartitionProvider implements ResultPartitionProvider {
     public interface CreateSubpartitionViewOrRegisterListener {
         Optional<ResultSubpartitionView> createSubpartitionViewOrRegisterListener(
                 ResultPartitionID partitionId,
-                int index,
+                ResultSubpartitionIndexSet indexSet,
                 BufferAvailabilityListener availabilityListener,
                 PartitionRequestListener partitionRequestListener)
                 throws IOException;

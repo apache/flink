@@ -35,7 +35,6 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.common.operators.util.SlotSharingGroupUtils;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
@@ -52,7 +51,7 @@ import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.configuration.BatchExecutionOptions;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
@@ -62,10 +61,12 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.connector.datagen.functions.FromElementsGeneratorFunction;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.core.execution.CacheSupportedPipelineExecutor;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.JobClient;
@@ -76,12 +77,8 @@ import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.scheduler.ClusterDatasetCorruptedException;
-import org.apache.flink.runtime.state.CheckpointStorage;
-import org.apache.flink.runtime.state.CheckpointStorageLoader;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.StateBackendLoader;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -105,8 +102,8 @@ import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
 import org.apache.flink.streaming.api.transformations.CacheTransformation;
+import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.util.AbstractID;
-import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
@@ -120,9 +117,9 @@ import com.esotericsoftware.kryo.Serializer;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -188,20 +185,14 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     // ------------------------------------------------------------------------
 
     /** The execution configuration for this environment. */
-    protected final ExecutionConfig config = new ExecutionConfig();
+    protected final ExecutionConfig config;
 
     /** Settings that control the checkpointing behavior. */
-    protected final CheckpointConfig checkpointCfg = new CheckpointConfig();
+    protected final CheckpointConfig checkpointCfg;
 
     protected final List<Transformation<?>> transformations = new ArrayList<>();
 
     private final Map<AbstractID, CacheTransformation<?>> cachedTransformations = new HashMap<>();
-
-    private long bufferTimeout = ExecutionOptions.BUFFER_TIMEOUT.defaultValue().toMillis();
-
-    private boolean isChainingEnabled = true;
-
-    private boolean isChainingOfOperatorsWithDifferentMaxParallelismEnabled = true;
 
     /**
      * The state backend used for storing k/v state and state snapshots.
@@ -213,15 +204,14 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     @Deprecated private StateBackend defaultStateBackend;
 
-    /** Whether to enable ChangelogStateBackend, default value is unset. */
-    private TernaryBoolean changelogStateBackendEnabled = TernaryBoolean.UNDEFINED;
-
-    /** The default savepoint directory used by the job. */
-    private Path defaultSavepointDirectory;
-
     /** The time characteristic used by the data streams. */
     private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
 
+    /**
+     * Now we could not migrate this field to configuration. Because this object field remains
+     * directly accessible and modifiable as it is exposed through a getter to users, allowing
+     * external modifications.
+     */
     protected final List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cacheFile =
             new ArrayList<>();
 
@@ -291,6 +281,8 @@ public class StreamExecutionEnvironment implements AutoCloseable {
             final ClassLoader userClassloader) {
         this.executorServiceLoader = checkNotNull(executorServiceLoader);
         this.configuration = new Configuration(checkNotNull(configuration));
+        this.config = new ExecutionConfig(this.configuration);
+        this.checkpointCfg = new CheckpointConfig(this.configuration);
         this.userClassloader =
                 userClassloader == null ? getClass().getClassLoader() : userClassloader;
 
@@ -452,7 +444,12 @@ public class StreamExecutionEnvironment implements AutoCloseable {
             throw new IllegalArgumentException("Timeout of buffer must be non-negative or -1");
         }
 
-        this.bufferTimeout = timeoutMillis;
+        if (timeoutMillis == ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT) {
+            this.configuration.set(ExecutionOptions.BUFFER_TIMEOUT_ENABLED, false);
+        } else {
+            this.configuration.set(
+                    ExecutionOptions.BUFFER_TIMEOUT, Duration.ofMillis(timeoutMillis));
+        }
         return this;
     }
 
@@ -463,7 +460,9 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * @return The timeout of the buffer.
      */
     public long getBufferTimeout() {
-        return this.bufferTimeout;
+        return this.configuration.get(ExecutionOptions.BUFFER_TIMEOUT_ENABLED)
+                ? this.configuration.get(ExecutionOptions.BUFFER_TIMEOUT).toMillis()
+                : ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT;
     }
 
     /**
@@ -475,7 +474,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     @PublicEvolving
     public StreamExecutionEnvironment disableOperatorChaining() {
-        this.isChainingEnabled = false;
+        this.configuration.set(PipelineOptions.OPERATOR_CHAINING, false);
         return this;
     }
 
@@ -486,12 +485,13 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     @PublicEvolving
     public boolean isChainingEnabled() {
-        return isChainingEnabled;
+        return this.configuration.get(PipelineOptions.OPERATOR_CHAINING);
     }
 
     @PublicEvolving
     public boolean isChainingOfOperatorsWithDifferentMaxParallelismEnabled() {
-        return isChainingOfOperatorsWithDifferentMaxParallelismEnabled;
+        return this.configuration.get(
+                PipelineOptions.OPERATOR_CHAINING_CHAIN_OPERATORS_WITH_DIFFERENT_MAX_PARALLELISM);
     }
 
     // ------------------------------------------------------------------------
@@ -518,9 +518,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * the configured state backend.
      *
      * <p>NOTE: Checkpointing iterative streaming dataflows is not properly supported at the moment.
-     * For that reason, iterative jobs will not be started if used with enabled checkpointing. To
-     * override this mechanism, use the {@link #enableCheckpointing(long, CheckpointingMode,
-     * boolean)} method.
+     * For that reason, iterative jobs will not be started if used with enabled checkpointing.
      *
      * @param interval Time interval between state checkpoints in milliseconds.
      */
@@ -535,20 +533,43 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * restarted from the latest completed checkpoint.
      *
      * <p>The job draws checkpoints periodically, in the given interval. The system uses the given
+     * {@link org.apache.flink.streaming.api.CheckpointingMode} for the checkpointing ("exactly
+     * once" vs "at least once"). The state will be stored in the configured state backend.
+     *
+     * <p>NOTE: Checkpointing iterative streaming dataflows is not properly supported at the moment.
+     * For that reason, iterative jobs will not be started if used with enabled checkpointing.
+     *
+     * @param interval Time interval between state checkpoints in milliseconds.
+     * @param mode The checkpointing mode, selecting between "exactly once" and "at least once"
+     *     guaranteed.
+     * @deprecated use {@link #enableCheckpointing(long, CheckpointingMode)} instead.
+     */
+    @Deprecated
+    public StreamExecutionEnvironment enableCheckpointing(
+            long interval, org.apache.flink.streaming.api.CheckpointingMode mode) {
+        checkpointCfg.setCheckpointingMode(mode);
+        checkpointCfg.setCheckpointInterval(interval);
+        return this;
+    }
+
+    /**
+     * Enables checkpointing for the streaming job. The distributed state of the streaming dataflow
+     * will be periodically snapshotted. In case of a failure, the streaming dataflow will be
+     * restarted from the latest completed checkpoint.
+     *
+     * <p>The job draws checkpoints periodically, in the given interval. The system uses the given
      * {@link CheckpointingMode} for the checkpointing ("exactly once" vs "at least once"). The
      * state will be stored in the configured state backend.
      *
      * <p>NOTE: Checkpointing iterative streaming dataflows is not properly supported at the moment.
-     * For that reason, iterative jobs will not be started if used with enabled checkpointing. To
-     * override this mechanism, use the {@link #enableCheckpointing(long, CheckpointingMode,
-     * boolean)} method.
+     * For that reason, iterative jobs will not be started if used with enabled checkpointing.
      *
      * @param interval Time interval between state checkpoints in milliseconds.
      * @param mode The checkpointing mode, selecting between "exactly once" and "at least once"
      *     guaranteed.
      */
     public StreamExecutionEnvironment enableCheckpointing(long interval, CheckpointingMode mode) {
-        checkpointCfg.setCheckpointingMode(mode);
+        checkpointCfg.setCheckpointingConsistencyMode(mode);
         checkpointCfg.setCheckpointInterval(interval);
         return this;
     }
@@ -575,7 +596,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     @SuppressWarnings("deprecation")
     @PublicEvolving
     public StreamExecutionEnvironment enableCheckpointing(
-            long interval, CheckpointingMode mode, boolean force) {
+            long interval, org.apache.flink.streaming.api.CheckpointingMode mode, boolean force) {
         checkpointCfg.setCheckpointingMode(mode);
         checkpointCfg.setCheckpointInterval(interval);
         checkpointCfg.setForceCheckpointing(force);
@@ -592,9 +613,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * in the configured state backend.
      *
      * <p>NOTE: Checkpointing iterative streaming dataflows is not properly supported at the moment.
-     * For that reason, iterative jobs will not be started if used with enabled checkpointing. To
-     * override this mechanism, use the {@link #enableCheckpointing(long, CheckpointingMode,
-     * boolean)} method.
+     * For that reason, iterative jobs will not be started if used with enabled checkpointing.
      *
      * @deprecated Use {@link #enableCheckpointing(long)} instead.
      */
@@ -646,9 +665,22 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * <p>Shorthand for {@code getCheckpointConfig().getCheckpointingMode()}.
      *
      * @return The checkpoint mode
+     * @deprecated Use {@link #getCheckpointingConsistencyMode()} instead.
      */
-    public CheckpointingMode getCheckpointingMode() {
+    @Deprecated
+    public org.apache.flink.streaming.api.CheckpointingMode getCheckpointingMode() {
         return checkpointCfg.getCheckpointingMode();
+    }
+
+    /**
+     * Returns the checkpointing consistency mode (exactly-once vs. at-least-once).
+     *
+     * <p>Shorthand for {@code getCheckpointConfig().getCheckpointingConsistencyMode()}.
+     *
+     * @return The checkpoint mode
+     */
+    public CheckpointingMode getCheckpointingConsistencyMode() {
+        return checkpointCfg.getCheckpointingConsistencyMode();
     }
 
     /**
@@ -747,7 +779,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     @PublicEvolving
     public StreamExecutionEnvironment enableChangelogStateBackend(boolean enabled) {
-        this.changelogStateBackendEnabled = TernaryBoolean.fromBoolean(enabled);
+        configuration.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, enabled);
         return this;
     }
 
@@ -761,7 +793,10 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     @PublicEvolving
     public TernaryBoolean isChangelogStateBackendEnabled() {
-        return changelogStateBackendEnabled;
+        return this.configuration
+                .getOptional(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)
+                .map(TernaryBoolean::fromBoolean)
+                .orElse(TernaryBoolean.UNDEFINED);
     }
 
     /**
@@ -773,8 +808,10 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     @PublicEvolving
     public StreamExecutionEnvironment setDefaultSavepointDirectory(String savepointDirectory) {
-        Preconditions.checkNotNull(savepointDirectory);
-        return setDefaultSavepointDirectory(new Path(savepointDirectory));
+        this.configuration.set(
+                CheckpointingOptions.SAVEPOINT_DIRECTORY,
+                Preconditions.checkNotNull(savepointDirectory));
+        return this;
     }
 
     /**
@@ -787,7 +824,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     @PublicEvolving
     public StreamExecutionEnvironment setDefaultSavepointDirectory(URI savepointDirectory) {
         Preconditions.checkNotNull(savepointDirectory);
-        return setDefaultSavepointDirectory(new Path(savepointDirectory));
+        return setDefaultSavepointDirectory(savepointDirectory.getPath());
     }
 
     /**
@@ -799,7 +836,8 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     @PublicEvolving
     public StreamExecutionEnvironment setDefaultSavepointDirectory(Path savepointDirectory) {
-        this.defaultSavepointDirectory = Preconditions.checkNotNull(savepointDirectory);
+        Preconditions.checkNotNull(savepointDirectory);
+        setDefaultSavepointDirectory(savepointDirectory.getPath());
         return this;
     }
 
@@ -811,7 +849,8 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     @Nullable
     @PublicEvolving
     public Path getDefaultSavepointDirectory() {
-        return defaultSavepointDirectory;
+        String path = this.configuration.get(CheckpointingOptions.SAVEPOINT_DIRECTORY);
+        return path == null ? null : new Path(path);
     }
 
     /**
@@ -858,7 +897,8 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * @param numberOfExecutionRetries The number of times the system will try to re-execute failed
      *     tasks.
      * @deprecated This method will be replaced by {@link #setRestartStrategy}. The {@link
-     *     RestartStrategies#fixedDelayRestart(int, Time)} contains the number of execution retries.
+     *     RestartStrategies#fixedDelayRestart(int, Duration)} contains the number of execution
+     *     retries.
      */
     @Deprecated
     @PublicEvolving
@@ -892,10 +932,21 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      *
      * @param type The class of the types serialized with the given serializer.
      * @param serializer The serializer to use.
+     * @deprecated Register data types and serializers through hard codes is deprecated, because you
+     *     need to modify the codes when upgrading job version. Instance-type serializer definition
+     *     where serializers are serialized and written into the snapshot and deserialized for use
+     *     is deprecated as well. Use class-type serializer definition by {@link
+     *     PipelineOptions#SERIALIZATION_CONFIG} instead, where only the class name is written into
+     *     the snapshot and new instance of the serializer is created for use. This is a breaking
+     *     change, and it will be removed in Flink 2.0.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
+     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
      */
+    @Deprecated
     public <T extends Serializer<?> & Serializable> void addDefaultKryoSerializer(
             Class<?> type, T serializer) {
-        config.addDefaultKryoSerializer(type, serializer);
+        config.getSerializerConfig().addDefaultKryoSerializer(type, serializer);
     }
 
     /**
@@ -903,10 +954,17 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      *
      * @param type The class of the types serialized with the given serializer.
      * @param serializerClass The class of the serializer to use.
+     * @deprecated Register data types and serializers through hard codes is deprecated, because you
+     *     need to modify the codes when upgrading job version. You should configure this by config
+     *     option {@link PipelineOptions#SERIALIZATION_CONFIG}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
+     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
      */
+    @Deprecated
     public void addDefaultKryoSerializer(
             Class<?> type, Class<? extends Serializer<?>> serializerClass) {
-        config.addDefaultKryoSerializer(type, serializerClass);
+        config.getSerializerConfig().addDefaultKryoSerializer(type, serializerClass);
     }
 
     /**
@@ -918,10 +976,21 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      *
      * @param type The class of the types serialized with the given serializer.
      * @param serializer The serializer to use.
+     * @deprecated Register data types and serializers through hard codes is deprecated, because you
+     *     need to modify the codes when upgrading job version. Instance-type serializer definition
+     *     where serializers are serialized and written into the snapshot and deserialized for use
+     *     is deprecated as well. Use class-type serializer definition by {@link
+     *     PipelineOptions#SERIALIZATION_CONFIG} instead, where only the class name is written into
+     *     the snapshot and new instance of the serializer is created for use. This is a breaking
+     *     change, and it will be removed in Flink 2.0.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
+     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
      */
+    @Deprecated
     public <T extends Serializer<?> & Serializable> void registerTypeWithKryoSerializer(
             Class<?> type, T serializer) {
-        config.registerTypeWithKryoSerializer(type, serializer);
+        config.getSerializerConfig().registerTypeWithKryoSerializer(type, serializer);
     }
 
     /**
@@ -930,11 +999,18 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      *
      * @param type The class of the types serialized with the given serializer.
      * @param serializerClass The class of the serializer to use.
+     * @deprecated Register data types and serializers through hard codes is deprecated, because you
+     *     need to modify the codes when upgrading job version. You should configure this by config
+     *     option {@link PipelineOptions#SERIALIZATION_CONFIG}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
+     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
      */
+    @Deprecated
     @SuppressWarnings("rawtypes")
     public void registerTypeWithKryoSerializer(
             Class<?> type, Class<? extends Serializer> serializerClass) {
-        config.registerTypeWithKryoSerializer(type, serializerClass);
+        config.getSerializerConfig().registerTypeWithKryoSerializer(type, serializerClass);
     }
 
     /**
@@ -944,7 +1020,14 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * written.
      *
      * @param type The class of the type to register.
+     * @deprecated Register data types and serializers through hard codes is deprecated, because you
+     *     need to modify the codes when upgrading job version. You should configure this by config
+     *     option {@link PipelineOptions#SERIALIZATION_CONFIG}.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-398:+Improve+Serialization+Configuration+And+Usage+In+Flink">
+     *     FLIP-398: Improve Serialization Configuration And Usage In Flink</a>
      */
+    @Deprecated
     public void registerType(Class<?> type) {
         if (type == null) {
             throw new NullPointerException("Cannot register null type class.");
@@ -953,9 +1036,9 @@ public class StreamExecutionEnvironment implements AutoCloseable {
         TypeInformation<?> typeInfo = TypeExtractor.createTypeInfo(type);
 
         if (typeInfo instanceof PojoTypeInfo) {
-            config.registerPojoType(type);
+            config.getSerializerConfig().registerPojoType(type);
         } else {
-            config.registerKryoType(type);
+            config.getSerializerConfig().registerKryoType(type);
         }
     }
 
@@ -978,10 +1061,11 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      *     event-time mode. If you need to disable watermarks, please use {@link
      *     ExecutionConfig#setAutoWatermarkInterval(long)}. If you are using {@link
      *     TimeCharacteristic#IngestionTime}, please manually set an appropriate {@link
-     *     WatermarkStrategy}. If you are using generic "time window" operations (for example {@link
-     *     org.apache.flink.streaming.api.datastream.KeyedStream#timeWindow(org.apache.flink.streaming.api.windowing.time.Time)}
-     *     that change behaviour based on the time characteristic, please use equivalent operations
-     *     that explicitly specify processing time or event time.
+     *     WatermarkStrategy}. If you are using generic "time window" operations (for example
+     *     through {@link
+     *     org.apache.flink.streaming.api.datastream.KeyedStream#window(WindowAssigner)} that change
+     *     behaviour based on the time characteristic, please use equivalent operations that
+     *     explicitly specify processing time or event time.
      */
     @PublicEvolving
     @Deprecated
@@ -1034,22 +1118,10 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     @PublicEvolving
     public void configure(ReadableConfig configuration, ClassLoader classLoader) {
+        this.configuration.addAll(Configuration.fromMap(configuration.toMap()));
         configuration
                 .getOptional(StreamPipelineOptions.TIME_CHARACTERISTIC)
                 .ifPresent(this::setStreamTimeCharacteristic);
-        configuration
-                .getOptional(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)
-                .ifPresent(this::enableChangelogStateBackend);
-        Optional.ofNullable(loadStateBackend(configuration, classLoader))
-                .ifPresent(this::setStateBackend);
-        configuration
-                .getOptional(PipelineOptions.OPERATOR_CHAINING)
-                .ifPresent(c -> this.isChainingEnabled = c);
-        configuration
-                .getOptional(
-                        PipelineOptions
-                                .OPERATOR_CHAINING_CHAIN_OPERATORS_WITH_DIFFERENT_MAX_PARALLELISM)
-                .ifPresent(c -> this.isChainingOfOperatorsWithDifferentMaxParallelismEnabled = c);
         configuration
                 .getOptional(DeploymentOptions.JOB_LISTENERS)
                 .ifPresent(listeners -> registerCustomListeners(classLoader, listeners));
@@ -1060,64 +1132,14 @@ public class StreamExecutionEnvironment implements AutoCloseable {
                             this.cacheFile.clear();
                             this.cacheFile.addAll(DistributedCache.parseCachedFilesFromString(f));
                         });
-        configuration
-                .getOptional(ExecutionOptions.RUNTIME_MODE)
-                .ifPresent(
-                        runtimeMode ->
-                                this.configuration.set(ExecutionOptions.RUNTIME_MODE, runtimeMode));
-
-        configuration
-                .getOptional(ExecutionOptions.BATCH_SHUFFLE_MODE)
-                .ifPresent(
-                        shuffleMode ->
-                                this.configuration.set(
-                                        ExecutionOptions.BATCH_SHUFFLE_MODE, shuffleMode));
-
-        configuration
-                .getOptional(ExecutionOptions.SORT_INPUTS)
-                .ifPresent(
-                        sortInputs ->
-                                this.configuration.set(ExecutionOptions.SORT_INPUTS, sortInputs));
-        configuration
-                .getOptional(ExecutionOptions.USE_BATCH_STATE_BACKEND)
-                .ifPresent(
-                        sortInputs ->
-                                this.configuration.set(
-                                        ExecutionOptions.USE_BATCH_STATE_BACKEND, sortInputs));
-        configuration
-                .getOptional(PipelineOptions.NAME)
-                .ifPresent(jobName -> this.configuration.set(PipelineOptions.NAME, jobName));
-
-        configuration
-                .getOptional(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH)
-                .ifPresent(
-                        flag ->
-                                this.configuration.set(
-                                        ExecutionCheckpointingOptions
-                                                .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
-                                        flag));
-
-        configuration
-                .getOptional(PipelineOptions.JARS)
-                .ifPresent(jars -> this.configuration.set(PipelineOptions.JARS, jars));
-
-        configuration
-                .getOptional(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED)
-                .ifPresent(
-                        flag ->
-                                this.configuration.set(
-                                        BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED,
-                                        flag));
-
-        configBufferTimeout(configuration);
 
         config.configure(configuration, classLoader);
         checkpointCfg.configure(configuration);
 
-        // here we should make sure the configured checkpoint storage will take effect
-        // this needs to happen after checkpointCfg#configure(...) to override the effect of
-        // checkpointCfg#setCheckpointStorage(checkpointDirectory)
-        configureCheckpointStorage(configuration, checkpointCfg);
+        // reset state backend for backward compatibility
+        configuration
+                .getOptional(StateBackendOptions.STATE_BACKEND)
+                .ifPresent(ignored -> this.defaultStateBackend = null);
     }
 
     private void registerCustomListeners(
@@ -1130,35 +1152,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
             } catch (FlinkException e) {
                 throw new WrappingRuntimeException("Could not load JobListener : " + listener, e);
             }
-        }
-    }
-
-    private StateBackend loadStateBackend(ReadableConfig configuration, ClassLoader classLoader) {
-        try {
-            return StateBackendLoader.loadStateBackendFromConfig(configuration, classLoader, null);
-        } catch (DynamicCodeLoadingException | IOException e) {
-            throw new WrappingRuntimeException(e);
-        }
-    }
-
-    private void configBufferTimeout(ReadableConfig configuration) {
-        if (configuration.get(ExecutionOptions.BUFFER_TIMEOUT_ENABLED)) {
-            configuration
-                    .getOptional(ExecutionOptions.BUFFER_TIMEOUT)
-                    .ifPresent(t -> this.setBufferTimeout(t.toMillis()));
-        } else {
-            this.setBufferTimeout(ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT);
-        }
-    }
-
-    protected void configureCheckpointStorage(
-            ReadableConfig configuration, CheckpointConfig checkpointCfg) {
-        try {
-            Optional<CheckpointStorage> storageOptional =
-                    CheckpointStorageLoader.fromConfig(configuration, userClassloader, null);
-            storageOptional.ifPresent(checkpointCfg::setCheckpointStorage);
-        } catch (DynamicCodeLoadingException e) {
-            throw new WrappingRuntimeException(e);
         }
     }
 
@@ -2360,7 +2353,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
         try {
             final JobExecutionResult jobExecutionResult;
 
-            if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
+            if (configuration.get(DeploymentOptions.ATTACHED)) {
                 jobExecutionResult = jobClient.getJobExecutionResult().get();
             } else {
                 jobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
@@ -2407,6 +2400,12 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     @PublicEvolving
     public void registerJobListener(JobListener jobListener) {
         checkNotNull(jobListener, "JobListener cannot be null");
+        List<String> listeners =
+                this.configuration
+                        .getOptional(DeploymentOptions.JOB_LISTENERS)
+                        .orElse(new ArrayList<>());
+        listeners.add(jobListener.getClass().getName());
+        this.configuration.set(DeploymentOptions.JOB_LISTENERS, listeners);
         jobListeners.add(jobListener);
     }
 
@@ -2414,6 +2413,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     @PublicEvolving
     public void clearJobListeners() {
         this.jobListeners.clear();
+        this.configuration.removeConfig(DeploymentOptions.JOB_LISTENERS);
     }
 
     /**
@@ -2557,19 +2557,20 @@ public class StreamExecutionEnvironment implements AutoCloseable {
                     "No operators defined in streaming topology. Cannot execute.");
         }
 
+        // Synchronize the cached file to config option PipelineOptions.CACHED_FILES because the
+        // field cachedFile haven't been migrated to configuration.
+        if (!getCachedFiles().isEmpty()) {
+            configuration.set(
+                    PipelineOptions.CACHED_FILES,
+                    DistributedCache.parseStringFromCachedFiles(getCachedFiles()));
+        }
+
         // We copy the transformation so that newly added transformations cannot intervene with the
         // stream graph generation.
         return new StreamGraphGenerator(
                         new ArrayList<>(transformations), config, checkpointCfg, configuration)
                 .setStateBackend(defaultStateBackend)
-                .setChangelogStateBackendEnabled(changelogStateBackendEnabled)
-                .setSavepointDir(defaultSavepointDirectory)
-                .setChaining(isChainingEnabled)
-                .setChainingOfOperatorsWithDifferentMaxParallelism(
-                        isChainingOfOperatorsWithDifferentMaxParallelismEnabled)
-                .setUserArtifacts(cacheFile)
-                .setTimeCharacteristic(timeCharacteristic)
-                .setDefaultBufferTimeout(bufferTimeout)
+                .setTimeCharacteristic(getStreamTimeCharacteristic())
                 .setSlotSharingGroupResource(slotSharingGroupResources);
     }
 
@@ -2665,7 +2666,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * execution environment, as returned by {@link #createLocalEnvironment(Configuration)}.
      *
      * <p>When executed from the command line the given configuration is stacked on top of the
-     * global configuration which comes from the {@code flink-conf.yaml}, potentially overriding
+     * global configuration which comes from the {@code config.yaml}, potentially overriding
      * duplicated options.
      *
      * @param configuration The configuration to instantiate the environment with.
@@ -2753,7 +2754,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
 
         if (!conf.contains(RestOptions.PORT)) {
             // explicitly set this option so that it's not set to 0 later
-            conf.setInteger(RestOptions.PORT, RestOptions.PORT.defaultValue());
+            conf.set(RestOptions.PORT, RestOptions.PORT.defaultValue());
         }
 
         return createLocalEnvironment(conf);

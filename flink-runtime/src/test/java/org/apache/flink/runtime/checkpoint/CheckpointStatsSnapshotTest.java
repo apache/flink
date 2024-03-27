@@ -50,7 +50,8 @@ public class CheckpointStatsSnapshotTest {
                         CheckpointProperties.forCheckpoint(
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
                         99119,
-                        null);
+                        null,
+                        42);
 
         CheckpointStatsSnapshot snapshot =
                 new CheckpointStatsSnapshot(counts, summary.createSnapshot(), history, restored);

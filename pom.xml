@@ -28,7 +28,7 @@ under the License.
 
 	<groupId>org.apache.flink</groupId>
 	<artifactId>flink-parent</artifactId>
-	<version>1.19-SNAPSHOT</version>
+	<version>1.20-SNAPSHOT</version>
 
 	<name>Flink : </name>
 	<packaging>pom</packaging>
@@ -150,7 +150,7 @@ under the License.
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
 		<jaxb.api.version>2.3.1</jaxb.api.version>
 		<junit4.version>4.13.2</junit4.version>
-		<junit5.version>5.9.1</junit5.version>
+		<junit5.version>5.10.1</junit5.version>
 		<archunit.version>1.2.0</archunit.version>
 		<mockito.version>3.4.6</mockito.version>
 		<powermock.version>2.0.9</powermock.version>
@@ -173,8 +173,11 @@ under the License.
 		<minikdc.version>3.2.4</minikdc.version>
 		<hive.version>2.3.9</hive.version>
 		<orc.version>1.5.6</orc.version>
-		<japicmp.referenceVersion>1.18.0</japicmp.referenceVersion>
+		<japicmp.referenceVersion>1.19.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
+		<checkstyle.version>9.3</checkstyle.version>
+		<!-- can be removed with maven-spotless-plugin:2.38+ -->
+		<spotless.skip>false</spotless.skip>
 		<spotless.version>2.27.1</spotless.version>
 		<spotless.scalafmt.version>3.4.3</spotless.scalafmt.version>
 		<spotless.delimiter>package</spotless.delimiter>
@@ -203,6 +206,10 @@ under the License.
 		     It MUST be a space-separated list not containing any newlines,
 		     of entries in the form '[-]{2}add-[opens|exports]=<module>/<package>=ALL-UNNAMED'.-->
 		<surefire.module.config/>
+
+		<surefire.excludedGroups.github-actions/>
+		<surefire.excludedGroups.adaptive-scheduler/>
+		<surefire.excludedGroups.jdk/>
 
 		<!-- Can be set to any value to reproduce a specific build. -->
 		<test.randomization.seed/>
@@ -1000,6 +1007,9 @@ under the License.
 
 		<profile>
 			<id>enable-adaptive-scheduler</id>
+			<properties>
+				<surefire.excludedGroups.adaptive-scheduler>org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler</surefire.excludedGroups.adaptive-scheduler>
+			</properties>
 			<build>
 				<plugins>
 					<plugin>
@@ -1009,10 +1019,38 @@ under the License.
 							<systemProperties>
 								<flink.tests.enable-adaptive-scheduler>true</flink.tests.enable-adaptive-scheduler>
 							</systemProperties>
-							<excludedGroups>org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler</excludedGroups>
+							<excludedGroups>
+								${surefire.excludedGroups.github-actions},
+								${surefire.excludedGroups.adaptive-scheduler},
+								${surefire.excludedGroups.jdk}
+							</excludedGroups>
 						</configuration>
 					</plugin>
 				</plugins>
+			</build>
+		</profile>
+
+		<profile>
+			<id>github-actions</id>
+			<properties>
+				<surefire.excludedGroups.github-actions>org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser</surefire.excludedGroups.github-actions>
+			</properties>
+			<build>
+				<pluginManagement>
+					<plugins>
+						<plugin>
+							<groupId>org.apache.maven.plugins</groupId>
+							<artifactId>maven-surefire-plugin</artifactId>
+							<configuration>
+								<excludedGroups>
+									${surefire.excludedGroups.github-actions},
+									${surefire.excludedGroups.adaptive-scheduler},
+									${surefire.excludedGroups.jdk},
+								</excludedGroups>
+							</configuration>
+						</plugin>
+					</plugins>
+				</pluginManagement>
 			</build>
 		</profile>
 
@@ -1021,6 +1059,10 @@ under the License.
 			<activation>
 				<jdk>[11,)</jdk>
 			</activation>
+
+			<properties>
+				<surefire.excludedGroups.jdk>org.apache.flink.testutils.junit.FailsOnJava11</surefire.excludedGroups.jdk>
+			</properties>
 
 			<build>
 				<pluginManagement>
@@ -1034,7 +1076,11 @@ under the License.
 							<groupId>org.apache.maven.plugins</groupId>
 							<artifactId>maven-surefire-plugin</artifactId>
 							<configuration>
-								<excludedGroups>org.apache.flink.testutils.junit.FailsOnJava11</excludedGroups>
+								<excludedGroups>
+									${surefire.excludedGroups.github-actions},
+									${surefire.excludedGroups.adaptive-scheduler},
+									${surefire.excludedGroups.jdk},
+								</excludedGroups>
 							</configuration>
 						</plugin>
 						<plugin>
@@ -1083,6 +1129,7 @@ under the License.
 			<properties>
 				<!-- Bump Scala because 2.12.7 doesn't compile on Java 17. -->
 				<scala.version>2.12.15</scala.version>
+				<surefire.excludedGroups.jdk>org.apache.flink.testutils.junit.FailsOnJava17</surefire.excludedGroups.jdk>
 			</properties>
 
 			<build>
@@ -1092,7 +1139,11 @@ under the License.
 							<groupId>org.apache.maven.plugins</groupId>
 							<artifactId>maven-surefire-plugin</artifactId>
 							<configuration>
-								<excludedGroups>org.apache.flink.testutils.junit.FailsOnJava17</excludedGroups>
+								<excludedGroups>
+									${surefire.excludedGroups.github-actions},
+									${surefire.excludedGroups.adaptive-scheduler},
+									${surefire.excludedGroups.jdk},
+								</excludedGroups>
 							</configuration>
 						</plugin>
 					</plugins>
@@ -1149,6 +1200,17 @@ under the License.
 									 Don't upgrade it in this profile because it formats code differently.
 									 Re-evaluate once support for Java 8 is dropped. -->
 								<skip>true</skip>
+							</configuration>
+						</plugin>
+						<plugin>
+							<groupId>org.apache.maven.plugins</groupId>
+							<artifactId>maven-surefire-plugin</artifactId>
+							<configuration>
+								<excludedGroups>
+									${surefire.excludedGroups.github-actions},
+									${surefire.excludedGroups.adaptive-scheduler},
+									${surefire.excludedGroups.jdk},
+								</excludedGroups>
 							</configuration>
 						</plugin>
 					</plugins>
@@ -1714,7 +1776,7 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>3.0.0-M5</version>
+				<version>3.2.2</version>
 				<configuration>
 					<!-- enables TCP/IP communication between surefire and forked JVM-->
 					<forkNode implementation="org.apache.maven.plugin.surefire.extensions.SurefireForkNodeFactory"/>
@@ -2108,13 +2170,13 @@ under the License.
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-checkstyle-plugin</artifactId>
-					<version>3.1.2</version>
+					<version>3.3.1</version>
 					<dependencies>
 						<dependency>
 							<groupId>com.puppycrawl.tools</groupId>
 							<artifactId>checkstyle</artifactId>
 							<!-- Note: match version with docs/flinkDev/ide_setup.md -->
-							<version>8.14</version>
+							<version>${checkstyle.version}</version>
 						</dependency>
 					</dependencies>
 					<executions>
@@ -2140,6 +2202,7 @@ under the License.
 					<artifactId>spotless-maven-plugin</artifactId>
 					<version>${spotless.version}</version>
 					<configuration>
+						<skip>${spotless.skip}</skip>
 						<java>
 							<googleJavaFormat>
 								<version>1.7</version>
@@ -2296,11 +2359,6 @@ under the License.
 								<exclude>@org.apache.flink.annotation.PublicEvolving</exclude>
 								<exclude>@org.apache.flink.annotation.Internal</exclude>
 								<!-- MARKER: start exclusions; these will be wiped by tools/releasing/update_japicmp_configuration.sh -->
-								<exclude>org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#fromData(java.lang.Object[])</exclude>
-								<exclude>org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#fromData(org.apache.flink.api.common.typeinfo.TypeInformation,java.lang.Object[])</exclude>
-								<exclude>org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#fromData(java.lang.Class,java.lang.Object[])</exclude>
-								<exclude>org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#fromData(java.util.Collection)</exclude>
-								<exclude>org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#fromData(java.util.Collection,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
 								<!-- MARKER: end exclusions -->
 							</excludes>
 							<accessModifier>public</accessModifier>

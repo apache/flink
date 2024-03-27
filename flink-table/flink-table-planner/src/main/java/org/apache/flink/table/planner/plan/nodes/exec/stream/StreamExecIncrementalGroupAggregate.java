@@ -38,6 +38,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
+import org.apache.flink.table.planner.plan.utils.MinibatchUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
@@ -125,6 +126,7 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
             boolean[] partialAggCallNeedRetractions,
             RowType partialLocalAggInputType,
             boolean partialAggNeedRetraction,
+            @Nullable Long stateTtlFromHint,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
@@ -139,7 +141,8 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
                 partialAggCallNeedRetractions,
                 partialLocalAggInputType,
                 partialAggNeedRetraction,
-                StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, STATE_NAME),
+                StateMetadata.getOneInputOperatorDefaultMeta(
+                        stateTtlFromHint, tableConfig, STATE_NAME),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -242,7 +245,7 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
 
         final OneInputStreamOperator<RowData, RowData> operator =
                 new KeyedMapBundleOperator<>(
-                        aggFunction, AggregateUtil.createMiniBatchTrigger(config));
+                        aggFunction, MinibatchUtil.createMiniBatchTrigger(config));
 
         // partitioned aggregation
         final OneInputTransformation<RowData, RowData> transform =

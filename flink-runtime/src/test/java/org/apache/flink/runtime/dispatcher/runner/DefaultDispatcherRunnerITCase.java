@@ -32,7 +32,6 @@ import org.apache.flink.runtime.dispatcher.JobManagerRunnerFactory;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobPersistenceComponents;
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
-import org.apache.flink.runtime.dispatcher.SingleJobJobGraphStore;
 import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
 import org.apache.flink.runtime.dispatcher.TestingJobMasterServiceLeadershipRunnerFactory;
 import org.apache.flink.runtime.dispatcher.TestingPartialDispatcherServices;
@@ -183,7 +182,8 @@ class DefaultDispatcherRunnerITCase {
                 DefaultDispatcherRunnerFactory.createSessionRunner(
                         new TestingDispatcherFactory(
                                 jobManagerRunnerFactory, cleanupRunnerFactory));
-        jobGraphStore = new SingleJobJobGraphStore(jobGraph);
+        jobGraphStore.start(null);
+        jobGraphStore.putJobGraph(jobGraph);
 
         try (final DispatcherRunner dispatcherRunner = createDispatcherRunner()) {
 

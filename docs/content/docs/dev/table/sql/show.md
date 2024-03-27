@@ -507,10 +507,22 @@ Show current catalog.
 ## SHOW DATABASES
 
 ```sql
-SHOW DATABASES
+SHOW DATABASES [ ( FROM | IN ) catalog_name] [ [NOT] (LIKE | ILIKE) <sql_like_pattern> ]
 ```
 
-Show all databases in the current catalog.
+Show all databases within optionally specified catalog. 
+If no catalog is specified, then the default catalog is used. 
+Additionally, a `<sql_like_pattern>` can be used to filter the databases.
+
+**LIKE**
+Show all databases with a `LIKE` clause, whose name is similar to the `<sql_like_pattern>`.
+
+The syntax of the SQL pattern in the `LIKE` clause is the same as that of the `MySQL` dialect.
+* `%` matches any number of characters, even zero characters, and `\%` matches one `%` character.
+* `_` matches exactly one character, `\_` matches one `_` character.
+
+**ILIKE**
+The same behavior as `LIKE` but the SQL pattern is case-insensitive.
 
 ## SHOW CURRENT DATABASE
 

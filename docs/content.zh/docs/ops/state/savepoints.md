@@ -142,6 +142,14 @@ $ bin/flink savepoint :jobId [:targetDirectory]
 $ bin/flink savepoint --type [native/canonical] :jobId [:targetDirectory]
 ```
 
+使用上述命令触发savepoint时，client需要等待savepoint制作完成，因此当任务的状态较大时，可能会导致client出现超时的情况。在这种情况下可以使用detach模式来触发savepoint。
+
+```shell
+$ bin/flink savepoint :jobId [:targetDirectory] -detached
+```
+
+使用该命令时，client拿到本次savepoint的trigger id后立即返回，可以通过[REST API]({{< ref "docs/ops/rest_api" >}}/#jobs-jobid-checkpoints-triggerid)来监控本次savepoint的制作情况。
+
 #### 使用 YARN 触发 Savepoint
 
 ```shell
@@ -160,6 +168,8 @@ $ bin/flink stop --type [native/canonical] --savepointPath [:targetDirectory] :j
 
 这将自动触发 ID 为 `:jobid` 的作业的 Savepoint，并停止该作业。此外，你可以指定一个目标文件系统目录来存储 Savepoint 。该目录需要能被 JobManager(s) 和 TaskManager(s) 访问。你也可以指定创建 Savepoint 的格式。如果没有指定，会采用标准格式创建 Savepoint。
 
+如果你想使用detach模式触发Savepoint，在命令行后添加选项`-detached`即可。
+
 ### 从 Savepoint 恢复
 
 ```shell
@@ -170,20 +180,28 @@ $ bin/flink run -s :savepointPath [:runArgs]
 
 #### 跳过无法映射的状态恢复
 
-默认情况下，resume 操作将尝试将 Savepoint 的所有状态映射回你要还原的程序。 如果删除了运算符，则可以通过 `--allowNonRestoredState`（short：`-n`）选项跳过无法映射到新程序的状态：
+默认情况下，resume 操作将尝试将 Savepoint 的所有状态映射回你要还原的程序。 如果删除了运算符，则可以通过 `--allowNonRestoredState`（short：`-n`）选项跳过无法映射到新程序的状态。
 
-#### Restore 模式
+{{< hint warning  >}}
+错误使用这个功能可能会导致应用程序出现严重的正确性问题。其中最重要的是确认剩余的状态是否能够准确地映射到相应的运算符上。
 
-`Restore 模式` 决定了在 restore 之后谁拥有Savepoint 或者 [externalized checkpoint]({{< ref "docs/ops/state/checkpoints" >}}/#resuming-from-a-retained-checkpoint)的文件的所有权。在这种语境下 Savepoint 和 externalized checkpoint 的行为相似。
+需要注意在默认情况下，运算符的 UID 是根据拓扑顺序重新分配的，这会导致状态与运算符无法正确关联，最终造成状态未能按照预期正确恢复。
+
+为了防止这种不匹配，建议在 DataStream 作业中显式地为所有操作符[指定 UID ]({{< ref "docs/ops/production_ready" >}}/#set-uuids-for-all-operators)。
+{{< /hint >}}
+
+#### Claim 模式
+
+`Claim 模式` 决定了在 restore 之后谁拥有Savepoint 或者 [externalized checkpoint]({{< ref "docs/ops/state/checkpoints" >}}/#resuming-from-a-retained-checkpoint)的文件的所有权。在这种语境下 Savepoint 和 externalized checkpoint 的行为相似。
 这里我们将它们都称为“快照”，除非另有明确说明。
 
-如前所述，restore 模式决定了谁来接管我们从中恢复的快照文件的所有权。快照可被用户或者 Flink 自身拥有。如果快照归用户所有，Flink 不会删除其中的文件，而且 Flink 不能依赖该快照中文件的存在，因为它可能在 Flink 的控制之外被删除。
+如前所述，claim 模式决定了谁来接管我们从中恢复的快照文件的所有权。快照可被用户或者 Flink 自身拥有。如果快照归用户所有，Flink 不会删除其中的文件，而且 Flink 不能依赖该快照中文件的存在，因为它可能在 Flink 的控制之外被删除。
 
-每种 restore 模式都有特定的用途。尽管如此，我们仍然认为默认的 *NO_CLAIM* 模式在大多数情况下是一个很好的折中方案，因为它在提供明确的所有权归属的同时只给恢复后第一个 checkpoint 带来较小的代价。
+每种 claim 模式都有特定的用途。尽管如此，我们仍然认为默认的 *NO_CLAIM* 模式在大多数情况下是一个很好的折中方案，因为它在提供明确的所有权归属的同时只给恢复后第一个 checkpoint 带来较小的代价。
 
-你可以通过如下方式指定 restore 模式：
+你可以通过如下方式指定 claim 模式：
 ```shell
-$ bin/flink run -s :savepointPath -restoreMode :mode -n [:runArgs]
+$ bin/flink run -s :savepointPath -claimMode :mode -n [:runArgs]
 ```
 
 **NO_CLAIM （默认的）**
@@ -195,7 +213,7 @@ $ bin/flink run -s :savepointPath -restoreMode :mode -n [:runArgs]
 一旦第一个全量的 checkpoint 完成后，所有后续的 checkpoint 会照常创建。所以，一旦一个 checkpoint 成功制作，就可以删除原快照。在此之前不能删除原快照，因为没有任何完成的 checkpoint，Flink 会在故障时尝试从初始的快照恢复。
 
 <div style="text-align: center">
-  {{< img src="/fig/restore-mode-no_claim.svg" alt="NO_CLAIM restore mode" width="70%" >}}
+  {{< img src="/fig/restore-mode-no_claim.svg" alt="NO_CLAIM mode" width="70%" >}}
 </div>
 
 **CLAIM**
@@ -203,7 +221,7 @@ $ bin/flink run -s :savepointPath -restoreMode :mode -n [:runArgs]
 另一个可选的模式是 *CLAIM* 模式。该模式下 Flink 将声称拥有快照的所有权，并且本质上将其作为 checkpoint 对待：控制其生命周期并且可能会在其永远不会被用于恢复的时候删除它。因此，手动删除快照和从同一个快照上启动两个作业都是不安全的。Flink 会保持[配置数量]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}/#state-checkpoints-num-retained)的 checkpoint。
 
 <div style="text-align: center">
-  {{< img src="/fig/restore-mode-claim.svg" alt="CLAIM restore mode" width="70%" >}}
+  {{< img src="/fig/restore-mode-claim.svg" alt="CLAIM mode" width="70%" >}}
 </div>
 
 {{< hint info >}}
@@ -213,13 +231,17 @@ $ bin/flink run -s :savepointPath -restoreMode :mode -n [:runArgs]
 2. [Native](#savepoint-format) 格式支持增量的 RocksDB savepoints。对于这些 savepoints，Flink 将所有 SST 存储在 savepoints 目录中。这意味着这些 savepoints 是自包含和目录可移动的。然而，在 CLAIM 模式下恢复时，后续的 checkpoints 可能会复用一些 SST 文件，这反过来会阻止在 savepoints 被清理时删除 savepoints 目录。 Flink 之后运行期间可能会删除复用的SST 文件，但不会删除 savepoints 目录。因此，如果在 CLAIM 模式下恢复，Flink 可能会留下一个空的 savepoints 目录。
 {{< /hint >}}
 
-**LEGACY**
+**LEGACY (已废弃)**
 
 Legacy 模式是 Flink 在 1.15 之前的工作方式。该模式下 Flink 永远不会删除初始恢复的 checkpoint。同时，用户也不清楚是否可以删除它。导致该的问题原因是， Flink 会在用来恢复的 checkpoint 之上创建增量的 checkpoint，因此后续的 checkpoint 都有可能会依赖于用于恢复的那个 checkpoint。总而言之，恢复的 checkpoint 的所有权没有明确的界定。
 
 <div style="text-align: center">
-  {{< img src="/fig/restore-mode-legacy.svg" alt="LEGACY restore mode" width="70%" >}}
+  {{< img src="/fig/restore-mode-legacy.svg" alt="LEGACY claim mode" width="70%" >}}
 </div>
+
+{{< hint warning >}}
+**注意:** LEGACY 模式已经被废弃了，在 Flink 2.0 版本将会被移除。请使用 CLAIM 或 NO_CLAIM 模式。
+{{< /hint >}}
 
 ### 删除 Savepoint
 

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.source.coordinator;
 
 import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.DynamicParallelismInference;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
@@ -218,7 +219,7 @@ public class TestingSplitEnumerator<SplitT extends SourceSplit>
 
     @SuppressWarnings("serial")
     static class FactorySource<T, SplitT extends SourceSplit>
-            implements Source<T, SplitT, Set<SplitT>> {
+            implements Source<T, SplitT, Set<SplitT>>, DynamicParallelismInference {
 
         private final SimpleVersionedSerializer<SplitT> splitSerializer;
         private final SimpleVersionedSerializer<Set<SplitT>> checkpointSerializer;
@@ -260,6 +261,11 @@ public class TestingSplitEnumerator<SplitT extends SourceSplit>
         @Override
         public SimpleVersionedSerializer<Set<SplitT>> getEnumeratorCheckpointSerializer() {
             return checkpointSerializer;
+        }
+
+        @Override
+        public int inferParallelism(Context context) {
+            return context.getParallelismInferenceUpperBound();
         }
     }
 }

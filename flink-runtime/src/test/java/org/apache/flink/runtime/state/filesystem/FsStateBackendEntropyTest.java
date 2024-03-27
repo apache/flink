@@ -57,7 +57,7 @@ class FsStateBackendEntropyTest {
 
         final FsCheckpointStorageAccess storage =
                 new FsCheckpointStorageAccess(
-                        fs, checkpointDir, null, new JobID(), fileSizeThreshold, 4096);
+                        fs, checkpointDir, null, true, new JobID(), fileSizeThreshold, 4096);
         storage.initializeBaseLocationsForCheckpoint();
 
         final FsCheckpointStorageLocation location =

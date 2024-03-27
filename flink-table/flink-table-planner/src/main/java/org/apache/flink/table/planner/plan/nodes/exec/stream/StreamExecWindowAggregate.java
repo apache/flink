@@ -45,9 +45,10 @@ import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunc
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
 import org.apache.flink.table.runtime.groupwindow.WindowProperty;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
-import org.apache.flink.table.runtime.operators.aggregate.window.SlicingWindowAggOperatorBuilder;
-import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
-import org.apache.flink.table.runtime.operators.window.slicing.SliceSharedAssigner;
+import org.apache.flink.table.runtime.operators.aggregate.window.WindowAggOperatorBuilder;
+import org.apache.flink.table.runtime.operators.window.TimeWindow;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAssigner;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceSharedAssigner;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
@@ -61,10 +62,13 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.tools.RelBuilder;
 
+import javax.annotation.Nullable;
+
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -104,12 +108,16 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
     @JsonProperty(FIELD_NAME_NAMED_WINDOW_PROPERTIES)
     private final NamedWindowProperty[] namedWindowProperties;
 
+    @JsonProperty(FIELD_NAME_NEED_RETRACTION)
+    private final boolean needRetraction;
+
     public StreamExecWindowAggregate(
             ReadableConfig tableConfig,
             int[] grouping,
             AggregateCall[] aggCalls,
             WindowingStrategy windowing,
             NamedWindowProperty[] namedWindowProperties,
+            Boolean needRetraction,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
@@ -121,6 +129,7 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
                 aggCalls,
                 windowing,
                 namedWindowProperties,
+                needRetraction,
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -136,6 +145,7 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
             @JsonProperty(FIELD_NAME_WINDOWING) WindowingStrategy windowing,
             @JsonProperty(FIELD_NAME_NAMED_WINDOW_PROPERTIES)
                     NamedWindowProperty[] namedWindowProperties,
+            @Nullable @JsonProperty(FIELD_NAME_NEED_RETRACTION) Boolean needRetraction,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
@@ -144,6 +154,7 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
         this.aggCalls = checkNotNull(aggCalls);
         this.windowing = checkNotNull(windowing);
         this.namedWindowProperties = checkNotNull(namedWindowProperties);
+        this.needRetraction = Optional.ofNullable(needRetraction).orElse(false);
     }
 
     @SuppressWarnings("unchecked")
@@ -159,21 +170,20 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
                 TimeWindowUtil.getShiftTimeZone(
                         windowing.getTimeAttributeType(),
                         TableConfigUtils.getLocalTimeZone(config));
-        final SliceAssigner sliceAssigner = createSliceAssigner(windowing, shiftTimeZone);
+        final WindowAssigner windowAssigner = createWindowAssigner(windowing, shiftTimeZone);
 
-        // Hopping window requires additional COUNT(*) to determine whether to register next timer
-        // through whether the current fired window is empty, see SliceSharedWindowAggProcessor.
         final AggregateInfoList aggInfoList =
                 AggregateUtil.deriveStreamWindowAggregateInfoList(
                         planner.getTypeFactory(),
                         inputRowType,
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
+                        needRetraction,
                         windowing.getWindow(),
                         true); // isStateBackendDataViews
 
-        final GeneratedNamespaceAggsHandleFunction<Long> generatedAggsHandler =
+        final GeneratedNamespaceAggsHandleFunction<?> generatedAggsHandler =
                 createAggsHandler(
-                        sliceAssigner,
+                        windowAssigner,
                         aggInfoList,
                         config,
                         planner.getFlinkContext().getClassLoader(),
@@ -189,13 +199,13 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
         final LogicalType[] accTypes = convertToLogicalTypes(aggInfoList.getAccTypes());
 
         final OneInputStreamOperator<RowData, RowData> windowOperator =
-                SlicingWindowAggOperatorBuilder.builder()
+                WindowAggOperatorBuilder.builder()
                         .inputSerializer(new RowDataSerializer(inputRowType))
                         .shiftTimeZone(shiftTimeZone)
                         .keySerializer(
                                 (PagedTypeSerializer<RowData>)
                                         selector.getProducedType().toSerializer())
-                        .assigner(sliceAssigner)
+                        .assigner(windowAssigner)
                         .countStarIndex(aggInfoList.getIndexOfCountStar())
                         .aggregate(generatedAggsHandler, new RowDataSerializer(accTypes))
                         .build();
@@ -216,8 +226,8 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
         return transform;
     }
 
-    private GeneratedNamespaceAggsHandleFunction<Long> createAggsHandler(
-            SliceAssigner sliceAssigner,
+    private GeneratedNamespaceAggsHandleFunction<?> createAggsHandler(
+            WindowAssigner windowAssigner,
             AggregateInfoList aggInfoList,
             ExecNodeConfig config,
             ClassLoader classLoader,
@@ -232,8 +242,13 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
                                 false) // copyInputField
                         .needAccumulate();
 
-        if (sliceAssigner instanceof SliceSharedAssigner) {
+        if (windowAssigner instanceof SliceSharedAssigner
+                || !isAlignedWindow(windowing.getWindow())) {
             generator.needMerge(0, false, null);
+        }
+
+        if (needRetraction) {
+            generator.needRetract();
         }
 
         final List<WindowProperty> windowProperties =
@@ -242,11 +257,17 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
                                 .map(NamedWindowProperty::getProperty)
                                 .toArray(WindowProperty[]::new));
 
+        // We use window end timestamp to indicate a slicing window, see SliceAssigner. And
+        // use window start and window end to indicate a unslicing window, see UnsliceAssigner
+        final Class<?> windowClass =
+                isAlignedWindow(windowing.getWindow()) ? Long.class : TimeWindow.class;
+
         return generator.generateNamespaceAggsHandler(
                 "WindowAggsHandler",
                 aggInfoList,
                 JavaScalaConversionUtil.toScala(windowProperties),
-                sliceAssigner,
+                windowAssigner,
+                windowClass,
                 shiftTimeZone);
     }
 }

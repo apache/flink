@@ -31,7 +31,7 @@ under the License.
 Flink 支持用户将 Flink 的各项运行时指标发送给外部系统。
 了解更多指标方面信息可查看 [metric 系统相关文档]({{< ref "docs/ops/metrics" >}})。
 
-你可以通过 `conf/flink-conf.yaml` 文件来配置一种或多种发送器，将运行时指标暴露给外部系统。
+你可以通过 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}})来配置一种或多种发送器，将运行时指标暴露给外部系统。
 发送器会在 TaskManager、Flink 作业启动时进行实例化。
 
 下面列出了所有发送器都适用的参数，可以通过配置文件中的 `metrics.reporter.<reporter_name>.<property>` 项进行配置。有些发送器有自己特有的配置，详见该发送器章节下的具体说明。

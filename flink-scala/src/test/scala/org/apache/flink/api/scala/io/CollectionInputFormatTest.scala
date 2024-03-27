@@ -18,6 +18,7 @@
 package org.apache.flink.api.scala.io
 
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.api.scala._
@@ -59,7 +60,7 @@ class CollectionInputFormatTest {
     val inputFormat: CollectionInputFormat[ElementType] = {
       new CollectionInputFormat[ElementType](
         inputCollection.asJava,
-        info.createSerializer(new ExecutionConfig))
+        info.createSerializer(new SerializerConfigImpl))
     }
 
     val buffer = new ByteArrayOutputStream
@@ -135,7 +136,7 @@ class CollectionInputFormatTest {
 
     val inputFormat = new CollectionInputFormat[String](
       data.asJava,
-      BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig))
+      BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new SerializerConfigImpl))
     val baos = new ByteArrayOutputStream
     val oos = new ObjectOutputStream(baos)
 

@@ -15,8 +15,6 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import unittest
-
 from pyflink.common import WatermarkStrategy, SimpleStringSchema, Types, ConfigOptions, Duration
 from pyflink.datastream.connectors import DeliveryGuarantee
 from pyflink.datastream.connectors.pulsar import TopicRoutingMode, MessageDelayer, PulsarSink, \
@@ -178,7 +176,6 @@ class FlinkPulsarTest(PyFlinkUTTestCase):
             .set_authentication('test.class', {'k1': 'v1', 'k2': 'v2'}) \
             .build()
 
-    @unittest.skip("Should be moved to pulsar connector repo")
     def test_pulsar_sink(self):
         ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
@@ -253,7 +250,6 @@ class FlinkPulsarTest(PyFlinkUTTestCase):
                 .long_type()
                 .no_default_value()._j_config_option), 100)
 
-    @unittest.skip("Should be moved to pulsar connector repo")
     def test_sink_set_topics_with_list(self):
         PulsarSink.builder() \
             .set_service_url('pulsar://localhost:6650') \

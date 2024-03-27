@@ -105,7 +105,7 @@ public class ConfigurationTest {
 
             assertThat(orig).isEqualTo(copy);
             assertThat(orig.keySet()).isEqualTo(copy.keySet());
-            assertThat(orig.hashCode()).isEqualTo(copy.hashCode());
+            assertThat(orig).hasSameHashCodeAs(copy);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -145,7 +145,7 @@ public class ConfigurationTest {
         assertThat("abc").isEqualTo(cfg.getString(presentStringOption));
         assertThat("abc").isEqualTo(cfg.getValue(presentStringOption));
 
-        assertThat(11).isEqualTo(cfg.getInteger(presentIntOption));
+        assertThat(cfg.getInteger(presentIntOption)).isEqualTo(11);
         assertThat("11").isEqualTo(cfg.getValue(presentIntOption));
 
         // test getting default when no value is present
@@ -162,7 +162,7 @@ public class ConfigurationTest {
         assertThat("override").isEqualTo(cfg.getString(stringOption, "override"));
 
         // getting a primitive with a default value should work
-        assertThat(87).isEqualTo(cfg.getInteger(intOption));
+        assertThat(cfg.getInteger(intOption)).isEqualTo(87);
         assertThat("87").isEqualTo(cfg.getValue(intOption));
     }
 
@@ -221,10 +221,10 @@ public class ConfigurationTest {
                         .defaultValue(-1)
                         .withDeprecatedKeys("not-there", "also-not-there");
 
-        assertThat(11).isEqualTo(cfg.getInteger(matchesFirst));
-        assertThat(12).isEqualTo(cfg.getInteger(matchesSecond));
-        assertThat(13).isEqualTo(cfg.getInteger(matchesThird));
-        assertThat(-1).isEqualTo(cfg.getInteger(notContained));
+        assertThat(cfg.getInteger(matchesFirst)).isEqualTo(11);
+        assertThat(cfg.getInteger(matchesSecond)).isEqualTo(12);
+        assertThat(cfg.getInteger(matchesThird)).isEqualTo(13);
+        assertThat(cfg.getInteger(notContained)).isEqualTo(-1);
     }
 
     @TestTemplate
@@ -258,10 +258,10 @@ public class ConfigurationTest {
                         .defaultValue(-1)
                         .withFallbackKeys("not-there", "also-not-there");
 
-        assertThat(11).isEqualTo(cfg.getInteger(matchesFirst));
-        assertThat(12).isEqualTo(cfg.getInteger(matchesSecond));
-        assertThat(13).isEqualTo(cfg.getInteger(matchesThird));
-        assertThat(-1).isEqualTo(cfg.getInteger(notContained));
+        assertThat(cfg.getInteger(matchesFirst)).isEqualTo(11);
+        assertThat(cfg.getInteger(matchesSecond)).isEqualTo(12);
+        assertThat(cfg.getInteger(matchesThird)).isEqualTo(13);
+        assertThat(cfg.getInteger(notContained)).isEqualTo(-1);
     }
 
     @TestTemplate
@@ -552,6 +552,58 @@ public class ConfigurationTest {
                         e ->
                                 Assertions.assertThat(ExceptionUtils.stringifyException(e))
                                         .doesNotContain("secret_value"));
+    }
+
+    @TestTemplate
+    void testToStringDoesNotLeakSensitiveData() {
+        ConfigOption<Map<String, String>> secret =
+                ConfigOptions.key("secret").mapType().noDefaultValue();
+
+        Assertions.assertThat(GlobalConfiguration.isSensitive(secret.key())).isTrue();
+
+        final Configuration cfg = new Configuration(standardYaml);
+        cfg.setString(secret.key(), "secret_value");
+
+        assertThat(cfg.toString()).doesNotContain("secret_value");
+    }
+
+    @TestTemplate
+    void testGetWithOverrideDefault() {
+        final Configuration conf = new Configuration(standardYaml);
+
+        // Test for integer without default value.
+        ConfigOption<Integer> integerOption0 =
+                ConfigOptions.key("integer.key0").intType().noDefaultValue();
+        // integerOption0 doesn't exist in conf, and it should be overrideDefault.
+        assertThat(conf.get(integerOption0, 2)).isEqualTo(2);
+        // integerOption0 exists in conf, and it should be value that set before.
+        conf.set(integerOption0, 3);
+        assertThat(conf.get(integerOption0, 2)).isEqualTo(3);
+
+        // Test for integer with default value, the default value should be ignored.
+        ConfigOption<Integer> integerOption1 =
+                ConfigOptions.key("integer.key1").intType().defaultValue(4);
+        assertThat(conf.get(integerOption1, 5)).isEqualTo(5);
+        // integerOption1 is changed.
+        conf.set(integerOption1, 6);
+        assertThat(conf.get(integerOption1, 5)).isEqualTo(6);
+
+        // Test for string without default value.
+        ConfigOption<String> stringOption0 =
+                ConfigOptions.key("string.key0").stringType().noDefaultValue();
+        // stringOption0 doesn't exist in conf, and it should be overrideDefault.
+        assertThat(conf.get(stringOption0, "a")).isEqualTo("a");
+        // stringOption0 exists in conf, and it should be value that set before.
+        conf.set(stringOption0, "b");
+        assertThat(conf.get(stringOption0, "a")).isEqualTo("b");
+
+        // Test for string with default value, the default value should be ignored.
+        ConfigOption<String> stringOption1 =
+                ConfigOptions.key("string.key1").stringType().defaultValue("c");
+        assertThat(conf.get(stringOption1, "d")).isEqualTo("d");
+        // stringOption1 is changed.
+        conf.set(stringOption1, "e");
+        assertThat(conf.get(stringOption1, "d")).isEqualTo("e");
     }
 
     // --------------------------------------------------------------------------------------------

@@ -173,6 +173,19 @@ public class TaskManagerOptions {
                                     + RPC_PORT.key()
                                     + "') will be used.");
 
+    /** The default port that <code>CollectSinkFunction$ServerThread</code> is using. */
+    @Documentation.Section({
+        Documentation.Sections.COMMON_HOST_PORT,
+        Documentation.Sections.ALL_TASK_MANAGER
+    })
+    public static final ConfigOption<Integer> COLLECT_PORT =
+            key("taskmanager.collect-sink.port")
+                    .intType()
+                    .defaultValue(0)
+                    .withDescription(
+                            "The port used for the client to retrieve query results from the TaskManager. "
+                                    + "The default value is 0, which corresponds to a random port assignment.");
+
     /**
      * The initial registration backoff between two consecutive registration attempts. The backoff
      * is doubled for each new registration attempt until it reaches the maximum registration
@@ -253,15 +266,15 @@ public class TaskManagerOptions {
     public static final ConfigOption<Duration> SLOT_TIMEOUT =
             key("taskmanager.slot.timeout")
                     .durationType()
-                    .defaultValue(AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue())
-                    .withFallbackKeys(AkkaOptions.ASK_TIMEOUT_DURATION.key())
+                    .defaultValue(RpcOptions.ASK_TIMEOUT_DURATION.defaultValue())
+                    .withFallbackKeys(RpcOptions.ASK_TIMEOUT_DURATION.key())
                     .withDescription(
                             Description.builder()
                                     .text(
                                             "Timeout used for identifying inactive slots. The TaskManager will free the slot if it does not become active "
                                                     + "within the given amount of time. Inactive slots can be caused by an out-dated slot request. If no "
                                                     + "value is configured, then it will fall back to %s.",
-                                            code(AkkaOptions.ASK_TIMEOUT_DURATION.key()))
+                                            code(RpcOptions.ASK_TIMEOUT_DURATION.key()))
                                     .build());
 
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
@@ -795,6 +808,31 @@ public class TaskManagerOptions {
                                                     code(TaskManagerLoadBalanceMode.NONE.name())))
                                     .build());
 
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    @Documentation.OverrideDefault("System.getProperty(\"log.file\")")
+    public static final ConfigOption<String> TASK_MANAGER_LOG_PATH =
+            ConfigOptions.key("taskmanager.log.path")
+                    .stringType()
+                    .defaultValue(System.getProperty("log.file"))
+                    .withDescription("The path to the log file of the task manager.");
+
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    public static final ConfigOption<Duration> FS_STREAM_OPENING_TIME_OUT =
+            ConfigOptions.key("taskmanager.runtime.fs-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ZERO)
+                    .withDeprecatedKeys("taskmanager.runtime.fs_timeout")
+                    .withDescription(
+                            "The timeout for filesystem stream opening. A value of 0 indicates infinite waiting.");
+
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    public static final ConfigOption<Integer> MINI_CLUSTER_NUM_TASK_MANAGERS =
+            ConfigOptions.key("minicluster.number-of-taskmanagers")
+                    .intType()
+                    .defaultValue(1)
+                    .withDeprecatedKeys("local.number-taskmanager")
+                    .withDescription("The number of task managers of MiniCluster.");
+
     /** Type of redirection of {@link System#out} and {@link System#err}. */
     public enum SystemOutMode {
 
@@ -826,7 +864,7 @@ public class TaskManagerOptions {
                 return taskManagerLoadBalanceModeOptional.get();
             }
             boolean evenlySpreadOutSlots =
-                    configuration.getBoolean(ClusterOptions.EVENLY_SPREAD_OUT_SLOTS_STRATEGY);
+                    configuration.get(ClusterOptions.EVENLY_SPREAD_OUT_SLOTS_STRATEGY);
 
             return evenlySpreadOutSlots
                     ? TaskManagerLoadBalanceMode.SLOTS

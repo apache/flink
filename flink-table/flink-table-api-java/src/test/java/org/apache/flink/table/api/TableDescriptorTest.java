@@ -20,8 +20,11 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.table.catalog.TableDistribution;
 
 import org.junit.jupiter.api.Test;
+
+import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -50,12 +53,16 @@ class TableDescriptorTest {
         final TableDescriptor descriptor =
                 TableDescriptor.forConnector("test-connector")
                         .schema(schema)
+                        .distributedByHash(1, "f0")
                         .partitionedBy("f0")
                         .comment("Test Comment")
                         .build();
 
         assertThat(descriptor.getSchema()).isPresent();
         assertThat(descriptor.getSchema().get()).isEqualTo(schema);
+
+        assertThat(descriptor.getDistribution())
+                .contains(TableDistribution.ofHash(Collections.singletonList("f0"), 1));
 
         assertThat(descriptor.getPartitionKeys()).hasSize(1);
         assertThat(descriptor.getPartitionKeys().get(0)).isEqualTo("f0");
@@ -134,6 +141,7 @@ class TableDescriptorTest {
         final TableDescriptor tableDescriptor =
                 TableDescriptor.forConnector("test-connector")
                         .schema(schema)
+                        .distributedByRange(3, "f0")
                         .partitionedBy("f0")
                         .option(OPTION_A, true)
                         .format(formatDescriptor)
@@ -147,6 +155,7 @@ class TableDescriptorTest {
                                 + "  `f0` STRING\n"
                                 + ")\n"
                                 + "COMMENT 'Test Comment'\n"
+                                + "DISTRIBUTED BY RANGE(`f0`) INTO 3 BUCKETS\n"
                                 + "PARTITIONED BY (`f0`)\n"
                                 + "WITH (\n"
                                 + "  'a' = 'true',\n"
@@ -159,17 +168,60 @@ class TableDescriptorTest {
     @Test
     void testFormatDescriptorWithPrefix() {
         assertThatThrownBy(
-                        () -> {
-                            TableDescriptor.forConnector("test-connector")
-                                    .schema(Schema.newBuilder().build())
-                                    .format(
-                                            FormatDescriptor.forFormat("test-format")
-                                                    .option("test-format.a", "A")
-                                                    .build())
-                                    .build();
-                        })
+                        () ->
+                                TableDescriptor.forConnector("test-connector")
+                                        .schema(Schema.newBuilder().build())
+                                        .format(
+                                                FormatDescriptor.forFormat("test-format")
+                                                        .option("test-format.a", "A")
+                                                        .build())
+                                        .build())
                 .as(
                         "Format options set using #format(FormatDescriptor) should not contain the prefix 'test-format.', but found 'test-format.a'.")
                 .isInstanceOf(ValidationException.class);
+    }
+
+    @Test
+    void testDistributedBy() {
+        assertThat(getTableDescriptorBuilder().distributedByHash(3, "f0").build().toString())
+                .contains("DISTRIBUTED BY HASH(`f0`) INTO 3 BUCKETS\n");
+        assertThat(getTableDescriptorBuilder().distributedByHash("f0").build().toString())
+                .contains("DISTRIBUTED BY HASH(`f0`)\n");
+        assertThat(getTableDescriptorBuilder().distributedByRange(3, "f0").build().toString())
+                .contains("DISTRIBUTED BY RANGE(`f0`) INTO 3 BUCKETS\n");
+        assertThat(getTableDescriptorBuilder().distributedByRange("f0").build().toString())
+                .contains("DISTRIBUTED BY RANGE(`f0`)\n");
+        assertThat(getTableDescriptorBuilder().distributedBy(3, "f0").build().toString())
+                .contains("DISTRIBUTED BY (`f0`) INTO 3 BUCKETS\n");
+        assertThat(getTableDescriptorBuilder().distributedBy("f0").build().toString())
+                .contains("DISTRIBUTED BY (`f0`)\n");
+        assertThat(getTableDescriptorBuilder().distributedInto(3).build().toString())
+                .contains("DISTRIBUTED INTO 3 BUCKETS\n");
+    }
+
+    @Test
+    void testDistributedByExceptions() {
+        assertThatThrownBy(() -> getTableDescriptorBuilder().distributedByHash(3))
+                .as("At least one bucket key must be defined for a distribution.")
+                .isInstanceOf(ValidationException.class);
+        assertThatThrownBy(() -> getTableDescriptorBuilder().distributedBy())
+                .as("At least one bucket key must be defined for a distribution.")
+                .isInstanceOf(ValidationException.class);
+        assertThatThrownBy(() -> getTableDescriptorBuilder().distributedByRange(3))
+                .as("At least one bucket key must be defined for a distribution.")
+                .isInstanceOf(ValidationException.class);
+    }
+
+    private static TableDescriptor.Builder getTableDescriptorBuilder() {
+        final Schema schema = Schema.newBuilder().column("f0", DataTypes.STRING()).build();
+        final FormatDescriptor formatDescriptor =
+                FormatDescriptor.forFormat("test-format").option(OPTION_A, false).build();
+
+        return TableDescriptor.forConnector("test-connector")
+                .schema(schema)
+                .partitionedBy("f0")
+                .option(OPTION_A, true)
+                .format(formatDescriptor)
+                .comment("Test Comment");
     }
 }

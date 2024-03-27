@@ -119,15 +119,21 @@ class HiveTableSpeculativeSinkITCase {
                                             new RichMapFunction<Row, Row>() {
                                                 @Override
                                                 public Row map(Row value) throws Exception {
-                                                    if (getRuntimeContext().getAttemptNumber()
+                                                    if (getRuntimeContext()
+                                                                    .getTaskInfo()
+                                                                    .getAttemptNumber()
                                                             <= 0) {
                                                         Thread.sleep(Integer.MAX_VALUE);
                                                     }
-                                                    assert getRuntimeContext().getAttemptNumber()
+                                                    assert getRuntimeContext()
+                                                                    .getTaskInfo()
+                                                                    .getAttemptNumber()
                                                             > 0;
                                                     value.setField(
                                                             1,
-                                                            getRuntimeContext().getAttemptNumber());
+                                                            getRuntimeContext()
+                                                                    .getTaskInfo()
+                                                                    .getAttemptNumber());
                                                     return value;
                                                 }
                                             })

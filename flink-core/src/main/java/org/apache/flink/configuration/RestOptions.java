@@ -295,4 +295,41 @@ public class RestOptions {
                     .defaultValue(Duration.ofMinutes(5))
                     .withDescription(
                             "Maximum duration that the result of an async operation is stored. Once elapsed the result of the operation can no longer be retrieved.");
+
+    /** Enables the experimental profiler feature. */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<Boolean> ENABLE_PROFILER =
+            key("rest.profiling.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("Enables the experimental profiler feature.");
+
+    /** Maximum history size of profiling list. */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<Integer> MAX_PROFILING_HISTORY_SIZE =
+            key("rest.profiling.history-size")
+                    .intType()
+                    .defaultValue(10)
+                    .withDescription(
+                            "Maximum profiling history instance to be maintained for JobManager or each TaskManager. "
+                                    + "The oldest instance will be removed on a rolling basis when the history size exceeds this value.");
+
+    /** Maximum profiling duration for profiling function. */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<Duration> MAX_PROFILING_DURATION =
+            key("rest.profiling.duration-max")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(300))
+                    .withDescription(
+                            "Maximum profiling duration for each profiling request. "
+                                    + "Any profiling request's duration exceeding this value will not be accepted.");
+
+    /** Directory for storing the profiling results. */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    @Documentation.OverrideDefault("System.getProperty(\"java.io.tmpdir\")")
+    public static final ConfigOption<String> PROFILING_RESULT_DIR =
+            key("rest.profiling.dir")
+                    .stringType()
+                    .defaultValue(System.getProperty("java.io.tmpdir"))
+                    .withDescription("Profiling result storing directory.");
 }

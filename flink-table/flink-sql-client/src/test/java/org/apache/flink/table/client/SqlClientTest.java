@@ -88,9 +88,9 @@ class SqlClientTest {
 
         // prepare conf dir
         File confFolder = Files.createTempDirectory(tempFolder, "conf").toFile();
-        File confYaml = new File(confFolder, "flink-conf.yaml");
+        File confYaml = new File(confFolder, "config.yaml");
         if (!confYaml.createNewFile()) {
-            throw new IOException("Can't create testing flink-conf.yaml file.");
+            throw new IOException("Can't create testing config.yaml file.");
         }
 
         // adjust the test environment for the purposes of this test

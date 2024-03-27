@@ -113,7 +113,9 @@ public class CompactCoordinator extends AbstractStreamOperator<CoordinatorOutput
                                         StringSerializer.INSTANCE,
                                         new ListSerializer<>(
                                                 new KryoSerializer<>(
-                                                        Path.class, getExecutionConfig())))));
+                                                        Path.class,
+                                                        getExecutionConfig()
+                                                                .getSerializerConfig())))));
         inputFilesState = context.getOperatorStateStore().getListState(filesDescriptor);
         inputFiles = new TreeMap<>();
         currentInputFiles = new HashMap<>();
@@ -152,6 +154,10 @@ public class CompactCoordinator extends AbstractStreamOperator<CoordinatorOutput
         Map<Long, Map<String, List<Path>>> headMap = inputFiles.headMap(checkpointId, true);
         for (Map.Entry<Long, Map<String, List<Path>>> entry : headMap.entrySet()) {
             coordinate(entry.getKey(), entry.getValue());
+        }
+        if (checkpointId == Long.MAX_VALUE) {
+            coordinate(checkpointId, currentInputFiles);
+            currentInputFiles.clear();
         }
         headMap.clear();
     }

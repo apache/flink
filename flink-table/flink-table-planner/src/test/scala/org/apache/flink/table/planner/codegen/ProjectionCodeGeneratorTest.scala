@@ -25,6 +25,7 @@ import org.apache.flink.table.runtime.generated.Projection
 import org.apache.flink.table.types.logical.{BigIntType, DecimalType, IntType, RowType, TimestampType}
 
 import org.junit.jupiter.api.{Assertions, Test}
+import org.junit.jupiter.api.Assertions.assertEquals
 
 import scala.util.Random
 
@@ -37,7 +38,7 @@ class ProjectionCodeGeneratorTest {
   def testProjectionBinaryRow(): Unit = {
     val projection = ProjectionCodeGenerator
       .generateProjection(
-        new CodeGeneratorContext(new Configuration, Thread.currentThread().getContextClassLoader),
+        new CodeGeneratorContext(new Configuration, classLoader),
         "name",
         RowType.of(new IntType(), new BigIntType()),
         RowType.of(new BigIntType(), new IntType()),
@@ -54,7 +55,7 @@ class ProjectionCodeGeneratorTest {
   def testProjectionGenericRow(): Unit = {
     val projection = ProjectionCodeGenerator
       .generateProjection(
-        new CodeGeneratorContext(new Configuration, Thread.currentThread().getContextClassLoader),
+        new CodeGeneratorContext(new Configuration, classLoader),
         "name",
         RowType.of(new IntType(), new BigIntType()),
         RowType.of(new BigIntType(), new IntType()),
@@ -73,7 +74,7 @@ class ProjectionCodeGeneratorTest {
     val rowType = RowType.of((0 until 100).map(_ => new IntType()).toArray: _*)
     val projection = ProjectionCodeGenerator
       .generateProjection(
-        new CodeGeneratorContext(new Configuration, Thread.currentThread().getContextClassLoader),
+        new CodeGeneratorContext(new Configuration, classLoader),
         "name",
         rowType,
         rowType,
@@ -94,7 +95,7 @@ class ProjectionCodeGeneratorTest {
     val rowType = RowType.of((0 until 100).map(_ => new IntType()).toArray: _*)
     val projection = ProjectionCodeGenerator
       .generateProjection(
-        new CodeGeneratorContext(new Configuration, Thread.currentThread().getContextClassLoader),
+        new CodeGeneratorContext(new Configuration, classLoader),
         "name",
         rowType,
         rowType,
@@ -115,7 +116,7 @@ class ProjectionCodeGeneratorTest {
   def testProjectionBinaryRowWithVariableLengthData(): Unit = {
     val projection = ProjectionCodeGenerator
       .generateProjection(
-        new CodeGeneratorContext(new Configuration, Thread.currentThread().getContextClassLoader),
+        new CodeGeneratorContext(new Configuration, classLoader),
         "name",
         RowType.of(new DecimalType(38, 0), new DecimalType(38, 0), new TimestampType(9)),
         RowType.of(new DecimalType(38, 0), new TimestampType(9), new DecimalType(38, 0)),
@@ -136,6 +137,30 @@ class ProjectionCodeGeneratorTest {
 
     val actual: BinaryRowData = projection.apply(GenericRowData.of(decimal, decimal, timestamp))
     Assertions.assertEquals(expected, actual)
+  }
+  @Test
+  def testProjectionWithIndependentNameCounter(): Unit = {
+    val projectionCode1 = ProjectionCodeGenerator
+      .generateProjection(
+        new CodeGeneratorContext(new Configuration, classLoader),
+        "name",
+        RowType.of(new IntType(), new BigIntType()),
+        RowType.of(new BigIntType(), new IntType()),
+        Array(1, 0)
+      )
+      .getCode
+
+    val projectionCode2 = ProjectionCodeGenerator
+      .generateProjection(
+        new CodeGeneratorContext(new Configuration, classLoader),
+        "name",
+        RowType.of(new IntType(), new BigIntType()),
+        RowType.of(new BigIntType(), new IntType()),
+        Array(1, 0)
+      )
+      .getCode
+
+    assertEquals(projectionCode1, projectionCode2)
   }
 
   def ji(i: Int): Integer = {

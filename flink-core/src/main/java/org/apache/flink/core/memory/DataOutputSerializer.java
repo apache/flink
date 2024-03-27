@@ -244,13 +244,7 @@ public class DataOutputSerializer implements DataOutputView, MemorySegmentWritab
         /* use charAt instead of copying String to char array */
         for (int i = 0; i < strlen; i++) {
             c = str.charAt(i);
-            if ((c >= 0x0001) && (c <= 0x007F)) {
-                utflen++;
-            } else if (c > 0x07FF) {
-                utflen += 3;
-            } else {
-                utflen += 2;
-            }
+            utflen += getUTFBytesSize(c);
         }
 
         if (utflen > 65535) {
@@ -260,10 +254,53 @@ public class DataOutputSerializer implements DataOutputView, MemorySegmentWritab
         }
 
         byte[] bytearr = this.buffer;
-        int count = this.position;
 
-        bytearr[count++] = (byte) ((utflen >>> 8) & 0xFF);
-        bytearr[count++] = (byte) (utflen & 0xFF);
+        bytearr[this.position++] = (byte) ((utflen >>> 8) & 0xFF);
+        bytearr[this.position++] = (byte) (utflen & 0xFF);
+
+        writeUTFBytes(str);
+    }
+
+    /**
+     * Similar to {@link #writeUTF(String)}. The size is only limited by the maximum java array size
+     * of the buffer.
+     *
+     * @param str the string value to be written.
+     * @throws IOException if an I/O error occurs.
+     */
+    public void writeLongUTF(String str) throws IOException {
+        int strlen = str.length();
+        long utflen = 0;
+        int c;
+
+        /* use charAt instead of copying String to char array */
+        for (int i = 0; i < strlen; i++) {
+            c = str.charAt(i);
+            utflen += getUTFBytesSize(c);
+
+            if (utflen > Integer.MAX_VALUE) {
+                throw new UTFDataFormatException(
+                        "Encoded string reached maximum length: " + utflen);
+            }
+        }
+
+        if (utflen > Integer.MAX_VALUE - 4) {
+            throw new UTFDataFormatException("Encoded string is too long: " + utflen);
+        } else if (this.position > this.buffer.length - utflen - 2) {
+            resize((int) utflen + 4);
+        }
+
+        writeInt((int) utflen);
+
+        writeUTFBytes(str);
+    }
+
+    private void writeUTFBytes(String str) {
+        int strlen = str.length();
+        int c;
+
+        byte[] bytearr = this.buffer;
+        int count = this.position;
 
         int i;
         for (i = 0; i < strlen; i++) {
@@ -290,6 +327,16 @@ public class DataOutputSerializer implements DataOutputView, MemorySegmentWritab
         }
 
         this.position = count;
+    }
+
+    private int getUTFBytesSize(int c) {
+        if ((c >= 0x0001) && (c <= 0x007F)) {
+            return 1;
+        } else if (c > 0x07FF) {
+            return 3;
+        } else {
+            return 2;
+        }
     }
 
     private void resize(int minCapacityAdd) throws IOException {

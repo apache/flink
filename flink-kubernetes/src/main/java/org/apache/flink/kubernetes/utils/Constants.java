@@ -131,4 +131,6 @@ public class Constants {
     // performance.
     // https://kubernetes.io/docs/reference/using-api/api-concepts/#the-resourceversion-parameter
     public static final String KUBERNETES_ZERO_RESOURCE_VERSION = "0";
+
+    public static final String USER_ARTIFACTS_VOLUME = "user-artifacts-volume";
 }

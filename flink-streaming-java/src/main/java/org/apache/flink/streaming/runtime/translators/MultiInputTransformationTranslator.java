@@ -54,34 +54,22 @@ public class MultiInputTransformationTranslator<OUT>
     protected Collection<Integer> translateForBatchInternal(
             final AbstractMultipleInputTransformation<OUT> transformation, final Context context) {
         Collection<Integer> ids = translateInternal(transformation, context);
-        if (transformation instanceof KeyedMultipleInputTransformation) {
-            KeyedMultipleInputTransformation<OUT> keyedTransformation =
-                    (KeyedMultipleInputTransformation<OUT>) transformation;
-            List<Transformation<?>> inputs = transformation.getInputs();
-            List<KeySelector<?, ?>> keySelectors = keyedTransformation.getStateKeySelectors();
 
-            StreamConfig.InputRequirement[] inputRequirements =
-                    IntStream.range(0, inputs.size())
-                            .mapToObj(
-                                    idx -> {
-                                        if (keySelectors.get(idx) != null) {
-                                            return StreamConfig.InputRequirement.SORTED;
-                                        } else {
-                                            return StreamConfig.InputRequirement.PASS_THROUGH;
-                                        }
-                                    })
-                            .toArray(StreamConfig.InputRequirement[]::new);
+        maybeApplyBatchExecutionSettings(transformation, context);
 
-            BatchExecutionUtils.applyBatchExecutionSettings(
-                    transformation.getId(), context, inputRequirements);
-        }
         return ids;
     }
 
     @Override
     protected Collection<Integer> translateForStreamingInternal(
             final AbstractMultipleInputTransformation<OUT> transformation, final Context context) {
-        return translateInternal(transformation, context);
+        Collection<Integer> ids = translateInternal(transformation, context);
+
+        if (transformation.isOutputOnlyAfterEndOfStream()) {
+            maybeApplyBatchExecutionSettings(transformation, context);
+        }
+
+        return ids;
     }
 
     private Collection<Integer> translateInternal(
@@ -121,7 +109,9 @@ public class MultiInputTransformationTranslator<OUT>
             KeyedMultipleInputTransformation<OUT> keyedTransform =
                     (KeyedMultipleInputTransformation<OUT>) transformation;
             TypeSerializer<?> keySerializer =
-                    keyedTransform.getStateKeyType().createSerializer(executionConfig);
+                    keyedTransform
+                            .getStateKeyType()
+                            .createSerializer(executionConfig.getSerializerConfig());
             streamGraph.setMultipleInputStateKey(
                     transformationId, keyedTransform.getStateKeySelectors(), keySerializer);
         }
@@ -138,5 +128,28 @@ public class MultiInputTransformationTranslator<OUT>
                 transformationId, transformation.isSupportsConcurrentExecutionAttempts());
 
         return Collections.singleton(transformationId);
+    }
+
+    private void maybeApplyBatchExecutionSettings(
+            final AbstractMultipleInputTransformation<OUT> transformation, final Context context) {
+        if (transformation instanceof KeyedMultipleInputTransformation) {
+            KeyedMultipleInputTransformation<OUT> keyedTransformation =
+                    (KeyedMultipleInputTransformation<OUT>) transformation;
+            List<Transformation<?>> inputs = transformation.getInputs();
+            List<KeySelector<?, ?>> keySelectors = keyedTransformation.getStateKeySelectors();
+            StreamConfig.InputRequirement[] inputRequirements =
+                    IntStream.range(0, inputs.size())
+                            .mapToObj(
+                                    idx -> {
+                                        if (keySelectors.get(idx) != null) {
+                                            return StreamConfig.InputRequirement.SORTED;
+                                        } else {
+                                            return StreamConfig.InputRequirement.PASS_THROUGH;
+                                        }
+                                    })
+                            .toArray(StreamConfig.InputRequirement[]::new);
+            BatchExecutionUtils.applyBatchExecutionSettings(
+                    transformation.getId(), context, inputRequirements);
+        }
     }
 }

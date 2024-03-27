@@ -17,7 +17,9 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
+import org.apache.flink.table.planner.JList
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.hint.StateTtlHint
 import org.apache.flink.table.planner.plan.PartialFinalType
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGroupAggregate
@@ -28,8 +30,10 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.core.AggregateCall
+import org.apache.calcite.rel.hint.RelHint
 
 import java.util
+import java.util.Collections
 
 /**
  * Stream physical RelNode for unbounded group aggregate.
@@ -46,8 +50,9 @@ class StreamPhysicalGroupAggregate(
     outputRowType: RelDataType,
     grouping: Array[Int],
     aggCalls: Seq[AggregateCall],
-    var partialFinalType: PartialFinalType = PartialFinalType.NONE)
-  extends StreamPhysicalGroupAggregateBase(cluster, traitSet, inputRel, grouping, aggCalls) {
+    var partialFinalType: PartialFinalType = PartialFinalType.NONE,
+    hints: JList[RelHint] = Collections.emptyList())
+  extends StreamPhysicalGroupAggregateBase(cluster, traitSet, inputRel, grouping, aggCalls, hints) {
 
   private val aggInfoList =
     AggregateUtil.deriveAggregateInfoList(this, grouping.length, aggCalls)
@@ -64,7 +69,8 @@ class StreamPhysicalGroupAggregate(
       outputRowType,
       grouping,
       aggCalls,
-      partialFinalType)
+      partialFinalType,
+      hints)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -91,6 +97,7 @@ class StreamPhysicalGroupAggregate(
       aggCallNeedRetractions,
       generateUpdateBefore,
       needRetraction,
+      StateTtlHint.getStateTtlFromHintOnSingleRel(hints),
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)

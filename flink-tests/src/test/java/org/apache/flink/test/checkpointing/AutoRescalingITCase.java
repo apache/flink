@@ -37,7 +37,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.StateBackendOptions;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -47,7 +50,6 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -86,7 +88,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
-import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForOneMoreCheckpoint;
+import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForNewCheckpoint;
 import static org.apache.flink.test.scheduling.UpdateJobResourceRequirementsITCase.waitForAvailableSlots;
 import static org.apache.flink.test.scheduling.UpdateJobResourceRequirementsITCase.waitForRunningTasks;
 import static org.junit.Assert.assertEquals;
@@ -109,22 +111,28 @@ public class AutoRescalingITCase extends TestLogger {
     private static final int slotsPerTaskManager = 2;
     private static final int totalSlots = numTaskManagers * slotsPerTaskManager;
 
-    @Parameterized.Parameters(name = "backend = {0}, buffersPerChannel = {1}")
+    @Parameterized.Parameters(name = "backend = {0}, buffersPerChannel = {1}, useIngestDB = {2}")
     public static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
-                    {"rocksdb", 0}, {"rocksdb", 2}, {"filesystem", 0}, {"filesystem", 2}
+                    {"rocksdb", 0, false},
+                    {"rocksdb", 2, true},
+                    {"filesystem", 0, false},
+                    {"filesystem", 2, false}
                 });
     }
 
-    public AutoRescalingITCase(String backend, int buffersPerChannel) {
+    public AutoRescalingITCase(String backend, int buffersPerChannel, boolean useIngestDB) {
         this.backend = backend;
         this.buffersPerChannel = buffersPerChannel;
+        this.useIngestDB = useIngestDB;
     }
 
     private final String backend;
 
     private final int buffersPerChannel;
+
+    private final boolean useIngestDB;
 
     private String currentBackend = null;
 
@@ -153,17 +161,19 @@ public class AutoRescalingITCase extends TestLogger {
             final File checkpointDir = temporaryFolder.newFolder();
             final File savepointDir = temporaryFolder.newFolder();
 
-            config.setString(StateBackendOptions.STATE_BACKEND, currentBackend);
-            config.setBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true);
-            config.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, true);
-            config.setString(
+            config.set(StateBackendOptions.STATE_BACKEND, currentBackend);
+            config.set(RocksDBConfigurableOptions.USE_INGEST_DB_RESTORE_MODE, useIngestDB);
+            config.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true);
+            config.set(StateRecoveryOptions.LOCAL_RECOVERY, true);
+            config.set(
                     CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
-            config.setString(
-                    CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
-            config.setInteger(
+            config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
+            config.set(
                     NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, buffersPerChannel);
 
             config.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
+            // Disable the scaling cooldown to speed up the test
+            config.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, Duration.ofMillis(0));
 
             // speed the test suite up
             // - lower refresh interval -> controls how fast we invalidate ExecutionGraphCache
@@ -221,7 +231,7 @@ public class AutoRescalingITCase extends TestLogger {
 
             JobGraph jobGraph =
                     createJobGraphWithKeyedState(
-                            new Configuration(),
+                            cluster.getMiniCluster().getConfiguration().clone(),
                             parallelism,
                             maxParallelism,
                             numberKeys,
@@ -262,7 +272,11 @@ public class AutoRescalingITCase extends TestLogger {
 
             waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID(), false);
 
-            waitForOneMoreCheckpoint(jobID, cluster.getMiniCluster());
+            // We need to wait for a checkpoint to be completed that was triggered after all the
+            // data was processed. That ensures the entire data being flushed out of the Operator's
+            // network buffers to avoid reprocessing test data twice after the restore (see
+            // FLINK-34200).
+            waitForNewCheckpoint(jobID, cluster.getMiniCluster());
 
             SubtaskIndexSource.SOURCE_LATCH.reset();
 
@@ -329,7 +343,7 @@ public class AutoRescalingITCase extends TestLogger {
             // wait until the operator handles some data
             StateSourceBase.workStartedLatch.await();
 
-            waitForOneMoreCheckpoint(jobID, cluster.getMiniCluster());
+            waitForNewCheckpoint(jobID, cluster.getMiniCluster());
 
             JobResourceRequirements.Builder builder = JobResourceRequirements.newBuilder();
             for (JobVertex vertex : jobGraph.getVertices()) {
@@ -338,7 +352,7 @@ public class AutoRescalingITCase extends TestLogger {
 
             restClusterClient.updateJobResourceRequirements(jobID, builder.build()).join();
 
-            waitForRunningTasks(restClusterClient, jobID, parallelism2);
+            waitForRunningTasks(restClusterClient, jobID, 2 * parallelism2);
             waitForAvailableSlots(restClusterClient, totalSlots - parallelism2);
 
             StateSourceBase.canFinishLatch.countDown();
@@ -412,7 +426,7 @@ public class AutoRescalingITCase extends TestLogger {
             // clear the CollectionSink set for the restarted job
             CollectionSink.clearElementsSet();
 
-            waitForOneMoreCheckpoint(jobID, cluster.getMiniCluster());
+            waitForNewCheckpoint(jobID, cluster.getMiniCluster());
 
             SubtaskIndexSource.SOURCE_LATCH.reset();
 
@@ -428,7 +442,8 @@ public class AutoRescalingITCase extends TestLogger {
 
             restClusterClient.updateJobResourceRequirements(jobID, builder.build()).join();
 
-            waitForRunningTasks(restClusterClient, jobID, parallelism2);
+            // Source is parallelism, the flatMapper & Sink is parallelism2
+            waitForRunningTasks(restClusterClient, jobID, parallelism + parallelism2);
             waitForAvailableSlots(restClusterClient, totalSlots - parallelism2);
 
             SubtaskIndexSource.SOURCE_LATCH.trigger();
@@ -514,7 +529,7 @@ public class AutoRescalingITCase extends TestLogger {
         // wait until the operator handles some data
         StateSourceBase.workStartedLatch.await();
 
-        waitForOneMoreCheckpoint(jobID, cluster.getMiniCluster());
+        waitForNewCheckpoint(jobID, cluster.getMiniCluster());
 
         JobResourceRequirements.Builder builder = JobResourceRequirements.newBuilder();
         for (JobVertex vertex : jobGraph.getVertices()) {
@@ -560,7 +575,7 @@ public class AutoRescalingITCase extends TestLogger {
 
     private static void configureCheckpointing(CheckpointConfig config) {
         config.setCheckpointInterval(100);
-        config.setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+        config.setCheckpointingConsistencyMode(CheckpointingMode.EXACTLY_ONCE);
         config.enableUnalignedCheckpoints(true);
     }
 
@@ -706,18 +721,22 @@ public class AutoRescalingITCase extends TestLogger {
         @Override
         public void run(SourceContext<Integer> ctx) throws Exception {
             RuntimeContext runtimeContext = getRuntimeContext();
-            final int subtaskIndex = runtimeContext.getIndexOfThisSubtask();
+            final int subtaskIndex = runtimeContext.getTaskInfo().getIndexOfThisSubtask();
 
             boolean isRestartedOrRescaled =
-                    runtimeContext.getNumberOfParallelSubtasks() != originalParallelism
-                            || runtimeContext.getAttemptNumber() > 0;
+                    runtimeContext.getTaskInfo().getNumberOfParallelSubtasks()
+                                    != originalParallelism
+                            || runtimeContext.getTaskInfo().getAttemptNumber() > 0;
             while (running) {
                 SOURCE_LATCH.await();
                 if (counter < numberElements) {
                     synchronized (ctx.getCheckpointLock()) {
                         for (int value = subtaskIndex;
                                 value < numberKeys;
-                                value += runtimeContext.getNumberOfParallelSubtasks()) {
+                                value +=
+                                        runtimeContext
+                                                .getTaskInfo()
+                                                .getNumberOfParallelSubtasks()) {
                             ctx.collect(value);
                         }
 
@@ -798,7 +817,8 @@ public class AutoRescalingITCase extends TestLogger {
             sum.update(s);
 
             if (count % numberElements == 0) {
-                out.collect(Tuple2.of(getRuntimeContext().getIndexOfThisSubtask(), s));
+                out.collect(
+                        Tuple2.of(getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(), s));
                 workCompletedLatch.countDown();
             }
         }
@@ -916,12 +936,12 @@ public class AutoRescalingITCase extends TestLogger {
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
 
-            if (getRuntimeContext().getAttemptNumber() == 0) {
+            if (getRuntimeContext().getTaskInfo().getAttemptNumber() == 0) {
                 int[] snapshot =
                         checkCorrectSnapshots.computeIfAbsent(
                                 context.getCheckpointId(),
                                 (x) -> new int[checkCorrectRestore.length]);
-                snapshot[getRuntimeContext().getIndexOfThisSubtask()] = counter;
+                snapshot[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] = counter;
             }
 
             counterPartitions.clear();
@@ -959,7 +979,8 @@ public class AutoRescalingITCase extends TestLogger {
                 for (int v : counterPartitions.get()) {
                     counter += v;
                 }
-                checkCorrectRestore[getRuntimeContext().getIndexOfThisSubtask()] = counter;
+                checkCorrectRestore[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] =
+                        counter;
                 context.getRestoredCheckpointId()
                         .ifPresent((id) -> checkCorrectSnapshot = checkCorrectSnapshots.get(id));
             }

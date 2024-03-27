@@ -209,6 +209,34 @@ class CliFrontendSavepointTest extends CliFrontendTestBase {
         }
     }
 
+    // ------------------------------------------------------------------------
+    // detached savepoint
+    // ------------------------------------------------------------------------
+
+    @Test
+    void testTriggerDetachedSavepointSuccess() throws Exception {
+
+        JobID jobId = new JobID();
+
+        String savepointPath = "expectedSavepointPath";
+
+        final ClusterClient<String> clusterClient = createDetachClusterClient(savepointPath);
+
+        try {
+            MockedCliFrontend frontend = new MockedCliFrontend(clusterClient);
+
+            String[] parameters = {"-detached", jobId.toString()};
+            frontend.savepoint(parameters);
+
+            verify(clusterClient, times(1))
+                    .triggerDetachedSavepoint(eq(jobId), isNull(), eq(SavepointFormatType.DEFAULT));
+
+            assertThat(buffer.toString()).contains(savepointPath);
+        } finally {
+            clusterClient.close();
+        }
+    }
+
     /** Tests disposal with a JAR file. */
     @Test
     void testDisposeWithJar(@TempDir java.nio.file.Path tmp) throws Exception {
@@ -307,6 +335,18 @@ class CliFrontendSavepointTest extends CliFrontendTestBase {
         final ClusterClient<String> clusterClient = mock(ClusterClient.class);
 
         when(clusterClient.triggerSavepoint(
+                        any(JobID.class),
+                        nullable(String.class),
+                        nullable(SavepointFormatType.class)))
+                .thenReturn(CompletableFuture.completedFuture(expectedResponse));
+
+        return clusterClient;
+    }
+
+    private static ClusterClient<String> createDetachClusterClient(String expectedResponse) {
+        final ClusterClient<String> clusterClient = mock(ClusterClient.class);
+
+        when(clusterClient.triggerDetachedSavepoint(
                         any(JobID.class),
                         nullable(String.class),
                         nullable(SavepointFormatType.class)))

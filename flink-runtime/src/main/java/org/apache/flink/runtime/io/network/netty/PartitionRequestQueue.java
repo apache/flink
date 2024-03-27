@@ -201,15 +201,16 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
      * Notify the id of required segment from the consumer.
      *
      * @param receiverId The input channel id to identify the consumer.
+     * @param subpartitionId The id of the corresponding subpartition.
      * @param segmentId The id of required segment.
      */
-    void notifyRequiredSegmentId(InputChannelID receiverId, int segmentId) {
+    void notifyRequiredSegmentId(InputChannelID receiverId, int subpartitionId, int segmentId) {
         if (fatalError) {
             return;
         }
         NetworkSequenceViewReader reader = allReaders.get(receiverId);
         if (reader != null) {
-            reader.notifyRequiredSegmentId(segmentId);
+            reader.notifyRequiredSegmentId(subpartitionId, segmentId);
         }
     }
 
@@ -302,6 +303,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
         // gate and the consumed views as the local input channels.
 
         BufferAndAvailability next = null;
+        int nextSubpartitionId = -1;
         try {
             while (true) {
                 NetworkSequenceViewReader reader = pollAvailableReader();
@@ -312,6 +314,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
                     return;
                 }
 
+                nextSubpartitionId = reader.peekNextBufferSubpartitionId();
                 next = reader.getNextBuffer();
                 if (next == null) {
                     if (!reader.isReleased()) {
@@ -336,6 +339,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
                                     next.buffer(),
                                     next.getSequenceNumber(),
                                     reader.getReceiverId(),
+                                    nextSubpartitionId,
                                     next.buffersInBacklog());
 
                     // Write and flush and wait until this is done before

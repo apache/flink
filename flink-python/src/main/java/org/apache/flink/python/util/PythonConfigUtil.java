@@ -17,8 +17,8 @@
 
 package org.apache.flink.python.util;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -336,7 +336,7 @@ public class PythonConfigUtil {
                 new ArrayList<>(names.length);
         TypeSerializer<byte[]> byteArraySerializer =
                 PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO.createSerializer(
-                        new ExecutionConfig());
+                        new SerializerConfigImpl());
         for (String name : names) {
             descriptors.add(
                     new MapStateDescriptor<>(

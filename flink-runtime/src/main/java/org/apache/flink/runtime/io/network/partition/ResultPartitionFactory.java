@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
@@ -35,7 +36,6 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.ProcessorArchitecture;
 import org.apache.flink.util.function.SupplierWithException;
 
-import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -142,7 +142,8 @@ public class ResultPartitionFactory {
                 desc.getNumberOfSubpartitions(),
                 desc.getMaxParallelism(),
                 desc.isBroadcast(),
-                createBufferPoolFactory(desc.getNumberOfSubpartitions(), desc.getPartitionType()));
+                createBufferPoolFactory(desc.getNumberOfSubpartitions(), desc.getPartitionType()),
+                desc.isNumberOfPartitionConsumerUndefined());
     }
 
     @VisibleForTesting
@@ -154,7 +155,8 @@ public class ResultPartitionFactory {
             int numberOfSubpartitions,
             int maxParallelism,
             boolean isBroadcast,
-            SupplierWithException<BufferPool, IOException> bufferPoolFactory) {
+            SupplierWithException<BufferPool, IOException> bufferPoolFactory,
+            boolean isNumberOfPartitionConsumerUndefined) {
         BufferCompressor bufferCompressor = null;
         if (type.supportCompression() && batchShuffleCompressionEnabled) {
             bufferCompressor = new BufferCompressor(networkBufferSize, compressionCodec);
@@ -250,7 +252,8 @@ public class ResultPartitionFactory {
                                         bufferPoolFactory,
                                         channelManager,
                                         batchShuffleReadBufferPool,
-                                        batchShuffleReadIOExecutor);
+                                        batchShuffleReadIOExecutor,
+                                        isNumberOfPartitionConsumerUndefined);
             } else {
                 partition =
                         new HsResultPartition(
@@ -273,6 +276,8 @@ public class ResultPartitionFactory {
         } else {
             throw new IllegalArgumentException("Unrecognized ResultPartitionType: " + type);
         }
+
+        partition.isNumberOfPartitionConsumerUndefined(isNumberOfPartitionConsumerUndefined);
 
         LOG.debug("{}: Initialized {}", taskNameWithSubtaskAndId, this);
 
@@ -355,7 +360,7 @@ public class ResultPartitionFactory {
     SupplierWithException<BufferPool, IOException> createBufferPoolFactory(
             int numberOfSubpartitions, ResultPartitionType type) {
         return () -> {
-            Pair<Integer, Integer> pair =
+            Tuple3<Integer, Integer, Integer> tuple =
                     NettyShuffleUtils.getMinMaxNetworkBuffersPerResultPartition(
                             configuredNetworkBuffersPerChannel,
                             floatingNetworkBuffersPerGate,
@@ -367,13 +372,26 @@ public class ResultPartitionFactory {
                                     .map(
                                             storage ->
                                                     storage.getTieredStorageConfiguration()
+                                                            .getMemoryDecouplingEnabled())
+                                    .orElse(false),
+                            tieredStorage
+                                    .map(
+                                            storage ->
+                                                    storage.getTieredStorageConfiguration()
                                                             .getTotalExclusiveBufferNum())
+                                    .orElse(0),
+                            tieredStorage
+                                    .map(
+                                            storage ->
+                                                    storage.getTieredStorageConfiguration()
+                                                            .getMinBuffersPerResultPartition())
                                     .orElse(0),
                             type);
 
             return bufferPoolFactory.createBufferPool(
-                    pair.getLeft(),
-                    pair.getRight(),
+                    tuple.f0,
+                    tuple.f1,
+                    tuple.f2,
                     numberOfSubpartitions,
                     maxBuffersPerChannel,
                     isOverdraftBufferNeeded(type) ? maxOverdraftBuffersPerGate : 0);

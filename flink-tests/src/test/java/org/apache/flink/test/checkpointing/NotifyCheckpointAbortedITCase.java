@@ -27,10 +27,11 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.StateRecoveryOptions;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -40,7 +41,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
-import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesFactory;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
@@ -61,7 +61,6 @@ import org.apache.flink.runtime.state.SnapshotStrategyRunner;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
@@ -115,8 +114,8 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
     @Before
     public void setup() throws Exception {
         Configuration configuration = new Configuration();
-        configuration.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, true);
-        configuration.setString(HighAvailabilityOptions.HA_MODE, TestingHAFactory.class.getName());
+        configuration.set(StateRecoveryOptions.LOCAL_RECOVERY, true);
+        configuration.set(HighAvailabilityOptions.HA_MODE, TestingHAFactory.class.getName());
 
         checkpointPath = new Path(TEMPORARY_FOLDER.newFolder().toURI());
         cluster =
@@ -397,15 +396,11 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
 
         @Override
         public OperatorStateBackend createOperatorStateBackend(
-                Environment env,
-                String operatorIdentifier,
-                @Nonnull Collection<OperatorStateHandle> stateHandles,
-                CloseableRegistry cancelStreamRegistry)
-                throws BackendBuildingException {
-            if (operatorIdentifier.contains(DECLINE_SINK_NAME)) {
+                OperatorStateBackendParameters parameters) throws BackendBuildingException {
+            if (parameters.getOperatorIdentifier().contains(DECLINE_SINK_NAME)) {
                 CloseableRegistry registryForBackend = new CloseableRegistry();
                 return new DeclineSinkFailingOperatorStateBackend(
-                        env.getExecutionConfig(),
+                        parameters.getEnv().getExecutionConfig(),
                         registryForBackend,
                         new SnapshotStrategyRunner<>(
                                 "StuckAsyncSnapshotStrategy",
@@ -414,11 +409,11 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
                                 ASYNCHRONOUS));
             } else {
                 return new DefaultOperatorStateBackendBuilder(
-                                env.getUserCodeClassLoader().asClassLoader(),
-                                env.getExecutionConfig(),
+                                parameters.getEnv().getUserCodeClassLoader().asClassLoader(),
+                                parameters.getEnv().getExecutionConfig(),
                                 false,
-                                stateHandles,
-                                cancelStreamRegistry)
+                                parameters.getStateHandles(),
+                                parameters.getCancelStreamRegistry())
                         .build();
             }
         }

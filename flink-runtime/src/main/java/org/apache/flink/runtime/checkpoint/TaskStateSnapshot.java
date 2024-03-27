@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CompositeStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -38,6 +39,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor.NO_RESCALE;
 
@@ -159,15 +161,16 @@ public class TaskStateSnapshot implements CompositeStateHandle {
 
     @Override
     public long getStateSize() {
-        long size = 0L;
+        return streamOperatorSubtaskStates().mapToLong(StateObject::getStateSize).sum();
+    }
 
-        for (OperatorSubtaskState subtaskState : subtaskStatesByOperatorID.values()) {
-            if (subtaskState != null) {
-                size += subtaskState.getStateSize();
-            }
-        }
+    @Override
+    public void collectSizeStats(StateObjectSizeStatsCollector collector) {
+        streamOperatorSubtaskStates().forEach(oss -> oss.collectSizeStats(collector));
+    }
 
-        return size;
+    private Stream<OperatorSubtaskState> streamOperatorSubtaskStates() {
+        return subtaskStatesByOperatorID.values().stream().filter(Objects::nonNull);
     }
 
     @Override

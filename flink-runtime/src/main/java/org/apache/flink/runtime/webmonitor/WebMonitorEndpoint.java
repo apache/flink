@@ -21,10 +21,10 @@ package org.apache.flink.runtime.webmonitor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
@@ -41,6 +41,9 @@ import org.apache.flink.runtime.rest.handler.cluster.JobManagerCustomLogHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerEnvironmentHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerLogFileHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerLogListHandler;
+import org.apache.flink.runtime.rest.handler.cluster.JobManagerProfilingFileHandler;
+import org.apache.flink.runtime.rest.handler.cluster.JobManagerProfilingHandler;
+import org.apache.flink.runtime.rest.handler.cluster.JobManagerProfilingListHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerThreadDumpHandler;
 import org.apache.flink.runtime.rest.handler.cluster.ShutdownHandler;
 import org.apache.flink.runtime.rest.handler.dataset.ClusterDataSetDeleteHandlers;
@@ -98,6 +101,9 @@ import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerCustomLogHan
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerDetailsHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogFileHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogListHandler;
+import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerProfilingFileHandler;
+import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerProfilingHandler;
+import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerProfilingListHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerStdoutFileHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerThreadDumpHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagersHandler;
@@ -131,6 +137,9 @@ import org.apache.flink.runtime.rest.messages.checkpoints.TaskCheckpointStatisti
 import org.apache.flink.runtime.rest.messages.cluster.JobManagerCustomLogHeaders;
 import org.apache.flink.runtime.rest.messages.cluster.JobManagerLogFileHeader;
 import org.apache.flink.runtime.rest.messages.cluster.JobManagerLogListHeaders;
+import org.apache.flink.runtime.rest.messages.cluster.JobManagerProfilingFileHeaders;
+import org.apache.flink.runtime.rest.messages.cluster.JobManagerProfilingHeaders;
+import org.apache.flink.runtime.rest.messages.cluster.JobManagerProfilingListHeaders;
 import org.apache.flink.runtime.rest.messages.cluster.JobManagerStdoutFileHeader;
 import org.apache.flink.runtime.rest.messages.cluster.JobManagerThreadDumpHeaders;
 import org.apache.flink.runtime.rest.messages.cluster.ShutdownHeaders;
@@ -146,6 +155,9 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerCustomLogHe
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerLogFileHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerLogsHeaders;
+import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerProfilingFileHeaders;
+import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerProfilingHeaders;
+import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerProfilingListHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerStdoutFileHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerThreadDumpHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
@@ -255,7 +267,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
     }
 
     private VertexThreadInfoTracker initializeThreadInfoTracker(ScheduledExecutorService executor) {
-        final Duration askTimeout = clusterConfiguration.get(AkkaOptions.ASK_TIMEOUT_DURATION);
+        final Duration askTimeout = clusterConfiguration.get(RpcOptions.ASK_TIMEOUT_DURATION);
 
         final Duration flameGraphCleanUpInterval =
                 clusterConfiguration.get(RestOptions.FLAMEGRAPH_CLEANUP_INTERVAL);
@@ -266,12 +278,12 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                         resourceManagerRetriever, executor, restConfiguration.getTimeout())
                 .setCoordinator(threadInfoRequestCoordinator)
                 .setCleanUpInterval(flameGraphCleanUpInterval)
-                .setNumSamples(clusterConfiguration.getInteger(RestOptions.FLAMEGRAPH_NUM_SAMPLES))
+                .setNumSamples(clusterConfiguration.get(RestOptions.FLAMEGRAPH_NUM_SAMPLES))
                 .setStatsRefreshInterval(
                         clusterConfiguration.get(RestOptions.FLAMEGRAPH_REFRESH_INTERVAL))
                 .setDelayBetweenSamples(clusterConfiguration.get(RestOptions.FLAMEGRAPH_DELAY))
                 .setMaxThreadInfoDepth(
-                        clusterConfiguration.getInteger(RestOptions.FLAMEGRAPH_STACK_TRACE_DEPTH))
+                        clusterConfiguration.get(RestOptions.FLAMEGRAPH_STACK_TRACE_DEPTH))
                 .build();
     }
 
@@ -540,7 +552,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 new JobExecutionResultHandler(leaderRetriever, timeout, responseHeaders);
 
         final String defaultSavepointDir =
-                clusterConfiguration.getString(CheckpointingOptions.SAVEPOINT_DIRECTORY);
+                clusterConfiguration.get(CheckpointingOptions.SAVEPOINT_DIRECTORY);
 
         final SavepointHandlers savepointHandlers = new SavepointHandlers(defaultSavepointDir);
 
@@ -958,9 +970,83 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
         handlers.add(
                 Tuple2.of(JobManagerThreadDumpHeaders.getInstance(), jobManagerThreadDumpHandler));
 
-        // TaskManager log and stdout file handler
-
         final Time cacheEntryDuration = Time.milliseconds(restConfiguration.getRefreshInterval());
+
+        // load profiler relative handlers
+        if (clusterConfiguration.get(RestOptions.ENABLE_PROFILER)) {
+            final JobManagerProfilingHandler jobManagerProfilingHandler =
+                    new JobManagerProfilingHandler(
+                            leaderRetriever,
+                            timeout,
+                            responseHeaders,
+                            JobManagerProfilingHeaders.getInstance(),
+                            clusterConfiguration);
+            final JobManagerProfilingListHandler jobManagerProfilingListHandler =
+                    new JobManagerProfilingListHandler(
+                            leaderRetriever,
+                            timeout,
+                            responseHeaders,
+                            JobManagerProfilingListHeaders.getInstance(),
+                            clusterConfiguration);
+            final JobManagerProfilingFileHandler jobManagerProfilingFileHandler =
+                    new JobManagerProfilingFileHandler(
+                            leaderRetriever,
+                            timeout,
+                            responseHeaders,
+                            JobManagerProfilingFileHeaders.getInstance(),
+                            clusterConfiguration);
+
+            final TaskManagerProfilingHandler taskManagerProfilingHandler =
+                    new TaskManagerProfilingHandler(
+                            leaderRetriever,
+                            timeout,
+                            responseHeaders,
+                            TaskManagerProfilingHeaders.getInstance(),
+                            resourceManagerRetriever,
+                            clusterConfiguration);
+
+            final TaskManagerProfilingListHandler taskManagerProfilingListHandler =
+                    new TaskManagerProfilingListHandler(
+                            leaderRetriever,
+                            timeout,
+                            responseHeaders,
+                            TaskManagerProfilingListHeaders.getInstance(),
+                            resourceManagerRetriever);
+            final TaskManagerProfilingFileHandler taskManagerProfilingFileHandler =
+                    new TaskManagerProfilingFileHandler(
+                            leaderRetriever,
+                            timeout,
+                            responseHeaders,
+                            TaskManagerProfilingFileHeaders.getInstance(),
+                            resourceManagerRetriever,
+                            transientBlobService,
+                            cacheEntryDuration);
+            handlers.add(
+                    Tuple2.of(
+                            JobManagerProfilingHeaders.getInstance(), jobManagerProfilingHandler));
+            handlers.add(
+                    Tuple2.of(
+                            JobManagerProfilingListHeaders.getInstance(),
+                            jobManagerProfilingListHandler));
+            handlers.add(
+                    Tuple2.of(
+                            JobManagerProfilingFileHeaders.getInstance(),
+                            jobManagerProfilingFileHandler));
+            handlers.add(
+                    Tuple2.of(
+                            TaskManagerProfilingHeaders.getInstance(),
+                            taskManagerProfilingHandler));
+            handlers.add(
+                    Tuple2.of(
+                            TaskManagerProfilingListHeaders.getInstance(),
+                            taskManagerProfilingListHandler));
+            handlers.add(
+                    Tuple2.of(
+                            TaskManagerProfilingFileHeaders.getInstance(),
+                            taskManagerProfilingFileHandler));
+        }
+
+        // TaskManager log and stdout file handler
 
         final TaskManagerLogFileHandler taskManagerLogFileHandler =
                 new TaskManagerLogFileHandler(

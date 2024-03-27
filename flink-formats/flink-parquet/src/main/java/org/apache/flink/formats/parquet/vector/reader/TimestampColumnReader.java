@@ -159,8 +159,8 @@ public class TimestampColumnReader extends AbstractColumnReader<WritableTimestam
 
     public static TimestampData int64ToTimestamp(
             boolean utcTimestamp, long value, LogicalTypeAnnotation.TimeUnit timeUnit) {
-        long nanosOfMillisecond = 0L;
-        long milliseconds = 0L;
+        final long nanosOfMillisecond;
+        final long milliseconds;
 
         switch (timeUnit) {
             case MILLIS:
@@ -176,7 +176,7 @@ public class TimestampColumnReader extends AbstractColumnReader<WritableTimestam
                 nanosOfMillisecond = value % NANOS_PER_SECOND;
                 break;
             default:
-                break;
+                throw new IllegalArgumentException("Invalid time unit: " + timeUnit);
         }
 
         if (utcTimestamp) {

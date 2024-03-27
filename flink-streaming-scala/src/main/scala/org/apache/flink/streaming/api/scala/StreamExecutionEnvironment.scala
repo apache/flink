@@ -30,10 +30,10 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.configuration.{Configuration, ReadableConfig}
-import org.apache.flink.core.execution.{JobClient, JobListener}
+import org.apache.flink.core.execution.{CheckpointingMode, JobClient, JobListener}
 import org.apache.flink.core.fs.Path
 import org.apache.flink.runtime.state.StateBackend
-import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
+import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.environment.{CheckpointConfig, StreamExecutionEnvironment => JavaEnv}
 import org.apache.flink.streaming.api.functions.source._
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
@@ -202,9 +202,36 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) extends AutoCloseable {
   @PublicEvolving
   def enableCheckpointing(
       interval: Long,
-      mode: CheckpointingMode,
+      mode: org.apache.flink.streaming.api.CheckpointingMode,
       force: Boolean): StreamExecutionEnvironment = {
     javaEnv.enableCheckpointing(interval, mode, force)
+    this
+  }
+
+  /**
+   * Enables checkpointing for the streaming job. The distributed state of the streaming dataflow
+   * will be periodically snapshotted. In case of a failure, the streaming dataflow will be
+   * restarted from the latest completed checkpoint.
+   *
+   * The job draws checkpoints periodically, in the given interval. The system uses the given
+   * [[org.apache.flink.streaming.api.CheckpointingMode]] for the checkpointing ("exactly once" vs
+   * "at least once"). The state will be stored in the configured state backend.
+   *
+   * NOTE: Checkpointing iterative streaming dataflows in not properly supported at the moment. For
+   * that reason, iterative jobs will not be started if used with enabled checkpointing.
+   *
+   * @param interval
+   *   Time interval between state checkpoints in milliseconds.
+   * @param mode
+   *   The checkpointing mode, selecting between "exactly once" and "at least once" guarantees.
+   * @deprecated
+   *   Use [[enableCheckpointing(Long, CheckpointingMode)]] instead.
+   */
+  @deprecated
+  def enableCheckpointing(
+      interval: Long,
+      mode: org.apache.flink.streaming.api.CheckpointingMode): StreamExecutionEnvironment = {
+    javaEnv.enableCheckpointing(interval, mode)
     this
   }
 
@@ -218,8 +245,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) extends AutoCloseable {
    * be stored in the configured state backend.
    *
    * NOTE: Checkpointing iterative streaming dataflows in not properly supported at the moment. For
-   * that reason, iterative jobs will not be started if used with enabled checkpointing. To override
-   * this mechanism, use the [[enableCheckpointing(long, CheckpointingMode, boolean)]] method.
+   * that reason, iterative jobs will not be started if used with enabled checkpointing.
    *
    * @param interval
    *   Time interval between state checkpoints in milliseconds.
@@ -241,8 +267,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) extends AutoCloseable {
    * backend.
    *
    * NOTE: Checkpointing iterative streaming dataflows in not properly supported at the moment. For
-   * that reason, iterative jobs will not be started if used with enabled checkpointing. To override
-   * this mechanism, use the [[enableCheckpointing(long, CheckpointingMode, boolean)]] method.
+   * that reason, iterative jobs will not be started if used with enabled checkpointing.
    *
    * @param interval
    *   Time interval between state checkpoints in milliseconds.
@@ -266,7 +291,11 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) extends AutoCloseable {
     this
   }
 
+  /** @deprecated Use [[getCheckpointingConsistencyMode()]] instead. */
+  @deprecated
   def getCheckpointingMode = javaEnv.getCheckpointingMode()
+
+  def getCheckpointingConsistencyMode = javaEnv.getCheckpointingConsistencyMode()
 
   /**
    * Sets the state backend that describes how to store operator. It defines the data structures

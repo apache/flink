@@ -91,6 +91,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.RestartStrategyOptions.RestartStrategyType.FIXED_DELAY;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
@@ -327,15 +328,15 @@ class YARNHighAvailabilityITCase extends YarnTestBase {
         final Configuration flinkConfiguration = new Configuration();
         flinkConfiguration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(768));
         flinkConfiguration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
-        flinkConfiguration.setString(YarnConfigOptions.APPLICATION_ATTEMPTS, "10");
-        flinkConfiguration.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
-        flinkConfiguration.setString(HighAvailabilityOptions.HA_STORAGE_PATH, storageDir);
-        flinkConfiguration.setString(
+        flinkConfiguration.set(YarnConfigOptions.APPLICATION_ATTEMPTS, "10");
+        flinkConfiguration.set(HighAvailabilityOptions.HA_MODE, "zookeeper");
+        flinkConfiguration.set(HighAvailabilityOptions.HA_STORAGE_PATH, storageDir);
+        flinkConfiguration.set(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkServer.getConnectString());
-        flinkConfiguration.setInteger(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, 20000);
+        flinkConfiguration.set(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, 20000);
 
-        flinkConfiguration.setString(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
-        flinkConfiguration.setInteger(
+        flinkConfiguration.set(RestartStrategyOptions.RESTART_STRATEGY, FIXED_DELAY.getMainValue());
+        flinkConfiguration.set(
                 RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
 
         return createYarnClusterDescriptor(flinkConfiguration);

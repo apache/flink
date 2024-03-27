@@ -81,7 +81,12 @@ public class UnpooledBufferPool implements BufferPool {
     }
 
     @Override
-    public int getNumberOfRequiredMemorySegments() {
+    public int getExpectedNumberOfMemorySegments() {
+        return Integer.MAX_VALUE;
+    }
+
+    @Override
+    public int getMinNumberOfMemorySegments() {
         return Integer.MAX_VALUE;
     }
 

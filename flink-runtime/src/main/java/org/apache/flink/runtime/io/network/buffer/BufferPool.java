@@ -40,8 +40,14 @@ public interface BufferPool extends BufferProvider, BufferRecycler {
     @Override
     boolean isDestroyed();
 
+    /**
+     * Returns the number of expected memory segments of this buffer pool, representing a value that
+     * adequately satisfies the requirements for buffer usage.
+     */
+    int getExpectedNumberOfMemorySegments();
+
     /** Returns the number of guaranteed (minimum number of) memory segments of this buffer pool. */
-    int getNumberOfRequiredMemorySegments();
+    int getMinNumberOfMemorySegments();
 
     /**
      * Returns the maximum number of memory segments this buffer pool should use.

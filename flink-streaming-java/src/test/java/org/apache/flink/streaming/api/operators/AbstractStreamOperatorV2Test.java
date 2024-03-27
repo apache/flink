@@ -26,24 +26,25 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributesBuilder;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.KeyedMultiInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.empty;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the facilities provided by {@link AbstractStreamOperatorV2}. */
-public class AbstractStreamOperatorV2Test extends AbstractStreamOperatorTest {
+class AbstractStreamOperatorV2Test extends AbstractStreamOperatorTest {
     @Override
     protected KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
             createTestHarness(int maxParalelism, int numSubtasks, int subtaskIndex)
@@ -71,7 +72,7 @@ public class AbstractStreamOperatorV2Test extends AbstractStreamOperatorTest {
     }
 
     @Test
-    public void testIdleWatermarkHandling() throws Exception {
+    void testIdleWatermarkHandling() throws Exception {
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
         KeySelector<Long, Integer> dummyKeySelector = l -> 0;
         try (KeyedMultiInputStreamOperatorTestHarness<Integer, Long> testHarness =
@@ -86,7 +87,7 @@ public class AbstractStreamOperatorV2Test extends AbstractStreamOperatorTest {
             testHarness.processElement(0, new StreamRecord<>(3L, 3L));
             testHarness.processElement(0, new StreamRecord<>(4L, 4L));
             testHarness.processWatermark(0, new Watermark(1L));
-            assertThat(testHarness.getOutput(), empty());
+            assertThat(testHarness.getOutput()).isEmpty();
 
             testHarness.processWatermarkStatus(1, WatermarkStatus.IDLE);
             TestHarnessUtil.assertOutputEquals(
@@ -112,7 +113,7 @@ public class AbstractStreamOperatorV2Test extends AbstractStreamOperatorTest {
     }
 
     @Test
-    public void testIdlenessForwarding() throws Exception {
+    void testIdlenessForwarding() throws Exception {
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
         try (KeyedMultiInputStreamOperatorTestHarness<Integer, Long> testHarness =
                 new KeyedMultiInputStreamOperatorTestHarness<>(
@@ -126,6 +127,39 @@ public class AbstractStreamOperatorV2Test extends AbstractStreamOperatorTest {
                     "Output was not correct", expectedOutput, testHarness.getOutput());
             testHarness.processWatermarkStatus(2, WatermarkStatus.IDLE);
             expectedOutput.add(WatermarkStatus.IDLE);
+            TestHarnessUtil.assertOutputEquals(
+                    "Output was not correct", expectedOutput, testHarness.getOutput());
+        }
+    }
+
+    @Test
+    void testRecordAttributesForwarding() throws Exception {
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        try (KeyedMultiInputStreamOperatorTestHarness<Integer, Long> testHarness =
+                new KeyedMultiInputStreamOperatorTestHarness<>(
+                        new WatermarkTestingOperatorFactory(), BasicTypeInfo.INT_TYPE_INFO)) {
+            testHarness.setup();
+            testHarness.open();
+
+            final RecordAttributes backlogRecordAttributes =
+                    new RecordAttributesBuilder(Collections.emptyList()).setBacklog(true).build();
+            final RecordAttributes nonBacklogRecordAttributes =
+                    new RecordAttributesBuilder(Collections.emptyList()).setBacklog(false).build();
+
+            testHarness.processRecordAttributes(0, backlogRecordAttributes);
+            testHarness.processRecordAttributes(1, backlogRecordAttributes);
+            testHarness.processRecordAttributes(2, backlogRecordAttributes);
+            expectedOutput.add(backlogRecordAttributes);
+            expectedOutput.add(backlogRecordAttributes);
+            expectedOutput.add(backlogRecordAttributes);
+
+            testHarness.processRecordAttributes(0, nonBacklogRecordAttributes);
+            testHarness.processRecordAttributes(1, nonBacklogRecordAttributes);
+            testHarness.processRecordAttributes(2, nonBacklogRecordAttributes);
+            expectedOutput.add(backlogRecordAttributes);
+            expectedOutput.add(backlogRecordAttributes);
+            expectedOutput.add(nonBacklogRecordAttributes);
+
             TestHarnessUtil.assertOutputEquals(
                     "Output was not correct", expectedOutput, testHarness.getOutput());
         }

@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.rpc.pekko;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -130,8 +130,7 @@ public class PekkoRpcServiceUtils {
         checkNotNull(config, "config is null");
 
         final boolean sslEnabled =
-                config.getBoolean(AkkaOptions.SSL_ENABLED)
-                        && SecurityOptions.isInternalSSLEnabled(config);
+                config.get(RpcOptions.SSL_ENABLED) && SecurityOptions.isInternalSSLEnabled(config);
 
         return getRpcUrl(
                 hostname,
@@ -233,7 +232,7 @@ public class PekkoRpcServiceUtils {
     // ------------------------------------------------------------------------
 
     public static long extractMaximumFramesize(Configuration configuration) {
-        String maxFrameSizeStr = configuration.getString(AkkaOptions.FRAMESIZE);
+        String maxFrameSizeStr = configuration.get(RpcOptions.FRAMESIZE);
         String configStr = String.format(SIMPLE_CONFIG_TEMPLATE, maxFrameSizeStr);
         Config config = ConfigFactory.parseString(configStr);
         return config.getBytes(MAXIMUM_FRAME_SIZE_PATH);

@@ -106,27 +106,34 @@ public class DefaultVertexParallelismAndInputInfosDecider
             JobVertexID jobVertexId,
             List<BlockingResultInfo> consumedResults,
             int vertexInitialParallelism,
+            int vertexMinParallelism,
             int vertexMaxParallelism) {
         checkArgument(
                 vertexInitialParallelism == ExecutionConfig.PARALLELISM_DEFAULT
                         || vertexInitialParallelism > 0);
-        checkArgument(vertexMaxParallelism > 0 && vertexMaxParallelism >= vertexInitialParallelism);
+        checkArgument(
+                vertexMinParallelism == ExecutionConfig.PARALLELISM_DEFAULT
+                        || vertexMinParallelism > 0);
+        checkArgument(
+                vertexMaxParallelism > 0
+                        && vertexMaxParallelism >= vertexInitialParallelism
+                        && vertexMaxParallelism >= vertexMinParallelism);
 
         if (consumedResults.isEmpty()) {
             // source job vertex
             int parallelism =
                     vertexInitialParallelism > 0
                             ? vertexInitialParallelism
-                            : computeSourceParallelism(jobVertexId, vertexMaxParallelism);
+                            : computeSourceParallelismUpperBound(jobVertexId, vertexMaxParallelism);
             return new ParallelismAndInputInfos(parallelism, Collections.emptyMap());
         } else {
-            int minParallelism = globalMinParallelism;
+            int minParallelism = Math.max(globalMinParallelism, vertexMinParallelism);
             int maxParallelism = globalMaxParallelism;
 
             if (vertexInitialParallelism == ExecutionConfig.PARALLELISM_DEFAULT
                     && vertexMaxParallelism < minParallelism) {
                 LOG.info(
-                        "The vertex maximum parallelism {} is smaller than the global minimum parallelism {}. "
+                        "The vertex maximum parallelism {} is smaller than the minimum parallelism {}. "
                                 + "Use {} as the lower bound to decide parallelism of job vertex {}.",
                         vertexMaxParallelism,
                         minParallelism,
@@ -167,11 +174,12 @@ public class DefaultVertexParallelismAndInputInfosDecider
         }
     }
 
-    private int computeSourceParallelism(JobVertexID jobVertexId, int maxParallelism) {
+    @Override
+    public int computeSourceParallelismUpperBound(JobVertexID jobVertexId, int maxParallelism) {
         if (globalDefaultSourceParallelism > maxParallelism) {
             LOG.info(
                     "The global default source parallelism {} is larger than the maximum parallelism {}. "
-                            + "Use {} as the parallelism of source job vertex {}.",
+                            + "Use {} as the upper bound parallelism of source job vertex {}.",
                     globalDefaultSourceParallelism,
                     maxParallelism,
                     maxParallelism,
@@ -180,6 +188,11 @@ public class DefaultVertexParallelismAndInputInfosDecider
         } else {
             return globalDefaultSourceParallelism;
         }
+    }
+
+    @Override
+    public long getDataVolumePerTask() {
+        return dataVolumePerTask;
     }
 
     private static boolean areAllInputsAllToAll(List<BlockingResultInfo> consumedResults) {
@@ -541,12 +554,11 @@ public class DefaultVertexParallelismAndInputInfosDecider
             int maxParallelism, Configuration configuration) {
         return new DefaultVertexParallelismAndInputInfosDecider(
                 maxParallelism,
-                configuration.getInteger(
-                        BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MIN_PARALLELISM),
+                configuration.get(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MIN_PARALLELISM),
                 configuration.get(
                         BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_AVG_DATA_VOLUME_PER_TASK),
                 configuration.get(
-                        BatchExecutionOptions
-                                .ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM));
+                        BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM,
+                        maxParallelism));
     }
 }

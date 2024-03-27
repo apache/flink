@@ -118,15 +118,15 @@ class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamOperator
         final CommittableCollectorSerializer<CommT> committableCollectorSerializer =
                 new CommittableCollectorSerializer<>(
                         committableSerializer,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getMaxNumberOfParallelSubtasks(),
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getMaxNumberOfParallelSubtasks(),
                         metricGroup);
         final SimpleVersionedSerializer<GlobalCommittableWrapper<CommT, GlobalCommT>> serializer =
                 new GlobalCommitterSerializer<>(
                         committableCollectorSerializer,
                         globalCommittableSerializer,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getMaxNumberOfParallelSubtasks(),
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getMaxNumberOfParallelSubtasks(),
                         metricGroup);
         globalCommitterState =
                 new SimpleVersionedListState<>(

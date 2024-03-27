@@ -18,6 +18,10 @@
 package org.apache.flink.streaming.api.functions;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.JobInfoImpl;
+import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.common.serialization.SerializationSchema;
@@ -42,7 +46,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.util.OptionalLong;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link PrintSink}. */
 class PrintSinkTest {
@@ -80,8 +84,8 @@ class PrintSinkTest {
         try (SinkWriter<String> writer = printSink.createWriter(new MockInitContext(1))) {
             writer.write("hello world!", new MockContext());
 
-            assertEquals("Print to System.out", printSink.toString());
-            assertEquals("hello world!" + line, arrayOutputStream.toString());
+            assertThat(printSink).hasToString("Print to System.out");
+            assertThat(arrayOutputStream).hasToString("hello world!" + line);
         }
     }
 
@@ -92,8 +96,8 @@ class PrintSinkTest {
         try (SinkWriter<String> writer = printSink.createWriter(new MockInitContext(1))) {
             writer.write("hello world!", new MockContext());
 
-            assertEquals("Print to System.err", printSink.toString());
-            assertEquals("hello world!" + line, arrayErrorStream.toString());
+            assertThat(printSink).hasToString("Print to System.err");
+            assertThat(arrayErrorStream).hasToString("hello world!" + line);
         }
     }
 
@@ -104,8 +108,8 @@ class PrintSinkTest {
         try (SinkWriter<String> writer = printSink.createWriter(new MockInitContext(1))) {
             writer.write("hello world!", new MockContext());
 
-            assertEquals("Print to System.err", printSink.toString());
-            assertEquals("mySink> hello world!" + line, arrayErrorStream.toString());
+            assertThat(printSink).hasToString("Print to System.err");
+            assertThat(arrayErrorStream).hasToString("mySink> hello world!" + line);
         }
     }
 
@@ -116,8 +120,8 @@ class PrintSinkTest {
         try (SinkWriter<String> writer = printSink.createWriter(new MockInitContext(2))) {
             writer.write("hello world!", new MockContext());
 
-            assertEquals("Print to System.out", printSink.toString());
-            assertEquals("1> hello world!" + line, arrayOutputStream.toString());
+            assertThat(printSink).hasToString("Print to System.out");
+            assertThat(arrayOutputStream).hasToString("1> hello world!" + line);
         }
     }
 
@@ -128,8 +132,8 @@ class PrintSinkTest {
         try (SinkWriter<String> writer = printSink.createWriter(new MockInitContext(2))) {
             writer.write("hello world!", new MockContext());
 
-            assertEquals("Print to System.out", printSink.toString());
-            assertEquals("mySink:1> hello world!" + line, arrayOutputStream.toString());
+            assertThat(printSink).hasToString("Print to System.out");
+            assertThat(arrayOutputStream).hasToString("mySink:1> hello world!" + line);
         }
     }
 
@@ -140,8 +144,8 @@ class PrintSinkTest {
         try (SinkWriter<String> writer = printSink.createWriter(new MockInitContext(1))) {
             writer.write("hello world!", new MockContext());
 
-            assertEquals("Print to System.out", printSink.toString());
-            assertEquals("mySink> hello world!" + line, arrayOutputStream.toString());
+            assertThat(printSink).hasToString("Print to System.out");
+            assertThat(arrayOutputStream).hasToString("mySink> hello world!" + line);
         }
     }
 
@@ -159,12 +163,15 @@ class PrintSinkTest {
     }
 
     private static class MockInitContext
-            implements Sink.WriterInitContext, SerializationSchema.InitializationContext {
+            implements Sink.InitContext, SerializationSchema.InitializationContext {
 
-        private final int numSubtasks;
+        private final JobInfo jobInfo;
+
+        private final TaskInfo taskInfo;
 
         private MockInitContext(int numSubtasks) {
-            this.numSubtasks = numSubtasks;
+            this.jobInfo = new JobInfoImpl(new JobID(), "MockJob");
+            this.taskInfo = new TaskInfoImpl("MockTask", numSubtasks + 1, 0, numSubtasks, 0);
         }
 
         @Override
@@ -180,21 +187,6 @@ class PrintSinkTest {
         @Override
         public ProcessingTimeService getProcessingTimeService() {
             return new TestProcessingTimeService();
-        }
-
-        @Override
-        public int getSubtaskId() {
-            return 0;
-        }
-
-        @Override
-        public int getNumberOfParallelSubtasks() {
-            return numSubtasks;
-        }
-
-        @Override
-        public int getAttemptNumber() {
-            return 0;
         }
 
         @Override
@@ -229,8 +221,13 @@ class PrintSinkTest {
         }
 
         @Override
-        public JobID getJobId() {
-            return null;
+        public JobInfo getJobInfo() {
+            return jobInfo;
+        }
+
+        @Override
+        public TaskInfo getTaskInfo() {
+            return taskInfo;
         }
     }
 

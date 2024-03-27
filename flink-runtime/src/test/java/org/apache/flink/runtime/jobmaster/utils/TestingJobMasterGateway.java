@@ -31,6 +31,7 @@ import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -47,7 +48,6 @@ import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.jobmaster.TaskManagerRegistrationInformation;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
-import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
@@ -128,7 +128,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     @Nonnull
     private final Function<ResourceID, CompletableFuture<Void>> resourceManagerHeartbeatFunction;
 
-    @Nonnull private final Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier;
+    @Nonnull private final Supplier<CompletableFuture<JobStatus>> requestJobStatusSupplier;
 
     @Nonnull private final Supplier<CompletableFuture<ExecutionGraphInfo>> requestJobSupplier;
 
@@ -243,7 +243,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
                                     CompletableFuture<Void>>
                             taskManagerHeartbeatFunction,
             @Nonnull Function<ResourceID, CompletableFuture<Void>> resourceManagerHeartbeatFunction,
-            @Nonnull Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier,
+            @Nonnull Supplier<CompletableFuture<JobStatus>> requestJobStatusSupplier,
             @Nonnull Supplier<CompletableFuture<ExecutionGraphInfo>> requestJobSupplier,
             @Nonnull
                     Supplier<CompletableFuture<CheckpointStatsSnapshot>>
@@ -326,7 +326,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
         this.registerTaskManagerFunction = registerTaskManagerFunction;
         this.taskManagerHeartbeatFunction = taskManagerHeartbeatFunction;
         this.resourceManagerHeartbeatFunction = resourceManagerHeartbeatFunction;
-        this.requestJobDetailsSupplier = requestJobDetailsSupplier;
+        this.requestJobStatusSupplier = requestJobStatusSupplier;
         this.requestJobSupplier = requestJobSupplier;
         this.checkpointStatsSnapshotSupplier = checkpointStatsSnapshotSupplier;
         this.triggerSavepointFunction = triggerSavepointFunction;
@@ -412,13 +412,8 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     }
 
     @Override
-    public CompletableFuture<JobDetails> requestJobDetails(Time timeout) {
-        return requestJobDetailsSupplier.get();
-    }
-
-    @Override
     public CompletableFuture<JobStatus> requestJobStatus(Time timeout) {
-        return requestJobDetailsSupplier.get().thenApply(JobDetails::getStatus);
+        return requestJobStatusSupplier.get();
     }
 
     @Override
@@ -488,6 +483,10 @@ public class TestingJobMasterGateway implements JobMasterGateway {
             ExecutionAttemptID executionAttemptID,
             long checkpointId,
             CheckpointMetrics checkpointMetrics) {}
+
+    @Override
+    public void reportInitializationMetrics(
+            JobID jobId, SubTaskInitializationMetrics initializationMetrics) {}
 
     @Override
     public JobMasterId getFencingToken() {

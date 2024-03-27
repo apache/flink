@@ -28,9 +28,12 @@ import java.util.List;
 public class PbFormatContext {
     private final PbFormatConfig pbFormatConfig;
     private final List<String> splitMethodStack = new ArrayList<>();
+    private final boolean readDefaultValuesForPrimitiveTypes;
 
-    public PbFormatContext(PbFormatConfig pbFormatConfig) {
+    public PbFormatContext(
+            PbFormatConfig pbFormatConfig, boolean readDefaultValuesForPrimitiveTypes) {
         this.pbFormatConfig = pbFormatConfig;
+        this.readDefaultValuesForPrimitiveTypes = readDefaultValuesForPrimitiveTypes;
     }
 
     private String createSplitMethod(
@@ -72,5 +75,9 @@ public class PbFormatContext {
 
     public PbFormatConfig getPbFormatConfig() {
         return pbFormatConfig;
+    }
+
+    public boolean getReadDefaultValuesForPrimitiveTypes() {
+        return readDefaultValuesForPrimitiveTypes;
     }
 }

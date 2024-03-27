@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
 
 import java.util.Collection;
 import java.util.concurrent.Executor;

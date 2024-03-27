@@ -272,6 +272,11 @@ public class SharedBuffer<V> {
                 iterator.remove();
             }
         }
+
+        // memory leak resolution
+        if (eventsCount.isEmpty()) {
+            eventsCount.clear();
+        }
     }
 
     EventId registerEvent(V value, long timestamp) throws Exception {

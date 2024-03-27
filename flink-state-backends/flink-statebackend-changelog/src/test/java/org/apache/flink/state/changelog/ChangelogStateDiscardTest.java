@@ -274,7 +274,7 @@ public class ChangelogStateDiscardTest {
                                 LatencyTrackingStateConfig.disabled(),
                                 emptyList(),
                                 UncompressedStreamCompressionDecorator.INSTANCE,
-                                new LocalRecoveryConfig(null),
+                                LocalRecoveryConfig.BACKUP_AND_RECOVERY_DISABLED,
                                 new HeapPriorityQueueSetFactory(
                                         kgRange, kgRange.getNumberOfKeyGroups(), 128),
                                 true,
@@ -289,7 +289,7 @@ public class ChangelogStateDiscardTest {
                 writer,
                 emptyList(),
                 new MemoryBackendCheckpointStorageAccess(
-                        jobId, null, null, 1 /* don't expect any materialization */));
+                        jobId, null, null, true, 1 /* don't expect any materialization */));
     }
 
     private static String randomString() {

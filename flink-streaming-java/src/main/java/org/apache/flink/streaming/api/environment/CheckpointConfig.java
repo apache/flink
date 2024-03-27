@@ -27,13 +27,14 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.configuration.description.InlineElement;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -71,9 +72,9 @@ public class CheckpointConfig implements java.io.Serializable {
      * The default checkpoint mode: exactly once.
      *
      * @deprecated This field is no longer used. Please use {@link
-     *     ExecutionCheckpointingOptions.CHECKPOINTING_MODE} instead.
+     *     ExecutionCheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE} instead.
      */
-    public static final CheckpointingMode DEFAULT_MODE =
+    public static final org.apache.flink.streaming.api.CheckpointingMode DEFAULT_MODE =
             ExecutionCheckpointingOptions.CHECKPOINTING_MODE.defaultValue();
 
     /**
@@ -113,13 +114,11 @@ public class CheckpointConfig implements java.io.Serializable {
      * Default id of checkpoint for which in-flight data should be ignored on recovery.
      *
      * @deprecated This field is no longer used. Please use {@link
-     *     ExecutionCheckpointingOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA} instead.
+     *     StateRecoveryOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA} instead.
      */
     @Deprecated
     public static final int DEFAULT_CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA =
-            ExecutionCheckpointingOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA
-                    .defaultValue()
-                    .intValue();
+            StateRecoveryOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA.defaultValue().intValue();
 
     // --------------------------------------------------------------------------------------------
 
@@ -153,6 +152,11 @@ public class CheckpointConfig implements java.io.Serializable {
         configuration = new Configuration();
     }
 
+    @Internal
+    public CheckpointConfig(Configuration configuration) {
+        this.configuration = configuration;
+    }
+
     // ------------------------------------------------------------------------
 
     /** Disables checkpointing. */
@@ -173,8 +177,10 @@ public class CheckpointConfig implements java.io.Serializable {
      * Gets the checkpointing mode (exactly-once vs. at-least-once).
      *
      * @return The checkpointing mode.
+     * @deprecated Use {@link #getCheckpointingConsistencyMode} instead.
      */
-    public CheckpointingMode getCheckpointingMode() {
+    @Deprecated
+    public org.apache.flink.streaming.api.CheckpointingMode getCheckpointingMode() {
         return configuration.get(ExecutionCheckpointingOptions.CHECKPOINTING_MODE);
     }
 
@@ -182,9 +188,31 @@ public class CheckpointConfig implements java.io.Serializable {
      * Sets the checkpointing mode (exactly-once vs. at-least-once).
      *
      * @param checkpointingMode The checkpointing mode.
+     * @deprecated Use {@link #setCheckpointingConsistencyMode} instead.
      */
-    public void setCheckpointingMode(CheckpointingMode checkpointingMode) {
+    @Deprecated
+    public void setCheckpointingMode(
+            org.apache.flink.streaming.api.CheckpointingMode checkpointingMode) {
         configuration.set(ExecutionCheckpointingOptions.CHECKPOINTING_MODE, checkpointingMode);
+    }
+
+    /**
+     * Gets the checkpointing consistency mode (exactly-once vs. at-least-once).
+     *
+     * @return The checkpointing mode.
+     */
+    public CheckpointingMode getCheckpointingConsistencyMode() {
+        return configuration.get(ExecutionCheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE);
+    }
+
+    /**
+     * Sets the checkpointing consistency mode (exactly-once vs. at-least-once).
+     *
+     * @param checkpointingMode The checkpointing mode.
+     */
+    public void setCheckpointingConsistencyMode(CheckpointingMode checkpointingMode) {
+        configuration.set(
+                ExecutionCheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE, checkpointingMode);
     }
 
     /**
@@ -478,9 +506,7 @@ public class CheckpointConfig implements java.io.Serializable {
      * tolerate any declined checkpoint failure.
      */
     public int getTolerableCheckpointFailureNumber() {
-        return configuration
-                .getOptional(ExecutionCheckpointingOptions.TOLERABLE_FAILURE_NUMBER)
-                .orElse(0);
+        return configuration.get(ExecutionCheckpointingOptions.TOLERABLE_FAILURE_NUMBER);
     }
 
     /**
@@ -573,7 +599,8 @@ public class CheckpointConfig implements java.io.Serializable {
      * embedded into the stream of data anymore.
      *
      * <p>Unaligned checkpoints can only be enabled if {@link
-     * ExecutionCheckpointingOptions#CHECKPOINTING_MODE} is {@link CheckpointingMode#EXACTLY_ONCE}.
+     * ExecutionCheckpointingOptions#CHECKPOINTING_CONSISTENCY_MODE} is {@link
+     * CheckpointingMode#EXACTLY_ONCE}.
      *
      * @param enabled Flag to indicate whether unaligned are enabled.
      */
@@ -591,7 +618,8 @@ public class CheckpointConfig implements java.io.Serializable {
      * embedded into the stream of data anymore.
      *
      * <p>Unaligned checkpoints can only be enabled if {@link
-     * ExecutionCheckpointingOptions#CHECKPOINTING_MODE} is {@link CheckpointingMode#EXACTLY_ONCE}.
+     * ExecutionCheckpointingOptions#CHECKPOINTING_CONSISTENCY_MODE} is {@link
+     * CheckpointingMode#EXACTLY_ONCE}.
      */
     @PublicEvolving
     public void enableUnalignedCheckpoints() {
@@ -697,7 +725,7 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @Experimental
     public boolean isApproximateLocalRecoveryEnabled() {
-        return configuration.get(ExecutionCheckpointingOptions.APPROXIMATE_LOCAL_RECOVERY);
+        return configuration.get(StateRecoveryOptions.APPROXIMATE_LOCAL_RECOVERY);
     }
 
     /**
@@ -716,7 +744,7 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @Experimental
     public void enableApproximateLocalRecovery(boolean enabled) {
-        configuration.set(ExecutionCheckpointingOptions.APPROXIMATE_LOCAL_RECOVERY, enabled);
+        configuration.set(StateRecoveryOptions.APPROXIMATE_LOCAL_RECOVERY, enabled);
     }
 
     /**
@@ -795,6 +823,7 @@ public class CheckpointConfig implements java.io.Serializable {
     @PublicEvolving
     public void setCheckpointStorage(String checkpointDirectory) {
         Preconditions.checkNotNull(checkpointDirectory, "Checkpoint directory must not be null");
+        this.configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDirectory);
         this.storage = new FileSystemCheckpointStorage(checkpointDirectory);
     }
 
@@ -823,6 +852,8 @@ public class CheckpointConfig implements java.io.Serializable {
     @PublicEvolving
     public void setCheckpointStorage(URI checkpointDirectory) {
         Preconditions.checkNotNull(checkpointDirectory, "Checkpoint directory must not be null");
+        this.configuration.set(
+                CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDirectory.toString());
         this.storage = new FileSystemCheckpointStorage(checkpointDirectory);
     }
 
@@ -851,6 +882,8 @@ public class CheckpointConfig implements java.io.Serializable {
     @PublicEvolving
     public void setCheckpointStorage(Path checkpointDirectory) {
         Preconditions.checkNotNull(checkpointDirectory, "Checkpoint directory must not be null");
+        this.configuration.set(
+                CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDirectory.toString());
         this.storage = new FileSystemCheckpointStorage(checkpointDirectory);
     }
 
@@ -884,7 +917,7 @@ public class CheckpointConfig implements java.io.Serializable {
     @PublicEvolving
     public void setCheckpointIdOfIgnoredInFlightData(long checkpointIdOfIgnoredInFlightData) {
         configuration.set(
-                ExecutionCheckpointingOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA,
+                StateRecoveryOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA,
                 checkpointIdOfIgnoredInFlightData);
     }
 
@@ -894,8 +927,7 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @PublicEvolving
     public long getCheckpointIdOfIgnoredInFlightData() {
-        return configuration.get(
-                ExecutionCheckpointingOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA);
+        return configuration.get(StateRecoveryOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA);
     }
 
     /** Cleanup behaviour for externalized checkpoints when the job is cancelled. */
@@ -957,7 +989,7 @@ public class CheckpointConfig implements java.io.Serializable {
 
     /**
      * Sets all relevant options contained in the {@link ReadableConfig} such as e.g. {@link
-     * ExecutionCheckpointingOptions#CHECKPOINTING_MODE}.
+     * ExecutionCheckpointingOptions#CHECKPOINTING_CONSISTENCY_MODE}.
      *
      * <p>It will change the value of a setting only if a corresponding option was set in the {@code
      * configuration}. If a key is not present, the current value of a field will remain untouched.
@@ -966,8 +998,8 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     public void configure(ReadableConfig configuration) {
         configuration
-                .getOptional(ExecutionCheckpointingOptions.CHECKPOINTING_MODE)
-                .ifPresent(this::setCheckpointingMode);
+                .getOptional(ExecutionCheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE)
+                .ifPresent(this::setCheckpointingConsistencyMode);
         configuration
                 .getOptional(ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL)
                 .ifPresent(i -> this.setCheckpointInterval(i.toMillis()));
@@ -993,7 +1025,7 @@ public class CheckpointConfig implements java.io.Serializable {
                 .getOptional(ExecutionCheckpointingOptions.ENABLE_UNALIGNED)
                 .ifPresent(this::enableUnalignedCheckpoints);
         configuration
-                .getOptional(ExecutionCheckpointingOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA)
+                .getOptional(StateRecoveryOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA)
                 .ifPresent(this::setCheckpointIdOfIgnoredInFlightData);
         configuration
                 .getOptional(ExecutionCheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT)
@@ -1008,6 +1040,10 @@ public class CheckpointConfig implements java.io.Serializable {
         configuration
                 .getOptional(CheckpointingOptions.CHECKPOINTS_DIRECTORY)
                 .ifPresent(this::setCheckpointStorage);
+        // reset checkpoint storage for backward compatibility
+        configuration
+                .getOptional(CheckpointingOptions.CHECKPOINT_STORAGE)
+                .ifPresent(ignored -> this.storage = null);
     }
 
     /**

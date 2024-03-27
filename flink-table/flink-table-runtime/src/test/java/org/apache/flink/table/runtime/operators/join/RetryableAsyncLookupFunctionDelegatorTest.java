@@ -84,7 +84,7 @@ public class RetryableAsyncLookupFunctionDelegatorTest {
     @Test
     public void testLookupWithRetry() throws Exception {
         final RetryableAsyncLookupFunctionDelegator delegator = createDelegator(retryStrategy);
-        delegator.open(new FunctionContext(new MockStreamingRuntimeContext(false, 1, 1)));
+        delegator.open(new FunctionContext(new MockStreamingRuntimeContext(false, 1, 0)));
         for (int i = 1; i <= 5; i++) {
             RowData key = GenericRowData.of(i);
             assertor.assertOutputEquals(
@@ -99,7 +99,7 @@ public class RetryableAsyncLookupFunctionDelegatorTest {
     public void testLookupWithRetryDisabled() throws Exception {
         final RetryableAsyncLookupFunctionDelegator delegator =
                 createDelegator(ResultRetryStrategy.NO_RETRY_STRATEGY);
-        delegator.open(new FunctionContext(new MockStreamingRuntimeContext(false, 1, 1)));
+        delegator.open(new FunctionContext(new MockStreamingRuntimeContext(false, 1, 0)));
         for (int i = 1; i <= 5; i++) {
             RowData key = GenericRowData.of(i);
             assertor.assertOutputEquals(
@@ -118,7 +118,7 @@ public class RetryableAsyncLookupFunctionDelegatorTest {
                         .build();
         final RetryableAsyncLookupFunctionDelegator delegator =
                 createDelegator(new ResultRetryStrategy(retryStrategy));
-        delegator.open(new FunctionContext(new MockStreamingRuntimeContext(false, 1, 1)));
+        delegator.open(new FunctionContext(new MockStreamingRuntimeContext(false, 1, 0)));
         for (int i = 1; i <= 5; i++) {
             RowData key = GenericRowData.of(i);
             assertor.assertOutputEquals(

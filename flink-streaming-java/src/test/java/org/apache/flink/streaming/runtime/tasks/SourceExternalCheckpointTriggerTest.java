@@ -32,33 +32,33 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.BlockingQueue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * These tests verify the behavior of a source function that triggers checkpoints in response to
  * received events.
  */
 @SuppressWarnings("serial")
-public class SourceExternalCheckpointTriggerTest {
+class SourceExternalCheckpointTriggerTest {
 
     private static OneShotLatch ready = new OneShotLatch();
     private static MultiShotLatch sync = new MultiShotLatch();
 
-    @Before
-    public void resetLatches() {
+    @BeforeEach
+    void resetLatches() {
         ready = new OneShotLatch();
         sync = new MultiShotLatch();
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testCheckpointsTriggeredBySource() throws Exception {
+    void testCheckpointsTriggeredBySource() throws Exception {
         // set up the basic test harness
         final StreamTaskTestHarness<Long> testHarness =
                 new StreamTaskTestHarness<>(SourceStreamTask::new, BasicTypeInfo.LONG_TYPE_INFO);
@@ -85,12 +85,12 @@ public class SourceExternalCheckpointTriggerTest {
         ready.await();
 
         // now send an external trigger that should be ignored
-        assertTrue(
-                sourceTask
-                        .triggerCheckpointAsync(
+        assertThatFuture(
+                        sourceTask.triggerCheckpointAsync(
                                 new CheckpointMetaData(32, 829),
-                                CheckpointOptions.forCheckpointWithDefaultLocation())
-                        .get());
+                                CheckpointOptions.forCheckpointWithDefaultLocation()))
+                .eventuallySucceeds()
+                .isEqualTo(true);
 
         // step by step let the source thread emit elements
         sync.trigger();
@@ -106,12 +106,12 @@ public class SourceExternalCheckpointTriggerTest {
         verifyNextElement(testHarness.getOutput(), 4L);
 
         // now send an regular trigger command that should be ignored
-        assertTrue(
-                sourceTask
-                        .triggerCheckpointAsync(
+        assertThatFuture(
+                        sourceTask.triggerCheckpointAsync(
                                 new CheckpointMetaData(34, 900),
-                                CheckpointOptions.forCheckpointWithDefaultLocation())
-                        .get());
+                                CheckpointOptions.forCheckpointWithDefaultLocation()))
+                .eventuallySucceeds()
+                .isEqualTo(true);
 
         sync.trigger();
         verifyNextElement(testHarness.getOutput(), 5L);
@@ -138,16 +138,21 @@ public class SourceExternalCheckpointTriggerTest {
     private void verifyNextElement(BlockingQueue<Object> output, long expectedElement)
             throws InterruptedException {
         Object next = output.take();
-        assertTrue("next element is not an event", next instanceof StreamRecord);
-        assertEquals(
-                "wrong event", expectedElement, ((StreamRecord<Long>) next).getValue().longValue());
+        assertThat(next).as("next element is not an event").isInstanceOf(StreamRecord.class);
+        assertThat(((StreamRecord<Long>) next).getValue())
+                .as("wrong event")
+                .isEqualTo(expectedElement);
     }
 
     private void verifyCheckpointBarrier(BlockingQueue<Object> output, long checkpointId)
             throws InterruptedException {
         Object next = output.take();
-        assertTrue("next element is not a checkpoint barrier", next instanceof CheckpointBarrier);
-        assertEquals("wrong checkpoint id", checkpointId, ((CheckpointBarrier) next).getId());
+        assertThat(next)
+                .as("next element is not a checkpoint barrier")
+                .isInstanceOf(CheckpointBarrier.class);
+        assertThat(((CheckpointBarrier) next).getId())
+                .as("wrong checkpoint id")
+                .isEqualTo(checkpointId);
     }
 
     // ------------------------------------------------------------------------

@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.NoOpBufferAvailablityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.testutils.serialization.types.IntType;
 import org.apache.flink.testutils.serialization.types.SerializationTestType;
@@ -56,11 +57,11 @@ class BroadcastRecordWriterTest {
      */
     @Test
     void testBroadcastMixedRandomEmitRecord(@TempDir Path tempPath) throws Exception {
-        final int numberOfChannels = 8;
+        final int numberOfSubpartitions = 8;
         final int numberOfRecords = 8;
         final int bufferSize = 32;
 
-        final ResultPartition partition = createResultPartition(bufferSize, numberOfChannels);
+        final ResultPartition partition = createResultPartition(bufferSize, numberOfSubpartitions);
         final BroadcastRecordWriter<SerializationTestType> writer =
                 new BroadcastRecordWriter<>(partition, -1, "test");
         final RecordDeserializer<SerializationTestType> deserializer =
@@ -70,22 +71,22 @@ class BroadcastRecordWriterTest {
         // generate the configured number of int values as global record set
         final Iterable<SerializationTestType> records =
                 Util.randomRecords(numberOfRecords, SerializationTestTypeFactory.INT);
-        // restore the corresponding record set for every input channel
+        // restore the corresponding record set for every subpartition
         final Map<Integer, ArrayDeque<SerializationTestType>> serializedRecords = new HashMap<>();
-        for (int i = 0; i < numberOfChannels; i++) {
+        for (int i = 0; i < numberOfSubpartitions; i++) {
             serializedRecords.put(i, new ArrayDeque<>());
         }
 
-        // every record in global set would both emit into one random channel and broadcast to all
-        // the channels
+        // every record in global set would both emit into one random subpartition and broadcast to
+        // all the subpartitions
         int index = 0;
         for (SerializationTestType record : records) {
-            int randomChannel = index++ % numberOfChannels;
-            writer.emit(record, randomChannel);
-            serializedRecords.get(randomChannel).add(record);
+            int randomSubpartition = index++ % numberOfSubpartitions;
+            writer.emit(record, randomSubpartition);
+            serializedRecords.get(randomSubpartition).add(record);
 
             writer.broadcastEmit(record);
-            for (int i = 0; i < numberOfChannels; i++) {
+            for (int i = 0; i < numberOfSubpartitions; i++) {
                 serializedRecords.get(i).add(record);
             }
         }
@@ -96,17 +97,18 @@ class BroadcastRecordWriterTest {
         // while random emitting
         assertThat(2 * numberOfRecords).isEqualTo(numberOfCreatedBuffers);
 
-        for (int i = 0; i < numberOfChannels; i++) {
-            // every channel would queue the number of above crated buffers
+        for (int i = 0; i < numberOfSubpartitions; i++) {
+            // every subpartition would queue the number of above crated buffers
             assertThat(partition.getNumberOfQueuedBuffers(i)).isEqualTo(numberOfRecords + 1);
 
-            final int excessRandomRecords = i < numberOfRecords % numberOfChannels ? 1 : 0;
+            final int excessRandomRecords = i < numberOfRecords % numberOfSubpartitions ? 1 : 0;
             final int numberOfRandomRecords =
-                    numberOfRecords / numberOfChannels + excessRandomRecords;
+                    numberOfRecords / numberOfSubpartitions + excessRandomRecords;
             final int numberOfTotalRecords = numberOfRecords + numberOfRandomRecords;
-            // verify the data correctness in every channel queue
+            // verify the data correctness in every subpartition queue
             verifyDeserializationResults(
-                    partition.createSubpartitionView(i, new NoOpBufferAvailablityListener()),
+                    partition.createSubpartitionView(
+                            new ResultSubpartitionIndexSet(i), new NoOpBufferAvailablityListener()),
                     deserializer,
                     serializedRecords.get(i),
                     numberOfRecords + 1,
@@ -121,9 +123,9 @@ class BroadcastRecordWriterTest {
     @Test
     void testRandomEmitAndBufferRecycling() throws Exception {
         int recordSize = 8;
-        int numberOfChannels = 2;
+        int numberOfSubpartitions = 2;
 
-        ResultPartition partition = createResultPartition(2 * recordSize, numberOfChannels);
+        ResultPartition partition = createResultPartition(2 * recordSize, numberOfSubpartitions);
         BufferPool bufferPool = partition.getBufferPool();
         BroadcastRecordWriter<SerializationTestType> writer =
                 new BroadcastRecordWriter<>(partition, -1, "test");
@@ -142,7 +144,8 @@ class BroadcastRecordWriterTest {
         // simulate consumption of first buffer consumer; this should not free buffers
         assertThat(partition.getNumberOfQueuedBuffers(0)).isOne();
         ResultSubpartitionView view0 =
-                partition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
+                partition.createSubpartitionView(
+                        new ResultSubpartitionIndexSet(0), new NoOpBufferAvailablityListener());
         closeConsumer(view0, 2 * recordSize);
         assertThat(bufferPool.getNumberOfAvailableMemorySegments()).isEqualTo(2);
 
@@ -152,12 +155,14 @@ class BroadcastRecordWriterTest {
         // fully free first buffer
         assertThat(partition.getNumberOfQueuedBuffers(1)).isOne();
         ResultSubpartitionView view1 =
-                partition.createSubpartitionView(1, new NoOpBufferAvailablityListener());
+                partition.createSubpartitionView(
+                        new ResultSubpartitionIndexSet(1), new NoOpBufferAvailablityListener());
         closeConsumer(view1, 2 * recordSize);
         assertThat(bufferPool.getNumberOfAvailableMemorySegments()).isEqualTo(2);
     }
 
-    public void closeConsumer(ResultSubpartitionView view, int expectedSize) throws IOException {
+    private static void closeConsumer(ResultSubpartitionView view, int expectedSize)
+            throws IOException {
         Buffer buffer = view.getNextBuffer().buffer();
         assertThat(buffer.getSize()).isEqualTo(expectedSize);
         buffer.recycleBuffer();

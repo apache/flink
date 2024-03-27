@@ -18,7 +18,7 @@
 
 package org.apache.flink.connector.testframe.utils;
 
-import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.core.execution.CheckpointingMode;
 
 import org.assertj.core.api.AbstractAssert;
 
@@ -26,6 +26,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+
+import static org.apache.flink.streaming.api.CheckpointingMode.convertToCheckpointingMode;
 
 /**
  * This assertion used to compare records in the collect iterator to the target test data with
@@ -49,6 +51,18 @@ public class CollectIteratorAssert<T>
     public CollectIteratorAssert<T> withNumRecordsLimit(int limit) {
         this.limit = limit;
         return this;
+    }
+
+    /**
+     * This method is required for downstream projects e.g. Flink connectors extending this test for
+     * the case when there should be supported Flink versions below 1.20. Could be removed together
+     * with dropping support for Flink 1.19.
+     */
+    @Deprecated
+    public void matchesRecordsFromSource(
+            List<List<T>> recordsBySplitsFromSource,
+            org.apache.flink.streaming.api.CheckpointingMode semantic) {
+        matchesRecordsFromSource(recordsBySplitsFromSource, convertToCheckpointingMode(semantic));
     }
 
     public void matchesRecordsFromSource(

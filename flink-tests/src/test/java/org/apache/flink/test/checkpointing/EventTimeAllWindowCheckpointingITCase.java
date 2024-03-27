@@ -23,9 +23,9 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -72,8 +72,8 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
     private static Configuration getConfiguration() {
         Configuration config = new Configuration();
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("48m"));
-        config.set(AkkaOptions.LOOKUP_TIMEOUT_DURATION, Duration.ofMinutes(1));
-        config.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofMinutes(1));
+        config.set(RpcOptions.LOOKUP_TIMEOUT_DURATION, Duration.ofMinutes(1));
+        config.set(RpcOptions.ASK_TIMEOUT_DURATION, Duration.ofMinutes(1));
         return config;
     }
 
@@ -109,7 +109,10 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                                 @Override
                                 public void open(OpenContext openContext) {
                                     assertEquals(
-                                            1, getRuntimeContext().getNumberOfParallelSubtasks());
+                                            1,
+                                            getRuntimeContext()
+                                                    .getTaskInfo()
+                                                    .getNumberOfParallelSubtasks());
                                     open = true;
                                 }
 
@@ -185,7 +188,10 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                                 @Override
                                 public void open(OpenContext openContext) {
                                     assertEquals(
-                                            1, getRuntimeContext().getNumberOfParallelSubtasks());
+                                            1,
+                                            getRuntimeContext()
+                                                    .getTaskInfo()
+                                                    .getNumberOfParallelSubtasks());
                                     open = true;
                                 }
 
@@ -267,7 +273,10 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                                 @Override
                                 public void open(OpenContext openContext) {
                                     assertEquals(
-                                            1, getRuntimeContext().getNumberOfParallelSubtasks());
+                                            1,
+                                            getRuntimeContext()
+                                                    .getTaskInfo()
+                                                    .getNumberOfParallelSubtasks());
                                     open = true;
                                 }
 
@@ -347,7 +356,10 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                                 @Override
                                 public void open(OpenContext openContext) {
                                     assertEquals(
-                                            1, getRuntimeContext().getNumberOfParallelSubtasks());
+                                            1,
+                                            getRuntimeContext()
+                                                    .getTaskInfo()
+                                                    .getNumberOfParallelSubtasks());
                                     open = true;
                                 }
 

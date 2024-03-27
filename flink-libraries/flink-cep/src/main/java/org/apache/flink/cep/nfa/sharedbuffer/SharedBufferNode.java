@@ -171,9 +171,7 @@ public class SharedBufferNode {
 
             private static final int VERSION = 1;
 
-            public SharedBufferNodeSerializerSnapshot() {
-                super(SharedBufferNodeSerializer.class);
-            }
+            public SharedBufferNodeSerializerSnapshot() {}
 
             public SharedBufferNodeSerializerSnapshot(
                     SharedBufferNodeSerializer sharedBufferNodeSerializer) {

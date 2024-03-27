@@ -1123,10 +1123,10 @@ class ZooKeeperStateHandleStoreTest {
         final TestingLongStateHandleHelper longStateStorage = new TestingLongStateHandleHelper();
 
         Configuration configuration = new Configuration();
-        configuration.setString(
+        configuration.set(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperExtension.getConnectString());
-        configuration.setInteger(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, 100);
-        configuration.setString(HighAvailabilityOptions.HA_ZOOKEEPER_ROOT, "timeout");
+        configuration.set(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, 100);
+        configuration.set(HighAvailabilityOptions.HA_ZOOKEEPER_ROOT, "timeout");
 
         try (CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper =
                         ZooKeeperUtils.startCuratorFramework(

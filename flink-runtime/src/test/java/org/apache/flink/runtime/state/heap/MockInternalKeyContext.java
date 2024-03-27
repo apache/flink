@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.state.heap;
 
+import org.apache.flink.runtime.state.InternalKeyContext;
+import org.apache.flink.runtime.state.InternalKeyContextImpl;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 

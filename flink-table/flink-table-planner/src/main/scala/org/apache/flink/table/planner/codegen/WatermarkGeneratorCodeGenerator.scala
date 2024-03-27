@@ -49,12 +49,12 @@ object WatermarkGeneratorCodeGenerator {
         "WatermarkGenerator only accepts output data type of TIMESTAMP or TIMESTAMP_LTZ," +
           " but is " + watermarkOutputType)
     }
-    val funcName = newName("WatermarkGenerator")
     val ctx = if (contextTerm.isDefined) {
       new WatermarkGeneratorFunctionContext(tableConfig, classLoader, contextTerm.get)
     } else {
       new CodeGeneratorContext(tableConfig, classLoader)
     }
+    val funcName = newName(ctx, "WatermarkGenerator")
     val generator = new ExprCodeGenerator(ctx, false)
       .bindInput(inputType, inputTerm = "row")
       .bindConstructorTerm(contextTerm.orNull)

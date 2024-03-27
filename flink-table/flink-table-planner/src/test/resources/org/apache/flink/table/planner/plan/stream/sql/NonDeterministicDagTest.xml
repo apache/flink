@@ -1128,38 +1128,6 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, version, 
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testCdcLeftJoinDimWithoutPkSinkWithoutPk[nonDeterministicUpdateStrategy=IGNORE]">
-    <Resource name="sql">
-      <![CDATA[
-insert into sink_without_pk
-select t1.a, t1.b, t2.c
-from (
-  select *, proctime() proctime from cdc
-) t1 left join dim_without_pk for system_time as of t1.proctime as t2
-on t1.a = t2.a
-]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$7])
-   +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 4}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
-      :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
-      +- LogicalFilter(condition=[=($cor0.a, $0)])
-         +- LogicalSnapshot(period=[$cor0.proctime])
-            +- LogicalTableScan(table=[[default_catalog, default_database, dim_without_pk]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- Calc(select=[a, b, c])
-   +- LookupJoin(table=[default_catalog.default_database.dim_without_pk], joinType=[LeftOuterJoin], lookup=[a=a], select=[a, b, a0, c])
-      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testCdcLeftJoinDimWithoutPkSinkWithoutPk[nonDeterministicUpdateStrategy=TRY_RESOLVE]">
     <Resource name="sql">
       <![CDATA[
@@ -1188,6 +1156,38 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_without_pk], joinType=[LeftOuterJoin], lookup=[a=a], select=[a, b, a0, c], upsertMaterialize=[true])
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCdcLeftJoinDimWithoutPkSinkWithoutPk[nonDeterministicUpdateStrategy=IGNORE]">
+    <Resource name="sql">
+      <![CDATA[
+insert into sink_without_pk
+select t1.a, t1.b, t2.c
+from (
+  select *, proctime() proctime from cdc
+) t1 left join dim_without_pk for system_time as of t1.proctime as t2
+on t1.a = t2.a
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$7])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 4}])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
+      +- LogicalFilter(condition=[=($cor0.a, $0)])
+         +- LogicalSnapshot(period=[$cor0.proctime])
+            +- LogicalTableScan(table=[[default_catalog, default_database, dim_without_pk]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
++- Calc(select=[a, b, c])
+   +- LookupJoin(table=[default_catalog.default_database.dim_without_pk], joinType=[LeftOuterJoin], lookup=[a=a], select=[a, b, a0, c])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
 ]]>
     </Resource>
@@ -1512,6 +1512,30 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
                +- DropUpdateBefore
                   +- Calc(select=[a, c, op_ts])
                      +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCdcSourceWithoutPkSinkWithoutPk[nonDeterministicUpdateStrategy=IGNORE]">
+    <Resource name="sql">
+      <![CDATA[
+insert into sink_without_pk
+select metadata_1, b, metadata_2
+from cdc_without_pk
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[metadata_1, b, metadata_2])
++- LogicalProject(metadata_1=[$4], b=[$1], metadata_2=[$5])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5])
+      +- LogicalTableScan(table=[[default_catalog, default_database, cdc_without_pk, metadata=[metadata_1, metadata_2]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_without_pk], fields=[metadata_1, b, metadata_2])
++- Calc(select=[metadata_1, b, metadata_2])
+   +- TableSourceScan(table=[[default_catalog, default_database, cdc_without_pk, project=[b], metadata=[metadata_1, metadata_2]]], fields=[b, metadata_1, metadata_2])
 ]]>
     </Resource>
   </TestCase>
@@ -2269,7 +2293,7 @@ Calc(select=[a, c-day, b, d])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMatchRecognizeSinkWithPk[nonDeterministicUpdateStrategy=IGNORE]">
+  <TestCase name="testMatchRecognizeSinkWithPk[nonDeterministicUpdateStrategy=TRY_RESOLVE]">
     <Resource name="sql">
       <![CDATA[
 insert into sink_with_pk
@@ -2309,7 +2333,7 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, EXPR$2
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMatchRecognizeSinkWithPk[nonDeterministicUpdateStrategy=TRY_RESOLVE]">
+  <TestCase name="testMatchRecognizeSinkWithPk[nonDeterministicUpdateStrategy=IGNORE]">
     <Resource name="sql">
       <![CDATA[
 insert into sink_with_pk
@@ -2698,40 +2722,6 @@ Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, EXPR$1
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRetractRankOutputRowNumberSinkWithPk[nonDeterministicUpdateStrategy=TRY_RESOLVE]">
-    <Resource name="sql">
-      <![CDATA[
-insert into sink_with_composite_pk
-select a, cnt, c, rn from (
- select
-  a, cnt, c, row_number() over (partition by a order by cnt desc) rn
- from v1
- ) t where t.rn <= 100
-]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, cnt, c, rn])
-+- LogicalProject(a=[$0], cnt=[$1], c=[$2], rn=[$3])
-   +- LogicalFilter(condition=[<=($3, 100)])
-      +- LogicalProject(a=[$0], cnt=[$2], c=[$1], rn=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
-         +- LogicalAggregate(group=[{0}], c=[MAX($1)], cnt=[SUM($2)])
-            +- LogicalProject(a=[$0], c=[$2], b=[$1])
-               +- LogicalTableScan(table=[[default_catalog, default_database, src]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, cnt, c, rn])
-+- Calc(select=[a, cnt, c, rn])
-   +- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=100], partitionBy=[a], orderBy=[cnt DESC], select=[a, c, cnt, rn])
-      +- Exchange(distribution=[hash[a]])
-         +- GroupAggregate(groupBy=[a], select=[a, MAX(c) AS c, SUM(b) AS cnt])
-            +- Exchange(distribution=[hash[a]])
-               +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a, c, b], metadata=[]]], fields=[a, c, b])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testOverWithNonDeterministicUdafSinkWithoutPk[nonDeterministicUpdateStrategy=TRY_RESOLVE]">
     <Resource name="sql">
       <![CDATA[
@@ -2793,7 +2783,38 @@ Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, c, b])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRetractRankOutputRowNumberSinkWithPk[nonDeterministicUpdateStrategy=IGNORE]">
+  <TestCase name="testProctimeIntervalJoinSinkWithoutPk[nonDeterministicUpdateStrategy=TRY_RESOLVE]">
+    <Resource name="sql">
+      <![CDATA[
+insert into sink_without_pk
+SELECT t2.a, t2.c, t1.b FROM T1 t1 JOIN T1 t2 ON
+  t1.a = t2.a AND t1.proctime > t2.proctime - INTERVAL '5' SECOND
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, c, b])
++- LogicalProject(a=[$5], c=[$7], b=[$1])
+   +- LogicalJoin(condition=[AND(=($0, $5), >($3, -($8, 5000:INTERVAL SECOND)))], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, c, b])
++- Calc(select=[a0 AS a, c, b])
+   +- Join(joinType=[InnerJoin], where=[((a = a0) AND (proctime > (proctime0 - 5000:INTERVAL SECOND)))], select=[a, b, proctime, a0, c, proctime0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+      :- Exchange(distribution=[hash[a]])
+      :  +- Calc(select=[a, b, PROCTIME_MATERIALIZE(proctime) AS proctime])
+      :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c, proctime, rowtime])(reuse_id=[1])
+      +- Exchange(distribution=[hash[a]])
+         +- Calc(select=[a, c, PROCTIME_MATERIALIZE(proctime) AS proctime])
+            +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRetractRankOutputRowNumberSinkWithPk[nonDeterministicUpdateStrategy=TRY_RESOLVE]">
     <Resource name="sql">
       <![CDATA[
 insert into sink_with_composite_pk
@@ -2827,58 +2848,37 @@ Sink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a,
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testUpsertSourceSinkWithoutPk[nonDeterministicUpdateStrategy=TRY_RESOLVE]">
+  <TestCase name="testRetractRankOutputRowNumberSinkWithPk[nonDeterministicUpdateStrategy=IGNORE]">
     <Resource name="sql">
       <![CDATA[
-insert into sink_without_pk
-select a, b, c
-from upsert_src
+insert into sink_with_composite_pk
+select a, cnt, c, rn from (
+ select
+  a, cnt, c, row_number() over (partition by a order by cnt desc) rn
+ from v1
+ ) t where t.rn <= 100
 ]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalTableScan(table=[[default_catalog, default_database, upsert_src]])
+LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, cnt, c, rn])
++- LogicalProject(a=[$0], cnt=[$1], c=[$2], rn=[$3])
+   +- LogicalFilter(condition=[<=($3, 100)])
+      +- LogicalProject(a=[$0], cnt=[$2], c=[$1], rn=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+         +- LogicalAggregate(group=[{0}], c=[MAX($1)], cnt=[SUM($2)])
+            +- LogicalProject(a=[$0], c=[$2], b=[$1])
+               +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- ChangelogNormalize(key=[a])
-   +- Exchange(distribution=[hash[a]])
-      +- TableSourceScan(table=[[default_catalog, default_database, upsert_src, project=[a, b, c], metadata=[]]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testProctimeIntervalJoinSinkWithoutPk[nonDeterministicUpdateStrategy=TRY_RESOLVE]">
-    <Resource name="sql">
-      <![CDATA[
-insert into sink_without_pk
-SELECT t2.a, t2.c, t1.b FROM T1 t1 JOIN T1 t2 ON
-  t1.a = t2.a AND t1.proctime > t2.proctime - INTERVAL '5' SECOND
-      ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, c, b])
-+- LogicalProject(a=[$5], c=[$7], b=[$1])
-   +- LogicalJoin(condition=[AND(=($0, $5), >($3, -($8, 5000:INTERVAL SECOND)))], joinType=[inner])
-      :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, c, b])
-+- Calc(select=[a0 AS a, c, b])
-   +- Join(joinType=[InnerJoin], where=[((a = a0) AND (proctime > (proctime0 - 5000:INTERVAL SECOND)))], select=[a, b, proctime, a0, c, proctime0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-      :- Exchange(distribution=[hash[a]])
-      :  +- Calc(select=[a, b, PROCTIME_MATERIALIZE(proctime) AS proctime])
-      :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c, proctime, rowtime])(reuse_id=[1])
+Sink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, cnt, c, rn])
++- Calc(select=[a, cnt, c, rn])
+   +- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=100], partitionBy=[a], orderBy=[cnt DESC], select=[a, c, cnt, rn])
       +- Exchange(distribution=[hash[a]])
-         +- Calc(select=[a, c, PROCTIME_MATERIALIZE(proctime) AS proctime])
-            +- Reused(reference_id=[1])
+         +- GroupAggregate(groupBy=[a], select=[a, MAX(c) AS c, SUM(b) AS cnt])
+            +- Exchange(distribution=[hash[a]])
+               +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a, c, b], metadata=[]]], fields=[a, c, b])
 ]]>
     </Resource>
   </TestCase>
@@ -3054,6 +3054,88 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, day], 
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testTemporalJoinSinkWithoutPk[nonDeterministicUpdateStrategy=IGNORE]">
+    <Resource name="sql">
+      <![CDATA[
+INSERT INTO sink_without_pk
+SELECT metadata_1, rate, o.currency
+FROM Orders AS o JOIN
+  UpsertRates FOR SYSTEM_TIME AS OF o.rowtime AS r
+    ON o.currency = r.currency WHERE valid = 'true'
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
++- LogicalProject(a=[$7], b=[CAST($5):BIGINT], c=[$1])
+   +- LogicalFilter(condition=[=($6, _UTF-16LE'true')])
+      +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 2}])
+         :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+         :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+         :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+         +- LogicalFilter(condition=[=($cor0.currency, $0)])
+            +- LogicalSnapshot(period=[$cor0.rowtime])
+               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
+                  +- LogicalProject(currency=[$0], rate=[$1], valid=[$2], metadata_1=[$4], rowtime=[$3])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, UpsertRates, metadata=[metadata_1]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
++- Calc(select=[metadata_1 AS a, CAST(rate AS BIGINT) AS b, currency AS c], where=[(valid = 'true')])
+   +- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[currency, rowtime, currency0, rate, valid, metadata_1, rowtime0])
+      :- Exchange(distribution=[hash[currency]])
+      :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[currency, rowtime], metadata=[]]], fields=[currency, rowtime])
+      +- Exchange(distribution=[hash[currency]])
+         +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+            +- Calc(select=[currency, rate, valid, metadata_1, rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, UpsertRates, metadata=[metadata_1]]], fields=[currency, rate, valid, rowtime, metadata_1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTemporalJoinSinkWithoutPk[nonDeterministicUpdateStrategy=TRY_RESOLVE]">
+    <Resource name="sql">
+      <![CDATA[
+INSERT INTO sink_without_pk
+SELECT metadata_1, rate, o.currency
+FROM Orders AS o JOIN
+  UpsertRates FOR SYSTEM_TIME AS OF o.rowtime AS r
+    ON o.currency = r.currency WHERE valid = 'true'
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
++- LogicalProject(a=[$7], b=[CAST($5):BIGINT], c=[$1])
+   +- LogicalFilter(condition=[=($6, _UTF-16LE'true')])
+      +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 2}])
+         :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+         :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+         :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+         +- LogicalFilter(condition=[=($cor0.currency, $0)])
+            +- LogicalSnapshot(period=[$cor0.rowtime])
+               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
+                  +- LogicalProject(currency=[$0], rate=[$1], valid=[$2], metadata_1=[$4], rowtime=[$3])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, UpsertRates, metadata=[metadata_1]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
++- Calc(select=[metadata_1 AS a, CAST(rate AS BIGINT) AS b, currency AS c], where=[(valid = 'true')])
+   +- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[currency, rowtime, currency0, rate, valid, metadata_1, rowtime0])
+      :- Exchange(distribution=[hash[currency]])
+      :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[currency, rowtime], metadata=[]]], fields=[currency, rowtime])
+      +- Exchange(distribution=[hash[currency]])
+         +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+            +- Calc(select=[currency, rate, valid, metadata_1, rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, UpsertRates, metadata=[metadata_1]]], fields=[currency, rate, valid, rowtime, metadata_1])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testUnionAllSinkWithCompositePk[nonDeterministicUpdateStrategy=IGNORE]">
     <Resource name="sql">
       <![CDATA[
@@ -3187,6 +3269,65 @@ Sink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a,
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testUpdateRankOutputRowNumberSinkWithPk[nonDeterministicUpdateStrategy=TRY_RESOLVE]">
+    <Resource name="sql">
+      <![CDATA[
+insert into sink_with_composite_pk
+select a, cnt, c, rn from (
+ select
+  a, cnt, c, row_number() over (partition by a order by cnt desc) rn
+ from v1
+ ) t where t.rn <= 100
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, cnt, c, rn])
++- LogicalProject(a=[$0], cnt=[$1], c=[$2], rn=[$3])
+   +- LogicalFilter(condition=[<=($3, 100)])
+      +- LogicalProject(a=[$0], cnt=[$2], c=[$1], rn=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+         +- LogicalAggregate(group=[{0}], c=[MAX($1)], cnt=[SUM($2) FILTER $3])
+            +- LogicalProject(a=[$0], c=[$2], b=[$1], $f3=[IS TRUE(>($1, 0))])
+               +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, cnt, c, rn])
++- Calc(select=[a, cnt, c, rn])
+   +- Rank(strategy=[UpdateFastStrategy[0]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=100], partitionBy=[a], orderBy=[cnt DESC], select=[a, c, cnt, rn])
+      +- Exchange(distribution=[hash[a]])
+         +- GroupAggregate(groupBy=[a], select=[a, MAX(c) AS c, SUM(b) FILTER $f3 AS cnt])
+            +- Exchange(distribution=[hash[a]])
+               +- Calc(select=[a, c, b, (b > 0) IS TRUE AS $f3])
+                  +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a, c, b], metadata=[]]], fields=[a, c, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpsertSourceSinkWithoutPk[nonDeterministicUpdateStrategy=TRY_RESOLVE]">
+    <Resource name="sql">
+      <![CDATA[
+insert into sink_without_pk
+select a, b, c
+from upsert_src
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, upsert_src]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
++- ChangelogNormalize(key=[a])
+   +- Exchange(distribution=[hash[a]])
+      +- TableSourceScan(table=[[default_catalog, default_database, upsert_src, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testUpsertSourceSinkWithoutPk[nonDeterministicUpdateStrategy=IGNORE]">
     <Resource name="sql">
       <![CDATA[
@@ -3235,41 +3376,6 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testUpdateRankOutputRowNumberSinkWithPk[nonDeterministicUpdateStrategy=TRY_RESOLVE]">
-    <Resource name="sql">
-      <![CDATA[
-insert into sink_with_composite_pk
-select a, cnt, c, rn from (
- select
-  a, cnt, c, row_number() over (partition by a order by cnt desc) rn
- from v1
- ) t where t.rn <= 100
-]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, cnt, c, rn])
-+- LogicalProject(a=[$0], cnt=[$1], c=[$2], rn=[$3])
-   +- LogicalFilter(condition=[<=($3, 100)])
-      +- LogicalProject(a=[$0], cnt=[$2], c=[$1], rn=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
-         +- LogicalAggregate(group=[{0}], c=[MAX($1)], cnt=[SUM($2) FILTER $3])
-            +- LogicalProject(a=[$0], c=[$2], b=[$1], $f3=[IS TRUE(>($1, 0))])
-               +- LogicalTableScan(table=[[default_catalog, default_database, src]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, cnt, c, rn])
-+- Calc(select=[a, cnt, c, rn])
-   +- Rank(strategy=[UpdateFastStrategy[0]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=100], partitionBy=[a], orderBy=[cnt DESC], select=[a, c, cnt, rn])
-      +- Exchange(distribution=[hash[a]])
-         +- GroupAggregate(groupBy=[a], select=[a, MAX(c) AS c, SUM(b) FILTER $f3 AS cnt])
-            +- Exchange(distribution=[hash[a]])
-               +- Calc(select=[a, c, b, (b > 0) IS TRUE AS $f3])
-                  +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a, c, b], metadata=[]]], fields=[a, c, b])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testUpsertSourceSinkWithPk[nonDeterministicUpdateStrategy=IGNORE]">
     <Resource name="sql">
       <![CDATA[
@@ -3291,6 +3397,110 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
 +- ChangelogNormalize(key=[a])
    +- Exchange(distribution=[hash[a]])
       +- TableSourceScan(table=[[default_catalog, default_database, upsert_src, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpsertSourceWithMetaSinkWithoutPk[nonDeterministicUpdateStrategy=TRY_RESOLVE]">
+    <Resource name="sql">
+      <![CDATA[
+insert into sink_without_pk
+select metadata_1, b, metadata_2
+from upsert_src_with_meta
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[metadata_1, b, metadata_2])
++- LogicalProject(metadata_1=[$4], b=[$1], metadata_2=[$5])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5])
+      +- LogicalTableScan(table=[[default_catalog, default_database, upsert_src_with_meta, metadata=[metadata_1, metadata_2]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_without_pk], fields=[metadata_1, b, metadata_2])
++- Calc(select=[metadata_1, b, metadata_2])
+   +- ChangelogNormalize(key=[a])
+      +- Exchange(distribution=[hash[a]])
+         +- TableSourceScan(table=[[default_catalog, default_database, upsert_src_with_meta, project=[b, a], metadata=[metadata_1, metadata_2]]], fields=[b, a, metadata_1, metadata_2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpsertSourceWithMetaSinkWithoutPk[nonDeterministicUpdateStrategy=IGNORE]">
+    <Resource name="sql">
+      <![CDATA[
+insert into sink_without_pk
+select metadata_1, b, metadata_2
+from upsert_src_with_meta
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[metadata_1, b, metadata_2])
++- LogicalProject(metadata_1=[$4], b=[$1], metadata_2=[$5])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5])
+      +- LogicalTableScan(table=[[default_catalog, default_database, upsert_src_with_meta, metadata=[metadata_1, metadata_2]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_without_pk], fields=[metadata_1, b, metadata_2])
++- Calc(select=[metadata_1, b, metadata_2])
+   +- ChangelogNormalize(key=[a])
+      +- Exchange(distribution=[hash[a]])
+         +- TableSourceScan(table=[[default_catalog, default_database, upsert_src_with_meta, project=[b, a], metadata=[metadata_1, metadata_2]]], fields=[b, a, metadata_1, metadata_2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpsertSourceWithMetaSinkWithPk[nonDeterministicUpdateStrategy=TRY_RESOLVE]">
+    <Resource name="sql">
+      <![CDATA[
+insert into sink_with_pk
+select metadata_1, b, metadata_2
+from upsert_src_with_meta
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[metadata_1, b, metadata_2])
++- LogicalProject(metadata_1=[$4], b=[$1], metadata_2=[$5])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5])
+      +- LogicalTableScan(table=[[default_catalog, default_database, upsert_src_with_meta, metadata=[metadata_1, metadata_2]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[metadata_1, b, metadata_2], upsertMaterialize=[true])
++- Calc(select=[metadata_1, b, metadata_2])
+   +- ChangelogNormalize(key=[a])
+      +- Exchange(distribution=[hash[a]])
+         +- TableSourceScan(table=[[default_catalog, default_database, upsert_src_with_meta, project=[b, a], metadata=[metadata_1, metadata_2]]], fields=[b, a, metadata_1, metadata_2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpsertSourceWithMetaSinkWithPk[nonDeterministicUpdateStrategy=IGNORE]">
+    <Resource name="sql">
+      <![CDATA[
+insert into sink_with_pk
+select metadata_1, b, metadata_2
+from upsert_src_with_meta
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[metadata_1, b, metadata_2])
++- LogicalProject(metadata_1=[$4], b=[$1], metadata_2=[$5])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5])
+      +- LogicalTableScan(table=[[default_catalog, default_database, upsert_src_with_meta, metadata=[metadata_1, metadata_2]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[metadata_1, b, metadata_2], upsertMaterialize=[true])
++- Calc(select=[metadata_1, b, metadata_2])
+   +- ChangelogNormalize(key=[a])
+      +- Exchange(distribution=[hash[a]])
+         +- TableSourceScan(table=[[default_catalog, default_database, upsert_src_with_meta, project=[b, a], metadata=[metadata_1, metadata_2]]], fields=[b, a, metadata_1, metadata_2])
 ]]>
     </Resource>
   </TestCase>

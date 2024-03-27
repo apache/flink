@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.19-SNAPSHOT</version>
+		<version>1.20-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-runtime</artifactId>
@@ -213,6 +213,13 @@ under the License.
 		<dependency>
 			<groupId>org.xerial.snappy</groupId>
 			<artifactId>snappy-java</artifactId>
+		</dependency>
+
+		<!-- Async Profiler library -->
+		<dependency>
+			<groupId>tools.profiler</groupId>
+			<artifactId>async-profiler</artifactId>
+			<version>2.9</version>
 		</dependency>
 
 		<!-- Lz4 compression library -->
@@ -487,7 +494,7 @@ under the License.
 
 			<properties>
 				<surefire.module.config.jdk21> <!--
-				    required by DeclarativeSlotManagerTest-->
+					required by AbstractFineGrainedSlotManagerITCase-->
 					-Djava.security.manager=allow</surefire.module.config.jdk21>
 			</properties>
 		</profile>

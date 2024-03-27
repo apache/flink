@@ -28,6 +28,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -35,9 +36,12 @@ import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.InternalKeyContext;
+import org.apache.flink.runtime.state.InternalKeyContextImpl;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.Keyed;
+import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.SavepointResources;
@@ -47,8 +51,6 @@ import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
-import org.apache.flink.runtime.state.heap.InternalKeyContext;
-import org.apache.flink.runtime.state.heap.InternalKeyContextImpl;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.state.ttl.mock.MockRestoreOperation;
@@ -83,18 +85,24 @@ public class MultiStateKeyIteratorTest {
     private static AbstractKeyedStateBackend<Integer> createKeyedStateBackend() {
         MockStateBackend backend = new MockStateBackend();
 
+        Environment env = new DummyEnvironment();
+        JobID jobID = new JobID();
+        KeyGroupRange keyGroupRange = KeyGroupRange.of(0, 128);
+        MetricGroup metricGroup = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
+        CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
         return backend.createKeyedStateBackend(
-                new DummyEnvironment(),
-                new JobID(),
-                "mock-backend",
-                IntSerializer.INSTANCE,
-                129,
-                KeyGroupRange.of(0, 128),
-                null,
-                TtlTimeProvider.DEFAULT,
-                UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
-                Collections.emptyList(),
-                new CloseableRegistry());
+                new KeyedStateBackendParametersImpl<>(
+                        env,
+                        jobID,
+                        "mock-backend",
+                        IntSerializer.INSTANCE,
+                        129,
+                        keyGroupRange,
+                        (TaskKvStateRegistry) null,
+                        TtlTimeProvider.DEFAULT,
+                        metricGroup,
+                        Collections.emptyList(),
+                        cancelStreamRegistry));
     }
 
     private static CountingKeysKeyedStateBackend createCountingKeysKeyedStateBackend(

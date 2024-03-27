@@ -18,10 +18,10 @@
 
 package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobmaster.slotpool.PreferredAllocationRequestSlotMatchingStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.RequestSlotMatchingStrategy;
@@ -132,7 +132,7 @@ public class DefaultSlotPoolServiceSchedulerFactoryTest {
     public void testGetRequestSlotMatchingStrategy(
             boolean isLocalRecoveryEnabled, JobType jobType, RequestSlotMatchingStrategy expected) {
         final Configuration configuration = new Configuration();
-        configuration.set(CheckpointingOptions.LOCAL_RECOVERY, isLocalRecoveryEnabled);
+        configuration.set(StateRecoveryOptions.LOCAL_RECOVERY, isLocalRecoveryEnabled);
         assertThat(
                         DefaultSlotPoolServiceSchedulerFactory.getRequestSlotMatchingStrategy(
                                 configuration, jobType))
