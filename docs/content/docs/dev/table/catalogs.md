@@ -428,13 +428,13 @@ catalog.list_tables("mydb")
 {{< tab "Java/Scala" >}}
 ```java
 // create view
-catalog.createTable(new ObjectPath("mydb", "myview"), new CatalogViewImpl(...), false);
+catalog.createTable(new ObjectPath("mydb", "myview"), CatalogView.of(...), false);
 
 // drop view
 catalog.dropTable(new ObjectPath("mydb", "myview"), false);
 
 // alter view
-catalog.alterTable(new ObjectPath("mydb", "mytable"), new CatalogViewImpl(...), false);
+catalog.alterTable(new ObjectPath("mydb", "mytable"), CatalogView.of(...), false);
 
 // rename view
 catalog.renameTable(new ObjectPath("mydb", "myview"), "my_new_view", false);
