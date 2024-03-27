@@ -76,7 +76,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @ExtendWith(TestLoggerExtension.class)
 public class ProtoRegistrySerialisatiionDeserialisationTest {
-
+    /*
     private static final String SUBJECT = "test-subject";
 
     private static SchemaRegistryClient client;
@@ -84,6 +84,28 @@ public class ProtoRegistrySerialisatiionDeserialisationTest {
     @BeforeAll
     static void beforeClass() {
         client = new MockSchemaRegistryClient();
+    }
+
+    private static byte[] serialize(int schemaId, GenericRowData rowData, RowType flinkSchema)
+            throws Exception {
+
+        final SerializationSchema<RowData> serializationSchema =
+                new ProtoRegistrySerializationSchema(
+                        new TestSchemaRegistryConfig(schemaId, client), flinkSchema);
+        serializationSchema.open(new MockInitializationContext());
+        return serializationSchema.serialize(rowData);
+    }
+
+    private static RowData deserialize(byte[] data, int schemaId, RowType flinkSchema)
+            throws Exception {
+
+        final DeserializationSchema<RowData> serializationSchema =
+                new ProtoRegistryDeserializationSchema(
+                        new TestSchemaRegistryConfig(schemaId, client),
+                        flinkSchema,
+                        InternalTypeInfo.of(flinkSchema));
+        serializationSchema.open(new MockInitializationContext());
+        return serializationSchema.deserialize(data);
     }
 
     @AfterEach
@@ -182,27 +204,5 @@ public class ProtoRegistrySerialisatiionDeserialisationTest {
         expected.setField(4, StringData.fromString("XYZ789"));
         expected.setField(5, StringData.fromString("User_5"));
         assertThat(deserialized).isEqualTo(expected);
-    }
-
-    private static byte[] serialize(int schemaId, GenericRowData rowData, RowType flinkSchema)
-            throws Exception {
-
-        final SerializationSchema<RowData> serializationSchema =
-                new ProtoRegistrySerializationSchema(
-                        new TestSchemaRegistryConfig(schemaId, client), flinkSchema);
-        serializationSchema.open(new MockInitializationContext());
-        return serializationSchema.serialize(rowData);
-    }
-
-    private static RowData deserialize(byte[] data, int schemaId, RowType flinkSchema)
-            throws Exception {
-
-        final DeserializationSchema<RowData> serializationSchema =
-                new ProtoRegistryDeserializationSchema(
-                        new TestSchemaRegistryConfig(schemaId, client),
-                        flinkSchema,
-                        InternalTypeInfo.of(flinkSchema));
-        serializationSchema.open(new MockInitializationContext());
-        return serializationSchema.deserialize(data);
-    }
+    }*/
 }

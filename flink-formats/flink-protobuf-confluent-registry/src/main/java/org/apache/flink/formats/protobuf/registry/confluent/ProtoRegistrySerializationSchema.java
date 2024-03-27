@@ -47,40 +47,44 @@ public class ProtoRegistrySerializationSchema implements SerializationSchema<Row
 
     private static final long serialVersionUID = 1L;
 
+    private final ProtobufSchema rowSchema;
     /** RowType to generate the runtime converter. */
     private final RowType rowType;
 
-    private final SchemaRegistryConfig schemaRegistryConfig;
-    private transient @Nullable ProtobufSchema schema;
+    private  final SchemaCoder schemaCoder;
 
     /** The converter that converts internal data formats to JsonNode. */
     private transient RowDataToProtoConverters.RowDataToProtoConverter runtimeConverter;
 
-    private transient SchemaRegistryCoder schemaCoder;
     /** Output stream to write message to. */
     private transient ByteArrayOutputStream arrayOutputStream;
 
-    public ProtoRegistrySerializationSchema(SchemaRegistryConfig registryConfig, RowType rowType) {
-        this.rowType = Preconditions.checkNotNull(rowType);
-        this.schemaRegistryConfig = Preconditions.checkNotNull(registryConfig);
+
+    public ProtoRegistrySerializationSchema(SchemaCoder schemaCoder, ProtobufSchema rowSchema, RowType rowType) {
+        this.schemaCoder = schemaCoder;
+        this.rowSchema = rowSchema;
+        this.rowType = rowType;
+    }
+
+    private static ByteBuffer writeMessageIndexes() {
+        // write empty message indices for now
+        ByteBuffer buffer = ByteBuffer.allocate(ByteUtils.sizeOfVarint(0));
+        ByteUtils.writeVarint(0, buffer);
+        return buffer;
     }
 
     @Override
     public void open(InitializationContext context) throws Exception {
-        final SchemaRegistryClient schemaRegistryClient = schemaRegistryConfig.createClient();
-        this.schemaCoder =
-                new SchemaRegistryCoder(schemaRegistryConfig.getSchemaId(), schemaRegistryClient);
-        this.schema =
-                (ProtobufSchema)
-                        schemaRegistryClient.getSchemaById(schemaRegistryConfig.getSchemaId());
+        schemaCoder.initialize();
         this.runtimeConverter =
-                RowDataToProtoConverters.createConverter(rowType, schema.toDescriptor());
+                RowDataToProtoConverters.createConverter(rowType, rowSchema.toDescriptor());
         this.arrayOutputStream = new ByteArrayOutputStream();
     }
 
     @Override
     public byte[] serialize(RowData row) {
         try {
+
             final DynamicMessage converted = (DynamicMessage) runtimeConverter.convert(row);
             arrayOutputStream.reset();
             schemaCoder.writeSchema(arrayOutputStream);
@@ -93,28 +97,16 @@ public class ProtoRegistrySerializationSchema implements SerializationSchema<Row
         }
     }
 
-    private static ByteBuffer writeMessageIndexes() {
-        // write empty message indices for now
-        ByteBuffer buffer = ByteBuffer.allocate(ByteUtils.sizeOfVarint(0));
-        ByteUtils.writeVarint(0, buffer);
-        return buffer;
-    }
-
     @Override
     public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
+        if (this == o) return true;
+        if (!(o instanceof ProtoRegistrySerializationSchema)) return false;
         ProtoRegistrySerializationSchema that = (ProtoRegistrySerializationSchema) o;
-        return Objects.equals(rowType, that.rowType)
-                && Objects.equals(schemaRegistryConfig, that.schemaRegistryConfig);
+        return rowType.equals(that.rowType) && schemaCoder.equals(that.schemaCoder);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(rowType, schemaRegistryConfig);
+        return Objects.hash(rowType, schemaCoder);
     }
 }

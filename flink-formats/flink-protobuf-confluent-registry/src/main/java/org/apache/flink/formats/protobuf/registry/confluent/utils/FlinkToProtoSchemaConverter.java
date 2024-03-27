@@ -42,6 +42,7 @@ import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.Timestamp;
 import com.google.type.Date;
 import com.google.type.TimeOfDay;
+import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
 import io.confluent.protobuf.MetaProto;
 import io.confluent.protobuf.MetaProto.Meta;
 import io.confluent.protobuf.type.Decimal;
@@ -118,6 +119,11 @@ public class FlinkToProtoSchemaConverter {
         } catch (DescriptorValidationException e) {
             throw new RuntimeException(e);
         }
+    }
+
+
+    public static ProtobufSchema fromFlinkRowType(RowType rowType, String rowName, String packageName){
+        return new ProtobufSchema(fromFlinkSchema(rowType,rowName,packageName));
     }
 
     private static DescriptorProto fromRowType(

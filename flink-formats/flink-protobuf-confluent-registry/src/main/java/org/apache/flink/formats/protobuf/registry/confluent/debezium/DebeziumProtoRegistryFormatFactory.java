@@ -22,7 +22,7 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.formats.protobuf.registry.confluent.RegistryClientConfigFactory;
+import org.apache.flink.formats.protobuf.registry.confluent.SchemaRegistryClientFactory;
 import org.apache.flink.formats.protobuf.registry.confluent.SchemaRegistryConfig;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
@@ -56,7 +56,7 @@ public class DebeziumProtoRegistryFormatFactory
             public DeserializationSchema<RowData> createRuntimeDecoder(
                     DynamicTableSource.Context context, DataType physicalDataType) {
                 final SchemaRegistryConfig registryConfig =
-                        RegistryClientConfigFactory.get(formatOptions);
+                        SchemaRegistryClientFactory.getClient(formatOptions);
                 final RowType rowType = (RowType) physicalDataType.getLogicalType();
 
                 return new DebeziumProtoRegistryDeserializationSchema(
@@ -96,7 +96,7 @@ public class DebeziumProtoRegistryFormatFactory
             public SerializationSchema<RowData> createRuntimeEncoder(
                     DynamicTableSink.Context context, DataType consumedDataType) {
                 final SchemaRegistryConfig registryConfig =
-                        RegistryClientConfigFactory.get(formatOptions);
+                        SchemaRegistryClientFactory.getClient(formatOptions);
                 final RowType rowType = (RowType) consumedDataType.getLogicalType();
                 return new DebeziumProtoRegistrySerializationSchema(registryConfig, rowType);
             }
@@ -110,16 +110,16 @@ public class DebeziumProtoRegistryFormatFactory
 
     @Override
     public Set<ConfigOption<?>> requiredOptions() {
-        return RegistryClientConfigFactory.getRequiredOptions();
+        return SchemaRegistryClientFactory.getRequiredOptions();
     }
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
-        return new HashSet<>(RegistryClientConfigFactory.getOptionalOptions());
+        return new HashSet<>(SchemaRegistryClientFactory.getOptionalOptions());
     }
 
     @Override
     public Set<ConfigOption<?>> forwardOptions() {
-        return new HashSet<>(RegistryClientConfigFactory.getForwardOptions());
+        return new HashSet<>(SchemaRegistryClientFactory.getForwardOptions());
     }
 }

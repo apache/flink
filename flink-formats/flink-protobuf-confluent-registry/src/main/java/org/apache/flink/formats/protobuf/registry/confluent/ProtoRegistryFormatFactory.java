@@ -22,6 +22,7 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.formats.protobuf.registry.confluent.utils.FlinkToProtoSchemaConverter;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -38,6 +39,9 @@ import org.apache.flink.table.types.logical.RowType;
 import java.util.HashSet;
 import java.util.Set;
 
+import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
+import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
+
 /**
  * Table format factory for providing configured instances of Schema Registry Protobuf to RowData
  * {@link SerializationSchema} and {@link DeserializationSchema}.
@@ -46,20 +50,24 @@ public class ProtoRegistryFormatFactory
         implements DeserializationFormatFactory, SerializationFormatFactory {
 
     public static final String IDENTIFIER = "proto-confluent";
+    private static final String ROW = "row";
+    private static final String PACKAGE = "io.confluent.generated";
 
     @Override
     public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
             Context context, ReadableConfig formatOptions) {
         FactoryUtil.validateFactoryOptions(this, formatOptions);
 
-        final SchemaRegistryConfig registryConfig = RegistryClientConfigFactory.get(formatOptions);
         return new DecodingFormat<DeserializationSchema<RowData>>() {
             @Override
             public DeserializationSchema<RowData> createRuntimeDecoder(
                     DynamicTableSource.Context context, DataType physicalDataType) {
                 final RowType rowType = (RowType) physicalDataType.getLogicalType();
-                return new ProtoRegistryDeserializationSchema(
-                        registryConfig, rowType, context.createTypeInformation(physicalDataType));
+                ProtobufSchema rowSchema = FlinkToProtoSchemaConverter.fromFlinkRowType(rowType,ROW,PACKAGE);
+                final SchemaCoder schemaCoder = SchemaRegistryClientFactory.getCoder(rowSchema,
+                        formatOptions);
+                return new ProtoRegistryDeserializationSchema(schemaCoder,rowType,
+                        context.createTypeInformation(physicalDataType));
             }
 
             @Override
@@ -72,13 +80,18 @@ public class ProtoRegistryFormatFactory
     @Override
     public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
             Context context, ReadableConfig formatOptions) {
-        final SchemaRegistryConfig registryConfig = RegistryClientConfigFactory.get(formatOptions);
+        final SchemaRegistryClient registryConfig = SchemaRegistryClientFactory.getClient(formatOptions);
         return new EncodingFormat<SerializationSchema<RowData>>() {
             @Override
             public SerializationSchema<RowData> createRuntimeEncoder(
                     DynamicTableSink.Context context, DataType physicalDataType) {
                 final RowType rowType = (RowType) physicalDataType.getLogicalType();
-                return new ProtoRegistrySerializationSchema(registryConfig, rowType);
+                ProtobufSchema rowSchema = FlinkToProtoSchemaConverter.fromFlinkRowType(rowType,ROW,PACKAGE);
+
+                final SchemaCoder schemaCoder = SchemaRegistryClientFactory.getCoder(
+                        rowSchema,
+                        formatOptions);
+                return new ProtoRegistrySerializationSchema(schemaCoder, rowSchema, rowType);
             }
 
             @Override
@@ -95,16 +108,16 @@ public class ProtoRegistryFormatFactory
 
     @Override
     public Set<ConfigOption<?>> requiredOptions() {
-        return RegistryClientConfigFactory.getRequiredOptions();
+        return SchemaRegistryClientFactory.getRequiredOptions();
     }
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
-        return new HashSet<>(RegistryClientConfigFactory.getOptionalOptions());
+        return new HashSet<>(SchemaRegistryClientFactory.getOptionalOptions());
     }
 
     @Override
     public Set<ConfigOption<?>> forwardOptions() {
-        return new HashSet<>(RegistryClientConfigFactory.getForwardOptions());
+        return new HashSet<>(SchemaRegistryClientFactory.getForwardOptions());
     }
 }

@@ -27,13 +27,16 @@ import org.apache.flink.util.Preconditions;
 
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.DynamicMessage;
+import io.confluent.kafka.schemaregistry.ParsedSchema;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
 import org.apache.kafka.common.utils.ByteUtils;
 
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * A {@link DeserializationSchema} that deserializes {@link RowData} from Protobuf messages using
@@ -43,40 +46,30 @@ public class ProtoRegistryDeserializationSchema implements DeserializationSchema
 
     private static final long serialVersionUID = 1L;
 
-    private final SchemaRegistryConfig schemaRegistryConfig;
     private final RowType rowType;
     private final TypeInformation<RowData> producedType;
 
     /** Input stream to read message from. */
     private transient MutableByteArrayInputStream inputStream;
 
-    private transient SchemaRegistryCoder schemaCoder;
+    private transient SchemaCoder schemaCoder;
 
-    private transient ProtoToRowDataConverters.ProtoToRowDataConverter runtimeConverter;
+    private transient Map<String,ProtoToRowDataConverters.ProtoToRowDataConverter> runtimeConverterMap;
 
-
-    private transient Descriptor descriptor;
 
     public ProtoRegistryDeserializationSchema(
-            SchemaRegistryConfig schemaRegistryConfig,
+            SchemaCoder schemaCoder,
             RowType rowType,
             TypeInformation<RowData> producedType) {
-        this.schemaRegistryConfig = Preconditions.checkNotNull(schemaRegistryConfig);
+        this.schemaCoder = schemaCoder;
         this.rowType = Preconditions.checkNotNull(rowType);
         this.producedType = Preconditions.checkNotNull(producedType);
+        runtimeConverterMap = new ConcurrentHashMap<>();
     }
 
     @Override
     public void open(InitializationContext context) throws Exception {
-        final SchemaRegistryClient schemaRegistryClient = schemaRegistryConfig.createClient();
-        this.schemaCoder =
-                new SchemaRegistryCoder(schemaRegistryConfig.getSchemaId(), schemaRegistryClient);
-        final ProtobufSchema schema =
-                (ProtobufSchema)
-                        schemaRegistryClient.getSchemaById(schemaRegistryConfig.getSchemaId());
-
-        this.descriptor = schema.toDescriptor();
-        this.runtimeConverter = ProtoToRowDataConverters.createConverter(descriptor, rowType);
+        schemaCoder.initialize();
         this.inputStream = new MutableByteArrayInputStream();
     }
 
@@ -87,29 +80,23 @@ public class ProtoRegistryDeserializationSchema implements DeserializationSchema
         }
         try {
             inputStream.setBuffer(message);
-            schemaCoder.readSchema(inputStream);
-            // Not sure what the message indexes are, it is some Confluent Schema Registry Protobuf
-            // magic. Until we figure out what that is, let's skip it
-
-            skipMessageIndexes(inputStream);
-
+            ProtobufSchema schema = (ProtobufSchema) schemaCoder.readSchema(inputStream);
+            Descriptor descriptor = schema.toDescriptor();
             final DynamicMessage dynamicMessage = DynamicMessage.parseFrom(descriptor, inputStream);
-            return (RowData) runtimeConverter.convert(dynamicMessage);
+            ProtoToRowDataConverters.ProtoToRowDataConverter converter = runtimeConverterMap.
+                    computeIfAbsent(schema.toString(),
+                    this::initializeConverter);
+            return (RowData) converter.convert(dynamicMessage);
+
         } catch (Exception e) {
             throw new IOException("Failed to deserialize P protobuf message.", e);
         }
     }
 
-    private void skipMessageIndexes(MutableByteArrayInputStream inputStream) throws IOException {
-        final DataInputStream dataInputStream = new DataInputStream(inputStream);
-        int size = ByteUtils.readVarint(dataInputStream);
-        if (size == 0) {
-            // optimization
-            return;
-        }
-        for (int i = 0; i < size; i++) {
-            ByteUtils.readVarint(dataInputStream);
-        }
+    private ProtoToRowDataConverters.ProtoToRowDataConverter initializeConverter(
+            String schemaString) {
+        ProtobufSchema schema  = new ProtobufSchema(schemaString);
+        return ProtoToRowDataConverters.createConverter(schema.toDescriptor(), rowType);
     }
 
     @Override
@@ -122,22 +109,19 @@ public class ProtoRegistryDeserializationSchema implements DeserializationSchema
         return producedType;
     }
 
+
     @Override
     public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
+        if (this == o) return true;
+        if (!(o instanceof ProtoRegistryDeserializationSchema)) return false;
         ProtoRegistryDeserializationSchema that = (ProtoRegistryDeserializationSchema) o;
-        return Objects.equals(schemaRegistryConfig, that.schemaRegistryConfig)
-                && Objects.equals(rowType, that.rowType)
-                && Objects.equals(producedType, that.producedType);
+        return rowType.equals(that.rowType) && producedType.equals(that.producedType)
+                && schemaCoder.equals(that.schemaCoder)
+                && runtimeConverterMap.equals(that.runtimeConverterMap);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(schemaRegistryConfig, rowType, producedType);
+        return Objects.hash(rowType, producedType, schemaCoder, runtimeConverterMap);
     }
 }

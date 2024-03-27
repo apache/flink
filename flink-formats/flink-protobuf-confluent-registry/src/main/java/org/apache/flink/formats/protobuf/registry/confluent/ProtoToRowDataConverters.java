@@ -63,14 +63,14 @@ public class ProtoToRowDataConverters {
     private static final String KEY_FIELD = "key";
     private static final String VALUE_FIELD = "value";
 
-    /**
-     * Runtime converter that converts Protobuf data structures into objects of Flink Table & SQL
-     * internal data structures.
-     */
-    @FunctionalInterface
-    public interface ProtoToRowDataConverter extends Serializable {
-
-        Object convert(Object object) throws IOException;
+    /** Creates a runtime converter. */
+    public static ProtoToRowDataConverter createConverter(
+            Descriptor readSchema, RowType targetType) {
+        if (readSchema.getRealOneofs().isEmpty()) {
+            return createNoOneOfRowConverter(readSchema, targetType);
+        } else {
+            return createOneOfRowConverter(readSchema, targetType);
+        }
     }
 
     // -------------------------------------------------------------------------------------
@@ -82,16 +82,6 @@ public class ProtoToRowDataConverters {
     // necessary because the maven shade plugin cannot relocate classes in
     // SerializedLambdas (MSHADE-260).
     // --------------------------------------------------------------------------------
-
-    /** Creates a runtime converter. */
-    public static ProtoToRowDataConverter createConverter(
-            Descriptor readSchema, RowType targetType) {
-        if (readSchema.getRealOneofs().isEmpty()) {
-            return createNoOneOfRowConverter(readSchema, targetType);
-        } else {
-            return createOneOfRowConverter(readSchema, targetType);
-        }
-    }
 
     private static ProtoToRowDataConverter createOneOfRowConverter(
             Descriptor readSchema, RowType targetType) {
@@ -193,28 +183,6 @@ public class ProtoToRowDataConverters {
                 return row;
             }
         };
-    }
-
-    private static class FieldDescriptorWithConverter {
-        final FieldDescriptor descriptor;
-        final ProtoToRowDataConverter converter;
-
-        private FieldDescriptorWithConverter(
-                FieldDescriptor descriptor, ProtoToRowDataConverter converter) {
-            this.descriptor = descriptor;
-            this.converter = converter;
-        }
-    }
-
-    private static class OneOfDescriptorWithConverter {
-        final OneofDescriptor descriptor;
-        final ProtoToRowDataConverter converter;
-
-        private OneOfDescriptorWithConverter(
-                OneofDescriptor descriptor, ProtoToRowDataConverter converter) {
-            this.descriptor = descriptor;
-            this.converter = converter;
-        }
     }
 
     private static ProtoToRowDataConverter createConverter(
@@ -663,5 +631,37 @@ public class ProtoToRowDataConverters {
                 message.getDescriptorForType().findFieldByName("value");
 
         return message.getField(fieldDescriptor);
+    }
+
+    /**
+     * Runtime converter that converts Protobuf data structures into objects of Flink Table & SQL
+     * internal data structures.
+     */
+    @FunctionalInterface
+    public interface ProtoToRowDataConverter extends Serializable {
+
+        Object convert(Object object) throws IOException;
+    }
+
+    private static class FieldDescriptorWithConverter {
+        final FieldDescriptor descriptor;
+        final ProtoToRowDataConverter converter;
+
+        private FieldDescriptorWithConverter(
+                FieldDescriptor descriptor, ProtoToRowDataConverter converter) {
+            this.descriptor = descriptor;
+            this.converter = converter;
+        }
+    }
+
+    private static class OneOfDescriptorWithConverter {
+        final OneofDescriptor descriptor;
+        final ProtoToRowDataConverter converter;
+
+        private OneOfDescriptorWithConverter(
+                OneofDescriptor descriptor, ProtoToRowDataConverter converter) {
+            this.descriptor = descriptor;
+            this.converter = converter;
+        }
     }
 }

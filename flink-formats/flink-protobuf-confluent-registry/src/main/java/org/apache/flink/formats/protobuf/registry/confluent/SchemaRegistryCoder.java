@@ -18,6 +18,8 @@
 
 package org.apache.flink.formats.protobuf.registry.confluent;
 
+import javax.annotation.Nullable;
+
 import io.confluent.kafka.schemaregistry.ParsedSchema;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
@@ -32,13 +34,19 @@ import static java.lang.String.format;
 /** Reads and Writes schema using Confluent Schema Registry protocol. */
 public class SchemaRegistryCoder {
 
-    private final SchemaRegistryClient schemaRegistryClient;
     private static final int CONFLUENT_MAGIC_BYTE = 0;
-    private final int schemaId;
+    private final SchemaRegistryClient schemaRegistryClient;
 
-    public SchemaRegistryCoder(int schemaId, SchemaRegistryClient schemaRegistryClient) {
+
+    public SchemaRegistryCoder(SchemaRegistryClient schemaRegistryClient) {
         this.schemaRegistryClient = schemaRegistryClient;
-        this.schemaId = schemaId;
+    }
+
+    private static void writeInt(OutputStream out, int registeredId) throws IOException {
+        out.write(registeredId >>> 24);
+        out.write(registeredId >>> 16);
+        out.write(registeredId >>> 8);
+        out.write(registeredId);
     }
 
     public ParsedSchema readSchema(InputStream in) throws IOException {
@@ -59,16 +67,9 @@ public class SchemaRegistryCoder {
         }
     }
 
-    public void writeSchema(OutputStream out) throws IOException {
+    public void writeSchema(int schemaId, OutputStream out) throws IOException {
         // we do not check the schema, but write the id that we were initialised with
         out.write(CONFLUENT_MAGIC_BYTE);
         writeInt(out, schemaId);
-    }
-
-    private static void writeInt(OutputStream out, int registeredId) throws IOException {
-        out.write(registeredId >>> 24);
-        out.write(registeredId >>> 16);
-        out.write(registeredId >>> 8);
-        out.write(registeredId);
     }
 }

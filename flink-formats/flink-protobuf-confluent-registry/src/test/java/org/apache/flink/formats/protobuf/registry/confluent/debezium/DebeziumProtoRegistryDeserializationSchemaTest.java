@@ -147,21 +147,6 @@ public class DebeziumProtoRegistryDeserializationSchemaTest {
         System.out.println(collector.list.size());
     }
 
-    private static class SimpleCollector implements Collector<RowData> {
-
-        private final List<RowData> list = new ArrayList<>();
-
-        @Override
-        public void collect(RowData record) {
-            list.add(record);
-        }
-
-        @Override
-        public void close() {
-            // do nothing
-        }
-    }
-
     private RowType defineRowTypesForDebeziumEnvelop() {
 
         //
@@ -181,5 +166,20 @@ public class DebeziumProtoRegistryDeserializationSchemaTest {
                                 new RowType.RowField("before", nestedRow),
                                 new RowType.RowField("after", nestedRow)));
         return rowType;
+    }
+
+    private static class SimpleCollector implements Collector<RowData> {
+
+        private final List<RowData> list = new ArrayList<>();
+
+        @Override
+        public void collect(RowData record) {
+            list.add(record);
+        }
+
+        @Override
+        public void close() {
+            // do nothing
+        }
     }
 }

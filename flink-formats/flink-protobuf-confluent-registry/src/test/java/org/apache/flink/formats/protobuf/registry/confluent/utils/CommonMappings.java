@@ -49,42 +49,6 @@ import static java.util.Arrays.asList;
 /** Common data to use in schema mapping tests. */
 public final class CommonMappings {
 
-    /** A mapping between corresponding Avro and Flink types. */
-    public static class TypeMapping {
-
-        private final Descriptor protoSchema;
-        private final LogicalType flinkType;
-        private final String schemaStr;
-
-        public TypeMapping(String schemaStr, LogicalType flinkType) {
-            this.schemaStr = schemaStr;
-            this.protoSchema = new ProtobufSchema(schemaStr).toDescriptor();
-            this.flinkType = flinkType;
-        }
-
-        public Descriptor getProtoSchema() {
-            return protoSchema;
-        }
-
-        public String getExpectedString() {
-            return schemaStr;
-        }
-
-        public LogicalType getFlinkType() {
-            return flinkType;
-        }
-
-        @Override
-        public String toString() {
-            return "protoSchema=" + schemaStr + ", flinkType=" + flinkType;
-        }
-    }
-
-    public static Stream<TypeMapping> get() {
-        return Stream.of(
-                NESTED_ROWS_CASE, NESTED_ROWS_SAME_NAME, ALL_SIMPLE_TYPES_CASE, COLLECTIONS_CASE);
-    }
-
     private static final TypeMapping NESTED_ROWS_CASE =
             new TypeMapping(
                     "syntax = \"proto3\";\n"
@@ -121,7 +85,6 @@ public final class CommonMappings {
                                                                                             "b",
                                                                                             new FloatType(
                                                                                                     false)))))))))));
-
     private static final TypeMapping NESTED_ROWS_SAME_NAME =
             new TypeMapping(
                     "syntax = \"proto3\";\n"
@@ -153,7 +116,6 @@ public final class CommonMappings {
                                                                                             new RowField(
                                                                                                     "a",
                                                                                                     new FloatType()))))))))));
-
     private static final TypeMapping COLLECTIONS_CASE =
             new TypeMapping(
                     "syntax = \"proto3\";\n"
@@ -179,7 +141,6 @@ public final class CommonMappings {
                                                     false,
                                                     new VarCharType(true, VarCharType.MAX_LENGTH),
                                                     new BigIntType(true))))));
-
     private static final TypeMapping ALL_SIMPLE_TYPES_CASE =
             new TypeMapping(
                     "syntax = \"proto3\";\n"
@@ -280,4 +241,40 @@ public final class CommonMappings {
                                             new VarBinaryType(true, VarBinaryType.MAX_LENGTH)))));
 
     private CommonMappings() {}
+
+    public static Stream<TypeMapping> get() {
+        return Stream.of(
+                NESTED_ROWS_CASE, NESTED_ROWS_SAME_NAME, ALL_SIMPLE_TYPES_CASE, COLLECTIONS_CASE);
+    }
+
+    /** A mapping between corresponding Avro and Flink types. */
+    public static class TypeMapping {
+
+        private final Descriptor protoSchema;
+        private final LogicalType flinkType;
+        private final String schemaStr;
+
+        public TypeMapping(String schemaStr, LogicalType flinkType) {
+            this.schemaStr = schemaStr;
+            this.protoSchema = new ProtobufSchema(schemaStr).toDescriptor();
+            this.flinkType = flinkType;
+        }
+
+        public Descriptor getProtoSchema() {
+            return protoSchema;
+        }
+
+        public String getExpectedString() {
+            return schemaStr;
+        }
+
+        public LogicalType getFlinkType() {
+            return flinkType;
+        }
+
+        @Override
+        public String toString() {
+            return "protoSchema=" + schemaStr + ", flinkType=" + flinkType;
+        }
+    }
 }
