@@ -308,13 +308,17 @@ class FutureUtilsTest {
                         throwable ->
                                 throwable instanceof RuntimeException
                                         && throwable
-                                                .getMessage()
-                                                .contains(retryableExceptionMessage),
+                                        .getMessage()
+                                        .contains(retryableExceptionMessage),
                         new ScheduledExecutorServiceAdapter(retryExecutor));
 
+        FutureUtils.RetryException e = new FutureUtils.RetryException(
+                "Stopped retrying the operation because the error is not "
+                        + "retryable.",
+                new Exception(expectedErrorMessage));
         assertThatFuture(resultFuture)
                 .eventuallyFailsWith(ExecutionException.class)
-                .withMessageContaining(expectedErrorMessage);
+                .withCause(e);
     }
 
     @Test
@@ -611,14 +615,16 @@ class FutureUtilsTest {
         testFutureContinuation(
                 (CompletableFuture<?> future, Executor executor) ->
                         FutureUtils.whenCompleteAsyncIfNotDone(
-                                future, executor, (o, throwable) -> {}));
+                                future, executor, (o, throwable) -> {
+                                }));
     }
 
     @Test
     void testThenAcceptAsyncIfNotDone() {
         testFutureContinuation(
                 (CompletableFuture<?> future, Executor executor) ->
-                        FutureUtils.thenAcceptAsyncIfNotDone(future, executor, o -> {}));
+                        FutureUtils.thenAcceptAsyncIfNotDone(future, executor, o -> {
+                        }));
     }
 
     private void testFutureContinuation(
@@ -797,16 +803,14 @@ class FutureUtilsTest {
 
         assertThat(caughtErrorHandlingException)
                 .hasValueSatisfying(
-                        actualError -> {
-                            assertThat(actualError)
-                                    .isInstanceOf(IllegalStateException.class)
-                                    .hasRootCause(errorHandlingException)
-                                    .satisfies(
-                                            cause ->
-                                                    assertThat(cause.getSuppressed())
-                                                            .containsExactly(
-                                                                    actualProductionCodeError));
-                        });
+                        actualError -> assertThat(actualError)
+                                .isInstanceOf(IllegalStateException.class)
+                                .hasRootCause(errorHandlingException)
+                                .satisfies(
+                                        cause ->
+                                                assertThat(cause.getSuppressed())
+                                                        .containsExactly(
+                                                                actualProductionCodeError)));
     }
 
     private static class TestingUncaughtExceptionHandler
