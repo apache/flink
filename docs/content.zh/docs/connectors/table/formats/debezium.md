@@ -44,7 +44,7 @@ Flink 还支持将 Flink SQL 中的 INSERT / UPDATE / DELETE 消息编码为 Deb
 依赖
 ------------
 
-#### Debezium Avro
+#### Debezium Confluent Avro
 
 {{< sql_download_table "debezium-avro-confluent" >}}
 
@@ -84,7 +84,9 @@ Debezium 为变更日志提供了统一的格式，这是一个 JSON 格式的�
 
 *注意: 请参考 [Debezium 文档](https://debezium.io/documentation/reference/1.3/connectors/mysql.html#mysql-connector-events_debezium)，了解每个字段的含义。*
 
-MySQL 产品表有4列（`id`、`name`、`description`、`weight`）。上面的 JSON 消息是 `products` 表上的一条更新事件，其中 `id = 111` 的行的 `weight` 值从 `5.18` 更改为 `5.15`。假设此消息已同步到 Kafka 主题 `products_binlog`，则可以使用以下 DDL 来使用此主题并解析更改事件。
+MySQL 产品表有4列（`id`、`name`、`description`、`weight`）。上面的 JSON 消息是 `products` 表上的一条更新事件，其中 `id = 111` 的行的 `weight` 值从 `5.18` 更改为 `5.15`。假设此消息已同步到 Kafka 主题 `products_binlog`，则可以使用以下 DDL（用于 Debezium JSON 和 Debezium Confluent Avro）来消费此主题并解析更改事件。
+
+#### Debezium JSON DDL
 
 {{< tabs "0b6703c1-021e-4506-a579-b72b8408c0cf" >}}
 {{< tab "SQL" >}}
@@ -101,8 +103,7 @@ CREATE TABLE topic_products (
  'properties.bootstrap.servers' = 'localhost:9092',
  'properties.group.id' = 'testGroup',
   -- 使用 'debezium-json' format 来解析 Debezium 的 JSON 消息
-  -- 如果 Debezium 用 Avro 编码消息，请使用 'debezium-avro-confluent'
- 'format' = 'debezium-json'  -- 如果 Debezium 用 Avro 编码消息，请使用 'debezium-avro-confluent'
+ 'format' = 'debezium-json'
 )
 ```
 {{< /tab >}}
@@ -136,7 +137,34 @@ CREATE TABLE topic_products (
 
 为了解析这一类信息，你需要在上述 DDL WITH 子句中添加选项 `'debezium-json.schema-include' = 'true'`（默认为 false）。通常情况下，建议不要包含 schema 的描述，因为这样会使消息变得非常冗长，并降低解析性能。
 
-在将主题注册为 Flink 表之后，可以将 Debezium 消息用作变更日志源。
+#### Debezium Confluent Avro DDL
+
+{{< tabs "b3832d51-f57b-4c1f-87aa-5356fba23047" >}}
+{{< tab "SQL" >}}
+```sql
+CREATE TABLE topic_products (
+  -- schema 与 MySQL 的 products 表完全相同
+  id BIGINT,
+  name STRING,
+  description STRING,
+  weight DECIMAL(10, 2)
+) WITH (
+ 'connector' = 'kafka',
+ 'topic' = 'products_binlog',
+ 'properties.bootstrap.servers' = 'localhost:9092',
+ 'properties.group.id' = 'testGroup',
+  -- 使用 'debezium-avro-confluent' format 来解析 Debezium 的 Avro 消息
+ 'format' = 'debezium-avro-confluent',
+  -- Kafka Schema Registry 的 URL
+ 'debezium-avro-confluent.url' = 'http://localhost:8081'
+)
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+#### 结果产出
+
+对于每种数据格式，在将主题注册为 Flink 表之后，可以将 Debezium 消息用作变更日志源。
 
 {{< tabs "6a84a0e8-2e56-49db-9089-e836290f8239" >}}
 {{< tab "SQL" >}}
