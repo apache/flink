@@ -249,6 +249,19 @@ public class JobExceptionsHandler
 
     private static JobExceptionsInfoWithHistory.ExceptionInfo createExceptionInfo(
             ExceptionHistoryEntry exceptionHistoryEntry) {
+
+        if (exceptionHistoryEntry.isGlobal()) {
+            return new JobExceptionsInfoWithHistory.ExceptionInfo(
+                    exceptionHistoryEntry.getException().getOriginalErrorClassName(),
+                    exceptionHistoryEntry.getExceptionAsString(),
+                    exceptionHistoryEntry.getTimestamp(),
+                    exceptionHistoryEntry.getFailureLabels(),
+                    null,
+                    null,
+                    null,
+                    null);
+        }
+
         assertLocalExceptionInfo(exceptionHistoryEntry);
 
         return new JobExceptionsInfoWithHistory.ExceptionInfo(
