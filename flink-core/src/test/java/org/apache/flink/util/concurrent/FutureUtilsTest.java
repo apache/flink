@@ -308,13 +308,13 @@ class FutureUtilsTest {
                         throwable ->
                                 throwable instanceof RuntimeException
                                         && throwable
-                                                .getMessage()
-                                                .contains(retryableExceptionMessage),
+                                        .getMessage()
+                                        .contains(retryableExceptionMessage),
                         new ScheduledExecutorServiceAdapter(retryExecutor));
 
         FutureUtils.RetryException e =
                 new FutureUtils.RetryException(
-                        "Stopped retrying the operation because the error is not " + "retryable.",
+                        "Stopped retrying the operation because the error is not retryable.",
                         new Exception(expectedErrorMessage));
         assertThatFuture(resultFuture).eventuallyFailsWith(ExecutionException.class).withCause(e);
     }
@@ -613,14 +613,16 @@ class FutureUtilsTest {
         testFutureContinuation(
                 (CompletableFuture<?> future, Executor executor) ->
                         FutureUtils.whenCompleteAsyncIfNotDone(
-                                future, executor, (o, throwable) -> {}));
+                                future, executor, (o, throwable) -> {
+                                }));
     }
 
     @Test
     void testThenAcceptAsyncIfNotDone() {
         testFutureContinuation(
                 (CompletableFuture<?> future, Executor executor) ->
-                        FutureUtils.thenAcceptAsyncIfNotDone(future, executor, o -> {}));
+                        FutureUtils.thenAcceptAsyncIfNotDone(future, executor, o -> {
+                        }));
     }
 
     private void testFutureContinuation(
