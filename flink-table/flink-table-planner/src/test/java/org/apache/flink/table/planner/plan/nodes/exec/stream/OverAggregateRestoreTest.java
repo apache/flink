@@ -34,9 +34,9 @@ public class OverAggregateRestoreTest extends RestoreTestBase {
     @Override
     public List<TableTestProgram> programs() {
         return Arrays.asList(
-                OverAggregateTestPrograms.OVER_AGGREGATE_BOUNDED_PARTITIONED_ROWS,
-                OverAggregateTestPrograms.OVER_AGGREGATE_BOUNDED_NON_PARTITIONED_ROWS,
+                OverAggregateTestPrograms.OVER_AGGREGATE_TIME_BOUNDED_PARTITIONED_ROWS,
+                OverAggregateTestPrograms.OVER_AGGREGATE_TIME_BOUNDED_NON_PARTITIONED_ROWS,
                 OverAggregateTestPrograms.OVER_AGGREGATE_UNBOUNDED_PARTITIONED_ROWS,
-                OverAggregateTestPrograms.OVER_AGGREGATE_BOUNDED_PARTITIONED_PRECEDING_ROWS);
+                OverAggregateTestPrograms.OVER_AGGREGATE_ROW_BOUNDED_PARTITIONED_PRECEDING_ROWS);
     }
 }
