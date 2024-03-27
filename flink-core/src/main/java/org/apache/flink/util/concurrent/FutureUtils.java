@@ -232,8 +232,7 @@ public class FutureUtils {
                                 } else if (retryStrategy.getNumRemainingRetries() <= 0) {
                                     resultFuture.completeExceptionally(
                                             new RetryException(
-                                                    "Could not complete the operation. Number of retryStrategy "
-                                                            + "has been exhausted.",
+                                                    "Could not complete the operation. Number of retries has been exhausted.",
                                                     throwable));
                                 } else {
                                     Runnable retryRunnable =
