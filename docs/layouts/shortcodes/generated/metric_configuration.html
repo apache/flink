@@ -105,6 +105,12 @@
             <td>An optional list of reporter names. If configured, only reporters whose name matches any of the names in the list will be started. Otherwise, all reporters that could be found in the configuration will be started.</td>
         </tr>
         <tr>
+            <td><h5>metrics.scope.coordinator</h5></td>
+            <td style="word-wrap: break-word;">"&lt;host&gt;.jobmanager.&lt;job_name&gt;.&lt;operator_name&gt;"</td>
+            <td>String</td>
+            <td>Defines the scope format string that is applied to all metrics scoped to the components running on a JobManager of an Operator, like OperatorCoordinator for Source Enumerator metrics.</td>
+        </tr>
+        <tr>
             <td><h5>metrics.scope.delimiter</h5></td>
             <td style="word-wrap: break-word;">"."</td>
             <td>String</td>
@@ -121,12 +127,6 @@
             <td style="word-wrap: break-word;">"&lt;host&gt;.jobmanager.&lt;job_name&gt;"</td>
             <td>String</td>
             <td>Defines the scope format string that is applied to all metrics scoped to a job on a JobManager. Only effective when a identifier-based reporter is configured</td>
-        </tr>
-        <tr>
-            <td><h5>metrics.scope.jm-operator</h5></td>
-            <td style="word-wrap: break-word;">"&lt;host&gt;.jobmanager.&lt;job_name&gt;.&lt;operator_name&gt;"</td>
-            <td>String</td>
-            <td>Defines the scope format string that is applied to all metrics scoped to the components running on a JobManager of an Operator, like OperatorCoordinator.</td>
         </tr>
         <tr>
             <td><h5>metrics.scope.operator</h5></td>

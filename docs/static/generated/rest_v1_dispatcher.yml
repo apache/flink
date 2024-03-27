@@ -1089,6 +1089,37 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/JobVertexBackPressureInfo'
+  /jobs/{jobid}/vertices/{vertexid}/coordinator-metrics:
+    get:
+      description: Provides access to job manager operator metrics
+      operationId: getJobManagerOperatorMetrics
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobID'
+      - name: vertexid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job vertex.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobVertexID'
+      - name: get
+        in: query
+        description: Comma-separated list of string values to select specific metrics.
+        required: false
+        style: form
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricCollectionResponseBody'
   /jobs/{jobid}/vertices/{vertexid}/flamegraph:
     get:
       description: "Returns flame graph information for a vertex, and may initiate\
@@ -2411,6 +2442,8 @@ components:
         parallelism:
           type: integer
           format: int32
+        slotSharingGroupId:
+          $ref: '#/components/schemas/SlotSharingGroupId'
         start-time:
           type: integer
           format: int64
@@ -2859,6 +2892,20 @@ components:
           $ref: '#/components/schemas/JobID'
         resource:
           $ref: '#/components/schemas/ResourceProfileInfo'
+    SlotSharingGroupId:
+      type: object
+      properties:
+        bytes:
+          type: array
+          items:
+            type: string
+            format: byte
+        lowerPart:
+          type: integer
+          format: int64
+        upperPart:
+          type: integer
+          format: int64
     StatsSummaryDto:
       type: object
       properties:
