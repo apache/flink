@@ -480,7 +480,13 @@ public class WindowAggregateTestPrograms {
             final String[] beforeRows,
             final String[] afterRows) {
         return getTableTestProgram(
-                id, description, aggPhaseStrategy, windowSql, beforeRows, afterRows, DistinctAggSplit.DISABLED);
+                id,
+                description,
+                aggPhaseStrategy,
+                windowSql,
+                beforeRows,
+                afterRows,
+                DistinctAggSplit.DISABLED);
     }
 
     private static TableTestProgram getTableTestProgram(
