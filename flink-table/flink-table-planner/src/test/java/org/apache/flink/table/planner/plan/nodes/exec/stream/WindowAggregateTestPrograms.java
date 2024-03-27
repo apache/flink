@@ -31,6 +31,11 @@ import java.util.function.Function;
 /** {@link TableTestProgram} definitions for testing {@link StreamExecWindowAggregate}. */
 public class WindowAggregateTestPrograms {
 
+    enum DistinctAggSplit {
+        ENABLED,
+        DISABLED
+    }
+
     private static final Row[] BEFORE_DATA = {
         Row.of("2020-10-10 00:00:01", 1, 1d, 1f, new BigDecimal("1.11"), "Hi", "a"),
         Row.of("2020-10-10 00:00:02", 2, 2d, 2f, new BigDecimal("2.22"), "Comment#1", "a"),
@@ -119,7 +124,7 @@ public class WindowAggregateTestPrograms {
                     "TUMBLE(TABLE window_source_t, DESCRIPTOR(rowtime), INTERVAL '5' SECOND)",
                     TUMBLE_EVENT_TIME_BEFORE_ROWS,
                     TUMBLE_EVENT_TIME_AFTER_ROWS,
-                    true);
+                    DistinctAggSplit.ENABLED);
 
     private static final String[] TUMBLE_EVENT_TIME_WITH_OFFSET_BEFORE_ROWS = {
         "+I[a, 2020-10-10T00:00:01, 2020-10-10T00:00:06, 4, 10, 2]",
@@ -162,7 +167,7 @@ public class WindowAggregateTestPrograms {
                     "TUMBLE(TABLE window_source_t, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '1' SECOND)",
                     TUMBLE_EVENT_TIME_WITH_OFFSET_BEFORE_ROWS,
                     TUMBLE_EVENT_TIME_WITH_OFFSET_AFTER_ROWS,
-                    true);
+                    DistinctAggSplit.ENABLED);
 
     private static final String[] HOP_EVENT_TIME_BEFORE_ROWS = {
         "+I[a, 2020-10-09T23:59:55, 2020-10-10T00:00:05, 4, 10, 2]",
@@ -213,7 +218,7 @@ public class WindowAggregateTestPrograms {
                     "HOP(TABLE window_source_t, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND)",
                     HOP_EVENT_TIME_BEFORE_ROWS,
                     HOP_EVENT_TIME_AFTER_ROWS,
-                    true);
+                    DistinctAggSplit.ENABLED);
 
     private static final String[] HOP_EVENT_TIME_WITH_OFFSET_BEFORE_ROWS = {
         "+I[a, 2020-10-09T23:59:56, 2020-10-10T00:00:06, 4, 10, 2]",
@@ -264,7 +269,7 @@ public class WindowAggregateTestPrograms {
                     "HOP(TABLE window_source_t, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND, INTERVAL '1' SECOND)",
                     HOP_EVENT_TIME_WITH_OFFSET_BEFORE_ROWS,
                     HOP_EVENT_TIME_WITH_OFFSET_AFTER_ROWS,
-                    true);
+                    DistinctAggSplit.ENABLED);
 
     private static final String[] CUMULATE_EVENT_TIME_BEFORE_ROWS = {
         "+I[a, 2020-10-10T00:00, 2020-10-10T00:00:05, 4, 10, 2]",
@@ -315,7 +320,7 @@ public class WindowAggregateTestPrograms {
                     "CUMULATE(TABLE window_source_t, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '15' SECOND)",
                     CUMULATE_EVENT_TIME_BEFORE_ROWS,
                     CUMULATE_EVENT_TIME_AFTER_ROWS,
-                    true);
+                    DistinctAggSplit.ENABLED);
 
     private static final String[] CUMULATE_EVENT_TIME_WITH_OFFSET_BEFORE_ROWS = {
         "+I[a, 2020-10-10T00:00:01, 2020-10-10T00:00:06, 4, 10, 2]",
@@ -367,7 +372,7 @@ public class WindowAggregateTestPrograms {
                     "CUMULATE(TABLE window_source_t, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '15' SECOND, INTERVAL '1' SECOND)",
                     CUMULATE_EVENT_TIME_WITH_OFFSET_BEFORE_ROWS,
                     CUMULATE_EVENT_TIME_WITH_OFFSET_AFTER_ROWS,
-                    true);
+                    DistinctAggSplit.ENABLED);
 
     private static final String[] SESSION_EVENT_TIME_BEFORE_ROWS = {
         "+I[a, 2020-10-10T00:00:01, 2020-10-10T00:00:13, 1, 1, 1]",
@@ -423,7 +428,7 @@ public class WindowAggregateTestPrograms {
                     "SESSION(TABLE window_source_t, DESCRIPTOR(rowtime), INTERVAL '5' SECOND)",
                     SESSION_EVENT_TIME_BEFORE_ROWS,
                     SESSION_EVENT_TIME_AFTER_ROWS,
-                    true);
+                    DistinctAggSplit.ENABLED);
 
     private static final String[] SESSION_EVENT_TIME_PARTITIONED_BEFORE_ROWS = {
         "+I[b, 2020-10-10T00:00:06, 2020-10-10T00:00:12, 2, 9, 2]",
@@ -465,7 +470,7 @@ public class WindowAggregateTestPrograms {
                     "SESSION(TABLE cdc_window_source_t PARTITION BY name, DESCRIPTOR(rowtime), INTERVAL '5' SECOND)",
                     SESSION_EVENT_TIME_PARTITIONED_BEFORE_ROWS,
                     SESSION_EVENT_TIME_PARTITIONED_AFTER_ROWS,
-                    true);
+                    DistinctAggSplit.ENABLED);
 
     private static TableTestProgram getTableTestProgram(
             final String id,
@@ -475,7 +480,7 @@ public class WindowAggregateTestPrograms {
             final String[] beforeRows,
             final String[] afterRows) {
         return getTableTestProgram(
-                id, description, aggPhaseStrategy, windowSql, beforeRows, afterRows, false);
+                id, description, aggPhaseStrategy, windowSql, beforeRows, afterRows, DistinctAggSplit.DISABLED);
     }
 
     private static TableTestProgram getTableTestProgram(
@@ -485,7 +490,7 @@ public class WindowAggregateTestPrograms {
             final String windowSql,
             final String[] beforeRows,
             final String[] afterRows,
-            final Boolean enableDistinctAggSplit) {
+            final DistinctAggSplit enableDistinctAggSplit) {
         final String sql =
                 String.format(
                         "INSERT INTO window_sink_t SELECT "
@@ -500,7 +505,7 @@ public class WindowAggregateTestPrograms {
                         windowSql);
 
         TableTestProgram.Builder builder = TableTestProgram.of(id, description);
-        if (enableDistinctAggSplit) {
+        if (enableDistinctAggSplit == DistinctAggSplit.ENABLED) {
             builder.setupConfig(
                     OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true);
         }
