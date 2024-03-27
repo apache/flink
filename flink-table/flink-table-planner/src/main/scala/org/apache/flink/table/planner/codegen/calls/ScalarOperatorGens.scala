@@ -37,6 +37,7 @@ import org.apache.flink.table.runtime.typeutils.TypeCheckUtils._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.LogicalTypeFamily.DATETIME
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldTypes
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findCommonType
 import org.apache.flink.table.utils.DateTimeUtils.MILLIS_PER_DAY
@@ -384,6 +385,13 @@ object ScalarOperatorGens {
     else if (isNumeric(left.resultType) && isNumeric(right.resultType)) {
       generateComparison(ctx, operator, left, right, resultType)
     }
+    // both sides are timestamp family (timestamp or timestamp_ltz)
+    else if (
+      left.resultType.is(LogicalTypeFamily.TIMESTAMP) && right.resultType.is(
+        LogicalTypeFamily.TIMESTAMP)
+    ) {
+      generateComparison(ctx, operator, left, right, resultType)
+    }
     // array types
     else if (isArray(left.resultType) && canEqual) {
       wrapExpressionIfNonEq(
@@ -456,11 +464,7 @@ object ScalarOperatorGens {
       generateEqualAndNonEqual(
         ctx,
         newLeft,
-        if (newRight.literal) {
-          generateCastLiteral(ctx, newRight, newLeft.resultType)
-        } else {
-          generateCast(ctx, newRight, newLeft.resultType, nullOnFailure = true)
-        },
+        generateCastOrCastLiteral(ctx, newRight, newLeft.resultType),
         operator,
         resultType
       )
@@ -534,6 +538,36 @@ object ScalarOperatorGens {
 
   /** Generates comparison code for numeric types and comparable types of same type. */
   def generateComparison(
+      ctx: CodeGeneratorContext,
+      operator: String,
+      left: GeneratedExpression,
+      right: GeneratedExpression,
+      resultType: LogicalType): GeneratedExpression = {
+    // we compare TIMESTAMP with TIMESTAMP_LTZ, we don't care which type is which, we just need
+    // to cast to the type with the higher precision
+    if (
+      left.resultType.is(LogicalTypeFamily.TIMESTAMP)
+      && right.resultType.is(LogicalTypeFamily.TIMESTAMP)
+      && left.resultType.getTypeRoot != right.resultType.getTypeRoot
+    ) {
+      val (newLeft, newRight) =
+        if (
+          LogicalTypeChecks.getPrecision(left.resultType) > LogicalTypeChecks.getPrecision(
+            right.resultType)
+        ) {
+          (left, generateCastOrCastLiteral(ctx, right, left.resultType))
+        } else {
+          (generateCastOrCastLiteral(ctx, left, right.resultType), right)
+        }
+
+      generateComparisonSameType(ctx, operator, newLeft, newRight, resultType)
+    } else {
+      generateComparisonSameType(ctx, operator, left, right, resultType)
+    }
+  }
+
+  /** Generates comparison code for numeric types and comparable types of same type. */
+  private def generateComparisonSameType(
       ctx: CodeGeneratorContext,
       operator: String,
       left: GeneratedExpression,
@@ -853,6 +887,17 @@ object ScalarOperatorGens {
           throw new CodeGenException(s"Unsupported reinterpret from '$from' to '$to'.")
         }
     }
+
+  private def generateCastOrCastLiteral(
+      ctx: CodeGeneratorContext,
+      expr: GeneratedExpression,
+      targetType: LogicalType): GeneratedExpression = {
+    if (expr.literal) {
+      generateCastLiteral(ctx, expr, targetType)
+    } else {
+      generateCast(ctx, expr, targetType, nullOnFailure = true)
+    }
+  }
 
   def generateCast(
       ctx: CodeGeneratorContext,
