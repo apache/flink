@@ -21,7 +21,6 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 /** Builder for {@link FineGrainedSlotManager}. */
 public class FineGrainedSlotManagerBuilder {
@@ -31,19 +30,16 @@ public class FineGrainedSlotManagerBuilder {
             new DefaultSlotStatusSyncer(TestingUtils.infiniteTime());
     private SlotManagerMetricGroup slotManagerMetricGroup =
             UnregisteredMetricGroups.createUnregisteredSlotManagerMetricGroup();
-    private final ScheduledExecutor scheduledExecutor;
     private ResourceAllocationStrategy resourceAllocationStrategy =
             TestingResourceAllocationStrategy.newBuilder().build();
 
     SlotManagerConfiguration slotManagerConfiguration =
             SlotManagerConfigurationBuilder.newBuilder().build();
 
-    private FineGrainedSlotManagerBuilder(ScheduledExecutor scheduledExecutor) {
-        this.scheduledExecutor = scheduledExecutor;
-    }
+    private FineGrainedSlotManagerBuilder() {}
 
-    public static FineGrainedSlotManagerBuilder newBuilder(ScheduledExecutor scheduledExecutor) {
-        return new FineGrainedSlotManagerBuilder(scheduledExecutor);
+    public static FineGrainedSlotManagerBuilder newBuilder() {
+        return new FineGrainedSlotManagerBuilder();
     }
 
     public FineGrainedSlotManagerBuilder setTaskManagerTracker(
@@ -82,7 +78,6 @@ public class FineGrainedSlotManagerBuilder {
 
     public FineGrainedSlotManager build() {
         return new FineGrainedSlotManager(
-                scheduledExecutor,
                 slotManagerConfiguration,
                 slotManagerMetricGroup,
                 resourceTracker,

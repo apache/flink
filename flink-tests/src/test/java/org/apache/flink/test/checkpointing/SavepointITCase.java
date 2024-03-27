@@ -710,11 +710,12 @@ public class SavepointITCase extends TestLogger {
             client.cancel(jobId).get();
 
             FutureUtils.retrySuccessfulWithDelay(
-                    () -> client.getJobStatus(jobId),
-                    Duration.ofMillis(50),
-                    Deadline.now().plus(Duration.ofSeconds(30)),
-                    status -> status == JobStatus.CANCELED,
-                    new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()));
+                            () -> client.getJobStatus(jobId),
+                            Duration.ofMillis(50),
+                            Deadline.now().plus(Duration.ofSeconds(30)),
+                            status -> status == JobStatus.CANCELED,
+                            new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))
+                    .get();
 
             postCancelChecks.check(cluster);
         } finally {
