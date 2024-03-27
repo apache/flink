@@ -20,6 +20,7 @@ package org.apache.flink.runtime.util;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -53,6 +54,7 @@ import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.RunnableWithException;
 
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.AuthInfo;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.api.ACLProvider;
@@ -83,6 +85,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.function.BooleanSupplier;
@@ -245,6 +248,43 @@ public class ZooKeeperUtils {
                         .namespace(trimStartingSlash(rootWithNamespace))
                         .ensembleTracker(ensembleTracking)
                         .aclProvider(aclProvider);
+
+        if (configuration.contains(HighAvailabilityOptions.ZOOKEEPER_CLIENT_AUTHORIZATION)) {
+            Map<String, String> authMap =
+                    configuration.get(HighAvailabilityOptions.ZOOKEEPER_CLIENT_AUTHORIZATION);
+            List<AuthInfo> authInfos =
+                    authMap.entrySet().stream()
+                            .map(
+                                    entry ->
+                                            new AuthInfo(
+                                                    entry.getKey(),
+                                                    entry.getValue()
+                                                            .getBytes(
+                                                                    ConfigConstants
+                                                                            .DEFAULT_CHARSET)))
+                            .collect(Collectors.toList());
+            curatorFrameworkBuilder.authorization(authInfos);
+        }
+
+        if (configuration.contains(HighAvailabilityOptions.ZOOKEEPER_MAX_CLOSE_WAIT)) {
+            long maxCloseWait =
+                    configuration.get(HighAvailabilityOptions.ZOOKEEPER_MAX_CLOSE_WAIT).toMillis();
+            if (maxCloseWait < 0 || maxCloseWait > Integer.MAX_VALUE) {
+                throw new IllegalConfigurationException(
+                        "The value (%d ms) is out-of-range for %s. The milliseconds timeout is expected to be between 0 and %d ms.",
+                        maxCloseWait,
+                        HighAvailabilityOptions.ZOOKEEPER_MAX_CLOSE_WAIT.key(),
+                        Integer.MAX_VALUE);
+            }
+            curatorFrameworkBuilder.maxCloseWaitMs((int) maxCloseWait);
+        }
+
+        if (configuration.contains(
+                HighAvailabilityOptions.ZOOKEEPER_SIMULATED_SESSION_EXP_PERCENT)) {
+            curatorFrameworkBuilder.simulatedSessionExpirationPercent(
+                    configuration.get(
+                            HighAvailabilityOptions.ZOOKEEPER_SIMULATED_SESSION_EXP_PERCENT));
+        }
 
         if (configuration.get(HighAvailabilityOptions.ZOOKEEPER_TOLERATE_SUSPENDED_CONNECTIONS)) {
             curatorFrameworkBuilder.connectionStateErrorPolicy(

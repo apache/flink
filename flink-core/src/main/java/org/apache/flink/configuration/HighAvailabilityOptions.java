@@ -22,7 +22,12 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 
+import java.time.Duration;
+import java.util.Map;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.LinkElement.link;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /** The set of configuration options relating to high-availability settings. */
 public class HighAvailabilityOptions {
@@ -218,6 +223,50 @@ public class HighAvailabilityOptions {
                                                     + "changes ZooKeeper connection string. It is not desired behaviour when ZooKeeper is running under the Virtual IPs. "
                                                     + "Under certain configurations EnsembleTracking can lead to setting of ZooKeeper connection string "
                                                     + "with unresolvable hostnames.")
+                                    .build());
+
+    public static final ConfigOption<Map<String, String>> ZOOKEEPER_CLIENT_AUTHORIZATION =
+            key("high-availability.zookeeper.client.authorization")
+                    .mapType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Add connection authorization Subsequent calls to this method overwrite the prior calls. "
+                                                    + "In certain cases ZooKeeper requires additional Authorization information. "
+                                                    + "For example list of valid names for ensemble in order to prevent accidentally connecting to a wrong ensemble. "
+                                                    + "Each entry of type Map.Entry<String, String> will be transformed "
+                                                    + "into an AuthInfo object with the constructor AuthInfo(String, byte[]). "
+                                                    + "The field entry.key() will serve as the String scheme value, while the field entry.getValue() "
+                                                    + "will be initially converted to a byte[] using the String#getBytes() method with %s encoding. "
+                                                    + "If not set the default configuration for a Curator would be applied.",
+                                            text(ConfigConstants.DEFAULT_CHARSET.displayName()))
+                                    .build());
+
+    public static final ConfigOption<Duration> ZOOKEEPER_MAX_CLOSE_WAIT =
+            key("high-availability.zookeeper.client.max-close-wait")
+                    .durationType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Defines the time Curator should wait during close to join background threads. "
+                                                    + "If not set the default configuration for a Curator would be applied.")
+                                    .build());
+
+    public static final ConfigOption<Integer> ZOOKEEPER_SIMULATED_SESSION_EXP_PERCENT =
+            key("high-availability.zookeeper.client.simulated-session-expiration-percent")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The percentage set by this method determines how and if Curator will check for session expiration. "
+                                                    + "See Curator documentation for %s property for more information.",
+                                            link(
+                                                    "https://curator.apache.org/apidocs/org/apache/curator/framework/"
+                                                            + "CuratorFrameworkFactory.Builder.html#simulatedSessionExpirationPercent(int)",
+                                                    "simulatedSessionExpirationPercent"))
                                     .build());
 
     // ------------------------------------------------------------------------
