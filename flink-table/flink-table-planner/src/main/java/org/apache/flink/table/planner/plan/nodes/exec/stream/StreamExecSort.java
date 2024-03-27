@@ -101,7 +101,7 @@ public class StreamExecSort extends ExecNodeBase<RowData> implements StreamExecN
     protected Transformation<RowData> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config) {
         if (!config.get(InternalConfigOptions.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED)) {
-            throw new TableException("Sort on a non-time-attribute field is not supported.");
+            throw new TableException("Sort on a time-attribute field is not supported.");
         }
 
         ExecEdge inputEdge = getInputEdges().get(0);
