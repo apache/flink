@@ -19,19 +19,17 @@
 package org.apache.flink.types;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.time.Instant;
 import java.util.Date;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class BasicTypeInfoTest extends TestLogger {
+class BasicTypeInfoTest {
 
     static Class<?>[] classes = {
         String.class,
@@ -51,24 +49,24 @@ public class BasicTypeInfoTest extends TestLogger {
     };
 
     @Test
-    public void testBasicTypeInfoEquality() {
+    void testBasicTypeInfoEquality() {
         for (Class<?> clazz : classes) {
             BasicTypeInfo<?> tpeInfo1 = BasicTypeInfo.getInfoFor(clazz);
             BasicTypeInfo<?> tpeInfo2 = BasicTypeInfo.getInfoFor(clazz);
 
-            assertEquals(tpeInfo1, tpeInfo2);
-            assertEquals(tpeInfo1.hashCode(), tpeInfo2.hashCode());
+            assertThat(tpeInfo2).isEqualTo(tpeInfo1);
+            assertThat(tpeInfo2.hashCode()).isEqualTo(tpeInfo1.hashCode());
         }
     }
 
     @Test
-    public void testBasicTypeInfoInequality() {
+    void testBasicTypeInfoInequality() {
         for (Class<?> clazz1 : classes) {
             for (Class<?> clazz2 : classes) {
                 if (!clazz1.equals(clazz2)) {
                     BasicTypeInfo<?> tpeInfo1 = BasicTypeInfo.getInfoFor(clazz1);
                     BasicTypeInfo<?> tpeInfo2 = BasicTypeInfo.getInfoFor(clazz2);
-                    assertNotEquals(tpeInfo1, tpeInfo2);
+                    assertThat(tpeInfo2).isNotEqualTo(tpeInfo1);
                 }
             }
         }

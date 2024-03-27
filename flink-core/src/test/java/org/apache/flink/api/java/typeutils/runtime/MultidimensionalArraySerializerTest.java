@@ -24,13 +24,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.SerializerTestInstance;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** A serialization test for multidimensional arrays. */
-public class MultidimensionalArraySerializerTest {
+class MultidimensionalArraySerializerTest {
 
     @Test
-    public void testStringArray() {
+    void testStringArray() {
         String[][] array = new String[][] {{null, "b"}, {"c", "d"}, {"e", "f"}, {"g", "h"}, null};
         TypeInformation<String[][]> ti = TypeExtractor.getForClass(String[][].class);
 
@@ -44,7 +44,7 @@ public class MultidimensionalArraySerializerTest {
     }
 
     @Test
-    public void testPrimitiveArray() {
+    void testPrimitiveArray() {
         int[][] array = new int[][] {{12, 1}, {48, 42}, {23, 80}, {484, 849}, {987, 4}};
         TypeInformation<int[][]> ti = TypeExtractor.getForClass(int[][].class);
 
@@ -79,7 +79,7 @@ public class MultidimensionalArraySerializerTest {
     }
 
     @Test
-    public void testObjectArrays() {
+    void testObjectArrays() {
         Integer[][] array = new Integer[][] {{0, 1}, null, {null, 42}};
         TypeInformation<Integer[][]> ti = TypeExtractor.getForClass(Integer[][].class);
 
@@ -130,7 +130,7 @@ public class MultidimensionalArraySerializerTest {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Test
-    public void testGenericObjectArrays() {
+    void testGenericObjectArrays() {
         MyGenericPojo<String>[][] array =
                 (MyGenericPojo<String>[][])
                         new MyGenericPojo[][] {

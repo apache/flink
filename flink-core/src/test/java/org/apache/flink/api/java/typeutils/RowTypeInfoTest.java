@@ -32,7 +32,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link RowTypeInfo}. */
 class RowTypeInfoTest extends TypeInformationTestBase<RowTypeInfo> {
-    private static TypeInformation<?>[] typeList =
+    private static final TypeInformation<?>[] typeList =
             new TypeInformation<?>[] {
                 BasicTypeInfo.INT_TYPE_INFO,
                 new RowTypeInfo(BasicTypeInfo.SHORT_TYPE_INFO, BasicTypeInfo.BIG_DEC_TYPE_INFO),

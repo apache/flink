@@ -18,14 +18,14 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.FlinkVersion
-import org.apache.flink.api.common.typeutils.{TypeSerializer, TypeSerializerMatchers, TypeSerializerSchemaCompatibility, TypeSerializerUpgradeTestBase}
+import org.apache.flink.api.common.typeutils.{TypeSerializer, TypeSerializerConditions, TypeSerializerSchemaCompatibility, TypeSerializerUpgradeTestBase}
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase.TestSpecification
 import org.apache.flink.api.scala.typeutils.EnumValueSerializerUpgradeTest.{EnumValueSerializerSetup, EnumValueSerializerVerifier}
 
-import org.hamcrest.Matcher
-import org.hamcrest.Matchers.is
+import org.assertj.core.api.Condition
 
 import java.util
+import java.util.Objects
 
 /** A [[TypeSerializerUpgradeTestBase]] for [[EnumValueSerializer]]. */
 class EnumValueSerializerUpgradeTest
@@ -70,10 +70,10 @@ object EnumValueSerializerUpgradeTest {
     extends TypeSerializerUpgradeTestBase.UpgradeVerifier[Letters.Value] {
     override def createUpgradedSerializer: TypeSerializer[Letters.Value] = supplier.get()
 
-    override def testDataMatcher: Matcher[Letters.Value] = is(Letters.A)
-
-    override def schemaCompatibilityMatcher(
-        version: FlinkVersion): Matcher[TypeSerializerSchemaCompatibility[Letters.Value]] =
-      TypeSerializerMatchers.isCompatibleAsIs[Letters.Value]()
+    override def testDataCondition: Condition[Letters.Value] =
+      new Condition[Letters.Value]((l: Letters.Value) => Objects.equals(l, Letters.A), "is A")
+    override def schemaCompatibilityCondition(
+        version: FlinkVersion): Condition[TypeSerializerSchemaCompatibility[Letters.Value]] =
+      TypeSerializerConditions.isCompatibleAsIs[Letters.Value]()
   }
 }

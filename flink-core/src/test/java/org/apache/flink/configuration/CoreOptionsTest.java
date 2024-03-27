@@ -18,18 +18,19 @@
 
 package org.apache.flink.configuration;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Tests for {@link CoreOptions}. */
-public class CoreOptionsTest {
+class CoreOptionsTest {
     @Test
-    public void testGetParentFirstLoaderPatterns() {
+    void testGetParentFirstLoaderPatterns() {
         testParentFirst(
                 CoreOptions::getParentFirstLoaderPatterns,
                 CoreOptions.ALWAYS_PARENT_FIRST_LOADER_PATTERNS,
@@ -37,7 +38,7 @@ public class CoreOptionsTest {
     }
 
     @Test
-    public void testGetPluginParentFirstLoaderPatterns() {
+    void testGetPluginParentFirstLoaderPatterns() {
         testParentFirst(
                 CoreOptions::getPluginParentFirstLoaderPatterns,
                 CoreOptions.PLUGIN_ALWAYS_PARENT_FIRST_LOADER_PATTERNS,
@@ -49,20 +50,20 @@ public class CoreOptionsTest {
             ConfigOption<List<String>> patternOption,
             ConfigOption<List<String>> additionalOption) {
         Configuration config = new Configuration();
-        Assert.assertArrayEquals(
-                patternOption.defaultValue().toArray(new String[0]), patternGetter.apply(config));
+        assertThat(patternGetter.apply(config))
+                .containsExactly(patternOption.defaultValue().toArray(new String[0]));
 
         config.set(patternOption, Arrays.asList("hello", "world"));
 
-        Assert.assertArrayEquals(new String[] {"hello", "world"}, patternGetter.apply(config));
+        assertThat(patternGetter.apply(config)).containsExactly("hello", "world");
 
         config.set(additionalOption, Arrays.asList("how", "are", "you"));
 
-        Assert.assertArrayEquals(
-                new String[] {"hello", "world", "how", "are", "you"}, patternGetter.apply(config));
+        assertThat(patternGetter.apply(config))
+                .containsExactly("hello", "world", "how", "are", "you");
 
         config.set(patternOption, Collections.emptyList());
 
-        Assert.assertArrayEquals(new String[] {"how", "are", "you"}, patternGetter.apply(config));
+        assertThat(patternGetter.apply(config)).containsExactly("how", "are", "you");
     }
 }

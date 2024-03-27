@@ -20,20 +20,18 @@ package org.apache.flink.streaming.api.operators.co;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
+import org.apache.flink.api.common.typeutils.TypeSerializerConditions;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.streaming.api.operators.co.IntervalJoinOperator.BufferEntry;
 import org.apache.flink.streaming.api.operators.co.IntervalJoinOperator.BufferEntrySerializer;
 
-import org.hamcrest.Matcher;
+import org.assertj.core.api.Condition;
 
 import java.util.ArrayList;
 import java.util.Collection;
-
-import static org.apache.flink.streaming.api.operators.co.BufferEntryMatchers.bufferEntry;
-import static org.hamcrest.Matchers.is;
+import java.util.Objects;
 
 /** State migration tests for {@link BufferEntrySerializer}. */
 class BufferEntrySerializerUpgradeTest
@@ -90,14 +88,18 @@ class BufferEntrySerializerUpgradeTest
         }
 
         @Override
-        public Matcher<BufferEntry<String>> testDataMatcher() {
-            return bufferEntry(is("hello"), is(false));
+        public Condition<BufferEntry<String>> testDataCondition() {
+            return new Condition<>(
+                    stringBufferEntry ->
+                            Objects.equals(stringBufferEntry.getElement(), "hello")
+                                    && !stringBufferEntry.hasBeenJoined(),
+                    "buffer entry with element 'hello' and left buffer flag");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<BufferEntry<String>>>
-                schemaCompatibilityMatcher(FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+        public Condition<TypeSerializerSchemaCompatibility<BufferEntry<String>>>
+                schemaCompatibilityCondition(FlinkVersion version) {
+            return TypeSerializerConditions.isCompatibleAsIs();
         }
     }
 }

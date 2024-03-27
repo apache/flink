@@ -29,7 +29,6 @@ import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 /** Tests for the {@link CompositeTypeSerializerUtil}. */
 class CompositeTypeSerializerUtilTest {
@@ -62,11 +61,11 @@ class CompositeTypeSerializerUtilTest {
 
         assertThat(intermediateCompatibilityResult.isCompatibleAsIs()).isTrue();
         assertThat(intermediateCompatibilityResult.getFinalResult().isCompatibleAsIs()).isTrue();
-        assertArrayEquals(
-                Arrays.stream(newSerializerSnapshots)
-                        .map(TypeSerializerSnapshot::restoreSerializer)
-                        .toArray(),
-                intermediateCompatibilityResult.getNestedSerializers());
+        assertThat(intermediateCompatibilityResult.getNestedSerializers())
+                .containsExactly(
+                        Arrays.stream(newSerializerSnapshots)
+                                .map(TypeSerializerSnapshot::restoreSerializer)
+                                .toArray(TypeSerializer[]::new));
     }
 
     @Test

@@ -20,7 +20,6 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.util.ExceptionUtils;
 
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.snakeyaml.engine.v2.exceptions.YamlEngineException;
@@ -60,18 +59,18 @@ class YamlParserUtilsTest {
 
         Map<String, Object> yamlData = YamlParserUtils.loadYamlFile(confFile);
         assertThat(yamlData).isNotNull();
-        assertThat(yamlData.get("key1")).isEqualTo("value1");
+        assertThat(yamlData).containsEntry("key1", "value1");
         assertThat(((Map<?, ?>) yamlData.get("key2")).get("subKey1")).isEqualTo("value2");
-        assertThat(yamlData.get("key3")).isEqualTo(Arrays.asList("a", "b", "c"));
+        assertThat(yamlData).containsEntry("key3", Arrays.asList("a", "b", "c"));
 
         Map<String, String> map = new HashMap<>();
         map.put("k1", "v1");
         map.put("k2", "v2");
         map.put("k3", "v3");
-        assertThat(yamlData.get("key4")).isEqualTo(map);
-        assertThat(yamlData.get("key5")).isEqualTo("*");
+        assertThat(yamlData).containsEntry("key4", map);
+        assertThat(yamlData).containsEntry("key5", "*");
         assertThat((Boolean) yamlData.get("key6")).isTrue();
-        assertThat(yamlData.get("key7")).isEqualTo("true");
+        assertThat(yamlData).containsEntry("key7", "true");
     }
 
     /**
@@ -150,7 +149,7 @@ class YamlParserUtilsTest {
                 .isInstanceOf(YamlEngineException.class)
                 .satisfies(
                         e ->
-                                Assertions.assertThat(ExceptionUtils.stringifyException(e))
+                                assertThat(ExceptionUtils.stringifyException(e))
                                         .doesNotContain("secret"));
     }
 
@@ -167,7 +166,7 @@ class YamlParserUtilsTest {
                 .isInstanceOf(YamlEngineException.class)
                 .satisfies(
                         e ->
-                                Assertions.assertThat(ExceptionUtils.stringifyException(e))
+                                assertThat(ExceptionUtils.stringifyException(e))
                                         .doesNotContain("secret1", "secret2"));
     }
 

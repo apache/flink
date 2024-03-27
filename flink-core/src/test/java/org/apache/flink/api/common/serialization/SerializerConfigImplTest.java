@@ -58,8 +58,8 @@ class SerializerConfigImplTest {
     @Test
     void testDoubleTypeRegistration() {
         SerializerConfig config = new SerializerConfigImpl();
-        List<Class<?>> types = Arrays.<Class<?>>asList(Double.class, Integer.class, Double.class);
-        List<Class<?>> expectedTypes = Arrays.<Class<?>>asList(Double.class, Integer.class);
+        List<Class<?>> types = Arrays.asList(Double.class, Integer.class, Double.class);
+        List<Class<?>> expectedTypes = Arrays.asList(Double.class, Integer.class);
 
         for (Class<?> tpe : types) {
             config.registerKryoType(tpe);

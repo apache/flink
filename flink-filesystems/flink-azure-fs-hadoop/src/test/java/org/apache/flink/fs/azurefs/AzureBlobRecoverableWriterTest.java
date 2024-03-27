@@ -24,19 +24,19 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.StringUtils;
 
-import org.junit.AfterClass;
-import org.junit.Assume;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assumptions.assumeThat;
+
 /** Tests for the {@link AzureBlobRecoverableWriter}. */
 public class AzureBlobRecoverableWriterTest extends AbstractRecoverableWriterTest {
 
-    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+    @TempDir private static java.nio.file.Path tempFolder;
 
     /** The cached file system instance. */
     private static FileSystem fileSystem;
@@ -46,15 +46,15 @@ public class AzureBlobRecoverableWriterTest extends AbstractRecoverableWriterTes
     private static final String ACCESS_KEY = System.getenv("ARTIFACTS_AZURE_ACCESS_KEY");
     private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
 
-    @BeforeClass
+    @BeforeAll
     public static void checkCredentialsAndSetup() throws IOException {
         // check whether credentials and container details exist
-        Assume.assumeTrue(
-                "Azure container not configured, skipping test...",
-                !StringUtils.isNullOrWhitespaceOnly(CONTAINER));
-        Assume.assumeTrue(
-                "Azure access key not configured, skipping test...",
-                !StringUtils.isNullOrWhitespaceOnly(ACCESS_KEY));
+        assumeThat(!StringUtils.isNullOrWhitespaceOnly(CONTAINER))
+                .isTrue()
+                .as("Azure container not configured, skipping test...");
+        assumeThat(!StringUtils.isNullOrWhitespaceOnly(ACCESS_KEY))
+                .isTrue()
+                .as("Azure access key not configured, skipping test...");
         // adjusting the minbuffer length for tests
         AzureBlobFsRecoverableDataOutputStream.minBufferLength = 4;
         // initialize configuration with valid credentials
@@ -75,7 +75,7 @@ public class AzureBlobRecoverableWriterTest extends AbstractRecoverableWriterTes
         FileSystem.initialize(conf);
     }
 
-    @AfterClass
+    @AfterAll
     public static void afterClass() {
         AzureBlobFsRecoverableDataOutputStream.minBufferLength = 2097152;
     }

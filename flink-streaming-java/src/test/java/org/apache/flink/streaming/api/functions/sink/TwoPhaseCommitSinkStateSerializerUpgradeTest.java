@@ -20,20 +20,18 @@ package org.apache.flink.streaming.api.functions.sink;
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
+import org.apache.flink.api.common.typeutils.TypeSerializerConditions;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 
-import org.hamcrest.Matcher;
+import org.assertj.core.api.Condition;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-
-import static org.hamcrest.Matchers.is;
 
 /**
  * A {@link TypeSerializerUpgradeTestBase} for {@link TwoPhaseCommitSinkFunction.StateSerializer}.
@@ -105,24 +103,29 @@ public class TwoPhaseCommitSinkStateSerializerUpgradeTest
         }
 
         @Override
-        public Matcher<TwoPhaseCommitSinkFunction.State<Integer, String>> testDataMatcher() {
+        public Condition<TwoPhaseCommitSinkFunction.State<Integer, String>> testDataCondition() {
             TwoPhaseCommitSinkFunction.TransactionHolder<Integer> pendingTransaction =
                     new TwoPhaseCommitSinkFunction.TransactionHolder<>(12, 1523467890);
             List<TwoPhaseCommitSinkFunction.TransactionHolder<Integer>> list = new ArrayList<>();
             list.add(new TwoPhaseCommitSinkFunction.TransactionHolder<>(123, 1567234890));
             Optional<String> optional = Optional.of("flink");
-            return is(new TwoPhaseCommitSinkFunction.State<>(pendingTransaction, list, optional));
+            return new Condition<>(
+                    value ->
+                            new TwoPhaseCommitSinkFunction.State<>(
+                                            pendingTransaction, list, optional)
+                                    .equals(value),
+                    "");
         }
 
         @Override
-        public Matcher<
+        public Condition<
                         TypeSerializerSchemaCompatibility<
                                 TwoPhaseCommitSinkFunction.State<Integer, String>>>
-                schemaCompatibilityMatcher(FlinkVersion version) {
+                schemaCompatibilityCondition(FlinkVersion version) {
             if (version.isNewerVersionThan(FlinkVersion.v1_13)) {
-                return TypeSerializerMatchers.isCompatibleAsIs();
+                return TypeSerializerConditions.isCompatibleAsIs();
             } else {
-                return TypeSerializerMatchers.isCompatibleAfterMigration();
+                return TypeSerializerConditions.isCompatibleAfterMigration();
             }
         }
     }

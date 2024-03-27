@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link SlotSharingGroupUtils}. */
-public class SlotSharingGroupUtilsTest {
+class SlotSharingGroupUtilsTest {
     @Test
     void testCovertToResourceSpec() {
         final ExternalResource gpu = new ExternalResource("gpu", 1);

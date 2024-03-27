@@ -48,7 +48,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** The test for outer join operator. */
-public class OuterJoinOperatorBaseTest implements Serializable {
+class OuterJoinOperatorBaseTest implements Serializable {
 
     private MockRichFlatJoinFunction joiner;
 
@@ -61,7 +61,7 @@ public class OuterJoinOperatorBaseTest implements Serializable {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     @BeforeEach
-    public void setup() {
+    void setup() {
         joiner = new MockRichFlatJoinFunction();
 
         baseOperator =

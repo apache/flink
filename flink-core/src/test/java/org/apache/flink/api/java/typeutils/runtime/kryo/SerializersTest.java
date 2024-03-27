@@ -22,15 +22,14 @@ import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.core.fs.Path;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class SerializersTest {
+class SerializersTest {
 
     // recursive
     public static class Node {
@@ -60,32 +59,32 @@ public class SerializersTest {
     }
 
     @Test
-    public void testTypeRegistration() {
+    void testTypeRegistration() {
         SerializerConfigImpl conf = new SerializerConfigImpl();
         Serializers.recursivelyRegisterType(ClassWithNested.class, conf, new HashSet<Class<?>>());
 
         KryoSerializer<String> kryo =
                 new KryoSerializer<>(String.class, conf); // we create Kryo from another type.
 
-        Assert.assertTrue(kryo.getKryo().getRegistration(FromNested.class).getId() > 0);
-        Assert.assertTrue(kryo.getKryo().getRegistration(ClassWithNested.class).getId() > 0);
-        Assert.assertTrue(kryo.getKryo().getRegistration(Path.class).getId() > 0);
+        assertThat(kryo.getKryo().getRegistration(FromNested.class).getId() > 0).isTrue();
+        assertThat(kryo.getKryo().getRegistration(ClassWithNested.class).getId() > 0).isTrue();
+        assertThat(kryo.getKryo().getRegistration(Path.class).getId() > 0).isTrue();
 
         // check if the generic type from one field is also registered (its very likely that
         // generic types are also used as fields somewhere.
-        Assert.assertTrue(kryo.getKryo().getRegistration(FromGeneric1.class).getId() > 0);
-        Assert.assertTrue(kryo.getKryo().getRegistration(FromGeneric2.class).getId() > 0);
-        Assert.assertTrue(kryo.getKryo().getRegistration(Node.class).getId() > 0);
+        assertThat(kryo.getKryo().getRegistration(FromGeneric1.class).getId() > 0).isTrue();
+        assertThat(kryo.getKryo().getRegistration(FromGeneric2.class).getId() > 0).isTrue();
+        assertThat(kryo.getKryo().getRegistration(Node.class).getId() > 0).isTrue();
 
         // register again and make sure classes are still registered
         SerializerConfigImpl conf2 = new SerializerConfigImpl();
         Serializers.recursivelyRegisterType(ClassWithNested.class, conf2, new HashSet<Class<?>>());
         KryoSerializer<String> kryo2 = new KryoSerializer<>(String.class, conf);
-        assertTrue(kryo2.getKryo().getRegistration(FromNested.class).getId() > 0);
+        assertThat(kryo2.getKryo().getRegistration(FromNested.class).getId() > 0).isTrue();
     }
 
     @Test
-    public void testTypeRegistrationFromTypeInfo() {
+    void testTypeRegistrationFromTypeInfo() {
         SerializerConfigImpl conf = new SerializerConfigImpl();
         Serializers.recursivelyRegisterType(
                 new GenericTypeInfo<>(ClassWithNested.class), conf, new HashSet<Class<?>>());
@@ -93,14 +92,14 @@ public class SerializersTest {
         KryoSerializer<String> kryo =
                 new KryoSerializer<>(String.class, conf); // we create Kryo from another type.
 
-        assertTrue(kryo.getKryo().getRegistration(FromNested.class).getId() > 0);
-        assertTrue(kryo.getKryo().getRegistration(ClassWithNested.class).getId() > 0);
-        assertTrue(kryo.getKryo().getRegistration(Path.class).getId() > 0);
+        assertThat(kryo.getKryo().getRegistration(FromNested.class).getId() > 0).isTrue();
+        assertThat(kryo.getKryo().getRegistration(ClassWithNested.class).getId() > 0).isTrue();
+        assertThat(kryo.getKryo().getRegistration(Path.class).getId() > 0).isTrue();
 
         // check if the generic type from one field is also registered (its very likely that
         // generic types are also used as fields somewhere.
-        assertTrue(kryo.getKryo().getRegistration(FromGeneric1.class).getId() > 0);
-        assertTrue(kryo.getKryo().getRegistration(FromGeneric2.class).getId() > 0);
-        assertTrue(kryo.getKryo().getRegistration(Node.class).getId() > 0);
+        assertThat(kryo.getKryo().getRegistration(FromGeneric1.class).getId() > 0).isTrue();
+        assertThat(kryo.getKryo().getRegistration(FromGeneric2.class).getId() > 0).isTrue();
+        assertThat(kryo.getKryo().getRegistration(Node.class).getId() > 0).isTrue();
     }
 }

@@ -38,10 +38,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.util.List;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests related to configuration snapshotting and reconfiguring for the {@link KryoSerializer}. */
 public class KryoSerializerCompatibilityTest {
@@ -80,7 +77,7 @@ public class KryoSerializerCompatibilityTest {
                 kryoSerializerForB
                         .snapshotConfiguration()
                         .resolveSchemaCompatibility(kryoSerializerConfigSnapshot);
-        assertTrue(compatResult.isIncompatible());
+        assertThat(compatResult.isIncompatible()).isTrue();
     }
 
     @Test
@@ -156,32 +153,6 @@ public class KryoSerializerCompatibilityTest {
             }
         }
 
-        /*
-        // This has to be executed on a pre-1.4 branch to generate the binary blob
-        {
-        	ExecutionConfig executionConfig = new ExecutionConfig();
-        	KryoSerializer<FakeClass> kryoSerializer =
-        		new KryoSerializer<>(FakeClass.class, executionConfig);
-
-        	try (
-        		FileOutputStream f = new FileOutputStream(
-        			"src/test/resources/type-without-avro-serialized-using-kryo");
-        		DataOutputViewStreamWrapper outputView = new DataOutputViewStreamWrapper(f)) {
-
-
-        		List<Integer> array = new ArrayList<>(10);
-
-        		array.add(10);
-        		array.add(20);
-        		array.add(30);
-
-        		FakeClass myTestClass = new FakeClass(array);
-
-        		kryoSerializer.serialize(myTestClass, outputView);
-        	}
-        }
-        */
-
         {
             SerializerConfigImpl serializerConfigImpl = new SerializerConfigImpl();
             KryoSerializer<FakeClass> kryoSerializer =
@@ -193,10 +164,7 @@ public class KryoSerializerCompatibilityTest {
                     DataInputViewStreamWrapper inputView = new DataInputViewStreamWrapper(f)) {
 
                 FakeClass myTestClass = kryoSerializer.deserialize(inputView);
-
-                assertThat(myTestClass.array.get(0), is(10));
-                assertThat(myTestClass.array.get(1), is(20));
-                assertThat(myTestClass.array.get(2), is(30));
+                assertThat(myTestClass.array).hasSize(3).containsExactly(10, 20, 30);
             }
         }
     }
@@ -251,15 +219,15 @@ public class KryoSerializerCompatibilityTest {
                 kryoSerializer
                         .snapshotConfiguration()
                         .resolveSchemaCompatibility(kryoSerializerConfigSnapshot);
-        assertTrue(compatResult.isCompatibleWithReconfiguredSerializer());
+        assertThat(compatResult.isCompatibleWithReconfiguredSerializer()).isTrue();
 
         kryoSerializer = (KryoSerializer<TestClass>) compatResult.getReconfiguredSerializer();
-        assertEquals(
-                testClassId, kryoSerializer.getKryo().getRegistration(TestClass.class).getId());
-        assertEquals(
-                testClassAId, kryoSerializer.getKryo().getRegistration(TestClassA.class).getId());
-        assertEquals(
-                testClassBId, kryoSerializer.getKryo().getRegistration(TestClassB.class).getId());
+        assertThat(kryoSerializer.getKryo().getRegistration(TestClass.class).getId())
+                .isEqualTo(testClassId);
+        assertThat(kryoSerializer.getKryo().getRegistration(TestClassA.class).getId())
+                .isEqualTo(testClassAId);
+        assertThat(kryoSerializer.getKryo().getRegistration(TestClassB.class).getId())
+                .isEqualTo(testClassBId);
     }
 
     private static class TestClass {}

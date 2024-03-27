@@ -28,13 +28,13 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.Serializable;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * This tests that the {@link KryoSerializer} properly fails when accessed by two threads
@@ -43,24 +43,24 @@ import static org.junit.Assert.fail;
  * <p><b>Important:</b> This test only works if assertions are activated (-ea) on the JVM when
  * running tests.
  */
-public class KryoSerializerConcurrencyTest {
+class KryoSerializerConcurrencyTest {
 
     @Test
-    public void testDuplicateSerializerWithDefaultSerializerClass() {
+    void testDuplicateSerializerWithDefaultSerializerClass() {
         SerializerConfigImpl serializerConfigImpl = new SerializerConfigImpl();
         serializerConfigImpl.addDefaultKryoSerializer(WrappedString.class, TestSerializer.class);
         runDuplicateSerializerTest(serializerConfigImpl);
     }
 
     @Test
-    public void testDuplicateSerializerWithDefaultSerializerInstance() {
+    void testDuplicateSerializerWithDefaultSerializerInstance() {
         SerializerConfigImpl serializerConfigImpl = new SerializerConfigImpl();
         serializerConfigImpl.addDefaultKryoSerializer(WrappedString.class, new TestSerializer());
         runDuplicateSerializerTest(serializerConfigImpl);
     }
 
     @Test
-    public void testDuplicateSerializerWithRegisteredSerializerClass() {
+    void testDuplicateSerializerWithRegisteredSerializerClass() {
         SerializerConfigImpl serializerConfigImpl = new SerializerConfigImpl();
         serializerConfigImpl.registerTypeWithKryoSerializer(
                 WrappedString.class, TestSerializer.class);
@@ -68,7 +68,7 @@ public class KryoSerializerConcurrencyTest {
     }
 
     @Test
-    public void testDuplicateSerializerWithRegisteredSerializerInstance() {
+    void testDuplicateSerializerWithRegisteredSerializerInstance() {
         SerializerConfigImpl serializerConfigImpl = new SerializerConfigImpl();
         serializerConfigImpl.registerTypeWithKryoSerializer(
                 WrappedString.class, new TestSerializer());
@@ -85,15 +85,15 @@ public class KryoSerializerConcurrencyTest {
         String copyWithOriginal = original.copy(testString).content;
         String copyWithDuplicate = duplicate.copy(testString).content;
 
-        Assert.assertTrue(copyWithOriginal.startsWith(testString.content));
-        Assert.assertTrue(copyWithDuplicate.startsWith(testString.content));
+        assertThat(copyWithOriginal).startsWith(testString.content);
+        assertThat(copyWithDuplicate).startsWith(testString.content);
 
         // check that both serializer instances have appended a different identity hash
-        Assert.assertNotEquals(copyWithOriginal, copyWithDuplicate);
+        assertThat(copyWithDuplicate).isNotEqualTo(copyWithOriginal);
     }
 
     @Test
-    public void testConcurrentUseOfSerializer() throws Exception {
+    void testConcurrentUseOfSerializer() throws Exception {
         final KryoSerializer<String> serializer =
                 new KryoSerializer<>(String.class, new SerializerConfigImpl());
 
@@ -115,15 +115,9 @@ public class KryoSerializerConcurrencyTest {
         sync.awaitBlocker();
 
         // this should fail with an exception
-        try {
-            serializer.serialize("value", regularOut);
-            fail("should have failed with an exception");
-        } catch (IllegalStateException e) {
-            // expected
-        } finally {
-            // release the thread that serializes
-            sync.releaseBlocker();
-        }
+        assertThatThrownBy(() -> serializer.serialize("value", regularOut))
+                .isInstanceOf(IllegalStateException.class);
+        sync.releaseBlocker();
 
         // this propagates exceptions from the spawned thread
         thread.sync();

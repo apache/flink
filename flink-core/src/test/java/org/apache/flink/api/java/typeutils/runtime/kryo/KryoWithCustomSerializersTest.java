@@ -29,16 +29,16 @@ import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.joda.time.LocalDate;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
 import java.util.HashSet;
 
 @SuppressWarnings("unchecked")
-public class KryoWithCustomSerializersTest extends AbstractGenericTypeSerializerTest {
+class KryoWithCustomSerializersTest extends AbstractGenericTypeSerializerTest {
 
     @Test
-    public void testJodaTime() {
+    void testJodaTime() {
         Collection<LocalDate> b = new HashSet<LocalDate>();
 
         b.add(new LocalDate(1L));

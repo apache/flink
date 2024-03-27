@@ -22,7 +22,7 @@ import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.ClassRelocator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
+import org.apache.flink.api.common.typeutils.TypeSerializerConditions;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -93,7 +93,7 @@ class PojoRecordSerializerUpgradeTestSpecifications {
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<PojoAfterUpgrade>>
                 schemaCompatibilityMatcher(FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+            return TypeSerializerConditions.isCompatibleAsIs();
         }
     }
 
@@ -145,7 +145,7 @@ class PojoRecordSerializerUpgradeTestSpecifications {
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<RecordAfterSchemaUpgrade>>
                 schemaCompatibilityMatcher(FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAfterMigration();
+            return TypeSerializerConditions.isCompatibleAfterMigration();
         }
     }
 }

@@ -22,18 +22,17 @@ import org.junit.jupiter.api.Test;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.Is.is;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class CachingSupplierTest {
 
     @Test
     void testCaching() {
         final AtomicInteger instantiationCounts = new AtomicInteger();
-        final Supplier<Integer> backingSupplier = () -> instantiationCounts.incrementAndGet();
+        final Supplier<Integer> backingSupplier = instantiationCounts::incrementAndGet;
         final CachingSupplier<Integer> cachingSupplier = new CachingSupplier<>(backingSupplier);
 
-        assertThat(cachingSupplier.get(), is(cachingSupplier.get()));
-        assertThat(instantiationCounts.get(), is(1));
+        assertThat(cachingSupplier.get()).isEqualTo(cachingSupplier.get());
+        assertThat(instantiationCounts.get()).isEqualTo(1);
     }
 }

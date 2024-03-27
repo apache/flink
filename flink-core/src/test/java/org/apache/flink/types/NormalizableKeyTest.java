@@ -22,12 +22,12 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class NormalizableKeyTest {
+class NormalizableKeyTest {
 
     @Test
-    public void testIntValue() {
+    void testIntValue() {
         IntValue int0 = new IntValue(10);
         IntValue int1 = new IntValue(10);
         IntValue int2 = new IntValue(-10);
@@ -51,7 +51,7 @@ public class NormalizableKeyTest {
     }
 
     @Test
-    public void testLongValue() {
+    void testLongValue() {
         LongValue long0 = new LongValue(10);
         LongValue long1 = new LongValue(10);
         LongValue long2 = new LongValue(-10);
@@ -75,7 +75,7 @@ public class NormalizableKeyTest {
     }
 
     @Test
-    public void testStringValue() {
+    void testStringValue() {
         StringValue string0 = new StringValue("This is a test");
         StringValue string1 = new StringValue("This is a test with some longer String");
         StringValue string2 = new StringValue("This is a tesa");
@@ -91,7 +91,7 @@ public class NormalizableKeyTest {
     }
 
     @Test
-    public void testPactNull() {
+    void testPactNull() {
 
         final NullValue pn1 = new NullValue();
         final NullValue pn2 = new NullValue();
@@ -100,7 +100,7 @@ public class NormalizableKeyTest {
     }
 
     @Test
-    public void testPactChar() {
+    void testPactChar() {
 
         final CharValue c1 = new CharValue((char) 0);
         final CharValue c2 = new CharValue((char) 1);

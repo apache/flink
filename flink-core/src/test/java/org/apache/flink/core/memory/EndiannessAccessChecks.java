@@ -18,31 +18,32 @@
 
 package org.apache.flink.core.memory;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 /**
  * Verifies correct accesses with regards to endianness in {@link MemorySegment} (in both heap and
  * off-heap modes).
  */
-public class EndiannessAccessChecks {
+class EndiannessAccessChecks {
 
     @Test
-    public void testOnHeapSegment() {
+    void testOnHeapSegment() {
         testBigAndLittleEndianAccessUnaligned(MemorySegmentFactory.wrap(new byte[11111]));
     }
 
     @Test
-    public void testOffHeapSegment() {
+    void testOffHeapSegment() {
         testBigAndLittleEndianAccessUnaligned(
                 MemorySegmentFactory.allocateUnpooledOffHeapMemory(11111));
     }
 
     @Test
-    public void testOffHeapUnsafeSegment() {
+    void testOffHeapUnsafeSegment() {
         testBigAndLittleEndianAccessUnaligned(
                 MemorySegmentFactory.allocateOffHeapUnsafeMemory(11111));
     }
@@ -61,11 +62,11 @@ public class EndiannessAccessChecks {
 
                 segment.putLongLittleEndian(pos, val);
                 long r = segment.getLongBigEndian(pos);
-                assertEquals(val, Long.reverseBytes(r));
+                assertThat(Long.reverseBytes(r)).isEqualTo(val);
 
                 segment.putLongBigEndian(pos, val);
                 r = segment.getLongLittleEndian(pos);
-                assertEquals(val, Long.reverseBytes(r));
+                assertThat(Long.reverseBytes(r)).isEqualTo(val);
             }
         }
 
@@ -80,11 +81,11 @@ public class EndiannessAccessChecks {
 
                 segment.putIntLittleEndian(pos, val);
                 int r = segment.getIntBigEndian(pos);
-                assertEquals(val, Integer.reverseBytes(r));
+                assertThat(Integer.reverseBytes(r)).isEqualTo(val);
 
                 segment.putIntBigEndian(pos, val);
                 r = segment.getIntLittleEndian(pos);
-                assertEquals(val, Integer.reverseBytes(r));
+                assertThat(Integer.reverseBytes(r)).isEqualTo(val);
             }
         }
 
@@ -99,11 +100,11 @@ public class EndiannessAccessChecks {
 
                 segment.putShortLittleEndian(pos, val);
                 short r = segment.getShortBigEndian(pos);
-                assertEquals(val, Short.reverseBytes(r));
+                assertThat(Short.reverseBytes(r)).isEqualTo(val);
 
                 segment.putShortBigEndian(pos, val);
                 r = segment.getShortLittleEndian(pos);
-                assertEquals(val, Short.reverseBytes(r));
+                assertThat(Short.reverseBytes(r)).isEqualTo(val);
             }
         }
 
@@ -118,11 +119,11 @@ public class EndiannessAccessChecks {
 
                 segment.putCharLittleEndian(pos, val);
                 char r = segment.getCharBigEndian(pos);
-                assertEquals(val, Character.reverseBytes(r));
+                assertThat(Character.reverseBytes(r)).isEqualTo(val);
 
                 segment.putCharBigEndian(pos, val);
                 r = segment.getCharLittleEndian(pos);
-                assertEquals(val, Character.reverseBytes(r));
+                assertThat(Character.reverseBytes(r)).isEqualTo(val);
             }
         }
 
@@ -139,12 +140,12 @@ public class EndiannessAccessChecks {
                 float r = segment.getFloatBigEndian(pos);
                 float reversed =
                         Float.intBitsToFloat(Integer.reverseBytes(Float.floatToRawIntBits(r)));
-                assertEquals(val, reversed, 0.0f);
+                assertThat(reversed).isCloseTo(val, within(0.0f));
 
                 segment.putFloatBigEndian(pos, val);
                 r = segment.getFloatLittleEndian(pos);
                 reversed = Float.intBitsToFloat(Integer.reverseBytes(Float.floatToRawIntBits(r)));
-                assertEquals(val, reversed, 0.0f);
+                assertThat(reversed).isCloseTo(val, within(0.0f));
             }
         }
 
@@ -161,13 +162,13 @@ public class EndiannessAccessChecks {
                 double r = segment.getDoubleBigEndian(pos);
                 double reversed =
                         Double.longBitsToDouble(Long.reverseBytes(Double.doubleToRawLongBits(r)));
-                assertEquals(val, reversed, 0.0f);
+                assertThat(reversed).isCloseTo(val, within(0.0d));
 
                 segment.putDoubleBigEndian(pos, val);
                 r = segment.getDoubleLittleEndian(pos);
                 reversed =
                         Double.longBitsToDouble(Long.reverseBytes(Double.doubleToRawLongBits(r)));
-                assertEquals(val, reversed, 0.0f);
+                assertThat(reversed).isCloseTo(val, within(0.0d));
             }
         }
     }

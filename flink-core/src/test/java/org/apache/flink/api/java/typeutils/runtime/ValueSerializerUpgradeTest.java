@@ -20,21 +20,19 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
+import org.apache.flink.api.common.typeutils.TypeSerializerConditions;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Value;
 
-import org.hamcrest.Matcher;
+import org.assertj.core.api.Condition;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Objects;
-
-import static org.hamcrest.Matchers.is;
 
 /** State migration test for {@link RowSerializer}. */
 class ValueSerializerUpgradeTest
@@ -77,16 +75,16 @@ class ValueSerializerUpgradeTest
         }
 
         @Override
-        public Matcher<NameValue> testDataMatcher() {
+        public Condition<NameValue> testDataCondition() {
             NameValue value = new NameValue();
             value.setName("klion26");
-            return is(value);
+            return new Condition<>(value::equals, "value is klion26");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<NameValue>> schemaCompatibilityMatcher(
+        public Condition<TypeSerializerSchemaCompatibility<NameValue>> schemaCompatibilityCondition(
                 FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+            return TypeSerializerConditions.isCompatibleAsIs();
         }
     }
 
