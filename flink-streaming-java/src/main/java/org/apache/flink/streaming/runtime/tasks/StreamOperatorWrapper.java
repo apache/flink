@@ -118,6 +118,10 @@ public class StreamOperatorWrapper<OUT, OP extends StreamOperator<OUT>> {
                 ((InternalCheckpointListener) keyedStateBackend)
                         .notifyCheckpointSubsumed(checkpointId);
             }
+
+            if (wrapped instanceof InternalCheckpointListener) {
+                ((InternalCheckpointListener) wrapped).notifyCheckpointSubsumed(checkpointId);
+            }
         }
     }
 

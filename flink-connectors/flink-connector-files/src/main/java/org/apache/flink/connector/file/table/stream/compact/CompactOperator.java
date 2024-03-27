@@ -19,6 +19,7 @@
 package org.apache.flink.connector.file.table.stream.compact;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.state.InternalCheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
@@ -65,7 +66,9 @@ import java.util.TreeMap;
  */
 @Internal
 public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitInfo>
-        implements OneInputStreamOperator<CoordinatorOutput, PartitionCommitInfo>, BoundedOneInput {
+        implements OneInputStreamOperator<CoordinatorOutput, PartitionCommitInfo>,
+                BoundedOneInput,
+                InternalCheckpointListener {
 
     private static final long serialVersionUID = 1L;
 
@@ -179,7 +182,14 @@ public class CompactOperator<T> extends AbstractStreamOperator<PartitionCommitIn
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
         super.notifyCheckpointComplete(checkpointId);
-        clearExpiredFiles(checkpointId);
+    }
+
+    @Override
+    public void notifyCheckpointSubsumed(long checkpointId) throws Exception {
+        if (checkpointId > 0) {
+            clearExpiredFiles(checkpointId);
+            LOG.debug("Checkpoint {} subsumed and removed old uncompacted files.", checkpointId);
+        }
     }
 
     @Override
