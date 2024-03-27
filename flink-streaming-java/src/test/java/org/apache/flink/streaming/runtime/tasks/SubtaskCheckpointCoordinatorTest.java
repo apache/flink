@@ -68,8 +68,6 @@ import org.apache.flink.streaming.runtime.tasks.StreamTaskITCase.NoOpStreamTask;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.FatalExitExceptionHandler;
-import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.junit.jupiter.api.Test;
 
@@ -80,9 +78,8 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 import java.util.concurrent.RunnableFuture;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
@@ -455,20 +452,12 @@ class SubtaskCheckpointCoordinatorTest {
     @Test
     void testNotifyCheckpointAbortedDuringAsyncPhase() throws Exception {
         MockEnvironment mockEnvironment = MockEnvironment.builder().build();
+
         try (SubtaskCheckpointCoordinatorImpl subtaskCheckpointCoordinator =
                 (SubtaskCheckpointCoordinatorImpl)
                         new MockSubtaskCheckpointCoordinatorBuilder()
                                 .setEnvironment(mockEnvironment)
-                                .setExecutor(
-                                        new ThreadPoolExecutor(
-                                                0,
-                                                2,
-                                                60L,
-                                                TimeUnit.SECONDS,
-                                                new SynchronousQueue<>(),
-                                                new ExecutorThreadFactory(
-                                                        "AsyncOperations",
-                                                        FatalExitExceptionHandler.INSTANCE)))
+                                .setExecutor(Executors.newFixedThreadPool(2))
                                 .setUnalignedCheckpointEnabled(true)
                                 .build()) {
             final BlockingRunnableFuture rawKeyedStateHandleFuture = new BlockingRunnableFuture();
