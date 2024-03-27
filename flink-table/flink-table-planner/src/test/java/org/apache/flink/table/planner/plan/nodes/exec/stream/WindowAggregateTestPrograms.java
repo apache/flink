@@ -31,7 +31,7 @@ import java.util.function.Function;
 /** {@link TableTestProgram} definitions for testing {@link StreamExecWindowAggregate}. */
 public class WindowAggregateTestPrograms {
 
-    static final Row[] BEFORE_DATA = {
+    private static final Row[] BEFORE_DATA = {
         Row.of("2020-10-10 00:00:01", 1, 1d, 1f, new BigDecimal("1.11"), "Hi", "a"),
         Row.of("2020-10-10 00:00:02", 2, 2d, 2f, new BigDecimal("2.22"), "Comment#1", "a"),
         Row.of("2020-10-10 00:00:03", 2, 2d, 2f, new BigDecimal("2.22"), "Comment#1", "a"),
@@ -47,14 +47,14 @@ public class WindowAggregateTestPrograms {
         Row.of("2020-10-10 00:00:34", 1, 3d, 3f, new BigDecimal("3.33"), "Comment#3", "b")
     };
 
-    static final Row[] AFTER_DATA = {
+    private static final Row[] AFTER_DATA = {
         Row.of("2020-10-10 00:00:40", 10, 3d, 3f, new BigDecimal("4.44"), "Comment#4", "a"),
         Row.of("2020-10-10 00:00:42", 11, 4d, 4f, new BigDecimal("5.44"), "Comment#5", "d"),
         Row.of("2020-10-10 00:00:43", 12, 5d, 5f, new BigDecimal("6.44"), "Comment#6", "c"),
         Row.of("2020-10-10 00:00:44", 13, 6d, 6f, new BigDecimal("7.44"), "Comment#7", "d")
     };
 
-    static final Function<String, SourceTestStep.Builder> SOURCE_BUILDER =
+    private static final Function<String, SourceTestStep.Builder> SOURCE_BUILDER =
             str ->
                     SourceTestStep.newBuilder(str)
                             .addSchema(
@@ -68,25 +68,24 @@ public class WindowAggregateTestPrograms {
                                     "`rowtime` AS TO_TIMESTAMP(`ts`)",
                                     "`proctime` AS PROCTIME()",
                                     "WATERMARK for `rowtime` AS `rowtime` - INTERVAL '1' SECOND")
-                            .addOption("changelog-mode", "I,UA,UB,D")
                             .producedBeforeRestore(BEFORE_DATA)
                             .producedAfterRestore(AFTER_DATA);
-    static final SourceTestStep SOURCE = SOURCE_BUILDER.apply("window_source_t").build();
+    private static final SourceTestStep SOURCE = SOURCE_BUILDER.apply("window_source_t").build();
 
-    static final SourceTestStep CDC_SOURCE =
+    private static final SourceTestStep CDC_SOURCE =
             SOURCE_BUILDER
                     .apply("cdc_window_source_t")
                     .addOption("changelog-mode", "I,UA,UB,D")
                     .build();
 
-    static final String[] TUMBLE_EVENT_TIME_BEFORE_ROWS = {
+    private static final String[] TUMBLE_EVENT_TIME_BEFORE_ROWS = {
         "+I[a, 2020-10-10T00:00, 2020-10-10T00:00:05, 4, 10, 2]",
         "+I[a, 2020-10-10T00:00:05, 2020-10-10T00:00:10, 1, 3, 1]",
         "+I[b, 2020-10-10T00:00:05, 2020-10-10T00:00:10, 2, 9, 2]",
         "+I[b, 2020-10-10T00:00:15, 2020-10-10T00:00:20, 1, 4, 1]"
     };
 
-    public static final String[] TUMBLE_EVENT_TIME_AFTER_ROWS = {
+    private static final String[] TUMBLE_EVENT_TIME_AFTER_ROWS = {
         "+I[b, 2020-10-10T00:00:30, 2020-10-10T00:00:35, 1, 1, 1]",
         "+I[null, 2020-10-10T00:00:30, 2020-10-10T00:00:35, 1, 7, 0]",
         "+I[a, 2020-10-10T00:00:40, 2020-10-10T00:00:45, 1, 10, 1]",
@@ -122,14 +121,14 @@ public class WindowAggregateTestPrograms {
                     TUMBLE_EVENT_TIME_AFTER_ROWS,
                     true);
 
-    static final String[] TUMBLE_EVENT_TIME_WITH_OFFSET_BEFORE_ROWS = {
+    private static final String[] TUMBLE_EVENT_TIME_WITH_OFFSET_BEFORE_ROWS = {
         "+I[a, 2020-10-10T00:00:01, 2020-10-10T00:00:06, 4, 10, 2]",
         "+I[b, 2020-10-10T00:00:06, 2020-10-10T00:00:11, 2, 9, 2]",
         "+I[a, 2020-10-10T00:00:06, 2020-10-10T00:00:11, 1, 3, 1]",
         "+I[b, 2020-10-10T00:00:16, 2020-10-10T00:00:21, 1, 4, 1]"
     };
 
-    public static final String[] TUMBLE_EVENT_TIME_WITH_OFFSET_AFTER_ROWS = {
+    private static final String[] TUMBLE_EVENT_TIME_WITH_OFFSET_AFTER_ROWS = {
         "+I[b, 2020-10-10T00:00:31, 2020-10-10T00:00:36, 1, 1, 1]",
         "+I[null, 2020-10-10T00:00:31, 2020-10-10T00:00:36, 1, 7, 0]",
         "+I[a, 2020-10-10T00:00:36, 2020-10-10T00:00:41, 1, 10, 1]",
@@ -165,7 +164,7 @@ public class WindowAggregateTestPrograms {
                     TUMBLE_EVENT_TIME_WITH_OFFSET_AFTER_ROWS,
                     true);
 
-    static final String[] HOP_EVENT_TIME_BEFORE_ROWS = {
+    private static final String[] HOP_EVENT_TIME_BEFORE_ROWS = {
         "+I[a, 2020-10-09T23:59:55, 2020-10-10T00:00:05, 4, 10, 2]",
         "+I[b, 2020-10-10T00:00, 2020-10-10T00:00:10, 2, 9, 2]",
         "+I[a, 2020-10-10T00:00, 2020-10-10T00:00:10, 6, 18, 3]",
@@ -175,7 +174,7 @@ public class WindowAggregateTestPrograms {
         "+I[b, 2020-10-10T00:00:15, 2020-10-10T00:00:25, 1, 4, 1]"
     };
 
-    public static final String[] HOP_EVENT_TIME_AFTER_ROWS = {
+    private static final String[] HOP_EVENT_TIME_AFTER_ROWS = {
         "+I[b, 2020-10-10T00:00:25, 2020-10-10T00:00:35, 1, 1, 1]",
         "+I[null, 2020-10-10T00:00:25, 2020-10-10T00:00:35, 1, 7, 0]",
         "+I[b, 2020-10-10T00:00:30, 2020-10-10T00:00:40, 1, 1, 1]",
@@ -216,7 +215,7 @@ public class WindowAggregateTestPrograms {
                     HOP_EVENT_TIME_AFTER_ROWS,
                     true);
 
-    static final String[] HOP_EVENT_TIME_WITH_OFFSET_BEFORE_ROWS = {
+    private static final String[] HOP_EVENT_TIME_WITH_OFFSET_BEFORE_ROWS = {
         "+I[a, 2020-10-09T23:59:56, 2020-10-10T00:00:06, 4, 10, 2]",
         "+I[b, 2020-10-10T00:00:01, 2020-10-10T00:00:11, 2, 9, 2]",
         "+I[a, 2020-10-10T00:00:01, 2020-10-10T00:00:11, 6, 18, 3]",
@@ -226,7 +225,7 @@ public class WindowAggregateTestPrograms {
         "+I[b, 2020-10-10T00:00:16, 2020-10-10T00:00:26, 1, 4, 1]"
     };
 
-    public static final String[] HOP_EVENT_TIME_WITH_OFFSET_AFTER_ROWS = {
+    private static final String[] HOP_EVENT_TIME_WITH_OFFSET_AFTER_ROWS = {
         "+I[b, 2020-10-10T00:00:26, 2020-10-10T00:00:36, 1, 1, 1]",
         "+I[null, 2020-10-10T00:00:26, 2020-10-10T00:00:36, 1, 7, 0]",
         "+I[a, 2020-10-10T00:00:31, 2020-10-10T00:00:41, 1, 10, 1]",
@@ -267,7 +266,7 @@ public class WindowAggregateTestPrograms {
                     HOP_EVENT_TIME_WITH_OFFSET_AFTER_ROWS,
                     true);
 
-    static final String[] CUMULATE_EVENT_TIME_BEFORE_ROWS = {
+    private static final String[] CUMULATE_EVENT_TIME_BEFORE_ROWS = {
         "+I[a, 2020-10-10T00:00, 2020-10-10T00:00:05, 4, 10, 2]",
         "+I[b, 2020-10-10T00:00, 2020-10-10T00:00:10, 2, 9, 2]",
         "+I[a, 2020-10-10T00:00, 2020-10-10T00:00:10, 6, 18, 3]",
@@ -278,7 +277,7 @@ public class WindowAggregateTestPrograms {
         "+I[b, 2020-10-10T00:00:15, 2020-10-10T00:00:30, 1, 4, 1]"
     };
 
-    public static final String[] CUMULATE_EVENT_TIME_AFTER_ROWS = {
+    private static final String[] CUMULATE_EVENT_TIME_AFTER_ROWS = {
         "+I[b, 2020-10-10T00:00:30, 2020-10-10T00:00:35, 1, 1, 1]",
         "+I[null, 2020-10-10T00:00:30, 2020-10-10T00:00:35, 1, 7, 0]",
         "+I[b, 2020-10-10T00:00:30, 2020-10-10T00:00:40, 1, 1, 1]",
@@ -318,7 +317,7 @@ public class WindowAggregateTestPrograms {
                     CUMULATE_EVENT_TIME_AFTER_ROWS,
                     true);
 
-    static final String[] CUMULATE_EVENT_TIME_WITH_OFFSET_BEFORE_ROWS = {
+    private static final String[] CUMULATE_EVENT_TIME_WITH_OFFSET_BEFORE_ROWS = {
         "+I[a, 2020-10-10T00:00:01, 2020-10-10T00:00:06, 4, 10, 2]",
         "+I[b, 2020-10-10T00:00:01, 2020-10-10T00:00:11, 2, 9, 2]",
         "+I[a, 2020-10-10T00:00:01, 2020-10-10T00:00:11, 6, 18, 3]",
@@ -329,7 +328,7 @@ public class WindowAggregateTestPrograms {
         "+I[b, 2020-10-10T00:00:16, 2020-10-10T00:00:31, 1, 4, 1]"
     };
 
-    public static final String[] CUMULATE_EVENT_TIME_WITH_OFFSET_AFTER_ROWS = {
+    private static final String[] CUMULATE_EVENT_TIME_WITH_OFFSET_AFTER_ROWS = {
         "+I[b, 2020-10-10T00:00:31, 2020-10-10T00:00:36, 1, 1, 1]",
         "+I[null, 2020-10-10T00:00:31, 2020-10-10T00:00:36, 1, 7, 0]",
         "+I[a, 2020-10-10T00:00:31, 2020-10-10T00:00:41, 1, 10, 1]",
@@ -370,7 +369,7 @@ public class WindowAggregateTestPrograms {
                     CUMULATE_EVENT_TIME_WITH_OFFSET_AFTER_ROWS,
                     true);
 
-    static final String[] SESSION_EVENT_TIME_BEFORE_ROWS = {
+    private static final String[] SESSION_EVENT_TIME_BEFORE_ROWS = {
         "+I[a, 2020-10-10T00:00:01, 2020-10-10T00:00:13, 1, 1, 1]",
         "-U[a, 2020-10-10T00:00:01, 2020-10-10T00:00:13, 1, 1, 1]",
         "+U[a, 2020-10-10T00:00:01, 2020-10-10T00:00:13, 2, 3, 2]",
@@ -388,7 +387,7 @@ public class WindowAggregateTestPrograms {
         "+I[b, 2020-10-10T00:00:16, 2020-10-10T00:00:21, 1, 4, 1]"
     };
 
-    public static final String[] SESSION_EVENT_TIME_AFTER_ROWS = {
+    private static final String[] SESSION_EVENT_TIME_AFTER_ROWS = {
         "+I[null, 2020-10-10T00:00:32, 2020-10-10T00:00:39, 1, 7, 0]",
         "+I[b, 2020-10-10T00:00:32, 2020-10-10T00:00:39, 1, 1, 1]",
         "+I[a, 2020-10-10T00:00:40, 2020-10-10T00:00:49, 1, 10, 1]",
@@ -426,13 +425,13 @@ public class WindowAggregateTestPrograms {
                     SESSION_EVENT_TIME_AFTER_ROWS,
                     true);
 
-    static final String[] SESSION_EVENT_TIME_PARTITIONED_BEFORE_ROWS = {
+    private static final String[] SESSION_EVENT_TIME_PARTITIONED_BEFORE_ROWS = {
         "+I[b, 2020-10-10T00:00:06, 2020-10-10T00:00:12, 2, 9, 2]",
         "+I[a, 2020-10-10T00:00:01, 2020-10-10T00:00:13, 6, 18, 3]",
         "+I[b, 2020-10-10T00:00:16, 2020-10-10T00:00:21, 1, 4, 1]"
     };
 
-    public static final String[] SESSION_EVENT_TIME_PARTITIONED_AFTER_ROWS = {
+    private static final String[] SESSION_EVENT_TIME_PARTITIONED_AFTER_ROWS = {
         "+I[null, 2020-10-10T00:00:32, 2020-10-10T00:00:37, 1, 7, 0]",
         "+I[b, 2020-10-10T00:00:34, 2020-10-10T00:00:39, 1, 1, 1]",
         "+I[a, 2020-10-10T00:00:40, 2020-10-10T00:00:45, 1, 10, 1]",
