@@ -126,7 +126,8 @@ public class GroupAggregateTestPrograms {
                                     .consumedBeforeRestore(
                                             "+I[1, 1, null, Hi]", "+I[2, 2, 2.0, Hello]")
                                     .consumedAfterRestore(
-                                            "+U[1, 2, null, Hi]", "+U[2, 4, 2.0, Hello]")
+                                            "+I[1, 2, null, Hi]", "+I[2, 4, 2.0, Hello]")
+                                    .testMaterializedData()
                                     .build())
                     .runSql(GroupAggregateTestPrograms.GROUP_BY_SIMPLE.getRunSqlTestStep().sql)
                     .build();
@@ -206,10 +207,11 @@ public class GroupAggregateTestPrograms {
                                             "+U[2, 1, 4, 14, 57, 8.0, 7]",
                                             "+U[1, 1, 4, 12, 32, 6.0, 5]")
                                     .consumedAfterRestore(
-                                            "+U[3, 1, 2, 8, 31, 9.0, 3]",
-                                            "+U[2, 1, 4, 14, 57, 7.0, 7]",
+                                            "+I[3, 1, 2, 8, 31, 9.0, 3]",
+                                            "+I[2, 1, 4, 14, 57, 7.0, 7]",
                                             "+I[7, 0, 1, 7, 7, 7.0, 2]",
-                                            "+U[1, 1, 4, 12, 32, 5.0, 5]")
+                                            "+I[1, 1, 4, 12, 32, 5.0, 5]")
+                                    .testMaterializedData()
                                     .build())
                     .runSql(GROUP_BY_DISTINCT.getRunSqlTestStep().sql)
                     .build();
@@ -280,6 +282,7 @@ public class GroupAggregateTestPrograms {
                                             "+U[1, 1, Hello World Like|Hello|GHI|EFG|DEF]",
                                             "+I[3, 3, HIJ|IJK|BCD]")
                                     .consumedAfterRestore("+I[7, 7, MNO|XYZ]")
+                                    .testMaterializedData()
                                     .build())
                     .runSql(GROUP_BY_UDF_WITH_MERGE.getRunSqlTestStep().sql)
                     .build();
@@ -363,11 +366,11 @@ public class GroupAggregateTestPrograms {
                                             "+U[2, 120, 0, 2]",
                                             "+U[1, 77, 0, 1]")
                                     .consumedAfterRestore(
-                                            "+I[7, 17, 0, 7]",
-                                            "+U[1, 87, 0, 1]",
-                                            "+U[2, 169, 0, 2]",
-                                            "+U[3, 73, 0, 3]",
-                                            "+U[7, 34, 0, 7]")
+                                            "+I[1, 87, 0, 1]",
+                                            "+I[2, 169, 0, 2]",
+                                            "+I[3, 73, 0, 3]",
+                                            "+I[7, 34, 0, 7]")
+                                    .testMaterializedData()
                                     .build())
                     .runSql(GROUP_BY_UDF_WITHOUT_MERGE.getRunSqlTestStep().sql)
                     .build();
