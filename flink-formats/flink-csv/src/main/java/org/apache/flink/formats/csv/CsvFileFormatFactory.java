@@ -55,12 +55,14 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.Csv
 
 import org.apache.commons.text.StringEscapeUtils;
 
+import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
 import static org.apache.flink.formats.csv.CsvFormatOptions.ALLOW_COMMENTS;
 import static org.apache.flink.formats.csv.CsvFormatOptions.ARRAY_ELEMENT_DELIMITER;
+import static org.apache.flink.formats.csv.CsvFormatOptions.CHARSET;
 import static org.apache.flink.formats.csv.CsvFormatOptions.DISABLE_QUOTE_CHARACTER;
 import static org.apache.flink.formats.csv.CsvFormatOptions.ESCAPE_CHARACTER;
 import static org.apache.flink.formats.csv.CsvFormatOptions.FIELD_DELIMITER;
@@ -139,6 +141,10 @@ public class CsvFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
                             converter,
                             context.createTypeInformation(projectedDataType),
                             ignoreParseErrors);
+            String charset = formatOptions.get(CHARSET);
+            if (charset != null) {
+                csvReaderFormat.withCharset(Charset.forName(charset));
+            }
             return new StreamFormatAdapter<>(csvReaderFormat);
         }
 
