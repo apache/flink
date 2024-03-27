@@ -140,71 +140,15 @@ public class FutureUtils {
 
         final CompletableFuture<T> resultFuture = new CompletableFuture<>();
 
-        retryOperation(resultFuture, operation, retries, retryPredicate, executor);
+        retryOperation(
+                false,
+                resultFuture,
+                operation,
+                new FixedRetryStrategy(retries, Duration.ZERO),
+                retryPredicate,
+                executor);
 
         return resultFuture;
-    }
-
-    /**
-     * Helper method which retries the provided operation in case of a failure.
-     *
-     * @param resultFuture to complete
-     * @param operation to retry
-     * @param retries until giving up
-     * @param retryPredicate Predicate to test whether an exception is retryable
-     * @param executor to run the futures
-     * @param <T> type of the future's result
-     */
-    private static <T> void retryOperation(
-            final CompletableFuture<T> resultFuture,
-            final Supplier<CompletableFuture<T>> operation,
-            final int retries,
-            final Predicate<Throwable> retryPredicate,
-            final Executor executor) {
-
-        if (!resultFuture.isDone()) {
-            final CompletableFuture<T> operationFuture = operation.get();
-
-            operationFuture.whenCompleteAsync(
-                    (t, throwable) -> {
-                        if (throwable != null) {
-                            if (throwable instanceof CancellationException) {
-                                resultFuture.completeExceptionally(
-                                        new RetryException(
-                                                "Operation future was cancelled.", throwable));
-                            } else {
-                                throwable = ExceptionUtils.stripExecutionException(throwable);
-                                if (!retryPredicate.test(throwable)) {
-                                    resultFuture.completeExceptionally(
-                                            new RetryException(
-                                                    "Stopped retrying the operation because the error is not "
-                                                            + "retryable.",
-                                                    throwable));
-                                } else {
-                                    if (retries > 0) {
-                                        retryOperation(
-                                                resultFuture,
-                                                operation,
-                                                retries - 1,
-                                                retryPredicate,
-                                                executor);
-                                    } else {
-                                        resultFuture.completeExceptionally(
-                                                new RetryException(
-                                                        "Could not complete the operation. Number of retries "
-                                                                + "has been exhausted.",
-                                                        throwable));
-                                    }
-                                }
-                            }
-                        } else {
-                            resultFuture.complete(t);
-                        }
-                    },
-                    executor);
-
-            resultFuture.whenComplete((t, throwable) -> operationFuture.cancel(false));
-        }
     }
 
     /**
@@ -226,8 +170,8 @@ public class FutureUtils {
 
         final CompletableFuture<T> resultFuture = new CompletableFuture<>();
 
-        retryOperationWithDelay(
-                resultFuture, operation, retryStrategy, retryPredicate, scheduledExecutor);
+        retryOperation(
+                true, resultFuture, operation, retryStrategy, retryPredicate, scheduledExecutor);
 
         return resultFuture;
     }
@@ -249,17 +193,29 @@ public class FutureUtils {
         return retryWithDelay(operation, retryStrategy, (throwable) -> true, scheduledExecutor);
     }
 
-    private static <T> void retryOperationWithDelay(
+    /**
+     * Helper method which retryStrategy the provided operation in case of a failure.
+     *
+     * @param scheduled whether the retry execution is scheduled
+     * @param resultFuture to complete
+     * @param operation to retry
+     * @param retryStrategy the RetryStrategy
+     * @param retryPredicate Predicate to test whether an exception is retryable
+     * @param executor to run the futures
+     * @param <T> type of the future's result
+     */
+    private static <T> void retryOperation(
+            final boolean scheduled,
             final CompletableFuture<T> resultFuture,
             final Supplier<CompletableFuture<T>> operation,
             final RetryStrategy retryStrategy,
             final Predicate<Throwable> retryPredicate,
-            final ScheduledExecutor scheduledExecutor) {
+            final Executor executor) {
 
         if (!resultFuture.isDone()) {
-            final CompletableFuture<T> operationResultFuture = operation.get();
+            final CompletableFuture<T> operationFuture = operation.get();
 
-            operationResultFuture.whenComplete(
+            operationFuture.whenComplete(
                     (t, throwable) -> {
                         if (throwable != null) {
                             if (throwable instanceof CancellationException) {
@@ -269,33 +225,42 @@ public class FutureUtils {
                             } else {
                                 throwable = ExceptionUtils.stripExecutionException(throwable);
                                 if (!retryPredicate.test(throwable)) {
-                                    resultFuture.completeExceptionally(throwable);
-                                } else if (retryStrategy.getNumRemainingRetries() > 0) {
-                                    long retryDelayMillis =
-                                            retryStrategy.getRetryDelay().toMillis();
-                                    final ScheduledFuture<?> scheduledFuture =
-                                            scheduledExecutor.schedule(
-                                                    (Runnable)
-                                                            () ->
-                                                                    retryOperationWithDelay(
-                                                                            resultFuture,
-                                                                            operation,
-                                                                            retryStrategy
-                                                                                    .getNextRetryStrategy(),
-                                                                            retryPredicate,
-                                                                            scheduledExecutor),
-                                                    retryDelayMillis,
-                                                    TimeUnit.MILLISECONDS);
-
-                                    resultFuture.whenComplete(
-                                            (innerT, innerThrowable) ->
-                                                    scheduledFuture.cancel(false));
-                                } else {
-                                    RetryException retryException =
+                                    resultFuture.completeExceptionally(
+                                            new RetryException(
+                                                    "Stopped retrying the operation because the error is not retryable.",
+                                                    throwable));
+                                } else if (retryStrategy.getNumRemainingRetries() <= 0) {
+                                    resultFuture.completeExceptionally(
                                             new RetryException(
                                                     "Could not complete the operation. Number of retries has been exhausted.",
-                                                    throwable);
-                                    resultFuture.completeExceptionally(retryException);
+                                                    throwable));
+                                } else {
+                                    Runnable retryRunnable =
+                                            () ->
+                                                    retryOperation(
+                                                            scheduled,
+                                                            resultFuture,
+                                                            operation,
+                                                            retryStrategy.getNextRetryStrategy(),
+                                                            retryPredicate,
+                                                            executor);
+
+                                    if (!scheduled) {
+                                        retryRunnable.run();
+                                    } else {
+                                        final ScheduledFuture<?> scheduledFuture =
+                                                ((ScheduledExecutor) executor)
+                                                        .schedule(
+                                                                retryRunnable,
+                                                                retryStrategy
+                                                                        .getRetryDelay()
+                                                                        .toMillis(),
+                                                                TimeUnit.MILLISECONDS);
+
+                                        resultFuture.whenComplete(
+                                                (innerT, innerThrowable) ->
+                                                        scheduledFuture.cancel(false));
+                                    }
                                 }
                             }
                         } else {
@@ -303,7 +268,7 @@ public class FutureUtils {
                         }
                     });
 
-            resultFuture.whenComplete((t, throwable) -> operationResultFuture.cancel(false));
+            resultFuture.whenComplete((t, throwable) -> operationFuture.cancel(false));
         }
     }
 
@@ -361,31 +326,28 @@ public class FutureUtils {
                             } else {
                                 resultFuture.completeExceptionally(throwable);
                             }
+                        } else if (acceptancePredicate.test(t)) {
+                            resultFuture.complete(t);
+                        } else if (!deadline.hasTimeLeft()) {
+                            resultFuture.completeExceptionally(
+                                    new RetryException(
+                                            "Could not satisfy the predicate within the allowed time."));
                         } else {
-                            if (acceptancePredicate.test(t)) {
-                                resultFuture.complete(t);
-                            } else if (deadline.hasTimeLeft()) {
-                                final ScheduledFuture<?> scheduledFuture =
-                                        scheduledExecutor.schedule(
-                                                (Runnable)
-                                                        () ->
-                                                                retrySuccessfulOperationWithDelay(
-                                                                        resultFuture,
-                                                                        operation,
-                                                                        retryDelay,
-                                                                        deadline,
-                                                                        acceptancePredicate,
-                                                                        scheduledExecutor),
-                                                retryDelay.toMillis(),
-                                                TimeUnit.MILLISECONDS);
+                            final ScheduledFuture<?> scheduledFuture =
+                                    scheduledExecutor.schedule(
+                                            () ->
+                                                    retrySuccessfulOperationWithDelay(
+                                                            resultFuture,
+                                                            operation,
+                                                            retryDelay,
+                                                            deadline,
+                                                            acceptancePredicate,
+                                                            scheduledExecutor),
+                                            retryDelay.toMillis(),
+                                            TimeUnit.MILLISECONDS);
 
-                                resultFuture.whenComplete(
-                                        (innerT, innerThrowable) -> scheduledFuture.cancel(false));
-                            } else {
-                                resultFuture.completeExceptionally(
-                                        new RetryException(
-                                                "Could not satisfy the predicate within the allowed time."));
-                            }
+                            resultFuture.whenComplete(
+                                    (innerT, innerThrowable) -> scheduledFuture.cancel(false));
                         }
                     });
 

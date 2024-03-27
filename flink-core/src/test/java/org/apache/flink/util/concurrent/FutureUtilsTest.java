@@ -312,9 +312,11 @@ class FutureUtilsTest {
                                                 .contains(retryableExceptionMessage),
                         new ScheduledExecutorServiceAdapter(retryExecutor));
 
-        assertThatFuture(resultFuture)
-                .eventuallyFailsWith(ExecutionException.class)
-                .withMessageContaining(expectedErrorMessage);
+        FutureUtils.RetryException e =
+                new FutureUtils.RetryException(
+                        "Stopped retrying the operation because the error is not retryable.",
+                        new Exception(expectedErrorMessage));
+        assertThatFuture(resultFuture).eventuallyFailsWith(ExecutionException.class).withCause(e);
     }
 
     @Test
@@ -797,16 +799,15 @@ class FutureUtilsTest {
 
         assertThat(caughtErrorHandlingException)
                 .hasValueSatisfying(
-                        actualError -> {
-                            assertThat(actualError)
-                                    .isInstanceOf(IllegalStateException.class)
-                                    .hasRootCause(errorHandlingException)
-                                    .satisfies(
-                                            cause ->
-                                                    assertThat(cause.getSuppressed())
-                                                            .containsExactly(
-                                                                    actualProductionCodeError));
-                        });
+                        actualError ->
+                                assertThat(actualError)
+                                        .isInstanceOf(IllegalStateException.class)
+                                        .hasRootCause(errorHandlingException)
+                                        .satisfies(
+                                                cause ->
+                                                        assertThat(cause.getSuppressed())
+                                                                .containsExactly(
+                                                                        actualProductionCodeError)));
     }
 
     private static class TestingUncaughtExceptionHandler
