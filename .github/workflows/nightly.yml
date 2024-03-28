@@ -30,6 +30,9 @@ jobs:
 
   nightly:
     strategy:
+      # each Flink CI run occupies 10 jobs in parallel
+      # Apache Infra requires us to limit the number of parallel instances to 20
+      max-parallel: 2
       fail-fast: false
       matrix:
         include:
