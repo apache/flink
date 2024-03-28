@@ -51,6 +51,8 @@ import java.util.function.Function;
 import java.util.stream.IntStream;
 
 import static java.util.Collections.emptySet;
+import static org.apache.flink.runtime.state.ChannelStateHelper.castToInputStateCollection;
+import static org.apache.flink.runtime.state.ChannelStateHelper.castToOutputStateCollection;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -166,17 +168,15 @@ class TaskStateAssignment {
                         || !subRawKeyedState.containsKey(instanceID),
                 "If an operator has no managed key state, it should also not have a raw keyed state.");
 
-        final StateObjectCollection<InputChannelStateHandle> inputState =
-                getState(instanceID, inputChannelStates);
-        final StateObjectCollection<ResultSubpartitionStateHandle> outputState =
-                getState(instanceID, resultSubpartitionStates);
         return OperatorSubtaskState.builder()
                 .setManagedOperatorState(getState(instanceID, subManagedOperatorState))
                 .setRawOperatorState(getState(instanceID, subRawOperatorState))
                 .setManagedKeyedState(getState(instanceID, subManagedKeyedState))
                 .setRawKeyedState(getState(instanceID, subRawKeyedState))
-                .setInputChannelState(inputState)
-                .setResultSubpartitionState(outputState)
+                .setInputChannelState(
+                        castToInputStateCollection(inputChannelStates.get(instanceID)))
+                .setResultSubpartitionState(
+                        castToOutputStateCollection(resultSubpartitionStates.get(instanceID)))
                 .setInputRescalingDescriptor(
                         createRescalingDescriptor(
                                 instanceID,

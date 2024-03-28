@@ -33,12 +33,12 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.DoneFuture;
-import org.apache.flink.runtime.state.InputChannelStateHandle;
+import org.apache.flink.runtime.state.InputStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.LocalSnapshotDirectoryProviderImpl;
 import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
+import org.apache.flink.runtime.state.OutputStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.TaskExecutorStateChangelogStoragesManager;
@@ -111,10 +111,9 @@ class LocalStateForwardingTest {
         osFuture.setKeyedStateRawFuture(createSnapshotResult(KeyedStateHandle.class));
         osFuture.setOperatorStateManagedFuture(createSnapshotResult(OperatorStateHandle.class));
         osFuture.setOperatorStateRawFuture(createSnapshotResult(OperatorStateHandle.class));
-        osFuture.setInputChannelStateFuture(
-                createSnapshotCollectionResult(InputChannelStateHandle.class));
+        osFuture.setInputChannelStateFuture(createSnapshotCollectionResult(InputStateHandle.class));
         osFuture.setResultSubpartitionStateFuture(
-                createSnapshotCollectionResult(ResultSubpartitionStateHandle.class));
+                createSnapshotCollectionResult(OutputStateHandle.class));
 
         OperatorID operatorID = new OperatorID();
         snapshots.put(operatorID, osFuture);

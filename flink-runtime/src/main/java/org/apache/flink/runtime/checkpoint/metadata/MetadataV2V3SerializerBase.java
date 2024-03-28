@@ -28,7 +28,7 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
-import org.apache.flink.runtime.state.InputChannelStateHandle;
+import org.apache.flink.runtime.state.InputStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsSavepointStateHandle;
@@ -36,7 +36,7 @@ import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
-import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
+import org.apache.flink.runtime.state.OutputStateHandle;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -643,25 +643,22 @@ public abstract class MetadataV2V3SerializerBase {
     //  channel state (unaligned checkpoints)
     // ------------------------------------------------------------------------
 
-    protected StateObjectCollection<ResultSubpartitionStateHandle>
-            deserializeResultSubpartitionStateHandle(
-                    DataInputStream dis, @Nullable DeserializationContext context)
-                    throws IOException {
+    protected StateObjectCollection<OutputStateHandle> deserializeResultSubpartitionStateHandle(
+            DataInputStream dis, @Nullable DeserializationContext context) throws IOException {
         return StateObjectCollection.empty();
     }
 
-    protected StateObjectCollection<InputChannelStateHandle> deserializeInputChannelStateHandle(
+    protected StateObjectCollection<InputStateHandle> deserializeInputChannelStateHandle(
             DataInputStream dis, @Nullable DeserializationContext context) throws IOException {
         return StateObjectCollection.empty();
     }
 
     protected void serializeResultSubpartitionStateHandle(
-            ResultSubpartitionStateHandle resultSubpartitionStateHandle, DataOutputStream dos)
+            OutputStateHandle resultSubpartitionStateHandle, DataOutputStream dos)
             throws IOException {}
 
     protected void serializeInputChannelStateHandle(
-            InputChannelStateHandle inputChannelStateHandle, DataOutputStream dos)
-            throws IOException {}
+            InputStateHandle inputChannelStateHandle, DataOutputStream dos) throws IOException {}
 
     // ------------------------------------------------------------------------
     //  low-level state handles
