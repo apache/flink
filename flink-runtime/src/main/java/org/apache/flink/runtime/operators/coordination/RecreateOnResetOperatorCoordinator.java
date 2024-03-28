@@ -37,6 +37,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.apache.flink.runtime.operators.coordination.ComponentClosingUtils.closeAsyncWithTimeout;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A class that will recreate a new {@link OperatorCoordinator} instance when reset to checkpoint.
@@ -158,6 +159,18 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
                         newCoordinator.processPendingCalls();
                     }
                 });
+    }
+
+    @Override
+    public boolean supportsBatchSnapshot() {
+        try {
+            checkNotNull(coordinator.internalCoordinator);
+            return coordinator.internalCoordinator.supportsBatchSnapshot();
+        } catch (Exception e) {
+            String msg = "Could not get internal coordinator";
+            LOG.error(msg, e);
+            throw new RuntimeException(msg, e);
+        }
     }
 
     // ---------------------

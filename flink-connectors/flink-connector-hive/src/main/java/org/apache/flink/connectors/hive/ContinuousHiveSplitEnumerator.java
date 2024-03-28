@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
+import org.apache.flink.api.connector.source.SupportsBatchSnapshot;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.PendingSplitsCheckpoint;
@@ -54,7 +55,8 @@ import java.util.concurrent.Callable;
 
 /** A continuously monitoring {@link SplitEnumerator} for hive source. */
 public class ContinuousHiveSplitEnumerator<T extends Comparable<T>>
-        implements SplitEnumerator<HiveSourceSplit, PendingSplitsCheckpoint<HiveSourceSplit>> {
+        implements SplitEnumerator<HiveSourceSplit, PendingSplitsCheckpoint<HiveSourceSplit>>,
+                SupportsBatchSnapshot {
 
     private static final Logger LOG = LoggerFactory.getLogger(ContinuousHiveSplitEnumerator.class);
 

@@ -511,6 +511,10 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
         return operatorCoordinatorContext;
     }
 
+    SplitAssignmentTracker<SplitT> getAssignmentTracker() {
+        return assignmentTracker;
+    }
+
     // ---------------- Executor methods to avoid use coordinatorExecutor directly -----------------
 
     Future<?> submitTask(Runnable task) {

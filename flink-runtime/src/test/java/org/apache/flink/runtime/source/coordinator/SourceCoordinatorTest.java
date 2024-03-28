@@ -169,6 +169,42 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
     }
 
     @Test
+    void testBatchSnapshotCoordinatorAndRestore() throws Exception {
+        sourceReady();
+        addTestingSplitSet(6);
+
+        registerReader(0);
+        getEnumerator().executeAssignOneSplit(0);
+        getEnumerator().executeAssignOneSplit(0);
+
+        final CompletableFuture<byte[]> checkpointFuture = new CompletableFuture<>();
+        sourceCoordinator.checkpointCoordinator(
+                OperatorCoordinator.BATCH_CHECKPOINT_ID, checkpointFuture);
+        final byte[] bytes = checkpointFuture.get();
+
+        // restore from the batch snapshot.
+        SourceCoordinator<?, ?> restoredCoordinator = getNewSourceCoordinator();
+        restoredCoordinator.resetToCheckpoint(OperatorCoordinator.BATCH_CHECKPOINT_ID, bytes);
+        TestingSplitEnumerator<?> restoredEnumerator =
+                (TestingSplitEnumerator<?>) restoredCoordinator.getEnumerator();
+        SourceCoordinatorContext<?> restoredContext = restoredCoordinator.getContext();
+        assertThat(restoredEnumerator.getUnassignedSplits())
+                .as("2 splits should have been assigned to reader 0")
+                .hasSize(4);
+        assertThat(restoredEnumerator.getContext().registeredReaders()).isEmpty();
+        assertThat(restoredContext.registeredReaders())
+                .as("Registered readers should not be recovered by restoring")
+                .isEmpty();
+
+        assertThat(restoredContext.getAssignmentTracker().uncheckpointedAssignments())
+                .isEqualTo(
+                        sourceCoordinator
+                                .getContext()
+                                .getAssignmentTracker()
+                                .uncheckpointedAssignments());
+    }
+
+    @Test
     void testSubtaskFailedAndRevertUncompletedAssignments() throws Exception {
         sourceReady();
         addTestingSplitSet(6);

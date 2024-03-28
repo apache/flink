@@ -23,6 +23,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitsAssignment;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -63,6 +64,27 @@ public class SplitAssignmentTracker<SplitT extends SourceSplit> {
         // Include the uncheckpointed assignments to the snapshot.
         assignmentsByCheckpointId.put(checkpointId, uncheckpointedAssignments);
         uncheckpointedAssignments = new HashMap<>();
+    }
+
+    /** Take a snapshot of the split assignments. */
+    public byte[] snapshotState(SimpleVersionedSerializer<SplitT> splitSerializer)
+            throws Exception {
+        return SourceCoordinatorSerdeUtils.serializeAssignments(
+                uncheckpointedAssignments, splitSerializer);
+    }
+
+    /**
+     * Restore the state of the SplitAssignmentTracker.
+     *
+     * @param splitSerializer The serializer of the splits.
+     * @param assignmentData The state of the SplitAssignmentTracker.
+     * @throws Exception when the state deserialization fails.
+     */
+    public void restoreState(
+            SimpleVersionedSerializer<SplitT> splitSerializer, byte[] assignmentData)
+            throws Exception {
+        uncheckpointedAssignments =
+                SourceCoordinatorSerdeUtils.deserializeAssignments(assignmentData, splitSerializer);
     }
 
     /**
