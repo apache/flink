@@ -33,6 +33,7 @@ under the License.
 		<maven.compiler.target>11</maven.compiler.target>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<flink.version>1.20-SNAPSHOT</flink.version>
+		<slf4j.version>1.7.26</slf4j.version>
 	</properties>
 
 	<dependencies>
@@ -62,19 +63,31 @@ under the License.
 			<version>${flink.version}</version>
 		</dependency>
 
+<!--		<dependency>-->
+<!--			<groupId>org.slf4j</groupId>-->
+<!--			<artifactId>slf4j-log4j12</artifactId>-->
+<!--			<version>1.7.25</version>-->
+<!--			<scope>compile</scope>-->
+<!--		</dependency>-->
+
 		<dependency>
 			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-log4j12</artifactId>
-			<version>1.7.25</version>
-			<scope>compile</scope>
+			<artifactId>slf4j-api</artifactId>
+			<version>${slf4j.version}</version>
 		</dependency>
 
 		<dependency>
-			<groupId>log4j</groupId>
-			<artifactId>log4j</artifactId>
-			<version>1.2.17</version>
-			<scope>compile</scope>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-simple</artifactId>
+			<version>${slf4j.version}</version>
 		</dependency>
+
+<!--		<dependency>-->
+<!--			<groupId>log4j</groupId>-->
+<!--			<artifactId>log4j</artifactId>-->
+<!--			<version>1.2.17</version>-->
+<!--			<scope>compile</scope>-->
+<!--		</dependency>-->
 
 		<dependency>
 			<groupId>org.testcontainers</groupId>
