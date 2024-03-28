@@ -1,0 +1,5 @@
+# Ignore IntelliJ IDEA files
+.idea/
+
+# Ignore Visual Studio Code files
+.vscode/
