@@ -1,0 +1,58 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testProjectPushDown">
+    <Resource name="sql">
+      <![CDATA[
+SELECT a FROM (
+  SELECT a, f,
+      ROW_NUMBER() OVER (PARTITION BY f ORDER BY c DESC) as rank_num
+  FROM  T1, T2
+  WHERE T1.a = T2.d
+)
+WHERE rank_num = 1
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[=($2, 1)])
+   +- LogicalProject(a=[$0], f=[$5], rank_num=[ROW_NUMBER() OVER (PARTITION BY $5 ORDER BY $2 DESC NULLS LAST)])
+      +- LogicalFilter(condition=[=($0, $3)])
+         +- LogicalJoin(condition=[true], joinType=[inner])
+            :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a])
++- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[f], orderBy=[c DESC], select=[a, c, f])
+   +- Exchange(distribution=[hash[f]])
+      +- Calc(select=[a, c, f])
+         +- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, c, d, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+            :- Exchange(distribution=[hash[a]])
+            :  +- Calc(select=[a, c])
+            :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- Exchange(distribution=[hash[d]])
+               +- Calc(select=[d, f])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

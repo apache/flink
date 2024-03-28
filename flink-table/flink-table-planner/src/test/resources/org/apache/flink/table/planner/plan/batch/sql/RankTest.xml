@@ -284,12 +284,12 @@ LogicalProject(rn1=[CAST($3):INTEGER NOT NULL], rn2=[CAST($4):INTEGER NOT NULL])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[CAST(rna AS INTEGER) AS rn1, CAST(w0$o0 AS INTEGER) AS rn2], where=[(w0$o0 <= 200)])
-+- OverAggregate(partitionBy=[a], orderBy=[b DESC], window#0=[ROW_NUMBER(*) AS w0$o0_0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w0$o0_0])
+Calc(select=[CAST(w0$o0 AS INTEGER) AS rn1, CAST(w0$o0 AS INTEGER) AS rn2], where=[(w0$o0 <= 200)])
++- OverAggregate(partitionBy=[a], orderBy=[b DESC], window#0=[ROW_NUMBER(*) AS w0$o0_0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0, w0$o0_0])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[a ASC, b DESC])
          +- Exchange(distribution=[hash[a]])
-            +- Calc(select=[a, b, c, w0$o0], where=[(w0$o0 <= 100)])
+            +- Calc(select=[a, b, w0$o0], where=[(w0$o0 <= 100)])
                +- OverAggregate(partitionBy=[a, c], orderBy=[b DESC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0])
                   +- Exchange(distribution=[forward])
                      +- Sort(orderBy=[a ASC, c ASC, b DESC])
