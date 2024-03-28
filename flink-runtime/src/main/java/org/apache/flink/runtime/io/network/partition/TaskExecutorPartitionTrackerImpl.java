@@ -35,6 +35,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static java.util.stream.Collectors.toList;
+
 /**
  * Utility for tracking partitions and issuing release calls to task executors and shuffle masters.
  */
@@ -81,6 +83,19 @@ public class TaskExecutorPartitionTrackerImpl
                         PartitionTrackerEntry::getResultPartitionId);
         LOG.debug("Releasing Job Partitions {} for job {}", partitionsForJob, producingJobId);
         shuffleEnvironment.releasePartitionsLocally(partitionsForJob);
+    }
+
+    @Override
+    public Collection<TaskExecutorPartitionInfo> getTrackedPartitionsFor(JobID producingJobId) {
+        return partitionTable.getTrackedPartitions(producingJobId).stream()
+                .map(
+                        partitionId -> {
+                            final PartitionInfo<JobID, TaskExecutorPartitionInfo> partitionInfo =
+                                    partitionInfos.get(partitionId);
+                            Preconditions.checkNotNull(partitionInfo);
+                            return partitionInfo.getMetaInfo();
+                        })
+                .collect(toList());
     }
 
     @Override

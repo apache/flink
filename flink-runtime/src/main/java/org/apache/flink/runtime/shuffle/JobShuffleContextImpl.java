@@ -49,4 +49,10 @@ public class JobShuffleContextImpl implements JobShuffleContext {
             Collection<ResultPartitionID> partitionIds) {
         return jobMasterGateway.stopTrackingAndReleasePartitions(partitionIds);
     }
+
+    @Override
+    public CompletableFuture<Collection<PartitionWithMetrics>>
+            getAllPartitionWithMetricsOnTaskManagers() {
+        return jobMasterGateway.getAllPartitionWithMetricsOnTaskManagers();
+    }
 }

@@ -20,10 +20,13 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.netty.NettyPartitionRequestListener;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
+import org.apache.flink.runtime.shuffle.ShuffleMetrics;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -156,6 +159,23 @@ class ResultPartitionManagerTest {
         partitionManager.releasePartition(partition.getPartitionId(), null);
 
         verifyCreateSubpartitionViewThrowsException(partitionManager, partition.getPartitionId());
+    }
+
+    @Test
+    void testGetMetricsOfPartition() throws Exception {
+        final ResultPartitionManager partitionManager = new ResultPartitionManager();
+        final ResultPartition partition = createPartition();
+        partition.resultPartitionBytes.incAll(100);
+
+        partitionManager.registerResultPartition(partition);
+        Optional<ShuffleMetrics> metricsOfPartition =
+                partitionManager.getMetricsOfPartition(partition.partitionId);
+        assertThat(metricsOfPartition)
+                .hasValueSatisfying(
+                        metrics ->
+                                Arrays.equals(
+                                        metrics.getPartitionBytes().getSubpartitionBytes(),
+                                        new long[] {100}));
     }
 
     /** Test notifier timeout in {@link ResultPartitionManager}. */

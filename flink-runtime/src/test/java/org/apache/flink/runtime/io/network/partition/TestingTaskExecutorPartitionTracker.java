@@ -116,6 +116,11 @@ public class TestingTaskExecutorPartitionTracker implements TaskExecutorPartitio
     }
 
     @Override
+    public Collection<TaskExecutorPartitionInfo> getTrackedPartitionsFor(JobID producingJobId) {
+        return Collections.emptyList();
+    }
+
+    @Override
     public void promoteJobPartitions(Collection<ResultPartitionID> partitionsToPromote) {
         promotePartitionsConsumer.accept(partitionsToPromote);
     }

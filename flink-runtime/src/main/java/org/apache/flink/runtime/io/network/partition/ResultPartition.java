@@ -215,6 +215,10 @@ public abstract class ResultPartition implements ResultPartitionWriter {
         return partitionType;
     }
 
+    public ResultPartitionBytesCounter getResultPartitionBytes() {
+        return resultPartitionBytes;
+    }
+
     // ------------------------------------------------------------------------
 
     @Override

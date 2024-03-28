@@ -55,6 +55,15 @@ class PartitionTableTest {
     }
 
     @Test
+    void testGetTrackedPartitions() {
+        final PartitionTable<JobID> table = new PartitionTable<>();
+
+        table.startTrackingPartitions(JOB_ID, Collections.singletonList(PARTITION_ID));
+
+        assertThat(table.getTrackedPartitions(JOB_ID)).containsExactly(PARTITION_ID);
+    }
+
+    @Test
     void testStartTrackingZeroPartitionDoesNotMutateState() {
         final PartitionTable<JobID> table = new PartitionTable<>();
 

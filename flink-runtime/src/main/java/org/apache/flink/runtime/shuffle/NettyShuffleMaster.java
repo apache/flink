@@ -31,6 +31,9 @@ import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
 import javax.annotation.Nullable;
 
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -57,6 +60,8 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
     private final int networkBufferSize;
 
     @Nullable private final TieredInternalShuffleMaster tieredInternalShuffleMaster;
+
+    private final Map<JobID, JobShuffleContext> jobShuffleContexts = new HashMap<>();
 
     public NettyShuffleMaster(Configuration conf) {
         checkNotNull(conf);
@@ -164,5 +169,22 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
         return (conf.get(BATCH_SHUFFLE_MODE) == ALL_EXCHANGES_HYBRID_FULL
                         || conf.get(BATCH_SHUFFLE_MODE) == ALL_EXCHANGES_HYBRID_SELECTIVE)
                 && conf.get(NETWORK_HYBRID_SHUFFLE_ENABLE_NEW_MODE);
+    }
+
+    @Override
+    public CompletableFuture<Collection<PartitionWithMetrics>> getAllPartitionWithMetrics(
+            JobID jobId) {
+        return checkNotNull(jobShuffleContexts.get(jobId))
+                .getAllPartitionWithMetricsOnTaskManagers();
+    }
+
+    @Override
+    public void registerJob(JobShuffleContext context) {
+        jobShuffleContexts.put(context.getJobId(), context);
+    }
+
+    @Override
+    public void unregisterJob(JobID jobId) {
+        jobShuffleContexts.remove(jobId);
     }
 }

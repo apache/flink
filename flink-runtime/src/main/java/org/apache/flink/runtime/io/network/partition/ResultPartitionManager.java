@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.shuffle.DefaultShuffleMetrics;
+import org.apache.flink.runtime.shuffle.ShuffleMetrics;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
@@ -291,6 +293,20 @@ public class ResultPartitionManager implements ResultPartitionProvider {
     public Collection<ResultPartitionID> getUnreleasedPartitions() {
         synchronized (registeredPartitions) {
             return registeredPartitions.keySet();
+        }
+    }
+
+    public Optional<ShuffleMetrics> getMetricsOfPartition(ResultPartitionID partitionId) {
+        synchronized (registeredPartitions) {
+            final ResultPartition partition = registeredPartitions.get(partitionId);
+
+            if (partition == null) {
+                return Optional.empty();
+            }
+
+            return Optional.of(
+                    new DefaultShuffleMetrics(
+                            partition.getResultPartitionBytes().createSnapshot()));
         }
     }
 }
