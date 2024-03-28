@@ -22,24 +22,20 @@ import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.DeliveryGuarantee;
-import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.streaming.api.environment.PathAnalyzer;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.util.Collector;
-
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.KafkaAdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
-
 import java.util.Collections;
 import java.util.Properties;
 
@@ -63,6 +59,7 @@ public class Main {
 
         int pathNum = PathAnalyzer.computePathNum(env);
 
+        // create topic with partition num = path num
         NewTopic newTopic = new NewTopic(OUTPUT_TOPIC, pathNum, (short) 1);
         adminClient.createTopics(Collections.singleton(newTopic));
 
@@ -76,13 +73,9 @@ public class Main {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        KafkaSink<String> kafkaSink = KafkaSink.<String>builder()
+        KafkaSink<DecorateRecord<Integer>> kafkaSink = KafkaSink.<DecorateRecord<Integer>>builder()
                 .setBootstrapServers(kafkaBootstrapServer)
-                .setRecordSerializer(KafkaRecordSerializationSchema.builder()
-                        .setTopic(OUTPUT_TOPIC)
-                        .setValueSerializationSchema(new SimpleStringSchema())
-                        .build()
-                )
+                .setRecordSerializer(new CustomKafkaSerializer(OUTPUT_TOPIC))
                 .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
                 .build();
 
@@ -100,7 +93,6 @@ public class Main {
                 })
                 // square it
                 .map(new TestRichMapFunctionImplForSquare()).setParallelism(2)
-                .map(new OutputFormatMap())
                 .sinkTo(kafkaSink).setParallelism(1);
 
 
@@ -109,60 +101,7 @@ public class Main {
     }
 }
 
-class DecorateRecord<T> {
-    private long seqNum;
-    private String pathInfo;
 
-    private T value;
-
-    public DecorateRecord(long SeqNum, String pathInfo, T value) {
-        this.seqNum = SeqNum;
-        this.pathInfo = pathInfo;
-        this.value = value;
-    }
-
-    public void setSeqNum(long seqNum) {
-        this.seqNum = seqNum;
-    }
-
-    public long getSeqNum() {
-        return seqNum;
-    }
-
-    // TODO: use xor to compress path information?
-    public void addAndSetPathInfo(String vertexID) {
-        this.pathInfo = String.format("%s-%s", this.pathInfo, vertexID);
-    }
-
-    public String addPathInfo(String vertexID) {
-        return String.format("%s-%s", this.pathInfo, vertexID);
-    }
-
-    public void setPathInfo(String pathInfo) {
-        this.pathInfo = pathInfo;
-    }
-
-    public String getPathInfo() {
-        return this.pathInfo;
-    }
-
-    public void setValue(T value) {
-        this.value = value;
-    }
-
-    public T getValue() {
-        return value;
-    }
-
-    @Override
-    public String toString() {
-        return String.format(
-                "{SeqNumber=%d, PathInfo=(%s), Value=%s}",
-                this.getSeqNum(),
-                this.getPathInfo(),
-                this.getValue());
-    }
-}
 
 abstract class BaseDecorateRichFunction extends AbstractRichFunction {
     String instanceID;
