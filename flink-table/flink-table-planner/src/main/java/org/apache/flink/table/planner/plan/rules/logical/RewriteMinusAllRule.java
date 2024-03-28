@@ -42,10 +42,12 @@ import static org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
  *
  * <p>Original Query : {@code SELECT c1 FROM ut1 EXCEPT ALL SELECT c1 FROM ut2 }
  *
- * <p>Rewritten Query: {@code SELECT c1 FROM ( SELECT c1, sum_val FROM ( SELECT c1, sum(vcol_marker)
+ * <pre>Rewritten Query:
+ * {@code SELECT c1 FROM ( SELECT c1, sum_val FROM ( SELECT c1, sum(vcol_marker)
  * AS sum_val FROM ( SELECT c1, 1L as vcol_marker FROM ut1 UNION ALL SELECT c1, -1L as vcol_marker
- * FROM ut2 ) AS union_all GROUP BY union_all.c1 ) WHERE sum_val > 0 ) LATERAL
- * TABLE(replicate_row(sum_val, c1)) AS T(c1) }
+ * FROM ut2 ) AS union_all GROUP BY union_all.c1 ) WHERE sum_val > 0 )
+ * LATERAL TABLE(replicate_row(sum_val, c1)) AS T(c1) }
+ * </pre>
  *
  * <p>Only handle the case of input size 2.
  */
@@ -132,10 +134,10 @@ public class RewriteMinusAllRule extends RelRule<RewriteMinusAllRule.RewriteMinu
     public interface RewriteMinusAllRuleConfig extends RelRule.Config {
         RewriteMinusAllRule.RewriteMinusAllRuleConfig DEFAULT =
                 ImmutableRewriteMinusAllRule.RewriteMinusAllRuleConfig.builder()
-                        .build()
-                        .withOperandSupplier(b0 -> b0.operand(Minus.class).anyInputs())
-                        .withRelBuilderFactory(RelFactories.LOGICAL_BUILDER)
-                        .withDescription("RewriteMinusAllRule");
+                        .operandSupplier(b0 -> b0.operand(Minus.class).anyInputs())
+                        .relBuilderFactory(RelFactories.LOGICAL_BUILDER)
+                        .description("RewriteMinusAllRule")
+                        .build();
 
         @Override
         default RewriteMinusAllRule toRule() {
