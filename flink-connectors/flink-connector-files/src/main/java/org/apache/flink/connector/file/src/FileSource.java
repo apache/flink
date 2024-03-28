@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.source.DynamicParallelismInference;
 import org.apache.flink.connector.file.src.assigners.FileSplitAssigner;
 import org.apache.flink.connector.file.src.assigners.LocalityAwareSplitAssigner;
+import org.apache.flink.connector.file.src.assigners.PartitionAwareSplitAssigner;
 import org.apache.flink.connector.file.src.enumerate.BlockSplittingRecursiveEnumerator;
 import org.apache.flink.connector.file.src.enumerate.FileEnumerator;
 import org.apache.flink.connector.file.src.enumerate.NonSplittingRecursiveEnumerator;
@@ -40,6 +41,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Collection;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -240,6 +242,12 @@ public final class FileSource<T> extends AbstractFileSource<T, FileSourceSplit>
                             ? DEFAULT_SPLITTABLE_FILE_ENUMERATOR
                             : DEFAULT_NON_SPLITTABLE_FILE_ENUMERATOR,
                     DEFAULT_SPLIT_ASSIGNER);
+        }
+
+        public FileSourceBuilder<T> withPartitionedAssigner(List<Path> partitionPaths) {
+            this.splitAssigner =
+                    initialSplits -> new PartitionAwareSplitAssigner(initialSplits, partitionPaths);
+            return this;
         }
 
         @Override

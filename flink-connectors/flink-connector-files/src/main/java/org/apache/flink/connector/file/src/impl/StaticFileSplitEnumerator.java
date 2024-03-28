@@ -95,7 +95,8 @@ public class StaticFileSplitEnumerator
             LOG.info("Subtask {} {} is requesting a file source split", subtask, hostInfo);
         }
 
-        final Optional<FileSourceSplit> nextSplit = splitAssigner.getNext(hostname);
+        final Optional<FileSourceSplit> nextSplit =
+                splitAssigner.getNext(hostname, subtask, context.currentParallelism());
         if (nextSplit.isPresent()) {
             final FileSourceSplit split = nextSplit.get();
             context.assignSplit(split, subtask);
