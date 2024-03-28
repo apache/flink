@@ -541,7 +541,7 @@ curl -X POST http://localhost:8081/jars/<jar-id>/run \
 {{< /tabs >}}
 现在 Job 已重新提交，但由于我们提高了并行度所以导致 TaskSlots 不够用（1 个 TaskSlot 可用，总共需要 3 个），最终 Job 会重启失败。通过如下命令：
 ```bash
-docker-compose scale taskmanager=2
+docker compose-up -d --scale taskmanager=2
 ```
 你可以向 Flink 集群添加第二个 TaskManager（为 Flink 集群提供 2 个 TaskSlots 资源），
 它会自动向 JobManager 注册，TaskManager 注册完成后，Job 会再次处于 "RUNNING" 状态。
@@ -560,7 +560,7 @@ docker-compose scale taskmanager=2
 
 **请求**
 ```bash
-curl "localhost:8081/jobs/<jod-id>/metrics?get=lastCheckpointSize"
+curl "localhost:8081/jobs/<job-id>/metrics?get=lastCheckpointSize"
 ```
 **预期响应 (结果已格式化且去除了占位符)**
 ```json
@@ -577,7 +577,7 @@ REST API 不仅可以用于查询指标，还可以用于获取正在运行中�
 **请求**
 ```bash
 # 可以从结果中获取感兴趣的 vertex-id
-curl localhost:8081/jobs/<jod-id>
+curl localhost:8081/jobs/<job-id>
 ```
 
 **预期响应 (结果已格式化)**
