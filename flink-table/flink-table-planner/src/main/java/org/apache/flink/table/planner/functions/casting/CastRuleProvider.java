@@ -85,6 +85,7 @@ public class CastRuleProvider {
                 .addRule(TimeToTimestampCastRule.INSTANCE)
                 .addRule(NumericToTimestampCastRule.INSTANCE)
                 .addRule(TimestampToNumericCastRule.INSTANCE)
+                .addRule(TimeToTimeCastRule.INSTANCE)
                 // To binary rules
                 .addRule(BinaryToBinaryCastRule.INSTANCE)
                 .addRule(RawToBinaryCastRule.INSTANCE)

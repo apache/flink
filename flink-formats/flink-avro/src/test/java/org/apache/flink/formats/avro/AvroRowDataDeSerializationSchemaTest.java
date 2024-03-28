@@ -284,7 +284,7 @@ class AvroRowDataDeSerializationSchemaTest {
         Instant timestamp = Instant.parse("2010-06-30T01:20:20Z");
         record.setTypeTimestampMillis(timestamp);
         record.setTypeDate(LocalDate.parse("2014-03-01"));
-        record.setTypeTimeMillis(LocalTime.parse("12:12:12"));
+        record.setTypeTimeMillis(LocalTime.parse("12:12:12.123"));
         SpecificDatumWriter<LogicalTimeRecord> datumWriter =
                 new SpecificDatumWriter<>(LogicalTimeRecord.class);
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
@@ -310,16 +310,10 @@ class AvroRowDataDeSerializationSchemaTest {
         assertThat(rowData2).isEqualTo(rowData);
         assertThat(rowData.getTimestamp(0, 3).toInstant()).isEqualTo(timestamp);
 
-        assertThat(
-                        DataFormatConverters.LocalDateConverter.INSTANCE
-                                .toExternal(rowData.getInt(1))
-                                .toString())
-                .isEqualTo("2014-03-01");
-        assertThat(
-                        DataFormatConverters.LocalTimeConverter.INSTANCE
-                                .toExternal(rowData.getInt(2))
-                                .toString())
-                .isEqualTo("12:12:12");
+        assertThat(DataFormatConverters.LocalDateConverter.INSTANCE.toExternal(rowData.getInt(1)))
+                .hasToString("2014-03-01");
+        assertThat(DataFormatConverters.LocalTimeConverter.INSTANCE.toExternal(rowData.getInt(2)))
+                .hasToString("12:12:12.123");
     }
 
     @ParameterizedTest

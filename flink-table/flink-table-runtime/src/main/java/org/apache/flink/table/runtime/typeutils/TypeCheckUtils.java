@@ -37,6 +37,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.STRUCTURED_TYPE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
 
 /** Utils for type. */
@@ -81,6 +82,10 @@ public class TypeCheckUtils {
 
     public static boolean isBinaryString(LogicalType type) {
         return type.getTypeRoot().getFamilies().contains(LogicalTypeFamily.BINARY_STRING);
+    }
+
+    public static boolean isTime(LogicalType type) {
+        return type.getTypeRoot() == TIME_WITHOUT_TIME_ZONE;
     }
 
     public static boolean isTimestamp(LogicalType type) {

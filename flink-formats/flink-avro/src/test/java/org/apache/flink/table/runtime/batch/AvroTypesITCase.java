@@ -84,7 +84,7 @@ public class AvroTypesITCase extends AbstractTestBase {
                                     .build())
                     .setTypeBytes(ByteBuffer.allocate(10))
                     .setTypeDate(LocalDate.parse("2014-03-01"))
-                    .setTypeTimeMillis(LocalTime.parse("12:12:12"))
+                    .setTypeTimeMillis(LocalTime.parse("12:12:12.123"))
                     .setTypeTimeMicros(LocalTime.ofSecondOfDay(0).plus(123456L, ChronoUnit.MICROS))
                     .setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"))
                     .setTypeTimestampMicros(
@@ -114,7 +114,7 @@ public class AvroTypesITCase extends AbstractTestBase {
                     .setTypeNested(null)
                     .setTypeDate(LocalDate.parse("2014-03-01"))
                     .setTypeBytes(ByteBuffer.allocate(10))
-                    .setTypeTimeMillis(LocalTime.parse("12:12:12"))
+                    .setTypeTimeMillis(LocalTime.parse("12:12:12.234"))
                     .setTypeTimeMicros(LocalTime.ofSecondOfDay(0).plus(123456L, ChronoUnit.MICROS))
                     .setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"))
                     .setTypeTimestampMicros(
@@ -144,7 +144,7 @@ public class AvroTypesITCase extends AbstractTestBase {
                     .setTypeNested(null)
                     .setTypeBytes(ByteBuffer.allocate(10))
                     .setTypeDate(LocalDate.parse("2014-03-01"))
-                    .setTypeTimeMillis(LocalTime.parse("12:12:12"))
+                    .setTypeTimeMillis(LocalTime.parse("12:12:12.345"))
                     .setTypeTimeMicros(LocalTime.ofSecondOfDay(0).plus(123456L, ChronoUnit.MICROS))
                     .setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"))
                     .setTypeTimestampMicros(
@@ -174,16 +174,16 @@ public class AvroTypesITCase extends AbstractTestBase {
                 "+I[black, null, Whatever, [true], [hello], true, java.nio.HeapByteBuffer[pos=0 lim=10 cap=10], "
                         + "2014-03-01, java.nio.HeapByteBuffer[pos=0 lim=2 cap=2], [7, -48], 0.0, GREEN, "
                         + "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 42, {}, null, null, null, 00:00:00.123456, "
-                        + "12:12:12, 1970-01-01T00:00:00.123456Z, 2014-03-01T12:12:12.321Z, null]\n"
+                        + "12:12:12.234, 1970-01-01T00:00:00.123456Z, 2014-03-01T12:12:12.321Z, null]\n"
                         + "+I[blue, null, Charlie, [], [], false, java.nio.HeapByteBuffer[pos=0 lim=10 cap=10], 2014-03-01, "
                         + "java.nio.HeapByteBuffer[pos=0 lim=2 cap=2], [7, -48], 1.337, RED, null, 1337, {}, "
-                        + "+I[Berlin, 42, Berlin, Bakerstreet, 12049], null, null, 00:00:00.123456, 12:12:12, 1970-01-01T00:00:00.123456Z, "
+                        + "+I[Berlin, 42, Berlin, Bakerstreet, 12049], null, null, 00:00:00.123456, 12:12:12.123, 1970-01-01T00:00:00.123456Z, "
                         + "2014-03-01T12:12:12.321Z, null]\n"
                         + "+I[yellow, null, Terminator, [false], [world], false, "
                         + "java.nio.HeapByteBuffer[pos=0 lim=10 cap=10], 2014-03-01, "
                         + "java.nio.HeapByteBuffer[pos=0 lim=2 cap=2], [7, -48], 0.0, GREEN, "
                         + "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 1, {}, null, null, null, 00:00:00.123456, "
-                        + "12:12:12, 1970-01-01T00:00:00.123456Z, 2014-03-01T12:12:12.321Z, null]";
+                        + "12:12:12.345, 1970-01-01T00:00:00.123456Z, 2014-03-01T12:12:12.321Z, null]";
         TestBaseUtils.compareResultAsText(results, expected);
     }
 
