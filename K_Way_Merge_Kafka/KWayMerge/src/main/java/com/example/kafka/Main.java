@@ -16,6 +16,21 @@ public class Main {
         // Needs to be fixed in the future but for now I will leave it due to time constraints.
         int partitionCount = 3;
         int  messageSendBurstMilli = 200;
+        String bootstrapServer = "localhost:9092";
+        String topicName = "test_topic";
+        Properties properties = new Properties();
+        properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+
+        // Create the AdminClient
+        try (AdminClient adminClient = AdminClient.create(properties)) {
+            NewTopic newTopic = new NewTopic(topicName, partitionCount, (short) 1);
+            adminClient.createTopics(Collections.singleton(newTopic)).all().get();
+            System.out.println("Topic created successfully");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+
         // Initialize queue which stores all incoming messages per partition
         ConcurrentLinkedQueue<kafkaMessage>[] queue = new ConcurrentLinkedQueue[partitionCount];
         for(int i = 0; i < partitionCount; i++) {
@@ -23,9 +38,9 @@ public class Main {
         }
 
         // Make producer, consumer, and merger
-        KafkaTestProducer testProducer = new KafkaTestProducer("localhost:9092", partitionCount);
+        KafkaTestProducer testProducer = new KafkaTestProducer(bootstrapServer, partitionCount);
         KafkaMergeThread mergeThread = new KafkaMergeThread(partitionCount, queue);
-        KafkaConsumerThread consumeThread = new KafkaConsumerThread("localhost:9092", partitionCount, queue);
+        KafkaConsumerThread consumeThread = new KafkaConsumerThread(bootstrapServer, partitionCount, queue);
 
         Thread merge = new Thread(mergeThread);
         Thread consume = new Thread(consumeThread);
