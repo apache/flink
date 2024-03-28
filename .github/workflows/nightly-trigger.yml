@@ -38,6 +38,23 @@ jobs:
         id: release_branch_extraction_step
         uses: "./.github/actions/release_branch_extraction"
 
+      - name: "Select release branch for nightly run"
+        id: select_release_branch
+        run: |
+          day_of_year="$(date +%j)"
+          echo "Day of year: $day_of_year"
+          
+          # each release branch should run every 3rd day to reduce load on the Apache Infra runners
+          release_branch="no branch"
+          if [[ "$(( $day_of_year % 3))" -eq 1 ]]; then
+            release_branch="${{ steps.release_branch_extraction_step.outputs.newest_release }}"
+          elif [[ "$(( $day_of_year % 3))" -eq 2 ]]; then
+            release_branch="${{ steps.release_branch_extraction_step.outputs.penultimate_release }}"
+          fi
+          
+          echo "${release_branch} selected for nightly run"
+          echo "release_branch=${release_branch}" >> ${GITHUB_OUTPUT}
+
       - name: "Trigger master nightly"
         uses: actions/github-script@v7
         with:
@@ -49,24 +66,14 @@ jobs:
               ref: 'master'
             })
 
-      - name: "Trigger nightly for ${{ steps.release_branch_extraction_step.outputs.newest_release }}"
+      - name: "Trigger nightly for ${{ steps.select_release_branch.outputs.release_branch }}"
         uses: actions/github-script@v7
+        if: ${{ steps.select_release_branch.outputs.release_branch != 'no branch' }}
         with:
           script: |
             github.rest.actions.createWorkflowDispatch({
               owner: context.repo.owner,
               repo: context.repo.repo,
               workflow_id: 'nightly.yml',
-              ref: '${{  steps.release_branch_extraction_step.outputs.newest_release }}'
-            })
-
-      - name: "Trigger nightly for ${{ steps.release_branch_extraction_step.outputs.penultimate_release }}"
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'nightly.yml',
-              ref: '${{  steps.release_branch_extraction_step.outputs.penultimate_release }}'
+              ref: '${{ steps.select_release_branch.outputs.release_branch }}'
             })
