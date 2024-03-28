@@ -74,9 +74,10 @@ public class RewriteMinusAllRule extends RelRule<RewriteMinusAllRule.RewriteMinu
         List<Integer> fields = Util.range(minus.getRowType().getFieldCount());
 
         // 1. add vcol_marker to left rel node
-        RelBuilder leftBuilder = call.builder().push(left);
+        RelBuilder leftBuilder = call.builder();
         RelNode leftWithAddedVirtualCols =
                 leftBuilder
+                        .push(left)
                         .project(
                                 Stream.concat(
                                                 leftBuilder.fields(fields).stream(),
