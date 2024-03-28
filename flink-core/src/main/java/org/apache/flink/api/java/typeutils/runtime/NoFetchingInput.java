@@ -73,7 +73,7 @@ public class NoFetchingInput extends Input {
         position = 0;
         int bytesRead = 0;
         int count;
-        while (true) {
+        while (bytesRead < required) {
             count = fill(buffer, bytesRead, required - bytesRead);
 
             if (count == -1) {
@@ -81,9 +81,6 @@ public class NoFetchingInput extends Input {
             }
 
             bytesRead += count;
-            if (bytesRead == required) {
-                break;
-            }
         }
         limit = required;
         return required;
@@ -121,7 +118,7 @@ public class NoFetchingInput extends Input {
             int bytesRead = 0;
             int c;
 
-            while (true) {
+            while (bytesRead < count) {
                 c = inputStream.read(bytes, offset + bytesRead, count - bytesRead);
 
                 if (c == -1) {
@@ -129,10 +126,6 @@ public class NoFetchingInput extends Input {
                 }
 
                 bytesRead += c;
-
-                if (bytesRead == count) {
-                    break;
-                }
             }
         } catch (IOException ex) {
             throw new KryoException(ex);
