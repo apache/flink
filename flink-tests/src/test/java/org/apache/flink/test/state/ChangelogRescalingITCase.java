@@ -72,6 +72,7 @@ import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTS_DI
 import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINT_STORAGE;
 import static org.apache.flink.configuration.CheckpointingOptions.FS_SMALL_FILE_THRESHOLD;
 import static org.apache.flink.configuration.CoreOptions.DEFAULT_PARALLELISM;
+import static org.apache.flink.configuration.ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION;
 import static org.apache.flink.configuration.PipelineOptions.OBJECT_REUSE;
 import static org.apache.flink.configuration.RestartStrategyOptions.RESTART_STRATEGY;
 import static org.apache.flink.configuration.StateBackendOptions.STATE_BACKEND;
@@ -82,12 +83,11 @@ import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_E
 import static org.apache.flink.runtime.jobgraph.SavepointRestoreSettings.forPath;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForCheckpoint;
-import static org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION;
 import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT;
 import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE;
 import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL;
 import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.ENABLE_UNALIGNED;
-import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.EXTERNALIZED_CHECKPOINT;
+import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.EXTERNALIZED_CHECKPOINT_RETENTION;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -212,7 +212,7 @@ public class ChangelogRescalingITCase extends TestLogger {
     private Configuration configureJob(int parallelism, File cpDir) {
         Configuration conf = new Configuration();
 
-        conf.set(EXTERNALIZED_CHECKPOINT, RETAIN_ON_CANCELLATION);
+        conf.set(EXTERNALIZED_CHECKPOINT_RETENTION, RETAIN_ON_CANCELLATION);
         conf.set(DEFAULT_PARALLELISM, parallelism);
         conf.set(ENABLE_STATE_CHANGE_LOG, true);
         conf.set(CHECKPOINTING_CONSISTENCY_MODE, CheckpointingMode.EXACTLY_ONCE);

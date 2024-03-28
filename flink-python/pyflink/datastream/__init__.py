@@ -259,7 +259,7 @@ Other important classes:
     - :class:`OutputTag`:
       Tag with a name and type for identifying side output of an operator
 """
-from pyflink.datastream.checkpoint_config import CheckpointConfig, ExternalizedCheckpointCleanup
+from pyflink.datastream.checkpoint_config import CheckpointConfig, ExternalizedCheckpointRetention
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
 from pyflink.datastream.data_stream import DataStream, KeyedStream, WindowedStream, \
     ConnectedStreams, DataStreamSink, BroadcastStream, BroadcastConnectedStream
@@ -316,7 +316,7 @@ __all__ = [
     'TimerService',
     'CheckpointingMode',
     'CheckpointConfig',
-    'ExternalizedCheckpointCleanup',
+    'ExternalizedCheckpointRetention',
     'StateBackend',
     'HashMapStateBackend',
     'EmbeddedRocksDBStateBackend',

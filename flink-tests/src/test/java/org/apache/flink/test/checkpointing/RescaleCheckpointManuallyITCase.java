@@ -27,6 +27,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.MiniCluster;
@@ -36,7 +37,6 @@ import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
@@ -240,8 +240,8 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
         env.enableCheckpointing(checkpointingInterval);
         env.getCheckpointConfig().setCheckpointStorage(temporaryFolder.newFolder().toURI());
         env.getCheckpointConfig()
-                .setExternalizedCheckpointCleanup(
-                        CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+                .setExternalizedCheckpointRetention(
+                        ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
         env.setRestartStrategy(RestartStrategies.noRestart());
         env.getConfig().setUseSnapshotCompression(true);
 

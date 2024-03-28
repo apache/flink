@@ -107,8 +107,8 @@ env.getCheckpointConfig().setTolerableCheckpointFailureNumber(2);
 env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
 
 // 使用 externalized checkpoints，这样 checkpoint 在作业取消后仍就会被保留
-env.getCheckpointConfig().setExternalizedCheckpointCleanup(
-        ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+env.getCheckpointConfig().setExternalizedCheckpointRetention(
+        ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
 
 // 开启实验性的 unaligned checkpoints
 env.getCheckpointConfig().enableUnalignedCheckpoints();
@@ -139,8 +139,8 @@ env.getCheckpointConfig().setTolerableCheckpointFailureNumber(2)
 env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
 
 // 使用 externalized checkpoints，这样 checkpoint 在作业取消后仍就会被保留
-env.getCheckpointConfig().setExternalizedCheckpointCleanup(
-  ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
+env.getCheckpointConfig().setExternalizedCheckpointRetention(
+  ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION)
 
 // 开启实验性的 unaligned checkpoints
 env.getCheckpointConfig.enableUnalignedCheckpoints()
@@ -172,7 +172,7 @@ env.get_checkpoint_config().set_max_concurrent_checkpoints(1)
 
 # 使用 externalized checkpoints，这样 checkpoint 在作业取消后仍就会被保留
 env.get_checkpoint_config().enable_externalized_checkpoints(
-    ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
+    ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION)
     
 # 开启实验性的 unaligned checkpoints
 env.get_checkpoint_config().enable_unaligned_checkpoints()

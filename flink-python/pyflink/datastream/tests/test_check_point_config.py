@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 from pyflink.common import Duration
-from pyflink.datastream import (CheckpointConfig, CheckpointingMode, ExternalizedCheckpointCleanup,
+from pyflink.datastream import (CheckpointConfig, CheckpointingMode, ExternalizedCheckpointRetention,
                                 StreamExecutionEnvironment)
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkTestCase
@@ -122,21 +122,21 @@ class CheckpointConfigTests(PyFlinkTestCase):
         self.assertFalse(self.checkpoint_config.is_externalized_checkpoints_enabled())
 
         self.assertEqual(self.checkpoint_config.get_externalized_checkpoint_cleanup(),
-                         ExternalizedCheckpointCleanup.NO_EXTERNALIZED_CHECKPOINTS)
+                         ExternalizedCheckpointRetention.NO_EXTERNALIZED_CHECKPOINTS)
 
         self.checkpoint_config.enable_externalized_checkpoints(
-            ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
+            ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION)
 
         self.assertTrue(self.checkpoint_config.is_externalized_checkpoints_enabled())
 
         self.assertEqual(self.checkpoint_config.get_externalized_checkpoint_cleanup(),
-                         ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
+                         ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION)
 
         self.checkpoint_config.enable_externalized_checkpoints(
-            ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION)
+            ExternalizedCheckpointRetention.DELETE_ON_CANCELLATION)
 
         self.assertEqual(self.checkpoint_config.get_externalized_checkpoint_cleanup(),
-                         ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION)
+                         ExternalizedCheckpointRetention.DELETE_ON_CANCELLATION)
 
     def test_is_unaligned_checkpointing_enabled(self):
 
