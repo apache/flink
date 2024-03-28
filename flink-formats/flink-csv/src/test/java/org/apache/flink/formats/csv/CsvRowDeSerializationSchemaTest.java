@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -40,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link CsvRowSerializationSchema} and {@link CsvRowDeserializationSchema}. */
-public class CsvRowDeSerializationSchemaTest {
+class CsvRowDeSerializationSchemaTest {
 
     @Test
     @SuppressWarnings("unchecked")
@@ -97,7 +97,7 @@ public class CsvRowDeSerializationSchemaTest {
     }
 
     @Test
-    public void testSerializeDeserializeCustomizedProperties() throws Exception {
+    void testSerializeDeserializeCustomizedProperties() throws Exception {
 
         final Consumer<CsvRowSerializationSchema.Builder> serConfig =
                 (serSchemaBuilder) ->
@@ -157,45 +157,45 @@ public class CsvRowDeSerializationSchemaTest {
     }
 
     @Test
-    public void testDeserializeParseError() throws Exception {
+    void testDeserializeParseError() {
         assertThatThrownBy(() -> testDeserialization(false, false, "Test,null,Test"))
                 .isInstanceOf(IOException.class);
     }
 
     @Test
-    public void testDeserializeUnsupportedNull() throws Exception {
+    void testDeserializeUnsupportedNull() throws Exception {
         // unsupported null for integer
         assertThat(testDeserialization(true, false, "Test,null,Test"))
                 .isEqualTo(Row.of("Test", null, "Test"));
     }
 
     @Test
-    public void testDeserializeIncompleteRow() throws Exception {
+    void testDeserializeIncompleteRow() throws Exception {
         // last two columns are missing
         assertThat(testDeserialization(true, false, "Test")).isEqualTo(Row.of("Test", null, null));
     }
 
     @Test
-    public void testDeserializeMoreColumnsThanExpected() throws Exception {
+    void testDeserializeMoreColumnsThanExpected() throws Exception {
         // one additional string column
         assertThat(testDeserialization(true, false, "Test,12,Test,Test")).isNull();
     }
 
     @Test
-    public void testDeserializeIgnoreComment() throws Exception {
+    void testDeserializeIgnoreComment() throws Exception {
         // # is part of the string
         assertThat(testDeserialization(false, false, "#Test,12,Test"))
                 .isEqualTo(Row.of("#Test", 12, "Test"));
     }
 
     @Test
-    public void testDeserializeAllowComment() throws Exception {
+    void testDeserializeAllowComment() throws Exception {
         // entire row is ignored
         assertThat(testDeserialization(true, true, "#Test,12,Test")).isNull();
     }
 
     @Test
-    public void testSerializationProperties() throws Exception {
+    void testSerializationProperties() throws Exception {
         final TypeInformation<Row> rowInfo = Types.ROW(Types.STRING, Types.INT, Types.STRING);
         final CsvRowSerializationSchema.Builder serSchemaBuilder =
                 new CsvRowSerializationSchema.Builder(rowInfo).setLineDelimiter("\r");
@@ -215,7 +215,7 @@ public class CsvRowDeSerializationSchemaTest {
     }
 
     @Test
-    public void testEmptyLineDelimiter() throws Exception {
+    void testEmptyLineDelimiter() throws Exception {
         final TypeInformation<Row> rowInfo = Types.ROW(Types.STRING, Types.INT, Types.STRING);
         final CsvRowSerializationSchema.Builder serSchemaBuilder =
                 new CsvRowSerializationSchema.Builder(rowInfo).setLineDelimiter("");
@@ -224,18 +224,30 @@ public class CsvRowDeSerializationSchemaTest {
                 .isEqualTo("Test,12,Hello".getBytes());
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testInvalidNesting() throws Exception {
-        testNullableField(Types.ROW(Types.ROW(Types.STRING)), "FAIL", Row.of(Row.of("FAIL")));
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testInvalidType() throws Exception {
-        testNullableField(Types.GENERIC(java.util.Date.class), "FAIL", new java.util.Date());
+    @Test
+    void testInvalidNesting() {
+        assertThatThrownBy(
+                        () ->
+                                testNullableField(
+                                        Types.ROW(Types.ROW(Types.STRING)),
+                                        "FAIL",
+                                        Row.of(Row.of("FAIL"))))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void testSerializeDeserializeNestedTypes() throws Exception {
+    void testInvalidType() {
+        assertThatThrownBy(
+                        () ->
+                                testNullableField(
+                                        Types.GENERIC(java.util.Date.class),
+                                        "FAIL",
+                                        new java.util.Date()))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void testSerializeDeserializeNestedTypes() throws Exception {
         final TypeInformation<Row> subDataType0 =
                 Types.ROW(
                         Types.STRING,

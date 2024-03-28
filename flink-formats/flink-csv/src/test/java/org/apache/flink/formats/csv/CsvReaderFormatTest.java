@@ -89,7 +89,7 @@ class CsvReaderFormatTest {
     }
 
     @Test
-    void testCreatedMapperPassedToSchemaFunction() throws IOException, ClassNotFoundException {
+    void testCreatedMapperPassedToSchemaFunction() throws IOException {
         final CsvMapper csvMapper = new CsvMapper();
 
         AtomicReference<CsvMapper> passedMapper = new AtomicReference<>();

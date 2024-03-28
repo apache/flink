@@ -41,10 +41,11 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for statistics functionality in {@link CsvFormatFactory}. */
-public class CsvFormatStatisticsReportTest extends StatisticsReportTestBase {
+class CsvFormatStatisticsReportTest extends StatisticsReportTestBase {
 
     private static CsvFileFormatFactory.CsvBulkDecodingFormat csvBulkDecodingFormat;
 
+    @Override
     @BeforeEach
     public void setup(@TempDir File file) throws Exception {
         super.setup(file);
@@ -61,13 +62,13 @@ public class CsvFormatStatisticsReportTest extends StatisticsReportTestBase {
     }
 
     @Test
-    public void testCsvFormatStatsReportWithSingleFile() throws Exception {
+    void testCsvFormatStatsReportWithSingleFile() throws Exception {
         // insert data and get statistics.
         DataType dataType = tEnv.from("sourceTable").getResolvedSchema().toPhysicalRowDataType();
         tEnv.fromValues(dataType, getData()).executeInsert("sourceTable").await();
-        assertThat(folder.listFiles()).isNotNull().hasSize(1);
+        assertThat(folder.listFiles()).hasSize(1);
         File[] files = folder.listFiles();
-        assert files != null;
+        assertThat(files).isNotNull();
         TableStats tableStats =
                 csvBulkDecodingFormat.reportStatistics(
                         Collections.singletonList(new Path(files[0].toURI().toString())), null);
@@ -75,15 +76,15 @@ public class CsvFormatStatisticsReportTest extends StatisticsReportTestBase {
     }
 
     @Test
-    public void testCsvFormatStatsReportWithMultiFile() throws Exception {
+    void testCsvFormatStatsReportWithMultiFile() throws Exception {
         // insert data and get statistics.
         DataType dataType = tEnv.from("sourceTable").getResolvedSchema().toPhysicalRowDataType();
         tEnv.fromValues(dataType, getData()).executeInsert("sourceTable").await();
         tEnv.fromValues(dataType, getData()).executeInsert("sourceTable").await();
-        assertThat(folder.listFiles()).isNotNull().hasSize(2);
+        assertThat(folder.listFiles()).hasSize(2);
         File[] files = folder.listFiles();
         List<Path> paths = new ArrayList<>();
-        assert files != null;
+        assertThat(files).isNotNull();
         paths.add(new Path(files[0].toURI().toString()));
         paths.add(new Path(files[1].toURI().toString()));
         TableStats tableStats = csvBulkDecodingFormat.reportStatistics(paths, null);
@@ -91,7 +92,7 @@ public class CsvFormatStatisticsReportTest extends StatisticsReportTestBase {
     }
 
     @Test
-    public void testRowSizeBiggerThanTotalSampleLineCnt() throws IOException {
+    void testRowSizeBiggerThanTotalSampleLineCnt() throws IOException {
         StringBuilder builder = new StringBuilder();
         int lineCnt = 1000;
         for (int i = 0; i < lineCnt; i++) {
@@ -104,7 +105,7 @@ public class CsvFormatStatisticsReportTest extends StatisticsReportTestBase {
     }
 
     @Test
-    public void testCsvFormatStatsReportWithEmptyFile() {
+    void testCsvFormatStatsReportWithEmptyFile() {
         TableStats tableStats = csvBulkDecodingFormat.reportStatistics(null, null);
         assertThat(tableStats).isEqualTo(TableStats.UNKNOWN);
     }

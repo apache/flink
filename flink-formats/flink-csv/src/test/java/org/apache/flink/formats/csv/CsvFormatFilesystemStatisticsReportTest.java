@@ -34,16 +34,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Test for statistics functionality in {@link CsvFormatFactory} in the case of file system source.
  */
-public class CsvFormatFilesystemStatisticsReportTest extends CsvFormatStatisticsReportTest {
+class CsvFormatFilesystemStatisticsReportTest extends CsvFormatStatisticsReportTest {
 
+    @Override
     @BeforeEach
     public void setup(@TempDir File file) throws Exception {
         super.setup(file);
     }
 
     @Test
-    public void testCsvFileSystemStatisticsReport()
-            throws ExecutionException, InterruptedException {
+    void testCsvFileSystemStatisticsReport() throws ExecutionException, InterruptedException {
         // insert data and get statistics by get plan.
         DataType dataType = tEnv.from("sourceTable").getResolvedSchema().toPhysicalRowDataType();
         tEnv.fromValues(dataType, getData()).executeInsert("sourceTable").await();

@@ -28,20 +28,21 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.types.Row;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -58,24 +59,23 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the CSV file format. */
-public class TableCsvFormatITCase extends AbstractTestBase {
-
-    @Rule public ExpectedException exception = ExpectedException.none();
+@ExtendWith(MiniClusterExtension.class)
+class TableCsvFormatITCase {
 
     private TableEnvironment tableEnv;
 
-    @Before
-    public void setup() throws Exception {
+    @BeforeEach
+    void setup() {
         tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
     }
 
-    @After
-    public void after() {
+    @AfterEach
+    void after() {
         TestValuesTableFactory.clearAllData();
     }
 
     @Test
-    public void testProjectPushDown() throws Exception {
+    void testProjectPushDown(@TempDir Path sourcePath, @TempDir Path sinkPath) throws Exception {
         List<String> data = Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world");
 
         Schema sourceSchema =
@@ -85,11 +85,11 @@ public class TableCsvFormatITCase extends AbstractTestBase {
                         .column("c", STRING())
                         .build();
 
-        createSourceTable("MyTable", data, sourceSchema);
+        createSourceTable(sourcePath.resolve("table.csv"), "MyTable", data, sourceSchema);
 
         Schema sinkSchema = Schema.newBuilder().column("a", BIGINT()).column("c", STRING()).build();
 
-        File sinkPath = createSinkTable("MySink", sinkSchema);
+        createSinkTable(sinkPath, "MySink", sinkSchema);
 
         tableEnv.executeSql("insert into MySink select a, c from MyTable").await();
 
@@ -97,7 +97,7 @@ public class TableCsvFormatITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testReadingMetadata() throws Exception {
+    void testReadingMetadata(@TempDir Path sinkPath) throws Exception {
 
         Schema sourceSchema =
                 Schema.newBuilder()
@@ -118,7 +118,7 @@ public class TableCsvFormatITCase extends AbstractTestBase {
 
         Schema sinkSchema = Schema.newBuilder().column("a", BIGINT()).column("m", STRING()).build();
 
-        File sinkPath = createSinkTable("MySink", sinkSchema);
+        createSinkTable(sinkPath, "MySink", sinkSchema);
 
         tableEnv.executeSql("insert into MySink select a, m from MyTable").await();
 
@@ -126,7 +126,7 @@ public class TableCsvFormatITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testFilterPushDown() throws Exception {
+    void testFilterPushDown(@TempDir Path sourcePath, @TempDir Path sinkPath) throws Exception {
         List<String> data = Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world");
 
         Schema sourceSchema =
@@ -136,7 +136,7 @@ public class TableCsvFormatITCase extends AbstractTestBase {
                         .column("c", STRING())
                         .build();
 
-        createSourceTable("MyTable", data, sourceSchema);
+        createSourceTable(sourcePath.resolve("table.csv"), "MyTable", data, sourceSchema);
 
         Schema sinkSchema =
                 Schema.newBuilder()
@@ -145,7 +145,7 @@ public class TableCsvFormatITCase extends AbstractTestBase {
                         .column("c", STRING())
                         .build();
 
-        File sinkPath = createSinkTable("MySink", sinkSchema);
+        createSinkTable(sinkPath, "MySink", sinkSchema);
 
         tableEnv.executeSql("insert into MySink select * from MyTable where a > 1").await();
 
@@ -153,7 +153,7 @@ public class TableCsvFormatITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testPartitionPushDown() throws Exception {
+    void testPartitionPushDown(@TempDir Path sinkPath) throws Exception {
         Schema sourceSchema =
                 Schema.newBuilder()
                         .column("a", INT())
@@ -179,7 +179,7 @@ public class TableCsvFormatITCase extends AbstractTestBase {
                         .column("c", STRING())
                         .build();
 
-        File sinkPath = createSinkTable("MySink", sinkSchema);
+        createSinkTable(sinkPath, "MySink", sinkSchema);
 
         tableEnv.executeSql("insert into MySink select * from MyTable where p = 2").await();
 
@@ -187,7 +187,7 @@ public class TableCsvFormatITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testWatermarkPushDown() throws Exception {
+    void testWatermarkPushDown(@TempDir Path sinkPath) throws Exception {
 
         Schema sourceSchema =
                 Schema.newBuilder()
@@ -215,7 +215,7 @@ public class TableCsvFormatITCase extends AbstractTestBase {
                         .column("ts", TIMESTAMP(3))
                         .build();
 
-        File sinkPath = createSinkTable("MySink", sinkSchema);
+        createSinkTable(sinkPath, "MySink", sinkSchema);
 
         tableEnv.executeSql("insert into MySink select a, b, ts from MyTable where b = 3").await();
 
@@ -228,7 +228,7 @@ public class TableCsvFormatITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testPushDowns() throws Exception {
+    void testPushDowns(@TempDir Path sinkPath) throws Exception {
         Schema sourceSchema =
                 Schema.newBuilder()
                         .column("a", INT())
@@ -255,7 +255,7 @@ public class TableCsvFormatITCase extends AbstractTestBase {
         Schema sinkSchema =
                 Schema.newBuilder().column("a", INT()).column("ts", TIMESTAMP(3)).build();
 
-        File sinkPath = createSinkTable("MySink", sinkSchema);
+        createSinkTable(sinkPath, "MySink", sinkSchema);
 
         tableEnv.executeSql("insert into MySink select a, ts from MyTable where b = 3 and a > 4")
                 .await();
@@ -269,35 +269,36 @@ public class TableCsvFormatITCase extends AbstractTestBase {
         return TimeFormats.SQL_TIMESTAMP_FORMAT.format(toLocalDateTime(timestamp));
     }
 
-    private void createSourceTable(String tableName, List<String> data, Schema schema)
+    private void createSourceTable(
+            Path sourceFile, String tableName, List<String> data, Schema schema)
             throws IOException {
 
-        File sourceFile = TEMPORARY_FOLDER.newFile();
         Collections.shuffle(data);
-        Files.write(sourceFile.toPath(), String.join("\n", data).getBytes());
+        Files.write(sourceFile, String.join("\n", data).getBytes());
 
         tableEnv.createTemporaryTable(
                 tableName,
                 TableDescriptor.forConnector(FileSystemTableFactory.IDENTIFIER)
-                        .option(FileSystemConnectorOptions.PATH, sourceFile.getAbsolutePath())
+                        .option(
+                                FileSystemConnectorOptions.PATH,
+                                sourceFile.toAbsolutePath().toString())
                         .format(CsvCommons.IDENTIFIER)
                         .schema(schema)
                         .build());
     }
 
-    private File createSinkTable(String tableName, Schema schema) throws IOException {
-        File sinkPath = TEMPORARY_FOLDER.newFolder();
+    private void createSinkTable(Path sinkPath, String tableName, Schema schema) {
 
         tableEnv.createTemporaryTable(
                 tableName,
                 TableDescriptor.forConnector(FileSystemTableFactory.IDENTIFIER)
-                        .option(FileSystemConnectorOptions.PATH, sinkPath.getAbsolutePath())
+                        .option(
+                                FileSystemConnectorOptions.PATH,
+                                sinkPath.toAbsolutePath().toString())
                         .option("csv.disable-quote-character", "true")
                         .format(CsvCommons.IDENTIFIER)
                         .schema(schema)
                         .build());
-
-        return sinkPath;
     }
 
     private void createTestValuesSourceTable(
@@ -326,8 +327,8 @@ public class TableCsvFormatITCase extends AbstractTestBase {
         tableEnv.createTemporaryTable(tableName, descriptor.build());
     }
 
-    private void assertResult(List<String> expected, File resultFile) throws IOException {
-        List<String> actual = readLines(resultFile);
+    private void assertResult(List<String> expected, Path resultFile) throws IOException {
+        List<String> actual = readLines(resultFile.toFile());
         assertThat(actual).hasSameElementsAs(expected);
     }
 

@@ -25,7 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,10 +37,10 @@ import static org.apache.flink.formats.csv.RowCsvInputFormatTest.createTempFile;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test split logic for {@link RowCsvInputFormat}. */
-public class RowCsvInputFormatSplitTest {
+class RowCsvInputFormatSplitTest {
 
     @Test
-    public void readAll() throws Exception {
+    void readAll() throws Exception {
         test(
                 "11$\n1,222\n" + "22$2,333\n",
                 0,
@@ -50,17 +50,17 @@ public class RowCsvInputFormatSplitTest {
     }
 
     @Test
-    public void readStartOffset() throws Exception {
+    void readStartOffset() throws Exception {
         test("11$\n1,222\n" + "22$2,333\n", 1, -1, '$', singletonList(Row.of("222", "333")));
     }
 
     @Test
-    public void readStartOffsetWithSeparator() throws Exception {
+    void readStartOffsetWithSeparator() throws Exception {
         test("11$\n1,222\n" + "22$2,333\n", 3, -1, '$', singletonList(Row.of("222", "333")));
     }
 
     @Test
-    public void readLengthWithSeparator() throws Exception {
+    void readLengthWithSeparator() throws Exception {
         test(
                 "11$\n1,222\n" + "22$\n2,333\n",
                 0,
@@ -70,7 +70,7 @@ public class RowCsvInputFormatSplitTest {
     }
 
     @Test
-    public void readLengthWithMultiBytesEscapeChar() throws Exception {
+    void readLengthWithMultiBytesEscapeChar() throws Exception {
         test(
                 "11好\n1,222\n" + "22好\n2,333\n",
                 0,
@@ -80,7 +80,7 @@ public class RowCsvInputFormatSplitTest {
     }
 
     @Test
-    public void readLengthWithMultiBytesEscapeChar2() throws Exception {
+    void readLengthWithMultiBytesEscapeChar2() throws Exception {
         test(
                 "11好\n1,222\n" + "22好\n2,333\n",
                 0,
@@ -90,7 +90,7 @@ public class RowCsvInputFormatSplitTest {
     }
 
     @Test
-    public void readLengthWithMultiBytesEscapeChar3() throws Exception {
+    void readLengthWithMultiBytesEscapeChar3() throws Exception {
         test(
                 "11好\n1,222\n" + "22好\n2,333\n",
                 0,
@@ -100,22 +100,22 @@ public class RowCsvInputFormatSplitTest {
     }
 
     @Test
-    public void readStartOffsetAndLength() throws Exception {
+    void readStartOffsetAndLength() throws Exception {
         test("11好\n1,222\n" + "22好\n2,333\n", 3, 18, '好', singletonList(Row.of("22\n2", "333")));
     }
 
     @Test
-    public void readMultiLineSeparator() throws Exception {
+    void readMultiLineSeparator() throws Exception {
         test("111,222\r\n" + "222,333\r\n", 3, 18, '好', singletonList(Row.of("222", "333")));
     }
 
     @Test
-    public void readRLineSeparator() throws Exception {
+    void readRLineSeparator() throws Exception {
         test("111,222\r" + "222,333\r", 3, 18, '好', singletonList(Row.of("222", "333")));
     }
 
     @Test
-    public void testQuotationMark() throws Exception {
+    void testQuotationMark() throws Exception {
         test(
                 "\"111\",222\r" + "222,333\r",
                 0,
@@ -132,7 +132,7 @@ public class RowCsvInputFormatSplitTest {
     }
 
     @Test
-    public void testSurroundEscapedDelimiter() throws Exception {
+    void testSurroundEscapedDelimiter() throws Exception {
         test(
                 "$11$1,222\r" + "222,333\r",
                 0,
