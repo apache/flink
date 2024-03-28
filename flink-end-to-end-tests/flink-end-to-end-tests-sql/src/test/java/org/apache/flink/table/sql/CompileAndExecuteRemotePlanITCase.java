@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sql.codegen;
+package org.apache.flink.table.sql;
 
 import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.RemoteIterator;
