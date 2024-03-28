@@ -274,6 +274,15 @@ public class OptimizerConfigOptions {
                                                     + "such as causing the output of certain non-deterministic expressions to not meet expectations(see FLINK-20887).")
                                     .build());
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Boolean>
+            TABLE_OPTIMIZER_TEMPORAL_JOIN_ON_ROLLING_AGGREGATE_ENABLED =
+                    key("table.optimizer.temporal-join-on-rolling-aggregate-enabled")
+                            .booleanType()
+                            .defaultValue(true)
+                            .withDescription(
+                                    "When it is true, the planner will support temporal join where the right side is a rolling aggregate.");
+
     /** Strategy for handling non-deterministic updates. */
     @PublicEvolving
     public enum NonDeterministicUpdateStrategy {

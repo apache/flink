@@ -13,7 +13,7 @@
             <td style="word-wrap: break-word;">"AUTO"</td>
             <td>String</td>
             <td>Strategy for aggregate phase. Only AUTO, TWO_PHASE or ONE_PHASE can be set.
-AUTO: No special enforcer for aggregate stage. Whether to choose two stage aggregate or one stage aggregate depends on cost. 
+AUTO: No special enforcer for aggregate stage. Whether to choose two stage aggregate or one stage aggregate depends on cost.
 TWO_PHASE: Enforce to use two stage aggregate which has localAggregate and globalAggregate. Note that if aggregate call does not support optimize into two phase, we will still use one stage aggregate.
 ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggregate.</td>
         </tr>
@@ -124,6 +124,12 @@ ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggre
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>If set to true, it will merge projects when converting SqlNode to RelNode.<br />Note: it is not recommended to turn on unless you are aware of possible side effects, such as causing the output of certain non-deterministic expressions to not meet expectations(see FLINK-20887).</td>
+        </tr>
+        <tr>
+            <td><h5>table.optimizer.temporal-join-on-rolling-aggregate-enabled</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>When it is true, the planner will support temporal join where the right side is a rolling aggregate.</td>
         </tr>
     </tbody>
 </table>

@@ -19,8 +19,10 @@
 package org.apache.flink.table.planner.calcite;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate;
@@ -50,6 +52,7 @@ import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType;
 import org.apache.flink.table.planner.plan.trait.RelWindowProperties;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -268,10 +271,35 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
 
         // temporal table join
         if (TemporalJoinUtil.satisfyTemporalJoin(join, newLeft, newRight)) {
+            List<RelDataTypeField> leftRightFields = computeNewRowInputTypes(newLeft, newRight);
+
+            final TableConfig tableConfig = ShortcutUtils.unwrapTableConfig(newLeft);
+            boolean joinOnRollingAggregate =
+                    tableConfig.get(
+                            OptimizerConfigOptions
+                                    .TABLE_OPTIMIZER_TEMPORAL_JOIN_ON_ROLLING_AGGREGATE_ENABLED);
+
+            RexNode newCondition =
+                    join.getCondition()
+                            .accept(
+                                    new RexShuttle() {
+                                        @Override
+                                        public RexNode visitInputRef(RexInputRef inputRef) {
+                                            if (isTimeIndicatorType(inputRef.getType())
+                                                    && inputRef.getIndex() >= leftFieldCount
+                                                    && joinOnRollingAggregate) {
+                                                return RexInputRef.of(
+                                                        inputRef.getIndex(), leftRightFields);
+                                            } else {
+                                                return super.visitInputRef(inputRef);
+                                            }
+                                        }
+                                    });
+
             RelNode rewrittenTemporalJoin =
                     join.copy(
                             join.getTraitSet(),
-                            join.getCondition(),
+                            newCondition,
                             newLeft,
                             newRight,
                             join.getJoinType(),
@@ -289,9 +317,7 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                 newLeft = materializeTimeIndicators(newLeft);
                 newRight = materializeTimeIndicators(newRight);
             }
-            List<RelDataTypeField> leftRightFields = new ArrayList<>();
-            leftRightFields.addAll(newLeft.getRowType().getFieldList());
-            leftRightFields.addAll(newRight.getRowType().getFieldList());
+            List<RelDataTypeField> leftRightFields = computeNewRowInputTypes(newLeft, newRight);
 
             RexNode newCondition =
                     join.getCondition()
@@ -310,6 +336,13 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
             return FlinkLogicalJoin.create(
                     newLeft, newRight, newCondition, join.getHints(), join.getJoinType());
         }
+    }
+
+    private List<RelDataTypeField> computeNewRowInputTypes(RelNode newLeft, RelNode newRight) {
+        List<RelDataTypeField> leftRightFields = new ArrayList<>();
+        leftRightFields.addAll(newLeft.getRowType().getFieldList());
+        leftRightFields.addAll(newRight.getRowType().getFieldList());
+        return leftRightFields;
     }
 
     private RelNode visitCorrelate(FlinkLogicalCorrelate correlate) {
