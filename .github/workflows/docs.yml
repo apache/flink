@@ -14,6 +14,8 @@
 # limitations under the License.
 
 name: "Build documentation"
+
+# Apache policy: never use 'pull_request_target' as a trigger
 on:
   schedule:
     - cron: '0 0 * * *' # Deploy every day
