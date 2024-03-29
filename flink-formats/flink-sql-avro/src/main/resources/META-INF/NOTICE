@@ -10,4 +10,4 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.fasterxml.jackson.core:jackson-core:2.15.3
 - com.fasterxml.jackson.core:jackson-databind:2.15.3
 - com.fasterxml.jackson.core:jackson-annotations:2.15.3
-- org.apache.commons:commons-compress:1.24.0
+- org.apache.commons:commons-compress:1.26.0
