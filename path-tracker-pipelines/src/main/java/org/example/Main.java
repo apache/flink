@@ -18,6 +18,8 @@
 
 package org.example;
 
+import com.fasterxml.jackson.databind.annotation.JsonAppend;
+
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -34,8 +36,20 @@ import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.KafkaAdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.apache.kafka.common.serialization.IntegerDeserializer;
+import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
+
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Properties;
 
@@ -50,12 +64,14 @@ public class Main {
                 "confluentinc/cp-kafka:6.2.1"));
         kafka.start();
 
+        String bootstrapServers = kafka.getBootstrapServers();
+
         Properties prop = new Properties();
-        prop.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBootstrapServers());
+        prop.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
 
         AdminClient adminClient = KafkaAdminClient.create(prop);
 
-        StreamExecutionEnvironment env = createPipeline(kafka.getBootstrapServers());
+        StreamExecutionEnvironment env = createPipeline(bootstrapServers);
 
         int pathNum = PathAnalyzer.computePathNum(env);
 
@@ -64,7 +80,33 @@ public class Main {
         adminClient.createTopics(Collections.singleton(newTopic));
 
 
+        Properties properties = new Properties();
+        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBootstrapServers());
+        properties.put(ConsumerConfig.GROUP_ID_CONFIG, "test-group-id");
+        properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+
+        KafkaConsumer<Integer, String> kafkaConsumer = new KafkaConsumer<>(properties);
+
+
+
+
+
+
         env.execute();
+
+        kafkaConsumer.subscribe(Collections.singletonList(OUTPUT_TOPIC));
+
+
+        // Poll for new messages
+        ConsumerRecords<Integer, String> records = kafkaConsumer.poll(Duration.ofMillis(10000));
+        System.out.printf("Record length is %d", records.count());
+
+        records.forEach(record -> {
+            System.out.printf("Received message: key = %s, value = %s, partition = %d, offset = %d%n",
+                    record.key(), record.value(), record.partition(), record.offset());
+        });
 
 
     }
@@ -73,10 +115,14 @@ public class Main {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
+        Properties producerProps = new Properties();
+        producerProps.put(ProducerConfig.PARTITIONER_CLASS_CONFIG, "org.example.CustomKafkaPartitioner");
+
         KafkaSink<DecorateRecord<Integer>> kafkaSink = KafkaSink.<DecorateRecord<Integer>>builder()
                 .setBootstrapServers(kafkaBootstrapServer)
                 .setRecordSerializer(new CustomKafkaSerializer(OUTPUT_TOPIC))
                 .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
+                .setKafkaProducerConfig(producerProps)
                 .build();
 
         env.addSource(new TestDataSource(100)).setParallelism(1)
