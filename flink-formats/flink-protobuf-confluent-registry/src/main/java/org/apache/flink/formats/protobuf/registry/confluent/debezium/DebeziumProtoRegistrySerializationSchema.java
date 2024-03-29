@@ -37,8 +37,6 @@ import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
 import java.util.Objects;
 
 import static java.lang.String.format;
-import static org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryFormatFactory.PACKAGE;
-import static org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryFormatFactory.ROW;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
 // TODO - checks for type of message
@@ -63,12 +61,9 @@ public class DebeziumProtoRegistrySerializationSchema implements SerializationSc
 
         this.rowType = Preconditions.checkNotNull(rowType);
         RowType debeziumProtoRowType = createDebeziumProtoRowType(fromLogicalToDataType(rowType));
-        ProtobufSchema rowSchema =
-                FlinkToProtoSchemaConverter.fromFlinkRowType(debeziumProtoRowType, ROW, PACKAGE);
-
         // call validate to check if schema is same
         final SchemaCoder schemaCoder =
-                SchemaRegistryClientFactory.getCoder(rowSchema, formatOptions);
+                SchemaRegistryClientFactory.getCoder(rowType, formatOptions);
         this.protoSerializer =
                 new ProtoRegistrySerializationSchema(schemaCoder, debeziumProtoRowType);
     }

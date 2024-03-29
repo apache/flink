@@ -38,8 +38,6 @@ import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
 import java.io.IOException;
 
 import static java.lang.String.format;
-import static org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryFormatFactory.PACKAGE;
-import static org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryFormatFactory.ROW;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
 /** Check for type of fieldDesriptor == message */
@@ -63,10 +61,8 @@ public class DebeziumProtoRegistryDeserializationSchema implements Deserializati
             TypeInformation<RowData> producedTypeInfo) {
         this.producedTypeInfo = producedTypeInfo;
         RowType debeziumProtoRowType = createDebeziumProtoRowType(fromLogicalToDataType(rowType));
-        ProtobufSchema rowSchema =
-                FlinkToProtoSchemaConverter.fromFlinkRowType(debeziumProtoRowType, ROW, PACKAGE);
         final SchemaCoder schemaCoder =
-                SchemaRegistryClientFactory.getCoder(rowSchema, formatOptions);
+                SchemaRegistryClientFactory.getCoder(rowType, formatOptions);
 
         protoDeserializer =
                 new ProtoRegistryDeserializationSchema(

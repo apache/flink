@@ -49,8 +49,6 @@ public class ProtoRegistryFormatFactory
         implements DeserializationFormatFactory, SerializationFormatFactory {
 
     public static final String IDENTIFIER = "proto-confluent";
-    public static final String ROW = "row";
-    public static final String PACKAGE = "io.confluent.generated";
 
     @Override
     public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
@@ -62,10 +60,8 @@ public class ProtoRegistryFormatFactory
             public DeserializationSchema<RowData> createRuntimeDecoder(
                     DynamicTableSource.Context context, DataType physicalDataType) {
                 final RowType rowType = (RowType) physicalDataType.getLogicalType();
-                ProtobufSchema rowSchema =
-                        FlinkToProtoSchemaConverter.fromFlinkRowType(rowType, ROW, PACKAGE);
-                final SchemaCoder schemaCoder =
-                        SchemaRegistryClientFactory.getCoder(rowSchema, formatOptions);
+                 final SchemaCoder schemaCoder =
+                        SchemaRegistryClientFactory.getCoder(rowType, formatOptions);
                 return new ProtoRegistryDeserializationSchema(
                         schemaCoder, rowType, context.createTypeInformation(physicalDataType));
             }
@@ -85,11 +81,8 @@ public class ProtoRegistryFormatFactory
             public SerializationSchema<RowData> createRuntimeEncoder(
                     DynamicTableSink.Context context, DataType physicalDataType) {
                 final RowType rowType = (RowType) physicalDataType.getLogicalType();
-                ProtobufSchema rowSchema =
-                        FlinkToProtoSchemaConverter.fromFlinkRowType(rowType, ROW, PACKAGE);
-
                 final SchemaCoder schemaCoder =
-                        SchemaRegistryClientFactory.getCoder(rowSchema, formatOptions);
+                        SchemaRegistryClientFactory.getCoder(rowType, formatOptions);
 
                 return new ProtoRegistrySerializationSchema(schemaCoder, rowType);
             }

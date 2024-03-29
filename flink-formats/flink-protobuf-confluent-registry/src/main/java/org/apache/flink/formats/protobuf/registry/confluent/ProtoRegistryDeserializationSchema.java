@@ -76,7 +76,7 @@ public class ProtoRegistryDeserializationSchema implements DeserializationSchema
         }
         try {
             inputStream.setBuffer(message);
-            ProtobufSchema schema = (ProtobufSchema) schemaCoder.readSchema(inputStream);
+            ProtobufSchema schema = schemaCoder.readSchema(inputStream);
             Descriptor descriptor = schema.toDescriptor();
             final DynamicMessage dynamicMessage = DynamicMessage.parseFrom(descriptor, inputStream);
 

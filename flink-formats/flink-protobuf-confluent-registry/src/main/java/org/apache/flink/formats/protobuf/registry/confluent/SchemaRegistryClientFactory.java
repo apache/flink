@@ -20,6 +20,7 @@ package org.apache.flink.formats.protobuf.registry.confluent;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.formats.protobuf.registry.confluent.utils.FlinkToProtoSchemaConverter;
 import org.apache.flink.table.factories.FormatFactory;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -50,7 +51,14 @@ import static org.apache.flink.formats.protobuf.registry.confluent.RegistryForma
 /** Shared across formats factory class for creating a {@link SchemaRegistryConfig}. */
 public class SchemaRegistryClientFactory {
 
-    public static SchemaCoder getCoder(ProtobufSchema rowSchema, ReadableConfig formatOptions) {
+    private static final String ROW = "row";
+    private static final String PACKAGE = "io.confluent.generated";
+
+
+    public static SchemaCoder getCoder(RowType rowType, ReadableConfig formatOptions) {
+        ProtobufSchema rowSchema =
+                FlinkToProtoSchemaConverter.fromFlinkRowType(rowType, ROW, PACKAGE);
+
         SchemaRegistryClient schemaRegistryClient = getClient(formatOptions);
         final Optional<Integer> schemaId = formatOptions.getOptional(RegistryFormatOptions.SCHEMA_ID);
         final Optional<String> messageName = formatOptions.getOptional(RegistryFormatOptions.MESSAGE_NAME);
