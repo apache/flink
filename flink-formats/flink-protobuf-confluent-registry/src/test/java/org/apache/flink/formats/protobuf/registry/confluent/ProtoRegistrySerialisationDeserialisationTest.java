@@ -22,8 +22,6 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.protobuf.registry.confluent.utils.FlinkToProtoSchemaConverter;
 import org.apache.flink.formats.protobuf.registry.confluent.utils.MockInitializationContext;
-import org.apache.flink.formats.protobuf.registry.confluent.utils.ProtoToFlinkSchemaConverter;
-import org.apache.flink.formats.protobuf.registry.confluent.utils.TestSchemaRegistryConfig;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -38,7 +36,6 @@ import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.logical.SmallIntType;
@@ -75,8 +72,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * and/or {@link ProtoToRowDataConvertersTest}.
  */
 @ExtendWith(TestLoggerExtension.class)
-public class ProtoRegistrySerialisatiionDeserialisationTest {
-    /*
+public class ProtoRegistrySerialisationDeserialisationTest {
+
     private static final String SUBJECT = "test-subject";
 
     private static SchemaRegistryClient client;
@@ -86,26 +83,29 @@ public class ProtoRegistrySerialisatiionDeserialisationTest {
         client = new MockSchemaRegistryClient();
     }
 
-    private static byte[] serialize(int schemaId, GenericRowData rowData, RowType flinkSchema)
+    private static byte[] serialize(int schemaId, GenericRowData rowData, RowType rowType)
             throws Exception {
 
+        SchemaCoder coder =
+                new SchemaCoderProviders.PreRegisteredSchemaCoder(schemaId, null, client);
+
         final SerializationSchema<RowData> serializationSchema =
-                new ProtoRegistrySerializationSchema(
-                        new TestSchemaRegistryConfig(schemaId, client), flinkSchema);
+                new ProtoRegistrySerializationSchema(coder, rowType);
         serializationSchema.open(new MockInitializationContext());
         return serializationSchema.serialize(rowData);
     }
 
-    private static RowData deserialize(byte[] data, int schemaId, RowType flinkSchema)
+    private static RowData deserialize(byte[] data, int schemaId, RowType rowType)
             throws Exception {
 
-        final DeserializationSchema<RowData> serializationSchema =
+        SchemaCoder coder =
+                new SchemaCoderProviders.PreRegisteredSchemaCoder(schemaId, null, client);
+
+        final DeserializationSchema<RowData> deserializationSchema =
                 new ProtoRegistryDeserializationSchema(
-                        new TestSchemaRegistryConfig(schemaId, client),
-                        flinkSchema,
-                        InternalTypeInfo.of(flinkSchema));
-        serializationSchema.open(new MockInitializationContext());
-        return serializationSchema.deserialize(data);
+                        coder, rowType, InternalTypeInfo.of(rowType));
+        deserializationSchema.open(new MockInitializationContext());
+        return deserializationSchema.deserialize(data);
     }
 
     @AfterEach
@@ -166,7 +166,7 @@ public class ProtoRegistrySerialisatiionDeserialisationTest {
         assertThat(deserialized).isEqualTo(row);
     }
 
-    @Test
+    /*@Test
     void test() throws Exception {
         final byte[] data = {
             0, 0, 1, -122, -94, 0, 10, 4, 83, 69, 76, 76, 16, -120, 6, 26, 4, 90, 66, 90, 88, 32,

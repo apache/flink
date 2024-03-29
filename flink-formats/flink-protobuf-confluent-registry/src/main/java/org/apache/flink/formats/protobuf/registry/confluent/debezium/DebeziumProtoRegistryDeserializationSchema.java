@@ -20,8 +20,11 @@ package org.apache.flink.formats.protobuf.registry.confluent.debezium;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryDeserializationSchema;
-import org.apache.flink.formats.protobuf.registry.confluent.SchemaRegistryConfig;
+import org.apache.flink.formats.protobuf.registry.confluent.SchemaCoder;
+import org.apache.flink.formats.protobuf.registry.confluent.SchemaRegistryClientFactory;
+import org.apache.flink.formats.protobuf.registry.confluent.utils.FlinkToProtoSchemaConverter;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -30,9 +33,13 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
+import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
+
 import java.io.IOException;
 
 import static java.lang.String.format;
+import static org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryFormatFactory.PACKAGE;
+import static org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryFormatFactory.ROW;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
 /** Check for type of fieldDesriptor == message */
@@ -40,27 +47,30 @@ public class DebeziumProtoRegistryDeserializationSchema implements Deserializati
 
     private static final long serialVersionUID = 1L;
     private static final String OP_READ = "r";
-    /** insert operation. */
+    // ** insert operation.
     private static final String OP_CREATE = "c";
-    /** update operation. */
+    // ** update operation.
     private static final String OP_UPDATE = "u";
-    /** delete operation. */
+    // ** delete operation.
     private static final String OP_DELETE = "d";
 
     private final ProtoRegistryDeserializationSchema protoDeserializer;
     private final TypeInformation<RowData> producedTypeInfo;
 
     public DebeziumProtoRegistryDeserializationSchema(
+            ReadableConfig formatOptions,
             RowType rowType,
-            TypeInformation<RowData> producedTypeInfo,
-            SchemaRegistryConfig schemaRegistryConfig) {
+            TypeInformation<RowData> producedTypeInfo) {
         this.producedTypeInfo = producedTypeInfo;
         RowType debeziumProtoRowType = createDebeziumProtoRowType(fromLogicalToDataType(rowType));
-        // todo validate schema String (call validate)
+        ProtobufSchema rowSchema =
+                FlinkToProtoSchemaConverter.fromFlinkRowType(debeziumProtoRowType, ROW, PACKAGE);
+        final SchemaCoder schemaCoder =
+                SchemaRegistryClientFactory.getCoder(rowSchema, formatOptions);
 
         protoDeserializer =
                 new ProtoRegistryDeserializationSchema(
-                        schemaRegistryConfig, debeziumProtoRowType, producedTypeInfo);
+                        schemaCoder, debeziumProtoRowType, producedTypeInfo);
     }
 
     private RowType createDebeziumProtoRowType(DataType databaseSchema) {
@@ -93,7 +103,7 @@ public class DebeziumProtoRegistryDeserializationSchema implements Deserializati
         GenericRowData debeziumEnvelop = (GenericRowData) protoDeserializer.deserialize(message);
         RowData before = (RowData) debeziumEnvelop.getField(0);
         RowData after = (RowData) debeziumEnvelop.getField(1);
-        String op =  debeziumEnvelop.getField(2).toString();
+        String op = debeziumEnvelop.getField(2).toString();
 
         if (OP_CREATE.equals(op) || OP_READ.equals(op)) {
             after.setRowKind(RowKind.INSERT);

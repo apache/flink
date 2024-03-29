@@ -36,11 +36,10 @@ import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
+import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
+
 import java.util.HashSet;
 import java.util.Set;
-
-import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
-import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
 
 /**
  * Table format factory for providing configured instances of Schema Registry Protobuf to RowData
@@ -50,8 +49,8 @@ public class ProtoRegistryFormatFactory
         implements DeserializationFormatFactory, SerializationFormatFactory {
 
     public static final String IDENTIFIER = "proto-confluent";
-    private static final String ROW = "row";
-    private static final String PACKAGE = "io.confluent.generated";
+    public static final String ROW = "row";
+    public static final String PACKAGE = "io.confluent.generated";
 
     @Override
     public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
@@ -63,11 +62,12 @@ public class ProtoRegistryFormatFactory
             public DeserializationSchema<RowData> createRuntimeDecoder(
                     DynamicTableSource.Context context, DataType physicalDataType) {
                 final RowType rowType = (RowType) physicalDataType.getLogicalType();
-                ProtobufSchema rowSchema = FlinkToProtoSchemaConverter.fromFlinkRowType(rowType,ROW,PACKAGE);
-                final SchemaCoder schemaCoder = SchemaRegistryClientFactory.getCoder(rowSchema,
-                        formatOptions);
-                return new ProtoRegistryDeserializationSchema(schemaCoder,rowType,
-                        context.createTypeInformation(physicalDataType));
+                ProtobufSchema rowSchema =
+                        FlinkToProtoSchemaConverter.fromFlinkRowType(rowType, ROW, PACKAGE);
+                final SchemaCoder schemaCoder =
+                        SchemaRegistryClientFactory.getCoder(rowSchema, formatOptions);
+                return new ProtoRegistryDeserializationSchema(
+                        schemaCoder, rowType, context.createTypeInformation(physicalDataType));
             }
 
             @Override
@@ -80,18 +80,18 @@ public class ProtoRegistryFormatFactory
     @Override
     public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
             Context context, ReadableConfig formatOptions) {
-        final SchemaRegistryClient registryConfig = SchemaRegistryClientFactory.getClient(formatOptions);
         return new EncodingFormat<SerializationSchema<RowData>>() {
             @Override
             public SerializationSchema<RowData> createRuntimeEncoder(
                     DynamicTableSink.Context context, DataType physicalDataType) {
                 final RowType rowType = (RowType) physicalDataType.getLogicalType();
-                ProtobufSchema rowSchema = FlinkToProtoSchemaConverter.fromFlinkRowType(rowType,ROW,PACKAGE);
+                ProtobufSchema rowSchema =
+                        FlinkToProtoSchemaConverter.fromFlinkRowType(rowType, ROW, PACKAGE);
 
-                final SchemaCoder schemaCoder = SchemaRegistryClientFactory.getCoder(
-                        rowSchema,
-                        formatOptions);
-                return new ProtoRegistrySerializationSchema(schemaCoder, rowSchema, rowType);
+                final SchemaCoder schemaCoder =
+                        SchemaRegistryClientFactory.getCoder(rowSchema, formatOptions);
+
+                return new ProtoRegistrySerializationSchema(schemaCoder, rowType);
             }
 
             @Override

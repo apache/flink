@@ -23,7 +23,6 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.protobuf.registry.confluent.SchemaRegistryClientFactory;
-import org.apache.flink.formats.protobuf.registry.confluent.SchemaRegistryConfig;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -55,12 +54,11 @@ public class DebeziumProtoRegistryFormatFactory
             @Override
             public DeserializationSchema<RowData> createRuntimeDecoder(
                     DynamicTableSource.Context context, DataType physicalDataType) {
-                final SchemaRegistryConfig registryConfig =
-                        SchemaRegistryClientFactory.getClient(formatOptions);
+
                 final RowType rowType = (RowType) physicalDataType.getLogicalType();
 
                 return new DebeziumProtoRegistryDeserializationSchema(
-                        rowType, context.createTypeInformation(physicalDataType), registryConfig);
+                        formatOptions, rowType, context.createTypeInformation(physicalDataType));
             }
 
             @Override
@@ -95,10 +93,8 @@ public class DebeziumProtoRegistryFormatFactory
             @Override
             public SerializationSchema<RowData> createRuntimeEncoder(
                     DynamicTableSink.Context context, DataType consumedDataType) {
-                final SchemaRegistryConfig registryConfig =
-                        SchemaRegistryClientFactory.getClient(formatOptions);
                 final RowType rowType = (RowType) consumedDataType.getLogicalType();
-                return new DebeziumProtoRegistrySerializationSchema(registryConfig, rowType);
+                return new DebeziumProtoRegistrySerializationSchema(formatOptions, rowType);
             }
         };
     }

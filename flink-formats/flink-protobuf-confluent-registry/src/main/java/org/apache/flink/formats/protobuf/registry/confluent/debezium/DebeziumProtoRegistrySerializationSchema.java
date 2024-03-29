@@ -19,8 +19,11 @@
 package org.apache.flink.formats.protobuf.registry.confluent.debezium;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistrySerializationSchema;
-import org.apache.flink.formats.protobuf.registry.confluent.SchemaRegistryConfig;
+import org.apache.flink.formats.protobuf.registry.confluent.SchemaCoder;
+import org.apache.flink.formats.protobuf.registry.confluent.SchemaRegistryClientFactory;
+import org.apache.flink.formats.protobuf.registry.confluent.utils.FlinkToProtoSchemaConverter;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -29,9 +32,13 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
+import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
+
 import java.util.Objects;
 
 import static java.lang.String.format;
+import static org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryFormatFactory.PACKAGE;
+import static org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryFormatFactory.ROW;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
 // TODO - checks for type of message
@@ -44,29 +51,27 @@ public class DebeziumProtoRegistrySerializationSchema implements SerializationSc
     /** delete operation. */
     private static final StringData OP_DELETE = StringData.fromString("d");
 
-
     /** RowType to generate the runtime converter. */
     private final RowType rowType;
 
-    private final SchemaRegistryConfig schemaRegistryConfig;
-
     /** The converter that converts internal data formats to JsonNode. */
-    private final ProtoRegistrySerializationSchema protoSerializer;
+    private ProtoRegistrySerializationSchema protoSerializer;
 
     private transient GenericRowData outputReuse;
 
-
-    public DebeziumProtoRegistrySerializationSchema(
-            SchemaRegistryConfig registryConfig, RowType rowType) {
+    public DebeziumProtoRegistrySerializationSchema(ReadableConfig formatOptions, RowType rowType) {
 
         this.rowType = Preconditions.checkNotNull(rowType);
-        this.schemaRegistryConfig = Preconditions.checkNotNull(registryConfig);
         RowType debeziumProtoRowType = createDebeziumProtoRowType(fromLogicalToDataType(rowType));
-        //call validate to check if schema is same
-        this.protoSerializer =
-                new ProtoRegistrySerializationSchema(registryConfig, debeziumProtoRowType);
-    }
+        ProtobufSchema rowSchema =
+                FlinkToProtoSchemaConverter.fromFlinkRowType(debeziumProtoRowType, ROW, PACKAGE);
 
+        // call validate to check if schema is same
+        final SchemaCoder schemaCoder =
+                SchemaRegistryClientFactory.getCoder(rowSchema, formatOptions);
+        this.protoSerializer =
+                new ProtoRegistrySerializationSchema(schemaCoder, debeziumProtoRowType);
+    }
 
     private RowType createDebeziumProtoRowType(DataType dataType) {
         // but we don't need them
@@ -82,25 +87,6 @@ public class DebeziumProtoRegistrySerializationSchema implements SerializationSc
     public void open(InitializationContext context) throws Exception {
         protoSerializer.open(context);
         outputReuse = new GenericRowData(3);
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        DebeziumProtoRegistrySerializationSchema that =
-                (DebeziumProtoRegistrySerializationSchema) o;
-        return Objects.equals(rowType, that.rowType)
-                && Objects.equals(schemaRegistryConfig, that.schemaRegistryConfig);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(rowType, schemaRegistryConfig);
     }
 
     @Override
@@ -128,5 +114,19 @@ public class DebeziumProtoRegistrySerializationSchema implements SerializationSc
         } catch (Throwable t) {
             throw new RuntimeException(format("Could not serialize row '%s'.", rowData), t);
         }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof DebeziumProtoRegistrySerializationSchema)) return false;
+        DebeziumProtoRegistrySerializationSchema that =
+                (DebeziumProtoRegistrySerializationSchema) o;
+        return rowType.equals(that.rowType) && protoSerializer.equals(that.protoSerializer);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(rowType, protoSerializer);
     }
 }

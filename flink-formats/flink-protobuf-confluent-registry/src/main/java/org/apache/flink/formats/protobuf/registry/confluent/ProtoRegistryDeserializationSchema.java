@@ -27,21 +27,19 @@ import org.apache.flink.util.Preconditions;
 
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.DynamicMessage;
-import io.confluent.kafka.schemaregistry.ParsedSchema;
-import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
-import org.apache.kafka.common.utils.ByteUtils;
 
-import java.io.DataInputStream;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 /**
  * A {@link DeserializationSchema} that deserializes {@link RowData} from Protobuf messages using
  * Schema Registry protocol.
  */
+// TODO fix equals and hashcode
 public class ProtoRegistryDeserializationSchema implements DeserializationSchema<RowData> {
 
     private static final long serialVersionUID = 1L;
@@ -54,13 +52,11 @@ public class ProtoRegistryDeserializationSchema implements DeserializationSchema
 
     private transient SchemaCoder schemaCoder;
 
-    private transient Map<String,ProtoToRowDataConverters.ProtoToRowDataConverter> runtimeConverterMap;
-
+    private transient Map<String, ProtoToRowDataConverters.ProtoToRowDataConverter>
+            runtimeConverterMap;
 
     public ProtoRegistryDeserializationSchema(
-            SchemaCoder schemaCoder,
-            RowType rowType,
-            TypeInformation<RowData> producedType) {
+            SchemaCoder schemaCoder, RowType rowType, TypeInformation<RowData> producedType) {
         this.schemaCoder = schemaCoder;
         this.rowType = Preconditions.checkNotNull(rowType);
         this.producedType = Preconditions.checkNotNull(producedType);
@@ -83,9 +79,10 @@ public class ProtoRegistryDeserializationSchema implements DeserializationSchema
             ProtobufSchema schema = (ProtobufSchema) schemaCoder.readSchema(inputStream);
             Descriptor descriptor = schema.toDescriptor();
             final DynamicMessage dynamicMessage = DynamicMessage.parseFrom(descriptor, inputStream);
-            ProtoToRowDataConverters.ProtoToRowDataConverter converter = runtimeConverterMap.
-                    computeIfAbsent(schema.toString(),
-                    this::initializeConverter);
+
+            ProtoToRowDataConverters.ProtoToRowDataConverter converter =
+                    runtimeConverterMap.computeIfAbsent(
+                            descriptor.getName(), initializeConverter(descriptor));
             return (RowData) converter.convert(dynamicMessage);
 
         } catch (Exception e) {
@@ -93,10 +90,13 @@ public class ProtoRegistryDeserializationSchema implements DeserializationSchema
         }
     }
 
-    private ProtoToRowDataConverters.ProtoToRowDataConverter initializeConverter(
-            String schemaString) {
-        ProtobufSchema schema  = new ProtobufSchema(schemaString);
-        return ProtoToRowDataConverters.createConverter(schema.toDescriptor(), rowType);
+    private Function<String, ProtoToRowDataConverters.ProtoToRowDataConverter> initializeConverter(
+            Descriptor descriptor) {
+        return str -> doInitialize(descriptor);
+    }
+
+    private ProtoToRowDataConverters.ProtoToRowDataConverter doInitialize(Descriptor descriptor) {
+        return ProtoToRowDataConverters.createConverter(descriptor, rowType);
     }
 
     @Override
@@ -109,13 +109,13 @@ public class ProtoRegistryDeserializationSchema implements DeserializationSchema
         return producedType;
     }
 
-
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof ProtoRegistryDeserializationSchema)) return false;
         ProtoRegistryDeserializationSchema that = (ProtoRegistryDeserializationSchema) o;
-        return rowType.equals(that.rowType) && producedType.equals(that.producedType)
+        return rowType.equals(that.rowType)
+                && producedType.equals(that.producedType)
                 && schemaCoder.equals(that.schemaCoder)
                 && runtimeConverterMap.equals(that.runtimeConverterMap);
     }
