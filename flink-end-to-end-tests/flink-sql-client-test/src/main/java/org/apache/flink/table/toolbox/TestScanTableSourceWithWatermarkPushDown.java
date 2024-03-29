@@ -31,7 +31,6 @@ import org.apache.flink.table.data.RowData;
  *
  * <p>For simplicity, the deprecated source function method is used to create the source.
  */
-@SuppressWarnings("deprecation")
 public class TestScanTableSourceWithWatermarkPushDown
         implements ScanTableSource, SupportsWatermarkPushDown {
 
