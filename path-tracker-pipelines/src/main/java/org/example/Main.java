@@ -52,63 +52,61 @@ import org.testcontainers.utility.DockerImageName;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Properties;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class Main {
 
     // topic for queues
-    private static String OUTPUT_TOPIC = "test-output-topic";
+    private static String OUTPUT_TOPIC = "test_topic";
 
     public static void main(String[] args) throws Exception {
-
-        KafkaContainer kafka = new KafkaContainer(DockerImageName.parse(
-                "confluentinc/cp-kafka:6.2.1"));
-        kafka.start();
-
-        String bootstrapServers = kafka.getBootstrapServers();
+        String bootstrapServers = "localhost:9092";
+        String topicName = "test_topic";
 
         Properties prop = new Properties();
         prop.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-
-        AdminClient adminClient = KafkaAdminClient.create(prop);
-
         StreamExecutionEnvironment env = createPipeline(bootstrapServers);
-
         int pathNum = PathAnalyzer.computePathNum(env);
 
-        // create topic with partition num = path num
-        NewTopic newTopic = new NewTopic(OUTPUT_TOPIC, pathNum, (short) 1);
-        adminClient.createTopics(Collections.singleton(newTopic));
+        try (AdminClient adminClient = AdminClient.create(prop)) {
+            NewTopic newTopic = new NewTopic(topicName, pathNum, (short) 1);
+            adminClient.createTopics(Collections.singleton(newTopic)).all().get();
+            System.out.println("Topic created successfully");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
+        ConcurrentLinkedQueue<kafkaMessage>[] queue = new ConcurrentLinkedQueue[pathNum];
+        for(int i = 0; i < pathNum; i++) {
+            queue[i] = new ConcurrentLinkedQueue<>();
+        }
 
-        Properties properties = new Properties();
-        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBootstrapServers());
-        properties.put(ConsumerConfig.GROUP_ID_CONFIG, "test-group-id");
-        properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-        properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-        properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        // Make producer, consumer, and merger
+        KafkaMergeThread mergeThread = new KafkaMergeThread(pathNum, queue);
+        KafkaConsumerThread consumeThread = new KafkaConsumerThread(bootstrapServers, pathNum, queue);
 
-        KafkaConsumer<Integer, String> kafkaConsumer = new KafkaConsumer<>(properties);
+        Thread merge = new Thread(mergeThread);
+        Thread consume = new Thread(consumeThread);
 
+        merge.setDaemon(true);
+        consume.setDaemon(true);
 
+        consume.start();
+        merge.start();
 
+        try {
+            env.execute();
 
+            Thread.sleep(20000);
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            System.out.println("Closing Consumer and producer");
+            consumeThread.stopRunning();
 
-
-        env.execute();
-
-        kafkaConsumer.subscribe(Collections.singletonList(OUTPUT_TOPIC));
-
-
-        // Poll for new messages
-        ConsumerRecords<Integer, String> records = kafkaConsumer.poll(Duration.ofMillis(10000));
-        System.out.printf("Record length is %d", records.count());
-
-        records.forEach(record -> {
-            System.out.printf("Received message: key = %s, value = %s, partition = %d, offset = %d%n",
-                    record.key(), record.value(), record.partition(), record.offset());
-        });
-
-
+            System.out.println("Stopping merge");
+            mergeThread.stopRunning();
+        }
     }
 
     private static StreamExecutionEnvironment createPipeline(String kafkaBootstrapServer) {
@@ -125,7 +123,7 @@ public class Main {
                 .setKafkaProducerConfig(producerProps)
                 .build();
 
-        env.addSource(new TestDataSource(100)).setParallelism(1)
+        env.addSource(new TestDataSource(100000)).setParallelism(1)
                 // filter out multiples of 7
                 .filter(new TestRichFilterFunctionImpl()).setParallelism(3)
                 .rescale()

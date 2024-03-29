@@ -1,4 +1,22 @@
-package com.example.kafka;
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.example;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -7,7 +25,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class KafkaMergeThread implements  Runnable {
         private volatile boolean running = true;
-        private  static final int throughputIntervalMilli = 200;
+        private  static final int throughputIntervalMilli = 100;
         private final int partitionCount;
         private ConcurrentLinkedQueue<kafkaMessage> partitionQueue [];
         PriorityQueue<minHeapTuple> minHeap;
@@ -45,7 +63,6 @@ public class KafkaMergeThread implements  Runnable {
                         minHeap.add(curr);
                     }
                     queueInitialized = true;
-                    startTime = System.currentTimeMillis();
                 }
                 foundEmptyQueue = false;
             }
@@ -59,17 +76,8 @@ public class KafkaMergeThread implements  Runnable {
 
                 latencies.add(processingTime);
                 numEvents++;
-                long currentTime = System.currentTimeMillis();
 
-                if (currentTime - startTime > throughputIntervalMilli) {
-                    double totalTimeInSeconds = (currentTime - startTime) / 1000.0;
-                    double curr_throughput = numEvents / totalTimeInSeconds;
-                    throughput.add(curr_throughput);
-                    numEvents = 0;
-                    startTime = currentTime;
-                }
-
-                System.out.print(sequenceNum + " ");
+//                System.out.print(sequenceNum + " "); // uncomment to verify correctness
 
                 // Keep polling that queue until there is a number in there
                 kafkaMessage nextNum = q.poll();
@@ -88,12 +96,15 @@ public class KafkaMergeThread implements  Runnable {
                     minHeapTuple curr = new minHeapTuple(nextNumUnpacked, q, nextNum.arrivalTime);
                     minHeap.add(curr);
                 }
+                long totalTime = (System.currentTimeMillis() - startTime) / 1000 ;
+                double throughput_curr = (double) numEvents / totalTime;
+                this.throughput.add(throughput_curr);
             }
         }
         public void stopRunning() {
             running = false;
-            System.out.println("Latency's " + this.latencies.size());
-            System.out.println("Latency's " + this.throughput.size());
+            System.out.println("Latency Values " + this.latencies.size());
+            System.out.println("Throughput values: " + this.throughput.size());
         }
 
     static class minHeapTuple{
