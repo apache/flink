@@ -68,7 +68,6 @@ public class ProtoRegistrySerializationSchema implements SerializationSchema<Row
     @Override
     public byte[] serialize(RowData row) {
         try {
-
             final DynamicMessage converted = (DynamicMessage) runtimeConverter.convert(row);
             arrayOutputStream.reset();
             schemaCoder.writeSchema(arrayOutputStream);

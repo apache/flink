@@ -19,10 +19,12 @@
 package org.apache.flink.formats.protobuf.registry.confluent;
 
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
+import org.apache.kafka.common.utils.ByteUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
 
 public interface SchemaCoder {
     ProtobufSchema readSchema(InputStream in) throws IOException;
@@ -32,4 +34,20 @@ public interface SchemaCoder {
     ProtobufSchema writerSchema();
 
     void writeSchema(OutputStream out) throws IOException;
+
+    interface Utils {
+        static void writeInt(OutputStream out, int registeredId) throws IOException {
+            out.write(registeredId >>> 24);
+            out.write(registeredId >>> 16);
+            out.write(registeredId >>> 8);
+            out.write(registeredId);
+        }
+
+        static ByteBuffer writeEmptyMessageIndexes() {
+            // write empty message indices for now
+            ByteBuffer buffer = ByteBuffer.allocate(ByteUtils.sizeOfVarint(0));
+            ByteUtils.writeVarint(0, buffer);
+            return buffer;
+        }
+    }
 }

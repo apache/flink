@@ -22,7 +22,11 @@ import org.apache.flink.util.Preconditions;
 
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
+import io.confluent.kafka.schemaregistry.protobuf.MessageIndexes;
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
+
+import org.apache.flink.util.WrappingRuntimeException;
+
 import org.apache.kafka.common.utils.ByteUtils;
 
 import javax.annotation.Nullable;
@@ -32,8 +36,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import static java.lang.String.format;
+import static org.apache.flink.formats.protobuf.registry.confluent.SchemaCoder.Utils.writeEmptyMessageIndexes;
+import static org.apache.flink.formats.protobuf.registry.confluent.SchemaCoder.Utils.writeInt;
 
 public class SchemaCoderProviders {
     private static final int CONFLUENT_MAGIC_BYTE = 0;
@@ -48,34 +57,85 @@ public class SchemaCoderProviders {
         return new DefaultSchemaCoder(subject, rowSchema, schemaRegistryClient);
     }
 
+
+
     static class DefaultSchemaCoder implements SchemaCoder {
 
         private @Nullable final String subject;
         private final ProtobufSchema rowSchema;
         private final SchemaRegistryClient schemaRegistryClient;
+        private static final List<Integer> DEFAULT_INDEX = Collections.singletonList(0);
 
         public DefaultSchemaCoder(
                 @Nullable String subject,
                 ProtobufSchema rowSchema,
                 SchemaRegistryClient schemaRegistryClient) {
             this.subject = subject;
-            this.rowSchema = rowSchema;
+            this.rowSchema = Preconditions.checkNotNull(rowSchema);
             this.schemaRegistryClient = Preconditions.checkNotNull(schemaRegistryClient);
-            ;
+
         }
+
+        //Todo : adapted from logic
+        public static MessageIndexes readFrom(DataInputStream input) throws IOException {
+
+            int size = ByteUtils.readVarint(input);
+            if (size == 0) {
+                return new MessageIndexes(DEFAULT_INDEX);
+            } else {
+                List<Integer> indexes = new ArrayList<>(size);
+
+                for(int i = 0; i < size; ++i) {
+                    indexes.add(ByteUtils.readVarint(input));
+                }
+                return new MessageIndexes(indexes);
+            }
+        }
+
 
         @Override
         public ProtobufSchema readSchema(InputStream in) throws IOException {
-            return null;
-        }
+            DataInputStream dataInputStream = new DataInputStream(in);
 
+            if (dataInputStream.readByte() != 0) {
+                throw new IOException("Unknown data format. Magic number does not match");
+            } else {
+                int schemaId = dataInputStream.readInt();
+                try {
+                    ProtobufSchema schema = (ProtobufSchema) schemaRegistryClient.getSchemaById(schemaId);
+                    MessageIndexes indexes = readFrom(dataInputStream);
+                    String name = schema.toMessageName(indexes);
+                    schema = schema.copy(name);
+                    return schema;
+                } catch (RestClientException e) {
+                    throw new IOException(
+                            format("Could not find schema with id %s in registry", schemaId), e);
+                }
+
+            }
+        }
         @Override
         public ProtobufSchema writerSchema() {
-            return null;
+            return rowSchema;
         }
 
+
         @Override
-        public void writeSchema(OutputStream out) throws IOException {}
+        public void writeSchema(OutputStream out) throws IOException {
+             out.write(CONFLUENT_MAGIC_BYTE);
+            if(subject==null)
+                throw new IllegalArgumentException("Subject required for serialization");
+            int schemaId = 0;
+            try {
+                schemaId = schemaRegistryClient.register(subject,rowSchema);
+                writeInt(out, schemaId);
+                final ByteBuffer buffer = writeEmptyMessageIndexes();
+                out.write(buffer.array());
+            } catch (RestClientException e) {
+                throw new WrappingRuntimeException("Failed to serialize schema registry.", e);
+            }
+
+        }
     }
 
     // Todo Might need rowSchema
@@ -96,12 +156,6 @@ public class SchemaCoderProviders {
             this.schemaRegistryClient = schemaRegistryClient;
         }
 
-        private static void writeInt(OutputStream out, int registeredId) throws IOException {
-            out.write(registeredId >>> 24);
-            out.write(registeredId >>> 16);
-            out.write(registeredId >>> 8);
-            out.write(registeredId);
-        }
 
         private void skipMessageIndexes(InputStream inputStream) throws IOException {
             final DataInputStream dataInputStream = new DataInputStream(inputStream);
@@ -138,11 +192,12 @@ public class SchemaCoderProviders {
             out.write(buffer.array());
         }
 
-        private static ByteBuffer writeMessageIndexes() {
-            // write empty message indices for now
-            ByteBuffer buffer = ByteBuffer.allocate(ByteUtils.sizeOfVarint(0));
-            ByteUtils.writeVarint(0, buffer);
-            return buffer;
+        private ByteBuffer writeMessageIndexes() {
+            if(this.messageName!=null){
+                MessageIndexes messageIndex = schema.toMessageIndexes(messageName);
+                return ByteBuffer.wrap(messageIndex.toByteArray());
+            }else
+                return writeEmptyMessageIndexes();
         }
 
         @Override
@@ -150,6 +205,10 @@ public class SchemaCoderProviders {
 
             try {
                 this.schema = (ProtobufSchema) schemaRegistryClient.getSchemaById(schemaId);
+                if(this.messageName!=null){
+                    //nested schema needs to be used
+                    schema = schema.copy(messageName);
+                }
             } catch (RestClientException e) {
                 throw new IOException(
                         format("Could not find schema with id %s in registry", schemaId), e);
