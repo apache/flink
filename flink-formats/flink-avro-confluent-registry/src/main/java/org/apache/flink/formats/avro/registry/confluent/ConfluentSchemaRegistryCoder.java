@@ -33,7 +33,7 @@ import java.nio.ByteBuffer;
 import static java.lang.String.format;
 
 /** Reads and Writes schema using Confluent Schema Registry protocol. */
-    public class ConfluentSchemaRegistryCoder implements SchemaCoder {
+public class ConfluentSchemaRegistryCoder implements SchemaCoder {
 
     private final SchemaRegistryClient schemaRegistryClient;
     private String subject;

@@ -49,7 +49,6 @@ public class RegistryFormatOptions {
                                     + "config provided schema being used in place of writer schema"
                                     + "encoded in the protobuf message ");
 
-
     public static final ConfigOption<String> MESSAGE_NAME =
             ConfigOptions.key("message-name")
                     .stringType()
@@ -76,7 +75,6 @@ public class RegistryFormatOptions {
                                     + "or '<topic_name>-key' as the default subject name if this format "
                                     + "is used as the value or key format. But for other connectors (e.g. 'filesystem'), "
                                     + "the subject option is required when used as sink.");
-
 
     public static final ConfigOption<Integer> SCHEMA_CACHE_SIZE =
             ConfigOptions.key("schema-cache-size")
@@ -146,7 +144,6 @@ public class RegistryFormatOptions {
                     .stringType()
                     .noDefaultValue()
                     .withDescription("Bearer auth token for Schema Registry");
-
 
     private RegistryFormatOptions() {}
 }

@@ -18,8 +18,6 @@
 
 package org.apache.flink.formats.protobuf.registry.confluent;
 
-import javax.annotation.Nullable;
-
 import io.confluent.kafka.schemaregistry.ParsedSchema;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
@@ -36,7 +34,6 @@ public class SchemaRegistryCoder {
 
     private static final int CONFLUENT_MAGIC_BYTE = 0;
     private final SchemaRegistryClient schemaRegistryClient;
-
 
     public SchemaRegistryCoder(SchemaRegistryClient schemaRegistryClient) {
         this.schemaRegistryClient = schemaRegistryClient;

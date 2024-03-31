@@ -24,11 +24,11 @@ import org.apache.flink.formats.protobuf.registry.confluent.utils.FlinkToProtoSc
 import org.apache.flink.table.factories.FormatFactory;
 import org.apache.flink.table.types.logical.RowType;
 
-import javax.annotation.Nullable;
-
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
+
+import javax.annotation.Nullable;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -54,29 +54,31 @@ public class SchemaRegistryClientFactory {
     private static final String ROW = "row";
     private static final String PACKAGE = "io.confluent.generated";
 
-
     public static SchemaCoder getCoder(RowType rowType, ReadableConfig formatOptions) {
         ProtobufSchema rowSchema =
                 FlinkToProtoSchemaConverter.fromFlinkRowType(rowType, ROW, PACKAGE);
 
         SchemaRegistryClient schemaRegistryClient = getClient(formatOptions);
-        final Optional<Integer> schemaId = formatOptions.getOptional(RegistryFormatOptions.SCHEMA_ID);
-        final Optional<String> messageName = formatOptions.getOptional(RegistryFormatOptions.MESSAGE_NAME);
+        final Optional<Integer> schemaId =
+                formatOptions.getOptional(RegistryFormatOptions.SCHEMA_ID);
+        final Optional<String> messageName =
+                formatOptions.getOptional(RegistryFormatOptions.MESSAGE_NAME);
         final Optional<String> subject = formatOptions.getOptional(RegistryFormatOptions.SUBJECT);
-        return schemaId.map(id->
-                SchemaCoderProviders.get(id, messageName.get(), schemaRegistryClient)).orElseGet(
-                ()-> SchemaCoderProviders.get(subject.get(),rowSchema, schemaRegistryClient)
-        );
+        return schemaId.map(
+                        id -> SchemaCoderProviders.get(id, messageName.get(), schemaRegistryClient))
+                .orElseGet(
+                        () ->
+                                SchemaCoderProviders.get(
+                                        subject.get(), rowSchema, schemaRegistryClient));
     }
 
     public static SchemaRegistryClient getClient(ReadableConfig formatOptions) {
         final String schemaRegistryURL = formatOptions.get(RegistryFormatOptions.URL);
         final int cacheSize = formatOptions.get(RegistryFormatOptions.SCHEMA_CACHE_SIZE);
-        final Map<String, String> schemaClientProperties = buildOptionalPropertiesMap(formatOptions);
-        return new CachedSchemaRegistryClient(
-                schemaRegistryURL, cacheSize, schemaClientProperties);
+        final Map<String, String> schemaClientProperties =
+                buildOptionalPropertiesMap(formatOptions);
+        return new CachedSchemaRegistryClient(schemaRegistryURL, cacheSize, schemaClientProperties);
     }
-
 
     public static @Nullable Map<String, String> buildOptionalPropertiesMap(
             ReadableConfig formatOptions) {
@@ -114,7 +116,6 @@ public class SchemaRegistryClientFactory {
         }
         return properties;
     }
-
 
     /** Should be used in {@link FormatFactory#requiredOptions()}. */
     public static Set<ConfigOption<?>> getRequiredOptions() {

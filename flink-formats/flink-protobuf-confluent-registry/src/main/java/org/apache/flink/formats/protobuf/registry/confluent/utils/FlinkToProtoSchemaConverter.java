@@ -121,9 +121,9 @@ public class FlinkToProtoSchemaConverter {
         }
     }
 
-
-    public static ProtobufSchema fromFlinkRowType(RowType rowType, String rowName, String packageName){
-        return new ProtobufSchema(fromFlinkSchema(rowType,rowName,packageName));
+    public static ProtobufSchema fromFlinkRowType(
+            RowType rowType, String rowName, String packageName) {
+        return new ProtobufSchema(fromFlinkSchema(rowType, rowName, packageName));
     }
 
     private static DescriptorProto fromRowType(
