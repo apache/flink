@@ -21,6 +21,8 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.description.Description;
 
+import java.time.Duration;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.code;
 
@@ -58,6 +60,28 @@ public class HistoryServerOptions {
                             String.format(
                                     "Whether HistoryServer should cleanup jobs"
                                             + " that are no longer present `%s`.",
+                                    HISTORY_SERVER_ARCHIVE_DIRS.key()));
+
+    /** If this option is enabled then deleted job archives from HistoryServer regularly. */
+    public static final ConfigOption<Boolean> HISTORY_SERVER_CLEANUP_ENABLE =
+            key("historyserver.cleanup.enable")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            String.format(
+                                    "Whether HistoryServer should cleanup jobs"
+                                            + " that are present `%s`.",
+                                    HISTORY_SERVER_ARCHIVE_DIRS.key()));
+
+    public static final ConfigOption<Duration> HISTORY_SERVER_CLEANUP_INTERVAL =
+            key("historyserver_cleanup_interval")
+                    .durationType()
+                    .defaultValue(Duration.ofDays(7))
+                    .withDeprecatedKeys(
+                            String.format(
+                                    "If `%s` is set to true, HistoryServer will cleanup jobs"
+                                            + " that are present `%s` according to this config.",
+                                    HISTORY_SERVER_CLEANUP_ENABLE.key(),
                                     HISTORY_SERVER_ARCHIVE_DIRS.key()));
 
     /**
