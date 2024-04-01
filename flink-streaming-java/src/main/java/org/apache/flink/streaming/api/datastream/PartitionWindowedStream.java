@@ -72,10 +72,9 @@ public interface PartitionWindowedStream<T> {
      * records must be {@link Tuple}.
      *
      * <p>This operator will use managed memory for the sort.For {@link
-     * NonKeyedPartitionWindowedStream}, the managed memory size can be set by
-     * "execution.sort.partition.memory" in {@link ExecutionOptions}. For {@link
-     * KeyedPartitionWindowedStream}, the managed memory size can be set by
-     * "execution.sort.keyed.partition.memory" in {@link ExecutionOptions}.
+     * NonKeyedPartitionWindowedStream}, the managed memory size can be set by {@link
+     * ExecutionOptions#SORT_PARTITION_MEMORY}. For {@link KeyedPartitionWindowedStream}, the
+     * managed memory size can be set by {@link ExecutionOptions#SORT_KEYED_PARTITION_MEMORY}.
      *
      * @param field The field 1-based index on which records is sorted.
      * @param order The order in which records is sorted.
@@ -99,10 +98,9 @@ public interface PartitionWindowedStream<T> {
      * </ul>
      *
      * <p>This operator will use managed memory for the sort.For {@link
-     * NonKeyedPartitionWindowedStream}, the managed memory size can be set by
-     * "execution.sort.partition.memory" in {@link ExecutionOptions}. For {@link
-     * KeyedPartitionWindowedStream}, the managed memory size can be set by
-     * "execution.sort.keyed.partition.memory" in {@link ExecutionOptions}.
+     * NonKeyedPartitionWindowedStream}, the managed memory size can be set by {@link
+     * ExecutionOptions#SORT_PARTITION_MEMORY}. For {@link KeyedPartitionWindowedStream}, the
+     * managed memory size can be set by {@link ExecutionOptions#SORT_KEYED_PARTITION_MEMORY}.
      *
      * @param field The field expression referring to the field on which records is sorted.
      * @param order The order in which records is sorted.
@@ -114,10 +112,9 @@ public interface PartitionWindowedStream<T> {
      * Sorts the records according to a {@link KeySelector} in the specified order.
      *
      * <p>This operator will use managed memory for the sort.For {@link
-     * NonKeyedPartitionWindowedStream}, the managed memory size can be set by
-     * "execution.sort.partition.memory" in {@link ExecutionOptions}. For {@link
-     * KeyedPartitionWindowedStream}, the managed memory size can be set by
-     * "execution.sort.keyed.partition.memory" in {@link ExecutionOptions}.
+     * NonKeyedPartitionWindowedStream}, the managed memory size can be set by {@link
+     * ExecutionOptions#SORT_PARTITION_MEMORY}. For {@link KeyedPartitionWindowedStream}, the
+     * managed memory size can be set by {@link ExecutionOptions#SORT_KEYED_PARTITION_MEMORY}.
      *
      * @param keySelector The key selector to extract key from the records for sorting.
      * @param order The order in which records is sorted.
