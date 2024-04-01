@@ -25,13 +25,12 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLoggerExtension;
 
+import com.google.common.collect.ImmutableList;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import io.confluent.connect.protobuf.ProtobufConverter;
@@ -48,12 +47,14 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.FIELD;
@@ -70,6 +71,7 @@ public class DebeziumProtoRegistryDeserializationSchemaTest {
 
     /** Kafka Connect's Converters use topic-name-value as default subject */
     private static final String SUBJECT = TEST_TOPIC + "-value";
+
     private static final Map<String, ?> SR_CONFIG =
             Collections.singletonMap(
                     AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, "localhost");
@@ -128,11 +130,23 @@ public class DebeziumProtoRegistryDeserializationSchemaTest {
         client.deleteSubject(SUBJECT);
     }
 
-    private DynamicMessage populateBefore() {
+    private DynamicMessage populateDebeziumMessageWithBeforeKey() {
+        return populateDebeziumMessageWithKey("before", "d");
+    }
+
+    private DynamicMessage populateDebeziumMessageWithAfterKey() {
+        return populateDebeziumMessageWithKey("after", "c");
+    }
+
+    private Descriptors.Descriptor envelopDescriptor() {
         ProtobufSchema protoSchema = new ProtobufSchema(DEBEZIUM_PROTO_SCHEMA);
         Descriptors.Descriptor protoDescriptor = protoSchema.toDescriptor();
         Descriptors.FileDescriptor fileDescriptor = protoDescriptor.getFile();
-        Descriptors.Descriptor envelopDescriptor = fileDescriptor.findMessageTypeByName("Envelope");
+        return fileDescriptor.findMessageTypeByName("Envelope");
+    }
+
+    private DynamicMessage populateDebeziumMessageWithKey(String key, String op) {
+        Descriptors.Descriptor envelopDescriptor = envelopDescriptor();
         DynamicMessage.Builder envelopBuilder = DynamicMessage.newBuilder(envelopDescriptor);
 
         Descriptors.Descriptor valueDescriptor = envelopDescriptor.findNestedTypeByName("Value");
@@ -142,23 +156,46 @@ public class DebeziumProtoRegistryDeserializationSchemaTest {
         valueBuilder.setField(valueDescriptor.findFieldByName("name"), "testName");
         valueBuilder.setField(valueDescriptor.findFieldByName("salary"), 10);
         DynamicMessage value = valueBuilder.build();
-        envelopBuilder.setField(envelopDescriptor.findFieldByName("op"), "d");
-        envelopBuilder.setField(envelopDescriptor.findFieldByName("before"), value);
+
+        envelopBuilder.setField(envelopDescriptor.findFieldByName("op"), op);
+        envelopBuilder.setField(envelopDescriptor.findFieldByName(key), value);
         DynamicMessage outerEnvelop = envelopBuilder.build();
         return outerEnvelop;
     }
 
-    // todo refactor according to other UTs with stuff in setup
+    private DynamicMessage populateUpdateDebeziumMessage() {
+        Descriptors.Descriptor envelopDescriptor = envelopDescriptor();
+        DynamicMessage.Builder envelopBuilder = DynamicMessage.newBuilder(envelopDescriptor);
+
+        Descriptors.Descriptor valueDescriptor = envelopDescriptor.findNestedTypeByName("Value");
+        DynamicMessage.Builder valueBuilderBefore = DynamicMessage.newBuilder(valueDescriptor);
+        valueBuilderBefore.setField(valueDescriptor.findFieldByName("id"), 10l);
+        valueBuilderBefore.setField(valueDescriptor.findFieldByName("name"), "testName");
+        valueBuilderBefore.setField(valueDescriptor.findFieldByName("salary"), 10);
+        DynamicMessage valueBefore = valueBuilderBefore.build();
+
+        DynamicMessage.Builder valueBuilderAfter = DynamicMessage.newBuilder(valueDescriptor);
+        valueBuilderAfter.setField(valueDescriptor.findFieldByName("id"), 10l);
+        valueBuilderAfter.setField(valueDescriptor.findFieldByName("name"), "testNameUpdated");
+        valueBuilderAfter.setField(valueDescriptor.findFieldByName("salary"), 10);
+        DynamicMessage valueAfter = valueBuilderBefore.build();
+
+        envelopBuilder.setField(envelopDescriptor.findFieldByName("op"), "u");
+        envelopBuilder.setField(envelopDescriptor.findFieldByName("before"), valueBefore);
+        envelopBuilder.setField(envelopDescriptor.findFieldByName("after"), valueAfter);
+        DynamicMessage outerEnvelop = envelopBuilder.build();
+        return outerEnvelop;
+    }
 
     @Test
     void testDeserializationForConnectEncodedMessage() throws Exception {
-        DynamicMessage debeziumMessage = populateBefore();
+        DynamicMessage debeziumMessage = populateDebeziumMessageWithBeforeKey();
         ProtobufSchema schema = new ProtobufSchema(DEBEZIUM_PROTO_SCHEMA);
         ProtobufData protoToSchemaAndValueConverter = new ProtobufData();
         SchemaAndValue schemaAndValue =
                 protoToSchemaAndValueConverter.toConnectData(schema, debeziumMessage);
         ProtobufConverter protoConverter = new ProtobufConverter(client);
-        //need to call configure to properly setup the converter
+        // need to call configure to properly setup the converter
         protoConverter.configure(SR_CONFIG, false);
         byte[] payload =
                 protoConverter.fromConnectData(
@@ -177,14 +214,67 @@ public class DebeziumProtoRegistryDeserializationSchemaTest {
         RowData row = rows.get(0);
         String name = row.getString(1).toString();
         assertEquals("testName", name);
+        assertEquals(row.getRowKind(), RowKind.DELETE);
+    }
+
+    private void testDataDeserialization(
+            Supplier<DynamicMessage> debeziumMessageGenerator, List<RowKind> kinds)
+            throws Exception {
+        DynamicMessage debeziumMessage = debeziumMessageGenerator.get();
+        ProtobufSchema schema = new ProtobufSchema(DEBEZIUM_PROTO_SCHEMA);
+        // get an outputstream and populate with debezium data
+        ByteArrayOutputStream byteOutStream = new ByteArrayOutputStream();
+        DataOutputStream dataOutputStream = new DataOutputStream(byteOutStream);
+        int schemaId = client.register(SUBJECT, schema);
+        dataOutputStream.writeByte(0);
+        dataOutputStream.writeInt(schemaId);
+        dataOutputStream.write(SchemaCoder.emptyMessageIndexes().array());
+        dataOutputStream.write(debeziumMessage.toByteArray());
+        // we don't care about data yet
+        dataOutputStream.flush();
+
+        byte[] payload = byteOutStream.toByteArray();
+        SchemaCoder coder = getDefaultCoder(rowType);
+        // should be able to read this now from flink deserialization machinery
+        DebeziumProtoRegistryDeserializationSchema protoDeserializer =
+                new DebeziumProtoRegistryDeserializationSchema(
+                        coder, rowType, InternalTypeInfo.of(rowType));
+        protoDeserializer.open(new MockInitializationContext());
+        SimpleCollector collector = new SimpleCollector();
+        protoDeserializer.deserialize(payload, collector);
+        List<RowData> rows = collector.list;
+        assertEquals(rows.size(), kinds.size());
+        for (int i = 0; i < kinds.size(); i++) {
+            assertEquals(rows.get(i).getRowKind(), kinds.get(i));
+        }
+    }
+
+    @Test
+    public void testDeleteDataDeserialization() throws Exception {
+        testDataDeserialization(
+                this::populateDebeziumMessageWithBeforeKey, ImmutableList.of(RowKind.DELETE));
+    }
+
+    @Test
+    public void testInsertDataDeserialization() throws Exception {
+        testDataDeserialization(
+                this::populateDebeziumMessageWithAfterKey, ImmutableList.of(RowKind.INSERT));
+    }
+
+    @Test
+    public void testUpdateDataDeserialization() throws Exception {
+        testDataDeserialization(
+                this::populateUpdateDebeziumMessage,
+                ImmutableList.of(RowKind.UPDATE_BEFORE, RowKind.UPDATE_AFTER));
     }
 
     @Test
     void testSerializationForConnectDecodedMessage() throws Exception {
 
-        RowType debeziumRowType = DebeziumProtoRegistrySerializationSchema
-                .createDebeziumProtoRowType(fromLogicalToDataType(rowType));
-        SchemaCoder coder = SchemaCoderProviders.createDefault(SUBJECT,debeziumRowType,client);
+        RowType debeziumRowType =
+                DebeziumProtoRegistrySerializationSchema.createDebeziumProtoRowType(
+                        fromLogicalToDataType(rowType));
+        SchemaCoder coder = SchemaCoderProviders.createDefault(SUBJECT, debeziumRowType, client);
         DebeziumProtoRegistrySerializationSchema protoSerializer =
                 new DebeziumProtoRegistrySerializationSchema(coder, rowType);
         protoSerializer.open(new MockInitializationContext());
@@ -197,7 +287,7 @@ public class DebeziumProtoRegistryDeserializationSchemaTest {
         SchemaAndValue connectData = protoConverter.toConnectData(TEST_TOPIC, payload);
         Struct value = (Struct) connectData.value();
         Struct after = (Struct) value.get("after");
-        assertEquals("testValue",after.get("name"));
+        assertEquals("testValue", after.get("name"));
     }
 
     private SchemaCoder getDefaultCoder(RowType rowType) {

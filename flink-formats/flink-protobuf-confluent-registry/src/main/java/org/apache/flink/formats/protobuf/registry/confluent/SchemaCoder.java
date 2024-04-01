@@ -65,7 +65,7 @@ public abstract class SchemaCoder {
      * @return ByteBuffer with empty message index.
      */
     @VisibleForTesting
-    static ByteBuffer emptyMessageIndexes() {
+    public static ByteBuffer emptyMessageIndexes() {
         ByteBuffer buffer = ByteBuffer.allocate(ByteUtils.sizeOfVarint(0));
         ByteUtils.writeVarint(0, buffer);
         return buffer;
