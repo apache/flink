@@ -18,8 +18,6 @@
 
 package org.apache.flink.formats.protobuf.registry.confluent.utils;
 
-import org.apache.flink.formats.protobuf.registry.confluent.SchemaRegistryConfig;
-
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 
 /**

@@ -43,8 +43,8 @@ public abstract class SchemaCoder {
     /**
      * Writes an integer value in big-endian encoding.
      *
-     * @param out
-     * @param registeredId
+     * @param out Outputstream to use for writing.
+     * @param registeredId Integer to write.
      * @throws IOException
      */
     protected void writeInt(OutputStream out, int registeredId) throws IOException {

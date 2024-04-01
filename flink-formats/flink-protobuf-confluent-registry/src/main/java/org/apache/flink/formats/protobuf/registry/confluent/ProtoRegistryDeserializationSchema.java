@@ -39,7 +39,6 @@ import java.util.function.Function;
  * A {@link DeserializationSchema} that deserializes {@link RowData} from Protobuf messages using
  * Schema Registry protocol.
  */
-// TODO fix equals and hashcode
 public class ProtoRegistryDeserializationSchema implements DeserializationSchema<RowData> {
 
     private static final long serialVersionUID = 1L;
@@ -113,10 +112,11 @@ public class ProtoRegistryDeserializationSchema implements DeserializationSchema
         if (this == o) return true;
         if (!(o instanceof ProtoRegistryDeserializationSchema)) return false;
         ProtoRegistryDeserializationSchema that = (ProtoRegistryDeserializationSchema) o;
-        return rowType.equals(that.rowType)
-                && producedType.equals(that.producedType)
-                && schemaCoder.equals(that.schemaCoder)
-                && runtimeConverterMap.equals(that.runtimeConverterMap);
+        return rowType.equals(that.rowType) && producedType.equals(that.producedType)
+                && schemaCoder.equals(that.schemaCoder) && Objects.equals(
+                runtimeConverterMap,
+                that.runtimeConverterMap
+        );
     }
 
     @Override

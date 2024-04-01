@@ -46,7 +46,7 @@ import static org.apache.flink.formats.protobuf.registry.confluent.RegistryForma
 import static org.apache.flink.formats.protobuf.registry.confluent.RegistryFormatOptions.SSL_TRUSTSTORE_LOCATION;
 import static org.apache.flink.formats.protobuf.registry.confluent.RegistryFormatOptions.SSL_TRUSTSTORE_PASSWORD;
 
-/** Shared across formats factory class for creating a {@link SchemaRegistryConfig}. */
+/** Shared across formats factory class for creating a {@link org.apache.flink.formats.protobuf.registry.confluent.SchemaCoder}. */
 public class SchemaRegistryClientFactory {
 
     private static final String ROW = "row";

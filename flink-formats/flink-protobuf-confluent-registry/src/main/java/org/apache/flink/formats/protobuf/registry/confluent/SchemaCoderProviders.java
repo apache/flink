@@ -39,6 +39,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import static java.lang.String.format;
 
@@ -82,8 +83,8 @@ public class SchemaCoderProviders {
      * }
      * </pre>
      *
-     * In order to use messageD the messageName should contain the value of test.package.messageD
-     * Similarily, for messageF to be used messageName should contain test.package.MessageE.MessageF
+     * In order to use messageD the messageName should contain the value of test.package.messageD.
+     * Similarly, for messageF to be used messageName should contain test.package.MessageE.MessageF.
      *
      * @param schemaId SchemaId for external schema referenced for encoding/decoding of payload.
      * @param messageName Optional message name to be used to select the right {@link
@@ -99,24 +100,37 @@ public class SchemaCoderProviders {
     }
 
     /**
-     * Createa a default schema coder.
+     * Creates a default schema coder.
      *
-     * <p>For serialization schema coder will infer the schema from
+     * <p>For serialization schema coder will infer the schema from Flink {@link org.apache.flink.table.types.logical.RowType}.
+     * Schema obtained from rowType will also be registered to Schema Registry using the subject
+     * passed in by invoking {@link io.confluent.kafka.schemaregistry.client.SchemaRegistryClient#register(String, io.confluent.kafka.schemaregistry.ParsedSchema)}.
      *
-     * @param subject
-     * @param rowType
-     * @param schemaRegistryClient
-     * @return
+     * <p>For deserialization schema coder will infer schema from InputStream. In cases where
+     * messageIndexes indicate using a nested schema, the appropriate nested schema will be used.
+     *
+     * @param subject Subject to use for registering schema (only required for serialization).
+     * @param rowType Flink Row type.
+     * @param schemaRegistryClient Client for SchemaRegistry
+     * @return SchemaCoder to use.
      */
     public static SchemaCoder createDefault(
             String subject, RowType rowType, SchemaRegistryClient schemaRegistryClient) {
         return new DefaultSchemaCoder(subject, rowType, schemaRegistryClient);
     }
 
+    /**
+     * Default implementation of SchemaCoder.
+     *
+     * <p>Parses schema information from inputStream for de-serialization.
+     * For Serialization, uses Flink Row Type to infer schema and registers this schema with Schema
+     * Registry.
+     */
     static class DefaultSchemaCoder extends SchemaCoder {
         private static final String ROW = "row";
         private static final String PACKAGE = "io.confluent.generated";
 
+        /** Subject can be nullable in case coder is only used for deserialization */
         private @Nullable final String subject;
         private final ProtobufSchema rowSchema;
         private final SchemaRegistryClient schemaRegistryClient;
@@ -126,14 +140,13 @@ public class SchemaCoderProviders {
                 @Nullable String subject,
                 RowType rowType,
                 SchemaRegistryClient schemaRegistryClient) {
-            this.subject = Preconditions.checkNotNull(subject);
+            this.subject = subject;
             rowSchema =
                     FlinkToProtoSchemaConverter.fromFlinkRowType(
                             Preconditions.checkNotNull(rowType), ROW, PACKAGE);
             this.schemaRegistryClient = Preconditions.checkNotNull(schemaRegistryClient);
         }
 
-        // Todo : adapted from logic
         public static MessageIndexes readMessageIndex(DataInputStream input) throws IOException {
 
             int size = ByteUtils.readVarint(input);
@@ -189,14 +202,38 @@ public class SchemaCoderProviders {
                 throw new WrappingRuntimeException("Failed to serialize schema registry.", e);
             }
         }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof DefaultSchemaCoder)) return false;
+            DefaultSchemaCoder that = (DefaultSchemaCoder) o;
+            return Objects.equals(subject, that.subject) && Objects.equals(
+                    rowSchema,
+                    that.rowSchema
+            );
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(subject, rowSchema);
+        }
     }
 
-    // Todo Might need rowSchema
+    /**
+     * Schema coder instance which uses externally registered schema for serialization, deserialization
+     *
+     * <p>Useful for scenarios where schema is setup offline and not inferred from flink rowType.
+     *
+     * <p>Explicitly uses schema registered corresponding to schemaId passed in during initialization.
+     * For deserialization, in case of nested/multiple schemas optionally takes in messageName to
+     * indicate schema to use. For serialization uses pre-registered schema for writing payload.
+     */
     static class PreRegisteredSchemaCoder extends SchemaCoder {
 
         private final int schemaId;
         private final @Nullable String messageName;
-        private transient ProtobufSchema schema;
+        private transient ProtobufSchema registeredSchema;
         private final SchemaRegistryClient schemaRegistryClient;
 
         public PreRegisteredSchemaCoder(
@@ -231,7 +268,7 @@ public class SchemaCoderProviders {
                 dataInputStream.readInt();
                 skipMessageIndexes(dataInputStream);
                 // return the cached schema
-                return schema;
+                return registeredSchema;
             }
         }
 
@@ -246,7 +283,7 @@ public class SchemaCoderProviders {
 
         private ByteBuffer writeMessageIndexes() {
             if (this.messageName != null) {
-                MessageIndexes messageIndex = schema.toMessageIndexes(messageName);
+                MessageIndexes messageIndex = registeredSchema.toMessageIndexes(messageName);
                 return ByteBuffer.wrap(messageIndex.toByteArray());
             } else return writeEmptyMessageIndexes();
         }
@@ -255,10 +292,10 @@ public class SchemaCoderProviders {
         public void initialize() throws IOException {
 
             try {
-                this.schema = (ProtobufSchema) schemaRegistryClient.getSchemaById(schemaId);
+                this.registeredSchema = (ProtobufSchema) schemaRegistryClient.getSchemaById(schemaId);
                 if (this.messageName != null) {
                     // nested schema needs to be used
-                    schema = schema.copy(messageName);
+                    registeredSchema = registeredSchema.copy(messageName);
                 }
             } catch (RestClientException e) {
                 throw new IOException(
@@ -268,7 +305,20 @@ public class SchemaCoderProviders {
 
         @Override
         public ProtobufSchema writerSchema() {
-            return schema;
+            return registeredSchema;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof PreRegisteredSchemaCoder)) return false;
+            PreRegisteredSchemaCoder that = (PreRegisteredSchemaCoder) o;
+            return schemaId == that.schemaId && Objects.equals(messageName, that.messageName);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(schemaId, messageName);
         }
     }
 }
