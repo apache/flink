@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.optimize.program;
 
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -29,6 +30,11 @@ import org.apache.flink.table.planner.utils.TableTestBase;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.apache.flink.table.api.Expressions.col;
 
 /**
  * Tests for rules that extend {@link FlinkDynamicPartitionPruningProgram} to create {@link
@@ -79,6 +85,85 @@ class DynamicPartitionPruningProgramTest extends TableTestBase {
                                 + " 'runtime-source' = 'NewSource',\n"
                                 + " 'bounded' = 'true'\n"
                                 + ")");
+    }
+
+    @Test
+    void testLargeQueryPlanShouldNotOutOfMemoryWithTableApi() {
+        // TABLE_OPTIMIZER_DYNAMIC_FILTERING_ENABLED is already enabled
+        List<String> selectStmts = new ArrayList<>();
+        for (int i = 0; i < 100; i++) {
+            util.tableEnv()
+                    .executeSql(
+                            "CREATE TABLE IF NOT EXISTS table"
+                                    + i
+                                    + "(att STRING,filename STRING) "
+                                    + "with("
+                                    + "     'connector' = 'values', "
+                                    + "     'runtime-source' = 'NewSource', "
+                                    + "     'bounded' = 'true'"
+                                    + ")");
+            selectStmts.add("select att,filename from table" + i);
+        }
+
+        final String countName = "CNM";
+        Table allUnionTable = util.tableEnv().sqlQuery(String.join(" UNION ALL ", selectStmts));
+        Table res =
+                allUnionTable.join(
+                        allUnionTable
+                                .groupBy(col("att"))
+                                .select(col("att"), col("att").count().as(countName))
+                                .filter(col(countName).isGreater(1))
+                                .select(col("att").as("l_key")),
+                        col("att").isEqual(col("l_key")));
+        util.verifyExecPlan(res);
+
+        // clear resources
+        for (int i = 0; i < 100; i++) {
+            util.tableEnv().executeSql("DROP TABLE IF EXISTS table" + i);
+        }
+    }
+
+    @Test
+    void testLargeQueryPlanShouldNotOutOfMemoryWithSqlApi() {
+        // TABLE_OPTIMIZER_DYNAMIC_FILTERING_ENABLED is already enabled
+        List<String> selectStmts = new ArrayList<>();
+        for (int i = 0; i < 100; i++) {
+            util.tableEnv()
+                    .executeSql(
+                            "CREATE TABLE IF NOT EXISTS table"
+                                    + i
+                                    + "(att STRING,filename STRING) "
+                                    + "with("
+                                    + "     'connector' = 'values', "
+                                    + "     'runtime-source' = 'NewSource', "
+                                    + "     'bounded' = 'true'"
+                                    + ")");
+            selectStmts.add("select att,filename from table" + i);
+        }
+
+        final String countName = "CNM";
+        final String unionSelectStmts = String.join(" UNION ALL ", selectStmts);
+
+        final String groupedUnionStmt =
+                String.format(
+                        "SELECT att as l_key, COUNT(att) AS %s "
+                                + "FROM (%s) "
+                                + "GROUP BY att "
+                                + "HAVING COUNT(att) > 1 ",
+                        countName, unionSelectStmts);
+
+        final String joinedUnionStmt =
+                String.format(
+                        "SELECT * FROM (%s) as t1 INNER JOIN (%s) as t2 ON t1.att = t2.l_key",
+                        unionSelectStmts, groupedUnionStmt);
+        Table resultTable = util.tableEnv().sqlQuery(joinedUnionStmt);
+
+        util.verifyExecPlan(resultTable);
+
+        // clear resources
+        for (int i = 0; i < 100; i++) {
+            util.tableEnv().executeSql("DROP TABLE IF EXISTS table" + i);
+        }
     }
 
     @Test
