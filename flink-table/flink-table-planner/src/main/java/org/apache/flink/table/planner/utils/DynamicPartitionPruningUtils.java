@@ -61,8 +61,10 @@ import org.apache.calcite.util.ImmutableIntList;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /** Planner utils for Dynamic partition Pruning. */
@@ -115,7 +117,7 @@ public class DynamicPartitionPruningUtils {
         private final RelNode relNode;
         private boolean hasFilter;
         private boolean hasPartitionedScan;
-        private final List<ContextResolvedTable> tables = new ArrayList<>();
+        private final Set<ContextResolvedTable> tables = new HashSet<>();
 
         public DppDimSideChecker(RelNode relNode) {
             this.relNode = relNode;
@@ -235,9 +237,14 @@ public class DynamicPartitionPruningUtils {
             if (tables.size() == 0) {
                 tables.add(catalogTable);
             } else {
+                boolean hasAdded = false;
                 for (ContextResolvedTable thisTable : new ArrayList<>(tables)) {
+                    if (hasAdded) {
+                        break;
+                    }
                     if (!thisTable.getIdentifier().equals(catalogTable.getIdentifier())) {
                         tables.add(catalogTable);
+                        hasAdded = true;
                     }
                 }
             }
