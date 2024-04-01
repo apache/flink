@@ -102,9 +102,11 @@ public class SchemaCoderProviders {
     /**
      * Creates a default schema coder.
      *
-     * <p>For serialization schema coder will infer the schema from Flink {@link org.apache.flink.table.types.logical.RowType}.
-     * Schema obtained from rowType will also be registered to Schema Registry using the subject
-     * passed in by invoking {@link io.confluent.kafka.schemaregistry.client.SchemaRegistryClient#register(String, io.confluent.kafka.schemaregistry.ParsedSchema)}.
+     * <p>For serialization schema coder will infer the schema from Flink {@link
+     * org.apache.flink.table.types.logical.RowType}. Schema obtained from rowType will also be
+     * registered to Schema Registry using the subject passed in by invoking {@link
+     * io.confluent.kafka.schemaregistry.client.SchemaRegistryClient#register(String,
+     * io.confluent.kafka.schemaregistry.ParsedSchema)}.
      *
      * <p>For deserialization schema coder will infer schema from InputStream. In cases where
      * messageIndexes indicate using a nested schema, the appropriate nested schema will be used.
@@ -122,19 +124,18 @@ public class SchemaCoderProviders {
     /**
      * Default implementation of SchemaCoder.
      *
-     * <p>Parses schema information from inputStream for de-serialization.
-     * For Serialization, uses Flink Row Type to infer schema and registers this schema with Schema
-     * Registry.
+     * <p>Parses schema information from inputStream for de-serialization. For Serialization, uses
+     * Flink Row Type to infer schema and registers this schema with Schema Registry.
      */
     static class DefaultSchemaCoder extends SchemaCoder {
         private static final String ROW = "row";
         private static final String PACKAGE = "io.confluent.generated";
-
+        private static final List<Integer> DEFAULT_INDEX = Collections.singletonList(0);
         /** Subject can be nullable in case coder is only used for deserialization */
         private @Nullable final String subject;
+
         private final ProtobufSchema rowSchema;
         private final SchemaRegistryClient schemaRegistryClient;
-        private static final List<Integer> DEFAULT_INDEX = Collections.singletonList(0);
 
         public DefaultSchemaCoder(
                 @Nullable String subject,
@@ -208,10 +209,8 @@ public class SchemaCoderProviders {
             if (this == o) return true;
             if (!(o instanceof DefaultSchemaCoder)) return false;
             DefaultSchemaCoder that = (DefaultSchemaCoder) o;
-            return Objects.equals(subject, that.subject) && Objects.equals(
-                    rowSchema,
-                    that.rowSchema
-            );
+            return Objects.equals(subject, that.subject)
+                    && Objects.equals(rowSchema, that.rowSchema);
         }
 
         @Override
@@ -221,20 +220,22 @@ public class SchemaCoderProviders {
     }
 
     /**
-     * Schema coder instance which uses externally registered schema for serialization, deserialization
+     * Schema coder instance which uses externally registered schema for serialization,
+     * deserialization
      *
      * <p>Useful for scenarios where schema is setup offline and not inferred from flink rowType.
      *
-     * <p>Explicitly uses schema registered corresponding to schemaId passed in during initialization.
-     * For deserialization, in case of nested/multiple schemas optionally takes in messageName to
-     * indicate schema to use. For serialization uses pre-registered schema for writing payload.
+     * <p>Explicitly uses schema registered corresponding to schemaId passed in during
+     * initialization. For deserialization, in case of nested/multiple schemas optionally takes in
+     * messageName to indicate schema to use. For serialization uses pre-registered schema for
+     * writing payload.
      */
     static class PreRegisteredSchemaCoder extends SchemaCoder {
 
         private final int schemaId;
         private final @Nullable String messageName;
-        private transient ProtobufSchema registeredSchema;
         private final SchemaRegistryClient schemaRegistryClient;
+        private transient ProtobufSchema registeredSchema;
 
         public PreRegisteredSchemaCoder(
                 int schemaId,
@@ -285,14 +286,17 @@ public class SchemaCoderProviders {
             if (this.messageName != null) {
                 MessageIndexes messageIndex = registeredSchema.toMessageIndexes(messageName);
                 return ByteBuffer.wrap(messageIndex.toByteArray());
-            } else return writeEmptyMessageIndexes();
+            } else {
+                return writeEmptyMessageIndexes();
+            }
         }
 
         @Override
         public void initialize() throws IOException {
 
             try {
-                this.registeredSchema = (ProtobufSchema) schemaRegistryClient.getSchemaById(schemaId);
+                this.registeredSchema =
+                        (ProtobufSchema) schemaRegistryClient.getSchemaById(schemaId);
                 if (this.messageName != null) {
                     // nested schema needs to be used
                     registeredSchema = registeredSchema.copy(messageName);
