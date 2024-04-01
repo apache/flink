@@ -38,7 +38,16 @@ import java.io.IOException;
 import static java.lang.String.format;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
-/** Check for type of fieldDesriptor == message */
+/**
+ * Deserialization schema from Debezium protobuf encoded message to Flink Table/SQL internal data
+ * structure {@link RowData}. The deserialization schema knows Debezium's schema definition and can
+ * extract the database data and convert into {@link RowData} with {@link RowKind}.
+ *
+ * <p>Deserializes a <code>byte[]</code> message as {@link com.google.protobuf.DynamicMessage} and
+ * reads the specified fields.Failures during deserialization are forwarded as wrapped IOExceptions.
+ *
+ * @see <a href="https://debezium.io/">Debezium</a>
+ */
 public class DebeziumProtoRegistryDeserializationSchema implements DeserializationSchema<RowData> {
 
     private static final long serialVersionUID = 1L;
@@ -67,10 +76,9 @@ public class DebeziumProtoRegistryDeserializationSchema implements Deserializati
                         schemaCoder, debeziumProtoRowType, producedTypeInfo);
     }
 
-
     @VisibleForTesting
-    DebeziumProtoRegistryDeserializationSchema(SchemaCoder coder, RowType rowType,
-                                               TypeInformation<RowData> producedTypeInfo){
+    DebeziumProtoRegistryDeserializationSchema(
+            SchemaCoder coder, RowType rowType, TypeInformation<RowData> producedTypeInfo) {
         this.producedTypeInfo = producedTypeInfo;
         RowType debeziumProtoRowType = createDebeziumProtoRowType(fromLogicalToDataType(rowType));
         protoDeserializer =

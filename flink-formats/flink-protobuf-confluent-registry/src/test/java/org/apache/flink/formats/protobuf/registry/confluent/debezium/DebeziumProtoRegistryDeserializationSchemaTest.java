@@ -18,15 +18,17 @@
 
 package org.apache.flink.formats.protobuf.registry.confluent.debezium;
 
-import org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryDeserializationSchema;
 import org.apache.flink.formats.protobuf.registry.confluent.SchemaCoder;
 import org.apache.flink.formats.protobuf.registry.confluent.SchemaCoderProviders;
 import org.apache.flink.formats.protobuf.registry.confluent.utils.MockInitializationContext;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLoggerExtension;
 
@@ -62,12 +64,12 @@ import static org.junit.Assert.assertEquals;
 @ExtendWith(TestLoggerExtension.class)
 public class DebeziumProtoRegistryDeserializationSchemaTest {
 
-    private static final String SUBJECT = "test-subject";
+    // todo add some documentation as to why this might be needed
+    private static final String SUBJECT = "test-topic-value";
     private static final String TEST_TOPIC = "test-topic";
-    private static final Map<String, ?> SR_CONFIG = Collections.singletonMap(
-            AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG,
-            "localhost"
-    );
+    private static final Map<String, ?> SR_CONFIG =
+            Collections.singletonMap(
+                    AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, "localhost");
 
     private static final String DEBEZIUM_PROTO_SCHEMA =
             "syntax = \"proto3\";\n"
@@ -123,7 +125,7 @@ public class DebeziumProtoRegistryDeserializationSchemaTest {
         client.deleteSubject(SUBJECT);
     }
 
-    private DynamicMessage populateBefore(){
+    private DynamicMessage populateBefore() {
         ProtobufSchema protoSchema = new ProtobufSchema(DEBEZIUM_PROTO_SCHEMA);
         Descriptors.Descriptor protoDescriptor = protoSchema.toDescriptor();
         Descriptors.FileDescriptor fileDescriptor = protoDescriptor.getFile();
@@ -143,38 +145,57 @@ public class DebeziumProtoRegistryDeserializationSchemaTest {
         return outerEnvelop;
     }
 
-
-
-    //todo refactor according to other UTs with stuff in setup
+    // todo refactor according to other UTs with stuff in setup
 
     @Test
-    void testDeserialization() throws Exception {
+    void testDeserializationForConnectEncodedMessage() throws Exception {
         DynamicMessage debeziumMessage = populateBefore();
-
         System.out.println(debeziumMessage);
-        byte[] protoRepr = debeziumMessage.toByteArray();
         ProtobufSchema schema = new ProtobufSchema(DEBEZIUM_PROTO_SCHEMA);
         ProtobufData protoToSchemaAndValueConverter = new ProtobufData();
-        SchemaAndValue schemaAndValue = protoToSchemaAndValueConverter.toConnectData(schema, debeziumMessage);
-        ProtobufConverter protoConverter = new ProtobufConverter(client); //what ab
-        protoConverter.configure(SR_CONFIG,false);// out schema registry version
-        byte[] payload = protoConverter.fromConnectData(TEST_TOPIC, schemaAndValue.schema(),
-                schemaAndValue.value());
+        SchemaAndValue schemaAndValue =
+                protoToSchemaAndValueConverter.toConnectData(schema, debeziumMessage);
+        ProtobufConverter protoConverter = new ProtobufConverter(client); // what ab
+        protoConverter.configure(SR_CONFIG, false); // out schema registry version
+        byte[] payload =
+                protoConverter.fromConnectData(
+                        TEST_TOPIC, schemaAndValue.schema(), schemaAndValue.value());
         SchemaCoder coder = getDefaultCoder(schema);
 
-        //should be able to read this now from flink machinery
-        DebeziumProtoRegistryDeserializationSchema protoDeserializer =  new
-                DebeziumProtoRegistryDeserializationSchema(coder ,rowType, InternalTypeInfo.of(rowType));
+        // should be able to read this now from flink machinery
+        DebeziumProtoRegistryDeserializationSchema protoDeserializer =
+                new DebeziumProtoRegistryDeserializationSchema(
+                        coder, rowType, InternalTypeInfo.of(rowType));
         protoDeserializer.open(new MockInitializationContext());
         SimpleCollector collector = new SimpleCollector();
         protoDeserializer.deserialize(payload, collector);
-        List<RowData> row  =collector.list;
-        assertEquals(row.size(),1);
+        List<RowData> rows = collector.list;
+        assertEquals(rows.size(), 1);
+        RowData row = rows.get(0);
+        String name = row.getString(1).toString();
+        assertEquals("Foobar", name);
+    }
 
+    @Test
+    void testSerializationForConnectDecodedMessage() throws Exception {
+        ProtobufSchema schema = new ProtobufSchema(DEBEZIUM_PROTO_SCHEMA);
+        SchemaCoder coder = getDefaultCoder(schema);
+        DebeziumProtoRegistrySerializationSchema protoDeserializer =
+                new DebeziumProtoRegistrySerializationSchema(coder, rowType);
+        protoDeserializer.open(new MockInitializationContext());
+        GenericRowData row = GenericRowData.of(1L, StringData.fromString("Anupam"), 10);
+        row.setRowKind(RowKind.INSERT);
+        byte[] payload = protoDeserializer.serialize(row);
+
+        ProtobufConverter protoConverter = new ProtobufConverter(client);
+        protoConverter.configure(SR_CONFIG, false); // out schema registry version
+
+        SchemaAndValue connectData = protoConverter.toConnectData(TEST_TOPIC, payload);
+        System.out.println(connectData);
     }
 
     private SchemaCoder getDefaultCoder(ProtobufSchema rowSchema) {
-        return  SchemaCoderProviders.get(SUBJECT, rowSchema,client );
+        return SchemaCoderProviders.get(SUBJECT, rowSchema, client);
     }
 
     private RowType defineRowTypesForDebeziumEnvelop() {
@@ -206,7 +227,6 @@ public class DebeziumProtoRegistryDeserializationSchemaTest {
         public void collect(RowData record) {
             list.add(record);
         }
-
 
         @Override
         public void close() {

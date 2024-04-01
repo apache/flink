@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.protobuf.registry.confluent.debezium;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistrySerializationSchema;
@@ -61,6 +62,16 @@ public class DebeziumProtoRegistrySerializationSchema implements SerializationSc
         // call validate to check if schema is same
         final SchemaCoder schemaCoder =
                 SchemaRegistryClientFactory.getCoder(debeziumProtoRowType, formatOptions);
+        this.protoSerializer =
+                new ProtoRegistrySerializationSchema(schemaCoder, debeziumProtoRowType);
+    }
+
+    @VisibleForTesting
+    DebeziumProtoRegistrySerializationSchema(SchemaCoder schemaCoder, RowType rowType) {
+
+        this.rowType = Preconditions.checkNotNull(rowType);
+        RowType debeziumProtoRowType = createDebeziumProtoRowType(fromLogicalToDataType(rowType));
+        // call validate to check if schema is same
         this.protoSerializer =
                 new ProtoRegistrySerializationSchema(schemaCoder, debeziumProtoRowType);
     }
