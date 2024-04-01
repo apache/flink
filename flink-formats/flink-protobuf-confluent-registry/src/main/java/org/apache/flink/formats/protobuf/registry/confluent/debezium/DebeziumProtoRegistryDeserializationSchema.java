@@ -40,14 +40,14 @@ import static java.lang.String.format;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
 /**
- * Deserialization schema from Debezium protobuf encoded message to Flink Table/SQL internal
- * {@link RowData}. The deserialization schema knows Debezium's schema definition and can
- * extract the database data within the debezium envelop into a {@link RowData} with a {@link RowKind}.
+ * Deserialization schema from Debezium protobuf encoded message to Flink Table/SQL internal {@link
+ * RowData}. The deserialization schema knows Debezium's schema definition and can extract the
+ * database data within the debezium envelop into a {@link RowData} with a {@link RowKind}.
  *
- * <p>Deserializes a <code>byte[]</code> message. Delegates the actual deserialization to
- * {@link org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryDeserializationSchema }
- * after setting up the appropriate {@link org.apache.flink.table.types.logical.RowType} corresponding
- * to a debezium envelop. Failures during deserialization are forwarded as wrapped IOExceptions.
+ * <p>Deserializes a <code>byte[]</code> message. Delegates the actual deserialization to {@link
+ * org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryDeserializationSchema } after
+ * setting up the appropriate {@link org.apache.flink.table.types.logical.RowType} corresponding to
+ * a debezium envelop. Failures during deserialization are forwarded as wrapped IOExceptions.
  *
  * @see <a href="https://debezium.io/">Debezium</a>
  */

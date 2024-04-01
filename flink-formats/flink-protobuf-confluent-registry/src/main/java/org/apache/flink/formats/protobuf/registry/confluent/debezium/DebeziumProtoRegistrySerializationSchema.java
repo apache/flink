@@ -40,10 +40,10 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDa
 /**
  * Serializes a Flink Table/SQL internal{@link RowData} to Debezium Protobuf byte array.
  *
- * <p>Seerializes a <code>byte[]</code> message. Delegates the actual serialization to
- * {@link org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryDeserializationSchema }
- * after setting up the appropriate {@link org.apache.flink.table.types.logical.RowType} corresponding
- * to a debezium envelop. Failures during serialization are forwarded as wrapped IOExceptions.
+ * <p>Seerializes a <code>byte[]</code> message. Delegates the actual serialization to {@link
+ * org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryDeserializationSchema } after
+ * setting up the appropriate {@link org.apache.flink.table.types.logical.RowType} corresponding to
+ * a debezium envelop. Failures during serialization are forwarded as wrapped IOExceptions.
  *
  * @see <a href="https://debezium.io/">Debezium</a>
  */
