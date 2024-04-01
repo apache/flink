@@ -80,7 +80,7 @@ public class ProtoRegistryDeserializationSchema implements DeserializationSchema
             final DynamicMessage dynamicMessage = DynamicMessage.parseFrom(descriptor, inputStream);
             ProtoToRowDataConverters.ProtoToRowDataConverter converter =
                     runtimeConverterMap.computeIfAbsent(
-                            descriptor.getName(), initializeConverter(descriptor));
+                            descriptor.getName(), initializeConverterFn(descriptor));
             return (RowData) converter.convert(dynamicMessage);
 
         } catch (Exception e) {
@@ -88,12 +88,13 @@ public class ProtoRegistryDeserializationSchema implements DeserializationSchema
         }
     }
 
-    private Function<String, ProtoToRowDataConverters.ProtoToRowDataConverter> initializeConverter(
-            Descriptor descriptor) {
-        return str -> doInitialize(descriptor);
+    private Function<String, ProtoToRowDataConverters.ProtoToRowDataConverter>
+            initializeConverterFn(Descriptor descriptor) {
+        return str -> initializeConverter(descriptor);
     }
 
-    private ProtoToRowDataConverters.ProtoToRowDataConverter doInitialize(Descriptor descriptor) {
+    private ProtoToRowDataConverters.ProtoToRowDataConverter initializeConverter(
+            Descriptor descriptor) {
         return ProtoToRowDataConverters.createConverter(descriptor, rowType);
     }
 
@@ -112,11 +113,10 @@ public class ProtoRegistryDeserializationSchema implements DeserializationSchema
         if (this == o) return true;
         if (!(o instanceof ProtoRegistryDeserializationSchema)) return false;
         ProtoRegistryDeserializationSchema that = (ProtoRegistryDeserializationSchema) o;
-        return rowType.equals(that.rowType) && producedType.equals(that.producedType)
-                && schemaCoder.equals(that.schemaCoder) && Objects.equals(
-                runtimeConverterMap,
-                that.runtimeConverterMap
-        );
+        return rowType.equals(that.rowType)
+                && producedType.equals(that.producedType)
+                && schemaCoder.equals(that.schemaCoder)
+                && Objects.equals(runtimeConverterMap, that.runtimeConverterMap);
     }
 
     @Override

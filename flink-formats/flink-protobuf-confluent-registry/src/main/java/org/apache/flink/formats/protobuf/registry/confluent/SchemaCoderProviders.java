@@ -197,7 +197,7 @@ public class SchemaCoderProviders {
             try {
                 schemaId = schemaRegistryClient.register(subject, rowSchema);
                 writeInt(out, schemaId);
-                final ByteBuffer buffer = writeEmptyMessageIndexes();
+                final ByteBuffer buffer = emptyMessageIndexes();
                 out.write(buffer.array());
             } catch (RestClientException e) {
                 throw new WrappingRuntimeException("Failed to serialize schema registry.", e);
@@ -287,7 +287,7 @@ public class SchemaCoderProviders {
                 MessageIndexes messageIndex = registeredSchema.toMessageIndexes(messageName);
                 return ByteBuffer.wrap(messageIndex.toByteArray());
             } else {
-                return writeEmptyMessageIndexes();
+                return emptyMessageIndexes();
             }
         }
 

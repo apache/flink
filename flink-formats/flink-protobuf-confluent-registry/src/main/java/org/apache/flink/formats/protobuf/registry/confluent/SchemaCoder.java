@@ -18,6 +18,8 @@
 
 package org.apache.flink.formats.protobuf.registry.confluent;
 
+import org.apache.flink.annotation.VisibleForTesting;
+
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
 import org.apache.kafka.common.utils.ByteUtils;
 
@@ -62,7 +64,8 @@ public abstract class SchemaCoder {
      *
      * @return ByteBuffer with empty message index.
      */
-    protected ByteBuffer writeEmptyMessageIndexes() {
+    @VisibleForTesting
+    static ByteBuffer emptyMessageIndexes() {
         ByteBuffer buffer = ByteBuffer.allocate(ByteUtils.sizeOfVarint(0));
         ByteUtils.writeVarint(0, buffer);
         return buffer;
