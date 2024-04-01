@@ -27,6 +27,8 @@ import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rel.type.RelRecordType;
+import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -35,6 +37,7 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.SqlUtil;
+import org.apache.calcite.sql.type.IntervalSqlType;
 import org.apache.calcite.sql.type.SqlOperandCountRanges;
 import org.apache.calcite.sql.type.SqlOperandMetadata;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
@@ -111,7 +114,17 @@ public class SqlWindowTableFunction extends org.apache.calcite.sql.SqlWindowTabl
     private static RelDataType inferRowType(SqlOperatorBinding opBinding) {
         final RelDataTypeFactory typeFactory = opBinding.getTypeFactory();
         final RelDataType inputRowType = opBinding.getOperandType(0);
+        if (!(inputRowType instanceof RelRecordType)
+                || inputRowType.getStructKind() != StructKind.FULLY_QUALIFIED) {
+            throw new IllegalArgumentException(
+                    "Illegal first argument to Window TVF: Note that "
+                            + "the DATA param must be the first");
+        }
         final RelDataType descriptorType = opBinding.getOperandType(1);
+        if (descriptorType instanceof IntervalSqlType) {
+            throw new IllegalArgumentException(
+                    "Illegal second argument to Window TVF: Expecting TIMECOL");
+        }
         final RelDataTypeField timeField = descriptorType.getFieldList().get(0);
         final RelDataType timeAttributeType;
         if (timeField.getType().getSqlTypeName() == SqlTypeName.NULL) {
