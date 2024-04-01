@@ -23,6 +23,7 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.protobuf.registry.confluent.utils.FlinkToProtoSchemaConverter;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -39,7 +40,10 @@ import org.apache.flink.table.types.logical.RowType;
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
 
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
+
+import static org.apache.flink.formats.protobuf.registry.confluent.RegistryFormatOptions.SUBJECT;
 
 /**
  * Table format factory for providing configured instances of Schema Registry Protobuf to RowData
@@ -81,6 +85,15 @@ public class ProtoRegistryFormatFactory
             public SerializationSchema<RowData> createRuntimeEncoder(
                     DynamicTableSink.Context context, DataType physicalDataType) {
                 final RowType rowType = (RowType) physicalDataType.getLogicalType();
+                final Optional<Integer> schemaId =
+                        formatOptions.getOptional(RegistryFormatOptions.SCHEMA_ID);
+                final Optional<String> subject = formatOptions.getOptional(SUBJECT);
+                if(!schemaId.isPresent() && !subject.isPresent())
+                    throw new ValidationException(
+                            String.format(
+                                    "Option %s.%s is required for serialization",
+                                    IDENTIFIER, SUBJECT.key() ));
+
                 final SchemaCoder schemaCoder =
                         SchemaRegistryClientFactory.getCoder(rowType, formatOptions);
 

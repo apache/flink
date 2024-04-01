@@ -553,7 +553,7 @@ public class ProtoToRowDataConverters {
             return new ProtoToRowDataConverter() {
                 @Override
                 public Object convert(Object object) {
-                    return ((Number) extractValueField(object)).byteValue();
+                    return ((Number) extractValueField(object)).longValue();
                 }
             };
         } else {

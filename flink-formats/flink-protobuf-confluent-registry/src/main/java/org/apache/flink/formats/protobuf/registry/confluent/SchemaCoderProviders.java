@@ -77,7 +77,7 @@ public class SchemaCoderProviders {
         }
 
         //Todo : adapted from logic
-        public static MessageIndexes readFrom(DataInputStream input) throws IOException {
+        public static MessageIndexes readMessageIndex(DataInputStream input) throws IOException {
 
             int size = ByteUtils.readVarint(input);
             if (size == 0) {
@@ -103,7 +103,7 @@ public class SchemaCoderProviders {
                 int schemaId = dataInputStream.readInt();
                 try {
                     ProtobufSchema schema = (ProtobufSchema) schemaRegistryClient.getSchemaById(schemaId);
-                    MessageIndexes indexes = readFrom(dataInputStream);
+                    MessageIndexes indexes = readMessageIndex(dataInputStream);
                     String name = schema.toMessageName(indexes);
                     schema = schema.copy(name);
                     return schema;
@@ -123,8 +123,6 @@ public class SchemaCoderProviders {
         @Override
         public void writeSchema(OutputStream out) throws IOException {
              out.write(CONFLUENT_MAGIC_BYTE);
-            if(subject==null)
-                throw new IllegalArgumentException("Subject required for serialization");
             int schemaId = 0;
             try {
                 schemaId = schemaRegistryClient.register(subject,rowSchema);
