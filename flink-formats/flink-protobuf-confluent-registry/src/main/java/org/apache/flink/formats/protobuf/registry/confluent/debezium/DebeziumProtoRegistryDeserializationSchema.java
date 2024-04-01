@@ -44,7 +44,8 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDa
  * extract the database data and convert into {@link RowData} with {@link RowKind}.
  *
  * <p>Deserializes a <code>byte[]</code> message as {@link com.google.protobuf.DynamicMessage} and
- * reads the specified fields.Failures during deserialization are forwarded as wrapped IOExceptions.
+ * reads the specified fields. Failures during deserialization are forwarded as wrapped
+ * IOExceptions.
  *
  * @see <a href="https://debezium.io/">Debezium</a>
  */

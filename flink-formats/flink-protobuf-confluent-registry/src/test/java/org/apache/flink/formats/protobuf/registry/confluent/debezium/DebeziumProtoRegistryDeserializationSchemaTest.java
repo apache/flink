@@ -160,7 +160,7 @@ public class DebeziumProtoRegistryDeserializationSchemaTest {
         byte[] payload =
                 protoConverter.fromConnectData(
                         TEST_TOPIC, schemaAndValue.schema(), schemaAndValue.value());
-        SchemaCoder coder = getDefaultCoder(schema);
+        SchemaCoder coder = getDefaultCoder(rowType);
 
         // should be able to read this now from flink machinery
         DebeziumProtoRegistryDeserializationSchema protoDeserializer =
@@ -179,7 +179,7 @@ public class DebeziumProtoRegistryDeserializationSchemaTest {
     @Test
     void testSerializationForConnectDecodedMessage() throws Exception {
         ProtobufSchema schema = new ProtobufSchema(DEBEZIUM_PROTO_SCHEMA);
-        SchemaCoder coder = getDefaultCoder(schema);
+        SchemaCoder coder = getDefaultCoder(rowType);
         DebeziumProtoRegistrySerializationSchema protoDeserializer =
                 new DebeziumProtoRegistrySerializationSchema(coder, rowType);
         protoDeserializer.open(new MockInitializationContext());
@@ -194,8 +194,8 @@ public class DebeziumProtoRegistryDeserializationSchemaTest {
         System.out.println(connectData);
     }
 
-    private SchemaCoder getDefaultCoder(ProtobufSchema rowSchema) {
-        return SchemaCoderProviders.get(SUBJECT, rowSchema, client);
+    private SchemaCoder getDefaultCoder(RowType rowType) {
+        return SchemaCoderProviders.createDefault(SUBJECT, rowType, client);
     }
 
     private RowType defineRowTypesForDebeziumEnvelop() {

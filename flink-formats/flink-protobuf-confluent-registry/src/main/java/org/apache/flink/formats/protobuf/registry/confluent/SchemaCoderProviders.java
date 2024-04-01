@@ -18,6 +18,8 @@
 
 package org.apache.flink.formats.protobuf.registry.confluent;
 
+import org.apache.flink.formats.protobuf.registry.confluent.utils.FlinkToProtoSchemaConverter;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingRuntimeException;
 
@@ -39,23 +41,81 @@ import java.util.Collections;
 import java.util.List;
 
 import static java.lang.String.format;
-import static org.apache.flink.formats.protobuf.registry.confluent.SchemaCoder.Utils.writeEmptyMessageIndexes;
-import static org.apache.flink.formats.protobuf.registry.confluent.SchemaCoder.Utils.writeInt;
 
+/** Factory for {@link org.apache.flink.formats.protobuf.registry.confluent.SchemaCoder} */
 public class SchemaCoderProviders {
-    private static final int CONFLUENT_MAGIC_BYTE = 0;
 
-    public static SchemaCoder get(
-            int schemaId, String messageName, SchemaRegistryClient schemaRegistryClient) {
+    /**
+     * Creates a {@link org.apache.flink.formats.protobuf.registry.confluent.SchemaCoder} in cases
+     * where the schema has already been setup before-hand/exists in Confluent Schema Registry.
+     *
+     * <p>Useful in scenarios where users want to be more explicit with schemas used. In these cases
+     * the external schema specified through schemaId will take precedence for encoding/decoding
+     * data. Also, the step of registering with schemaRegistry during serialization, will be
+     * skipped.
+     *
+     * <p>A single Schema Registry Protobuf entry may contain multiple Protobuf messages, some of
+     * which may have nested messages. The messageName identifies the exact message/schema to use
+     * for derialization/deserialization. Consider the following protobuf message
+     *
+     * <pre>
+     * package test.package;
+     * message MessageA {
+     *     message MessageB {
+     *         message MessageC {
+     *         ...
+     *         }
+     *     }
+     *     message MessageD {
+     *     ...
+     *     }
+     *     message MessageE {
+     *         message MessageF {
+     *         ...
+     *         }
+     *         message MessageG {
+     *         ...
+     *         }
+     *     ...
+     *     }
+     * ...
+     * }
+     * </pre>
+     *
+     * In order to use messageD the messageName should contain the value of test.package.messageD
+     * Similarily, for messageF to be used messageName should contain test.package.MessageE.MessageF
+     *
+     * @param schemaId SchemaId for external schema referenced for encoding/decoding of payload.
+     * @param messageName Optional message name to be used to select the right {@link
+     *     com.google.protobuf.Message} for Serialialization/Deserialization. In absence of
+     *     messageName the outermost message will be used.
+     * @param schemaRegistryClient client handle to Schema Registry {@link
+     *     io.confluent.kafka.schemaregistry.client.SchemaRegistryClient}
+     * @return
+     */
+    public static SchemaCoder createForPreRegisteredSchema(
+            int schemaId, @Nullable String messageName, SchemaRegistryClient schemaRegistryClient) {
         return new PreRegisteredSchemaCoder(schemaId, messageName, schemaRegistryClient);
     }
 
-    public static SchemaCoder get(
-            String subject, ProtobufSchema rowSchema, SchemaRegistryClient schemaRegistryClient) {
-        return new DefaultSchemaCoder(subject, rowSchema, schemaRegistryClient);
+    /**
+     * Createa a default schema coder.
+     *
+     * <p>For serialization schema coder will infer the schema from
+     *
+     * @param subject
+     * @param rowType
+     * @param schemaRegistryClient
+     * @return
+     */
+    public static SchemaCoder createDefault(
+            String subject, RowType rowType, SchemaRegistryClient schemaRegistryClient) {
+        return new DefaultSchemaCoder(subject, rowType, schemaRegistryClient);
     }
 
-    static class DefaultSchemaCoder implements SchemaCoder {
+    static class DefaultSchemaCoder extends SchemaCoder {
+        private static final String ROW = "row";
+        private static final String PACKAGE = "io.confluent.generated";
 
         private @Nullable final String subject;
         private final ProtobufSchema rowSchema;
@@ -64,10 +124,12 @@ public class SchemaCoderProviders {
 
         public DefaultSchemaCoder(
                 @Nullable String subject,
-                ProtobufSchema rowSchema,
+                RowType rowType,
                 SchemaRegistryClient schemaRegistryClient) {
-            this.subject = subject;
-            this.rowSchema = Preconditions.checkNotNull(rowSchema);
+            this.subject = Preconditions.checkNotNull(subject);
+            rowSchema =
+                    FlinkToProtoSchemaConverter.fromFlinkRowType(
+                            Preconditions.checkNotNull(rowType), ROW, PACKAGE);
             this.schemaRegistryClient = Preconditions.checkNotNull(schemaRegistryClient);
         }
 
@@ -130,7 +192,7 @@ public class SchemaCoderProviders {
     }
 
     // Todo Might need rowSchema
-    static class PreRegisteredSchemaCoder implements SchemaCoder {
+    static class PreRegisteredSchemaCoder extends SchemaCoder {
 
         private final int schemaId;
         private final @Nullable String messageName;

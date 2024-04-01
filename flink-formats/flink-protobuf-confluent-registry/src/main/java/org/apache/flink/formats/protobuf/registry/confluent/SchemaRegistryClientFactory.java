@@ -20,13 +20,11 @@ package org.apache.flink.formats.protobuf.registry.confluent;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.formats.protobuf.registry.confluent.utils.FlinkToProtoSchemaConverter;
 import org.apache.flink.table.factories.FormatFactory;
 import org.apache.flink.table.types.logical.RowType;
 
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
-import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
 
 import javax.annotation.Nullable;
 
@@ -55,8 +53,6 @@ public class SchemaRegistryClientFactory {
     private static final String PACKAGE = "io.confluent.generated";
 
     public static SchemaCoder getCoder(RowType rowType, ReadableConfig formatOptions) {
-        ProtobufSchema rowSchema =
-                FlinkToProtoSchemaConverter.fromFlinkRowType(rowType, ROW, PACKAGE);
 
         SchemaRegistryClient schemaRegistryClient = getClient(formatOptions);
         final Optional<Integer> schemaId =
@@ -65,11 +61,13 @@ public class SchemaRegistryClientFactory {
                 formatOptions.getOptional(RegistryFormatOptions.MESSAGE_NAME);
         final Optional<String> subject = formatOptions.getOptional(RegistryFormatOptions.SUBJECT);
         return schemaId.map(
-                        id -> SchemaCoderProviders.get(id, messageName.get(), schemaRegistryClient))
+                        id ->
+                                SchemaCoderProviders.createForPreRegisteredSchema(
+                                        id, messageName.get(), schemaRegistryClient))
                 .orElseGet(
                         () ->
-                                SchemaCoderProviders.get(
-                                        subject.get(), rowSchema, schemaRegistryClient));
+                                SchemaCoderProviders.createDefault(
+                                        subject.get(), rowType, schemaRegistryClient));
     }
 
     public static SchemaRegistryClient getClient(ReadableConfig formatOptions) {
