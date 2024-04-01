@@ -31,6 +31,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.datastream.impl.ExecutionContextEnvironment;
 import org.apache.flink.runtime.client.JobInitializationException;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rest.HttpHeader;
@@ -104,11 +105,17 @@ public enum ClientUtils {
                     enforceSingleJobExecution,
                     suppressSysout);
 
+            // For DataStream v2.
+            ExecutionContextEnvironment.setAsContext(
+                    executorServiceLoader, configuration, userCodeClassLoader);
+
             try {
                 program.invokeInteractiveModeForExecution();
             } finally {
                 ContextEnvironment.unsetAsContext();
                 StreamContextEnvironment.unsetAsContext();
+                // For DataStream v2.
+                ExecutionContextEnvironment.unsetAsContext();
             }
         } finally {
             Thread.currentThread().setContextClassLoader(contextClassLoader);
