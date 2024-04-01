@@ -52,9 +52,6 @@ import static org.apache.flink.formats.protobuf.registry.confluent.RegistryForma
  */
 public class SchemaRegistryClientFactory {
 
-    private static final String ROW = "row";
-    private static final String PACKAGE = "io.confluent.generated";
-
     public static SchemaCoder getCoder(RowType rowType, ReadableConfig formatOptions) {
 
         SchemaRegistryClient schemaRegistryClient = getClient(formatOptions);
@@ -66,14 +63,14 @@ public class SchemaRegistryClientFactory {
         return schemaId.map(
                         id ->
                                 SchemaCoderProviders.createForPreRegisteredSchema(
-                                        id, messageName.get(), schemaRegistryClient))
+                                        id, messageName.orElse(null), schemaRegistryClient))
                 .orElseGet(
                         () ->
                                 SchemaCoderProviders.createDefault(
-                                        subject.get(), rowType, schemaRegistryClient));
+                                        subject.orElse(null), rowType, schemaRegistryClient));
     }
 
-    public static SchemaRegistryClient getClient(ReadableConfig formatOptions) {
+    private static SchemaRegistryClient getClient(ReadableConfig formatOptions) {
         final String schemaRegistryURL = formatOptions.get(RegistryFormatOptions.URL);
         final int cacheSize = formatOptions.get(RegistryFormatOptions.SCHEMA_CACHE_SIZE);
         final Map<String, String> schemaClientProperties =

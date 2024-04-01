@@ -165,44 +165,4 @@ public class ProtoRegistrySerialisationDeserialisationTest {
         final RowData deserialized = deserialize(serialized, schemaId, rowType);
         assertThat(deserialized).isEqualTo(row);
     }
-
-    /*@Test
-    void test() throws Exception {
-        final byte[] data = {
-            0, 0, 1, -122, -94, 0, 10, 4, 83, 69, 76, 76, 16, -120, 6, 26, 4, 90, 66, 90, 88, 32,
-            107, 42, 6, 88, 89, 90, 55, 56, 57, 50, 6, 85, 115, 101, 114, 95, 53
-        };
-        final String schemaStr =
-                "syntax = \"proto3\";\n"
-                        + "package ksql;\n"
-                        + "\n"
-                        + "message StockTrade {\n"
-                        + "  string side = 1;\n"
-                        + "  int32 quantity = 2;\n"
-                        + "  string symbol = 3;\n"
-                        + "  int32 price = 4;\n"
-                        + "  string account = 5;\n"
-                        + "  string userid = 6;\n"
-                        + "}";
-
-        final ProtobufSchema protobufSchema = new ProtobufSchema(schemaStr);
-        final int schemaId = client.register(SUBJECT, protobufSchema, 0, 100002);
-        final LogicalType flinkSchema =
-                ProtoToFlinkSchemaConverter.toFlinkSchema(protobufSchema.toDescriptor());
-        final DeserializationSchema<RowData> serializationSchema =
-                new ProtoRegistryDeserializationSchema(
-                        new TestSchemaRegistryConfig(schemaId, client),
-                        (RowType) flinkSchema,
-                        InternalTypeInfo.of(flinkSchema));
-        serializationSchema.open(new MockInitializationContext());
-        final RowData deserialized = serializationSchema.deserialize(data);
-        final GenericRowData expected = new GenericRowData(6);
-        expected.setField(0, StringData.fromString("SELL"));
-        expected.setField(1, 776);
-        expected.setField(2, StringData.fromString("ZBZX"));
-        expected.setField(3, 107);
-        expected.setField(4, StringData.fromString("XYZ789"));
-        expected.setField(5, StringData.fromString("User_5"));
-        assertThat(deserialized).isEqualTo(expected);
-    }*/
 }
