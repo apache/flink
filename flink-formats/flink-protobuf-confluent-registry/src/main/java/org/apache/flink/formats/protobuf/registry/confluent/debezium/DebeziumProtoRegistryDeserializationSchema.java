@@ -34,6 +34,7 @@ import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
 import java.io.IOException;
+import java.util.Objects;
 
 import static java.lang.String.format;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
@@ -146,5 +147,20 @@ public class DebeziumProtoRegistryDeserializationSchema implements Deserializati
     @Override
     public TypeInformation<RowData> getProducedType() {
         return producedTypeInfo;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof DebeziumProtoRegistryDeserializationSchema)) return false;
+        DebeziumProtoRegistryDeserializationSchema that =
+                (DebeziumProtoRegistryDeserializationSchema) o;
+        return protoDeserializer.equals(that.protoDeserializer)
+                && producedTypeInfo.equals(that.producedTypeInfo);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(protoDeserializer, producedTypeInfo);
     }
 }

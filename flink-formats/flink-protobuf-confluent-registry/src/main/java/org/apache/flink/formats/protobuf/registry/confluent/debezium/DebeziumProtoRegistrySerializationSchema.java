@@ -38,7 +38,6 @@ import static java.lang.String.format;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
 // TODO - checks for type of message
-// TODO - add proto in resources and use those
 public class DebeziumProtoRegistrySerializationSchema implements SerializationSchema<RowData> {
     private static final long serialVersionUID = 1L;
 
