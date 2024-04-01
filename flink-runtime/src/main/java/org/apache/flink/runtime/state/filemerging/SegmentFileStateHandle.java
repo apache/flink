@@ -109,6 +109,11 @@ public class SegmentFileStateHandle implements StreamStateHandle {
         return stateSize;
     }
 
+    @Override
+    public void collectSizeStats(StateObjectSizeStatsCollector collector) {
+        collector.add(StateObjectLocation.REMOTE, getStateSize());
+    }
+
     public CheckpointedStateScope getScope() {
         return scope;
     }
