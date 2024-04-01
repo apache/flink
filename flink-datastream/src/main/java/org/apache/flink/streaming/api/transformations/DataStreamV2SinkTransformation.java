@@ -69,7 +69,7 @@ public class DataStreamV2SinkTransformation<InputT, OutputT>
     }
 
     @Override
-    public List<Transformation<?>> getTransitivePredecessors() {
+    protected List<Transformation<?>> getTransitivePredecessorsInternal() {
         final List<Transformation<?>> result = Lists.newArrayList();
         result.add(this);
         result.addAll(input.getTransitivePredecessors());
