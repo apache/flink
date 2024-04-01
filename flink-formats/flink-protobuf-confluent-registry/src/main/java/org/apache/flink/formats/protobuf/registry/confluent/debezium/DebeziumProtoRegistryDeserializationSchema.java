@@ -40,13 +40,14 @@ import static java.lang.String.format;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
 /**
- * Deserialization schema from Debezium protobuf encoded message to Flink Table/SQL internal data
- * structure {@link RowData}. The deserialization schema knows Debezium's schema definition and can
- * extract the database data and convert into {@link RowData} with {@link RowKind}.
+ * Deserialization schema from Debezium protobuf encoded message to Flink Table/SQL internal
+ * {@link RowData}. The deserialization schema knows Debezium's schema definition and can
+ * extract the database data within the debezium envelop into a {@link RowData} with a {@link RowKind}.
  *
- * <p>Deserializes a <code>byte[]</code> message as {@link com.google.protobuf.DynamicMessage} and
- * reads the specified fields. Failures during deserialization are forwarded as wrapped
- * IOExceptions.
+ * <p>Deserializes a <code>byte[]</code> message. Delegates the actual deserialization to
+ * {@link org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryDeserializationSchema }
+ * after setting up the appropriate {@link org.apache.flink.table.types.logical.RowType} corresponding
+ * to a debezium envelop. Failures during deserialization are forwarded as wrapped IOExceptions.
  *
  * @see <a href="https://debezium.io/">Debezium</a>
  */
@@ -103,7 +104,7 @@ public class DebeziumProtoRegistryDeserializationSchema implements Deserializati
     public void open(InitializationContext context) throws Exception {
         protoDeserializer.open(context);
         // todo do basic validation
-        // todo what about case here
+        // todo what about case here for before/after?
     }
 
     @Override

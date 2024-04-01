@@ -37,7 +37,16 @@ import java.util.Objects;
 import static java.lang.String.format;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
-// TODO - checks for type of message
+/**
+ * Serializes a Flink Table/SQL internal{@link RowData} to Debezium Protobuf byte array.
+ *
+ * <p>Seerializes a <code>byte[]</code> message. Delegates the actual serialization to
+ * {@link org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryDeserializationSchema }
+ * after setting up the appropriate {@link org.apache.flink.table.types.logical.RowType} corresponding
+ * to a debezium envelop. Failures during serialization are forwarded as wrapped IOExceptions.
+ *
+ * @see <a href="https://debezium.io/">Debezium</a>
+ */
 public class DebeziumProtoRegistrySerializationSchema implements SerializationSchema<RowData> {
     private static final long serialVersionUID = 1L;
 
@@ -58,7 +67,7 @@ public class DebeziumProtoRegistrySerializationSchema implements SerializationSc
 
         this.rowType = Preconditions.checkNotNull(rowType);
         RowType debeziumProtoRowType = createDebeziumProtoRowType(fromLogicalToDataType(rowType));
-        // call validate to check if schema is same
+        // todo call validate to check if schema is valid
         final SchemaCoder schemaCoder =
                 SchemaRegistryClientFactory.getCoder(debeziumProtoRowType, formatOptions);
         this.protoSerializer =
@@ -70,13 +79,13 @@ public class DebeziumProtoRegistrySerializationSchema implements SerializationSc
 
         this.rowType = Preconditions.checkNotNull(rowType);
         RowType debeziumProtoRowType = createDebeziumProtoRowType(fromLogicalToDataType(rowType));
-        // call validate to check if schema is same
+        // todo call validate to check if schema is valid
         this.protoSerializer =
                 new ProtoRegistrySerializationSchema(schemaCoder, debeziumProtoRowType);
     }
 
-    private RowType createDebeziumProtoRowType(DataType dataType) {
-        // but we don't need them
+    @VisibleForTesting
+    static RowType createDebeziumProtoRowType(DataType dataType) {
         return (RowType)
                 DataTypes.ROW(
                                 DataTypes.FIELD("before", dataType.nullable()),

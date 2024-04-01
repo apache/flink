@@ -57,7 +57,7 @@ public class SchemaCoderProviders {
      *
      * <p>A single Schema Registry Protobuf entry may contain multiple Protobuf messages, some of
      * which may have nested messages. The messageName identifies the exact message/schema to use
-     * for derialization/deserialization. Consider the following protobuf message
+     * for serialization/deserialization. Consider the following protobuf message
      *
      * <pre>
      * package test.package;

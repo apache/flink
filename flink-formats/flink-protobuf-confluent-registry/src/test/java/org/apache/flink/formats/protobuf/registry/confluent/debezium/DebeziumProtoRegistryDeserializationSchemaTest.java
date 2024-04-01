@@ -42,6 +42,7 @@ import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientExcept
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig;
 import org.apache.kafka.connect.data.SchemaAndValue;
+import org.apache.kafka.connect.data.Struct;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -59,14 +60,16 @@ import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 import static org.junit.Assert.assertEquals;
 
 @ExtendWith(TestLoggerExtension.class)
 public class DebeziumProtoRegistryDeserializationSchemaTest {
 
-    // todo add some documentation as to why this might be needed
-    private static final String SUBJECT = "test-topic-value";
     private static final String TEST_TOPIC = "test-topic";
+
+    /** Kafka Connect's Converters use topic-name-value as default subject */
+    private static final String SUBJECT = TEST_TOPIC + "-value";
     private static final Map<String, ?> SR_CONFIG =
             Collections.singletonMap(
                     AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, "localhost");
@@ -136,7 +139,7 @@ public class DebeziumProtoRegistryDeserializationSchemaTest {
         DynamicMessage.Builder valueBuilder = DynamicMessage.newBuilder(valueDescriptor);
 
         valueBuilder.setField(valueDescriptor.findFieldByName("id"), 10l);
-        valueBuilder.setField(valueDescriptor.findFieldByName("name"), "Foobar");
+        valueBuilder.setField(valueDescriptor.findFieldByName("name"), "testName");
         valueBuilder.setField(valueDescriptor.findFieldByName("salary"), 10);
         DynamicMessage value = valueBuilder.build();
         envelopBuilder.setField(envelopDescriptor.findFieldByName("op"), "d");
@@ -150,19 +153,19 @@ public class DebeziumProtoRegistryDeserializationSchemaTest {
     @Test
     void testDeserializationForConnectEncodedMessage() throws Exception {
         DynamicMessage debeziumMessage = populateBefore();
-        System.out.println(debeziumMessage);
         ProtobufSchema schema = new ProtobufSchema(DEBEZIUM_PROTO_SCHEMA);
         ProtobufData protoToSchemaAndValueConverter = new ProtobufData();
         SchemaAndValue schemaAndValue =
                 protoToSchemaAndValueConverter.toConnectData(schema, debeziumMessage);
-        ProtobufConverter protoConverter = new ProtobufConverter(client); // what ab
-        protoConverter.configure(SR_CONFIG, false); // out schema registry version
+        ProtobufConverter protoConverter = new ProtobufConverter(client);
+        //need to call configure to properly setup the converter
+        protoConverter.configure(SR_CONFIG, false);
         byte[] payload =
                 protoConverter.fromConnectData(
                         TEST_TOPIC, schemaAndValue.schema(), schemaAndValue.value());
         SchemaCoder coder = getDefaultCoder(rowType);
 
-        // should be able to read this now from flink machinery
+        // should be able to read this now from flink deserialization machinery
         DebeziumProtoRegistryDeserializationSchema protoDeserializer =
                 new DebeziumProtoRegistryDeserializationSchema(
                         coder, rowType, InternalTypeInfo.of(rowType));
@@ -173,50 +176,32 @@ public class DebeziumProtoRegistryDeserializationSchemaTest {
         assertEquals(rows.size(), 1);
         RowData row = rows.get(0);
         String name = row.getString(1).toString();
-        assertEquals("Foobar", name);
+        assertEquals("testName", name);
     }
 
     @Test
     void testSerializationForConnectDecodedMessage() throws Exception {
-        ProtobufSchema schema = new ProtobufSchema(DEBEZIUM_PROTO_SCHEMA);
-        SchemaCoder coder = getDefaultCoder(rowType);
-        DebeziumProtoRegistrySerializationSchema protoDeserializer =
+
+        RowType debeziumRowType = DebeziumProtoRegistrySerializationSchema
+                .createDebeziumProtoRowType(fromLogicalToDataType(rowType));
+        SchemaCoder coder = SchemaCoderProviders.createDefault(SUBJECT,debeziumRowType,client);
+        DebeziumProtoRegistrySerializationSchema protoSerializer =
                 new DebeziumProtoRegistrySerializationSchema(coder, rowType);
-        protoDeserializer.open(new MockInitializationContext());
-        GenericRowData row = GenericRowData.of(1L, StringData.fromString("Anupam"), 10);
+        protoSerializer.open(new MockInitializationContext());
+        GenericRowData row = GenericRowData.of(1L, StringData.fromString("testValue"), 10);
         row.setRowKind(RowKind.INSERT);
-        byte[] payload = protoDeserializer.serialize(row);
+        byte[] payload = protoSerializer.serialize(row);
 
         ProtobufConverter protoConverter = new ProtobufConverter(client);
         protoConverter.configure(SR_CONFIG, false); // out schema registry version
-
         SchemaAndValue connectData = protoConverter.toConnectData(TEST_TOPIC, payload);
-        System.out.println(connectData);
+        Struct value = (Struct) connectData.value();
+        Struct after = (Struct) value.get("after");
+        assertEquals("testValue",after.get("name"));
     }
 
     private SchemaCoder getDefaultCoder(RowType rowType) {
         return SchemaCoderProviders.createDefault(SUBJECT, rowType, client);
-    }
-
-    private RowType defineRowTypesForDebeziumEnvelop() {
-
-        //
-        final RowType nestedRow =
-                new RowType(
-                        false,
-                        Arrays.asList(
-                                new RowType.RowField("id", new IntType(false)),
-                                new RowType.RowField(
-                                        "name", new VarCharType(false, VarCharType.MAX_LENGTH)),
-                                new RowType.RowField("salary", new IntType(false))));
-
-        final RowType rowType =
-                new RowType(
-                        false,
-                        Arrays.asList(
-                                new RowType.RowField("before", nestedRow),
-                                new RowType.RowField("after", nestedRow)));
-        return rowType;
     }
 
     private static class SimpleCollector implements Collector<RowData> {
