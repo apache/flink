@@ -77,7 +77,7 @@ public interface PartitionWindowedStream<T> {
      * KeyedPartitionWindowedStream}, the managed memory size can be set by
      * "execution.sort.keyed.partition.memory" in {@link ExecutionOptions}.
      *
-     * @param field The field index on which records is sorted.
+     * @param field The field 1-based index on which records is sorted.
      * @param order The order in which records is sorted.
      * @return The data stream with sorted records.
      */
