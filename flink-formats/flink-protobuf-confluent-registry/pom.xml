@@ -153,6 +153,20 @@ under the License.
 			<type>test-jar</type>
 		</dependency>
 
+		<dependency>
+			<groupId>io.confluent</groupId>
+			<artifactId>kafka-connect-protobuf-converter</artifactId>
+			<version>${schema.registry.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<!-- todo update this -->
+
+		<dependency>
+			<groupId>org.apache.kafka</groupId>
+			<artifactId>connect-api</artifactId>
+			<version>7.6.0-ccs</version>
+			<scope>test</scope>
+		</dependency>
 		<!-- ArchUnit test dependencies -->
 
 		<dependency>

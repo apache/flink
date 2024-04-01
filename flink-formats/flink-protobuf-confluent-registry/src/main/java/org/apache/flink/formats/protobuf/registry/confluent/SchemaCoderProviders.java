@@ -19,14 +19,12 @@
 package org.apache.flink.formats.protobuf.registry.confluent;
 
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.WrappingRuntimeException;
 
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
 import io.confluent.kafka.schemaregistry.protobuf.MessageIndexes;
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
-
-import org.apache.flink.util.WrappingRuntimeException;
-
 import org.apache.kafka.common.utils.ByteUtils;
 
 import javax.annotation.Nullable;
@@ -57,8 +55,6 @@ public class SchemaCoderProviders {
         return new DefaultSchemaCoder(subject, rowSchema, schemaRegistryClient);
     }
 
-
-
     static class DefaultSchemaCoder implements SchemaCoder {
 
         private @Nullable final String subject;
@@ -73,10 +69,9 @@ public class SchemaCoderProviders {
             this.subject = subject;
             this.rowSchema = Preconditions.checkNotNull(rowSchema);
             this.schemaRegistryClient = Preconditions.checkNotNull(schemaRegistryClient);
-
         }
 
-        //Todo : adapted from logic
+        // Todo : adapted from logic
         public static MessageIndexes readMessageIndex(DataInputStream input) throws IOException {
 
             int size = ByteUtils.readVarint(input);
@@ -85,13 +80,12 @@ public class SchemaCoderProviders {
             } else {
                 List<Integer> indexes = new ArrayList<>(size);
 
-                for(int i = 0; i < size; ++i) {
+                for (int i = 0; i < size; ++i) {
                     indexes.add(ByteUtils.readVarint(input));
                 }
                 return new MessageIndexes(indexes);
             }
         }
-
 
         @Override
         public ProtobufSchema readSchema(InputStream in) throws IOException {
@@ -102,7 +96,8 @@ public class SchemaCoderProviders {
             } else {
                 int schemaId = dataInputStream.readInt();
                 try {
-                    ProtobufSchema schema = (ProtobufSchema) schemaRegistryClient.getSchemaById(schemaId);
+                    ProtobufSchema schema =
+                            (ProtobufSchema) schemaRegistryClient.getSchemaById(schemaId);
                     MessageIndexes indexes = readMessageIndex(dataInputStream);
                     String name = schema.toMessageName(indexes);
                     schema = schema.copy(name);
@@ -111,28 +106,26 @@ public class SchemaCoderProviders {
                     throw new IOException(
                             format("Could not find schema with id %s in registry", schemaId), e);
                 }
-
             }
         }
+
         @Override
         public ProtobufSchema writerSchema() {
             return rowSchema;
         }
 
-
         @Override
         public void writeSchema(OutputStream out) throws IOException {
-             out.write(CONFLUENT_MAGIC_BYTE);
+            out.write(CONFLUENT_MAGIC_BYTE);
             int schemaId = 0;
             try {
-                schemaId = schemaRegistryClient.register(subject,rowSchema);
+                schemaId = schemaRegistryClient.register(subject, rowSchema);
                 writeInt(out, schemaId);
                 final ByteBuffer buffer = writeEmptyMessageIndexes();
                 out.write(buffer.array());
             } catch (RestClientException e) {
                 throw new WrappingRuntimeException("Failed to serialize schema registry.", e);
             }
-
         }
     }
 
@@ -153,7 +146,6 @@ public class SchemaCoderProviders {
             this.messageName = messageName;
             this.schemaRegistryClient = schemaRegistryClient;
         }
-
 
         private void skipMessageIndexes(InputStream inputStream) throws IOException {
             final DataInputStream dataInputStream = new DataInputStream(inputStream);
@@ -191,11 +183,10 @@ public class SchemaCoderProviders {
         }
 
         private ByteBuffer writeMessageIndexes() {
-            if(this.messageName!=null){
+            if (this.messageName != null) {
                 MessageIndexes messageIndex = schema.toMessageIndexes(messageName);
                 return ByteBuffer.wrap(messageIndex.toByteArray());
-            }else
-                return writeEmptyMessageIndexes();
+            } else return writeEmptyMessageIndexes();
         }
 
         @Override
@@ -203,8 +194,8 @@ public class SchemaCoderProviders {
 
             try {
                 this.schema = (ProtobufSchema) schemaRegistryClient.getSchemaById(schemaId);
-                if(this.messageName!=null){
-                    //nested schema needs to be used
+                if (this.messageName != null) {
+                    // nested schema needs to be used
                     schema = schema.copy(messageName);
                 }
             } catch (RestClientException e) {

@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.protobuf.registry.confluent.debezium;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ReadableConfig;
@@ -64,6 +65,17 @@ public class DebeziumProtoRegistryDeserializationSchema implements Deserializati
         protoDeserializer =
                 new ProtoRegistryDeserializationSchema(
                         schemaCoder, debeziumProtoRowType, producedTypeInfo);
+    }
+
+
+    @VisibleForTesting
+    DebeziumProtoRegistryDeserializationSchema(SchemaCoder coder, RowType rowType,
+                                               TypeInformation<RowData> producedTypeInfo){
+        this.producedTypeInfo = producedTypeInfo;
+        RowType debeziumProtoRowType = createDebeziumProtoRowType(fromLogicalToDataType(rowType));
+        protoDeserializer =
+                new ProtoRegistryDeserializationSchema(
+                        coder, debeziumProtoRowType, producedTypeInfo);
     }
 
     private RowType createDebeziumProtoRowType(DataType databaseSchema) {

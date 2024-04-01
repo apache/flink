@@ -22,7 +22,6 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.formats.protobuf.registry.confluent.utils.FlinkToProtoSchemaConverter;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
@@ -36,8 +35,6 @@ import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
-
-import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
 
 import java.util.HashSet;
 import java.util.Optional;
@@ -64,7 +61,7 @@ public class ProtoRegistryFormatFactory
             public DeserializationSchema<RowData> createRuntimeDecoder(
                     DynamicTableSource.Context context, DataType physicalDataType) {
                 final RowType rowType = (RowType) physicalDataType.getLogicalType();
-                 final SchemaCoder schemaCoder =
+                final SchemaCoder schemaCoder =
                         SchemaRegistryClientFactory.getCoder(rowType, formatOptions);
                 return new ProtoRegistryDeserializationSchema(
                         schemaCoder, rowType, context.createTypeInformation(physicalDataType));
@@ -88,11 +85,11 @@ public class ProtoRegistryFormatFactory
                 final Optional<Integer> schemaId =
                         formatOptions.getOptional(RegistryFormatOptions.SCHEMA_ID);
                 final Optional<String> subject = formatOptions.getOptional(SUBJECT);
-                if(!schemaId.isPresent() && !subject.isPresent())
+                if (!schemaId.isPresent() && !subject.isPresent())
                     throw new ValidationException(
                             String.format(
                                     "Option %s.%s is required for serialization",
-                                    IDENTIFIER, SUBJECT.key() ));
+                                    IDENTIFIER, SUBJECT.key()));
 
                 final SchemaCoder schemaCoder =
                         SchemaRegistryClientFactory.getCoder(rowType, formatOptions);

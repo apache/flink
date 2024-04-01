@@ -23,7 +23,6 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistrySerializationSchema;
 import org.apache.flink.formats.protobuf.registry.confluent.SchemaCoder;
 import org.apache.flink.formats.protobuf.registry.confluent.SchemaRegistryClientFactory;
-import org.apache.flink.formats.protobuf.registry.confluent.utils.FlinkToProtoSchemaConverter;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -31,8 +30,6 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
-
-import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
 
 import java.util.Objects;
 
