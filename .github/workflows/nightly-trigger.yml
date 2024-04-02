@@ -27,15 +27,18 @@ jobs:
     if: github.repository == 'apache/flink'
     permissions:
       actions: write
-    strategy:
-      matrix:
-        branch:
-          - master
-          - release-1.19
-          - release-1.18
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Workflow
+      - name: "Flink Checkout"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: "Extracts release branch from checkout"
+        id: release_branch_extraction_step
+        uses: "./.github/actions/release_branch_extraction"
+
+      - name: "Trigger master nightly"
         uses: actions/github-script@v7
         with:
           script: |
@@ -43,5 +46,27 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               workflow_id: 'nightly.yml',
-              ref: '${{ matrix.branch }}'
+              ref: 'master'
+            })
+
+      - name: "Trigger nightly for ${{ steps.release_branch_extraction_step.outputs.newest_release }}"
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'nightly.yml',
+              ref: '${{  steps.release_branch_extraction_step.outputs.newest_release }}'
+            })
+
+      - name: "Trigger nightly for ${{ steps.release_branch_extraction_step.outputs.penultimate_release }}"
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'nightly.yml',
+              ref: '${{  steps.release_branch_extraction_step.outputs.penultimate_release }}'
             })
