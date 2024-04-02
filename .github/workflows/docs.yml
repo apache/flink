@@ -32,7 +32,7 @@ jobs:
           - release-1.18
           - release-1.17
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ matrix.branch }}
       - name: Set branch environment variable
