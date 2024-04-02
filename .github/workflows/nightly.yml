@@ -24,10 +24,6 @@ on:
 permissions: read-all
 
 jobs:
-  pre-compile-checks:
-    name: "Pre-compile Checks"
-    uses: ./.github/workflows/template.pre-compile-checks.yml
-
   nightly:
     strategy:
       # each Flink CI run occupies 10 jobs in parallel

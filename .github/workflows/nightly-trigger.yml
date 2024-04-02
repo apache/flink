@@ -21,10 +21,11 @@ name: "Nightly trigger (beta)"
 on:
   schedule:
     - cron: '0 2 * * *'
+  workflow_dispatch:
 
 jobs:
   Trigger:
-    if: github.repository == 'apache/flink'
+    #if: github.repository == 'apache/flink'
     permissions:
       actions: write
     runs-on: ubuntu-latest

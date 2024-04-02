@@ -21,7 +21,7 @@ on:
 
 jobs:
   extract-release-branches:
-    if: github.repository == 'apache/flink'
+    #if: github.repository == 'apache/flink'
     name: "Extracts release branch information"
     runs-on: "ubuntu-latest"
     outputs:
@@ -80,27 +80,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ matrix.branch }}
-      - name: "Build documentation"
-        run: |
-          docker run --rm --volume "$PWD:/root/flink" chesnay/flink-ci:java_8_11_17_21_maven_386 bash -c "cd /root/flink && ./.github/workflows/docs.sh"
       - name: "Upload documentation for ${{ matrix.branch }}"
-        uses: burnett01/rsync-deployments@5.2
-        with:
-          switches: --archive --compress
-          path: docs/target/
-          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/flink/flink-docs-${{ env.flink_branch }}/
-          remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
-          remote_port: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
-          remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
-          remote_key: ${{ secrets.NIGHTLIES_RSYNC_KEY }}
+        run: echo ${{ matrix.branch }}
       - name: "Upload documentation for ${{ matrix.branch }} with alias ${{ matrix.alias }}"
         if: matrix.alias != ''
-        uses: burnett01/rsync-deployments@5.2
-        with:
-          switches: --archive --compress
-          path: docs/target/
-          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/flink/flink-docs-${{ env.flink_alias }}/
-          remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
-          remote_port: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
-          remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
-          remote_key: ${{ secrets.NIGHTLIES_RSYNC_KEY }}
+        run: echo ${{ matrix.branch}} with ${{ matrix.alias }}
