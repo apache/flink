@@ -53,7 +53,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** A test for the {@link PojoSerializer}. */
 class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.TestUserClass> {
-    private TypeInformation<TestUserClass> type = TypeExtractor.getForClass(TestUserClass.class);
+    private final TypeInformation<TestUserClass> type =
+            TypeExtractor.getForClass(TestUserClass.class);
 
     @Override
     protected TypeSerializer<TestUserClass> createSerializer() {
@@ -173,11 +174,8 @@ class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.TestUserC
                 return false;
             }
 
-            if ((nestedClass == null && otherTUC.nestedClass != null)
-                    || (nestedClass != null && !nestedClass.equals(otherTUC.nestedClass))) {
-                return false;
-            }
-            return true;
+            return (nestedClass != null || otherTUC.nestedClass == null)
+                    && (nestedClass == null || nestedClass.equals(otherTUC.nestedClass));
         }
     }
 

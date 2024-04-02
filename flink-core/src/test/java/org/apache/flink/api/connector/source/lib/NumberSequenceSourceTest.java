@@ -31,19 +31,19 @@ import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.SimpleUserCodeClassLoader;
 import org.apache.flink.util.UserCodeClassLoader;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the {@link NumberSequenceSource}. */
-public class NumberSequenceSourceTest {
+class NumberSequenceSourceTest {
 
     @Test
-    public void testReaderCheckpoints() throws Exception {
+    void testReaderCheckpoints() throws Exception {
         final long from = 177;
         final long mid = 333;
         final long to = 563;
@@ -94,6 +94,7 @@ public class NumberSequenceSourceTest {
 
     private static void failSequence(final List<Long> sequence, final long from, final long to) {
         fail(
+                "",
                 String.format(
                         "Expected: A sequence [%d, %d], but found: sequence (size %d) : %s",
                         from, to, sequence.size(), sequence));

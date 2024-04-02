@@ -29,7 +29,7 @@ import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializer
 import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest.SimpleTypes;
 import org.apache.flink.util.StringUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
@@ -212,7 +212,7 @@ public abstract class AbstractGenericArraySerializerTest {
         }
 
         @SuppressWarnings("unchecked")
-        Class<T[]> arrayClass = (Class<T[]>) (Class<?>) Array.newInstance(type, 0).getClass();
+        Class<T[]> arrayClass = (Class<T[]>) Array.newInstance(type, 0).getClass();
 
         GenericArraySerializer<T> serializer = createSerializer(type, componentSerializer);
         SerializerTestInstance<T[]> test =

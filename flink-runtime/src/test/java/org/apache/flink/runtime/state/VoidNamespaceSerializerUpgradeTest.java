@@ -20,16 +20,14 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
+import org.apache.flink.api.common.typeutils.TypeSerializerConditions;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 
-import org.hamcrest.Matcher;
+import org.assertj.core.api.Condition;
 
 import java.util.ArrayList;
 import java.util.Collection;
-
-import static org.hamcrest.Matchers.is;
 
 /** A {@link TypeSerializerUpgradeTestBase} for {@link VoidNamespaceSerializer}. */
 class VoidNamespaceSerializerUpgradeTest
@@ -83,14 +81,14 @@ class VoidNamespaceSerializerUpgradeTest
         }
 
         @Override
-        public Matcher<VoidNamespace> testDataMatcher() {
-            return is(VoidNamespace.INSTANCE);
+        public Condition<VoidNamespace> testDataCondition() {
+            return new Condition<>(VoidNamespace.INSTANCE::equals, "is VoidNamespace.INSTANCE");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<VoidNamespace>> schemaCompatibilityMatcher(
-                FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+        public Condition<TypeSerializerSchemaCompatibility<VoidNamespace>>
+                schemaCompatibilityCondition(FlinkVersion version) {
+            return TypeSerializerConditions.isCompatibleAsIs();
         }
     }
 }

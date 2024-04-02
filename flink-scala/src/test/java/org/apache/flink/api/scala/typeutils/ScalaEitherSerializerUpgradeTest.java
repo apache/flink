@@ -20,21 +20,19 @@ package org.apache.flink.api.scala.typeutils;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
+import org.apache.flink.api.common.typeutils.TypeSerializerConditions;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 
-import org.hamcrest.Matcher;
+import org.assertj.core.api.Condition;
 
 import java.util.ArrayList;
 import java.util.Collection;
 
 import scala.util.Either;
 import scala.util.Right;
-
-import static org.hamcrest.Matchers.is;
 
 /** A {@link TypeSerializerUpgradeTestBase} for {@link ScalaEitherSerializerSnapshot}. */
 class ScalaEitherSerializerUpgradeTest
@@ -88,14 +86,14 @@ class ScalaEitherSerializerUpgradeTest
         }
 
         @Override
-        public Matcher<Either<Integer, String>> testDataMatcher() {
-            return is(new Right<>("Hello world"));
+        public Condition<Either<Integer, String>> testDataCondition() {
+            return new Condition<>(value -> new Right<>("Hello world").equals(value), "");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<Either<Integer, String>>>
-                schemaCompatibilityMatcher(FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+        public Condition<TypeSerializerSchemaCompatibility<Either<Integer, String>>>
+                schemaCompatibilityCondition(FlinkVersion version) {
+            return TypeSerializerConditions.isCompatibleAsIs();
         }
     }
 }
