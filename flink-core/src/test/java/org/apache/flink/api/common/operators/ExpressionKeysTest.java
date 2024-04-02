@@ -28,7 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
-import org.apache.flink.api.java.typeutils.PojoTypeExtractionTest;
+import org.apache.flink.api.java.typeutils.PojoTypeExtractionTest.ComplexNestedClass;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
@@ -38,6 +38,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SuppressWarnings("unused")
@@ -57,8 +58,8 @@ class ExpressionKeysTest {
         // Fail: GenericType cannot be used as key
         TypeInformation<GenericNonKeyType> genericType =
                 new GenericTypeInfo<>(GenericNonKeyType.class);
-        assertThatThrownBy(() -> new ExpressionKeys<>("*", genericType))
-                .isInstanceOf(InvalidProgramException.class);
+        assertThatExceptionOfType(InvalidProgramException.class)
+                .isThrownBy(() -> new ExpressionKeys<>("*", genericType));
     }
 
     @Test
@@ -151,8 +152,8 @@ class ExpressionKeysTest {
                         BasicTypeInfo.LONG_TYPE_INFO,
                         TypeExtractor.getForClass(GenericNonKeyType.class));
 
-        assertThatThrownBy(() -> new ExpressionKeys<>(2, ti))
-                .isInstanceOf(InvalidProgramException.class);
+        assertThatExceptionOfType(InvalidProgramException.class)
+                .isThrownBy(() -> new ExpressionKeys<>(2, ti));
     }
 
     @Test
@@ -369,8 +370,8 @@ class ExpressionKeysTest {
 
     @Test
     void testInvalidPojo() {
-        TypeInformation<PojoTypeExtractionTest.ComplexNestedClass> ti =
-                TypeExtractor.getForClass(PojoTypeExtractionTest.ComplexNestedClass.class);
+        TypeInformation<ComplexNestedClass> ti =
+                TypeExtractor.getForClass(ComplexNestedClass.class);
 
         String[][] tests =
                 new String[][] {
@@ -461,8 +462,8 @@ class ExpressionKeysTest {
         ExpressionKeys<Pojo1> ek1 = new ExpressionKeys<>("a", t1);
         ExpressionKeys<Tuple2<String, Long>> ek2 = new ExpressionKeys<>(1, t2);
 
-        assertThatThrownBy(() -> ek1.areCompatible(ek2))
-                .isInstanceOf(Keys.IncompatibleKeysException.class);
+        assertThatExceptionOfType(Keys.IncompatibleKeysException.class)
+                .isThrownBy(() -> ek1.areCompatible(ek2));
     }
 
     @Test
@@ -474,8 +475,8 @@ class ExpressionKeysTest {
         ExpressionKeys<Pojo1> ek1 = new ExpressionKeys<>(new String[] {"a", "b"}, t1);
         ExpressionKeys<Tuple2<String, Long>> ek2 = new ExpressionKeys<>(0, t2);
 
-        assertThatThrownBy(() -> ek1.areCompatible(ek2))
-                .isInstanceOf(Keys.IncompatibleKeysException.class);
+        assertThatExceptionOfType(Keys.IncompatibleKeysException.class)
+                .isThrownBy(() -> ek1.areCompatible(ek2));
     }
 
     @Test

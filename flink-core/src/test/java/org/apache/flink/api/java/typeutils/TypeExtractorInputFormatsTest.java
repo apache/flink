@@ -59,7 +59,7 @@ class TypeExtractorInputFormatsTest {
             TypeInformation<?> typeInfo = TypeExtractor.getInputFormatTypes(format);
 
             assertThat(typeInfo.isTupleType()).isTrue();
-            assertThat(typeInfo instanceof TupleTypeInfo).isTrue();
+            assertThat(typeInfo).isInstanceOf(TupleTypeInfo.class);
 
             @SuppressWarnings("unchecked")
             TupleTypeInfo<Tuple3<String, Short, Double>> tupleInfo =
@@ -80,7 +80,7 @@ class TypeExtractorInputFormatsTest {
         TypeInformation<?> typeInfo = TypeExtractor.getInputFormatTypes(format);
 
         assertThat(typeInfo.isTupleType()).isTrue();
-        assertThat(typeInfo instanceof TupleTypeInfo).isTrue();
+        assertThat(typeInfo).isInstanceOf(TupleTypeInfo.class);
 
         @SuppressWarnings("unchecked")
         TupleTypeInfo<Tuple3<String, Integer, Double>> tupleInfo =

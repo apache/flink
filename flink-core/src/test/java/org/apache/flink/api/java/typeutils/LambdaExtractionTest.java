@@ -145,7 +145,7 @@ class LambdaExtractionTest {
 
         TypeInformation<?> ti =
                 TypeExtractor.getMapReturnTypes(f, NESTED_TUPLE_BOOLEAN_TYPE, null, true);
-        assertThat(ti instanceof BasicTypeInfo).isTrue();
+        assertThat(ti).isInstanceOf(BasicTypeInfo.class);
         assertThat(ti).isEqualTo(BasicTypeInfo.BOOLEAN_TYPE_INFO);
     }
 
@@ -260,7 +260,7 @@ class LambdaExtractionTest {
         TypeInformation<?> ti =
                 TypeExtractor.getMapReturnTypes(
                         f, new TypeHint<Tuple1<Integer>>() {}.getTypeInfo(), null, true);
-        assertThat(ti instanceof MissingTypeInfo).isTrue();
+        assertThat(ti).isInstanceOf(MissingTypeInfo.class);
     }
 
     @Test
@@ -268,7 +268,7 @@ class LambdaExtractionTest {
         TypeInformation<?> ti =
                 TypeExtractor.getMapReturnTypes(
                         Tuple1::of, BasicTypeInfo.STRING_TYPE_INFO, null, true);
-        assertThat(ti instanceof MissingTypeInfo).isTrue();
+        assertThat(ti).isInstanceOf(MissingTypeInfo.class);
     }
 
     @Test

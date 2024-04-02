@@ -180,7 +180,7 @@ public class TypeExtractorTest {
 
         assertThat(ti.isTupleType()).isTrue();
         assertThat(ti.getArity()).isEqualTo(9);
-        assertThat(ti instanceof TupleTypeInfo).isTrue();
+        assertThat(ti).isInstanceOf(TupleTypeInfo.class);
         List<FlatFieldDescriptor> ffd = new ArrayList<FlatFieldDescriptor>();
         ((TupleTypeInfo) ti).getFlatFields("f3", 0, ffd);
         assertThat(ffd).hasSize(1);
@@ -262,7 +262,7 @@ public class TypeExtractorTest {
                                                         Tuple2<Long, Long>>>() {}));
         assertThat(ti.isTupleType()).isTrue();
         assertThat(ti.getArity()).isEqualTo(3);
-        assertThat(ti instanceof TupleTypeInfo).isTrue();
+        assertThat(ti).isInstanceOf(TupleTypeInfo.class);
         List<FlatFieldDescriptor> ffd = new ArrayList<FlatFieldDescriptor>();
 
         ((TupleTypeInfo) ti).getFlatFields("f0.f0", 0, ffd);
@@ -345,7 +345,7 @@ public class TypeExtractorTest {
 
         assertThat(ti.isTupleType()).isTrue();
         assertThat(ti.getArity()).isZero();
-        assertThat(ti instanceof TupleTypeInfo).isTrue();
+        assertThat(ti).isInstanceOf(TupleTypeInfo.class);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -431,7 +431,7 @@ public class TypeExtractorTest {
 
         assertThat(ti.isBasicType()).isFalse();
         assertThat(ti.isTupleType()).isFalse();
-        assertThat(ti instanceof PojoTypeInfo).isTrue();
+        assertThat(ti).isInstanceOf(PojoTypeInfo.class);
         assertThat(ti.getTypeClass()).isEqualTo(CustomType.class);
 
         // use getForClass()
@@ -445,7 +445,7 @@ public class TypeExtractorTest {
 
         assertThat(ti2.isBasicType()).isFalse();
         assertThat(ti2.isTupleType()).isFalse();
-        assertThat(ti2 instanceof PojoTypeInfo).isTrue();
+        assertThat(ti2).isInstanceOf(PojoTypeInfo.class);
         assertThat(ti2.getTypeClass()).isEqualTo(CustomType.class);
 
         assertThat(
@@ -462,7 +462,7 @@ public class TypeExtractorTest {
 
         assertThat(ti.isBasicType()).isFalse();
         assertThat(ti.isTupleType()).isFalse();
-        assertThat(ti instanceof PojoTypeInfo).isTrue();
+        assertThat(ti).isInstanceOf(PojoTypeInfo.class);
         assertThat(ti.getTypeClass()).isEqualTo(CustomChainingPojoType.class);
     }
 
@@ -603,7 +603,7 @@ public class TypeExtractorTest {
 
         assertThat(ti.isBasicType()).isFalse();
         assertThat(ti.isTupleType()).isFalse();
-        assertThat(ti instanceof ValueTypeInfo).isTrue();
+        assertThat(ti).isInstanceOf(ValueTypeInfo.class);
         assertThat(ti.getTypeClass()).isEqualTo(StringValue.class);
 
         // use getForClass()
@@ -843,7 +843,7 @@ public class TypeExtractorTest {
         TypeInformation<?> ti =
                 TypeExtractor.getMapReturnTypes(
                         function, (TypeInformation) Types.STRING, "name", true);
-        assertThat(ti instanceof MissingTypeInfo).isTrue();
+        assertThat(ti).isInstanceOf(MissingTypeInfo.class);
 
         assertThatThrownBy(
                         () ->
@@ -868,7 +868,7 @@ public class TypeExtractorTest {
         TypeInformation<?> ti =
                 TypeExtractor.getMapReturnTypes(
                         function, (TypeInformation) Types.STRING, "name", true);
-        assertThat(ti instanceof MissingTypeInfo).isTrue();
+        assertThat(ti).isInstanceOf(MissingTypeInfo.class);
 
         assertThatThrownBy(
                         () ->
@@ -1043,7 +1043,7 @@ public class TypeExtractorTest {
 
         TypeInformation<?> ti =
                 TypeExtractor.getMapReturnTypes(function, Types.STRING, "name", true);
-        assertThat(ti instanceof MissingTypeInfo).isTrue();
+        assertThat(ti).isInstanceOf(MissingTypeInfo.class);
 
         assertThatThrownBy(() -> TypeExtractor.getMapReturnTypes(function, Types.STRING))
                 .isInstanceOf(InvalidTypesException.class);
@@ -1149,7 +1149,7 @@ public class TypeExtractorTest {
         TypeInformation<?> ti =
                 TypeExtractor.getMapReturnTypes(
                         function, BasicTypeInfo.BOOLEAN_TYPE_INFO, "name", true);
-        assertThat(ti instanceof MissingTypeInfo).isTrue();
+        assertThat(ti).isInstanceOf(MissingTypeInfo.class);
 
         assertThatThrownBy(
                         () ->
@@ -1351,7 +1351,7 @@ public class TypeExtractorTest {
 
         TypeInformation<?> ti =
                 TypeExtractor.getMapReturnTypes(function, BasicTypeInfo.STRING_TYPE_INFO);
-        assertThat(ti instanceof GenericTypeInfo).isTrue();
+        assertThat(ti).isInstanceOf(GenericTypeInfo.class);
 
         // abstract class with out class member
         RichMapFunction<String, ?> function2 =
@@ -1365,7 +1365,7 @@ public class TypeExtractorTest {
                 };
 
         ti = TypeExtractor.getMapReturnTypes(function2, BasicTypeInfo.STRING_TYPE_INFO);
-        assertThat(ti instanceof GenericTypeInfo).isTrue();
+        assertThat(ti).isInstanceOf(GenericTypeInfo.class);
 
         // abstract class with class member
         RichMapFunction<String, ?> function3 =
@@ -1379,7 +1379,7 @@ public class TypeExtractorTest {
                 };
 
         ti = TypeExtractor.getMapReturnTypes(function3, BasicTypeInfo.STRING_TYPE_INFO);
-        assertThat(ti instanceof PojoTypeInfo).isTrue();
+        assertThat(ti).isInstanceOf(PojoTypeInfo.class);
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -1401,7 +1401,7 @@ public class TypeExtractorTest {
                         (TypeInformation) TypeInformation.of(new TypeHint<StringValue>() {}),
                         "name",
                         true);
-        assertThat(ti instanceof MissingTypeInfo).isTrue();
+        assertThat(ti).isInstanceOf(MissingTypeInfo.class);
 
         assertThatThrownBy(
                         () ->
@@ -1461,7 +1461,7 @@ public class TypeExtractorTest {
                 TypeExtractor.getMapReturnTypes(
                         function, BasicArrayTypeInfo.BOOLEAN_ARRAY_TYPE_INFO);
 
-        assertThat(ti instanceof BasicArrayTypeInfo<?, ?>).isTrue();
+        assertThat(ti).isInstanceOf(BasicArrayTypeInfo.class);
         BasicArrayTypeInfo<?, ?> bati = (BasicArrayTypeInfo<?, ?>) ti;
         assertThat(bati.getComponentInfo().isBasicType()).isTrue();
         assertThat(bati.getComponentInfo()).isEqualTo(BasicTypeInfo.BOOLEAN_TYPE_INFO);
@@ -1488,7 +1488,7 @@ public class TypeExtractorTest {
                         (TypeInformation)
                                 TypeInformation.of(new TypeHint<CustomArrayObject[]>() {}));
 
-        assertThat(ti instanceof ObjectArrayTypeInfo<?, ?>).isTrue();
+        assertThat(ti).isInstanceOf(ObjectArrayTypeInfo.class);
         assertThat(((ObjectArrayTypeInfo<?, ?>) ti).getComponentInfo().getTypeClass())
                 .isEqualTo(CustomArrayObject.class);
     }
@@ -1513,7 +1513,7 @@ public class TypeExtractorTest {
                         (TypeInformation)
                                 TypeInformation.of(new TypeHint<Tuple2<String, String>[]>() {}));
 
-        assertThat(ti instanceof ObjectArrayTypeInfo<?, ?>).isTrue();
+        assertThat(ti).isInstanceOf(ObjectArrayTypeInfo.class);
         ObjectArrayTypeInfo<?, ?> oati = (ObjectArrayTypeInfo<?, ?>) ti;
         assertThat(oati.getComponentInfo().isTupleType()).isTrue();
         TupleTypeInfo<?> tti = (TupleTypeInfo<?>) oati.getComponentInfo();
@@ -1536,7 +1536,7 @@ public class TypeExtractorTest {
                         function,
                         (TypeInformation) TypeInformation.of(new TypeHint<Tuple1<Boolean>[]>() {}));
 
-        assertThat(ti instanceof ObjectArrayTypeInfo<?, ?>).isTrue();
+        assertThat(ti).isInstanceOf(ObjectArrayTypeInfo.class);
         ObjectArrayTypeInfo<?, ?> oati = (ObjectArrayTypeInfo<?, ?>) ti;
         assertThat(oati.getComponentInfo().isTupleType()).isTrue();
         TupleTypeInfo<?> tti = (TupleTypeInfo<?>) oati.getComponentInfo();
@@ -1563,7 +1563,7 @@ public class TypeExtractorTest {
         TypeInformation<?> ti =
                 TypeExtractor.getMapReturnTypes(
                         function, TypeInformation.of(new TypeHint<Boolean[]>() {}));
-        assertThat(ti instanceof ObjectArrayTypeInfo<?, ?>).isTrue();
+        assertThat(ti).isInstanceOf(ObjectArrayTypeInfo.class);
         ObjectArrayTypeInfo<?, ?> oati = (ObjectArrayTypeInfo<?, ?>) ti;
         assertThat(oati.getComponentInfo()).isEqualTo(BasicTypeInfo.BOOLEAN_TYPE_INFO);
     }
@@ -1588,7 +1588,7 @@ public class TypeExtractorTest {
                 };
         TypeInformation<?> inType = TypeExtractor.createTypeInfo(InType.class);
         TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) inType);
-        assertThat(ti instanceof PojoTypeInfo).isTrue();
+        assertThat(ti).isInstanceOf(PojoTypeInfo.class);
     }
 
     @Test
@@ -1697,7 +1697,7 @@ public class TypeExtractorTest {
                         TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {}),
                         "name",
                         true);
-        assertThat(ti instanceof MissingTypeInfo).isTrue();
+        assertThat(ti).isInstanceOf(MissingTypeInfo.class);
 
         assertThatThrownBy(
                         () ->
@@ -2097,7 +2097,7 @@ public class TypeExtractorTest {
 
         TypeInformation<?> ti =
                 TypeExtractor.getMapReturnTypes((MapFunction) mf, new EnumTypeInfo(MyEnum.class));
-        assertThat(ti instanceof EnumTypeInfo).isTrue();
+        assertThat(ti).isInstanceOf(EnumTypeInfo.class);
         assertThat(ti.getTypeClass()).isEqualTo(MyEnum.class);
     }
 

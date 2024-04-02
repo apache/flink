@@ -94,7 +94,6 @@ class NumberSequenceSourceTest {
 
     private static void failSequence(final List<Long> sequence, final long from, final long to) {
         fail(
-                "",
                 String.format(
                         "Expected: A sequence [%d, %d], but found: sequence (size %d) : %s",
                         from, to, sequence.size(), sequence));

@@ -142,11 +142,11 @@ class ResourceSpecTest {
         assertThat(rs3.getCpuCores()).isEqualTo(new CPUResource(2.0));
         assertThat(rs3.getTaskHeapMemory().getMebiBytes()).isEqualTo(200);
         assertThat(rs3.getExtendedResource(EXTERNAL_RESOURCE_NAME))
-                .contains(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1.1));
+                .hasValue(new ExternalResource(EXTERNAL_RESOURCE_NAME, 1.1));
 
         ResourceSpec rs4 = rs1.merge(rs3);
         assertThat(rs4.getExtendedResource(EXTERNAL_RESOURCE_NAME))
-                .contains(new ExternalResource(EXTERNAL_RESOURCE_NAME, 2.2));
+                .hasValue(new ExternalResource(EXTERNAL_RESOURCE_NAME, 2.2));
     }
 
     @Test
