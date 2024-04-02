@@ -33,6 +33,7 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -42,7 +43,6 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@code Transformation} represents the operation that creates a DataStream. Every DataStream has
@@ -160,7 +160,7 @@ public abstract class Transformation<T> {
      * will be shared by all the declaring transformations within a slot according to this weight.
      */
     private final Map<ManagedMemoryUseCase, Integer> managedMemoryOperatorScopeUseCaseWeights =
-            new HashMap<>();
+            new EnumMap<>(ManagedMemoryUseCase.class);
 
     /**
      * This map is a cache that stores transitive predecessors and used in {@code
@@ -306,8 +306,8 @@ public abstract class Transformation<T> {
      */
     public void setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
         OperatorValidationUtils.validateMinAndPreferredResources(minResources, preferredResources);
-        this.minResources = checkNotNull(minResources);
-        this.preferredResources = checkNotNull(preferredResources);
+        this.minResources = minResources;
+        this.preferredResources = preferredResources;
     }
 
     /**

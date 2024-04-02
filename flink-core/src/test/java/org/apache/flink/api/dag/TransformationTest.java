@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.dag;
 
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.core.testutils.CheckedThread;
@@ -132,6 +133,16 @@ class TransformationTest {
                                 transformation.declareManagedMemoryUseCaseAtSlotScope(
                                         ManagedMemoryUseCase.OPERATOR))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void testSetResourcesUseCaseFailNullResources() {
+        ResourceSpec resourceSpec = ResourceSpec.newBuilder(1.0, 100).build();
+
+        assertThatThrownBy(() -> transformation.setResources(null, resourceSpec))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> transformation.setResources(resourceSpec, null))
+                .isInstanceOf(NullPointerException.class);
     }
 
     /** A test implementation of {@link Transformation}. */
