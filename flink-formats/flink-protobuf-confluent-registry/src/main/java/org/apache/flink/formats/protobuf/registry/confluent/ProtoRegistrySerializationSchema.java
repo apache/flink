@@ -80,8 +80,12 @@ public class ProtoRegistrySerializationSchema implements SerializationSchema<Row
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof ProtoRegistrySerializationSchema)) return false;
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof ProtoRegistrySerializationSchema)) {
+            return false;
+        }
         ProtoRegistrySerializationSchema that = (ProtoRegistrySerializationSchema) o;
         return rowType.equals(that.rowType) && schemaCoder.equals(that.schemaCoder);
     }

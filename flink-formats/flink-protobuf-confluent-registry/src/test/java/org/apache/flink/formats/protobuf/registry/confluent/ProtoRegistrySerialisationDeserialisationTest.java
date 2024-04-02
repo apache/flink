@@ -22,6 +22,7 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.protobuf.registry.confluent.utils.FlinkToProtoSchemaConverter;
 import org.apache.flink.formats.protobuf.registry.confluent.utils.MockInitializationContext;
+import org.apache.flink.formats.protobuf.registry.confluent.utils.ProtoToFlinkSchemaConverter;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -36,6 +37,7 @@ import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.logical.SmallIntType;
@@ -164,5 +166,45 @@ public class ProtoRegistrySerialisationDeserialisationTest {
         final byte[] serialized = serialize(schemaId, row, rowType);
         final RowData deserialized = deserialize(serialized, schemaId, rowType);
         assertThat(deserialized).isEqualTo(row);
+    }
+
+    @Test
+    void test() throws Exception {
+        final byte[] data = {
+            0, 0, 1, -122, -94, 0, 10, 4, 83, 69, 76, 76, 16, -120, 6, 26, 4, 90, 66, 90, 88, 32,
+            107, 42, 6, 88, 89, 90, 55, 56, 57, 50, 6, 85, 115, 101, 114, 95, 53
+        };
+        final String schemaStr =
+                "syntax = \"proto3\";\n"
+                        + "package ksql;\n"
+                        + "\n"
+                        + "message StockTrade {\n"
+                        + "  string side = 1;\n"
+                        + "  int32 quantity = 2;\n"
+                        + "  string symbol = 3;\n"
+                        + "  int32 price = 4;\n"
+                        + "  string account = 5;\n"
+                        + "  string userid = 6;\n"
+                        + "}";
+
+        final ProtobufSchema protobufSchema = new ProtobufSchema(schemaStr);
+        final int schemaId = client.register(SUBJECT, protobufSchema, 0, 100002);
+        final LogicalType flinkSchema =
+                ProtoToFlinkSchemaConverter.toFlinkSchema(protobufSchema.toDescriptor());
+        SchemaCoder coder =
+                new SchemaCoderProviders.PreRegisteredSchemaCoder(schemaId, null, client);
+        final DeserializationSchema<RowData> serializationSchema =
+                new ProtoRegistryDeserializationSchema(
+                        coder, (RowType) flinkSchema, InternalTypeInfo.of(flinkSchema));
+        serializationSchema.open(new MockInitializationContext());
+        final RowData deserialized = serializationSchema.deserialize(data);
+        final GenericRowData expected = new GenericRowData(6);
+        expected.setField(0, StringData.fromString("SELL"));
+        expected.setField(1, 776);
+        expected.setField(2, StringData.fromString("ZBZX"));
+        expected.setField(3, 107);
+        expected.setField(4, StringData.fromString("XYZ789"));
+        expected.setField(5, StringData.fromString("User_5"));
+        assertThat(deserialized).isEqualTo(expected);
     }
 }

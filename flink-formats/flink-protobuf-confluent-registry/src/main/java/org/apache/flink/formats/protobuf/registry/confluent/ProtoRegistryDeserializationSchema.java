@@ -84,7 +84,7 @@ public class ProtoRegistryDeserializationSchema implements DeserializationSchema
             return (RowData) converter.convert(dynamicMessage);
 
         } catch (Exception e) {
-            throw new IOException("Failed to deserialize P protobuf message.", e);
+            throw new IOException("Failed to deserialize protobuf message.", e);
         }
     }
 
@@ -110,8 +110,12 @@ public class ProtoRegistryDeserializationSchema implements DeserializationSchema
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof ProtoRegistryDeserializationSchema)) return false;
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof ProtoRegistryDeserializationSchema)) {
+            return false;
+        }
         ProtoRegistryDeserializationSchema that = (ProtoRegistryDeserializationSchema) o;
         return rowType.equals(that.rowType)
                 && producedType.equals(that.producedType)

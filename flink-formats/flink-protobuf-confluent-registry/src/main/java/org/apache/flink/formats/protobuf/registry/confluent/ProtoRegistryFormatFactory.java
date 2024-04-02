@@ -85,11 +85,12 @@ public class ProtoRegistryFormatFactory
                 final Optional<Integer> schemaId =
                         formatOptions.getOptional(RegistryFormatOptions.SCHEMA_ID);
                 final Optional<String> subject = formatOptions.getOptional(SUBJECT);
-                if (!schemaId.isPresent() && !subject.isPresent())
+                if (!schemaId.isPresent() && !subject.isPresent()) {
                     throw new ValidationException(
                             String.format(
                                     "Option %s.%s is required for serialization",
                                     IDENTIFIER, SUBJECT.key()));
+                }
 
                 final SchemaCoder schemaCoder =
                         SchemaRegistryClientFactory.getCoder(rowType, formatOptions);

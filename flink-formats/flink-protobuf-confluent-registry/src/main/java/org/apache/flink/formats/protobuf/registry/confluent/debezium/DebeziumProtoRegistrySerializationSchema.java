@@ -129,8 +129,12 @@ public class DebeziumProtoRegistrySerializationSchema implements SerializationSc
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof DebeziumProtoRegistrySerializationSchema)) return false;
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof DebeziumProtoRegistrySerializationSchema)) {
+            return false;
+        }
         DebeziumProtoRegistrySerializationSchema that =
                 (DebeziumProtoRegistrySerializationSchema) o;
         return rowType.equals(that.rowType) && protoSerializer.equals(that.protoSerializer);

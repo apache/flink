@@ -152,8 +152,12 @@ public class DebeziumProtoRegistryDeserializationSchema implements Deserializati
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof DebeziumProtoRegistryDeserializationSchema)) return false;
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof DebeziumProtoRegistryDeserializationSchema)) {
+            return false;
+        }
         DebeziumProtoRegistryDeserializationSchema that =
                 (DebeziumProtoRegistryDeserializationSchema) o;
         return protoDeserializer.equals(that.protoDeserializer)

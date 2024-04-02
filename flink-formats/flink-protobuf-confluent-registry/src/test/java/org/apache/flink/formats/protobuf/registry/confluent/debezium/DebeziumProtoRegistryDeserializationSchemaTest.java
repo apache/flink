@@ -30,7 +30,8 @@ import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLoggerExtension;
 
-import com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
+
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import io.confluent.connect.protobuf.ProtobufConverter;
@@ -64,12 +65,13 @@ import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 import static org.junit.Assert.assertEquals;
 
+/** Tests for deserializing Schema Registry Proto Debezium encoded messages. */
 @ExtendWith(TestLoggerExtension.class)
 public class DebeziumProtoRegistryDeserializationSchemaTest {
 
     private static final String TEST_TOPIC = "test-topic";
 
-    /** Kafka Connect's Converters use topic-name-value as default subject */
+    /** Kafka Connect's Converters use topic-name-value as default subject. */
     private static final String SUBJECT = TEST_TOPIC + "-value";
 
     private static final Map<String, ?> SR_CONFIG =
@@ -162,7 +164,7 @@ public class DebeziumProtoRegistryDeserializationSchemaTest {
         Descriptors.Descriptor valueDescriptor = envelopDescriptor.findNestedTypeByName("Value");
         DynamicMessage.Builder valueBuilder = DynamicMessage.newBuilder(valueDescriptor);
 
-        valueBuilder.setField(valueDescriptor.findFieldByName("id"), 10l);
+        valueBuilder.setField(valueDescriptor.findFieldByName("id"), 10L);
         valueBuilder.setField(valueDescriptor.findFieldByName("name"), "testName");
         valueBuilder.setField(valueDescriptor.findFieldByName("salary"), 10);
         DynamicMessage value = valueBuilder.build();
@@ -184,13 +186,13 @@ public class DebeziumProtoRegistryDeserializationSchemaTest {
 
         Descriptors.Descriptor valueDescriptor = envelopDescriptor.findNestedTypeByName("Value");
         DynamicMessage.Builder valueBuilderBefore = DynamicMessage.newBuilder(valueDescriptor);
-        valueBuilderBefore.setField(valueDescriptor.findFieldByName("id"), 10l);
+        valueBuilderBefore.setField(valueDescriptor.findFieldByName("id"), 10L);
         valueBuilderBefore.setField(valueDescriptor.findFieldByName("name"), "testName");
         valueBuilderBefore.setField(valueDescriptor.findFieldByName("salary"), 10);
         DynamicMessage valueBefore = valueBuilderBefore.build();
 
         DynamicMessage.Builder valueBuilderAfter = DynamicMessage.newBuilder(valueDescriptor);
-        valueBuilderAfter.setField(valueDescriptor.findFieldByName("id"), 10l);
+        valueBuilderAfter.setField(valueDescriptor.findFieldByName("id"), 10L);
         valueBuilderAfter.setField(valueDescriptor.findFieldByName("name"), "testNameUpdated");
         valueBuilderAfter.setField(valueDescriptor.findFieldByName("salary"), 10);
         DynamicMessage valueAfter = valueBuilderAfter.build();

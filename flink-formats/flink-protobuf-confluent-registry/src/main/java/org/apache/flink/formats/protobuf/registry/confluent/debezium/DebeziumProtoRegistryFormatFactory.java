@@ -40,6 +40,13 @@ import org.apache.flink.types.RowKind;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * Table format factory for providing configured instances of Schema Registry Debezium Protobuf to
+ * RowData. {@link
+ * org.apache.flink.formats.protobuf.registry.confluent.debezium.DebeziumProtoRegistryDeserializationSchema}
+ * and {@link
+ * org.apache.flink.formats.protobuf.registry.confluent.debezium.DebeziumProtoRegistrySerializationSchema}.
+ */
 public class DebeziumProtoRegistryFormatFactory
         implements DeserializationFormatFactory, SerializationFormatFactory {
 

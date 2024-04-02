@@ -43,7 +43,7 @@ import java.util.Objects;
 
 import static java.lang.String.format;
 
-/** Factory for {@link org.apache.flink.formats.protobuf.registry.confluent.SchemaCoder} */
+/** Factory for {@link org.apache.flink.formats.protobuf.registry.confluent.SchemaCoder}. */
 public class SchemaCoderProviders {
 
     /**
@@ -83,8 +83,9 @@ public class SchemaCoderProviders {
      * }
      * </pre>
      *
-     * In order to use messageD the messageName should contain the value of test.package.messageD.
-     * Similarly, for messageF to be used messageName should contain test.package.MessageE.MessageF.
+     * <p>In order to use messageD the messageName should contain the value of
+     * test.package.messageD. Similarly, for messageF to be used messageName should contain
+     * test.package.MessageE.MessageF.
      *
      * @param schemaId SchemaId for external schema referenced for encoding/decoding of payload.
      * @param messageName Optional message name to be used to select the right {@link
@@ -131,7 +132,7 @@ public class SchemaCoderProviders {
         private static final String ROW = "row";
         private static final String PACKAGE = "io.confluent.generated";
         private static final List<Integer> DEFAULT_INDEX = Collections.singletonList(0);
-        /** Subject can be nullable in case coder is only used for deserialization */
+        /** Subject can be nullable in case coder is only used for deserialization. */
         private @Nullable final String subject;
 
         private final ProtobufSchema rowSchema;
@@ -206,8 +207,12 @@ public class SchemaCoderProviders {
 
         @Override
         public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof DefaultSchemaCoder)) return false;
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof DefaultSchemaCoder)) {
+                return false;
+            }
             DefaultSchemaCoder that = (DefaultSchemaCoder) o;
             return Objects.equals(subject, that.subject)
                     && Objects.equals(rowSchema, that.rowSchema);
@@ -314,8 +319,12 @@ public class SchemaCoderProviders {
 
         @Override
         public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof PreRegisteredSchemaCoder)) return false;
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof PreRegisteredSchemaCoder)) {
+                return false;
+            }
             PreRegisteredSchemaCoder that = (PreRegisteredSchemaCoder) o;
             return schemaId == that.schemaId && Objects.equals(messageName, that.messageName);
         }
