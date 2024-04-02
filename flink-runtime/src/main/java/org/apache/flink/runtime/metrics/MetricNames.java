@@ -44,6 +44,9 @@ public class MetricNames {
     public static final String IO_CURRENT_INPUT_WATERMARK_PATERN = "currentInput%dWatermark";
     public static final String IO_CURRENT_OUTPUT_WATERMARK = "currentOutputWatermark";
 
+    public static final String NUM_FIRED_TIMERS = "numFiredTimers";
+    public static final String NUM_FIRED_TIMERS_RATE = "numFiredTimers" + SUFFIX_RATE;
+
     public static final String NUM_RUNNING_JOBS = "numRunningJobs";
     public static final String TASK_SLOTS_AVAILABLE = "taskSlotsAvailable";
     public static final String TASK_SLOTS_TOTAL = "taskSlotsTotal";

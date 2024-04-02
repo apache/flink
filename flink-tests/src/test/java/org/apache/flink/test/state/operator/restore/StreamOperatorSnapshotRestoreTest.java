@@ -33,6 +33,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
@@ -236,6 +237,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
                 new InternalTimeServiceManager.Provider() {
                     @Override
                     public <K> InternalTimeServiceManager<K> create(
+                            TaskIOMetricGroup taskIOMetricGroup,
                             CheckpointableKeyedStateBackend<K> keyedStatedBackend,
                             ClassLoader userClassloader,
                             KeyContext keyContext,

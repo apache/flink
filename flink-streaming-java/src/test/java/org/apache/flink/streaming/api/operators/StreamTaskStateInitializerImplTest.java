@@ -32,6 +32,7 @@ import org.apache.flink.runtime.checkpoint.metadata.CheckpointTestUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
@@ -343,6 +344,7 @@ class StreamTaskStateInitializerImplTest {
                     new InternalTimeServiceManager.Provider() {
                         @Override
                         public <K> InternalTimeServiceManager<K> create(
+                                TaskIOMetricGroup taskIOMetricGroup,
                                 CheckpointableKeyedStateBackend<K> keyedStatedBackend,
                                 ClassLoader userClassloader,
                                 KeyContext keyContext,

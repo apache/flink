@@ -24,6 +24,8 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
@@ -89,6 +91,8 @@ class InternalTimerServiceImplTest {
 
         InternalTimerServiceImpl<Integer, String> service =
                 createInternalTimerService(
+                        UnregisteredMetricGroups.createUnregisteredTaskMetricGroup()
+                                .getIOMetricGroup(),
                         testKeyGroupList,
                         keyContext,
                         processingTimeService,
@@ -119,6 +123,8 @@ class InternalTimerServiceImplTest {
 
         InternalTimerServiceImpl<Integer, String> timerService =
                 createInternalTimerService(
+                        UnregisteredMetricGroups.createUnregisteredTaskMetricGroup()
+                                .getIOMetricGroup(),
                         keyGroupRange,
                         keyContext,
                         new TestProcessingTimeService(),
@@ -401,13 +407,22 @@ class InternalTimerServiceImplTest {
 
         TestKeyContext keyContext = new TestKeyContext();
         TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
-        InternalTimerServiceImpl<Integer, String> timerService =
-                createAndStartInternalTimerService(
-                        mockTriggerable,
+        PriorityQueueSetFactory priorityQueueSetFactory = createQueueFactory();
+        TaskIOMetricGroup taskIOMetricGroup =
+                UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup();
+        InternalTimerServiceImpl<Integer, String> service =
+                createInternalTimerService(
+                        taskIOMetricGroup,
+                        testKeyGroupRange,
                         keyContext,
                         processingTimeService,
-                        testKeyGroupRange,
-                        createQueueFactory());
+                        IntSerializer.INSTANCE,
+                        StringSerializer.INSTANCE,
+                        priorityQueueSetFactory);
+
+        service.startTimerService(
+                IntSerializer.INSTANCE, StringSerializer.INSTANCE, mockTriggerable);
+        InternalTimerServiceImpl<Integer, String> timerService = service;
 
         // get two different keys
         int key1 = getKeyInKeyGroupRange(testKeyGroupRange, maxParallelism);
@@ -431,6 +446,7 @@ class InternalTimerServiceImplTest {
         assertThat(timerService.numEventTimeTimers("ciao")).isEqualTo(2);
 
         timerService.advanceWatermark(10);
+        assertThat(taskIOMetricGroup.getNumFiredTimers().getCount()).isEqualTo(4);
 
         verify(mockTriggerable, times(4)).onEventTime(anyInternalTimer());
         verify(mockTriggerable, times(1))
@@ -453,13 +469,22 @@ class InternalTimerServiceImplTest {
 
         TestKeyContext keyContext = new TestKeyContext();
         TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
-        InternalTimerServiceImpl<Integer, String> timerService =
-                createAndStartInternalTimerService(
-                        mockTriggerable,
+        PriorityQueueSetFactory priorityQueueSetFactory = createQueueFactory();
+        TaskIOMetricGroup taskIOMetricGroup =
+                UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup();
+        InternalTimerServiceImpl<Integer, String> service =
+                createInternalTimerService(
+                        taskIOMetricGroup,
+                        testKeyGroupRange,
                         keyContext,
                         processingTimeService,
-                        testKeyGroupRange,
-                        createQueueFactory());
+                        IntSerializer.INSTANCE,
+                        StringSerializer.INSTANCE,
+                        priorityQueueSetFactory);
+
+        service.startTimerService(
+                IntSerializer.INSTANCE, StringSerializer.INSTANCE, mockTriggerable);
+        InternalTimerServiceImpl<Integer, String> timerService = service;
 
         // get two different keys
         int key1 = getKeyInKeyGroupRange(testKeyGroupRange, maxParallelism);
@@ -483,6 +508,7 @@ class InternalTimerServiceImplTest {
         assertThat(timerService.numProcessingTimeTimers("ciao")).isEqualTo(2);
 
         processingTimeService.setCurrentTime(10);
+        assertThat(taskIOMetricGroup.getNumFiredTimers().getCount()).isEqualTo(4);
 
         verify(mockTriggerable, times(4)).onProcessingTime(anyInternalTimer());
         verify(mockTriggerable, times(1))
@@ -1002,6 +1028,8 @@ class InternalTimerServiceImplTest {
             PriorityQueueSetFactory priorityQueueSetFactory) {
         InternalTimerServiceImpl<Integer, String> service =
                 createInternalTimerService(
+                        UnregisteredMetricGroups.createUnregisteredTaskMetricGroup()
+                                .getIOMetricGroup(),
                         keyGroupList,
                         keyContext,
                         processingTimeService,
@@ -1026,6 +1054,8 @@ class InternalTimerServiceImplTest {
         // create an empty service
         InternalTimerServiceImpl<Integer, String> service =
                 createInternalTimerService(
+                        UnregisteredMetricGroups.createUnregisteredTaskMetricGroup()
+                                .getIOMetricGroup(),
                         keyGroupsList,
                         keyContext,
                         processingTimeService,
@@ -1083,6 +1113,7 @@ class InternalTimerServiceImplTest {
     }
 
     private static <K, N> InternalTimerServiceImpl<K, N> createInternalTimerService(
+            TaskIOMetricGroup taskIOMetricGroup,
             KeyGroupRange keyGroupsList,
             KeyContext keyContext,
             ProcessingTimeService processingTimeService,
@@ -1094,6 +1125,7 @@ class InternalTimerServiceImplTest {
                 new TimerSerializer<>(keySerializer, namespaceSerializer);
 
         return new InternalTimerServiceImpl<>(
+                taskIOMetricGroup,
                 keyGroupsList,
                 keyContext,
                 processingTimeService,
