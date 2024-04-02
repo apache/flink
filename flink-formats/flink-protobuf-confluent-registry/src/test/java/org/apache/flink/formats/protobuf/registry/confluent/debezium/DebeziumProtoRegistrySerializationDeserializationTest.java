@@ -67,7 +67,7 @@ import static org.junit.Assert.assertEquals;
 
 /** Tests for deserializing Schema Registry Proto Debezium encoded messages. */
 @ExtendWith(TestLoggerExtension.class)
-public class DebeziumProtoRegistryDeserializationSchemaTest {
+public class DebeziumProtoRegistrySerializationDeserializationTest {
 
     private static final String TEST_TOPIC = "test-topic";
 

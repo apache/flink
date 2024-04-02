@@ -46,13 +46,18 @@ import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.DateTimeUtils;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.TestLoggerExtension;
 
 import com.google.protobuf.Descriptors.Descriptor;
+import io.confluent.connect.protobuf.ProtobufConverter;
 import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
+import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig;
+import org.apache.kafka.connect.data.SchemaAndValue;
+import org.apache.kafka.connect.data.Struct;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -63,8 +68,16 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Map;
 
+import static org.apache.flink.table.api.DataTypes.BIGINT;
+import static org.apache.flink.table.api.DataTypes.FIELD;
+import static org.apache.flink.table.api.DataTypes.INT;
+import static org.apache.flink.table.api.DataTypes.ROW;
+import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Smoke tests for checking {@link ProtoRegistrySerializationSchema} and {@link
@@ -76,7 +89,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(TestLoggerExtension.class)
 public class ProtoRegistrySerialisationDeserialisationTest {
 
-    private static final String SUBJECT = "test-subject";
+    private static final String TEST_TOPIC = "test-topic";
+
+    /** Kafka Connect's Converters use topic-name-value as default subject. */
+    private static final String SUBJECT = TEST_TOPIC + "-value";
 
     private static SchemaRegistryClient client;
 
@@ -113,6 +129,54 @@ public class ProtoRegistrySerialisationDeserialisationTest {
     @AfterEach
     void after() throws IOException, RestClientException {
         client.deleteSubject(SUBJECT);
+    }
+
+    @Test
+    void testMessageIndexHandlingWithConnectDecoder() throws Exception {
+        String protoSchemaStr =
+                "syntax = \"proto3\";\n"
+                        + "import \"google/protobuf/timestamp.proto\";\n"
+                        + "package io.confluent.test;\n"
+                        + "message UserId {\n"
+                        + "    string kafka_user_id = 1;\n"
+                        + "    int32 other_user_id = 2;\n"
+                        + "    MessageId another_id = 3;\n"
+                        + "}\n"
+                        + "\n"
+                        + "message MessageId {\n"
+                        + "  string id = 1;\n"
+                        + "}\n"
+                        + "\n"
+                        + "message Employee {\n"
+                        + "  int64 id=1;\n"
+                        + "  string name=2;\n"
+                        + "  int32 salary=3;\n"
+                        + "}\n";
+
+        ProtobufSchema protoSchema = new ProtobufSchema(protoSchemaStr);
+        int schemaId = client.register(SUBJECT, protoSchema);
+
+        final RowType rowType =
+                (RowType)
+                        ROW(FIELD("id", BIGINT()), FIELD("name", STRING()), FIELD("salary", INT()))
+                                .getLogicalType();
+        SchemaCoder coder =
+                SchemaCoderProviders.createForPreRegisteredSchema(
+                        schemaId, "io.confluent.test.Employee", client);
+        ProtoRegistrySerializationSchema protoSerializer =
+                new ProtoRegistrySerializationSchema(coder, rowType);
+        protoSerializer.open(new MockInitializationContext());
+        GenericRowData row = GenericRowData.of(1L, StringData.fromString("dummyName"), 10);
+        row.setRowKind(RowKind.INSERT);
+        byte[] payload = protoSerializer.serialize(row);
+        Map<String, ?> schemaRegistryConfig =
+                Collections.singletonMap(
+                        AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, "localhost");
+        ProtobufConverter protoConverter = new ProtobufConverter(client);
+        protoConverter.configure(schemaRegistryConfig, false); // out schema registry version
+        SchemaAndValue connectData = protoConverter.toConnectData(TEST_TOPIC, payload);
+        Struct value = (Struct) connectData.value();
+        assertEquals("dummyName", value.get("name"));
     }
 
     @Test
