@@ -37,6 +37,7 @@ import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
@@ -149,6 +150,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
             new InternalTimeServiceManager.Provider() {
                 @Override
                 public <K> InternalTimeServiceManager<K> create(
+                        TaskIOMetricGroup taskIOMetricGroup,
                         CheckpointableKeyedStateBackend<K> keyedStatedBackend,
                         ClassLoader userClassloader,
                         KeyContext keyContext,
@@ -158,6 +160,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
                         throws Exception {
                     InternalTimeServiceManagerImpl<K> typedTimeServiceManager =
                             InternalTimeServiceManagerImpl.create(
+                                    taskIOMetricGroup,
                                     keyedStatedBackend,
                                     userClassloader,
                                     keyContext,

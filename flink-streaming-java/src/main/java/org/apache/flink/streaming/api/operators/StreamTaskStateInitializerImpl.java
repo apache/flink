@@ -228,6 +228,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 
                 timeServiceManager =
                         timeServiceManagerProvider.create(
+                                environment.getMetricGroup().getIOMetricGroup(),
                                 keyedStatedBackend,
                                 environment.getUserCodeClassLoader().asClassLoader(),
                                 keyContext,
