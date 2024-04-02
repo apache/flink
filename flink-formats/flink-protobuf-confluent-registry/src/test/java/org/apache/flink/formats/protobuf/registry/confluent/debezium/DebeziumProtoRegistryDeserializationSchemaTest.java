@@ -130,12 +130,22 @@ public class DebeziumProtoRegistryDeserializationSchemaTest {
         client.deleteSubject(SUBJECT);
     }
 
+    /**
+     * Populates a debezium message with valid payload corresponding to before key.
+     *
+     * @return
+     */
     private DynamicMessage populateDebeziumMessageWithBeforeKey() {
-        return populateDebeziumMessageWithKey("before", "d");
+        return createDebeziumMessageWithKeyAndOperation("before", "d");
     }
 
+    /**
+     * Populates a debezium message with valid payload corresponding to after key.
+     *
+     * @return
+     */
     private DynamicMessage populateDebeziumMessageWithAfterKey() {
-        return populateDebeziumMessageWithKey("after", "c");
+        return createDebeziumMessageWithKeyAndOperation("after", "c");
     }
 
     private Descriptors.Descriptor envelopDescriptor() {
@@ -145,7 +155,7 @@ public class DebeziumProtoRegistryDeserializationSchemaTest {
         return fileDescriptor.findMessageTypeByName("Envelope");
     }
 
-    private DynamicMessage populateDebeziumMessageWithKey(String key, String op) {
+    private DynamicMessage createDebeziumMessageWithKeyAndOperation(String key, String op) {
         Descriptors.Descriptor envelopDescriptor = envelopDescriptor();
         DynamicMessage.Builder envelopBuilder = DynamicMessage.newBuilder(envelopDescriptor);
 
@@ -163,7 +173,12 @@ public class DebeziumProtoRegistryDeserializationSchemaTest {
         return outerEnvelop;
     }
 
-    private DynamicMessage populateUpdateDebeziumMessage() {
+    /**
+     * Populates a debezium message with before and after fields.
+     *
+     * @return Dynamic message in debezium format with before and after sections populated.
+     */
+    private DynamicMessage createDebeziumMessageForUpdate() {
         Descriptors.Descriptor envelopDescriptor = envelopDescriptor();
         DynamicMessage.Builder envelopBuilder = DynamicMessage.newBuilder(envelopDescriptor);
 
@@ -178,7 +193,7 @@ public class DebeziumProtoRegistryDeserializationSchemaTest {
         valueBuilderAfter.setField(valueDescriptor.findFieldByName("id"), 10l);
         valueBuilderAfter.setField(valueDescriptor.findFieldByName("name"), "testNameUpdated");
         valueBuilderAfter.setField(valueDescriptor.findFieldByName("salary"), 10);
-        DynamicMessage valueAfter = valueBuilderBefore.build();
+        DynamicMessage valueAfter = valueBuilderAfter.build();
 
         envelopBuilder.setField(envelopDescriptor.findFieldByName("op"), "u");
         envelopBuilder.setField(envelopDescriptor.findFieldByName("before"), valueBefore);
@@ -187,6 +202,11 @@ public class DebeziumProtoRegistryDeserializationSchemaTest {
         return outerEnvelop;
     }
 
+    /**
+     * Tests to validate that we can read a byte[] written by connect from Flink's Deserializer.
+     *
+     * @throws Exception
+     */
     @Test
     void testDeserializationForConnectEncodedMessage() throws Exception {
         DynamicMessage debeziumMessage = populateDebeziumMessageWithBeforeKey();
@@ -217,6 +237,17 @@ public class DebeziumProtoRegistryDeserializationSchemaTest {
         assertEquals(row.getRowKind(), RowKind.DELETE);
     }
 
+    /**
+     * Validate that type of rows obtained post deserialization matches supplied kinds.
+     *
+     * <p>Post deserialization we might get multiple {@link org.apache.flink.table.data.RowData}
+     * rows. This method validates that type of rows match supplied types for a specified index.
+     *
+     * @param debeziumMessageGenerator supplier to generate debezium encoded protobuf message.
+     * @param kinds list of {@link org.apache.flink.types.RowKind} to match corresponding rows
+     *     against.
+     * @throws Exception
+     */
     private void testDataDeserialization(
             Supplier<DynamicMessage> debeziumMessageGenerator, List<RowKind> kinds)
             throws Exception {
@@ -264,7 +295,7 @@ public class DebeziumProtoRegistryDeserializationSchemaTest {
     @Test
     public void testUpdateDataDeserialization() throws Exception {
         testDataDeserialization(
-                this::populateUpdateDebeziumMessage,
+                this::createDebeziumMessageForUpdate,
                 ImmutableList.of(RowKind.UPDATE_BEFORE, RowKind.UPDATE_AFTER));
     }
 

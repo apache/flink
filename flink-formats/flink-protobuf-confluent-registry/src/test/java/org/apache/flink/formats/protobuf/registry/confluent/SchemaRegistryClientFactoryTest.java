@@ -14,7 +14,7 @@ import static org.junit.Assert.assertEquals;
 class SchemaRegistryClientFactoryTest {
 
     @Test
-    void testShouldCreateDefaultCoder() throws Exception {
+    void testShouldCreateDefaultCoder() {
         Configuration configuration = new Configuration();
         configuration.set(RegistryFormatOptions.SUBJECT, "test-subject");
         configuration.set(RegistryFormatOptions.URL, "localhost");
@@ -25,7 +25,7 @@ class SchemaRegistryClientFactoryTest {
     }
 
     @Test
-    void testShouldCreatePreRegisteredSchemaCoder() throws Exception {
+    void testShouldCreatePreRegisteredSchemaCoder() {
         Configuration configuration = new Configuration();
         configuration.set(RegistryFormatOptions.SCHEMA_ID, 10);
         configuration.set(RegistryFormatOptions.URL, "localhost");

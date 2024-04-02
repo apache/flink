@@ -103,8 +103,8 @@ public class DebeziumProtoRegistryDeserializationSchema implements Deserializati
     @Override
     public void open(InitializationContext context) throws Exception {
         protoDeserializer.open(context);
-        // todo do basic validation
-        // todo what about case here for before/after?
+        // TODO do basic validation
+        // TODO what about case?
     }
 
     @Override
