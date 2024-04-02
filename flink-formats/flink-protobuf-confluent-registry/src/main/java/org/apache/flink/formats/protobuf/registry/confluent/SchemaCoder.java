@@ -40,7 +40,7 @@ import java.nio.ByteBuffer;
  *     Wire Format for Schema Registry</a>
  */
 public abstract class SchemaCoder {
-    protected final int CONFLUENT_MAGIC_BYTE = 0;
+    static final int CONFLUENT_MAGIC_BYTE = 0;
 
     /**
      * Writes an integer value in big-endian encoding.
