@@ -92,7 +92,7 @@ public class KryoSerializerCompatibilityTest {
         included. This test verifies that we can still deserialize data written pre-1.4.
         */
         class FakeAvroClass {
-            public List<Integer> array;
+            public final List<Integer> array;
 
             FakeAvroClass(List<Integer> array) {
                 this.array = array;
@@ -146,7 +146,7 @@ public class KryoSerializerCompatibilityTest {
     public void testMigrationWithTypeDevoidOfAvroTypes() throws Exception {
 
         class FakeClass {
-            public List<Integer> array;
+            public final List<Integer> array;
 
             FakeClass(List<Integer> array) {
                 this.array = array;

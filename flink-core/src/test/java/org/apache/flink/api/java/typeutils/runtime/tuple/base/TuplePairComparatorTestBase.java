@@ -65,9 +65,9 @@ public abstract class TuplePairComparatorTestBase<T extends Tuple, R extends Tup
             for (int y = x + 1; y < data.f1.length; y++) {
                 comparator.setReference(data.f0[x]);
                 if (ascending) {
-                    assertThat(comparator.compareToReference(data.f1[y]) > 0).isTrue();
+                    assertThat(comparator.compareToReference(data.f1[y])).isPositive();
                 } else {
-                    assertThat(comparator.compareToReference(data.f1[y]) < 0).isTrue();
+                    assertThat(comparator.compareToReference(data.f1[y])).isNegative();
                 }
             }
         }
