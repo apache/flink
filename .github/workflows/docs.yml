@@ -20,36 +20,70 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-documentation:
+  extract-release-branches:
     if: github.repository == 'apache/flink'
+    name: "Extracts release branch information"
+    runs-on: "ubuntu-latest"
+    outputs:
+      matrix_config: ${{ steps.matrix_generation_step.outputs.matrix_config }}
+    steps:
+      - name: "Flink Checkout"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: "Extracts dev version"
+        id: dev_version_extraction_step
+        run: |
+          master_snapshot_version="$(./mvnw help:evaluate --quiet -Dexpression=project.version -DforceStdout)"
+          echo "dev_version=$(echo ${master_snapshot_version} | cut -d'-' -f1)" >> ${GITHUB_OUTPUT}
+
+      - name: "Extracts release branch from checkout"
+        id: release_branch_extraction_step
+        uses: "./.github/actions/release_branch_extraction"
+
+      - name: "Generates matrix configuration"
+        id: matrix_generation_step
+        shell: bash
+        run: |
+          newest_release="${{ steps.release_branch_extraction_step.outputs.newest_release }}"
+          penultimate_release="${{ steps.release_branch_extraction_step.outputs.penultimate_release }}"
+          antepenultimate_release="${{ steps.release_branch_extraction_step.outputs.antepenultimate_release }}"
+          
+          # matrix strategy generation
+          matrix_config_json='{"include": ['
+          
+          # master (e.g. 1.20)
+          matrix_config_json=${matrix_config_json}'{"branch": "master", "alias": "release-${{ steps.dev_version_extraction_step.outputs.dev_version }}"},'
+          
+          # most-recent release (e.g. 1.19)
+          matrix_config_json=${matrix_config_json}'{"branch": "'${newest_release}'", "alias": "stable"},'
+          
+          # predecessor of most-recent release (e.g. 1.18)
+          matrix_config_json=${matrix_config_json}'{"branch": "'${penultimate_release}'", "alias": ""},'
+          
+          # release that was deprecated with the most-recent release (e.g. 1.17)
+          matrix_config_json=${matrix_config_json}'{"branch": "'${antepenultimate_release}'", "alias": ""}'
+          
+          matrix_config_json=${matrix_config_json}']}'
+          
+          echo "matrix_config=${matrix_config_json}" >> ${GITHUB_OUTPUT}
+
+  build-documentation:
+    needs: extract-release-branches
+    name: "Builds Documentation"
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 1
-      matrix:
-        branch:
-          - master
-          - release-1.19
-          - release-1.18
-          - release-1.17
+      matrix: ${{ fromJSON(needs.extract-release-branches.outputs.matrix_config) }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ matrix.branch }}
-      - name: Set branch environment variable
-        run: |
-          currentBranch=$(git branch --show-current)
-
-          echo "flink_branch=${currentBranch}" >> ${GITHUB_ENV}
-
-          if [ "${currentBranch}" = "master" ]; then
-            echo "flink_alias=release-1.20" >> ${GITHUB_ENV}
-          elif [ "${currentBranch}" = "release-1.19" ]; then
-            echo "flink_alias=stable" >> ${GITHUB_ENV}
-          fi
-      - name: Build documentation
+      - name: "Build documentation"
         run: |
           docker run --rm --volume "$PWD:/root/flink" chesnay/flink-ci:java_8_11_17_21_maven_386 bash -c "cd /root/flink && ./.github/workflows/docs.sh"
-      - name: Upload documentation
+      - name: "Upload documentation for ${{ matrix.branch }}"
         uses: burnett01/rsync-deployments@5.2
         with:
           switches: --archive --compress
@@ -59,8 +93,8 @@ jobs:
           remote_port: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
           remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
           remote_key: ${{ secrets.NIGHTLIES_RSYNC_KEY }}
-      - name: Upload documentation alias
-        if: env.flink_alias != ''
+      - name: "Upload documentation for ${{ matrix.branch }} with alias ${{ matrix.alias }}"
+        if: matrix.alias != ''
         uses: burnett01/rsync-deployments@5.2
         with:
           switches: --archive --compress
