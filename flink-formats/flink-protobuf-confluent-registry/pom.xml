@@ -34,6 +34,7 @@ under the License.
 	<properties>
 		<confluent.version>7.5.3</confluent.version>
 		<schema.registry.version>7.5.0</schema.registry.version>
+		<connect.version>7.6.0-ccs</connect.version>
 	</properties>
 
 	<repositories>
@@ -164,7 +165,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.kafka</groupId>
 			<artifactId>connect-api</artifactId>
-			<version>7.6.0-ccs</version>
+			<version>${connect.version}</version>
 			<scope>test</scope>
 		</dependency>
 		<!-- ArchUnit test dependencies -->
