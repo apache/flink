@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.formats.protobuf.registry.confluent;
+package org.apache.flink.formats.protobuf.registry.confluent.debezium;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.formats.protobuf.registry.confluent.SchemaRegistryClientFactory;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -30,77 +30,78 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DeserializationFormatFactory;
-import org.apache.flink.table.factories.DynamicTableFactory.Context;
+import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.types.RowKind;
 
 import java.util.HashSet;
-import java.util.Optional;
 import java.util.Set;
 
-import static org.apache.flink.formats.protobuf.registry.confluent.RegistryFormatOptions.SUBJECT;
-
 /**
- * Table format factory for providing configured instances of Schema Registry Protobuf to RowData
- * {@link SerializationSchema} and {@link DeserializationSchema}.
+ * Table format factory for providing configured instances of Schema Registry Debezium Protobuf to
+ * RowData. {@link
+ * org.apache.flink.formats.protobuf.registry.confluent.debezium.DebeziumProtoRegistryDeserializationSchema}
+ * and {@link
+ * org.apache.flink.formats.protobuf.registry.confluent.debezium.DebeziumProtoRegistrySerializationSchema}.
  */
-public class ProtoRegistryFormatFactory
+public class DebeziumProtoRegistryFormatFactory
         implements DeserializationFormatFactory, SerializationFormatFactory {
 
-    public static final String IDENTIFIER = "proto-confluent";
+    public static final String IDENTIFIER = "debezium-protobuf-confluent";
 
     @Override
     public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
-            Context context, ReadableConfig formatOptions) {
+            DynamicTableFactory.Context context, ReadableConfig formatOptions) {
         FactoryUtil.validateFactoryOptions(this, formatOptions);
 
         return new DecodingFormat<DeserializationSchema<RowData>>() {
             @Override
             public DeserializationSchema<RowData> createRuntimeDecoder(
                     DynamicTableSource.Context context, DataType physicalDataType) {
+
                 final RowType rowType = (RowType) physicalDataType.getLogicalType();
-                final SchemaCoder schemaCoder =
-                        SchemaRegistryClientFactory.getCoder(rowType, formatOptions);
-                return new ProtoRegistryDeserializationSchema(
-                        schemaCoder, rowType, context.createTypeInformation(physicalDataType));
+
+                return new DebeziumProtoRegistryDeserializationSchema(
+                        formatOptions, rowType, context.createTypeInformation(physicalDataType));
             }
 
             @Override
             public ChangelogMode getChangelogMode() {
-                return ChangelogMode.insertOnly();
+                return ChangelogMode.newBuilder()
+                        .addContainedKind(RowKind.INSERT)
+                        .addContainedKind(RowKind.UPDATE_BEFORE)
+                        .addContainedKind(RowKind.UPDATE_AFTER)
+                        .addContainedKind(RowKind.DELETE)
+                        .build();
             }
         };
     }
 
     @Override
     public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
-            Context context, ReadableConfig formatOptions) {
+            DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+
+        FactoryUtil.validateFactoryOptions(this, formatOptions);
+
         return new EncodingFormat<SerializationSchema<RowData>>() {
             @Override
-            public SerializationSchema<RowData> createRuntimeEncoder(
-                    DynamicTableSink.Context context, DataType physicalDataType) {
-                final RowType rowType = (RowType) physicalDataType.getLogicalType();
-                final Optional<Integer> schemaId =
-                        formatOptions.getOptional(RegistryFormatOptions.SCHEMA_ID);
-                final Optional<String> subject = formatOptions.getOptional(SUBJECT);
-                if (!schemaId.isPresent() && !subject.isPresent()) {
-                    throw new ValidationException(
-                            String.format(
-                                    "Option %s.%s is required for serialization",
-                                    IDENTIFIER, SUBJECT.key()));
-                }
-
-                final SchemaCoder schemaCoder =
-                        SchemaRegistryClientFactory.getCoder(rowType, formatOptions);
-
-                return new ProtoRegistrySerializationSchema(schemaCoder, rowType);
+            public ChangelogMode getChangelogMode() {
+                return ChangelogMode.newBuilder()
+                        .addContainedKind(RowKind.INSERT)
+                        .addContainedKind(RowKind.UPDATE_BEFORE)
+                        .addContainedKind(RowKind.UPDATE_AFTER)
+                        .addContainedKind(RowKind.DELETE)
+                        .build();
             }
 
             @Override
-            public ChangelogMode getChangelogMode() {
-                return ChangelogMode.insertOnly();
+            public SerializationSchema<RowData> createRuntimeEncoder(
+                    DynamicTableSink.Context context, DataType consumedDataType) {
+                final RowType rowType = (RowType) consumedDataType.getLogicalType();
+                return new DebeziumProtoRegistrySerializationSchema(formatOptions, rowType);
             }
         };
     }

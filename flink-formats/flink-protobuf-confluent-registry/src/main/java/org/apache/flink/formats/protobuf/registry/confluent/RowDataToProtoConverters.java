@@ -71,21 +71,6 @@ public class RowDataToProtoConverters {
     // --------------------------------------------------------------------------------
 
     /**
-     * Runtime converter that converts objects of Flink Table & SQL internal data structures to
-     * corresponding Protobuf objects.
-     */
-    @FunctionalInterface
-    public interface RowDataToProtoConverter extends Serializable {
-        Object convert(Object value);
-    }
-
-    // --------------------------------------------------------------------------------
-    // IMPORTANT! We use anonymous classes instead of lambdas for a reason here. It is
-    // necessary because the maven shade plugin cannot relocate classes in
-    // SerializedLambdas (MSHADE-260).
-    // --------------------------------------------------------------------------------
-
-    /**
      * Creates a runtime converter according to the given logical type that converts objects of
      * Flink Table & SQL internal data structures to corresponding Protobuf data structures.
      */
@@ -96,6 +81,12 @@ public class RowDataToProtoConverters {
             return createOneOfFieldSetter(type, targetSchema);
         }
     }
+
+    // --------------------------------------------------------------------------------
+    // IMPORTANT! We use anonymous classes instead of lambdas for a reason here. It is
+    // necessary because the maven shade plugin cannot relocate classes in
+    // SerializedLambdas (MSHADE-260).
+    // --------------------------------------------------------------------------------
 
     private static RowDataToProtoConverter createNoOneOfConverter(
             RowType type, Descriptor targetSchema) {
@@ -184,14 +175,6 @@ public class RowDataToProtoConverters {
         };
     }
 
-    /**
-     * Helper interface for setting a field of a {@link DynamicMessage} from either a regular field
-     * or a field of a {@code oneOf} type which should be flattened in the end result.
-     */
-    interface FieldSetter {
-        void setField(DynamicMessage.Builder builder, Object value);
-    }
-
     private static FieldSetter createRegularFieldSetter(
             LogicalType type, FieldDescriptor descriptor) {
         final RowDataToProtoConverter converter = createFieldConverter(type, descriptor);
@@ -251,17 +234,6 @@ public class RowDataToProtoConverters {
                 }
             }
         };
-    }
-
-    private static class FieldDescriptorWithConverter {
-        final FieldDescriptor descriptor;
-        final RowDataToProtoConverter converter;
-
-        private FieldDescriptorWithConverter(
-                FieldDescriptor descriptor, RowDataToProtoConverter converter) {
-            this.descriptor = descriptor;
-            this.converter = converter;
-        }
     }
 
     private static RowDataToProtoConverter createFieldConverter(
@@ -503,6 +475,34 @@ public class RowDataToProtoConverters {
             default:
                 throw new IllegalStateException(
                         "Type " + type + " does not have a wrapper" + " representation.");
+        }
+    }
+
+    /**
+     * Runtime converter that converts objects of Flink Table & SQL internal data structures to
+     * corresponding Protobuf objects.
+     */
+    @FunctionalInterface
+    public interface RowDataToProtoConverter extends Serializable {
+        Object convert(Object value);
+    }
+
+    /**
+     * Helper interface for setting a field of a {@link DynamicMessage} from either a regular field
+     * or a field of a {@code oneOf} type which should be flattened in the end result.
+     */
+    interface FieldSetter {
+        void setField(DynamicMessage.Builder builder, Object value);
+    }
+
+    private static class FieldDescriptorWithConverter {
+        final FieldDescriptor descriptor;
+        final RowDataToProtoConverter converter;
+
+        private FieldDescriptorWithConverter(
+                FieldDescriptor descriptor, RowDataToProtoConverter converter) {
+            this.descriptor = descriptor;
+            this.converter = converter;
         }
     }
 }

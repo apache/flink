@@ -22,15 +22,11 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.Preconditions;
 
 import com.google.protobuf.DynamicMessage;
-import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
-import org.apache.kafka.common.utils.ByteUtils;
 
 import java.io.ByteArrayOutputStream;
-import java.nio.ByteBuffer;
 import java.util.Objects;
 
 /**
@@ -47,30 +43,25 @@ public class ProtoRegistrySerializationSchema implements SerializationSchema<Row
     /** RowType to generate the runtime converter. */
     private final RowType rowType;
 
-    private final SchemaRegistryConfig schemaRegistryConfig;
+    private final SchemaCoder schemaCoder;
 
     /** The converter that converts internal data formats to JsonNode. */
     private transient RowDataToProtoConverters.RowDataToProtoConverter runtimeConverter;
 
-    private transient SchemaRegistryCoder schemaCoder;
     /** Output stream to write message to. */
     private transient ByteArrayOutputStream arrayOutputStream;
 
-    public ProtoRegistrySerializationSchema(SchemaRegistryConfig registryConfig, RowType rowType) {
-        this.rowType = Preconditions.checkNotNull(rowType);
-        this.schemaRegistryConfig = Preconditions.checkNotNull(registryConfig);
+    public ProtoRegistrySerializationSchema(SchemaCoder schemaCoder, RowType rowType) {
+        this.schemaCoder = schemaCoder;
+        this.rowType = rowType;
     }
 
     @Override
     public void open(InitializationContext context) throws Exception {
-        final SchemaRegistryClient schemaRegistryClient = schemaRegistryConfig.createClient();
-        this.schemaCoder =
-                new SchemaRegistryCoder(schemaRegistryConfig.getSchemaId(), schemaRegistryClient);
-        final ProtobufSchema schema =
-                (ProtobufSchema)
-                        schemaRegistryClient.getSchemaById(schemaRegistryConfig.getSchemaId());
+        schemaCoder.initialize();
+        ProtobufSchema writerSchema = schemaCoder.writerSchema();
         this.runtimeConverter =
-                RowDataToProtoConverters.createConverter(rowType, schema.toDescriptor());
+                RowDataToProtoConverters.createConverter(rowType, writerSchema.toDescriptor());
         this.arrayOutputStream = new ByteArrayOutputStream();
     }
 
@@ -78,11 +69,8 @@ public class ProtoRegistrySerializationSchema implements SerializationSchema<Row
     public byte[] serialize(RowData row) {
         try {
             final DynamicMessage converted = (DynamicMessage) runtimeConverter.convert(row);
-
             arrayOutputStream.reset();
             schemaCoder.writeSchema(arrayOutputStream);
-            final ByteBuffer buffer = writeMessageIndexes();
-            arrayOutputStream.write(buffer.array());
             converted.writeTo(arrayOutputStream);
             return arrayOutputStream.toByteArray();
         } catch (Throwable t) {
@@ -90,28 +78,20 @@ public class ProtoRegistrySerializationSchema implements SerializationSchema<Row
         }
     }
 
-    private static ByteBuffer writeMessageIndexes() {
-        // write empty message indices for now
-        ByteBuffer buffer = ByteBuffer.allocate(ByteUtils.sizeOfVarint(0));
-        ByteUtils.writeVarint(0, buffer);
-        return buffer;
-    }
-
     @Override
     public boolean equals(Object o) {
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof ProtoRegistrySerializationSchema)) {
             return false;
         }
         ProtoRegistrySerializationSchema that = (ProtoRegistrySerializationSchema) o;
-        return Objects.equals(rowType, that.rowType)
-                && Objects.equals(schemaRegistryConfig, that.schemaRegistryConfig);
+        return rowType.equals(that.rowType) && schemaCoder.equals(that.schemaCoder);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(rowType, schemaRegistryConfig);
+        return Objects.hash(rowType, schemaCoder);
     }
 }
