@@ -15,7 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.runtime.taskprocessing;
+
+package org.apache.flink.runtime.asyncprocessing;
 
 import org.junit.jupiter.api.Test;
 
@@ -24,7 +25,7 @@ import java.util.List;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
-/** Test for {@link org.apache.flink.runtime.taskprocessing.ReferenceCounted} */
+/** Tests for {@link ReferenceCounted}. */
 class ReferenceCountedTest {
     @Test
     void testRefCountReachedZero() {
@@ -41,12 +42,12 @@ class ReferenceCountedTest {
         TestReferenceCounted referenceCounted = new TestReferenceCounted();
         List<Thread> threads = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
-            Thread thread = new Thread(() -> referenceCounted.retain());
+            Thread thread = new Thread(referenceCounted::retain);
             thread.start();
             threads.add(thread);
         }
         for (int i = 0; i < 5; i++) {
-            Thread thread = new Thread(() -> referenceCounted.release());
+            Thread thread = new Thread(referenceCounted::release);
             thread.start();
             threads.add(thread);
         }
@@ -56,7 +57,7 @@ class ReferenceCountedTest {
         assertThat(referenceCounted.getReferenceCount()).isEqualTo(0);
     }
 
-    private class TestReferenceCounted extends ReferenceCounted {
+    private static class TestReferenceCounted extends ReferenceCounted {
         private boolean reachedZero = false;
 
         public TestReferenceCounted() {
