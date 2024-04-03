@@ -12,7 +12,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.calcite:calcite-linq4j:1.32.0
 - org.apache.calcite.avatica:avatica-core:1.22.0
 - commons-codec:commons-codec:1.15
-- commons-io:commons-io:2.11.0
+- commons-io:commons-io:2.15.1
 
 This project bundles the following dependencies under the MIT License. (http://www.opensource.org/licenses/mit-license.php)
 

@@ -160,6 +160,7 @@ under the License.
 		<okhttp.version>3.14.9</okhttp.version>
 		<testcontainers.version>1.18.3</testcontainers.version>
 		<lz4.version>1.8.0</lz4.version>
+		<commons.io.version>2.15.1</commons.io.version>
 		<japicmp.skip>false</japicmp.skip>
 		<flink.convergence.phase>validate</flink.convergence.phase>
 		<!--
@@ -683,7 +684,7 @@ under the License.
 			<dependency>
 				<groupId>commons-io</groupId>
 				<artifactId>commons-io</artifactId>
-				<version>2.11.0</version>
+				<version>${commons.io.version}</version>
 			</dependency>
 
 			<!-- commons collections needs to be pinned to this critical security fix version -->
@@ -722,7 +723,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.commons</groupId>
 				<artifactId>commons-compress</artifactId>
-				<version>1.21</version>
+				<version>1.26.0</version>
 				<exclusions>
 					<exclusion>
 						<!-- Causes unnecessary dependency convergence errors; see MENFORCER-437 -->
