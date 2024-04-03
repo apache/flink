@@ -24,7 +24,7 @@ import org.apache.flink.configuration.ConfigOptions;
 import java.util.Map;
 
 /** Options for Schema Registry proto format. */
-public class RegistryFormatOptions {
+public class ProtoRegistryFormatOptions {
 
     public static final ConfigOption<String> URL =
             ConfigOptions.key("url")
@@ -145,5 +145,5 @@ public class RegistryFormatOptions {
                     .noDefaultValue()
                     .withDescription("Bearer auth token for Schema Registry");
 
-    private RegistryFormatOptions() {}
+    private ProtoRegistryFormatOptions() {}
 }

@@ -36,15 +36,15 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.apache.flink.formats.protobuf.registry.confluent.RegistryFormatOptions.BASIC_AUTH_CREDENTIALS_SOURCE;
-import static org.apache.flink.formats.protobuf.registry.confluent.RegistryFormatOptions.BASIC_AUTH_USER_INFO;
-import static org.apache.flink.formats.protobuf.registry.confluent.RegistryFormatOptions.BEARER_AUTH_CREDENTIALS_SOURCE;
-import static org.apache.flink.formats.protobuf.registry.confluent.RegistryFormatOptions.BEARER_AUTH_TOKEN;
-import static org.apache.flink.formats.protobuf.registry.confluent.RegistryFormatOptions.PROPERTIES;
-import static org.apache.flink.formats.protobuf.registry.confluent.RegistryFormatOptions.SSL_KEYSTORE_LOCATION;
-import static org.apache.flink.formats.protobuf.registry.confluent.RegistryFormatOptions.SSL_KEYSTORE_PASSWORD;
-import static org.apache.flink.formats.protobuf.registry.confluent.RegistryFormatOptions.SSL_TRUSTSTORE_LOCATION;
-import static org.apache.flink.formats.protobuf.registry.confluent.RegistryFormatOptions.SSL_TRUSTSTORE_PASSWORD;
+import static org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryFormatOptions.BASIC_AUTH_CREDENTIALS_SOURCE;
+import static org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryFormatOptions.BASIC_AUTH_USER_INFO;
+import static org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryFormatOptions.BEARER_AUTH_CREDENTIALS_SOURCE;
+import static org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryFormatOptions.BEARER_AUTH_TOKEN;
+import static org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryFormatOptions.PROPERTIES;
+import static org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryFormatOptions.SSL_KEYSTORE_LOCATION;
+import static org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryFormatOptions.SSL_KEYSTORE_PASSWORD;
+import static org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryFormatOptions.SSL_TRUSTSTORE_LOCATION;
+import static org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryFormatOptions.SSL_TRUSTSTORE_PASSWORD;
 
 /**
  * Shared across formats factory class for creating a {@link
@@ -56,10 +56,11 @@ public class SchemaRegistryClientFactory {
 
         SchemaRegistryClient schemaRegistryClient = getClient(formatOptions);
         final Optional<Integer> schemaId =
-                formatOptions.getOptional(RegistryFormatOptions.SCHEMA_ID);
+                formatOptions.getOptional(ProtoRegistryFormatOptions.SCHEMA_ID);
         final Optional<String> messageName =
-                formatOptions.getOptional(RegistryFormatOptions.MESSAGE_NAME);
-        final Optional<String> subject = formatOptions.getOptional(RegistryFormatOptions.SUBJECT);
+                formatOptions.getOptional(ProtoRegistryFormatOptions.MESSAGE_NAME);
+        final Optional<String> subject =
+                formatOptions.getOptional(ProtoRegistryFormatOptions.SUBJECT);
         return schemaId.map(
                         id ->
                                 SchemaCoderProviders.createForPreRegisteredSchema(
@@ -71,8 +72,8 @@ public class SchemaRegistryClientFactory {
     }
 
     private static SchemaRegistryClient getClient(ReadableConfig formatOptions) {
-        final String schemaRegistryURL = formatOptions.get(RegistryFormatOptions.URL);
-        final int cacheSize = formatOptions.get(RegistryFormatOptions.SCHEMA_CACHE_SIZE);
+        final String schemaRegistryURL = formatOptions.get(ProtoRegistryFormatOptions.URL);
+        final int cacheSize = formatOptions.get(ProtoRegistryFormatOptions.SCHEMA_CACHE_SIZE);
         final Map<String, String> schemaClientProperties =
                 buildOptionalPropertiesMap(formatOptions);
         return new CachedSchemaRegistryClient(schemaRegistryURL, cacheSize, schemaClientProperties);
@@ -118,19 +119,19 @@ public class SchemaRegistryClientFactory {
     /** Should be used in {@link FormatFactory#requiredOptions()}. */
     public static Set<ConfigOption<?>> getRequiredOptions() {
         Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(RegistryFormatOptions.URL);
+        options.add(ProtoRegistryFormatOptions.URL);
         return options;
     }
 
     /** Should be used in {@link FormatFactory#optionalOptions()}. */
     public static Set<ConfigOption<?>> getOptionalOptions() {
         Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(RegistryFormatOptions.SCHEMA_ID);
-        options.add(RegistryFormatOptions.MESSAGE_NAME);
-        options.add(RegistryFormatOptions.SUBJECT);
-        options.add(RegistryFormatOptions.PROPERTIES);
+        options.add(ProtoRegistryFormatOptions.SCHEMA_ID);
+        options.add(ProtoRegistryFormatOptions.MESSAGE_NAME);
+        options.add(ProtoRegistryFormatOptions.SUBJECT);
+        options.add(ProtoRegistryFormatOptions.PROPERTIES);
 
-        options.add(RegistryFormatOptions.SCHEMA_CACHE_SIZE);
+        options.add(ProtoRegistryFormatOptions.SCHEMA_CACHE_SIZE);
         options.add(SSL_KEYSTORE_LOCATION);
         options.add(SSL_KEYSTORE_PASSWORD);
         options.add(SSL_TRUSTSTORE_LOCATION);
@@ -145,12 +146,12 @@ public class SchemaRegistryClientFactory {
     /** Should be used in {@link FormatFactory#forwardOptions()}. */
     public static Set<ConfigOption<?>> getForwardOptions() {
         return Stream.of(
-                        RegistryFormatOptions.URL,
-                        RegistryFormatOptions.SCHEMA_ID,
-                        RegistryFormatOptions.MESSAGE_NAME,
-                        RegistryFormatOptions.SUBJECT,
-                        RegistryFormatOptions.PROPERTIES,
-                        RegistryFormatOptions.SCHEMA_CACHE_SIZE,
+                        ProtoRegistryFormatOptions.URL,
+                        ProtoRegistryFormatOptions.SCHEMA_ID,
+                        ProtoRegistryFormatOptions.MESSAGE_NAME,
+                        ProtoRegistryFormatOptions.SUBJECT,
+                        ProtoRegistryFormatOptions.PROPERTIES,
+                        ProtoRegistryFormatOptions.SCHEMA_CACHE_SIZE,
                         SSL_KEYSTORE_LOCATION,
                         SSL_KEYSTORE_PASSWORD,
                         SSL_TRUSTSTORE_LOCATION,

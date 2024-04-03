@@ -67,7 +67,6 @@ public class DebeziumProtoRegistrySerializationSchema implements SerializationSc
 
         this.rowType = Preconditions.checkNotNull(rowType);
         RowType debeziumProtoRowType = createDebeziumProtoRowType(fromLogicalToDataType(rowType));
-        // todo call validate to check if schema is valid
         final SchemaCoder schemaCoder =
                 SchemaRegistryClientFactory.getCoder(debeziumProtoRowType, formatOptions);
         this.protoSerializer =

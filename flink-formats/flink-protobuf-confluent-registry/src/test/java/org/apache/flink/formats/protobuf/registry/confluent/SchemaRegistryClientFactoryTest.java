@@ -34,9 +34,9 @@ class SchemaRegistryClientFactoryTest {
     @Test
     void testShouldCreateDefaultCoder() {
         Configuration configuration = new Configuration();
-        configuration.set(RegistryFormatOptions.SUBJECT, "test-subject");
-        configuration.set(RegistryFormatOptions.URL, "localhost");
-        configuration.set(RegistryFormatOptions.SCHEMA_CACHE_SIZE, 10);
+        configuration.set(ProtoRegistryFormatOptions.SUBJECT, "test-subject");
+        configuration.set(ProtoRegistryFormatOptions.URL, "localhost");
+        configuration.set(ProtoRegistryFormatOptions.SCHEMA_CACHE_SIZE, 10);
         SchemaCoder coder =
                 SchemaRegistryClientFactory.getCoder(RowType.of(new IntType()), configuration);
         assertEquals(coder.getClass(), SchemaCoderProviders.DefaultSchemaCoder.class);
@@ -45,9 +45,9 @@ class SchemaRegistryClientFactoryTest {
     @Test
     void testShouldCreatePreRegisteredSchemaCoder() {
         Configuration configuration = new Configuration();
-        configuration.set(RegistryFormatOptions.SCHEMA_ID, 10);
-        configuration.set(RegistryFormatOptions.URL, "localhost");
-        configuration.set(RegistryFormatOptions.SCHEMA_CACHE_SIZE, 10);
+        configuration.set(ProtoRegistryFormatOptions.SCHEMA_ID, 10);
+        configuration.set(ProtoRegistryFormatOptions.URL, "localhost");
+        configuration.set(ProtoRegistryFormatOptions.SCHEMA_CACHE_SIZE, 10);
         SchemaCoder coder =
                 SchemaRegistryClientFactory.getCoder(RowType.of(new IntType()), configuration);
         assertEquals(coder.getClass(), SchemaCoderProviders.PreRegisteredSchemaCoder.class);
