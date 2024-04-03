@@ -16,27 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.core.state;
+package org.apache.flink.runtime.asyncprocessing;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.state.v2.StateFuture;
 
-import java.util.function.Consumer;
+import java.util.concurrent.CompletableFuture;
 
-/**
- * The Internal definition of {@link StateFuture}, add some method that will be used by framework.
- */
+/** Executor for executing batch {@link StateRequest}s. */
 @Internal
-public interface InternalStateFuture<T> extends StateFuture<T> {
-
-    /** Complete this future. */
-    void complete(T result);
-
+public interface StateExecutor {
     /**
-     * Accept the action in the same thread with the one of complete (or current thread if it has
-     * been completed).
+     * Execute a batch of state requests.
      *
-     * @param action the action to perform.
+     * @param processingRequests the given batch of processing requests
+     * @return A future can determine whether execution has completed.
      */
-    void thenSyncAccept(Consumer<? super T> action);
+    CompletableFuture<Boolean> executeBatchRequests(
+            Iterable<StateRequest<?, ?, ?>> processingRequests);
 }

@@ -16,18 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskprocessing;
+package org.apache.flink.runtime.asyncprocessing;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.MemoryUtils;
 
 import sun.misc.Unsafe;
 
+import javax.annotation.concurrent.ThreadSafe;
+
 /**
  * An object that can be reference counted, the internal resource would be released when the
- * reference count reaches zero.
+ * reference count reaches zero. This class is designed to be high-performance, lock-free and
+ * thread-safe.
  */
 @Internal
+@ThreadSafe
 public abstract class ReferenceCounted {
 
     /** The "unsafe", which can be used to perform native memory accesses. */
@@ -43,17 +47,18 @@ public abstract class ReferenceCounted {
                             ReferenceCounted.class.getDeclaredField("referenceCount"));
         } catch (SecurityException e) {
             throw new Error(
-                    "Could not get field 'referenceCount' offset in class 'ReferenceCounted' for unsafe operations, "
-                            + "permission denied by security manager.",
+                    "Could not get field 'referenceCount' offset in class 'ReferenceCounted'"
+                            + " for unsafe operations, permission denied by security manager.",
                     e);
         } catch (NoSuchFieldException e) {
             throw new Error(
-                    "Could not get field 'referenceCount' offset in class 'ReferenceCounted' for unsafe operations",
+                    "Could not get field 'referenceCount' offset in class 'ReferenceCounted'"
+                            + " for unsafe operations",
                     e);
         } catch (Throwable t) {
             throw new Error(
-                    "Could not get field 'referenceCount' offset in class 'ReferenceCounted' for unsafe operations,"
-                            + " unclassified error",
+                    "Could not get field 'referenceCount' offset in class 'ReferenceCounted'"
+                            + " for unsafe operations, unclassified error",
                     t);
         }
     }

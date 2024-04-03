@@ -68,6 +68,11 @@ public class CompletedStateFuture<T> implements InternalStateFuture<T> {
     }
 
     @Override
+    public void complete(T result) {
+        throw new UnsupportedOperationException("This state future has already been completed.");
+    }
+
+    @Override
     public void thenSyncAccept(Consumer<? super T> action) {
         action.accept(result);
     }

@@ -40,11 +40,11 @@ import java.util.function.Function;
 @Internal
 public class StateFutureImpl<T> implements InternalStateFuture<T> {
 
-    /** The future holds the result. The completes in async threads. */
-    CompletableFuture<T> completableFuture;
+    /** The future holds the result. This may complete in async threads. */
+    private final CompletableFuture<T> completableFuture;
 
     /** The callback runner. */
-    CallbackRunner callbackRunner;
+    protected final CallbackRunner callbackRunner;
 
     public StateFutureImpl(CallbackRunner callbackRunner) {
         this.completableFuture = new CompletableFuture<>();
@@ -53,17 +53,20 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
 
     @Override
     public <U> StateFuture<U> thenApply(Function<? super T, ? extends U> fn) {
+        callbackRegistered();
         try {
             if (completableFuture.isDone()) {
                 U r = fn.apply(completableFuture.get());
+                callbackFinished();
                 return StateFutureUtils.completedFuture(r);
             } else {
-                StateFutureImpl<U> ret = new StateFutureImpl<>(callbackRunner);
+                StateFutureImpl<U> ret = makeNewStateFuture();
                 completableFuture.thenAccept(
                         (t) -> {
                             callbackRunner.submit(
                                     () -> {
                                         ret.complete(fn.apply(t));
+                                        callbackFinished();
                                     });
                         });
                 return ret;
@@ -75,18 +78,21 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
 
     @Override
     public StateFuture<Void> thenAccept(Consumer<? super T> action) {
+        callbackRegistered();
         try {
             if (completableFuture.isDone()) {
                 action.accept(completableFuture.get());
+                callbackFinished();
                 return StateFutureUtils.completedVoidFuture();
             } else {
-                StateFutureImpl<Void> ret = new StateFutureImpl<>(callbackRunner);
+                StateFutureImpl<Void> ret = makeNewStateFuture();
                 completableFuture.thenAccept(
                         (t) -> {
                             callbackRunner.submit(
                                     () -> {
                                         action.accept(t);
                                         ret.complete(null);
+                                        callbackFinished();
                                     });
                         });
                 return ret;
@@ -98,17 +104,20 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
 
     @Override
     public <U> StateFuture<U> thenCompose(Function<? super T, ? extends StateFuture<U>> action) {
+        callbackRegistered();
         try {
             if (completableFuture.isDone()) {
+                callbackFinished();
                 return action.apply(completableFuture.get());
             } else {
-                StateFutureImpl<U> ret = new StateFutureImpl<>(callbackRunner);
+                StateFutureImpl<U> ret = makeNewStateFuture();
                 completableFuture.thenAccept(
                         (t) -> {
                             callbackRunner.submit(
                                     () -> {
                                         StateFuture<U> su = action.apply(t);
                                         su.thenAccept(ret::complete);
+                                        callbackFinished();
                                     });
                         });
                 return ret;
@@ -121,12 +130,14 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
     @Override
     public <U, V> StateFuture<V> thenCombine(
             StateFuture<? extends U> other, BiFunction<? super T, ? super U, ? extends V> fn) {
+        callbackRegistered();
         try {
             if (completableFuture.isDone()) {
                 return other.thenCompose(
                         (u) -> {
                             try {
                                 V v = fn.apply(completableFuture.get(), u);
+                                callbackFinished();
                                 return StateFutureUtils.completedFuture(v);
                             } catch (Throwable e) {
                                 throw new FlinkRuntimeException(
@@ -134,7 +145,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                             }
                         });
             } else {
-                StateFutureImpl<V> ret = new StateFutureImpl<>(callbackRunner);
+                StateFutureImpl<V> ret = makeNewStateFuture();
                 ((InternalStateFuture<? extends U>) other)
                         .thenSyncAccept(
                                 (u) -> {
@@ -143,6 +154,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                                                 callbackRunner.submit(
                                                         () -> {
                                                             ret.complete(fn.apply(t, u));
+                                                            callbackFinished();
                                                         });
                                             });
                                 });
@@ -153,12 +165,34 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
         }
     }
 
+    /**
+     * Make a new future based on context of this future.
+     *
+     * @return the new created future.
+     */
     public <A> StateFutureImpl<A> makeNewStateFuture() {
         return new StateFutureImpl<>(callbackRunner);
     }
 
+    @Override
     public void complete(T result) {
         completableFuture.complete(result);
+        postComplete();
+    }
+
+    /** Will be triggered when a callback is registered. */
+    public void callbackRegistered() {
+        // does nothing by default.
+    }
+
+    /** Will be triggered when this future completes. */
+    public void postComplete() {
+        // does nothing by default.
+    }
+
+    /** Will be triggered when a callback finishes processing. */
+    public void callbackFinished() {
+        // does nothing by default.
     }
 
     @Override

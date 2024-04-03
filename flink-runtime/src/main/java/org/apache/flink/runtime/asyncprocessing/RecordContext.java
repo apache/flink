@@ -16,22 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskprocessing;
-
-import org.apache.flink.annotation.Internal;
+package org.apache.flink.runtime.asyncprocessing;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * A context that preserves the necessary variables required by each operation, all operations for
  * one record will share the same element context.
  *
- * @param <R> The type of the record that extends {@link
- *     org.apache.flink.streaming.runtime.streamrecord.StreamElement}. TODO(FLIP-409): move
- *     StreamElement to flink-core or flink-runtime module.
+ * <p>Reference counting mechanism, please refer to {@link ContextStateFutureImpl}.
+ *
+ * @param <R> The type of the record that extends {@code
+ *     org.apache.flink.streaming.runtime.streamrecord.StreamElement}.
  * @param <K> The type of the key inside the record.
  */
-@Internal
 public class RecordContext<R, K> extends ReferenceCounted {
 
     /** The record to be processed. */
@@ -40,19 +39,48 @@ public class RecordContext<R, K> extends ReferenceCounted {
     /** The key inside the record. */
     private final K key;
 
-    public RecordContext(R record, K key) {
+    /** Whether this Record(Context) has occupied the corresponding key. */
+    private volatile boolean keyOccupied;
+
+    /**
+     * The disposer for disposing this context. This should be invoked in {@link
+     * #referenceCountReachedZero()}, which may be called once the ref count reaches zero in any
+     * thread.
+     */
+    private final Consumer<RecordContext<R, K>> disposer;
+
+    RecordContext(R record, K key, Consumer<RecordContext<R, K>> disposer) {
         super(0);
         this.record = record;
         this.key = key;
+        this.keyOccupied = false;
+        this.disposer = disposer;
+    }
+
+    public R getRecord() {
+        return record;
     }
 
     public K getKey() {
         return this.key;
     }
 
+    /** Check if this context has occupied the key. */
+    boolean isKeyOccupied() {
+        return keyOccupied;
+    }
+
+    /** Set the flag that marks this context has occupied the corresponding key. */
+    void setKeyOccupied() {
+        keyOccupied = true;
+    }
+
     @Override
     protected void referenceCountReachedZero() {
-        // TODO: release internal resources that this record context holds.
+        if (keyOccupied) {
+            keyOccupied = false;
+            disposer.accept(this);
+        }
     }
 
     @Override
@@ -77,6 +105,15 @@ public class RecordContext<R, K> extends ReferenceCounted {
 
     @Override
     public String toString() {
-        return "RecordContext{" + "record=" + record + ", key=" + key + '}';
+        return "RecordContext{"
+                + "record="
+                + record
+                + ", key="
+                + key
+                + ", occupied="
+                + keyOccupied
+                + ", ref="
+                + getReferenceCount()
+                + "}";
     }
 }

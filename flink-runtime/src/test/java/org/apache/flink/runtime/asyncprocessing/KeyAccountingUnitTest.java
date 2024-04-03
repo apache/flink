@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskprocessing;
+package org.apache.flink.runtime.asyncprocessing;
 
 import org.junit.jupiter.api.Test;
 
@@ -24,20 +24,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 /** Test for {@link KeyAccountingUnit}. */
-class keyAccountingUnitTest {
+class KeyAccountingUnitTest {
 
     @Test
     void testBasic() {
-        KeyAccountingUnit<String, Integer> keyAccountingUnit = new KeyAccountingUnit<>();
-        assertThat(keyAccountingUnit.available("record1", 1)).isTrue();
-        keyAccountingUnit.occupy("record1", 1);
-        assertThat(keyAccountingUnit.available("record1", 1)).isTrue();
-        assertThat(keyAccountingUnit.available("record2", 2)).isTrue();
-        assertThat(keyAccountingUnit.available("record3", 1)).isFalse();
-        assertThatThrownBy(() -> keyAccountingUnit.occupy("record3", 1))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("The record record3(1) is already occupied.");
+        KeyAccountingUnit<String, Integer> keyAccountingUnit = new KeyAccountingUnit<>(10);
+        assertThat(keyAccountingUnit.occupy("record1", 1)).isTrue();
+        assertThat(keyAccountingUnit.occupy("record1", 1)).isFalse();
+        assertThat(keyAccountingUnit.occupy("record2", 2)).isTrue();
         keyAccountingUnit.release("record1", 1);
-        assertThat(keyAccountingUnit.available("record2", 1)).isTrue();
+        assertThat(keyAccountingUnit.occupy("record2", 1)).isTrue();
+        assertThatThrownBy(() -> keyAccountingUnit.release("record1", 1))
+                .isInstanceOf(IllegalStateException.class);
     }
 }
