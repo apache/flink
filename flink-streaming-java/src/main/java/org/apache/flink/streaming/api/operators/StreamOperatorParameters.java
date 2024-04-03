@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.runtime.operators.coordination.OperatorEventDispatcher;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -44,6 +45,7 @@ public class StreamOperatorParameters<OUT> {
     private final Output<StreamRecord<OUT>> output;
     private final Supplier<ProcessingTimeService> processingTimeServiceFactory;
     private final OperatorEventDispatcher operatorEventDispatcher;
+    private final MailboxExecutor mailboxExecutor;
 
     /**
      * The ProcessingTimeService, lazily created, but cached so that we don't create more than one.
@@ -55,12 +57,14 @@ public class StreamOperatorParameters<OUT> {
             StreamConfig config,
             Output<StreamRecord<OUT>> output,
             Supplier<ProcessingTimeService> processingTimeServiceFactory,
-            OperatorEventDispatcher operatorEventDispatcher) {
+            OperatorEventDispatcher operatorEventDispatcher,
+            MailboxExecutor mailboxExecutor) {
         this.containingTask = containingTask;
         this.config = config;
         this.output = output;
         this.processingTimeServiceFactory = processingTimeServiceFactory;
         this.operatorEventDispatcher = operatorEventDispatcher;
+        this.mailboxExecutor = mailboxExecutor;
     }
 
     public StreamTask<?, ?> getContainingTask() {
@@ -84,5 +88,9 @@ public class StreamOperatorParameters<OUT> {
 
     public OperatorEventDispatcher getOperatorEventDispatcher() {
         return operatorEventDispatcher;
+    }
+
+    public MailboxExecutor getMailboxExecutor() {
+        return mailboxExecutor;
     }
 }
