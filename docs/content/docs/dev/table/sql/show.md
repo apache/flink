@@ -104,7 +104,7 @@ tEnv.executeSql("SHOW CURRENT CATALOG").print();
 // +----------------------+
 
 // create a catalog
-tEnv.executeSql("CREATE CATALOG cat2 WITH (...)")
+tEnv.executeSql("CREATE CATALOG cat2 WITH (...)");
 
 // show create catalog
 tEnv.executeSql("SHOW CREATE CATALOG cat2").print();
@@ -235,7 +235,7 @@ tEnv.executeSql("SHOW CATALOGS").print()
 tEnv.executeSql("CREATE CATALOG cat2 WITH (...)")
 
 // show create catalog
-tEnv.executeSql("SHOW CREATE CATALOG cat2").print();
+tEnv.executeSql("SHOW CREATE CATALOG cat2").print()
 // +---------------------------------------------------------------------------------------------+
 // |                                                                                      result |
 // +---------------------------------------------------------------------------------------------+
@@ -353,7 +353,7 @@ table_env.execute_sql("SHOW CATALOGS").print()
 table_env.execute_sql("CREATE CATALOG cat2 WITH (...)")
 
 # show create catalog
-table_env.execute_sql("SHOW CREATE CATALOG cat2").print();
+table_env.execute_sql("SHOW CREATE CATALOG cat2").print()
 # +---------------------------------------------------------------------------------------------+
 # |                                                                                      result |
 # +---------------------------------------------------------------------------------------------+
@@ -460,10 +460,10 @@ table_env.execute_sql("SHOW FULL MODULES").print()
 Flink SQL> SHOW CATALOGS;
 default_catalog
 
-Flink SQL> create catalog cat2 WITH (...);
+Flink SQL> CREATE CATALOG cat2 WITH (...);
 [INFO] Execute statement succeeded.
  
-Flink SQL> show create catalog cat2;
+Flink SQL> SHOW CREATE CATALOG cat2;
 CREATE CATALOG `cat2` WITH (
   ...
 )
@@ -569,7 +569,7 @@ SHOW CREATE CATALOG catalog_name
 
 Show creation statement for an existing catalog.
 
-The output includes the catalog's name and relevant properties, which allows you to easily reuse the created catalogs.
+The output includes the catalog's name and relevant properties, which allows you to gain an intuitive understanding of the underlying catalog's metadata.
 
 Assumes that the catalog `cat2` is created as follows:
 ```sql
