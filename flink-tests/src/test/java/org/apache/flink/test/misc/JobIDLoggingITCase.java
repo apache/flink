@@ -153,6 +153,8 @@ class JobIDLoggingITCase {
                         "Received task .*",
                         "Trigger checkpoint .*",
                         "Confirm completed checkpoint .*"),
+                "TaskManager received a checkpoint confirmation for unknown task.*",
+                "TaskManager received an aborted checkpoint for unknown task.*",
                 "Un-registering task.*",
                 "Successful registration.*",
                 "Establish JobManager connection.*",
