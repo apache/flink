@@ -34,6 +34,16 @@ under the License.
 
 	<packaging>jar</packaging>
 
+	<properties>
+		<surefire.module.config><!--
+			we use reflection to register sink transformation translator,
+			it's a final map, we need to set this to pass tests in jdk17 or higher.
+			-->--add-opens=java.base/java.util=ALL-UNNAMED
+		</surefire.module.config>
+	</properties>
+
+
+
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>

@@ -37,6 +37,11 @@ under the License.
 		<test.parameterProgram.name>parameter-program</test.parameterProgram.name>
 		<test.ParameterProgramNoManifest.name>parameter-program-without-manifest</test.ParameterProgramNoManifest.name>
 		<test.ParameterProgramWithEagerSink.name>parameter-program-with-eager-sink</test.ParameterProgramWithEagerSink.name>
+		<surefire.module.config><!--
+			DataStream V2 use reflection to register sink transformation translator,
+			it's a final map, we need to set this to pass tests in jdk17 or higher.
+			-->--add-opens=java.base/java.util=ALL-UNNAMED
+		</surefire.module.config>
 	</properties>
 
 	<dependencies>

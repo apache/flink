@@ -96,7 +96,7 @@ public class ExecutionEnvironmentImpl implements ExecutionEnvironment {
             DataStreamV2SinkTransformationTranslator.registerSinkTransformationTranslator();
         } catch (Exception e) {
             throw new RuntimeException(
-                    "Can not register process function transformation translator.");
+                    "Can not register process function transformation translator.", e);
         }
     }
 
