@@ -161,6 +161,11 @@ public class CepOperator<IN, KEY, OUT>
     }
 
     @Override
+    public boolean useSplittableTimers() {
+        return true;
+    }
+
+    @Override
     public void setup(
             StreamTask<?, ?> containingTask,
             StreamConfig config,
