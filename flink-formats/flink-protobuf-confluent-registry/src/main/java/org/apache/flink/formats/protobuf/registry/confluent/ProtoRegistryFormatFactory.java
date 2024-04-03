@@ -40,7 +40,7 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 
-import static org.apache.flink.formats.protobuf.registry.confluent.RegistryFormatOptions.SUBJECT;
+import static org.apache.flink.formats.protobuf.registry.confluent.ProtoRegistryFormatOptions.SUBJECT;
 
 /**
  * Table format factory for providing configured instances of Schema Registry Protobuf to RowData
@@ -77,20 +77,22 @@ public class ProtoRegistryFormatFactory
     @Override
     public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
             Context context, ReadableConfig formatOptions) {
+        FactoryUtil.validateFactoryOptions(this, formatOptions);
+
+        final Optional<Integer> schemaId =
+                formatOptions.getOptional(ProtoRegistryFormatOptions.SCHEMA_ID);
+        final Optional<String> subject = formatOptions.getOptional(SUBJECT);
+        if (!schemaId.isPresent() && !subject.isPresent()) {
+            throw new ValidationException(
+                    String.format(
+                            "Option %s.%s is required for serialization",
+                            IDENTIFIER, SUBJECT.key()));
+        }
         return new EncodingFormat<SerializationSchema<RowData>>() {
             @Override
             public SerializationSchema<RowData> createRuntimeEncoder(
                     DynamicTableSink.Context context, DataType physicalDataType) {
                 final RowType rowType = (RowType) physicalDataType.getLogicalType();
-                final Optional<Integer> schemaId =
-                        formatOptions.getOptional(RegistryFormatOptions.SCHEMA_ID);
-                final Optional<String> subject = formatOptions.getOptional(SUBJECT);
-                if (!schemaId.isPresent() && !subject.isPresent()) {
-                    throw new ValidationException(
-                            String.format(
-                                    "Option %s.%s is required for serialization",
-                                    IDENTIFIER, SUBJECT.key()));
-                }
 
                 final SchemaCoder schemaCoder =
                         SchemaRegistryClientFactory.getCoder(rowType, formatOptions);
