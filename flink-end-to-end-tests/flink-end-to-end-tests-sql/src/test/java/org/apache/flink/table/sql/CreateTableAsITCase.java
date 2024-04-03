@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sql.codegen;
+package org.apache.flink.table.sql;
 
 import org.apache.flink.formats.json.debezium.DebeziumJsonDeserializationSchema;
 import org.apache.flink.table.api.DataTypes;
@@ -33,13 +33,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * End-to-End tests for table planner scala-free since 1.15. Due to scala-free of table planner
- * introduced, the class in table planner is not visible in distribution runtime, if we use these
- * class in execution time, ClassNotFound exception will be thrown. ITCase in table planner can not
- * cover it, so we should add E2E test for these case.
- */
-public class PlannerScalaFreeITCase extends SqlITCaseBase {
+/** End-to-End tests for create table as select syntax. */
+public class CreateTableAsITCase extends SqlITCaseBase {
 
     private static final ResolvedSchema SINK_TABLE_SCHEMA =
             new ResolvedSchema(
@@ -52,13 +47,20 @@ public class PlannerScalaFreeITCase extends SqlITCaseBase {
     private static final DebeziumJsonDeserializationSchema DESERIALIZATION_SCHEMA =
             createDebeziumDeserializationSchema(SINK_TABLE_SCHEMA);
 
-    public PlannerScalaFreeITCase(String executionMode) {
+    public CreateTableAsITCase(String executionMode) {
         super(executionMode);
     }
 
     @Test
-    public void testImperativeUdaf() throws Exception {
-        runAndCheckSQL("scala_free_e2e.sql", Arrays.asList("+I[Bob, 2]", "+I[Alice, 1]"));
+    public void testCreateTableAs() throws Exception {
+        runAndCheckSQL("create_table_as_e2e.sql", Arrays.asList("+I[Bob, 2]", "+I[Alice, 1]"));
+    }
+
+    @Test
+    public void testCreateTableAsInStatementSet() throws Exception {
+        runAndCheckSQL(
+                "create_table_as_statementset_e2e.sql",
+                Arrays.asList("+I[Bob, 2]", "+I[Alice, 1]"));
     }
 
     @Override
