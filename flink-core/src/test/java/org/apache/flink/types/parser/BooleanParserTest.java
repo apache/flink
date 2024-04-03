@@ -18,7 +18,7 @@
 
 package org.apache.flink.types.parser;
 
-public class BooleanParserTest extends ParserTestBase<Boolean> {
+class BooleanParserTest extends ParserTestBase<Boolean> {
 
     @Override
     public String[] getValidTestValues() {

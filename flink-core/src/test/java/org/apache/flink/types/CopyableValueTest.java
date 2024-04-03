@@ -18,14 +18,14 @@
 
 package org.apache.flink.types;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class CopyableValueTest {
+class CopyableValueTest {
 
     @Test
-    public void testCopy() {
+    void testCopy() {
         CopyableValue<?>[] value_types =
                 new CopyableValue[] {
                     new BooleanValue(true),
@@ -41,70 +41,70 @@ public class CopyableValueTest {
                 };
 
         for (CopyableValue<?> type : value_types) {
-            assertEquals(type, type.copy());
+            assertThat(type.copy()).isEqualTo(type);
         }
     }
 
     @Test
-    public void testCopyTo() {
+    void testCopyTo() {
         BooleanValue boolean_from = new BooleanValue(true);
         BooleanValue boolean_to = new BooleanValue(false);
 
         boolean_from.copyTo(boolean_to);
-        assertEquals(boolean_from, boolean_to);
+        assertThat(boolean_to).isEqualTo(boolean_from);
 
         ByteValue byte_from = new ByteValue((byte) 3);
         ByteValue byte_to = new ByteValue((byte) 7);
 
         byte_from.copyTo(byte_to);
-        assertEquals(byte_from, byte_to);
+        assertThat(byte_to).isEqualTo(byte_from);
 
         CharValue char_from = new CharValue('α');
         CharValue char_to = new CharValue('ω');
 
         char_from.copyTo(char_to);
-        assertEquals(char_from, char_to);
+        assertThat(char_to).isEqualTo(char_from);
 
         DoubleValue double_from = new DoubleValue(2.7182818284590451);
         DoubleValue double_to = new DoubleValue(0);
 
         double_from.copyTo(double_to);
-        assertEquals(double_from, double_to);
+        assertThat(double_to).isEqualTo(double_from);
 
         FloatValue float_from = new FloatValue((float) 2.71828182);
         FloatValue float_to = new FloatValue((float) 1.41421356);
 
         float_from.copyTo(float_to);
-        assertEquals(float_from, float_to);
+        assertThat(float_to).isEqualTo(float_from);
 
         IntValue int_from = new IntValue(8191);
         IntValue int_to = new IntValue(131071);
 
         int_from.copyTo(int_to);
-        assertEquals(int_from, int_to);
+        assertThat(int_to).isEqualTo(int_from);
 
         LongValue long_from = new LongValue(524287);
         LongValue long_to = new LongValue(2147483647);
 
         long_from.copyTo(long_to);
-        assertEquals(long_from, long_to);
+        assertThat(long_to).isEqualTo(long_from);
 
         NullValue null_from = new NullValue();
         NullValue null_to = new NullValue();
 
         null_from.copyTo(null_to);
-        assertEquals(null_from, null_to);
+        assertThat(null_to).isEqualTo(null_from);
 
         ShortValue short_from = new ShortValue((short) 31);
         ShortValue short_to = new ShortValue((short) 127);
 
         short_from.copyTo(short_to);
-        assertEquals(short_from, short_to);
+        assertThat(short_to).isEqualTo(short_from);
 
         StringValue string_from = new StringValue("2305843009213693951");
         StringValue string_to = new StringValue("618970019642690137449562111");
 
         string_from.copyTo(string_to);
-        assertEquals(string_from, string_to);
+        assertThat((Object) string_to).isEqualTo(string_from);
     }
 }

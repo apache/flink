@@ -20,7 +20,7 @@ package org.apache.flink.types.parser;
 
 import org.apache.flink.types.DoubleValue;
 
-public class DoubleValueParserTest extends ParserTestBase<DoubleValue> {
+class DoubleValueParserTest extends ParserTestBase<DoubleValue> {
 
     @Override
     public String[] getValidTestValues() {

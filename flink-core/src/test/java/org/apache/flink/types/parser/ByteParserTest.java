@@ -18,7 +18,7 @@
 
 package org.apache.flink.types.parser;
 
-public class ByteParserTest extends ParserTestBase<Byte> {
+class ByteParserTest extends ParserTestBase<Byte> {
 
     @Override
     public String[] getValidTestValues() {
