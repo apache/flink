@@ -18,21 +18,23 @@
 
 package org.apache.flink.configuration;
 
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 import java.util.Collections;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
 /** Tests for reading configuration parameters with invalid formats. */
-@RunWith(Parameterized.class)
-public class ConfigurationParsingInvalidFormatsTest extends TestLogger {
-    @Parameterized.Parameters(name = "option: {0}, invalidString: {1}")
+@ExtendWith(ParameterizedTestExtension.class)
+public class ConfigurationParsingInvalidFormatsTest {
+
+    @Parameters(name = "option = {0}, invalidString = {1}")
     public static Object[][] getSpecs() {
         return new Object[][] {
             new Object[] {ConfigOptions.key("int").intType().defaultValue(1), "ABC"},
@@ -64,35 +66,35 @@ public class ConfigurationParsingInvalidFormatsTest extends TestLogger {
         };
     }
 
-    @Parameterized.Parameter public ConfigOption<?> option;
+    @Parameter public ConfigOption<?> option;
 
-    @Parameterized.Parameter(value = 1)
+    @Parameter(value = 1)
     public String invalidString;
 
-    @Rule public ExpectedException thrown = ExpectedException.none();
-
-    @Test
-    public void testInvalidStringParsingWithGetOptional() {
-        Configuration configuration = new Configuration();
-        configuration.setString(option.key(), invalidString);
-
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage(
+    @TestTemplate
+    void testInvalidStringParsingWithGetOptional() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    Configuration configuration = new Configuration();
+                    configuration.setString(option.key(), invalidString);
+                    configuration.getOptional(option);
+                },
                 String.format(
                         "Could not parse value '%s' for key '%s'", invalidString, option.key()));
-        configuration.getOptional(option);
     }
 
-    @Test
-    public void testInvalidStringParsingWithGet() {
-        Configuration configuration = new Configuration();
-        configuration.setString(option.key(), invalidString);
-
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage(
+    @TestTemplate
+    void testInvalidStringParsingWithGet() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    Configuration configuration = new Configuration();
+                    configuration.setString(option.key(), invalidString);
+                    configuration.get(option);
+                },
                 String.format(
                         "Could not parse value '%s' for key '%s'", invalidString, option.key()));
-        configuration.get(option);
     }
 
     private enum TestEnum {
