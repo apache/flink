@@ -52,6 +52,11 @@ public abstract class TableStreamOperator<OUT> extends AbstractStreamOperator<OU
         this.ctx = new ContextImpl(getProcessingTimeService());
     }
 
+    @Override
+    public boolean useSplittableTimers() {
+        return true;
+    }
+
     /** Compute memory size from memory faction. */
     public long computeMemorySize() {
         final Environment environment = getContainingTask().getEnvironment();
@@ -71,6 +76,7 @@ public abstract class TableStreamOperator<OUT> extends AbstractStreamOperator<OU
         currentWatermark = mark.getTimestamp();
         super.processWatermark(mark);
     }
+
     /** Information available in an invocation of processElement. */
     protected class ContextImpl implements TimerService {
 
