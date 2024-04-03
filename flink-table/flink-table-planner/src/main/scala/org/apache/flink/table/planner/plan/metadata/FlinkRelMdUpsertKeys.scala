@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalGr
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
-import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
+import org.apache.flink.table.planner.plan.utils.{FlinkRexUtil, RankUtil}
 
 import com.google.common.collect.ImmutableSet
 import org.apache.calcite.plan.hep.HepRelVertex
@@ -187,25 +187,23 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
   }
 
   def getUpsertKeys(rel: Window, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
-    // If it's a ROW_NUMBER rank, then the upsert keys are partition by key and order key.
+    // If it's a ROW_NUMBER Rank, then the upsert keys are partition by key and row number.
     if (rel.groups.length == 1) {
       val group = rel.groups.get(0)
-      val aggCalls = group.aggCalls
-      if (
-        aggCalls.length == 1 && aggCalls.get(0).getOperator.equals(SqlStdOperatorTable.ROW_NUMBER)
-      ) {
-        val inputKeys = filterKeys(
-          FlinkRelMetadataQuery
-            .reuseOrCreate(mq)
-            .getUpsertKeys(rel.getInput),
-          group.keys)
-        val orderKeys = ImmutableBitSet.of(group.orderKeys.getKeys)
-        val retSet = new JHashSet[ImmutableBitSet]
-        retSet.add(group.keys.union(orderKeys))
-        if (inputKeys != null && inputKeys.nonEmpty) {
-          inputKeys.foreach(uniqueKey => retSet.add(uniqueKey))
-        }
-        return retSet
+      FlinkRelMdUniqueKeys.INSTANCE.getUniqueKeysOfWindowGroup(group, rel) match {
+        case Some(uniqueKeys) =>
+          val inputKeys = filterKeys(
+            FlinkRelMetadataQuery
+              .reuseOrCreate(mq)
+              .getUpsertKeys(rel.getInput),
+            group.keys)
+          val retSet = new JHashSet[ImmutableBitSet]
+          retSet.add(uniqueKeys)
+          if (inputKeys != null && inputKeys.nonEmpty) {
+            inputKeys.foreach(uniqueKey => retSet.add(uniqueKey))
+          }
+          return retSet
+        case _ =>
       }
     }
     getUpsertKeysOnOver(rel, mq, rel.groups.map(_.keys): _*)

@@ -656,14 +656,18 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       "(true,1,book,b,3,2)",
       "(true,2,fruit,a,2,1)",
       "(true,3,book,a,1,2)",
+      "(true,3,book,a,1,2)",
       "(true,1,fruit,b,6,1)",
       "(true,2,book,b,3,2)",
       "(true,3,fruit,a,2,1)",
       "(true,4,book,a,1,2)",
+      "(true,3,fruit,a,2,1)",
       "(true,2,book,e,5,1)",
       "(true,3,book,b,3,2)",
       "(true,4,fruit,a,2,1)",
+      "(true,3,book,b,3,2)",
       "(true,3,book,d,4,2)",
+      "(true,4,book,b,3,2)",
       "(true,4,book,b,3,2)"
     )
     assertThat(sink.getRawResults.mkString("\n")).isEqualTo(expected.mkString("\n"))

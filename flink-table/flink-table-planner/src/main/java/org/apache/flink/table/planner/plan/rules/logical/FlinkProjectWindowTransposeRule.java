@@ -50,8 +50,13 @@ import java.util.Set;
 
 /**
  * Copied from {@link org.apache.calcite.rel.rules.ProjectWindowTransposeRule} The only difference
- * is line 251 to 257, the upsert keys of window are kept not pushed down. Planner rule that pushes
- * a {@link org.apache.calcite.rel.logical.LogicalProject} past a {@link
+ * is line 251 to 257, the upsert keys of window are kept not pushed down. The reason for retaining
+ * the upsert keys is that there are some physical operator implementation optimizations that will
+ * rely on the upsert key. For example {@link
+ * org.apache.flink.table.planner.plan.utils.RankProcessStrategy#analyzeRankProcessStrategies} and
+ * {@link
+ * org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalJoin#getUpsertKeys}.
+ * Planner rule that pushes a {@link org.apache.calcite.rel.logical.LogicalProject} past a {@link
  * org.apache.calcite.rel.logical.LogicalWindow}.
  */
 @Value.Enclosing

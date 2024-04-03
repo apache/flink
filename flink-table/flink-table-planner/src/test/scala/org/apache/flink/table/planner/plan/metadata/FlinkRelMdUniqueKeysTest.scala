@@ -172,6 +172,8 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
 
   @Test
   def testGetUniqueKeysOnRank(): Unit = {
+    assertEquals(uniqueKeys(Array(7), Array(0)), mq.getUniqueKeys(logicalWindow).toSet)
+
     Array(logicalRank, flinkLogicalRank, batchLocalRank, batchGlobalRank, streamRank).foreach {
       rank => assertEquals(uniqueKeys(Array(0)), mq.getUniqueKeys(rank).toSet)
     }

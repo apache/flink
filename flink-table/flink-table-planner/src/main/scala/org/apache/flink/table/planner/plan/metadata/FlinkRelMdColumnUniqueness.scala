@@ -420,7 +420,23 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
       rel: Window,
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
-      ignoreNulls: Boolean): JBoolean = areColumnsUniqueOfOverAgg(rel, mq, columns, ignoreNulls)
+      ignoreNulls: Boolean): JBoolean = {
+    val isUniqueInRank = if (rel.groups.length == 1) {
+      val group = rel.groups.get(0)
+      FlinkRelMdUniqueKeys.INSTANCE.getUniqueKeysOfWindowGroup(group, rel) match {
+        case Some(_) =>
+          val fields = columns.toArray
+          val rankFunColumnIndex = RankUtil.getRankNumberColumnIndex(rel)
+          (group.keys.toArray :+ rankFunColumnIndex).forall(fields.contains(_))
+        case _ => false
+      }
+    } else false
+    if (isUniqueInRank) {
+      isUniqueInRank
+    } else {
+      areColumnsUniqueOfOverAgg(rel, mq, columns, ignoreNulls)
+    }
+  }
 
   def areColumnsUnique(
       rel: BatchPhysicalOverAggregate,
