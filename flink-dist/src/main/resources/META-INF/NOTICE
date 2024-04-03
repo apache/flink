@@ -11,8 +11,8 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.ververica:frocksdbjni:6.20.3-ververica-2.0
 - commons-cli:commons-cli:1.5.0
 - commons-collections:commons-collections:3.2.2
-- commons-io:commons-io:2.11.0
-- org.apache.commons:commons-compress:1.24.0
+- commons-io:commons-io:2.15.1
+- org.apache.commons:commons-compress:1.26.0
 - org.apache.commons:commons-lang3:3.12.0
 - org.apache.commons:commons-math3:3.6.1
 - org.apache.commons:commons-text:1.10.0
