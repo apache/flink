@@ -80,6 +80,14 @@ under the License.
 			<optional>true</optional>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-hadoop-fs</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+			<optional>true</optional>
+		</dependency>
+
 		<!-- Parquet -->
 
 		<dependency>
@@ -104,6 +112,22 @@ under the License.
 					<groupId>com.google.protobuf</groupId>
 					<artifactId>protobuf-java</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>ch.qos.reload4j</groupId>
+					<artifactId>reload4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-reload4j</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-hdfs</artifactId>
+			<scope>provided</scope>
+			<exclusions>
 				<exclusion>
 					<groupId>ch.qos.reload4j</groupId>
 					<artifactId>reload4j</artifactId>
