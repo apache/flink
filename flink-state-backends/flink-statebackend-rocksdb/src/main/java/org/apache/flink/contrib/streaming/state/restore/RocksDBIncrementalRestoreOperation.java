@@ -68,6 +68,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -85,6 +86,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Function;
 
+import static org.apache.flink.core.fs.ICloseableRegistry.asCloseable;
 import static org.apache.flink.runtime.metrics.MetricNames.DOWNLOAD_STATE_DURATION;
 import static org.apache.flink.runtime.metrics.MetricNames.RESTORE_ASYNC_COMPACTION_DURATION;
 import static org.apache.flink.runtime.metrics.MetricNames.RESTORE_STATE_DURATION;
@@ -713,7 +715,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                 createColumnFamilyDescriptors(stateMetaInfoSnapshots, true),
                 stateMetaInfoSnapshots,
                 restoreSourcePath,
-                cancelStreamRegistryForRestore);
+                cancelStreamRegistry);
     }
 
     /**
@@ -767,7 +769,10 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                 operatorIdentifier);
 
         try (RocksDBWriteBatchWrapper writeBatchWrapper =
-                new RocksDBWriteBatchWrapper(this.rocksHandle.getDb(), writeBatchSize)) {
+                        new RocksDBWriteBatchWrapper(this.rocksHandle.getDb(), writeBatchSize);
+                Closeable ignored =
+                        cancelStreamRegistry.registerCloseableTemporarily(
+                                asCloseable(writeBatchWrapper))) {
             for (IncrementalLocalKeyedStateHandle handleToCopy : toImport) {
                 try (RestoredDBInstance restoredDBInstance =
                         restoreTempDBInstanceFromLocalState(handleToCopy)) {
@@ -822,7 +827,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                     this.rocksHandle.getOrRegisterStateColumnFamilyHandle(
                                     null,
                                     tmpRestoreDBInfo.stateMetaInfoSnapshots.get(descIdx),
-                                    cancelStreamRegistryForRestore)
+                                    cancelStreamRegistry)
                             .columnFamilyHandle;
 
             try (RocksIteratorWrapper iterator =

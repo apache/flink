@@ -19,9 +19,11 @@
 package org.apache.flink.core.fs;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.ExceptionUtils;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * This class allows to register instances of {@link Closeable}, which are all closed if this
@@ -36,6 +38,19 @@ import java.io.IOException;
  */
 @Internal
 public interface ICloseableRegistry extends Closeable {
+
+    static Closeable asCloseable(AutoCloseable autoCloseable) {
+        AtomicBoolean closed = new AtomicBoolean(false);
+        return () -> {
+            if (closed.compareAndSet(false, true)) {
+                try {
+                    autoCloseable.close();
+                } catch (Exception e) {
+                    ExceptionUtils.rethrowIOException(e);
+                }
+            }
+        };
+    }
 
     /**
      * Registers a {@link Closeable} with the registry. In case the registry is already closed, this
