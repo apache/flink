@@ -25,6 +25,18 @@ export interface MetricMap {
   [p: string]: number;
 }
 
+export interface AggregateValueMap {
+  min: number;
+  max: number;
+  avg: number;
+  sum: number;
+  skew: number;
+}
+
+export interface MetricMapWithAllAggregates {
+  [metricName: string]: AggregateValueMap;
+}
+
 export interface MetricMapWithTimestamp {
   timestamp: number;
   values: MetricMap;

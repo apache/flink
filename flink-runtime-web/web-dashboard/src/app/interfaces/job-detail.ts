@@ -136,6 +136,7 @@ export interface NodesItemCorrect extends NodesItem {
   lowWatermark?: number;
   backPressuredPercentage?: number;
   busyPercentage?: number;
+  dataSkewPercentage?: number;
 }
 
 export interface NodesItemLink {
