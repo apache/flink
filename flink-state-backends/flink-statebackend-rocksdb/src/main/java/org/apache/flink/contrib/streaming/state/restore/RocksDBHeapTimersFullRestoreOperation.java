@@ -54,6 +54,7 @@ import org.rocksdb.RocksDBException;
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
@@ -62,6 +63,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+
+import static org.apache.flink.core.fs.ICloseableRegistry.asCloseable;
 
 /** Encapsulates the process of restoring a RocksDB instance from a full snapshot. */
 public class RocksDBHeapTimersFullRestoreOperation<K> implements RocksDBRestoreOperation {
@@ -188,7 +191,10 @@ public class RocksDBHeapTimersFullRestoreOperation<K> implements RocksDBRestoreO
             throws IOException, RocksDBException, StateMigrationException {
         // for all key-groups in the current state handle...
         try (RocksDBWriteBatchWrapper writeBatchWrapper =
-                new RocksDBWriteBatchWrapper(this.rocksHandle.getDb(), writeBatchSize)) {
+                        new RocksDBWriteBatchWrapper(this.rocksHandle.getDb(), writeBatchSize);
+                Closeable ignored =
+                        cancelStreamRegistryForRestore.registerCloseableTemporarily(
+                                asCloseable(writeBatchWrapper))) {
             HeapPriorityQueueSnapshotRestoreWrapper<HeapPriorityQueueElement> restoredPQ = null;
             ColumnFamilyHandle handle = null;
             while (keyGroups.hasNext()) {
