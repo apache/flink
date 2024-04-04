@@ -384,5 +384,39 @@ abstract class AggregatingMetricsHandlerTestBase<
         assertThat(aggregatedMetric.getMax()).isCloseTo(3.0, within(0.1));
         assertThat(aggregatedMetric.getAvg()).isCloseTo(2.0, within(0.1));
         assertThat(aggregatedMetric.getSum()).isCloseTo(4.0, within(0.1));
+        assertThat(aggregatedMetric.getSkew()).isCloseTo(50.0, within(0.1));
+    }
+
+    @Test
+    void testDataSkewAggregation() throws Exception {
+        Map<String, List<String>> queryParams = new HashMap<>(4);
+        queryParams.put("get", Collections.singletonList("abc.metric1"));
+        queryParams.put("agg", Collections.singletonList("skew"));
+
+        HandlerRequest<EmptyRequestBody> request =
+                HandlerRequest.resolveParametersAndCreate(
+                        EmptyRequestBody.getInstance(),
+                        handler.getMessageHeaders().getUnresolvedMessageParameters(),
+                        pathParameters,
+                        queryParams,
+                        Collections.emptyList());
+
+        AggregatedMetricsResponseBody response =
+                handler.handleRequest(request, MOCK_DISPATCHER_GATEWAY).get();
+
+        Collection<AggregatedMetric> aggregatedMetrics = response.getMetrics();
+
+        assertThat(aggregatedMetrics).hasSize(1);
+        AggregatedMetric aggregatedMetric = aggregatedMetrics.iterator().next();
+
+        assertThat(aggregatedMetric.getId()).isEqualTo("abc.metric1");
+        // abc.metric1 has the data points: [1,3], avg=2
+        // mean absolute deviation = (abs(1-2) + abs(3-2))/2 = 1
+        // data skew = mean_abs_deviation/avg * 100 = 50
+        assertThat(aggregatedMetric.getSkew()).isCloseTo(50.0, within(0.1));
+        assertThat(aggregatedMetric.getMin()).isNull();
+        assertThat(aggregatedMetric.getAvg()).isNull();
+        assertThat(aggregatedMetric.getMax()).isNull();
+        assertThat(aggregatedMetric.getSum()).isNull();
     }
 }

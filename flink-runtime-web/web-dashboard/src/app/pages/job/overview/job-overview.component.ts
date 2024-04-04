@@ -137,7 +137,7 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
   }
 
   public refreshNodesWithMetrics(): void {
-    this.mergeWithBackPressure(this.nodes)
+    this.mergeWithBackPressureAndSkew(this.nodes)
       .pipe(
         mergeMap(nodes => this.mergeWithWatermarks(nodes)),
         takeUntil(this.destroy$)
@@ -150,17 +150,22 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
       });
   }
 
-  private mergeWithBackPressure(nodes: NodesItemCorrect[]): Observable<NodesItemCorrect[]> {
+  private mergeWithBackPressureAndSkew(nodes: NodesItemCorrect[]): Observable<NodesItemCorrect[]> {
     return forkJoin(
       nodes.map(node => {
         return this.metricService
-          .loadAggregatedMetrics(this.jobId, node.id, ['backPressuredTimeMsPerSecond', 'busyTimeMsPerSecond'])
+          .loadMetricsWithAllAggregates(this.jobId, node.id, [
+            'backPressuredTimeMsPerSecond',
+            'busyTimeMsPerSecond',
+            'numRecordsInPerSecond'
+          ])
           .pipe(
             map(result => {
               return {
                 ...node,
-                backPressuredPercentage: Math.min(Math.round(result.backPressuredTimeMsPerSecond / 10), 100),
-                busyPercentage: Math.min(Math.round(result.busyTimeMsPerSecond / 10), 100)
+                backPressuredPercentage: Math.min(Math.round(result.backPressuredTimeMsPerSecond.max / 10), 100),
+                busyPercentage: Math.min(Math.round(result.busyTimeMsPerSecond.max / 10), 100),
+                dataSkewPercentage: result.numRecordsInPerSecond.skew
               };
             })
           );

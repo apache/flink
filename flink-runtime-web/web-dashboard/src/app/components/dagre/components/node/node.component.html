@@ -41,6 +41,9 @@
         <xhtml:div class="node-label metric" title="Maximum busy percentage across all subtasks">
           Busy (max): {{ prettyPrint(busyPercentage) }}
         </xhtml:div>
+        <xhtml:div class="node-label metric" title="Data skew percentage across all subtasks">
+          Data Skew: {{ prettyPrint(dataSkewPercentage) }}
+        </xhtml:div>
         <xhtml:div class="node-label metric" *ngIf="lowWatermark">
           Low Watermark: {{ lowWatermark }}
         </xhtml:div>

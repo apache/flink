@@ -37,6 +37,7 @@ export class NodeComponent {
   lowWatermark: number | null | undefined;
   backPressuredPercentage: number | undefined = NaN;
   busyPercentage: number | undefined = NaN;
+  dataSkewPercentage: number | undefined = NaN;
   backgroundColor: string | undefined;
   borderColor: string | undefined;
   height = 0;
@@ -70,6 +71,7 @@ export class NodeComponent {
     if (this.isValid(value.busyPercentage)) {
       this.busyPercentage = value.busyPercentage;
     }
+    this.dataSkewPercentage = value.dataSkewPercentage;
     this.height = value.height || 0;
     this.id = value.id;
     if (description && description.length > 300) {
@@ -165,7 +167,7 @@ export class NodeComponent {
     if (value === undefined || isNaN(value)) {
       return 'N/A';
     } else {
-      return `${value}%`;
+      return `${Math.round(value)}%`;
     }
   }
 }
