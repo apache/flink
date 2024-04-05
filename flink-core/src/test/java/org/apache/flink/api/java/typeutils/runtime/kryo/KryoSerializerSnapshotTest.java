@@ -56,12 +56,12 @@ public class KryoSerializerSnapshotTest {
     }
 
     @Test
-    public void sanityTest() {
+    void sanityTest() {
         assertThat(resolveKryoCompatibility(oldConfig, newConfig)).is(isCompatibleAsIs());
     }
 
     @Test
-    public void addingTypesIsCompatibleAfterReconfiguration() {
+    void addingTypesIsCompatibleAfterReconfiguration() {
         oldConfig.registerKryoType(Animal.class);
 
         newConfig.registerKryoType(Animal.class);
@@ -72,7 +72,7 @@ public class KryoSerializerSnapshotTest {
     }
 
     @Test
-    public void replacingKryoSerializersIsCompatibleAsIs() {
+    void replacingKryoSerializersIsCompatibleAsIs() {
         oldConfig.registerKryoType(Animal.class);
         oldConfig.registerTypeWithKryoSerializer(Dog.class, DogKryoSerializer.class);
 
@@ -85,7 +85,7 @@ public class KryoSerializerSnapshotTest {
     }
 
     @Test
-    public void reorderingIsCompatibleAfterReconfiguration() {
+    void reorderingIsCompatibleAfterReconfiguration() {
         oldConfig.registerKryoType(Parrot.class);
         oldConfig.registerKryoType(Dog.class);
 
@@ -97,7 +97,7 @@ public class KryoSerializerSnapshotTest {
     }
 
     @Test
-    public void tryingToRestoreWithNonExistingClassShouldBeIncompatible() throws IOException {
+    void tryingToRestoreWithNonExistingClassShouldBeIncompatible() throws IOException {
         TypeSerializerSnapshot<Animal> restoredSnapshot = kryoSnapshotWithMissingClass();
 
         TypeSerializer<Animal> currentSerializer =

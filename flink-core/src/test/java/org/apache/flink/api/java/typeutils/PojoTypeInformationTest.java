@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeutils.CompositeType;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class PojoTypeInformationTest {
 
@@ -52,10 +52,7 @@ class PojoTypeInformationTest {
     @Test
     void testSimplePojoTypeExtraction() {
         TypeInformation<SimplePojo> type = TypeExtractor.getForClass(SimplePojo.class);
-        assertInstanceOf(
-                CompositeType.class,
-                type,
-                "Extracted type is not a composite/pojo type but should be.");
+        assertThat(type).isInstanceOf(CompositeType.class);
     }
 
     public static class NestedPojoInner {
@@ -70,8 +67,7 @@ class PojoTypeInformationTest {
     @Test
     void testNestedPojoTypeExtraction() {
         TypeInformation<NestedPojoOuter> type = TypeExtractor.getForClass(NestedPojoOuter.class);
-        assertInstanceOf(
-                CompositeType.class, type, "Extracted type is not a Pojo type but should be.");
+        assertThat(type).isInstanceOf(CompositeType.class);
     }
 
     public static class Recursive1Pojo {
@@ -90,14 +86,12 @@ class PojoTypeInformationTest {
         // types in the type extractor. The recursive field will be handled using the generic
         // serializer.
         TypeInformation<Recursive1Pojo> type = TypeExtractor.getForClass(Recursive1Pojo.class);
-        assertInstanceOf(
-                CompositeType.class, type, "Extracted type is not a Pojo type but should be.");
+        assertThat(type).isInstanceOf(CompositeType.class);
     }
 
     @Test
     void testRecursivePojoObjectTypeExtraction() {
         TypeInformation<Recursive1Pojo> type = TypeExtractor.getForObject(new Recursive1Pojo());
-        assertInstanceOf(
-                CompositeType.class, type, "Extracted type is not a Pojo type but should be.");
+        assertThat(type).isInstanceOf(CompositeType.class);
     }
 }

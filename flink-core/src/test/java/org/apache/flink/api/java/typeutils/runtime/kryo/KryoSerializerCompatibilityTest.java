@@ -47,7 +47,7 @@ public class KryoSerializerCompatibilityTest {
 
     /** Verifies that reconfiguration result is INCOMPATIBLE if data type has changed. */
     @Test
-    public void testMigrationStrategyWithDifferentKryoType() throws Exception {
+    void testMigrationStrategyWithDifferentKryoType() throws Exception {
         KryoSerializer<TestClassA> kryoSerializerForA =
                 new KryoSerializer<>(TestClassA.class, new SerializerConfigImpl());
 
@@ -81,7 +81,7 @@ public class KryoSerializerCompatibilityTest {
     }
 
     @Test
-    public void testMigrationOfTypeWithAvroType() throws Exception {
+    void testMigrationOfTypeWithAvroType() throws Exception {
 
         /*
         When Avro sees the schema "{"type" : "array", "items" : "boolean"}" it will create a field
@@ -143,7 +143,7 @@ public class KryoSerializerCompatibilityTest {
     }
 
     @Test
-    public void testMigrationWithTypeDevoidOfAvroTypes() throws Exception {
+    void testMigrationWithTypeDevoidOfAvroTypes() throws Exception {
 
         class FakeClass {
             public final List<Integer> array;
@@ -174,7 +174,7 @@ public class KryoSerializerCompatibilityTest {
      * preceding KryoSerializer.
      */
     @Test
-    public void testMigrationStrategyForDifferentRegistrationOrder() throws Exception {
+    void testMigrationStrategyForDifferentRegistrationOrder() throws Exception {
 
         SerializerConfigImpl serializerConfigImpl = new SerializerConfigImpl();
         serializerConfigImpl.registerKryoType(TestClassA.class);

@@ -39,7 +39,7 @@ public abstract class TuplePairComparatorTestBase<T extends Tuple, R extends Tup
     protected abstract Tuple2<T[], R[]> getSortedTestData();
 
     @Test
-    public void testEqualityWithReference() {
+    void testEqualityWithReference() {
         TypePairComparator<T, R> comparator = getComparator(true);
         Tuple2<T[], R[]> data = getSortedData();
         for (int x = 0; x < data.f0.length; x++) {
@@ -50,7 +50,7 @@ public abstract class TuplePairComparatorTestBase<T extends Tuple, R extends Tup
     }
 
     @Test
-    public void testInequalityWithReference() {
+    void testInequalityWithReference() {
         testGreatSmallAscDescWithReference(true);
         testGreatSmallAscDescWithReference(false);
     }
