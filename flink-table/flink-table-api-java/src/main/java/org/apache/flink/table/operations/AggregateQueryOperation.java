@@ -76,15 +76,26 @@ public class AggregateQueryOperation implements QueryOperation {
 
     @Override
     public String asSerializableString() {
+        final String groupingExprs = getGroupingExprs();
         return String.format(
                 "SELECT %s FROM (%s\n)\nGROUP BY %s",
                 Stream.concat(groupingExpressions.stream(), aggregateExpressions.stream())
                         .map(ResolvedExpression::asSerializableString)
                         .collect(Collectors.joining(", ")),
                 OperationUtils.indent(child.asSerializableString()),
-                groupingExpressions.stream()
-                        .map(ResolvedExpression::asSerializableString)
-                        .collect(Collectors.joining(", ")));
+                groupingExprs);
+    }
+
+    private String getGroupingExprs() {
+        if (groupingExpressions.isEmpty()) {
+            return "1";
+        } else {
+            final String groupingExprs =
+                    groupingExpressions.stream()
+                            .map(ResolvedExpression::asSerializableString)
+                            .collect(Collectors.joining(", "));
+            return groupingExprs;
+        }
     }
 
     @Override
