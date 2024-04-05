@@ -53,6 +53,7 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
                 QueryOperationTestPrograms.VALUES_QUERY_OPERATION,
                 QueryOperationTestPrograms.FILTER_QUERY_OPERATION,
                 QueryOperationTestPrograms.AGGREGATE_QUERY_OPERATION,
+                QueryOperationTestPrograms.AGGREGATE_NO_GROUP_BY_QUERY_OPERATION,
                 QueryOperationTestPrograms.DISTINCT_QUERY_OPERATION,
                 QueryOperationTestPrograms.JOIN_QUERY_OPERATION,
                 QueryOperationTestPrograms.ORDER_BY_QUERY_OPERATION,
@@ -114,7 +115,7 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
                 (StreamGraph)
                         env.generatePipelineFromQueryOperation(queryOperation, transformations);
 
-        assertThat(sqlStep.sql).isEqualTo(streamGraph.getJobName());
+        assertThat(streamGraph.getJobName()).isEqualTo(sqlStep.sql);
     }
 
     private static TableEnvironment setupEnv(TableTestProgram program) {

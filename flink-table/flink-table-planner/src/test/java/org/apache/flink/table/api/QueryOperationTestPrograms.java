@@ -147,6 +147,33 @@ public class QueryOperationTestPrograms {
                                     + ")")
                     .build();
 
+    static final TableTestProgram AGGREGATE_NO_GROUP_BY_QUERY_OPERATION =
+            TableTestProgram.of(
+                            "aggregate-query-no-group-by-operation", "verifies sql serialization")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("s")
+                                    .addSchema("a bigint", "b string")
+                                    .producedValues(
+                                            Row.of(10L, "apple"),
+                                            Row.of(20L, "apple"),
+                                            Row.of(5L, "pear"),
+                                            Row.of(15L, "pear"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("b bigint")
+                                    .consumedValues(Row.of(50L))
+                                    .build())
+                    .runTableApi(t -> t.from("s").select($("a").sum()), "sink")
+                    .runSql(
+                            "SELECT `EXPR$0` FROM (\n"
+                                    + "    SELECT (SUM(`a`)) AS `EXPR$0` FROM (\n"
+                                    + "        SELECT `a`, `b` FROM `default_catalog`.`default_database`.`s`\n"
+                                    + "    )\n"
+                                    + "    GROUP BY 1\n"
+                                    + ")")
+                    .build();
+
     static final TableTestProgram WINDOW_AGGREGATE_QUERY_OPERATION =
             TableTestProgram.of("window-aggregate-query-operation", "verifies sql serialization")
                     .setupTableSource(
