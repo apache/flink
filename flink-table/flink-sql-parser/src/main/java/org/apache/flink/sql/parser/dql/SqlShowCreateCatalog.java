@@ -35,15 +35,12 @@ public class SqlShowCreateCatalog extends SqlShowCreate {
     public static final SqlSpecialOperator OPERATOR =
             new SqlSpecialOperator("SHOW CREATE CATALOG", SqlKind.OTHER_DDL);
 
-    protected final SqlIdentifier catalogName;
-
     public SqlShowCreateCatalog(SqlParserPos pos, SqlIdentifier catalogName) {
         super(pos, catalogName);
-        this.catalogName = catalogName;
     }
 
     public SqlIdentifier getCatalogName() {
-        return catalogName;
+        return sqlIdentifier;
     }
 
     @Override
@@ -63,6 +60,6 @@ public class SqlShowCreateCatalog extends SqlShowCreate {
     }
 
     public String catalogName() {
-        return catalogName.getSimple();
+        return sqlIdentifier.getSimple();
     }
 }
