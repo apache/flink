@@ -33,7 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>It does not implement any of the deserialization methods.
  */
-class MockDeserializationSchema<T> implements DeserializationSchema<T> {
+public class MockDeserializationSchema<T> implements DeserializationSchema<T> {
 
     private boolean openCalled = false;
 
