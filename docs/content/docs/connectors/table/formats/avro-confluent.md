@@ -125,8 +125,8 @@ CREATE TABLE user_created (
   'value.fields-include' = 'EXCEPT_KEY',
    
   -- subjects have a default value since Flink 1.13, though can be overridden:
-  'key.avro-confluent.subject' = 'user_events_example2-key2',
-  'value.avro-confluent.subject' = 'user_events_example2-value2'
+  'key.avro-confluent.subject' = 'user_events_example2-key',
+  'value.avro-confluent.subject' = 'user_events_example2-value'
 )
 ```
 
