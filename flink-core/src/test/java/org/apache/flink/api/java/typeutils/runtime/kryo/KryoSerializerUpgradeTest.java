@@ -101,7 +101,9 @@ class KryoSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Ob
 
         @Override
         public Condition<Animal> testDataCondition() {
-            return new Condition<>(value -> new Dog("Hasso").equals(value), "");
+            return new Condition<>(
+                    value -> new Dog("Hasso").equals(value),
+                    "value should be a Dog with name 'Hasso'");
         }
 
         @Override
@@ -130,7 +132,9 @@ class KryoSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Ob
 
         @Override
         public Condition<Animal> testDataCondition() {
-            return new Condition<>(value -> new Dog("Hasso").equals(value), "");
+            return new Condition<>(
+                    value -> new Dog("Hasso").equals(value),
+                    "value should be a Dog with name 'Hasso'");
         }
 
         @Override
@@ -182,7 +186,9 @@ class KryoSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Ob
 
         @Override
         public Condition<Animal> testDataCondition() {
-            return new Condition<>(value -> new Dog("Hasso").equals(value), "");
+            return new Condition<>(
+                    value -> new Dog("Hasso").equals(value),
+                    "value should be a Dog with name 'Hasso'");
         }
 
         @Override
@@ -238,7 +244,9 @@ class KryoSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Ob
 
         @Override
         public Condition<Animal> testDataCondition() {
-            return new Condition<>(value -> new Dog("Hasso").equals(value), "");
+            return new Condition<>(
+                    value -> new Dog("Hasso").equals(value),
+                    "value should be a Dog with name 'Hasso'");
         }
 
         @Override

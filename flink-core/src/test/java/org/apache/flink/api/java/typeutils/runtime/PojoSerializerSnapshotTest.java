@@ -145,7 +145,7 @@ class PojoSerializerSnapshotTest {
                                 mockRemovedField(HEIGHT_FIELD)));
 
         final TypeSerializer<TestPojo> restoredSerializer = testSnapshot.restoreSerializer();
-        assertThat(restoredSerializer.getClass()).isInstanceOf(PojoSerializer.class);
+        assertThat(restoredSerializer).isInstanceOf(PojoSerializer.class);
         final PojoSerializer<TestPojo> restoredPojoSerializer =
                 (PojoSerializer<TestPojo>) restoredSerializer;
 
@@ -167,7 +167,7 @@ class PojoSerializerSnapshotTest {
                 buildTestSnapshot(Collections.singletonList(HEIGHT_FIELD));
 
         final TypeSerializer<TestPojo> restoredSerializer = testSnapshot.restoreSerializer();
-        assertThat(restoredSerializer.getClass()).isInstanceOf(PojoSerializer.class);
+        assertThat(restoredSerializer).isInstanceOf(PojoSerializer.class);
         final PojoSerializer<TestPojo> restoredPojoSerializer =
                 (PojoSerializer<TestPojo>) restoredSerializer;
 

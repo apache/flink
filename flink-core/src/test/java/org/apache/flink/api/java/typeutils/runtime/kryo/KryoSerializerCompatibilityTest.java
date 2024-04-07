@@ -29,9 +29,7 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -39,11 +37,10 @@ import java.io.FileInputStream;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests related to configuration snapshotting and reconfiguring for the {@link KryoSerializer}. */
 public class KryoSerializerCompatibilityTest {
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
 
     /** Verifies that reconfiguration result is INCOMPATIBLE if data type has changed. */
     @Test
@@ -126,20 +123,21 @@ public class KryoSerializerCompatibilityTest {
         }
         */
 
-        {
-            SerializerConfigImpl serializerConfigImpl = new SerializerConfigImpl();
-            KryoSerializer<FakeAvroClass> kryoSerializer =
-                    new KryoSerializer<>(FakeAvroClass.class, serializerConfigImpl);
+        SerializerConfigImpl serializerConfigImpl = new SerializerConfigImpl();
+        KryoSerializer<FakeAvroClass> kryoSerializer =
+                new KryoSerializer<>(FakeAvroClass.class, serializerConfigImpl);
 
-            try (FileInputStream f =
-                            new FileInputStream(
-                                    "src/test/resources/type-with-avro-serialized-using-kryo");
-                    DataInputViewStreamWrapper inputView = new DataInputViewStreamWrapper(f)) {
-
-                thrown.expectMessage("Could not find required Avro dependency");
-                kryoSerializer.deserialize(inputView);
-            }
-        }
+        assertThatThrownBy(
+                        () -> {
+                            try (FileInputStream f =
+                                            new FileInputStream(
+                                                    "src/test/resources/type-with-avro-serialized-using-kryo");
+                                    DataInputViewStreamWrapper inputView =
+                                            new DataInputViewStreamWrapper(f)) {
+                                kryoSerializer.deserialize(inputView);
+                            }
+                        })
+                .hasMessageContaining("Could not find required Avro dependency");
     }
 
     @Test

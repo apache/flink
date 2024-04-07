@@ -91,7 +91,9 @@ class CompositeTypeSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<O
 
         @Override
         public Condition<Either<String, Integer>> testDataCondition() {
-            return new Condition<>(value -> new Either.Left<>("ApacheFlink").equals(value), "");
+            return new Condition<>(
+                    value -> new Either.Left<>("ApacheFlink").equals(value),
+                    "value is Either.Left(\"ApacheFlink\")");
         }
 
         @Override
