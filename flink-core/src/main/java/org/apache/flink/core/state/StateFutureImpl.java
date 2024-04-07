@@ -166,7 +166,8 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
     }
 
     /**
-     * Make a new future based on context of this future.
+     * Make a new future based on context of this future. Subclasses need to overload this method to
+     * generate their own instances (if needed).
      *
      * @return the new created future.
      */

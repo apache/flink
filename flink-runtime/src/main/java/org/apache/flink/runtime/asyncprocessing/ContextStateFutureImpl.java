@@ -32,6 +32,8 @@ import org.apache.flink.core.state.StateFutureImpl;
  * <li>2. -1 when future completed.
  * <li>3. +1 when callback registered.
  * <li>4. -1 when callback finished.
+ * <li>Please refer to {@code ContextStateFutureImplTest} where the reference counting is carefully
+ *     tested.
  */
 public class ContextStateFutureImpl<T> extends StateFutureImpl<T> {
 
