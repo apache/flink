@@ -816,3 +816,25 @@ show tables from db1 like 'p_r%';
 +------------+
 1 row in set
 !ok
+
+# ==========================================================================
+# test catalog
+# ==========================================================================
+
+create catalog cat2 WITH ('type'='generic_in_memory', 'default-database'='db');
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
+show create catalog cat2;
+!output
+CREATE CATALOG `cat2` WITH (
+  'default-database' = 'db',
+  'type' = 'generic_in_memory'
+)
+!ok
