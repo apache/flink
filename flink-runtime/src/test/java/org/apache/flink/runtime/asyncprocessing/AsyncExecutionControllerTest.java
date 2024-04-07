@@ -170,7 +170,7 @@ class AsyncExecutionControllerTest {
      * An AsyncExecutionController for testing purpose, which integrates with basic buffer
      * mechanism.
      */
-    class TestAsyncExecutionController<R, K> extends AsyncExecutionController<R, K> {
+    static class TestAsyncExecutionController<R, K> extends AsyncExecutionController<R, K> {
 
         LinkedList<StateRequest<K, ?, ?>> activeBuffer;
 
@@ -216,7 +216,7 @@ class AsyncExecutionControllerTest {
     }
 
     /** Simulate the underlying state that is actually used to execute the request. */
-    class TestUnderlyingState {
+    static class TestUnderlyingState {
 
         private final HashMap<String, Integer> hashMap;
 
@@ -233,7 +233,7 @@ class AsyncExecutionControllerTest {
         }
     }
 
-    class TestValueState implements ValueState<Integer> {
+    static class TestValueState implements ValueState<Integer> {
 
         private final AsyncExecutionController<String, String> asyncExecutionController;
 
@@ -266,7 +266,7 @@ class AsyncExecutionControllerTest {
      * A brief implementation of {@link StateExecutor}, to illustrate the interaction between AEC
      * and StateExecutor.
      */
-    class TestStateExecutor implements StateExecutor {
+    static class TestStateExecutor implements StateExecutor {
 
         public TestStateExecutor() {}
 
