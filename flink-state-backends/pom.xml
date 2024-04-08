@@ -40,5 +40,6 @@ under the License.
 		<module>flink-statebackend-heap-spillable</module>
 		<module>flink-statebackend-changelog</module>
 		<module>flink-statebackend-common</module>
-	</modules>
+        <module>flink-statebackend-forst</module>
+    </modules>
 </project>
