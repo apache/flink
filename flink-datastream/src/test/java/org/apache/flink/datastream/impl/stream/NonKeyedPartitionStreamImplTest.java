@@ -18,12 +18,14 @@
 
 package org.apache.flink.datastream.impl.stream;
 
+import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.dsv2.DataStreamV2SinkUtils;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream;
 import org.apache.flink.datastream.impl.ExecutionEnvironmentImpl;
 import org.apache.flink.datastream.impl.TestingTransformation;
+import org.apache.flink.datastream.impl.utils.StreamUtils;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.transformations.DataStreamV2SinkTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -130,5 +132,28 @@ class NonKeyedPartitionStreamImplTest {
                 .hasSize(1)
                 .element(0)
                 .isInstanceOf(DataStreamV2SinkTransformation.class);
+    }
+
+    @Test
+    void testConfig() throws Exception {
+        ExecutionEnvironmentImpl env = StreamTestUtils.getEnv();
+        NonKeyedPartitionStreamImpl<Integer> stream =
+                new NonKeyedPartitionStreamImpl<>(
+                        env, new TestingTransformation<>("t1", Types.INT, 1));
+        NonKeyedPartitionStream.ProcessConfigurableAndNonKeyedPartitionStream<Integer>
+                configureHandle = StreamUtils.wrapWithConfigureHandle(stream);
+        configureHandle.withName("test");
+        configureHandle.withParallelism(2);
+        configureHandle.withMaxParallelism(3);
+        configureHandle.withUid("uid");
+        org.apache.flink.api.common.SlotSharingGroup ssg =
+                org.apache.flink.api.common.SlotSharingGroup.newBuilder("test-ssg").build();
+        configureHandle.withSlotSharingGroup(ssg);
+        Transformation<Integer> transformation = stream.getTransformation();
+        assertThat(transformation.getName()).isEqualTo("test");
+        assertThat(transformation.getParallelism()).isEqualTo(2);
+        assertThat(transformation.getMaxParallelism()).isEqualTo(3);
+        assertThat(transformation.getUid()).isEqualTo("uid");
+        assertThat(transformation.getSlotSharingGroup()).hasValue(SlotSharingGroup.from(ssg));
     }
 }

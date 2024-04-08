@@ -31,12 +31,14 @@ import org.apache.flink.datastream.api.stream.BroadcastStream;
 import org.apache.flink.datastream.api.stream.GlobalStream;
 import org.apache.flink.datastream.api.stream.KeyedPartitionStream;
 import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream;
+import org.apache.flink.datastream.api.stream.ProcessConfigurable;
 import org.apache.flink.datastream.impl.ExecutionEnvironmentImpl;
 import org.apache.flink.datastream.impl.operators.ProcessOperator;
 import org.apache.flink.datastream.impl.operators.TwoInputBroadcastProcessOperator;
 import org.apache.flink.datastream.impl.operators.TwoInputNonBroadcastProcessOperator;
 import org.apache.flink.datastream.impl.operators.TwoOutputProcessOperator;
 import org.apache.flink.datastream.impl.utils.StreamUtils;
+import org.apache.flink.streaming.api.transformations.DataStreamV2SinkTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
@@ -52,7 +54,7 @@ public class NonKeyedPartitionStreamImpl<T> extends AbstractDataStream<T>
     }
 
     @Override
-    public <OUT> NonKeyedPartitionStream<OUT> process(
+    public <OUT> ProcessConfigurableAndNonKeyedPartitionStream<OUT> process(
             OneInputStreamProcessFunction<T, OUT> processFunction) {
         TypeInformation<OUT> outType =
                 StreamUtils.getOutputTypeForOneInputProcessFunction(processFunction, getType());
@@ -60,7 +62,8 @@ public class NonKeyedPartitionStreamImpl<T> extends AbstractDataStream<T>
         OneInputTransformation<T, OUT> outputTransform =
                 StreamUtils.getOneInputTransformation("Process", this, outType, operator);
         environment.addOperator(outputTransform);
-        return new NonKeyedPartitionStreamImpl<>(environment, outputTransform);
+        return StreamUtils.wrapWithConfigureHandle(
+                new NonKeyedPartitionStreamImpl<>(environment, outputTransform));
     }
 
     @Override
@@ -87,7 +90,7 @@ public class NonKeyedPartitionStreamImpl<T> extends AbstractDataStream<T>
     }
 
     @Override
-    public <T_OTHER, OUT> NonKeyedPartitionStream<OUT> connectAndProcess(
+    public <T_OTHER, OUT> ProcessConfigurableAndNonKeyedPartitionStream<OUT> connectAndProcess(
             NonKeyedPartitionStream<T_OTHER> other,
             TwoInputNonBroadcastStreamProcessFunction<T, T_OTHER, OUT> processFunction) {
         TypeInformation<OUT> outTypeInfo =
@@ -106,11 +109,12 @@ public class NonKeyedPartitionStreamImpl<T> extends AbstractDataStream<T>
                         outTypeInfo,
                         processOperator);
         environment.addOperator(outTransformation);
-        return new NonKeyedPartitionStreamImpl<>(environment, outTransformation);
+        return StreamUtils.wrapWithConfigureHandle(
+                new NonKeyedPartitionStreamImpl<>(environment, outTransformation));
     }
 
     @Override
-    public <T_OTHER, OUT> NonKeyedPartitionStream<OUT> connectAndProcess(
+    public <T_OTHER, OUT> ProcessConfigurableAndNonKeyedPartitionStream<OUT> connectAndProcess(
             BroadcastStream<T_OTHER> other,
             TwoInputBroadcastStreamProcessFunction<T, T_OTHER, OUT> processFunction) {
         TypeInformation<OUT> outTypeInfo =
@@ -130,12 +134,16 @@ public class NonKeyedPartitionStreamImpl<T> extends AbstractDataStream<T>
                         outTypeInfo,
                         processOperator);
         environment.addOperator(outTransformation);
-        return new NonKeyedPartitionStreamImpl<>(environment, outTransformation);
+        return StreamUtils.wrapWithConfigureHandle(
+                new NonKeyedPartitionStreamImpl<>(environment, outTransformation));
     }
 
     @Override
-    public void toSink(Sink<T> sink) {
-        StreamUtils.addSinkOperator(this, sink, getType());
+    public ProcessConfigurable<?> toSink(Sink<T> sink) {
+        DataStreamV2SinkTransformation<T, T> sinkTransformation =
+                StreamUtils.addSinkOperator(this, sink, getType());
+        return StreamUtils.wrapWithConfigureHandle(
+                new NonKeyedPartitionStreamImpl<>(environment, sinkTransformation));
     }
 
     // ---------------------
@@ -169,9 +177,9 @@ public class NonKeyedPartitionStreamImpl<T> extends AbstractDataStream<T>
     static class TwoNonKeyedPartitionStreamsImpl<OUT1, OUT2>
             implements TwoNonKeyedPartitionStreams<OUT1, OUT2> {
 
-        private final NonKeyedPartitionStream<OUT1> firstStream;
+        private final NonKeyedPartitionStreamImpl<OUT1> firstStream;
 
-        private final NonKeyedPartitionStream<OUT2> secondStream;
+        private final NonKeyedPartitionStreamImpl<OUT2> secondStream;
 
         public static <OUT1, OUT2> TwoNonKeyedPartitionStreamsImpl<OUT1, OUT2> of(
                 NonKeyedPartitionStreamImpl<OUT1> firstStream,
@@ -187,13 +195,13 @@ public class NonKeyedPartitionStreamImpl<T> extends AbstractDataStream<T>
         }
 
         @Override
-        public NonKeyedPartitionStream<OUT1> getFirst() {
-            return firstStream;
+        public ProcessConfigurableAndNonKeyedPartitionStream<OUT1> getFirst() {
+            return StreamUtils.wrapWithConfigureHandle(firstStream);
         }
 
         @Override
-        public NonKeyedPartitionStream<OUT2> getSecond() {
-            return secondStream;
+        public ProcessConfigurableAndNonKeyedPartitionStream<OUT2> getSecond() {
+            return StreamUtils.wrapWithConfigureHandle(secondStream);
         }
     }
 }
