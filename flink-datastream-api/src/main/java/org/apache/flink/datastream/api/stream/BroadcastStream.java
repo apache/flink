@@ -21,6 +21,8 @@ package org.apache.flink.datastream.api.stream;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.datastream.api.function.TwoInputBroadcastStreamProcessFunction;
+import org.apache.flink.datastream.api.stream.KeyedPartitionStream.ProcessConfigurableAndKeyedPartitionStream;
+import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream.ProcessConfigurableAndNonKeyedPartitionStream;
 
 /** This interface represents a stream that each parallel task processes the same data. */
 @Experimental
@@ -39,7 +41,7 @@ public interface BroadcastStream<T> extends DataStream {
      * @param processFunction to perform operation.
      * @return new stream with this operation.
      */
-    <K, T_OTHER, OUT> NonKeyedPartitionStream<OUT> connectAndProcess(
+    <K, T_OTHER, OUT> ProcessConfigurableAndNonKeyedPartitionStream<OUT> connectAndProcess(
             KeyedPartitionStream<K, T_OTHER> other,
             TwoInputBroadcastStreamProcessFunction<T_OTHER, T, OUT> processFunction);
 
@@ -50,7 +52,7 @@ public interface BroadcastStream<T> extends DataStream {
      * @param processFunction to perform operation.
      * @return new stream with this operation.
      */
-    <T_OTHER, OUT> NonKeyedPartitionStream<OUT> connectAndProcess(
+    <T_OTHER, OUT> ProcessConfigurableAndNonKeyedPartitionStream<OUT> connectAndProcess(
             NonKeyedPartitionStream<T_OTHER> other,
             TwoInputBroadcastStreamProcessFunction<T_OTHER, T, OUT> processFunction);
 
@@ -69,7 +71,7 @@ public interface BroadcastStream<T> extends DataStream {
      * @param newKeySelector to select the key after process.
      * @return new {@link KeyedPartitionStream} with this operation.
      */
-    <K, T_OTHER, OUT> KeyedPartitionStream<K, OUT> connectAndProcess(
+    <K, T_OTHER, OUT> ProcessConfigurableAndKeyedPartitionStream<K, OUT> connectAndProcess(
             KeyedPartitionStream<K, T_OTHER> other,
             TwoInputBroadcastStreamProcessFunction<T_OTHER, T, OUT> processFunction,
             KeySelector<OUT, K> newKeySelector);

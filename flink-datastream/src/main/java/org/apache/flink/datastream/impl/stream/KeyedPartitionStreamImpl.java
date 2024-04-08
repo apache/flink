@@ -32,7 +32,9 @@ import org.apache.flink.datastream.api.stream.BroadcastStream;
 import org.apache.flink.datastream.api.stream.GlobalStream;
 import org.apache.flink.datastream.api.stream.KeyedPartitionStream;
 import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream;
+import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream.ProcessConfigurableAndNonKeyedPartitionStream;
 import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream.TwoNonKeyedPartitionStreams;
+import org.apache.flink.datastream.api.stream.ProcessConfigurable;
 import org.apache.flink.datastream.impl.operators.KeyedProcessOperator;
 import org.apache.flink.datastream.impl.operators.KeyedTwoInputBroadcastProcessOperator;
 import org.apache.flink.datastream.impl.operators.KeyedTwoInputNonBroadcastProcessOperator;
@@ -40,6 +42,7 @@ import org.apache.flink.datastream.impl.operators.KeyedTwoOutputProcessOperator;
 import org.apache.flink.datastream.impl.stream.NonKeyedPartitionStreamImpl.TwoNonKeyedPartitionStreamsImpl;
 import org.apache.flink.datastream.impl.utils.StreamUtils;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
+import org.apache.flink.streaming.api.transformations.DataStreamV2SinkTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
@@ -97,7 +100,7 @@ public class KeyedPartitionStreamImpl<K, V> extends AbstractDataStream<V>
     }
 
     @Override
-    public <OUT> NonKeyedPartitionStream<OUT> process(
+    public <OUT> ProcessConfigurableAndNonKeyedPartitionStream<OUT> process(
             OneInputStreamProcessFunction<V, OUT> processFunction) {
         TypeInformation<OUT> outType;
         outType = StreamUtils.getOutputTypeForOneInputProcessFunction(processFunction, getType());
@@ -107,11 +110,12 @@ public class KeyedPartitionStreamImpl<K, V> extends AbstractDataStream<V>
                 StreamUtils.getOneInputKeyedTransformation(
                         "KeyedProcess", this, outType, operator, keySelector, keyType);
         environment.addOperator(transform);
-        return new NonKeyedPartitionStreamImpl<>(environment, transform);
+        return StreamUtils.wrapWithConfigureHandle(
+                new NonKeyedPartitionStreamImpl<>(environment, transform));
     }
 
     @Override
-    public <OUT> KeyedPartitionStream<K, OUT> process(
+    public <OUT> ProcessConfigurableAndKeyedPartitionStream<K, OUT> process(
             OneInputStreamProcessFunction<V, OUT> processFunction,
             KeySelector<OUT, K> newKeySelector) {
         TypeInformation<OUT> outType =
@@ -125,11 +129,12 @@ public class KeyedPartitionStreamImpl<K, V> extends AbstractDataStream<V>
                 new NonKeyedPartitionStreamImpl<>(environment, transform);
         environment.addOperator(transform);
         // Construct a keyed stream directly without partitionTransformation to avoid shuffle.
-        return new KeyedPartitionStreamImpl<>(
-                outputStream,
-                transform,
-                newKeySelector,
-                TypeExtractor.getKeySelectorTypes(newKeySelector, outputStream.getType()));
+        return StreamUtils.wrapWithConfigureHandle(
+                new KeyedPartitionStreamImpl<>(
+                        outputStream,
+                        transform,
+                        newKeySelector,
+                        TypeExtractor.getKeySelectorTypes(newKeySelector, outputStream.getType())));
     }
 
     @Override
@@ -209,7 +214,7 @@ public class KeyedPartitionStreamImpl<K, V> extends AbstractDataStream<V>
     }
 
     @Override
-    public <T_OTHER, OUT> NonKeyedPartitionStream<OUT> connectAndProcess(
+    public <T_OTHER, OUT> ProcessConfigurableAndNonKeyedPartitionStream<OUT> connectAndProcess(
             KeyedPartitionStream<K, T_OTHER> other,
             TwoInputNonBroadcastStreamProcessFunction<V, T_OTHER, OUT> processFunction) {
         TypeInformation<OUT> outTypeInfo =
@@ -228,11 +233,12 @@ public class KeyedPartitionStreamImpl<K, V> extends AbstractDataStream<V>
                         outTypeInfo,
                         processOperator);
         environment.addOperator(outTransformation);
-        return new NonKeyedPartitionStreamImpl<>(environment, outTransformation);
+        return StreamUtils.wrapWithConfigureHandle(
+                new NonKeyedPartitionStreamImpl<>(environment, outTransformation));
     }
 
     @Override
-    public <T_OTHER, OUT> KeyedPartitionStream<K, OUT> connectAndProcess(
+    public <T_OTHER, OUT> ProcessConfigurableAndKeyedPartitionStream<K, OUT> connectAndProcess(
             KeyedPartitionStream<K, T_OTHER> other,
             TwoInputNonBroadcastStreamProcessFunction<V, T_OTHER, OUT> processFunction,
             KeySelector<OUT, K> newKeySelector) {
@@ -255,15 +261,17 @@ public class KeyedPartitionStreamImpl<K, V> extends AbstractDataStream<V>
                 new NonKeyedPartitionStreamImpl<>(environment, outTransformation);
         environment.addOperator(outTransformation);
         // Construct a keyed stream directly without partitionTransformation to avoid shuffle.
-        return new KeyedPartitionStreamImpl<>(
-                nonKeyedOutputStream,
-                outTransformation,
-                newKeySelector,
-                TypeExtractor.getKeySelectorTypes(newKeySelector, nonKeyedOutputStream.getType()));
+        return StreamUtils.wrapWithConfigureHandle(
+                new KeyedPartitionStreamImpl<>(
+                        nonKeyedOutputStream,
+                        outTransformation,
+                        newKeySelector,
+                        TypeExtractor.getKeySelectorTypes(
+                                newKeySelector, nonKeyedOutputStream.getType())));
     }
 
     @Override
-    public <T_OTHER, OUT> NonKeyedPartitionStream<OUT> connectAndProcess(
+    public <T_OTHER, OUT> ProcessConfigurableAndNonKeyedPartitionStream<OUT> connectAndProcess(
             BroadcastStream<T_OTHER> other,
             TwoInputBroadcastStreamProcessFunction<V, T_OTHER, OUT> processFunction) {
         TypeInformation<OUT> outTypeInfo =
@@ -282,11 +290,12 @@ public class KeyedPartitionStreamImpl<K, V> extends AbstractDataStream<V>
                         outTypeInfo,
                         processOperator);
         environment.addOperator(outTransformation);
-        return new NonKeyedPartitionStreamImpl<>(environment, outTransformation);
+        return StreamUtils.wrapWithConfigureHandle(
+                new NonKeyedPartitionStreamImpl<>(environment, outTransformation));
     }
 
     @Override
-    public <T_OTHER, OUT> KeyedPartitionStream<K, OUT> connectAndProcess(
+    public <T_OTHER, OUT> ProcessConfigurableAndKeyedPartitionStream<K, OUT> connectAndProcess(
             BroadcastStream<T_OTHER> other,
             TwoInputBroadcastStreamProcessFunction<V, T_OTHER, OUT> processFunction,
             KeySelector<OUT, K> newKeySelector) {
@@ -311,11 +320,12 @@ public class KeyedPartitionStreamImpl<K, V> extends AbstractDataStream<V>
                 new NonKeyedPartitionStreamImpl<>(environment, outTransformation);
         environment.addOperator(outTransformation);
         // Construct a keyed stream directly without partitionTransformation to avoid shuffle.
-        return new KeyedPartitionStreamImpl<>(
-                outputStream,
-                outTransformation,
-                newKeySelector,
-                TypeExtractor.getKeySelectorTypes(newKeySelector, outputStream.getType()));
+        return StreamUtils.wrapWithConfigureHandle(
+                new KeyedPartitionStreamImpl<>(
+                        outputStream,
+                        outTransformation,
+                        newKeySelector,
+                        TypeExtractor.getKeySelectorTypes(newKeySelector, outputStream.getType())));
     }
 
     public TypeInformation<K> getKeyType() {
@@ -327,8 +337,11 @@ public class KeyedPartitionStreamImpl<K, V> extends AbstractDataStream<V>
     }
 
     @Override
-    public void toSink(Sink<V> sink) {
-        StreamUtils.addSinkOperator(this, sink, getType());
+    public ProcessConfigurable<?> toSink(Sink<V> sink) {
+        DataStreamV2SinkTransformation<V, V> sinkTransformation =
+                StreamUtils.addSinkOperator(this, sink, getType());
+        return StreamUtils.wrapWithConfigureHandle(
+                new NonKeyedPartitionStreamImpl<>(environment, sinkTransformation));
     }
 
     // ---------------------
@@ -363,9 +376,9 @@ public class KeyedPartitionStreamImpl<K, V> extends AbstractDataStream<V>
     static class TwoKeyedPartitionStreamsImpl<K, OUT1, OUT2>
             implements TwoKeyedPartitionStreams<K, OUT1, OUT2> {
 
-        private final KeyedPartitionStream<K, OUT1> firstStream;
+        private final KeyedPartitionStreamImpl<K, OUT1> firstStream;
 
-        private final KeyedPartitionStream<K, OUT2> secondStream;
+        private final KeyedPartitionStreamImpl<K, OUT2> secondStream;
 
         public static <K, OUT1, OUT2> TwoKeyedPartitionStreamsImpl<K, OUT1, OUT2> of(
                 KeyedPartitionStreamImpl<K, OUT1> firstStream,
@@ -381,13 +394,13 @@ public class KeyedPartitionStreamImpl<K, V> extends AbstractDataStream<V>
         }
 
         @Override
-        public KeyedPartitionStream<K, OUT1> getFirst() {
-            return firstStream;
+        public ProcessConfigurableAndKeyedPartitionStream<K, OUT1> getFirst() {
+            return StreamUtils.wrapWithConfigureHandle(firstStream);
         }
 
         @Override
-        public KeyedPartitionStream<K, OUT2> getSecond() {
-            return secondStream;
+        public ProcessConfigurableAndKeyedPartitionStream<K, OUT2> getSecond() {
+            return StreamUtils.wrapWithConfigureHandle(secondStream);
         }
     }
 }
