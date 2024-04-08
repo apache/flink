@@ -33,6 +33,7 @@ flink-state-backends,\
 flink-state-backends/flink-statebackend-changelog,\
 flink-state-backends/flink-statebackend-heap-spillable,\
 flink-state-backends/flink-statebackend-rocksdb,\
+flink-state-backends/flink-statebackend-forst,\
 flink-clients,\
 flink-core,\
 flink-java,\
