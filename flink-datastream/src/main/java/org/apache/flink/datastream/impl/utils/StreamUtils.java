@@ -29,9 +29,16 @@ import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
 import org.apache.flink.datastream.api.function.TwoInputBroadcastStreamProcessFunction;
 import org.apache.flink.datastream.api.function.TwoInputNonBroadcastStreamProcessFunction;
 import org.apache.flink.datastream.api.function.TwoOutputStreamProcessFunction;
+import org.apache.flink.datastream.api.stream.GlobalStream.ProcessConfigurableAndGlobalStream;
+import org.apache.flink.datastream.api.stream.KeyedPartitionStream.ProcessConfigurableAndKeyedPartitionStream;
+import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream.ProcessConfigurableAndNonKeyedPartitionStream;
 import org.apache.flink.datastream.impl.stream.AbstractDataStream;
+import org.apache.flink.datastream.impl.stream.GlobalStreamImpl;
 import org.apache.flink.datastream.impl.stream.KeyedPartitionStreamImpl;
 import org.apache.flink.datastream.impl.stream.NonKeyedPartitionStreamImpl;
+import org.apache.flink.datastream.impl.stream.ProcessConfigurableAndGlobalStreamImpl;
+import org.apache.flink.datastream.impl.stream.ProcessConfigurableAndKeyedPartitionStreamImpl;
+import org.apache.flink.datastream.impl.stream.ProcessConfigurableAndNonKeyedPartitionStreamImpl;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.SimpleUdfStreamOperatorFactory;
@@ -284,5 +291,23 @@ public final class StreamUtils {
                         false);
         inputStream.getEnvironment().addOperator(sinkTransformation);
         return sinkTransformation;
+    }
+
+    /** Wrap a {@link NonKeyedPartitionStreamImpl} with configure handle. */
+    public static <T> ProcessConfigurableAndNonKeyedPartitionStream<T> wrapWithConfigureHandle(
+            NonKeyedPartitionStreamImpl<T> stream) {
+        return new ProcessConfigurableAndNonKeyedPartitionStreamImpl<>(stream);
+    }
+
+    /** Wrap a {@link KeyedPartitionStreamImpl} with configure handle. */
+    public static <K, T> ProcessConfigurableAndKeyedPartitionStream<K, T> wrapWithConfigureHandle(
+            KeyedPartitionStreamImpl<K, T> stream) {
+        return new ProcessConfigurableAndKeyedPartitionStreamImpl<>(stream);
+    }
+
+    /** Wrap a {@link GlobalStreamImpl} with configure handle. */
+    public static <T> ProcessConfigurableAndGlobalStream<T> wrapWithConfigureHandle(
+            GlobalStreamImpl<T> stream) {
+        return new ProcessConfigurableAndGlobalStreamImpl<>(stream);
     }
 }
