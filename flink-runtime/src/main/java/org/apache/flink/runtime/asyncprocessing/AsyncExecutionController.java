@@ -21,11 +21,15 @@ package org.apache.flink.runtime.asyncprocessing;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.core.state.InternalStateFuture;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * The Async Execution Controller (AEC) receives processing requests from operators, and put them
@@ -45,10 +49,25 @@ public class AsyncExecutionController<R, K> {
 
     private static final Logger LOG = LoggerFactory.getLogger(AsyncExecutionController.class);
 
+    public static final int DEFAULT_BATCH_SIZE = 1000;
     public static final int DEFAULT_MAX_IN_FLIGHT_RECORD_NUM = 6000;
+
+    /**
+     * The batch size. When the number of state requests in the active buffer exceeds the batch
+     * size, a batched state execution would be triggered.
+     */
+    private final int batchSize;
 
     /** The max allowed number of in-flight records. */
     private final int maxInFlightRecordNum;
+
+    /**
+     * The mailbox executor borrowed from {@code StreamTask}. Keeping the reference of
+     * mailboxExecutor here is to restrict the number of in-flight records, when the number of
+     * in-flight records > {@link #maxInFlightRecordNum}, the newly entering records would be
+     * blocked.
+     */
+    private final MailboxExecutor mailboxExecutor;
 
     /** The key accounting unit which is used to detect the key conflict. */
     final KeyAccountingUnit<R, K> keyAccountingUnit;
@@ -65,17 +84,35 @@ public class AsyncExecutionController<R, K> {
     /** The corresponding context that currently runs in task thread. */
     RecordContext<R, K> currentContext;
 
+    /** The buffer to store the state requests to execute in batch. */
+    StateRequestBuffer<R, K> stateRequestsBuffer;
+
+    /**
+     * The number of in-flight records. Including the records in active buffer and blocking buffer.
+     */
+    final AtomicInteger inFlightRecordNum;
+
     public AsyncExecutionController(MailboxExecutor mailboxExecutor, StateExecutor stateExecutor) {
-        this(mailboxExecutor, stateExecutor, DEFAULT_MAX_IN_FLIGHT_RECORD_NUM);
+        this(mailboxExecutor, stateExecutor, DEFAULT_BATCH_SIZE, DEFAULT_MAX_IN_FLIGHT_RECORD_NUM);
     }
 
     public AsyncExecutionController(
-            MailboxExecutor mailboxExecutor, StateExecutor stateExecutor, int maxInFlightRecords) {
+            MailboxExecutor mailboxExecutor,
+            StateExecutor stateExecutor,
+            int batchSize,
+            int maxInFlightRecords) {
         this.keyAccountingUnit = new KeyAccountingUnit<>(maxInFlightRecords);
+        this.mailboxExecutor = mailboxExecutor;
         this.stateFutureFactory = new StateFutureFactory<>(this, mailboxExecutor);
         this.stateExecutor = stateExecutor;
+        this.batchSize = batchSize;
         this.maxInFlightRecordNum = maxInFlightRecords;
-        LOG.info("Create AsyncExecutionController: maxInFlightRecordsNum {}", maxInFlightRecords);
+        this.stateRequestsBuffer = new StateRequestBuffer<>();
+        this.inFlightRecordNum = new AtomicInteger(0);
+        LOG.info(
+                "Create AsyncExecutionController: batchSize {}, maxInFlightRecordsNum {}",
+                batchSize,
+                maxInFlightRecords);
     }
 
     /**
@@ -107,6 +144,14 @@ public class AsyncExecutionController<R, K> {
      */
     public void disposeContext(RecordContext<R, K> toDispose) {
         keyAccountingUnit.release(toDispose.getRecord(), toDispose.getKey());
+        inFlightRecordNum.decrementAndGet();
+        RecordContext<R, K> nextRecordCtx =
+                stateRequestsBuffer.tryActivateOneByKey(toDispose.getKey());
+        if (nextRecordCtx != null) {
+            Preconditions.checkState(
+                    tryOccupyKey(nextRecordCtx),
+                    String.format("key(%s) is already occupied.", nextRecordCtx.getKey()));
+        }
     }
 
     /**
@@ -140,23 +185,28 @@ public class AsyncExecutionController<R, K> {
         InternalStateFuture<OUT> stateFuture = stateFutureFactory.create(currentContext);
         StateRequest<K, IN, OUT> request =
                 new StateRequest<>(state, type, payload, stateFuture, currentContext);
-        // Step 2: try to occupy the key and place it into right buffer.
+
+        // Step 2: try to seize the capacity, if the current in-flight records exceeds the limit,
+        // block the current state request from entering until some buffered requests are processed.
+        seizeCapacity();
+
+        // Step 3: try to occupy the key and place it into right buffer.
         if (tryOccupyKey(currentContext)) {
             insertActiveBuffer(request);
         } else {
             insertBlockingBuffer(request);
         }
-        // Step 3: trigger the (active) buffer if needed.
+        // Step 4: trigger the (active) buffer if needed.
         triggerIfNeeded(false);
         return stateFuture;
     }
 
     <IN, OUT> void insertActiveBuffer(StateRequest<K, IN, OUT> request) {
-        // TODO: implement the active buffer.
+        stateRequestsBuffer.enqueueToActive(request);
     }
 
     <IN, OUT> void insertBlockingBuffer(StateRequest<K, IN, OUT> request) {
-        // TODO: implement the blocking buffer.
+        stateRequestsBuffer.enqueueToBlocking(request);
     }
 
     /**
@@ -165,6 +215,38 @@ public class AsyncExecutionController<R, K> {
      * @param force whether to trigger requests in force.
      */
     void triggerIfNeeded(boolean force) {
-        // TODO: implement the trigger logic.
+        // TODO: introduce a timeout mechanism for triggering.
+        if (!force && stateRequestsBuffer.activeQueueSize() < batchSize) {
+            return;
+        }
+        List<StateRequest<?, ?, ?>> toRun = stateRequestsBuffer.popActive(batchSize);
+        stateExecutor.executeBatchRequests(toRun);
+    }
+
+    private void seizeCapacity() {
+        // 1. Check if the record is already in buffer. If yes, this indicates that it is a state
+        // request resulting from a callback statement, otherwise, it signifies the initial state
+        // request for a newly entered record.
+        if (currentContext.isKeyOccupied()) {
+            return;
+        }
+        RecordContext<R, K> storedContext = currentContext;
+        // 2. If the state request is for a newly entered record, the in-flight record number should
+        // be less than the max in-flight record number.
+        // Note: the currentContext may be updated by {@code StateFutureFactory#build}.
+        try {
+            while (inFlightRecordNum.get() > maxInFlightRecordNum) {
+                if (!mailboxExecutor.tryYield()) {
+                    triggerIfNeeded(true);
+                    Thread.sleep(1);
+                }
+            }
+        } catch (InterruptedException ignored) {
+            // ignore the interrupted exception to avoid throwing fatal error when the task cancel
+            // or exit.
+        }
+        // 3. Ensure the currentContext is restored.
+        setCurrentContext(storedContext);
+        inFlightRecordNum.incrementAndGet();
     }
 }

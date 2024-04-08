@@ -18,18 +18,16 @@
 
 package org.apache.flink.runtime.asyncprocessing;
 
-import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.state.v2.ValueState;
 import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.util.Preconditions;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -37,34 +35,36 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 /** Test for {@link AsyncExecutionController}. */
 class AsyncExecutionControllerTest {
+    AsyncExecutionController aec;
+    TestUnderlyingState underlyingState;
+    AtomicInteger output;
+    TestValueState valueState;
 
-    // TODO: this test is not well completed, cause buffering in AEC is not implemented.
-    // Yet, just for illustrating the interaction between AEC and Async state API.
+    final Runnable userCode =
+            () -> {
+                valueState
+                        .asyncValue()
+                        .thenCompose(
+                                val -> {
+                                    int updated = (val == null ? 1 : (val + 1));
+                                    return valueState
+                                            .asyncUpdate(updated)
+                                            .thenCompose(
+                                                    o -> StateFutureUtils.completedFuture(updated));
+                                })
+                        .thenAccept(val -> output.set(val));
+            };
+
+    @BeforeEach
+    void setup() {
+        aec = new AsyncExecutionController<>(new SyncMailboxExecutor(), new TestStateExecutor());
+        underlyingState = new TestUnderlyingState();
+        valueState = new TestValueState(aec, underlyingState);
+        output = new AtomicInteger();
+    }
+
     @Test
     void testBasicRun() {
-        TestAsyncExecutionController<String, String> aec =
-                new TestAsyncExecutionController<>(
-                        new SyncMailboxExecutor(), new TestStateExecutor());
-        TestUnderlyingState underlyingState = new TestUnderlyingState();
-        TestValueState valueState = new TestValueState(aec, underlyingState);
-        AtomicInteger output = new AtomicInteger();
-        Runnable userCode =
-                () -> {
-                    valueState
-                            .asyncValue()
-                            .thenCompose(
-                                    val -> {
-                                        int updated = (val == null ? 1 : (val + 1));
-                                        return valueState
-                                                .asyncUpdate(updated)
-                                                .thenCompose(
-                                                        o ->
-                                                                StateFutureUtils.completedFuture(
-                                                                        updated));
-                                    })
-                            .thenAccept(val -> output.set(val));
-                };
-
         // ============================ element1 ============================
         String record1 = "key1-r1";
         String key1 = "key1";
@@ -77,18 +77,20 @@ class AsyncExecutionControllerTest {
 
         // Single-step run.
         // Firstly, the user code generates value get in active buffer.
-        assertThat(aec.activeBuffer.size()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
         assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(1);
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(1);
         aec.triggerIfNeeded(true);
         // After running, the value update is in active buffer.
-        assertThat(aec.activeBuffer.size()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
         assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(1);
         aec.triggerIfNeeded(true);
         // Value update finishes.
-        assertThat(aec.activeBuffer.size()).isEqualTo(0);
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(0);
         assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(0);
         assertThat(output.get()).isEqualTo(1);
         assertThat(recordContext1.getReferenceCount()).isEqualTo(0);
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(0);
 
         // ============================ element 2 & 3 ============================
         String record2 = "key1-r2";
@@ -108,37 +110,37 @@ class AsyncExecutionControllerTest {
         // Single-step run.
         // Firstly, the user code for record2 generates value get in active buffer,
         // while user code for record3 generates value get in blocking buffer.
-        assertThat(aec.activeBuffer.size()).isEqualTo(1);
-        assertThat(aec.blockingBuffer.size()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(1);
         assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(1);
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(2);
         aec.triggerIfNeeded(true);
         // After running, the value update for record2 is in active buffer.
-        assertThat(aec.activeBuffer.size()).isEqualTo(1);
-        assertThat(aec.blockingBuffer.size()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(1);
         assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(1);
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(2);
         aec.triggerIfNeeded(true);
-        // Value update for record2 finishes. The value get for record3 is still in blocking status.
-        assertThat(aec.activeBuffer.size()).isEqualTo(0);
-        assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(0);
+        // Value update for record2 finishes. The value get for record3 is migrated from blocking
+        // buffer to active buffer actively.
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
+        assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(1);
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(1);
         assertThat(output.get()).isEqualTo(2);
         assertThat(recordContext2.getReferenceCount()).isEqualTo(0);
-        assertThat(aec.blockingBuffer.size()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(0);
 
-        aec.migrateBlockingToActive();
-        // Value get for record3 is ready for run.
-
-        assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(1);
-        assertThat(aec.activeBuffer.size()).isEqualTo(1);
-        assertThat(aec.blockingBuffer.size()).isEqualTo(0);
-        assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(1);
+        // Let value get for record3 to run.
         aec.triggerIfNeeded(true);
         // After running, the value update for record3 is in active buffer.
-        assertThat(aec.activeBuffer.size()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
         assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(1);
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(1);
         aec.triggerIfNeeded(true);
         // Value update for record3 finishes.
-        assertThat(aec.activeBuffer.size()).isEqualTo(0);
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(0);
         assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(0);
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(0);
         assertThat(output.get()).isEqualTo(3);
         assertThat(recordContext3.getReferenceCount()).isEqualTo(0);
 
@@ -152,66 +154,145 @@ class AsyncExecutionControllerTest {
 
         // Single-step run for another key.
         // Firstly, the user code generates value get in active buffer.
-        assertThat(aec.activeBuffer.size()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
         assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(1);
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(1);
         aec.triggerIfNeeded(true);
         // After running, the value update is in active buffer.
-        assertThat(aec.activeBuffer.size()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
         assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(1);
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(1);
         aec.triggerIfNeeded(true);
         // Value update finishes.
-        assertThat(aec.activeBuffer.size()).isEqualTo(0);
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(0);
         assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(0);
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(0);
         assertThat(output.get()).isEqualTo(1);
         assertThat(recordContext4.getReferenceCount()).isEqualTo(0);
     }
 
-    /**
-     * An AsyncExecutionController for testing purpose, which integrates with basic buffer
-     * mechanism.
-     */
-    static class TestAsyncExecutionController<R, K> extends AsyncExecutionController<R, K> {
+    @Test
+    void testRecordsRunInOrder() {
+        // Record1 and record3 have the same key, record2 has a different key.
+        // Record2 should be processed before record3.
 
-        LinkedList<StateRequest<K, ?, ?>> activeBuffer;
+        String record1 = "key1-r1";
+        String key1 = "key1";
+        RecordContext<String, String> recordContext1 = aec.buildContext(record1, key1);
+        aec.setCurrentContext(recordContext1);
+        // execute user code
+        userCode.run();
 
-        LinkedList<StateRequest<K, ?, ?>> blockingBuffer;
+        String record2 = "key2-r1";
+        String key2 = "key2";
+        RecordContext<String, String> recordContext2 = aec.buildContext(record2, key2);
+        aec.setCurrentContext(recordContext2);
+        // execute user code
+        userCode.run();
 
-        public TestAsyncExecutionController(
-                MailboxExecutor mailboxExecutor, StateExecutor stateExecutor) {
-            super(mailboxExecutor, stateExecutor);
-            activeBuffer = new LinkedList<>();
-            blockingBuffer = new LinkedList<>();
-        }
+        String record3 = "key1-r2";
+        String key3 = "key1";
+        RecordContext<String, String> recordContext3 = aec.buildContext(record3, key3);
+        aec.setCurrentContext(recordContext3);
+        // execute user code
+        userCode.run();
 
-        @Override
-        <IN, OUT> void insertActiveBuffer(StateRequest<K, IN, OUT> request) {
-            activeBuffer.push(request);
-        }
+        // Record1's value get and record2's value get are in active buffer
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(2);
+        assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(2);
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(3);
+        // Record3's value get is in blocking buffer
+        assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(1);
+        aec.triggerIfNeeded(true);
+        // After running, record1's value update and record2's value update are in active buffer.
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(2);
+        assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(2);
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(3);
+        assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(1);
+        aec.triggerIfNeeded(true);
+        // Record1's value update and record2's value update finish, record3's value get migrates to
+        // active buffer when record1's refCount reach 0.
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
+        assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(1);
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(0);
+        assertThat(output.get()).isEqualTo(1);
+        assertThat(recordContext1.getReferenceCount()).isEqualTo(0);
+        assertThat(recordContext2.getReferenceCount()).isEqualTo(0);
+        aec.triggerIfNeeded(true);
+        //  After running, record3's value update is added to active buffer.
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(0);
+        aec.triggerIfNeeded(true);
+        assertThat(output.get()).isEqualTo(2);
+        assertThat(recordContext3.getReferenceCount()).isEqualTo(0);
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(0);
+    }
 
-        <IN, OUT> void insertBlockingBuffer(StateRequest<K, IN, OUT> request) {
-            blockingBuffer.push(request);
-        }
+    @Test
+    void testInFlightRecordControl() {
+        final int batchSize = 5;
+        final int maxInFlight = 10;
+        aec =
+                new AsyncExecutionController<>(
+                        new SyncMailboxExecutor(), new TestStateExecutor(), batchSize, maxInFlight);
+        valueState = new TestValueState(aec, underlyingState);
 
-        void triggerIfNeeded(boolean force) {
-            if (!force) {
-                // Disable normal trigger, to perform single-step debugging and check.
-                return;
+        AtomicInteger output = new AtomicInteger();
+        Runnable userCode =
+                () -> {
+                    valueState
+                            .asyncValue()
+                            .thenCompose(
+                                    val -> {
+                                        int updated = (val == null ? 1 : (val + 1));
+                                        return valueState
+                                                .asyncUpdate(updated)
+                                                .thenCompose(
+                                                        o ->
+                                                                StateFutureUtils.completedFuture(
+                                                                        updated));
+                                    })
+                            .thenAccept(val -> output.set(val));
+                };
+
+        // For records with different keys, the in-flight records is controlled by batch size.
+        for (int round = 0; round < 10; round++) {
+            for (int i = 0; i < batchSize; i++) {
+                String record =
+                        String.format("key%d-r%d", round * batchSize + i, round * batchSize + i);
+                String key = String.format("key%d", round * batchSize + i);
+                RecordContext<String, String> recordContext = aec.buildContext(record, key);
+                aec.setCurrentContext(recordContext);
+                userCode.run();
             }
-            LinkedList<StateRequest<?, ?, ?>> toRun = new LinkedList<>(activeBuffer);
-            activeBuffer.clear();
-            stateExecutor.executeBatchRequests(toRun);
+            assertThat(aec.inFlightRecordNum.get()).isEqualTo(0);
+            assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(0);
+            assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(0);
         }
-
-        @SuppressWarnings("unchecked")
-        void migrateBlockingToActive() {
-            Iterator<StateRequest<K, ?, ?>> blockingIter = blockingBuffer.iterator();
-            while (blockingIter.hasNext()) {
-                StateRequest<K, ?, ?> request = blockingIter.next();
-                if (tryOccupyKey((RecordContext<R, K>) request.getRecordContext())) {
-                    insertActiveBuffer(request);
-                    blockingIter.remove();
-                }
-            }
+        // For records with the same key, the in-flight records is controlled by max in-flight
+        // records number.
+        for (int i = 0; i < maxInFlight; i++) {
+            String record = String.format("sameKey-r%d", i, i);
+            String key = "sameKey";
+            RecordContext<String, String> recordContext = aec.buildContext(record, key);
+            aec.setCurrentContext(recordContext);
+            userCode.run();
+        }
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(maxInFlight);
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(maxInFlight - 1);
+        // In the following example, the batch size will degrade to 1, meaning that
+        // each batch only have 1 state request.
+        for (int i = maxInFlight; i < 10 * maxInFlight; i++) {
+            String record = String.format("sameKey-r%d", i, i);
+            String key = "sameKey";
+            RecordContext<String, String> recordContext = aec.buildContext(record, key);
+            aec.setCurrentContext(recordContext);
+            userCode.run();
+            assertThat(aec.inFlightRecordNum.get()).isEqualTo(maxInFlight + 1);
+            assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
+            assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(maxInFlight);
         }
     }
 
