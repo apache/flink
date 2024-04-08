@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
 
@@ -67,9 +68,12 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
     public void open() throws Exception {
         this.mainCollector = getMainCollector();
         this.sideCollector = getSideCollector();
-        this.context = new DefaultRuntimeContext();
+        StreamingRuntimeContext operatorContext = getRuntimeContext();
+        this.context =
+                new DefaultRuntimeContext(
+                        operatorContext.getJobInfo().getJobName(), operatorContext.getJobType());
         this.partitionedContext = new DefaultPartitionedContext(context);
-        this.nonPartitionedContext = new DefaultTwoOutputNonPartitionedContext<>();
+        this.nonPartitionedContext = new DefaultTwoOutputNonPartitionedContext<>(context);
     }
 
     @Override

@@ -16,18 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.datastream.api.context;
+package org.apache.flink.datastream.impl.context;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.datastream.api.context.JobInfo;
+import org.apache.flink.runtime.jobgraph.JobType;
 
-/**
- * A RuntimeContext contains information about the context in which process functions are executed.
- *
- * <p>Each parallel instance of the function will have a context through which it can access
- * contextual information.
- */
-@Experimental
-public interface RuntimeContext {
-    /** Get the {@link JobInfo} of this process function. */
-    JobInfo getJobInfo();
+/** Default implementation of {@link JobInfo}. */
+public class DefaultJobInfo implements JobInfo {
+    private final String jobName;
+
+    private final JobType jobType;
+
+    public DefaultJobInfo(String jobName, JobType jobType) {
+        this.jobName = jobName;
+        this.jobType = jobType;
+    }
+
+    @Override
+    public String getJobName() {
+        return jobName;
+    }
+
+    @Override
+    public ExecutionMode getExecutionMode() {
+        return jobType == JobType.STREAMING ? ExecutionMode.STREAMING : ExecutionMode.BATCH;
+    }
 }

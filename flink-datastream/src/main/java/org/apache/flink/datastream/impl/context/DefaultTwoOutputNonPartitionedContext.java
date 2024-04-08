@@ -18,15 +18,27 @@
 
 package org.apache.flink.datastream.impl.context;
 
+import org.apache.flink.datastream.api.context.JobInfo;
 import org.apache.flink.datastream.api.context.TwoOutputNonPartitionedContext;
 import org.apache.flink.datastream.api.function.TwoOutputApplyPartitionFunction;
 
 /** The default implementation of {@link TwoOutputNonPartitionedContext}. */
 public class DefaultTwoOutputNonPartitionedContext<OUT1, OUT2>
         implements TwoOutputNonPartitionedContext<OUT1, OUT2> {
+    private final DefaultRuntimeContext context;
+
+    public DefaultTwoOutputNonPartitionedContext(DefaultRuntimeContext context) {
+        this.context = context;
+    }
+
     @Override
     public void applyToAllPartitions(
             TwoOutputApplyPartitionFunction<OUT1, OUT2> applyPartitionFunction) {
         // TODO implements this method.
+    }
+
+    @Override
+    public JobInfo getJobInfo() {
+        return context.getJobInfo();
     }
 }

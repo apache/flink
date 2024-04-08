@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /** Operator for {@link OneInputStreamProcessFunction}. */
@@ -52,9 +53,12 @@ public class ProcessOperator<IN, OUT>
     @Override
     public void open() throws Exception {
         super.open();
-        context = new DefaultRuntimeContext();
+        StreamingRuntimeContext operatorContext = getRuntimeContext();
+        context =
+                new DefaultRuntimeContext(
+                        operatorContext.getJobInfo().getJobName(), operatorContext.getJobType());
         partitionedContext = new DefaultPartitionedContext(context);
-        nonPartitionedContext = new DefaultNonPartitionedContext<>();
+        nonPartitionedContext = new DefaultNonPartitionedContext<>(context);
         outputCollector = getOutputCollector();
     }
 
