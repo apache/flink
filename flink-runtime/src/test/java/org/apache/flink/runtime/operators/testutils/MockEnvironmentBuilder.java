@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecu
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
@@ -41,6 +42,7 @@ import org.apache.flink.util.UserCodeClassLoader;
 
 public class MockEnvironmentBuilder {
     private String taskName = "mock-task";
+    private String jobName = "mock-job";
     private MockInputSplitProvider inputSplitProvider = null;
     private int bufferSize = 16;
     private TaskStateManager taskStateManager = new TestTaskStateManager();
@@ -54,6 +56,7 @@ public class MockEnvironmentBuilder {
             TestingUserCodeClassLoader.newBuilder().build();
     private JobID jobID = new JobID();
     private JobVertexID jobVertexID = new JobVertexID();
+    private JobType jobType = JobType.STREAMING;
     private TaskMetricGroup taskMetricGroup =
             UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
     private TaskManagerRuntimeInfo taskManagerRuntimeInfo = new TestingTaskManagerRuntimeInfo();
@@ -136,6 +139,11 @@ public class MockEnvironmentBuilder {
         return this;
     }
 
+    public MockEnvironmentBuilder setJobName(String jobName) {
+        this.jobName = jobName;
+        return this;
+    }
+
     public MockEnvironmentBuilder setJobVertexID(JobVertexID jobVertexID) {
         this.jobVertexID = jobVertexID;
         return this;
@@ -168,13 +176,20 @@ public class MockEnvironmentBuilder {
         return this;
     }
 
+    public MockEnvironmentBuilder setJobType(JobType jobType) {
+        this.jobType = jobType;
+        return this;
+    }
+
     public MockEnvironment build() {
         if (ioManager == null) {
             ioManager = new IOManagerAsync();
         }
         return new MockEnvironment(
                 jobID,
+                jobName,
                 jobVertexID,
+                jobType,
                 taskName,
                 inputSplitProvider,
                 bufferSize,

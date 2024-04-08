@@ -33,6 +33,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.BatchTask;
@@ -90,6 +91,7 @@ class TaskDeploymentDescriptorTest {
     private final JobInformation jobInformation =
             new JobInformation(
                     jobID,
+                    JobType.STREAMING,
                     jobName,
                     executionConfig,
                     jobConfiguration,

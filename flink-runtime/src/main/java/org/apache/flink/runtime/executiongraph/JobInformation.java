@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
@@ -42,6 +43,9 @@ public class JobInformation implements Serializable {
     /** Id of the job. */
     private final JobID jobId;
 
+    /** Type of the job. */
+    private final JobType jobType;
+
     /** Job name. */
     private final String jobName;
 
@@ -59,12 +63,14 @@ public class JobInformation implements Serializable {
 
     public JobInformation(
             JobID jobId,
+            JobType jobType,
             String jobName,
             SerializedValue<ExecutionConfig> serializedExecutionConfig,
             Configuration jobConfiguration,
             Collection<PermanentBlobKey> requiredJarFileBlobKeys,
             Collection<URL> requiredClasspathURLs) {
         this.jobId = Preconditions.checkNotNull(jobId);
+        this.jobType = Preconditions.checkNotNull(jobType);
         this.jobName = Preconditions.checkNotNull(jobName);
         this.serializedExecutionConfig = Preconditions.checkNotNull(serializedExecutionConfig);
         this.jobConfiguration =
@@ -81,6 +87,10 @@ public class JobInformation implements Serializable {
 
     public String getJobName() {
         return jobName;
+    }
+
+    public JobType getJobType() {
+        return jobType;
     }
 
     public SerializedValue<ExecutionConfig> getSerializedExecutionConfig() {

@@ -18,6 +18,7 @@
 
 package org.apache.flink.datastream.impl.context;
 
+import org.apache.flink.datastream.api.context.JobInfo;
 import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.context.RuntimeContext;
 
@@ -27,5 +28,10 @@ public class DefaultPartitionedContext implements PartitionedContext {
 
     public DefaultPartitionedContext(RuntimeContext context) {
         this.context = context;
+    }
+
+    @Override
+    public JobInfo getJobInfo() {
+        return context.getJobInfo();
     }
 }
