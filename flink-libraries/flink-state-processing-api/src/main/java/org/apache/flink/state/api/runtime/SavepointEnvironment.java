@@ -45,6 +45,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
@@ -85,6 +86,8 @@ public class SavepointEnvironment implements Environment {
 
     private final JobID jobID;
 
+    private final JobType jobType;
+
     private final JobVertexID vertexID;
 
     private final ExecutionAttemptID attemptID;
@@ -124,6 +127,7 @@ public class SavepointEnvironment implements Environment {
             PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskState) {
         this.jobID = new JobID();
         this.vertexID = new JobVertexID();
+        this.jobType = JobType.STREAMING;
         this.attemptID =
                 new ExecutionAttemptID(
                         new ExecutionGraphID(), new ExecutionVertexID(vertexID, indexOfSubtask), 0);
@@ -154,6 +158,11 @@ public class SavepointEnvironment implements Environment {
     @Override
     public JobID getJobID() {
         return jobID;
+    }
+
+    @Override
+    public JobType getJobType() {
+        return jobType;
     }
 
     @Override

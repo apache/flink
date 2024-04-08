@@ -28,5 +28,6 @@ import org.apache.flink.annotation.Experimental;
  */
 @Experimental
 public interface RuntimeContext {
-    // TODO Introduce related methods in the subsequent RP.
+    /** Get the {@link JobInfo} of this process function. */
+    JobInfo getJobInfo();
 }

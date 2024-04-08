@@ -19,19 +19,26 @@
 package org.apache.flink.datastream.impl.context;
 
 import org.apache.flink.datastream.api.context.JobInfo;
-import org.apache.flink.datastream.api.context.RuntimeContext;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
-/** The default implementation of {@link RuntimeContext}. */
-public class DefaultRuntimeContext implements RuntimeContext {
-    private final DefaultJobInfo jobInfo;
+/** Default implementation of {@link JobInfo}. */
+public class DefaultJobInfo implements JobInfo {
+    private final StreamingRuntimeContext operatorContext;
 
-    public DefaultRuntimeContext(StreamingRuntimeContext operatorContext) {
-        this.jobInfo = new DefaultJobInfo(operatorContext);
+    public DefaultJobInfo(StreamingRuntimeContext streamingRuntimeContext) {
+        this.operatorContext = streamingRuntimeContext;
     }
 
     @Override
-    public JobInfo getJobInfo() {
-        return jobInfo;
+    public String getJobName() {
+        return operatorContext.getJobInfo().getJobName();
+    }
+
+    @Override
+    public ExecutionMode getExecutionMode() {
+        return operatorContext.getJobType() == JobType.STREAMING
+                ? ExecutionMode.STREAMING
+                : ExecutionMode.BATCH;
     }
 }

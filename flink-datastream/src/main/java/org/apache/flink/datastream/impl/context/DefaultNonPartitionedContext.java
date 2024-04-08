@@ -18,14 +18,25 @@
 
 package org.apache.flink.datastream.impl.context;
 
+import org.apache.flink.datastream.api.context.JobInfo;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.function.ApplyPartitionFunction;
 
 /** The default implementation of {@link NonPartitionedContext}. */
 public class DefaultNonPartitionedContext<OUT> implements NonPartitionedContext<OUT> {
+    private final DefaultRuntimeContext context;
+
+    public DefaultNonPartitionedContext(DefaultRuntimeContext context) {
+        this.context = context;
+    }
 
     @Override
     public void applyToAllPartitions(ApplyPartitionFunction<OUT> applyPartitionFunction) {
         // TODO implements this method.
+    }
+
+    @Override
+    public JobInfo getJobInfo() {
+        return context.getJobInfo();
     }
 }

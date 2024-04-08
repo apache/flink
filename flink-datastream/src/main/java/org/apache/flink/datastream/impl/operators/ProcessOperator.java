@@ -52,9 +52,9 @@ public class ProcessOperator<IN, OUT>
     @Override
     public void open() throws Exception {
         super.open();
-        context = new DefaultRuntimeContext();
+        context = new DefaultRuntimeContext(getRuntimeContext());
         partitionedContext = new DefaultPartitionedContext(context);
-        nonPartitionedContext = new DefaultNonPartitionedContext<>();
+        nonPartitionedContext = new DefaultNonPartitionedContext<>(context);
         outputCollector = getOutputCollector();
     }
 
