@@ -66,16 +66,16 @@ public class PrestoS3FileSystemITCase extends AbstractHadoopFileSystemITTest {
 
     @BeforeClass
     public static void setup() throws IOException {
-//        S3TestCredentials.assumeCredentialsAvailable();
+        //        S3TestCredentials.assumeCredentialsAvailable();
         // initialize configuration with valid credentials
         final Configuration conf = new Configuration();
-//        conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
-//        conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
-//        FileSystem.initialize(conf);
+        //        conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
+        //        conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
+        //        FileSystem.initialize(conf);
         MINIO.setS3ConfigOptions(conf);
         MINIO.initializeFileSystem(conf);
 
-//        basePath = new Path(S3TestCredentials.getTestBucketUri() + TEST_DATA_DIR);
+        //        basePath = new Path(S3TestCredentials.getTestBucketUri() + TEST_DATA_DIR);
         basePath = new Path(MINIO.getS3UriForDefaultBucket() + TEST_DATA_DIR);
         fs = basePath.getFileSystem();
         consistencyToleranceNS = 30_000_000_000L; // 30 seconds

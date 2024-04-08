@@ -24,7 +24,6 @@ import org.apache.flink.core.fs.FileSystemBehaviorTestSuite;
 import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.fs.s3.common.MinioTestContainer;
-import org.apache.flink.testutils.s3.S3TestCredentials;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -46,15 +45,15 @@ class HadoopS3FileSystemBehaviorITCase extends FileSystemBehaviorTestSuite {
     @BeforeAll
     static void checkCredentialsAndSetup() {
         // check whether credentials exist
-//        S3TestCredentials.assumeCredentialsAvailable();
+        //        S3TestCredentials.assumeCredentialsAvailable();
 
         // initialize configuration with valid credentials
         final Configuration conf = new Configuration();
         MINIO.setS3ConfigOptions(conf);
         MINIO.initializeFileSystem(conf);
-//        conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
-//        conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
-//        FileSystem.initialize(conf, null);
+        //        conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
+        //        conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
+        //        FileSystem.initialize(conf, null);
     }
 
     @AfterAll
@@ -69,7 +68,7 @@ class HadoopS3FileSystemBehaviorITCase extends FileSystemBehaviorTestSuite {
 
     @Override
     protected Path getBasePath() throws Exception {
-//        return new Path(S3TestCredentials.getTestBucketUri() + TEST_DATA_DIR);
+        //        return new Path(S3TestCredentials.getTestBucketUri() + TEST_DATA_DIR);
         return new Path(MINIO.getS3UriForDefaultBucket() + TEST_DATA_DIR);
     }
 

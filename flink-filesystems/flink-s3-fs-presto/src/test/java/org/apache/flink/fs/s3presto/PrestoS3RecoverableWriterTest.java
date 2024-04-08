@@ -23,7 +23,6 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.fs.s3.common.FlinkS3FileSystem;
 import org.apache.flink.fs.s3.common.MinioTestContainer;
-import org.apache.flink.testutils.s3.S3TestCredentials;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -57,12 +56,12 @@ public class PrestoS3RecoverableWriterTest {
     @BeforeClass
     public static void checkCredentialsAndSetup() throws IOException {
         // check whether credentials exist
-//        S3TestCredentials.assumeCredentialsAvailable();
+        //        S3TestCredentials.assumeCredentialsAvailable();
 
         // initialize configuration with valid credentials
         final Configuration conf = new Configuration();
-//        conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
-//        conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
+        //        conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
+        //        conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
         MINIO.setS3ConfigOptions(conf);
 
         conf.set(PART_UPLOAD_MIN_SIZE, PART_UPLOAD_MIN_SIZE_VALUE);
@@ -71,7 +70,7 @@ public class PrestoS3RecoverableWriterTest {
         final String defaultTmpDir = conf.get(CoreOptions.TMP_DIRS) + "s3_tmp_dir";
         conf.set(CoreOptions.TMP_DIRS, defaultTmpDir);
 
-//        FileSystem.initialize(conf);
+        //        FileSystem.initialize(conf);
         MINIO.initializeFileSystem(conf);
     }
 
@@ -84,7 +83,7 @@ public class PrestoS3RecoverableWriterTest {
 
     @Test(expected = UnsupportedOperationException.class)
     public void requestingRecoverableWriterShouldThroughException() throws Exception {
-//        URI s3Uri = URI.create(S3TestCredentials.getTestBucketUri());
+        //        URI s3Uri = URI.create(S3TestCredentials.getTestBucketUri());
         URI s3Uri = URI.create(MINIO.getS3UriForDefaultBucket());
         FlinkS3FileSystem fileSystem = (FlinkS3FileSystem) FileSystem.get(s3Uri);
         fileSystem.createRecoverableWriter();
