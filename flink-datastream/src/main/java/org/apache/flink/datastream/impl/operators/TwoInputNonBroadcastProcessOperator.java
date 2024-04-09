@@ -18,6 +18,7 @@
 
 package org.apache.flink.datastream.impl.operators;
 
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.datastream.api.function.TwoInputNonBroadcastStreamProcessFunction;
 import org.apache.flink.datastream.impl.common.OutputCollector;
 import org.apache.flink.datastream.impl.common.TimestampCollector;
@@ -27,6 +28,7 @@ import org.apache.flink.datastream.impl.context.DefaultRuntimeContext;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -56,7 +58,14 @@ public class TwoInputNonBroadcastProcessOperator<IN1, IN2, OUT>
     public void open() throws Exception {
         super.open();
         this.collector = getOutputCollector();
-        this.context = new DefaultRuntimeContext(getRuntimeContext());
+        StreamingRuntimeContext operatorContext = getRuntimeContext();
+        TaskInfo taskInfo = operatorContext.getTaskInfo();
+        this.context =
+                new DefaultRuntimeContext(
+                        operatorContext,
+                        taskInfo.getNumberOfParallelSubtasks(),
+                        taskInfo.getMaxNumberOfParallelSubtasks(),
+                        taskInfo.getTaskName());
         this.partitionedContext = new DefaultPartitionedContext(context);
         this.nonPartitionedContext = new DefaultNonPartitionedContext<>(context);
     }

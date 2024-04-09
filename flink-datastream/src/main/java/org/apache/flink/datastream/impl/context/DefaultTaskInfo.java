@@ -18,33 +18,34 @@
 
 package org.apache.flink.datastream.impl.context;
 
-import org.apache.flink.datastream.api.context.JobInfo;
 import org.apache.flink.datastream.api.context.TaskInfo;
-import org.apache.flink.datastream.api.context.TwoOutputNonPartitionedContext;
-import org.apache.flink.datastream.api.function.TwoOutputApplyPartitionFunction;
 
-/** The default implementation of {@link TwoOutputNonPartitionedContext}. */
-public class DefaultTwoOutputNonPartitionedContext<OUT1, OUT2>
-        implements TwoOutputNonPartitionedContext<OUT1, OUT2> {
-    private final DefaultRuntimeContext context;
+/** Default implementation of {@link TaskInfo}. */
+public class DefaultTaskInfo implements TaskInfo {
+    private final int parallelism;
 
-    public DefaultTwoOutputNonPartitionedContext(DefaultRuntimeContext context) {
-        this.context = context;
+    private final int maxParallelism;
+
+    private final String taskName;
+
+    public DefaultTaskInfo(int parallelism, int maxParallelism, String taskName) {
+        this.parallelism = parallelism;
+        this.maxParallelism = maxParallelism;
+        this.taskName = taskName;
     }
 
     @Override
-    public void applyToAllPartitions(
-            TwoOutputApplyPartitionFunction<OUT1, OUT2> applyPartitionFunction) {
-        // TODO implements this method.
+    public int getParallelism() {
+        return parallelism;
     }
 
     @Override
-    public JobInfo getJobInfo() {
-        return context.getJobInfo();
+    public int getMaxParallelism() {
+        return maxParallelism;
     }
 
     @Override
-    public TaskInfo getTaskInfo() {
-        return context.getTaskInfo();
+    public String getTaskName() {
+        return taskName;
     }
 }

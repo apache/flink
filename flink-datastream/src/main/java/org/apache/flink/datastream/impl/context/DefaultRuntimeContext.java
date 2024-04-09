@@ -20,18 +20,31 @@ package org.apache.flink.datastream.impl.context;
 
 import org.apache.flink.datastream.api.context.JobInfo;
 import org.apache.flink.datastream.api.context.RuntimeContext;
+import org.apache.flink.datastream.api.context.TaskInfo;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
 /** The default implementation of {@link RuntimeContext}. */
 public class DefaultRuntimeContext implements RuntimeContext {
     private final DefaultJobInfo jobInfo;
 
-    public DefaultRuntimeContext(StreamingRuntimeContext operatorContext) {
+    private final DefaultTaskInfo taskInfo;
+
+    public DefaultRuntimeContext(
+            StreamingRuntimeContext operatorContext,
+            int parallelism,
+            int maxParallelism,
+            String taskName) {
         this.jobInfo = new DefaultJobInfo(operatorContext);
+        this.taskInfo = new DefaultTaskInfo(parallelism, maxParallelism, taskName);
     }
 
     @Override
     public JobInfo getJobInfo() {
         return jobInfo;
+    }
+
+    @Override
+    public TaskInfo getTaskInfo() {
+        return taskInfo;
     }
 }
