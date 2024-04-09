@@ -23,6 +23,7 @@ import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.context.ProcessingTimeManager;
 import org.apache.flink.datastream.api.context.RuntimeContext;
 import org.apache.flink.datastream.api.context.TaskInfo;
+import org.apache.flink.metrics.MetricGroup;
 
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -63,5 +64,10 @@ public class DefaultPartitionedContext implements PartitionedContext {
     @Override
     public ProcessingTimeManager getProcessingTimeManager() {
         return processingTimeManager;
+    }
+
+    @Override
+    public MetricGroup getMetricGroup() {
+        return context.getMetricGroup();
     }
 }

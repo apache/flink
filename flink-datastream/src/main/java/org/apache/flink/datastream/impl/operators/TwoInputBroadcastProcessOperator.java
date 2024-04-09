@@ -68,7 +68,8 @@ public class TwoInputBroadcastProcessOperator<IN1, IN2, OUT>
                         operatorContext.getJobType(),
                         taskInfo.getNumberOfParallelSubtasks(),
                         taskInfo.getMaxNumberOfParallelSubtasks(),
-                        taskInfo.getTaskName());
+                        taskInfo.getTaskName(),
+                        operatorContext.getMetricGroup());
         this.partitionedContext =
                 new DefaultPartitionedContext(
                         context, this::currentKey, this::setCurrentKey, getProcessingTimeManager());

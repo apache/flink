@@ -71,12 +71,6 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-metrics-core</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
 		<!-- ArchUnit test dependencies -->
 
 		<dependency>
