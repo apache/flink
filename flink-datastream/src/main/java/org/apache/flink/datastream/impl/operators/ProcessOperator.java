@@ -64,7 +64,8 @@ public class ProcessOperator<IN, OUT>
                         operatorContext.getJobType(),
                         taskInfo.getNumberOfParallelSubtasks(),
                         taskInfo.getMaxNumberOfParallelSubtasks(),
-                        taskInfo.getTaskName());
+                        taskInfo.getTaskName(),
+                        operatorContext.getMetricGroup());
         partitionedContext =
                 new DefaultPartitionedContext(
                         context, this::currentKey, this::setCurrentKey, getProcessingTimeManager());

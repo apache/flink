@@ -79,7 +79,8 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
                         operatorContext.getJobType(),
                         taskInfo.getNumberOfParallelSubtasks(),
                         taskInfo.getMaxNumberOfParallelSubtasks(),
-                        taskInfo.getTaskName());
+                        taskInfo.getTaskName(),
+                        operatorContext.getMetricGroup());
         this.partitionedContext =
                 new DefaultPartitionedContext(
                         context, this::currentKey, this::setCurrentKey, getProcessingTimeManager());
