@@ -61,4 +61,13 @@ public interface TwoInputNonBroadcastStreamProcessFunction<IN1, IN2, OUT> extend
      * @param ctx the context in which this function is executed.
      */
     default void endSecondInput(NonPartitionedContext<OUT> ctx) {}
+
+    /**
+     * Callback for processing timer.
+     *
+     * @param timestamp when this callback is triggered.
+     * @param output to emit record.
+     * @param ctx runtime context in which this function is executed.
+     */
+    default void onProcessingTimer(long timestamp, Collector<OUT> output, PartitionedContext ctx) {}
 }
