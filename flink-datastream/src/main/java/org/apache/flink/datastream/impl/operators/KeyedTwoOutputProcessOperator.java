@@ -75,4 +75,9 @@ public class KeyedTwoOutputProcessOperator<KEY, IN, OUT_MAIN, OUT_SIDE>
                         () -> (KEY) getCurrentKey())
                 : new SideOutputCollector(output);
     }
+
+    @Override
+    protected Object currentKey() {
+        return getCurrentKey();
+    }
 }

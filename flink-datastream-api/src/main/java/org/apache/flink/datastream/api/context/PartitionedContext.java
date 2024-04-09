@@ -25,4 +25,7 @@ import org.apache.flink.annotation.Experimental;
  * partition-wise execution information, such as getting state, registering timer, etc.
  */
 @Experimental
-public interface PartitionedContext extends RuntimeContext {}
+public interface PartitionedContext extends RuntimeContext {
+    /** Get the {@link StateManager} of this process function. */
+    StateManager getStateManager();
+}

@@ -62,7 +62,8 @@ public class ProcessOperator<IN, OUT>
                         taskInfo.getNumberOfParallelSubtasks(),
                         taskInfo.getMaxNumberOfParallelSubtasks(),
                         taskInfo.getTaskName());
-        partitionedContext = new DefaultPartitionedContext(context);
+        partitionedContext =
+                new DefaultPartitionedContext(context, this::currentKey, this::setCurrentKey);
         nonPartitionedContext = new DefaultNonPartitionedContext<>(context);
         outputCollector = getOutputCollector();
     }
@@ -80,5 +81,9 @@ public class ProcessOperator<IN, OUT>
     @Override
     public void endInput() throws Exception {
         userFunction.endInput(nonPartitionedContext);
+    }
+
+    protected Object currentKey() {
+        throw new UnsupportedOperationException("The key is only defined for keyed operator");
     }
 }

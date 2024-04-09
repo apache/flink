@@ -50,4 +50,9 @@ public class KeyedProcessOperator<KEY, IN, OUT> extends ProcessOperator<IN, OUT>
                         new OutputCollector<>(output), outKeySelector, () -> (KEY) getCurrentKey())
                 : new OutputCollector<>(output);
     }
+
+    @Override
+    protected Object currentKey() {
+        return getCurrentKey();
+    }
 }
