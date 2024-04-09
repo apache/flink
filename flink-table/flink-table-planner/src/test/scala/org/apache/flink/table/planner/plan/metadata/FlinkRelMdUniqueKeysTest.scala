@@ -176,7 +176,7 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
       rank => assertEquals(uniqueKeys(Array(0)), mq.getUniqueKeys(rank).toSet)
     }
 
-    Array(logicalRowNumber, flinkLogicalRowNumber, streamRowNumber)
+    Array(logicalWindow, logicalRowNumber, flinkLogicalRowNumber, streamRowNumber)
       .foreach {
         rank => assertEquals(uniqueKeys(Array(0), Array(7)), mq.getUniqueKeys(rank).toSet)
       }
@@ -283,7 +283,7 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
   @Test
   def testGetUniqueKeysOnOverAgg(): Unit = {
     Array(flinkLogicalOverAgg, batchOverAgg).foreach {
-      agg => assertEquals(uniqueKeys(Array(0)), mq.getUniqueKeys(agg).toSet)
+      agg => assertEquals(uniqueKeys(Array(0), Array(4, 5)), mq.getUniqueKeys(agg).toSet)
     }
 
     assertEquals(uniqueKeys(Array(0)), mq.getUniqueKeys(streamOverAgg).toSet)

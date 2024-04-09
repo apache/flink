@@ -764,7 +764,46 @@ class FlinkRelMdHandlerTestBase {
   //  select id, name, score, age, height, sex, class,
   //  ROW_NUMBER() over (order by height) rn from student
   // ) t where rk > 2 and rk < 7
-  protected lazy val (logicalRowNumber, flinkLogicalRowNumber, streamRowNumber) = {
+  protected lazy val (logicalWindow, logicalRowNumber, flinkLogicalRowNumber, streamRowNumber) = {
+    val windowGroups = ImmutableList.of(
+      new Window.Group(
+        ImmutableBitSet.of(),
+        true,
+        RexWindowBounds.create(SqlWindow.createUnboundedPreceding(new SqlParserPos(0, 0)), null),
+        RexWindowBounds.create(SqlWindow.createCurrentRow(new SqlParserPos(0, 0)), null),
+        RelCollations.of(4),
+        ImmutableList.of(
+          new Window.RexWinAggCall(
+            SqlStdOperatorTable.ROW_NUMBER,
+            longType,
+            ImmutableList.of[RexNode](),
+            0,
+            false,
+            false
+          )
+        )
+      )
+    )
+
+    val types = Map(
+      "id" -> longType,
+      "name" -> stringType,
+      "score" -> doubleType,
+      "age" -> intType,
+      "height" -> doubleType,
+      "sex" -> stringType,
+      "class" -> intType,
+      "rn" -> longType
+    )
+
+    val logicalWindow = LogicalWindow.create(
+      logicalTraits,
+      studentLogicalScan,
+      new util.ArrayList[RexLiteral](),
+      createRowType(types, "id", "name", "score", "age", "height", "sex", "class", "rn"),
+      windowGroups
+    )
+
     val logicalRowNumber = new LogicalRank(
       cluster,
       logicalTraits,
@@ -808,7 +847,7 @@ class FlinkRelMdHandlerTestBase {
       RankProcessStrategy.UNDEFINED_STRATEGY
     )
 
-    (logicalRowNumber, flinkLogicalRowNumber, streamRowNumber)
+    (logicalWindow, logicalRowNumber, flinkLogicalRowNumber, streamRowNumber)
   }
 
   // equivalent SQL is
@@ -2212,18 +2251,7 @@ class FlinkRelMdHandlerTestBase {
       "cnt" -> longType
     )
 
-    def createRowType(selectFields: String*): RelDataType = {
-      val builder = typeFactory.builder
-      selectFields.foreach {
-        f =>
-          builder.add(
-            f,
-            types.getOrElse(f, throw new IllegalArgumentException(s"$f does not exist")))
-      }
-      builder.build()
-    }
-
-    val rowTypeOfCalc = createRowType("id", "name", "score", "age", "class")
+    val rowTypeOfCalc = createRowType(types, "id", "name", "score", "age", "class")
     val rexProgram = RexProgram.create(
       studentFlinkLogicalScan.getRowType,
       Array(0, 1, 2, 3, 6).map(i => RexInputRef.of(i, studentFlinkLogicalScan.getRowType)).toList,
@@ -2233,6 +2261,7 @@ class FlinkRelMdHandlerTestBase {
     )
 
     val rowTypeOfWindowAgg = createRowType(
+      types,
       "id",
       "name",
       "score",
@@ -2255,6 +2284,7 @@ class FlinkRelMdHandlerTestBase {
     )
 
     val rowTypeOfWindowAggOutput = createRowType(
+      types,
       "id",
       "name",
       "score",
@@ -2313,7 +2343,7 @@ class FlinkRelMdHandlerTestBase {
       exchange1,
       newSortTrait1.getTrait(RelCollationTraitDef.INSTANCE))
 
-    val outputRowType1 = createRowType("id", "name", "score", "age", "class", "rn")
+    val outputRowType1 = createRowType(types, "id", "name", "score", "age", "class", "rn")
     val innerWindowAgg1 = new BatchPhysicalOverAggregate(
       cluster,
       batchPhysicalTraits,
@@ -2336,6 +2366,7 @@ class FlinkRelMdHandlerTestBase {
       newSortTrait2.getTrait(RelCollationTraitDef.INSTANCE))
 
     val outputRowType2 = createRowType(
+      types,
       "id",
       "name",
       "score",
@@ -2364,6 +2395,7 @@ class FlinkRelMdHandlerTestBase {
       hash3)
 
     val outputRowType3 = createRowType(
+      types,
       "id",
       "name",
       "score",
@@ -2430,6 +2462,15 @@ class FlinkRelMdHandlerTestBase {
     0
   )
 
+  def createRowType(types: Map[String, RelDataType], selectFields: String*): RelDataType = {
+    val builder = typeFactory.builder
+    selectFields.foreach {
+      f =>
+        builder.add(f, types.getOrElse(f, throw new IllegalArgumentException(s"$f does not exist")))
+    }
+    builder.build()
+  }
+
   protected def createStreamOverAgg(group: Window.Group, hash: Int): StreamPhysicalRel = {
     val types = Map(
       "id" -> longType,
@@ -2444,18 +2485,7 @@ class FlinkRelMdHandlerTestBase {
       "sum$0_score" -> doubleType
     )
 
-    def createRowType(selectFields: String*): RelDataType = {
-      val builder = typeFactory.builder
-      selectFields.foreach {
-        f =>
-          builder.add(
-            f,
-            types.getOrElse(f, throw new IllegalArgumentException(s"$f does not exist")))
-      }
-      builder.build()
-    }
-
-    val rowTypeOfCalc = createRowType("id", "name", "score", "age", "class")
+    val rowTypeOfCalc = createRowType(types, "id", "name", "score", "age", "class")
     val rexProgram = RexProgram.create(
       studentFlinkLogicalScan.getRowType,
       Array(0, 1, 2, 3, 6).map(i => RexInputRef.of(i, studentFlinkLogicalScan.getRowType)).toList,
@@ -2465,6 +2495,7 @@ class FlinkRelMdHandlerTestBase {
     )
 
     val rowTypeOfWindowAgg = createRowType(
+      types,
       "id",
       "name",
       "score",
@@ -2499,7 +2530,7 @@ class FlinkRelMdHandlerTestBase {
     )
 
     val rowTypeOfWindowAggOutput =
-      createRowType("id", "name", "score", "age", "class", "rk", "drk", "avg_score")
+      createRowType(types, "id", "name", "score", "age", "class", "rk", "drk", "avg_score")
     val projectProgram = RexProgram.create(
       flinkLogicalOverAgg.getRowType,
       (0 until flinkLogicalOverAgg.getRowType.getFieldCount).flatMap {
@@ -2540,7 +2571,7 @@ class FlinkRelMdHandlerTestBase {
   private lazy val overAggGroups = {
     ImmutableList.of(
       new Window.Group(
-        ImmutableBitSet.of(5),
+        ImmutableBitSet.of(4),
         true,
         RexWindowBounds.create(SqlWindow.createUnboundedPreceding(new SqlParserPos(0, 0)), null),
         RexWindowBounds.create(SqlWindow.createCurrentRow(new SqlParserPos(0, 0)), null),
@@ -2561,7 +2592,7 @@ class FlinkRelMdHandlerTestBase {
         )
       ),
       new Window.Group(
-        ImmutableBitSet.of(5),
+        ImmutableBitSet.of(4),
         false,
         RexWindowBounds.create(SqlWindow.createUnboundedPreceding(new SqlParserPos(4, 15)), null),
         RexWindowBounds.create(SqlWindow.createCurrentRow(new SqlParserPos(0, 0)), null),
@@ -2606,7 +2637,7 @@ class FlinkRelMdHandlerTestBase {
         )
       ),
       new Window.Group(
-        ImmutableBitSet.of(),
+        ImmutableBitSet.of(3),
         false,
         RexWindowBounds.create(SqlWindow.createUnboundedPreceding(new SqlParserPos(7, 19)), null),
         RexWindowBounds.create(SqlWindow.createUnboundedFollowing(new SqlParserPos(0, 0)), null),
