@@ -27,6 +27,7 @@ import org.apache.flink.core.fs.OutputStreamAndPath;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.filemerging.LogicalFile.LogicalFileId;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filemerging.DirectoryStreamStateHandle;
 import org.apache.flink.runtime.state.filemerging.SegmentFileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileMergingCheckpointStateOutputStream;
@@ -42,6 +43,7 @@ import javax.annotation.concurrent.GuardedBy;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
@@ -69,6 +71,9 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
 
     @GuardedBy("lock")
     protected TreeMap<Long, Set<LogicalFile>> uploadedStates = new TreeMap<>();
+
+    /** The map that holds all the known live logical files. */
+    private final Map<LogicalFileId, LogicalFile> knownLogicalFiles = new ConcurrentHashMap<>();
 
     /** The {@link FileSystem} that this manager works on. */
     protected FileSystem fs;
@@ -206,7 +211,9 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
             long length,
             @Nonnull SubtaskKey subtaskKey) {
         LogicalFileId fileID = LogicalFileId.generateRandomId();
-        return new LogicalFile(fileID, physicalFile, startOffset, length, subtaskKey);
+        LogicalFile file = new LogicalFile(fileID, physicalFile, startOffset, length, subtaskKey);
+        knownLogicalFiles.put(fileID, file);
+        return file;
     }
 
     /**
@@ -300,7 +307,11 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                             returnPhysicalFileForNextReuse(subtaskKey, checkpointId, physicalFile);
 
                             return new SegmentFileStateHandle(
-                                    physicalFile.getFilePath(), startPos, stateSize, scope);
+                                    physicalFile.getFilePath(),
+                                    startPos,
+                                    stateSize,
+                                    scope,
+                                    logicalFile.getFileId());
                         }
                     }
 
@@ -459,8 +470,23 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                     uploadedStates.headMap(checkpointId, true).entrySet().iterator();
             while (uploadedStatesIterator.hasNext()) {
                 Map.Entry<Long, Set<LogicalFile>> entry = uploadedStatesIterator.next();
-                if (discardLogicalFiles(subtaskKey, entry.getKey(), entry.getValue())) {
+                if (discardLogicalFiles(subtaskKey, checkpointId, entry.getValue())) {
                     uploadedStatesIterator.remove();
+                }
+            }
+        }
+    }
+
+    @Override
+    public void reusePreviousStateHandle(
+            long checkpointId, Collection<? extends StreamStateHandle> stateHandles) {
+        for (StreamStateHandle stateHandle : stateHandles) {
+            if (stateHandle instanceof SegmentFileStateHandle) {
+                LogicalFile file =
+                        knownLogicalFiles.get(
+                                ((SegmentFileStateHandle) stateHandle).getLogicalFileId());
+                if (file != null) {
+                    file.advanceLastCheckpointId(checkpointId);
                 }
             }
         }
@@ -476,6 +502,7 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                     && logicalFile.getLastUsedCheckpointID() <= checkpointId) {
                 logicalFile.discardWithCheckpointId(checkpointId);
                 logicalFileIterator.remove();
+                knownLogicalFiles.remove(logicalFile.getFileId());
             }
         }
 
@@ -547,4 +574,9 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
 
     @Override
     public void close() throws IOException {}
+
+    @VisibleForTesting
+    public LogicalFile getLogicalFile(LogicalFileId fileId) {
+        return knownLogicalFiles.get(fileId);
+    }
 }

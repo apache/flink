@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.OutputStreamAndPath;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.checkpoint.filemerging.LogicalFile;
 import org.apache.flink.runtime.checkpoint.filemerging.PhysicalFile;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -117,7 +118,12 @@ public class FileMergingCheckpointStateOutputStreamTest {
                                 physicalFile.close();
                             }
                         }
-                        return new SegmentFileStateHandle(filePath, startPos, stateSize, EXCLUSIVE);
+                        return new SegmentFileStateHandle(
+                                filePath,
+                                startPos,
+                                stateSize,
+                                EXCLUSIVE,
+                                LogicalFile.LogicalFileId.generateRandomId());
                     }
 
                     @Override

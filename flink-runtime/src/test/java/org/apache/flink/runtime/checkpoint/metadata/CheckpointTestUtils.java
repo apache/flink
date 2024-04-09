@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.FullyFinishedOperatorState;
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.filemerging.LogicalFile;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.DiscardRecordedStateObject;
@@ -363,7 +364,12 @@ public class CheckpointTestUtils {
 
         public TestingSegmentFileStateHandle(
                 Path filePath, long startPos, long stateSize, CheckpointedStateScope scope) {
-            super(filePath, startPos, stateSize, scope);
+            super(
+                    filePath,
+                    startPos,
+                    stateSize,
+                    scope,
+                    LogicalFile.LogicalFileId.generateRandomId());
         }
 
         @Override
