@@ -22,6 +22,7 @@ import org.apache.flink.datastream.api.context.JobInfo;
 import org.apache.flink.datastream.api.context.TaskInfo;
 import org.apache.flink.datastream.api.context.TwoOutputNonPartitionedContext;
 import org.apache.flink.datastream.api.function.TwoOutputApplyPartitionFunction;
+import org.apache.flink.metrics.MetricGroup;
 
 /** The default implementation of {@link TwoOutputNonPartitionedContext}. */
 public class DefaultTwoOutputNonPartitionedContext<OUT1, OUT2>
@@ -46,5 +47,10 @@ public class DefaultTwoOutputNonPartitionedContext<OUT1, OUT2>
     @Override
     public TaskInfo getTaskInfo() {
         return context.getTaskInfo();
+    }
+
+    @Override
+    public MetricGroup getMetricGroup() {
+        return context.getMetricGroup();
     }
 }

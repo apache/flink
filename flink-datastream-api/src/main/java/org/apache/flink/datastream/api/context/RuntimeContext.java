@@ -19,6 +19,7 @@
 package org.apache.flink.datastream.api.context;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.metrics.MetricGroup;
 
 /**
  * A RuntimeContext contains information about the context in which process functions are executed.
@@ -33,4 +34,7 @@ public interface RuntimeContext {
 
     /** Get the {@link TaskInfo} of this process function. */
     TaskInfo getTaskInfo();
+
+    /** Get the metric group of this process function. */
+    MetricGroup getMetricGroup();
 }
