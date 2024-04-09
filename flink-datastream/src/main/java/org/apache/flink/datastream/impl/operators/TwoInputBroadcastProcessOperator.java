@@ -18,6 +18,7 @@
 
 package org.apache.flink.datastream.impl.operators;
 
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.datastream.api.function.TwoInputBroadcastStreamProcessFunction;
 import org.apache.flink.datastream.impl.common.OutputCollector;
 import org.apache.flink.datastream.impl.common.TimestampCollector;
@@ -58,9 +59,14 @@ public class TwoInputBroadcastProcessOperator<IN1, IN2, OUT>
         super.open();
         this.collector = getOutputCollector();
         StreamingRuntimeContext operatorContext = getRuntimeContext();
+        TaskInfo taskInfo = operatorContext.getTaskInfo();
         this.context =
                 new DefaultRuntimeContext(
-                        operatorContext.getJobInfo().getJobName(), operatorContext.getJobType());
+                        operatorContext.getJobInfo().getJobName(),
+                        operatorContext.getJobType(),
+                        taskInfo.getNumberOfParallelSubtasks(),
+                        taskInfo.getMaxNumberOfParallelSubtasks(),
+                        taskInfo.getTaskName());
         this.partitionedContext = new DefaultPartitionedContext(context);
         this.nonPartitionedContext = new DefaultNonPartitionedContext<>(context);
     }

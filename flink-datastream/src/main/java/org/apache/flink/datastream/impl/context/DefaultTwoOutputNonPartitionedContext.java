@@ -19,6 +19,7 @@
 package org.apache.flink.datastream.impl.context;
 
 import org.apache.flink.datastream.api.context.JobInfo;
+import org.apache.flink.datastream.api.context.TaskInfo;
 import org.apache.flink.datastream.api.context.TwoOutputNonPartitionedContext;
 import org.apache.flink.datastream.api.function.TwoOutputApplyPartitionFunction;
 
@@ -40,5 +41,10 @@ public class DefaultTwoOutputNonPartitionedContext<OUT1, OUT2>
     @Override
     public JobInfo getJobInfo() {
         return context.getJobInfo();
+    }
+
+    @Override
+    public TaskInfo getTaskInfo() {
+        return context.getTaskInfo();
     }
 }

@@ -18,30 +18,34 @@
 
 package org.apache.flink.datastream.impl.context;
 
-import org.apache.flink.datastream.api.context.JobInfo;
-import org.apache.flink.datastream.api.context.RuntimeContext;
 import org.apache.flink.datastream.api.context.TaskInfo;
-import org.apache.flink.runtime.jobgraph.JobType;
 
-/** The default implementation of {@link RuntimeContext}. */
-public class DefaultRuntimeContext implements RuntimeContext {
-    private final DefaultJobInfo jobInfo;
+/** Default implementation of {@link TaskInfo}. */
+public class DefaultTaskInfo implements TaskInfo {
+    private final int parallelism;
 
-    private final DefaultTaskInfo taskInfo;
+    private final int maxParallelism;
 
-    public DefaultRuntimeContext(
-            String jobName, JobType jobType, int parallelism, int maxParallelism, String taskName) {
-        this.jobInfo = new DefaultJobInfo(jobName, jobType);
-        this.taskInfo = new DefaultTaskInfo(parallelism, maxParallelism, taskName);
+    private final String taskName;
+
+    public DefaultTaskInfo(int parallelism, int maxParallelism, String taskName) {
+        this.parallelism = parallelism;
+        this.maxParallelism = maxParallelism;
+        this.taskName = taskName;
     }
 
     @Override
-    public JobInfo getJobInfo() {
-        return jobInfo;
+    public int getParallelism() {
+        return parallelism;
     }
 
     @Override
-    public TaskInfo getTaskInfo() {
-        return taskInfo;
+    public int getMaxParallelism() {
+        return maxParallelism;
+    }
+
+    @Override
+    public String getTaskName() {
+        return taskName;
     }
 }
