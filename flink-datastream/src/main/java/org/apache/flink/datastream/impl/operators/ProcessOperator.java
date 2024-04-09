@@ -18,6 +18,7 @@
 
 package org.apache.flink.datastream.impl.operators;
 
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
 import org.apache.flink.datastream.impl.common.OutputCollector;
 import org.apache.flink.datastream.impl.common.TimestampCollector;
@@ -54,9 +55,14 @@ public class ProcessOperator<IN, OUT>
     public void open() throws Exception {
         super.open();
         StreamingRuntimeContext operatorContext = getRuntimeContext();
+        TaskInfo taskInfo = operatorContext.getTaskInfo();
         context =
                 new DefaultRuntimeContext(
-                        operatorContext.getJobInfo().getJobName(), operatorContext.getJobType());
+                        operatorContext.getJobInfo().getJobName(),
+                        operatorContext.getJobType(),
+                        taskInfo.getNumberOfParallelSubtasks(),
+                        taskInfo.getMaxNumberOfParallelSubtasks(),
+                        taskInfo.getTaskName());
         partitionedContext = new DefaultPartitionedContext(context);
         nonPartitionedContext = new DefaultNonPartitionedContext<>(context);
         outputCollector = getOutputCollector();

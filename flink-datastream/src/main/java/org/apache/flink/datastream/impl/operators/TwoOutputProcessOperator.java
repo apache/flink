@@ -18,6 +18,7 @@
 
 package org.apache.flink.datastream.impl.operators;
 
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.datastream.api.context.TwoOutputNonPartitionedContext;
 import org.apache.flink.datastream.api.function.TwoOutputStreamProcessFunction;
 import org.apache.flink.datastream.impl.common.OutputCollector;
@@ -69,9 +70,14 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
         this.mainCollector = getMainCollector();
         this.sideCollector = getSideCollector();
         StreamingRuntimeContext operatorContext = getRuntimeContext();
+        TaskInfo taskInfo = operatorContext.getTaskInfo();
         this.context =
                 new DefaultRuntimeContext(
-                        operatorContext.getJobInfo().getJobName(), operatorContext.getJobType());
+                        operatorContext.getJobInfo().getJobName(),
+                        operatorContext.getJobType(),
+                        taskInfo.getNumberOfParallelSubtasks(),
+                        taskInfo.getMaxNumberOfParallelSubtasks(),
+                        taskInfo.getTaskName());
         this.partitionedContext = new DefaultPartitionedContext(context);
         this.nonPartitionedContext = new DefaultTwoOutputNonPartitionedContext<>(context);
     }

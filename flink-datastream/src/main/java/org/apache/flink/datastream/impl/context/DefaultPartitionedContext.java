@@ -21,6 +21,7 @@ package org.apache.flink.datastream.impl.context;
 import org.apache.flink.datastream.api.context.JobInfo;
 import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.context.RuntimeContext;
+import org.apache.flink.datastream.api.context.TaskInfo;
 
 /** The default implementation of {@link PartitionedContext}. */
 public class DefaultPartitionedContext implements PartitionedContext {
@@ -33,5 +34,10 @@ public class DefaultPartitionedContext implements PartitionedContext {
     @Override
     public JobInfo getJobInfo() {
         return context.getJobInfo();
+    }
+
+    @Override
+    public TaskInfo getTaskInfo() {
+        return context.getTaskInfo();
     }
 }
