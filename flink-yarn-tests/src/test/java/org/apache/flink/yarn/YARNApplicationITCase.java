@@ -40,6 +40,7 @@ import java.io.FileNotFoundException;
 import java.time.Duration;
 import java.util.Collections;
 
+import static org.apache.flink.configuration.CoreOptions.FLINK_JVM_OPTIONS;
 import static org.apache.flink.yarn.configuration.YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR;
 import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
 
@@ -135,6 +136,9 @@ class YARNApplicationITCase extends YarnTestBase {
         configuration.set(DeploymentOptions.TARGET, YarnDeploymentTarget.APPLICATION.getName());
         configuration.set(CLASSPATH_INCLUDE_USER_JAR, userJarInclusion);
         configuration.set(PipelineOptions.JARS, Collections.singletonList(userJar.toString()));
+
+        // Apply the JVM arguments that were set for unit tests to any Flink JVMs
+        configuration.set(FLINK_JVM_OPTIONS, System.getProperty("surefire.module.config"));
 
         return configuration;
     }
