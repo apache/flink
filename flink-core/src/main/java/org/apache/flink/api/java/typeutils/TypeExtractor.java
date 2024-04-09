@@ -73,6 +73,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.checkAndExtractLambda;
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.getAllDeclaredMethods;
@@ -1995,6 +1996,10 @@ public class TypeExtractor {
                     Class<?> elementClass = (Class<?>) actualTypeArguments[0];
                     TypeInformation<?> elementTypeInfo = createTypeInfo(elementClass);
                     return (TypeInformation<OUT>) Types.LIST(elementTypeInfo);
+                } else if (clazz.isAssignableFrom(Set.class)) {
+                    Class<?> elementClass = (Class<?>) actualTypeArguments[0];
+                    TypeInformation<?> elementTypeInfo = createTypeInfo(elementClass);
+                    return (TypeInformation<OUT>) Types.SET(elementTypeInfo);
                 }
             }
         }

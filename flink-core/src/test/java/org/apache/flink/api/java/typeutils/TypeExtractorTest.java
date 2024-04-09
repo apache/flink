@@ -66,10 +66,12 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -2519,6 +2521,7 @@ public class TypeExtractorTest {
         public Map<String, Integer> mapVal = new HashMap<>();
         public List<String> listVal = new ArrayList<>();
         public Collection<String> collectionVal = new ArrayList<>();
+        public Set<String> setVal = new HashSet<>();
 
         // Collection fields with unsupported collection types, treated as generic types
         public LinkedList<String> linkedListVal = new LinkedList<>();
@@ -2573,6 +2576,8 @@ public class TypeExtractorTest {
                         pojoTi.getPojoFieldAt(pojoTi.getFieldIndex("collectionVal"))
                                 .getTypeInformation())
                 .isInstanceOf(ListTypeInfo.class);
+        assertThat(pojoTi.getPojoFieldAt(pojoTi.getFieldIndex("setVal")).getTypeInformation())
+                .isInstanceOf(SetTypeInfo.class);
         assertThat(
                         pojoTi.getPojoFieldAt(pojoTi.getFieldIndex("linkedListVal"))
                                 .getTypeInformation())
