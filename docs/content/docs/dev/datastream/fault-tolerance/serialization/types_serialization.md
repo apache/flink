@@ -171,7 +171,7 @@ Flink supports all Java and Scala primitive types such as `Integer`, `String`, a
 #### Common Collection Types
 
 Flink comes with dedicated serialization support for common Java collection types, which is more efficient than going
-through a general purpose serialization framework. Currently, only `Map`, `List` and its super interface `Collection`
+through a general purpose serialization framework. Currently, only `Map`, `List`, `Set` and its super interface `Collection`
 are supported. To utilize it, you need to declare the collection type with:
 
 1. Concrete type arguments: e.g. `List<String>` but not `List`, `List<T>`, or `List<?>`, as Flink needs them to dispatch
