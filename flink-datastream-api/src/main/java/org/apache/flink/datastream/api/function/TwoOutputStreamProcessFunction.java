@@ -45,4 +45,18 @@ public interface TwoOutputStreamProcessFunction<IN, OUT1, OUT2> extends ProcessF
      * @param ctx the context in which this function is executed.
      */
     default void endInput(TwoOutputNonPartitionedContext<OUT1, OUT2> ctx) {}
+
+    /**
+     * Callback for processing timer.
+     *
+     * @param timestamp when this callback is triggered.
+     * @param output1 to emit record.
+     * @param output2 to emit record.
+     * @param ctx runtime context in which this function is executed.
+     */
+    default void onProcessingTimer(
+            long timestamp,
+            Collector<OUT1> output1,
+            Collector<OUT2> output2,
+            PartitionedContext ctx) {}
 }
