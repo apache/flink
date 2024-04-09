@@ -71,6 +71,10 @@ public class ContinuousProcessingTimeTrigger<W extends Window> extends Trigger<O
     @Override
     public TriggerResult onProcessingTime(long time, W window, TriggerContext ctx)
             throws Exception {
+        if (time == window.maxTimestamp()) {
+            return TriggerResult.FIRE;
+        }
+
         ReducingState<Long> fireTimestampState = ctx.getPartitionedState(stateDesc);
 
         if (fireTimestampState.get().equals(time)) {

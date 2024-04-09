@@ -25,6 +25,7 @@ import org.apache.flink.api.java.functions.NullByteKeySelector;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.ProcessingTimeSessionWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.ContinuousProcessingTimeTrigger;
@@ -96,7 +97,7 @@ class ContinuousProcessingTimeTriggerTest {
 
     /** Verify ContinuousProcessingTimeTrigger fire. */
     @Test
-    void testWindowFiring() throws Exception {
+    void testProcessingTimeWindowFiring() throws Exception {
         ContinuousProcessingTimeTrigger<TimeWindow> trigger =
                 ContinuousProcessingTimeTrigger.of(Time.milliseconds(5));
 
@@ -168,6 +169,64 @@ class ContinuousProcessingTimeTriggerTest {
         // Fire window [10, 20), value is 3+3=6.
         testHarness.getProcessingTimeService().setCurrentTime(20);
         expectedOutput.add(new StreamRecord<>(new WindowedInteger(new TimeWindow(10, 20), 6), 19));
+        TestHarnessUtil.assertOutputEquals(
+                "Output mismatch", expectedOutput, testHarness.getOutput());
+    }
+
+    @Test
+    public void testEventTimeWindowFiring() throws Exception {
+        ContinuousProcessingTimeTrigger<TimeWindow> trigger =
+                ContinuousProcessingTimeTrigger.of(Time.milliseconds(5));
+
+        ListStateDescriptor<Integer> stateDesc =
+                new ListStateDescriptor<>(
+                        "window-contents",
+                        BasicTypeInfo.INT_TYPE_INFO.createSerializer(new SerializerConfigImpl()));
+
+        WindowOperator<Byte, Integer, Iterable<Integer>, WindowedInteger, TimeWindow> operator =
+                new WindowOperator<>(
+                        TumblingEventTimeWindows.of(Time.milliseconds(10)),
+                        new TimeWindow.Serializer(),
+                        new NullByteKeySelector<>(),
+                        BasicTypeInfo.BYTE_TYPE_INFO.createSerializer(new SerializerConfigImpl()),
+                        stateDesc,
+                        new InternalIterableWindowFunction<>(new IntegerSumWindowFunction()),
+                        trigger,
+                        0,
+                        null);
+
+        KeyedOneInputStreamOperatorTestHarness<Byte, Integer, WindowedInteger> testHarness =
+                new KeyedOneInputStreamOperatorTestHarness<>(
+                        operator, operator.getKeySelector(), BasicTypeInfo.BYTE_TYPE_INFO);
+
+        ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
+
+        testHarness.open();
+        testHarness.getProcessingTimeService().setCurrentTime(0);
+
+        // event time window [0, 10)
+        testHarness.processElement(1, 1);
+        testHarness.processElement(2, 3);
+        testHarness.processElement(3, 7);
+
+        // Fire window [0, 10), value is 1+2+3=6.
+        testHarness.getProcessingTimeService().setCurrentTime(5);
+        expectedOutput.add(new StreamRecord<>(new WindowedInteger(new TimeWindow(0, 10), 6), 9));
+        TestHarnessUtil.assertOutputEquals(
+                "Output mismatch", expectedOutput, testHarness.getOutput());
+
+        testHarness.processElement(3, 8);
+        // Fire window [0, 10), value is 1+2+3+3=9.
+        testHarness.getProcessingTimeService().setCurrentTime(10);
+        expectedOutput.add(new StreamRecord<>(new WindowedInteger(new TimeWindow(0, 10), 9), 9));
+        TestHarnessUtil.assertOutputEquals(
+                "Output mismatch", expectedOutput, testHarness.getOutput());
+
+        // event time window [10, 20)
+        testHarness.processElement(3, 12);
+        // Fire window [10, 20), value is 3.
+        testHarness.getProcessingTimeService().setCurrentTime(15);
+        expectedOutput.add(new StreamRecord<>(new WindowedInteger(new TimeWindow(10, 20), 3), 19));
         TestHarnessUtil.assertOutputEquals(
                 "Output mismatch", expectedOutput, testHarness.getOutput());
     }
