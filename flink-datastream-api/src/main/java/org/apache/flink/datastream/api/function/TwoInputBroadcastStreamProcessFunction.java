@@ -65,4 +65,13 @@ public interface TwoInputBroadcastStreamProcessFunction<IN1, IN2, OUT> extends P
      * @param ctx the context in which this function is executed.
      */
     default void endBroadcastInput(NonPartitionedContext<OUT> ctx) {}
+
+    /**
+     * Callback for processing timer.
+     *
+     * @param timestamp when this callback is triggered.
+     * @param output to emit record.
+     * @param ctx runtime context in which this function is executed.
+     */
+    default void onProcessingTimer(long timestamp, Collector<OUT> output, PartitionedContext ctx) {}
 }

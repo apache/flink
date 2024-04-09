@@ -28,4 +28,7 @@ import org.apache.flink.annotation.Experimental;
 public interface PartitionedContext extends RuntimeContext {
     /** Get the {@link StateManager} of this process function. */
     StateManager getStateManager();
+
+    /** Get the {@link ProcessingTimeManager} of this process function. */
+    ProcessingTimeManager getProcessingTimeManager();
 }
