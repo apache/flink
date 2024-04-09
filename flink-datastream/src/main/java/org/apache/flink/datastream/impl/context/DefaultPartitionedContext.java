@@ -23,12 +23,21 @@ import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.context.RuntimeContext;
 import org.apache.flink.datastream.api.context.TaskInfo;
 
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+
 /** The default implementation of {@link PartitionedContext}. */
 public class DefaultPartitionedContext implements PartitionedContext {
     private final RuntimeContext context;
 
-    public DefaultPartitionedContext(RuntimeContext context) {
+    private final DefaultStateManager stateManager;
+
+    public DefaultPartitionedContext(
+            RuntimeContext context,
+            Supplier<Object> currentKeySupplier,
+            Consumer<Object> currentKeySetter) {
         this.context = context;
+        this.stateManager = new DefaultStateManager(currentKeySupplier, currentKeySetter);
     }
 
     @Override
@@ -39,5 +48,10 @@ public class DefaultPartitionedContext implements PartitionedContext {
     @Override
     public TaskInfo getTaskInfo() {
         return context.getTaskInfo();
+    }
+
+    @Override
+    public DefaultStateManager getStateManager() {
+        return stateManager;
     }
 }

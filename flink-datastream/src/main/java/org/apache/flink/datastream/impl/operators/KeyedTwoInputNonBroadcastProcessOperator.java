@@ -53,4 +53,9 @@ public class KeyedTwoInputNonBroadcastProcessOperator<KEY, IN1, IN2, OUT>
                 : new KeyCheckedOutputCollector<>(
                         new OutputCollector<>(output), outKeySelector, () -> (KEY) getCurrentKey());
     }
+
+    @Override
+    protected Object currentKey() {
+        return getCurrentKey();
+    }
 }

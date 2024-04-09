@@ -78,7 +78,8 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
                         taskInfo.getNumberOfParallelSubtasks(),
                         taskInfo.getMaxNumberOfParallelSubtasks(),
                         taskInfo.getTaskName());
-        this.partitionedContext = new DefaultPartitionedContext(context);
+        this.partitionedContext =
+                new DefaultPartitionedContext(context, this::currentKey, this::setCurrentKey);
         this.nonPartitionedContext = new DefaultTwoOutputNonPartitionedContext<>(context);
     }
 
@@ -101,6 +102,10 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
 
     public TimestampCollector<OUT_SIDE> getSideCollector() {
         return new SideOutputCollector(output);
+    }
+
+    protected Object currentKey() {
+        throw new UnsupportedOperationException("The key is only defined for keyed operator");
     }
 
     /**
