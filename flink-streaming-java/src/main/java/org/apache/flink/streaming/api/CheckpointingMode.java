@@ -90,4 +90,16 @@ public enum CheckpointingMode {
                 throw new IllegalArgumentException("Unsupported semantic: " + semantic);
         }
     }
+
+    public static org.apache.flink.streaming.api.CheckpointingMode convertFromCheckpointingMode(
+            org.apache.flink.core.execution.CheckpointingMode semantic) {
+        switch (semantic) {
+            case EXACTLY_ONCE:
+                return org.apache.flink.streaming.api.CheckpointingMode.EXACTLY_ONCE;
+            case AT_LEAST_ONCE:
+                return org.apache.flink.streaming.api.CheckpointingMode.AT_LEAST_ONCE;
+            default:
+                throw new IllegalArgumentException("Unsupported semantic: " + semantic);
+        }
+    }
 }
