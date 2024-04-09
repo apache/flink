@@ -26,6 +26,7 @@ import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
+import org.apache.flink.runtime.checkpoint.filemerging.LogicalFile;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
@@ -745,6 +746,7 @@ public abstract class MetadataV2V3SerializerBase {
                 dos.writeLong(segmentFileStateHandle.getStateSize());
                 dos.writeInt(segmentFileStateHandle.getScope().ordinal());
                 dos.writeUTF(segmentFileStateHandle.getFilePath().toString());
+                dos.writeUTF(segmentFileStateHandle.getLogicalFileId().getKeyString());
             }
         } else if (stateHandle instanceof FileStateHandle) {
             dos.writeByte(FILE_STREAM_STATE_HANDLE);
@@ -819,7 +821,9 @@ public abstract class MetadataV2V3SerializerBase {
             long stateSize = dis.readLong();
             CheckpointedStateScope scope = CheckpointedStateScope.values()[dis.readInt()];
             Path physicalFilePath = new Path(dis.readUTF());
-            return new SegmentFileStateHandle(physicalFilePath, startPos, stateSize, scope);
+            LogicalFile.LogicalFileId logicalFileId = new LogicalFile.LogicalFileId(dis.readUTF());
+            return new SegmentFileStateHandle(
+                    physicalFilePath, startPos, stateSize, scope, logicalFileId);
         } else if (EMPTY_SEGMENT_FILE_HANDLE == type) {
             return EmptySegmentFileStateHandle.INSTANCE;
         } else {

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -67,4 +68,15 @@ public interface CheckpointStreamFactory {
      */
     List<StreamStateHandle> duplicate(
             List<StreamStateHandle> stateHandles, CheckpointedStateScope scope) throws IOException;
+
+    /**
+     * A callback method when some previous handle is reused. It is needed by the file merging
+     * mechanism (FLIP-306) which will manage the life cycle of underlying files by file-reusing
+     * information.
+     *
+     * @param previousHandle the previous handles that will be reused.
+     */
+    default void reusePreviousStateHandle(Collection<? extends StreamStateHandle> previousHandle) {
+        // Does nothing for normal stream factory
+    }
 }

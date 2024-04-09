@@ -52,6 +52,9 @@ public class SegmentFileStateHandle implements StreamStateHandle {
     /** The scope of the state. */
     private final CheckpointedStateScope scope;
 
+    /** The id for corresponding logical file. Used to retrieve LogicalFile in TM. */
+    private final LogicalFile.LogicalFileId logicalFileId;
+
     /**
      * Creates a new segment file state for the given file path.
      *
@@ -59,13 +62,19 @@ public class SegmentFileStateHandle implements StreamStateHandle {
      * @param startPos Start position of the segment in the physical file.
      * @param stateSize Size of the segment.
      * @param scope The state's scope, whether it is exclusive or shared.
+     * @param fileId The corresponding logical file id.
      */
     public SegmentFileStateHandle(
-            Path filePath, long startPos, long stateSize, CheckpointedStateScope scope) {
+            Path filePath,
+            long startPos,
+            long stateSize,
+            CheckpointedStateScope scope,
+            LogicalFile.LogicalFileId fileId) {
         this.filePath = filePath;
         this.stateSize = stateSize;
         this.startPos = startPos;
         this.scope = scope;
+        this.logicalFileId = fileId;
     }
 
     /**
@@ -118,6 +127,10 @@ public class SegmentFileStateHandle implements StreamStateHandle {
         return scope;
     }
 
+    public LogicalFile.LogicalFileId getLogicalFileId() {
+        return logicalFileId;
+    }
+
     /**
      * Gets the file system that stores the file state.
      *
@@ -142,7 +155,8 @@ public class SegmentFileStateHandle implements StreamStateHandle {
 
         SegmentFileStateHandle that = (SegmentFileStateHandle) o;
 
-        return filePath.equals(that.filePath)
+        return logicalFileId.equals(that.logicalFileId)
+                && filePath.equals(that.filePath)
                 && startPos == that.startPos
                 && stateSize == that.stateSize
                 && scope.equals(that.scope);
@@ -150,7 +164,8 @@ public class SegmentFileStateHandle implements StreamStateHandle {
 
     @Override
     public int hashCode() {
-        int result = getFilePath().hashCode();
+        int result = logicalFileId.hashCode();
+        result = 31 * result + Objects.hashCode(getFilePath());
         result = 31 * result + Objects.hashCode(startPos);
         result = 31 * result + Objects.hashCode(stateSize);
         result = 31 * result + Objects.hashCode(scope);

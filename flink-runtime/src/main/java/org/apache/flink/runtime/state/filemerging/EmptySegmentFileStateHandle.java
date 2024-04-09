@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state.filemerging;
 
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.checkpoint.filemerging.LogicalFile;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 
 import java.io.IOException;
@@ -31,11 +32,19 @@ public class EmptySegmentFileStateHandle extends SegmentFileStateHandle {
 
     public static final EmptySegmentFileStateHandle INSTANCE =
             new EmptySegmentFileStateHandle(
-                    new Path("empty"), 0, 0, CheckpointedStateScope.EXCLUSIVE);
+                    new Path("empty"),
+                    0,
+                    0,
+                    CheckpointedStateScope.EXCLUSIVE,
+                    new LogicalFile.LogicalFileId("DUMMY"));
 
     private EmptySegmentFileStateHandle(
-            Path filePath, long startPos, long stateSize, CheckpointedStateScope scope) {
-        super(filePath, startPos, stateSize, scope);
+            Path filePath,
+            long startPos,
+            long stateSize,
+            CheckpointedStateScope scope,
+            LogicalFile.LogicalFileId fileId) {
+        super(filePath, startPos, stateSize, scope, fileId);
     }
 
     @Override

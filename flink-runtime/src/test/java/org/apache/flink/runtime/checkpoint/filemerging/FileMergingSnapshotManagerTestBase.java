@@ -35,6 +35,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
@@ -316,6 +317,67 @@ public abstract class FileMergingSnapshotManagerTestBase {
                     fmsm.getOrCreatePhysicalFileForCheckpoint(
                             subtaskKey1, 0, CheckpointedStateScope.EXCLUSIVE);
             assertThat(file6).isNotEqualTo(file5);
+        }
+    }
+
+    @Test
+    public void testReuseCallbackAndAdvanceWatermark() throws Exception {
+        long checkpointId = 1;
+        int streamNum = 20;
+        int perStreamWriteNum = 128;
+
+        // write random bytes and then read them from the file
+        byte[] bytes = new byte[streamNum * perStreamWriteNum];
+        Random rd = new Random();
+        rd.nextBytes(bytes);
+        int byteIndex = 0;
+
+        SegmentFileStateHandle[] handles = new SegmentFileStateHandle[streamNum];
+        try (FileMergingSnapshotManager fmsm = createFileMergingSnapshotManager(checkpointBaseDir);
+                CloseableRegistry closeableRegistry = new CloseableRegistry()) {
+            fmsm.registerSubtaskForSharedStates(subtaskKey1);
+
+            // repeatedly get-write-close streams
+            for (int i = 0; i < streamNum; i++) {
+                FileMergingCheckpointStateOutputStream stream =
+                        fmsm.createCheckpointStateOutputStream(
+                                subtaskKey1, checkpointId, CheckpointedStateScope.SHARED);
+                try {
+                    closeableRegistry.registerCloseable(stream);
+                    for (int j = 0; j < perStreamWriteNum; j++) {
+                        stream.write(bytes[byteIndex++]);
+                    }
+                    handles[i] = stream.closeAndGetHandle();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            // start reuse
+            for (long cp = checkpointId + 1; cp <= 10; cp++) {
+                ArrayList<SegmentFileStateHandle> reuse = new ArrayList<>();
+                for (int j = 0; j <= 10 - cp; j++) {
+                    reuse.add(handles[j]);
+                }
+                fmsm.reusePreviousStateHandle(cp, reuse);
+                // assert the reusing affects the watermark
+                for (SegmentFileStateHandle handle : reuse) {
+                    assertThat(
+                                    ((FileMergingSnapshotManagerBase) fmsm)
+                                            .getLogicalFile(handle.getLogicalFileId())
+                                            .getLastUsedCheckpointID())
+                            .isEqualTo(cp);
+                }
+                // subsumed
+                fmsm.notifyCheckpointSubsumed(subtaskKey1, cp - 1);
+                // assert the other files discarded.
+                for (int j = 10 - (int) cp + 1; j < streamNum; j++) {
+                    assertThat(
+                                    ((FileMergingSnapshotManagerBase) fmsm)
+                                            .getLogicalFile(handles[j].getLogicalFileId()))
+                            .isNull();
+                }
+            }
         }
     }
 
