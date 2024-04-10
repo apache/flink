@@ -64,7 +64,7 @@ public class GroupAggregationAnalyzer implements PlanAnalyzer {
                         public RelNode visit(RelNode other) {
                             if (other instanceof StreamPhysicalGroupAggregate) {
                                 if (((TwoStageOptimizedAggregateRule)
-                                                TwoStageOptimizedAggregateRule.INSTANCE())
+                                                TwoStageOptimizedAggregateRule.INSTANCE)
                                         .matchesTwoStage(
                                                 (StreamPhysicalGroupAggregate) other,
                                                 other.getInput(0).getInput(0))) {
