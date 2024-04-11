@@ -23,9 +23,10 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
-import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.SupplierWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,14 +88,15 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
             JobVertexID jobVertexID,
             String taskName,
             int subtaskIndex,
-            CheckpointStorage checkpointStorage,
+            SupplierWithException<CheckpointStorageWorkerView, ? extends IOException>
+                    checkpointStorageWorkerViewSupplier,
             ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory,
             int maxSubtasksPerChannelStateFile) {
         this(
                 jobVertexID,
                 taskName,
                 subtaskIndex,
-                checkpointStorage,
+                checkpointStorageWorkerViewSupplier,
                 DEFAULT_MAX_CHECKPOINTS,
                 channelStateExecutorFactory,
                 maxSubtasksPerChannelStateFile);
@@ -113,7 +115,8 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
             JobVertexID jobVertexID,
             String taskName,
             int subtaskIndex,
-            CheckpointStorage checkpointStorage,
+            SupplierWithException<CheckpointStorageWorkerView, ? extends IOException>
+                    checkpointStorageWorkerViewSupplier,
             int maxCheckpoints,
             ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory,
             int maxSubtasksPerChannelStateFile) {
@@ -125,7 +128,7 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
                 channelStateExecutorFactory.getOrCreateExecutor(
                         jobVertexID,
                         subtaskIndex,
-                        checkpointStorage,
+                        checkpointStorageWorkerViewSupplier,
                         maxSubtasksPerChannelStateFile),
                 maxCheckpoints);
     }

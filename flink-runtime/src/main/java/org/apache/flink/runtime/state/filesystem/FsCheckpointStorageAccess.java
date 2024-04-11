@@ -232,7 +232,6 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
             FileMergingSnapshotManager mergingSnapshotManager, Environment environment)
             throws IOException {
         return new FsMergingCheckpointStorageAccess(
-                fileSystem,
                 checkpointsDirectory,
                 getDefaultSavepointDirectory(),
                 environment.getJobID(),

@@ -76,8 +76,7 @@ class ChannelStateWriteRequestDispatcherImplTest {
             Function<NetworkBuffer[], ChannelStateWriteRequest> requestBuilder) throws Exception {
         ChannelStateWriteRequestDispatcher dispatcher =
                 new ChannelStateWriteRequestDispatcherImpl(
-                        new JobManagerCheckpointStorage(),
-                        JOB_ID,
+                        () -> new JobManagerCheckpointStorage().createCheckpointStorage(JOB_ID),
                         new ChannelStateSerializerImpl());
         ChannelStateWriteResult result = new ChannelStateWriteResult();
         dispatcher.dispatch(ChannelStateWriteRequest.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX));
@@ -113,8 +112,7 @@ class ChannelStateWriteRequestDispatcherImplTest {
             throws Exception {
         ChannelStateWriteRequestDispatcher processor =
                 new ChannelStateWriteRequestDispatcherImpl(
-                        new JobManagerCheckpointStorage(),
-                        JOB_ID,
+                        () -> new JobManagerCheckpointStorage().createCheckpointStorage(JOB_ID),
                         new ChannelStateSerializerImpl());
         ChannelStateWriteResult result = new ChannelStateWriteResult();
         processor.dispatch(ChannelStateWriteRequest.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX));
@@ -157,8 +155,7 @@ class ChannelStateWriteRequestDispatcherImplTest {
             throws Exception {
         ChannelStateWriteRequestDispatcher processor =
                 new ChannelStateWriteRequestDispatcherImpl(
-                        new JobManagerCheckpointStorage(),
-                        JOB_ID,
+                        () -> new JobManagerCheckpointStorage().createCheckpointStorage(JOB_ID),
                         new ChannelStateSerializerImpl());
         processor.dispatch(ChannelStateWriteRequest.registerSubtask(JOB_VERTEX_ID, SUBTASK_INDEX));
         JobVertexID newJobVertex = JOB_VERTEX_ID;
@@ -194,8 +191,7 @@ class ChannelStateWriteRequestDispatcherImplTest {
     private void testAbortCheckpointAndCheckAllException(int numberOfSubtask) throws Exception {
         ChannelStateWriteRequestDispatcher processor =
                 new ChannelStateWriteRequestDispatcherImpl(
-                        new JobManagerCheckpointStorage(),
-                        JOB_ID,
+                        () -> new JobManagerCheckpointStorage().createCheckpointStorage(JOB_ID),
                         new ChannelStateSerializerImpl());
         List<ChannelStateWriteResult> results = new ArrayList<>(numberOfSubtask);
         for (int i = 0; i < numberOfSubtask; i++) {

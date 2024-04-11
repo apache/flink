@@ -34,6 +34,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
 import static org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor.IMMEDIATE;
+import static org.apache.flink.streaming.runtime.tasks.SubtaskCheckpointCoordinatorImpl.openChannelStateWriter;
 
 /** A mock builder to build {@link SubtaskCheckpointCoordinator}. */
 public class MockSubtaskCheckpointCoordinatorBuilder {
@@ -87,37 +88,41 @@ public class MockSubtaskCheckpointCoordinatorBuilder {
         return this;
     }
 
-    public MockSubtaskCheckpointCoordinatorBuilder setMaxSubtasksPerChannelStateFile(
-            int maxSubtasksPerChannelStateFile) {
-        this.maxSubtasksPerChannelStateFile = maxSubtasksPerChannelStateFile;
-        return this;
-    }
-
     SubtaskCheckpointCoordinator build() throws IOException {
         if (environment == null) {
             this.environment = MockEnvironment.builder().build();
         }
         if (checkpointStorage == null) {
             this.checkpointStorage = new JobManagerCheckpointStorage();
+            this.environment.setCheckpointStorageAccess(
+                    checkpointStorage.createCheckpointStorage(environment.getJobID()));
         }
         if (asyncExceptionHandler == null) {
             this.asyncExceptionHandler = new NonHandleAsyncException();
         }
+        ChannelStateWriter channelStateWriter =
+                unalignedCheckpointEnabled
+                        ? openChannelStateWriter(
+                                taskName,
+                                () ->
+                                        checkpointStorage.createCheckpointStorage(
+                                                environment.getJobID()),
+                                environment,
+                                maxSubtasksPerChannelStateFile)
+                        : ChannelStateWriter.NO_OP;
 
         return new SubtaskCheckpointCoordinatorImpl(
-                checkpointStorage,
                 checkpointStorage.createCheckpointStorage(environment.getJobID()),
                 taskName,
                 actionExecutor,
                 executorService,
                 environment,
                 asyncExceptionHandler,
-                unalignedCheckpointEnabled,
-                enableCheckpointAfterTasksFinished,
                 prepareInputSnapshot,
                 maxRecordAbortedCheckpoints,
-                (callable, duration) -> () -> {},
-                maxSubtasksPerChannelStateFile);
+                channelStateWriter,
+                enableCheckpointAfterTasksFinished,
+                (callable, duration) -> () -> {});
     }
 
     private static class NonHandleAsyncException implements AsyncExceptionHandler {

@@ -48,6 +48,7 @@ import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
@@ -64,6 +65,7 @@ import java.util.Map;
 import java.util.concurrent.Future;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** The {@link DummyEnvironment} is used for test purpose. */
 public class DummyEnvironment implements Environment {
@@ -81,6 +83,8 @@ public class DummyEnvironment implements Environment {
     private final Configuration taskConfiguration = new Configuration();
     private final ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory =
             new ChannelStateWriteRequestExecutorFactory(jobInfo.getJobId());
+
+    private CheckpointStorageAccess checkpointStorageAccess;
 
     public DummyEnvironment() {
         this("Test Job", 1, 0, 1);
@@ -290,5 +294,15 @@ public class DummyEnvironment implements Environment {
     @Override
     public JobInfo getJobInfo() {
         return jobInfo;
+    }
+
+    @Override
+    public void setCheckpointStorageAccess(CheckpointStorageAccess checkpointStorageAccess) {
+        this.checkpointStorageAccess = checkpointStorageAccess;
+    }
+
+    @Override
+    public CheckpointStorageAccess getCheckpointStorageAccess() {
+        return checkNotNull(checkpointStorageAccess);
     }
 }

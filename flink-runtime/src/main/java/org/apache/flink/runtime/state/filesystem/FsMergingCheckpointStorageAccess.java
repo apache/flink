@@ -41,7 +41,6 @@ public class FsMergingCheckpointStorageAccess extends FsCheckpointStorageAccess 
     private final FileMergingSnapshotManager.SubtaskKey subtaskKey;
 
     public FsMergingCheckpointStorageAccess(
-            FileSystem fs,
             Path checkpointBaseDirectory,
             @Nullable Path defaultSavepointDirectory,
             JobID jobId,
@@ -51,7 +50,10 @@ public class FsMergingCheckpointStorageAccess extends FsCheckpointStorageAccess 
             Environment environment)
             throws IOException {
         super(
-                fs,
+                // Multiple subtask/threads would share one output stream,
+                // SafetyNetWrapperFileSystem cannot be used to prevent different threads from
+                // interfering with each other when exiting.
+                FileSystem.getUnguardedFileSystem(checkpointBaseDirectory.toUri()),
                 checkpointBaseDirectory,
                 defaultSavepointDirectory,
                 false,

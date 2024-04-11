@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.util.function.BiConsumerWithException;
 
@@ -47,6 +48,8 @@ class ChannelStateWriterImplTest {
     private static final JobID JOB_ID = new JobID();
     private static final JobVertexID JOB_VERTEX_ID = new JobVertexID();
     private static final int SUBTASK_INDEX = 0;
+
+    private static final CheckpointStorage CHECKPOINT_STORAGE = new JobManagerCheckpointStorage();
 
     @Test
     void testAddEventBuffer() throws Exception {
@@ -241,7 +244,7 @@ class ChannelStateWriterImplTest {
                         JOB_VERTEX_ID,
                         TASK_NAME,
                         SUBTASK_INDEX,
-                        new JobManagerCheckpointStorage(),
+                        () -> CHECKPOINT_STORAGE.createCheckpointStorage(JOB_ID),
                         maxCheckpoints,
                         new ChannelStateWriteRequestExecutorFactory(JOB_ID),
                         5)) {
@@ -338,12 +341,12 @@ class ChannelStateWriterImplTest {
         }
     }
 
-    private ChannelStateWriterImpl openWriter() {
+    private ChannelStateWriterImpl openWriter() throws IOException {
         return new ChannelStateWriterImpl(
                 JOB_VERTEX_ID,
                 TASK_NAME,
                 SUBTASK_INDEX,
-                new JobManagerCheckpointStorage(),
+                () -> CHECKPOINT_STORAGE.createCheckpointStorage(JOB_ID),
                 new ChannelStateWriteRequestExecutorFactory(JOB_ID),
                 5);
     }
@@ -381,7 +384,8 @@ class SyncChannelStateWriteRequestExecutor implements ChannelStateWriteRequestEx
         deque = new ArrayDeque<>();
         requestProcessor =
                 new ChannelStateWriteRequestDispatcherImpl(
-                        new JobManagerCheckpointStorage(), jobID, new ChannelStateSerializerImpl());
+                        () -> new JobManagerCheckpointStorage().createCheckpointStorage(jobID),
+                        new ChannelStateSerializerImpl());
     }
 
     @Override

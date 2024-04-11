@@ -24,6 +24,7 @@ import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.util.Random;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -37,7 +38,7 @@ public class ChannelStateWriteRequestExecutorFactoryTest {
     private static final CheckpointStorage CHECKPOINT_STORAGE = new JobManagerCheckpointStorage();
 
     @Test
-    void testReuseExecutorForSameJobId() {
+    void testReuseExecutorForSameJobId() throws IOException {
         assertReuseExecutor(1);
         assertReuseExecutor(2);
         assertReuseExecutor(3);
@@ -45,7 +46,7 @@ public class ChannelStateWriteRequestExecutorFactoryTest {
         assertReuseExecutor(10);
     }
 
-    private void assertReuseExecutor(int maxSubtasksPerChannelStateFile) {
+    private void assertReuseExecutor(int maxSubtasksPerChannelStateFile) throws IOException {
         JobID JOB_ID = new JobID();
         Random RANDOM = new Random();
         ChannelStateWriteRequestExecutorFactory executorFactory =
@@ -58,7 +59,7 @@ public class ChannelStateWriteRequestExecutorFactoryTest {
                     executorFactory.getOrCreateExecutor(
                             new JobVertexID(),
                             RANDOM.nextInt(numberOfTasks),
-                            CHECKPOINT_STORAGE,
+                            () -> CHECKPOINT_STORAGE.createCheckpointStorage(JOB_ID),
                             maxSubtasksPerChannelStateFile);
             if (i % maxSubtasksPerChannelStateFile == 0) {
                 assertThat(newExecutor)
@@ -94,7 +95,9 @@ public class ChannelStateWriteRequestExecutorFactoryTest {
                                             executorFactory.getOrCreateExecutor(
                                                     jobVertexID,
                                                     i,
-                                                    CHECKPOINT_STORAGE,
+                                                    () ->
+                                                            CHECKPOINT_STORAGE
+                                                                    .createCheckpointStorage(jobID),
                                                     maxSubtasksPerChannelStateFile,
                                                     false);
                                     assertThat(executor).isNotNull();

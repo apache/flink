@@ -175,8 +175,7 @@ class ChannelStateWriteRequestExecutorImplTest {
         long checkpointId = 1L;
         ChannelStateWriteRequestDispatcher processor =
                 new ChannelStateWriteRequestDispatcherImpl(
-                        new JobManagerCheckpointStorage(),
-                        JOB_ID,
+                        () -> new JobManagerCheckpointStorage().createCheckpointStorage(JOB_ID),
                         new ChannelStateSerializerImpl());
         Object registerLock = new Object();
         ChannelStateWriteRequestExecutorImpl worker =
