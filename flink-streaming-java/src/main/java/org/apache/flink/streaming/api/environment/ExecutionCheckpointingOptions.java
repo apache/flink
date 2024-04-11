@@ -327,6 +327,15 @@ public class ExecutionCheckpointingOptions {
                     .defaultValue(false)
                     .withDescription("Flag to enable approximate local recovery.");
 
+    // TODO: deprecated
+    // Currently, both two file merging mechanism can work simultaneously:
+    //  1. If UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE=1 and
+    // state.checkpoints.file-merging.enabled: true, only the unified file merging mechanism takes
+    // effect.
+    //  2. if UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE>1 and
+    // state.checkpoints.file-merging.enabled: false, only the current mechanism takes effect.
+    //  3. if UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE>1 and
+    // state.checkpoints.file-merging.enabled: true, both two mechanism take effect.
     public static final ConfigOption<Integer> UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE =
             key("execution.checkpointing.unaligned.max-subtasks-per-channel-state-file")
                     .intType()

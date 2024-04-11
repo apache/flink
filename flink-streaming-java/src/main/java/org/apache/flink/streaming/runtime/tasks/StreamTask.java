@@ -72,6 +72,7 @@ import org.apache.flink.runtime.state.CheckpointStorageLoader;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
+import org.apache.flink.runtime.state.filesystem.FsMergingCheckpointStorageAccess;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskmanager.AsyncExceptionHandler;
 import org.apache.flink.runtime.taskmanager.AsynchronousException;
@@ -148,6 +149,7 @@ import static org.apache.flink.runtime.metrics.MetricNames.GATE_RESTORE_DURATION
 import static org.apache.flink.runtime.metrics.MetricNames.INITIALIZE_STATE_DURATION;
 import static org.apache.flink.runtime.metrics.MetricNames.MAILBOX_START_DURATION;
 import static org.apache.flink.runtime.metrics.MetricNames.READ_OUTPUT_DATA_DURATION;
+import static org.apache.flink.streaming.runtime.tasks.SubtaskCheckpointCoordinatorImpl.openChannelStateWriter;
 import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.apache.flink.util.concurrent.FutureUtils.assertNoException;
@@ -483,27 +485,54 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             }
 
             this.systemTimerService = createTimerService("System Time Trigger for " + getName());
+            final CheckpointStorageAccess finalCheckpointStorageAccess = checkpointStorageAccess;
 
+            ChannelStateWriter channelStateWriter =
+                    configuration.isUnalignedCheckpointsEnabled()
+                            ? openChannelStateWriter(
+                                    getName(),
+                                    // Note: don't pass checkpointStorageAccess directly to channel
+                                    // state writer.
+                                    // The fileSystem of checkpointStorageAccess may be an instance
+                                    // of SafetyNetWrapperFileSystem, which close all held streams
+                                    // when thread exits. Channel state writers are invoked in other
+                                    // threads instead of task thread, therefore channel state
+                                    // writer cannot share file streams directly, otherwise
+                                    // conflicts will occur on job exit.
+                                    () -> {
+                                        if (finalCheckpointStorageAccess
+                                                instanceof FsMergingCheckpointStorageAccess) {
+                                            // FsMergingCheckpointStorageAccess using unguarded
+                                            // fileSystem, which can be shared.
+                                            return finalCheckpointStorageAccess;
+                                        } else {
+                                            // Other checkpoint storage access should be lazily
+                                            // initialized to avoid sharing.
+                                            return checkpointStorage.createCheckpointStorage(
+                                                    getEnvironment().getJobID());
+                                        }
+                                    },
+                                    environment,
+                                    configuration.getMaxSubtasksPerChannelStateFile())
+                            : ChannelStateWriter.NO_OP;
             this.subtaskCheckpointCoordinator =
                     new SubtaskCheckpointCoordinatorImpl(
-                            checkpointStorage,
                             checkpointStorageAccess,
                             getName(),
                             actionExecutor,
                             getAsyncOperationsThreadPool(),
                             environment,
                             this,
-                            configuration.isUnalignedCheckpointsEnabled(),
+                            this::prepareInputSnapshot,
+                            configuration.getMaxConcurrentCheckpoints(),
+                            channelStateWriter,
                             configuration
                                     .getConfiguration()
                                     .get(
                                             ExecutionCheckpointingOptions
                                                     .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH),
-                            this::prepareInputSnapshot,
-                            configuration.getMaxConcurrentCheckpoints(),
                             BarrierAlignmentUtil.createRegisterTimerCallback(
-                                    mainMailboxExecutor, systemTimerService),
-                            configuration.getMaxSubtasksPerChannelStateFile());
+                                    mainMailboxExecutor, systemTimerService));
             resourceCloser.registerCloseable(subtaskCheckpointCoordinator::close);
 
             // Register to stop all timers and threads. Should be closed first.

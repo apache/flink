@@ -17,11 +17,10 @@
 
 package org.apache.flink.runtime.checkpoint.channel;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
+import org.apache.flink.util.function.SupplierWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,15 +43,13 @@ final class ChannelStateWriteRequestDispatcherImpl implements ChannelStateWriteR
     private static final Logger LOG =
             LoggerFactory.getLogger(ChannelStateWriteRequestDispatcherImpl.class);
 
-    private final CheckpointStorage checkpointStorage;
-
-    private final JobID jobID;
+    private final SupplierWithException<CheckpointStorageWorkerView, ? extends IOException>
+            checkpointStorageWorkerViewSupplier;
+    private CheckpointStorageWorkerView streamFactoryResolver;
 
     private final ChannelStateSerializer serializer;
 
     private final Set<SubtaskID> registeredSubtasks;
-
-    private CheckpointStorageWorkerView streamFactoryResolver;
 
     /**
      * It is the checkpointId corresponding to writer. And It should be always update with {@link
@@ -78,9 +75,10 @@ final class ChannelStateWriteRequestDispatcherImpl implements ChannelStateWriteR
     private ChannelStateCheckpointWriter writer;
 
     ChannelStateWriteRequestDispatcherImpl(
-            CheckpointStorage checkpointStorage, JobID jobID, ChannelStateSerializer serializer) {
-        this.checkpointStorage = checkNotNull(checkpointStorage);
-        this.jobID = jobID;
+            SupplierWithException<CheckpointStorageWorkerView, ? extends IOException>
+                    checkpointStorageWorkerViewSupplier,
+            ChannelStateSerializer serializer) {
+        this.checkpointStorageWorkerViewSupplier = checkpointStorageWorkerViewSupplier;
         this.serializer = checkNotNull(serializer);
         this.registeredSubtasks = new HashSet<>();
         this.ongoingCheckpointId = -1;
@@ -247,7 +245,7 @@ final class ChannelStateWriteRequestDispatcherImpl implements ChannelStateWriteR
 
     CheckpointStorageWorkerView getStreamFactoryResolver() throws IOException {
         if (streamFactoryResolver == null) {
-            streamFactoryResolver = checkpointStorage.createCheckpointStorage(jobID);
+            streamFactoryResolver = checkpointStorageWorkerViewSupplier.get();
         }
         return streamFactoryResolver;
     }
