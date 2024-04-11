@@ -19,6 +19,7 @@
 package org.apache.flink.connectors.hive;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
@@ -35,6 +36,8 @@ import org.apache.flink.connectors.hive.util.HiveConfUtils;
 import org.apache.flink.connectors.hive.util.HivePartitionUtils;
 import org.apache.flink.connectors.hive.util.JobConfUtils;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.streaming.api.lineage.DefaultLineageDataset;
+import org.apache.flink.streaming.api.lineage.DefaultSourceLineageVertex;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
@@ -94,6 +97,7 @@ public class HiveSourceBuilder {
     private Long limit;
     private List<HiveTablePartition> partitions;
     private List<String> dynamicFilterPartitionKeys;
+    private String thriftURL;
 
     /**
      * Creates a builder to read a hive table.
@@ -121,6 +125,7 @@ public class HiveSourceBuilder {
         this.hiveVersion = hiveVersion == null ? HiveShimLoader.getHiveVersion() : hiveVersion;
         HiveConf hiveConf = HiveConfUtils.create(jobConf);
         HiveShim hiveShim = HiveShimLoader.loadHiveShim(this.hiveVersion);
+        this.thriftURL = hiveConf.get(HiveConf.ConfVars.METASTOREURIS.varname);
         try (HiveMetastoreClientWrapper client =
                 new HiveMetastoreClientWrapper(hiveConf, hiveShim)) {
             Table hiveTable = client.getTable(dbName, tableName);
@@ -161,6 +166,8 @@ public class HiveSourceBuilder {
         this.physicalDataType = catalogTable.getResolvedSchema().toPhysicalRowDataType();
         this.partitionKeys = catalogTable.getPartitionKeys();
         this.tableOptions = catalogTable.getOptions();
+        HiveConf hiveConf = HiveConfUtils.create(jobConf);
+        this.thriftURL = hiveConf.get(HiveConf.ConfVars.METASTOREURIS.varname);
         validateScanConfigurations(tableOptions);
         checkAcidTable(tableOptions, tablePath);
         setFlinkConfigurationToJobConf();
@@ -242,21 +249,33 @@ public class HiveSourceBuilder {
             hiveTablePartitionBytes = HivePartitionUtils.serializeHiveTablePartition(partitions);
         }
 
-        return new HiveSource<>(
-                new Path[1],
-                new HiveSourceFileEnumerator.Provider(
-                        hiveTablePartitionBytes, new JobConfWrapper(jobConf)),
-                splitAssigner,
-                bulkFormat,
-                continuousSourceSettings,
-                jobConf,
-                tablePath,
-                partitionKeys,
-                hiveVersion,
-                dynamicFilterPartitionKeys,
-                hiveTablePartitionBytes,
-                fetcher,
-                fetcherContext);
+        DefaultSourceLineageVertex vertex =
+                new DefaultSourceLineageVertex(
+                        isStreamingSource()
+                                ? Boundedness.CONTINUOUS_UNBOUNDED
+                                : Boundedness.BOUNDED);
+
+        vertex.addDataset(
+                new DefaultLineageDataset(tablePath.getFullName(), thriftURL, new HashMap<>()));
+        HiveSource hiveSource =
+                new HiveSource<>(
+                        new Path[1],
+                        new HiveSourceFileEnumerator.Provider(
+                                hiveTablePartitionBytes, new JobConfWrapper(jobConf)),
+                        splitAssigner,
+                        bulkFormat,
+                        continuousSourceSettings,
+                        jobConf,
+                        tablePath,
+                        partitionKeys,
+                        hiveVersion,
+                        dynamicFilterPartitionKeys,
+                        hiveTablePartitionBytes,
+                        fetcher,
+                        fetcherContext);
+
+        hiveSource.setLineageVertex(vertex);
+        return hiveSource;
     }
 
     /**
