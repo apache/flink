@@ -40,6 +40,12 @@
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-test-utils</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
 
 		<!--
 		Required at test runtime for having:
@@ -53,5 +59,23 @@
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
-	</dependencies>
+		<!--
+		Required at test runtime for filesystem connector.
+		-->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-files</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<!--
+		Required at test runtime for CSV format in filesystem connector.
+		-->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-csv</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+    </dependencies>
 </project>
