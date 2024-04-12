@@ -26,6 +26,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
@@ -60,8 +61,8 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
     public AbstractAsyncStateStreamOperatorV2(
             StreamOperatorParameters<OUT> parameters, int numberOfInputs) {
         super(parameters, numberOfInputs);
-        this.mailboxExecutor =
-                parameters.getContainingTask().getEnvironment().getMainMailboxExecutor();
+        final Environment environment = parameters.getContainingTask().getEnvironment();
+        this.mailboxExecutor = environment.getMainMailboxExecutor();
     }
 
     /** Initialize necessary state components for {@link AbstractStreamOperatorV2}. */
@@ -69,10 +70,19 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
     public final void initializeState(StreamTaskStateInitializer streamTaskStateManager)
             throws Exception {
         super.initializeState(streamTaskStateManager);
-        // TODO: Read config and properly set.
+
+        final int inFlightRecordsLimit = getExecutionConfig().getAsyncInflightRecordsLimit();
+        final int asyncBufferSize = getExecutionConfig().getAsyncStateBufferSize();
+        final long asyncBufferTimeout = getExecutionConfig().getAsyncStateBufferTimeout();
         int maxParallelism = getExecutionConfig().getMaxParallelism();
         this.asyncExecutionController =
-                new AsyncExecutionController(mailboxExecutor, null, maxParallelism);
+                new AsyncExecutionController(
+                        mailboxExecutor,
+                        null,
+                        maxParallelism,
+                        asyncBufferSize,
+                        asyncBufferTimeout,
+                        inFlightRecordsLimit);
     }
 
     @Override
