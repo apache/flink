@@ -38,12 +38,16 @@ public final class RocksDBStateDataTransferHelper implements Closeable {
         return new RocksDBStateDataTransferHelper(executorService, executorService::shutdownNow);
     }
 
+    public static RocksDBStateDataTransferHelper forExecutor(ExecutorService executorService) {
+        return new RocksDBStateDataTransferHelper(executorService, () -> {});
+    }
+
     public static RocksDBStateDataTransferHelper forThreadNumIfSpecified(
             int threadNum, ExecutorService executorService) {
         if (threadNum >= 0) {
             return forThreadNum(threadNum);
         } else {
-            return new RocksDBStateDataTransferHelper(executorService, () -> {});
+            return forExecutor(executorService);
         }
     }
 
