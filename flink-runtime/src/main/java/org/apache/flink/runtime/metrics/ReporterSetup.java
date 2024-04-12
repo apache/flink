@@ -391,7 +391,7 @@ public final class ReporterSetup {
 
         if (reporterClassName != null) {
             LOG.warn(
-                    "The reporter configuration of '{}' configures the reporter class, which is no a no longer supported approach to configure reporters."
+                    "The reporter configuration of '{}' configures the reporter class, which is a no longer supported approach to configure reporters."
                             + " Please configure a factory class instead: '{}{}.{}: <factoryClass>'.",
                     reporterName,
                     ConfigConstants.METRICS_REPORTER_PREFIX,
