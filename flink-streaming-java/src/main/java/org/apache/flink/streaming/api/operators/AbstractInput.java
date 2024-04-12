@@ -19,12 +19,16 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessing;
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessingOperator;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import javax.annotation.Nullable;
 
@@ -35,7 +39,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * AbstractStreamOperatorV2}.
  */
 @Experimental
-public abstract class AbstractInput<IN, OUT> implements Input<IN>, KeyContextHandler {
+public abstract class AbstractInput<IN, OUT>
+        implements Input<IN>, KeyContextHandler, AsyncStateProcessing {
     /**
      * {@code KeySelector} for extracting a key from an element being processed. This is used to
      * scope keyed state to a key. This is null if the operator is not a keyed operator.
@@ -85,5 +90,21 @@ public abstract class AbstractInput<IN, OUT> implements Input<IN>, KeyContextHan
     @Override
     public boolean hasKeyContext() {
         return stateKeySelector != null;
+    }
+
+    @Internal
+    @Override
+    public final boolean isAsyncStateProcessingEnabled() {
+        return (owner instanceof AsyncStateProcessingOperator)
+                && ((AsyncStateProcessingOperator) owner).isAsyncStateProcessingEnabled();
+    }
+
+    @Internal
+    @Override
+    public final ThrowingConsumer<StreamRecord<IN>, Exception> getRecordProcessor(int inputId) {
+        return AsyncStateProcessing.makeRecordProcessor(
+                (AsyncStateProcessingOperator) owner,
+                (KeySelector) stateKeySelector,
+                this::processElement);
     }
 }
