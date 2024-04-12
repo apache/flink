@@ -592,11 +592,12 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
 
         stateHandles.forEach(
                 fileHandle -> {
-                    // The file cleanup ownership of recovered physicalFile belongs to
-                    // jobManager, so we should set file deleter to "null" for them.
                     PhysicalFile physicalFile =
                             new PhysicalFile(
-                                    null, fileHandle.getFilePath(), null, fileHandle.getScope());
+                                    null,
+                                    fileHandle.getFilePath(),
+                                    physicalFileDeleter,
+                                    fileHandle.getScope());
                     LogicalFile logicalFile =
                             createLogicalFile(
                                     physicalFile,

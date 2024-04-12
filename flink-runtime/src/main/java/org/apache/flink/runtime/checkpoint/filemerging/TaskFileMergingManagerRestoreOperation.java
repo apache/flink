@@ -26,6 +26,7 @@ import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filemerging.SegmentFileStateHandle;
 
@@ -74,13 +75,13 @@ public class TaskFileMergingManagerRestoreOperation {
     private void restoreOperatorSubtaskStateHandles(
             FileMergingSnapshotManager.SubtaskKey subtaskKey, OperatorSubtaskState subtaskState) {
 
-        Stream<StreamStateHandle> keyedStateHandles =
+        Stream<? extends StateObject> keyedStateHandles =
                 Stream.concat(
                                 subtaskState.getManagedKeyedState().stream(),
                                 subtaskState.getRawKeyedState().stream())
                         .flatMap(this::getChildrenStreamHandles);
 
-        Stream<StreamStateHandle> operatorStateHandles =
+        Stream<? extends StateObject> operatorStateHandles =
                 Stream.concat(
                                 subtaskState.getManagedOperatorState().stream(),
                                 subtaskState.getRawOperatorState().stream())
@@ -97,7 +98,7 @@ public class TaskFileMergingManagerRestoreOperation {
                 checkpointId, subtaskKey, segmentStateHandles);
     }
 
-    private Stream<StreamStateHandle> getChildrenStreamHandles(KeyedStateHandle parentHandle) {
+    private Stream<? extends StateObject> getChildrenStreamHandles(KeyedStateHandle parentHandle) {
         if (parentHandle instanceof IncrementalRemoteKeyedStateHandle) {
             return ((IncrementalRemoteKeyedStateHandle) parentHandle).streamSubHandles();
         }
@@ -105,11 +106,7 @@ public class TaskFileMergingManagerRestoreOperation {
             return Stream.of(((KeyGroupsStateHandle) parentHandle).getDelegateStateHandle());
         }
         // TODO support changelog keyed state handle
-        if (parentHandle instanceof StreamStateHandle) {
-            return Stream.of((StreamStateHandle) parentHandle);
-        }
-        throw new UnsupportedOperationException(
-                "Unsupported KeyedStateHandle type:" + parentHandle);
+        return Stream.of(parentHandle);
     }
 
     private Stream<StreamStateHandle> getChildrenStreamHandles(OperatorStateHandle parentHandle) {

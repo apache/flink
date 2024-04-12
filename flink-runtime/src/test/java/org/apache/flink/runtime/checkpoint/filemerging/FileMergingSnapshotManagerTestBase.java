@@ -29,7 +29,10 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager.SubtaskKey;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
+import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.filemerging.FileMergingOperatorStreamStateHandle;
@@ -40,22 +43,21 @@ import org.apache.flink.runtime.state.filesystem.FileMergingCheckpointStateOutpu
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
-import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.when;
 
 /** Tests for {@link FileMergingSnapshotManager}. */
 public abstract class FileMergingSnapshotManagerTestBase {
@@ -436,25 +438,36 @@ public abstract class FileMergingSnapshotManagerTestBase {
             long checkpointId, FileMergingSnapshotManager fmsm, CloseableRegistry closeableRegistry)
             throws Exception {
         IncrementalRemoteKeyedStateHandle keyedStateHandle1 =
-                Mockito.mock(IncrementalRemoteKeyedStateHandle.class);
-        when(keyedStateHandle1.streamSubHandles())
-                .thenReturn(
-                        Stream.of(
-                                buildOneSegmentFileHandle(checkpointId, fmsm, closeableRegistry)));
+                new IncrementalRemoteKeyedStateHandle(
+                        UUID.randomUUID(),
+                        new KeyGroupRange(0, 8),
+                        checkpointId,
+                        Collections.singletonList(
+                                IncrementalKeyedStateHandle.HandleAndLocalPath.of(
+                                        buildOneSegmentFileHandle(
+                                                checkpointId, fmsm, closeableRegistry),
+                                        "localPath")),
+                        Collections.emptyList(),
+                        null);
 
-        KeyGroupsStateHandle keyedStateHandle2 = Mockito.mock(KeyGroupsStateHandle.class);
-        when(keyedStateHandle2.getDelegateStateHandle())
-                .thenReturn(buildOneSegmentFileHandle(checkpointId, fmsm, closeableRegistry));
+        KeyGroupsStateHandle keyedStateHandle2 =
+                new KeyGroupsStateHandle(
+                        new KeyGroupRangeOffsets(0, 8),
+                        buildOneSegmentFileHandle(checkpointId, fmsm, closeableRegistry));
 
         OperatorStateHandle operatorStateHandle1 =
-                Mockito.mock(FileMergingOperatorStreamStateHandle.class);
-        when(operatorStateHandle1.getDelegateStateHandle())
-                .thenReturn(buildOneSegmentFileHandle(checkpointId, fmsm, closeableRegistry));
+                new FileMergingOperatorStreamStateHandle(
+                        null,
+                        null,
+                        Collections.emptyMap(),
+                        buildOneSegmentFileHandle(checkpointId, fmsm, closeableRegistry));
 
         OperatorStateHandle operatorStateHandle2 =
-                Mockito.mock(FileMergingOperatorStreamStateHandle.class);
-        when(operatorStateHandle2.getDelegateStateHandle())
-                .thenReturn(buildOneSegmentFileHandle(checkpointId, fmsm, closeableRegistry));
+                new FileMergingOperatorStreamStateHandle(
+                        null,
+                        null,
+                        Collections.emptyMap(),
+                        buildOneSegmentFileHandle(checkpointId, fmsm, closeableRegistry));
 
         return OperatorSubtaskState.builder()
                 .setManagedKeyedState(keyedStateHandle1)
