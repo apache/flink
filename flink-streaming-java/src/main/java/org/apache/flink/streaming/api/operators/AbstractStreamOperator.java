@@ -153,10 +153,8 @@ public abstract class AbstractStreamOperator<OUT>
 
     protected transient ProcessingTimeService processingTimeService;
 
-    protected transient RecordAttributes lastRecordAttributes1 =
-            RecordAttributes.EMPTY_RECORD_ATTRIBUTES;
-    protected transient RecordAttributes lastRecordAttributes2 =
-            RecordAttributes.EMPTY_RECORD_ATTRIBUTES;
+    protected transient RecordAttributes lastRecordAttributes1;
+    protected transient RecordAttributes lastRecordAttributes2;
 
     // ------------------------------------------------------------------------
     //  Life Cycle
@@ -235,6 +233,9 @@ public abstract class AbstractStreamOperator<OUT>
 
         stateKeySelector1 = config.getStatePartitioner(0, getUserCodeClassloader());
         stateKeySelector2 = config.getStatePartitioner(1, getUserCodeClassloader());
+
+        lastRecordAttributes1 = RecordAttributes.EMPTY_RECORD_ATTRIBUTES;
+        lastRecordAttributes2 = RecordAttributes.EMPTY_RECORD_ATTRIBUTES;
     }
 
     /**
