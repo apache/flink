@@ -20,12 +20,14 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.ICloseableRegistry;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestStreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
@@ -33,17 +35,31 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import javax.annotation.Nonnull;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -51,6 +67,67 @@ import static org.junit.Assert.fail;
 /** Test class for {@link RocksDBStateDownloader}. */
 public class RocksDBStateDownloaderTest extends TestLogger {
     @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+    @Test
+    public void testWaitForDownloadIfInterrupted()
+            throws IOException, InterruptedException, ExecutionException {
+        StateHandleDownloadSpec spec =
+                new StateHandleDownloadSpec(
+                        new IncrementalRemoteKeyedStateHandle(
+                                UUID.randomUUID(),
+                                KeyGroupRange.EMPTY_KEY_GROUP_RANGE,
+                                1L,
+                                singletonList(
+                                        HandleAndLocalPath.of(
+                                                new ByteStreamStateHandle(
+                                                        "meta", new byte[] {1, 2, 3, 4}),
+                                                "p")),
+                                emptyList(),
+                                new ByteStreamStateHandle("meta", new byte[] {1, 2, 3, 4}),
+                                5L),
+                        temporaryFolder.newFolder().toPath().resolve("dst"));
+        CompletableFuture<Void> downloaderFuture = new CompletableFuture<>();
+        BlockingExecutorService executorService = new BlockingExecutorService();
+        Thread downloader = createDownloader(executorService, spec, downloaderFuture);
+        downloader.start();
+        for (int attempt = 0; attempt < 5; attempt++) {
+            downloader.interrupt();
+            Thread.sleep(50);
+            Assert.assertTrue(
+                    "downloader should ignore interrupts while download is in progress",
+                    downloader.isAlive());
+        }
+        executorService.unblock();
+        downloaderFuture.get();
+        downloader.join();
+    }
+
+    private static Thread createDownloader(
+            ExecutorService executorService,
+            StateHandleDownloadSpec spec,
+            CompletableFuture<Void> completionFuture) {
+        return new Thread(
+                () -> {
+                    try (RocksDBStateDownloader rocksDBStateDownloader =
+                            new RocksDBStateDownloader(
+                                    RocksDBStateDataTransferHelper.forExecutor(executorService))) {
+                        try {
+                            rocksDBStateDownloader.transferAllStateDataToDirectory(
+                                    Collections.singletonList(spec), ICloseableRegistry.NO_OP);
+                            completionFuture.complete(null);
+                        } catch (Exception e) {
+                            if (ExceptionUtils.findThrowable(e, InterruptedException.class)
+                                    .isPresent()) {
+                                completionFuture.complete(null);
+                            } else {
+                                completionFuture.completeExceptionally(e);
+                            }
+                        }
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+    }
 
     /** Test that the exception arose in the thread pool will rethrow to the main thread. */
     @Test
@@ -236,5 +313,116 @@ public class RocksDBStateDownloaderTest extends TestLogger {
                         handles.get(0));
 
         return new StateHandleDownloadSpec(incrementalKeyedStateHandle, dstPath);
+    }
+
+    private static class BlockingExecutorService implements ExecutorService {
+        private final CompletableFuture<Void> unblockFuture = new CompletableFuture<>();
+        private final ExecutorService delegate;
+
+        private BlockingExecutorService() {
+            delegate = Executors.newSingleThreadExecutor();
+        }
+
+        @Override
+        public void shutdown() {
+            delegate.shutdown();
+        }
+
+        @Nonnull
+        @Override
+        public List<Runnable> shutdownNow() {
+            return delegate.shutdownNow();
+        }
+
+        @Override
+        public boolean isShutdown() {
+            return delegate.isShutdown();
+        }
+
+        @Override
+        public boolean isTerminated() {
+            return delegate.isTerminated();
+        }
+
+        @Override
+        public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+            return delegate.awaitTermination(timeout, unit);
+        }
+
+        @Nonnull
+        @Override
+        public <T> Future<T> submit(Callable<T> task) {
+            return delegate.submit(wrap(task));
+        }
+
+        @Nonnull
+        @Override
+        public <T> Future<T> submit(Runnable task, T result) {
+            return delegate.submit(wrap(task), result);
+        }
+
+        @Nonnull
+        @Override
+        public Future<?> submit(Runnable task) {
+            return delegate.submit(wrap(task));
+        }
+
+        @Override
+        public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks)
+                throws InterruptedException {
+            return delegate.invokeAll(wrap(tasks));
+        }
+
+        @Nonnull
+        @Override
+        public <T> List<Future<T>> invokeAll(
+                Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit)
+                throws InterruptedException {
+            return delegate.invokeAll(wrap(tasks), timeout, unit);
+        }
+
+        @Override
+        public <T> T invokeAny(Collection<? extends Callable<T>> tasks)
+                throws InterruptedException, ExecutionException {
+            return delegate.invokeAny(wrap(tasks));
+        }
+
+        @Override
+        public <T> T invokeAny(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit)
+                throws InterruptedException, ExecutionException, TimeoutException {
+            return delegate.invokeAny(wrap(tasks), timeout, unit);
+        }
+
+        @Override
+        public void execute(Runnable command) {
+            delegate.execute(wrap(command));
+        }
+
+        private <T> Callable<T> wrap(Callable<T> task) {
+            return () -> {
+                T result = task.call();
+                unblockFuture.join();
+                return result;
+            };
+        }
+
+        private Runnable wrap(Runnable task) {
+            return () -> {
+                try {
+                    unblockFuture.join();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+                task.run();
+            };
+        }
+
+        private <T> List<Callable<T>> wrap(Collection<? extends Callable<T>> tasks) {
+            return tasks.stream().map(this::wrap).collect(Collectors.toList());
+        }
+
+        public void unblock() {
+            this.unblockFuture.complete(null);
+        }
     }
 }
