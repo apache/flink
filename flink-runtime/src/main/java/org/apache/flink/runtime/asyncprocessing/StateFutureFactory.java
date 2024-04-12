@@ -25,19 +25,18 @@ import org.apache.flink.core.state.InternalStateFuture;
  * An internal factory for {@link InternalStateFuture} that build future with necessary context
  * switch and wired with mailbox executor.
  */
-public class StateFutureFactory<R, K> {
+public class StateFutureFactory<K> {
 
-    private final AsyncExecutionController<R, K> asyncExecutionController;
+    private final AsyncExecutionController<K> asyncExecutionController;
     private final MailboxExecutor mailboxExecutor;
 
     StateFutureFactory(
-            AsyncExecutionController<R, K> asyncExecutionController,
-            MailboxExecutor mailboxExecutor) {
+            AsyncExecutionController<K> asyncExecutionController, MailboxExecutor mailboxExecutor) {
         this.asyncExecutionController = asyncExecutionController;
         this.mailboxExecutor = mailboxExecutor;
     }
 
-    public <OUT> InternalStateFuture<OUT> create(RecordContext<R, K> context) {
+    public <OUT> InternalStateFuture<OUT> create(RecordContext<K> context) {
         return new ContextStateFutureImpl<>(
                 (runnable) ->
                         mailboxExecutor.submit(

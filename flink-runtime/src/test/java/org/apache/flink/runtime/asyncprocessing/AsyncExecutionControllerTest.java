@@ -74,7 +74,7 @@ class AsyncExecutionControllerTest {
         String key1 = "key1";
         // Simulate the wrapping in {@link RecordProcessorUtils#getRecordProcessor()}, wrapping the
         // record and key with RecordContext.
-        RecordContext<String, String> recordContext1 = aec.buildContext(record1, key1);
+        RecordContext<String> recordContext1 = aec.buildContext(record1, key1);
         aec.setCurrentContext(recordContext1);
         // execute user code
         userCode.run();
@@ -99,14 +99,14 @@ class AsyncExecutionControllerTest {
         // ============================ element 2 & 3 ============================
         String record2 = "key1-r2";
         String key2 = "key1";
-        RecordContext<String, String> recordContext2 = aec.buildContext(record2, key2);
+        RecordContext<String> recordContext2 = aec.buildContext(record2, key2);
         aec.setCurrentContext(recordContext2);
         // execute user code
         userCode.run();
 
         String record3 = "key1-r3";
         String key3 = "key1";
-        RecordContext<String, String> recordContext3 = aec.buildContext(record3, key3);
+        RecordContext<String> recordContext3 = aec.buildContext(record3, key3);
         aec.setCurrentContext(recordContext3);
         // execute user code
         userCode.run();
@@ -151,7 +151,7 @@ class AsyncExecutionControllerTest {
         // ============================ element4 ============================
         String record4 = "key3-r3";
         String key4 = "key3";
-        RecordContext<String, String> recordContext4 = aec.buildContext(record4, key4);
+        RecordContext<String> recordContext4 = aec.buildContext(record4, key4);
         aec.setCurrentContext(recordContext4);
         // execute user code
         userCode.run();
@@ -182,21 +182,21 @@ class AsyncExecutionControllerTest {
 
         String record1 = "key1-r1";
         String key1 = "key1";
-        RecordContext<String, String> recordContext1 = aec.buildContext(record1, key1);
+        RecordContext<String> recordContext1 = aec.buildContext(record1, key1);
         aec.setCurrentContext(recordContext1);
         // execute user code
         userCode.run();
 
         String record2 = "key2-r1";
         String key2 = "key2";
-        RecordContext<String, String> recordContext2 = aec.buildContext(record2, key2);
+        RecordContext<String> recordContext2 = aec.buildContext(record2, key2);
         aec.setCurrentContext(recordContext2);
         // execute user code
         userCode.run();
 
         String record3 = "key1-r2";
         String key3 = "key1";
-        RecordContext<String, String> recordContext3 = aec.buildContext(record3, key3);
+        RecordContext<String> recordContext3 = aec.buildContext(record3, key3);
         aec.setCurrentContext(recordContext3);
         // execute user code
         userCode.run();
@@ -266,7 +266,7 @@ class AsyncExecutionControllerTest {
                 String record =
                         String.format("key%d-r%d", round * batchSize + i, round * batchSize + i);
                 String key = String.format("key%d", round * batchSize + i);
-                RecordContext<String, String> recordContext = aec.buildContext(record, key);
+                RecordContext<String> recordContext = aec.buildContext(record, key);
                 aec.setCurrentContext(recordContext);
                 userCode.run();
             }
@@ -279,7 +279,7 @@ class AsyncExecutionControllerTest {
         for (int i = 0; i < maxInFlight; i++) {
             String record = String.format("sameKey-r%d", i, i);
             String key = "sameKey";
-            RecordContext<String, String> recordContext = aec.buildContext(record, key);
+            RecordContext<String> recordContext = aec.buildContext(record, key);
             aec.setCurrentContext(recordContext);
             userCode.run();
         }
@@ -291,7 +291,7 @@ class AsyncExecutionControllerTest {
         for (int i = maxInFlight; i < 10 * maxInFlight; i++) {
             String record = String.format("sameKey-r%d", i, i);
             String key = "sameKey";
-            RecordContext<String, String> recordContext = aec.buildContext(record, key);
+            RecordContext<String> recordContext = aec.buildContext(record, key);
             aec.setCurrentContext(recordContext);
             userCode.run();
             assertThat(aec.inFlightRecordNum.get()).isEqualTo(maxInFlight + 1);
@@ -326,12 +326,12 @@ class AsyncExecutionControllerTest {
 
     static class TestValueState implements ValueState<Integer> {
 
-        private final AsyncExecutionController<String, String> asyncExecutionController;
+        private final AsyncExecutionController<String> asyncExecutionController;
 
         private final TestUnderlyingState underlyingState;
 
         public TestValueState(
-                AsyncExecutionController<String, String> aec, TestUnderlyingState underlyingState) {
+                AsyncExecutionController<String> aec, TestUnderlyingState underlyingState) {
             this.asyncExecutionController = aec;
             this.underlyingState = underlyingState;
         }

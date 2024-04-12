@@ -28,7 +28,7 @@ class KeyAccountingUnitTest {
 
     @Test
     void testBasic() {
-        KeyAccountingUnit<String, Integer> keyAccountingUnit = new KeyAccountingUnit<>(10);
+        KeyAccountingUnit<Integer> keyAccountingUnit = new KeyAccountingUnit<>(10);
         assertThat(keyAccountingUnit.occupy("record1", 1)).isTrue();
         assertThat(keyAccountingUnit.occupy("record1", 1)).isFalse();
         assertThat(keyAccountingUnit.occupy("record2", 2)).isTrue();

@@ -28,13 +28,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * which is used to preserve the ordering of independent chained {@link
  * org.apache.flink.api.common.state.v2.StateFuture}.
  *
- * @param <R> the type of record
  * @param <K> the type of key
  */
-public class KeyAccountingUnit<R, K> {
+public class KeyAccountingUnit<K> {
 
     /** The in-flight records that are being processed, their keys are different from each other. */
-    private final Map<K, R> noConflictInFlightRecords;
+    private final Map<K, Object> noConflictInFlightRecords;
 
     public KeyAccountingUnit(int initCapacity) {
         this.noConflictInFlightRecords = new ConcurrentHashMap<>(initCapacity);
@@ -46,12 +45,12 @@ public class KeyAccountingUnit<R, K> {
      *
      * @return true if no one is occupying this key, and this record succeeds to take it.
      */
-    public boolean occupy(R record, K key) {
+    public boolean occupy(Object record, K key) {
         return noConflictInFlightRecords.putIfAbsent(key, record) == null;
     }
 
     /** Release a key, which is invoked when a {@link RecordContext} is released. */
-    public void release(R record, K key) {
+    public void release(Object record, K key) {
         if (noConflictInFlightRecords.remove(key) != record) {
             throw new IllegalStateException(
                     String.format(

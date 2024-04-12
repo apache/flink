@@ -27,14 +27,12 @@ import java.util.function.Consumer;
  *
  * <p>Reference counting mechanism, please refer to {@link ContextStateFutureImpl}.
  *
- * @param <R> The type of the record that extends {@code
- *     org.apache.flink.streaming.runtime.streamrecord.StreamElement}.
  * @param <K> The type of the key inside the record.
  */
-public class RecordContext<R, K> extends ReferenceCounted {
+public class RecordContext<K> extends ReferenceCounted {
 
     /** The record to be processed. */
-    private final R record;
+    private final Object record;
 
     /** The key inside the record. */
     private final K key;
@@ -47,9 +45,9 @@ public class RecordContext<R, K> extends ReferenceCounted {
      * #referenceCountReachedZero()}, which may be called once the ref count reaches zero in any
      * thread.
      */
-    private final Consumer<RecordContext<R, K>> disposer;
+    private final Consumer<RecordContext<K>> disposer;
 
-    RecordContext(R record, K key, Consumer<RecordContext<R, K>> disposer) {
+    RecordContext(Object record, K key, Consumer<RecordContext<K>> disposer) {
         super(0);
         this.record = record;
         this.key = key;
@@ -57,7 +55,7 @@ public class RecordContext<R, K> extends ReferenceCounted {
         this.disposer = disposer;
     }
 
-    public R getRecord() {
+    public Object getRecord() {
         return record;
     }
 
@@ -96,7 +94,7 @@ public class RecordContext<R, K> extends ReferenceCounted {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        RecordContext<?, ?> that = (RecordContext<?, ?>) o;
+        RecordContext<?> that = (RecordContext<?>) o;
         if (!Objects.equals(record, that.record)) {
             return false;
         }

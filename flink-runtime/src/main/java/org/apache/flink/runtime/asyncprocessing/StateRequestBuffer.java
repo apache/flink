@@ -21,6 +21,8 @@ package org.apache.flink.runtime.asyncprocessing;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -31,11 +33,10 @@ import java.util.Map;
  * A buffer to hold state requests to execute state requests in batch, which can only be manipulated
  * within task thread.
  *
- * @param <R> the type of the record
  * @param <K> the type of the key
  */
 @NotThreadSafe
-public class StateRequestBuffer<R, K> {
+public class StateRequestBuffer<K> {
     /**
      * The state requests in this buffer could be executed when the buffer is full or configured
      * batch size is reached. All operations on this buffer must be invoked in task thread.
@@ -76,8 +77,7 @@ public class StateRequestBuffer<R, K> {
      * @return The first record context with the same key in blocking queue, null if no such record.
      */
     @Nullable
-    @SuppressWarnings("rawtypes")
-    RecordContext<R, K> tryActivateOneByKey(K key) {
+    RecordContext<K> tryActivateOneByKey(K key) {
         if (!blockingQueue.containsKey(key)) {
             return null;
         }
@@ -88,7 +88,7 @@ public class StateRequestBuffer<R, K> {
             blockingQueue.remove(key);
         }
         blockingQueueSize--;
-        return (RecordContext<R, K>) stateRequest.getRecordContext();
+        return stateRequest.getRecordContext();
     }
 
     /**
@@ -117,9 +117,14 @@ public class StateRequestBuffer<R, K> {
      * @return A list of state requests.
      */
     List<StateRequest<?, ?, ?>> popActive(int n) {
-        LinkedList<StateRequest<?, ?, ?>> ret =
-                new LinkedList<>(activeQueue.subList(0, Math.min(activeQueue.size(), n)));
-        activeQueue.removeAll(ret);
+        final int count = Math.min(n, activeQueue.size());
+        if (count <= 0) {
+            return Collections.emptyList();
+        }
+        ArrayList<StateRequest<?, ?, ?>> ret = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            ret.add(activeQueue.pop());
+        }
         return ret;
     }
 }
