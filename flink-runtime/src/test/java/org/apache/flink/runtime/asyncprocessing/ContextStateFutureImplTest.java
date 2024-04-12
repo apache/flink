@@ -34,7 +34,7 @@ public class ContextStateFutureImplTest {
     @Test
     public void testThenApply() {
         SingleStepRunner runner = new SingleStepRunner();
-        RecordContext<String, String> recordContext = new RecordContext<>("a", "b", (e) -> {});
+        RecordContext<String> recordContext = new RecordContext<>("a", "b", (e) -> {});
 
         // validate
         ContextStateFutureImpl<Void> future =
@@ -58,7 +58,7 @@ public class ContextStateFutureImplTest {
     @Test
     public void testThenAccept() {
         SingleStepRunner runner = new SingleStepRunner();
-        RecordContext<String, String> recordContext = new RecordContext<>("a", "b", (e) -> {});
+        RecordContext<String> recordContext = new RecordContext<>("a", "b", (e) -> {});
 
         // validate
         ContextStateFutureImpl<Void> future =
@@ -82,7 +82,7 @@ public class ContextStateFutureImplTest {
     @Test
     public void testThenCompose() {
         SingleStepRunner runner = new SingleStepRunner();
-        RecordContext<String, String> recordContext = new RecordContext<>("a", "b", (e) -> {});
+        RecordContext<String> recordContext = new RecordContext<>("a", "b", (e) -> {});
 
         // validate
         ContextStateFutureImpl<Void> future =
@@ -106,7 +106,7 @@ public class ContextStateFutureImplTest {
     @Test
     public void testThenCombine() {
         SingleStepRunner runner = new SingleStepRunner();
-        RecordContext<String, String> recordContext = new RecordContext<>("a", "b", (e) -> {});
+        RecordContext<String> recordContext = new RecordContext<>("a", "b", (e) -> {});
 
         // validate
         ContextStateFutureImpl<Void> future1 =
@@ -156,7 +156,7 @@ public class ContextStateFutureImplTest {
     @Test
     public void testComplex() {
         SingleStepRunner runner = new SingleStepRunner();
-        RecordContext<String, String> recordContext = new RecordContext<>("a", "b", (e) -> {});
+        RecordContext<String> recordContext = new RecordContext<>("a", "b", (e) -> {});
 
         for (int i = 0; i < 32; i++) { // 2^5 for completion status combination
             // Each bit of 'i' represents the complete status when the user code executes.

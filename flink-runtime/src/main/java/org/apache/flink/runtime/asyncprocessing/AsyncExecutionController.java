@@ -42,10 +42,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  *     (back-pressure). It invokes {@link MailboxExecutor#yield()} to pause current operations,
  *     allowing for the execution of callbacks (mails in Mailbox).
  *
- * @param <R> the type of the record
  * @param <K> the type of the key
  */
-public class AsyncExecutionController<R, K> {
+public class AsyncExecutionController<K> {
 
     private static final Logger LOG = LoggerFactory.getLogger(AsyncExecutionController.class);
 
@@ -70,22 +69,22 @@ public class AsyncExecutionController<R, K> {
     private final MailboxExecutor mailboxExecutor;
 
     /** The key accounting unit which is used to detect the key conflict. */
-    final KeyAccountingUnit<R, K> keyAccountingUnit;
+    final KeyAccountingUnit<K> keyAccountingUnit;
 
     /**
      * A factory to build {@link org.apache.flink.core.state.InternalStateFuture}, this will auto
      * wire the created future with mailbox executor. Also conducting the context switch.
      */
-    private final StateFutureFactory<R, K> stateFutureFactory;
+    private final StateFutureFactory<K> stateFutureFactory;
 
     /** The state executor where the {@link StateRequest} is actually executed. */
     final StateExecutor stateExecutor;
 
     /** The corresponding context that currently runs in task thread. */
-    RecordContext<R, K> currentContext;
+    RecordContext<K> currentContext;
 
     /** The buffer to store the state requests to execute in batch. */
-    StateRequestBuffer<R, K> stateRequestsBuffer;
+    StateRequestBuffer<K> stateRequestsBuffer;
 
     /**
      * The number of in-flight records. Including the records in active buffer and blocking buffer.
@@ -123,7 +122,7 @@ public class AsyncExecutionController<R, K> {
      * @param key the given key.
      * @return the built record context.
      */
-    public RecordContext<R, K> buildContext(R record, K key) {
+    public RecordContext<K> buildContext(Object record, K key) {
         return new RecordContext<>(record, key, this::disposeContext);
     }
 
@@ -133,7 +132,7 @@ public class AsyncExecutionController<R, K> {
      *
      * @param switchingContext the context to switch.
      */
-    public void setCurrentContext(RecordContext<R, K> switchingContext) {
+    public void setCurrentContext(RecordContext<K> switchingContext) {
         currentContext = switchingContext;
     }
 
@@ -142,10 +141,10 @@ public class AsyncExecutionController<R, K> {
      *
      * @param toDispose the context to dispose.
      */
-    public void disposeContext(RecordContext<R, K> toDispose) {
+    public void disposeContext(RecordContext<K> toDispose) {
         keyAccountingUnit.release(toDispose.getRecord(), toDispose.getKey());
         inFlightRecordNum.decrementAndGet();
-        RecordContext<R, K> nextRecordCtx =
+        RecordContext<K> nextRecordCtx =
                 stateRequestsBuffer.tryActivateOneByKey(toDispose.getKey());
         if (nextRecordCtx != null) {
             Preconditions.checkState(
@@ -160,7 +159,7 @@ public class AsyncExecutionController<R, K> {
      * @param recordContext the given context.
      * @return true if occupy succeed or the key has already occupied by this context.
      */
-    boolean tryOccupyKey(RecordContext<R, K> recordContext) {
+    boolean tryOccupyKey(RecordContext<K> recordContext) {
         boolean occupied = recordContext.isKeyOccupied();
         if (!occupied
                 && keyAccountingUnit.occupy(recordContext.getRecord(), recordContext.getKey())) {
@@ -230,7 +229,7 @@ public class AsyncExecutionController<R, K> {
         if (currentContext.isKeyOccupied()) {
             return;
         }
-        RecordContext<R, K> storedContext = currentContext;
+        RecordContext<K> storedContext = currentContext;
         // 2. If the state request is for a newly entered record, the in-flight record number should
         // be less than the max in-flight record number.
         // Note: the currentContext may be updated by {@code StateFutureFactory#build}.

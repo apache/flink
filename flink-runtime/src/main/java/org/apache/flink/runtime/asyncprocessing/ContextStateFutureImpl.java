@@ -37,9 +37,9 @@ import org.apache.flink.core.state.StateFutureImpl;
  */
 public class ContextStateFutureImpl<T> extends StateFutureImpl<T> {
 
-    private final RecordContext<?, ?> recordContext;
+    private final RecordContext<?> recordContext;
 
-    ContextStateFutureImpl(CallbackRunner callbackRunner, RecordContext<?, ?> recordContext) {
+    ContextStateFutureImpl(CallbackRunner callbackRunner, RecordContext<?> recordContext) {
         super(callbackRunner);
         this.recordContext = recordContext;
         // When state request submitted, ref count +1, as described in FLIP-425:
