@@ -26,6 +26,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -65,13 +66,23 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
             StreamConfig config,
             Output<StreamRecord<OUT>> output) {
         super.setup(containingTask, config, output);
-        // TODO: properly read config and setup
-        final MailboxExecutor mailboxExecutor =
-                containingTask.getEnvironment().getMainMailboxExecutor();
-        int maxParallelism =
-                containingTask.getEnvironment().getTaskInfo().getMaxNumberOfParallelSubtasks();
+        final Environment environment = containingTask.getEnvironment();
+        final MailboxExecutor mailboxExecutor = environment.getMainMailboxExecutor();
+        final int maxParallelism = environment.getTaskInfo().getMaxNumberOfParallelSubtasks();
+        final int inFlightRecordsLimit =
+                environment.getExecutionConfig().getAsyncInflightRecordsLimit();
+        final int asyncBufferSize = environment.getExecutionConfig().getAsyncStateBufferSize();
+        final long asyncBufferTimeout =
+                environment.getExecutionConfig().getAsyncStateBufferTimeout();
+        // TODO: initial state executor and set state executor for aec
         this.asyncExecutionController =
-                new AsyncExecutionController(mailboxExecutor, null, maxParallelism);
+                new AsyncExecutionController(
+                        mailboxExecutor,
+                        null,
+                        maxParallelism,
+                        asyncBufferSize,
+                        asyncBufferTimeout,
+                        inFlightRecordsLimit);
     }
 
     @Override

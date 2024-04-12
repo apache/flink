@@ -52,14 +52,23 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
 
     private static final Logger LOG = LoggerFactory.getLogger(AsyncExecutionController.class);
 
-    public static final int DEFAULT_BATCH_SIZE = 1000;
-    public static final int DEFAULT_MAX_IN_FLIGHT_RECORD_NUM = 6000;
+    private static final int DEFAULT_BATCH_SIZE = 1000;
+
+    private static final int DEFAULT_BUFFER_TIMEOUT = 1000;
+    private static final int DEFAULT_MAX_IN_FLIGHT_RECORD_NUM = 6000;
 
     /**
      * The batch size. When the number of state requests in the active buffer exceeds the batch
      * size, a batched state execution would be triggered.
      */
     private final int batchSize;
+
+    /**
+     * The timeout of {@link StateRequestBuffer#activeQueue} triggering in milliseconds. If the
+     * activeQueue has not reached the {@link #batchSize} within 'buffer-timeout' milliseconds, a
+     * trigger will perform actively.
+     */
+    private final long bufferTimeOut;
 
     /** The max allowed number of in-flight records. */
     private final int maxInFlightRecordNum;
@@ -99,26 +108,18 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
     private final int maxParallelism;
 
     public AsyncExecutionController(
-            MailboxExecutor mailboxExecutor, StateExecutor stateExecutor, int maxParallelism) {
-        this(
-                mailboxExecutor,
-                stateExecutor,
-                DEFAULT_BATCH_SIZE,
-                DEFAULT_MAX_IN_FLIGHT_RECORD_NUM,
-                maxParallelism);
-    }
-
-    public AsyncExecutionController(
             MailboxExecutor mailboxExecutor,
             StateExecutor stateExecutor,
+            int maxParallelism,
             int batchSize,
-            int maxInFlightRecords,
-            int maxParallelism) {
+            long bufferTimeOut,
+            int maxInFlightRecords) {
         this.keyAccountingUnit = new KeyAccountingUnit<>(maxInFlightRecords);
         this.mailboxExecutor = mailboxExecutor;
         this.stateFutureFactory = new StateFutureFactory<>(this, mailboxExecutor);
         this.stateExecutor = stateExecutor;
         this.batchSize = batchSize;
+        this.bufferTimeOut = bufferTimeOut;
         this.maxInFlightRecordNum = maxInFlightRecords;
         this.stateRequestsBuffer = new StateRequestBuffer<>();
         this.inFlightRecordNum = new AtomicInteger(0);

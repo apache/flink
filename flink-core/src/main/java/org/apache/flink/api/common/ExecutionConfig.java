@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
@@ -1083,6 +1084,43 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
     public void setUseSnapshotCompression(boolean useSnapshotCompression) {
         configuration.set(ExecutionOptions.SNAPSHOT_COMPRESSION, useSnapshotCompression);
+    }
+
+    // --------------------------------------------------------------------------------------------
+    //  Asynchronous execution configurations
+    // --------------------------------------------------------------------------------------------
+
+    @Experimental
+    public int getAsyncInflightRecordsLimit() {
+        return configuration.get(ExecutionOptions.ASYNC_INFLIGHT_RECORDS_LIMIT);
+    }
+
+    @Experimental
+    public ExecutionConfig setAsyncInflightRecordsLimit(int limit) {
+        configuration.set(ExecutionOptions.ASYNC_INFLIGHT_RECORDS_LIMIT, limit);
+        return this;
+    }
+
+    @Experimental
+    public int getAsyncStateBufferSize() {
+        return configuration.get(ExecutionOptions.ASYNC_STATE_BUFFER_SIZE);
+    }
+
+    @Experimental
+    public ExecutionConfig setAsyncStateBufferSize(int bufferSize) {
+        configuration.set(ExecutionOptions.ASYNC_STATE_BUFFER_SIZE, bufferSize);
+        return this;
+    }
+
+    @Experimental
+    public long getAsyncStateBufferTimeout() {
+        return configuration.get(ExecutionOptions.ASYNC_STATE_BUFFER_TIMEOUT);
+    }
+
+    @Experimental
+    public ExecutionConfig setAsyncStateBufferTimeout(long timeout) {
+        configuration.set(ExecutionOptions.ASYNC_STATE_BUFFER_TIMEOUT, timeout);
+        return this;
     }
 
     @Override

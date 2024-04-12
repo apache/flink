@@ -18,6 +18,7 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.api.common.BatchShuffleMode;
@@ -181,4 +182,62 @@ public class ExecutionOptions {
                                     + " operators. NOTE: It takes effect only in the BATCH runtime mode and requires sorted inputs"
                                     + SORT_INPUTS.key()
                                     + " to be enabled.");
+
+    // ------------------------- Async State Execution --------------------------
+
+    /**
+     * The max limit of in-flight records number in async state execution, 'in-flight' refers to the
+     * records that have entered the operator but have not yet been processed and emitted to the
+     * downstream. If the in-flight records number exceeds the limit, the newly records entering
+     * will be blocked until the in-flight records number drops below the limit.
+     */
+    @Experimental
+    @Documentation.ExcludeFromDocumentation(
+            "This is an experimental option, internal use only for now.")
+    public static final ConfigOption<Integer> ASYNC_INFLIGHT_RECORDS_LIMIT =
+            ConfigOptions.key("execution.async-state.in-flight-records-limit")
+                    .intType()
+                    .defaultValue(6000)
+                    .withDescription(
+                            "The max limit of in-flight records number in async state execution, 'in-flight' refers"
+                                    + " to the records that have entered the operator but have not yet been processed and"
+                                    + " emitted to the downstream. If the in-flight records number exceeds the limit,"
+                                    + " the newly records entering will be blocked until the in-flight records number drops below the limit.");
+
+    /**
+     * The size of buffer under async state execution. Async state execution provides a buffer
+     * mechanism to reduce state access. When the number of state requests in the buffer exceeds the
+     * batch size, a batched state execution would be triggered. Larger batch sizes will bring
+     * higher end-to-end latency, this option works with {@link #ASYNC_STATE_BUFFER_TIMEOUT} to
+     * control the frequency of triggering.
+     */
+    @Experimental
+    @Documentation.ExcludeFromDocumentation(
+            "This is an experimental option, internal use only for now.")
+    public static final ConfigOption<Integer> ASYNC_STATE_BUFFER_SIZE =
+            ConfigOptions.key("execution.async-state.buffer-size")
+                    .intType()
+                    .defaultValue(1000)
+                    .withDescription(
+                            "The size of buffer under async state execution. Async state execution provides a buffer mechanism to reduce state access."
+                                    + " When the number of state requests in the active buffer exceeds the batch size,"
+                                    + " a batched state execution would be triggered. Larger batch sizes will bring higher end-to-end latency,"
+                                    + " this option works with 'execution.async-state.buffer-timeout' to control the frequency of triggering.");
+
+    /**
+     * The timeout of buffer triggering in milliseconds. If the buffer has not reached the {@link
+     * #ASYNC_STATE_BUFFER_SIZE} within 'buffer-timeout' milliseconds, a trigger will perform
+     * actively.
+     */
+    @Experimental
+    @Documentation.ExcludeFromDocumentation(
+            "This is an experimental option, internal use only for now.")
+    public static final ConfigOption<Long> ASYNC_STATE_BUFFER_TIMEOUT =
+            ConfigOptions.key("execution.async-state.buffer-timeout")
+                    .longType()
+                    .defaultValue(1000L)
+                    .withDescription(
+                            "The timeout of buffer triggering in milliseconds. If the buffer has not reached the"
+                                    + " 'execution.async-state.buffer-size' within 'buffer-timeout' milliseconds,"
+                                    + " a trigger will perform actively.");
 }
