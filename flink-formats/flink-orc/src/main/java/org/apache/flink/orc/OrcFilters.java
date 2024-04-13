@@ -90,7 +90,7 @@ public class OrcFilters {
                                             convertBinary(
                                                     call,
                                                     OrcFilters::convertGreaterThanEquals,
-                                                    OrcFilters::convertLessThan))
+                                                    OrcFilters::convertLessThanEquals))
                             .put(
                                     BuiltInFunctionDefinitions.LESS_THAN,
                                     call ->
@@ -104,7 +104,7 @@ public class OrcFilters {
                                             convertBinary(
                                                     call,
                                                     OrcFilters::convertLessThanEquals,
-                                                    OrcFilters::convertGreaterThan))
+                                                    OrcFilters::convertGreaterThanEquals))
                             .build();
 
     private static boolean isRef(Expression expression) {

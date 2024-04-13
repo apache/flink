@@ -357,4 +357,18 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
                 "select a from orcLimitTable limit 5",
                 Arrays.asList(Row.of(1), Row.of(1), Row.of(1), Row.of(1), Row.of(1)));
     }
+
+    @TestTemplate
+    void testThanEquals() throws ExecutionException, InterruptedException {
+        super.tableEnv()
+                .executeSql(
+                        "insert into orcLimitTable values ('a', 9, 9), ('b', 10, 10), ('c', 11, 11)")
+                .await();
+
+        check("select y from orcLimitTable where y <= 10", Arrays.asList(Row.of(9), Row.of(10)));
+        check("select y from orcLimitTable where 10 >= y", Arrays.asList(Row.of(9), Row.of(10)));
+
+        check("select y from orcLimitTable where y >= 10", Arrays.asList(Row.of(10), Row.of(11)));
+        check("select y from orcLimitTable where 10 <= y", Arrays.asList(Row.of(10), Row.of(11)));
+    }
 }
