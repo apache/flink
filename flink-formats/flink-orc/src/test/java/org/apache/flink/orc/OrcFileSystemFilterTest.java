@@ -25,13 +25,13 @@ import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
-import org.apache.hadoop.hive.ql.io.sarg.PredicateLeaf;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.apache.hadoop.hive.ql.io.sarg.PredicateLeaf.Type.LONG;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit Tests for {@link OrcFileFormatFactory}. */
@@ -53,8 +53,7 @@ class OrcFileSystemFilterTest {
                 CallExpression.permanent(
                         BuiltInFunctionDefinitions.EQUALS, args, DataTypes.BOOLEAN());
         OrcFilters.Predicate predicate1 = OrcFilters.toOrcPredicate(equalExpression);
-        OrcFilters.Predicate predicate2 =
-                new OrcFilters.Equals("long1", PredicateLeaf.Type.LONG, 10);
+        OrcFilters.Predicate predicate2 = new OrcFilters.Equals("long1", LONG, 10);
         assertThat(predicate1).hasToString(predicate2.toString());
 
         // greater than
@@ -63,8 +62,7 @@ class OrcFileSystemFilterTest {
                         BuiltInFunctionDefinitions.GREATER_THAN, args, DataTypes.BOOLEAN());
         OrcFilters.Predicate predicate3 = OrcFilters.toOrcPredicate(greaterExpression);
         OrcFilters.Predicate predicate4 =
-                new OrcFilters.Not(
-                        new OrcFilters.LessThanEquals("long1", PredicateLeaf.Type.LONG, 10));
+                new OrcFilters.Not(new OrcFilters.LessThanEquals("long1", LONG, 10));
         assertThat(predicate3).hasToString(predicate4.toString());
 
         // less than
@@ -72,8 +70,7 @@ class OrcFileSystemFilterTest {
                 CallExpression.permanent(
                         BuiltInFunctionDefinitions.LESS_THAN, args, DataTypes.BOOLEAN());
         OrcFilters.Predicate predicate5 = OrcFilters.toOrcPredicate(lessExpression);
-        OrcFilters.Predicate predicate6 =
-                new OrcFilters.LessThan("long1", PredicateLeaf.Type.LONG, 10);
+        OrcFilters.Predicate predicate6 = new OrcFilters.LessThan("long1", LONG, 10);
         assertThat(predicate5).hasToString(predicate6.toString());
 
         // and
@@ -92,22 +89,43 @@ class OrcFileSystemFilterTest {
     public void testApplyPredicateReverse() {
         List<ResolvedExpression> args = new ArrayList<>();
 
-        // equal
         FieldReferenceExpression fieldReferenceExpression =
-                new FieldReferenceExpression("long1", DataTypes.BIGINT(), 0, 0);
+                new FieldReferenceExpression("x", DataTypes.BIGINT(), 0, 0);
         ValueLiteralExpression valueLiteralExpression = new ValueLiteralExpression(10);
         args.add(valueLiteralExpression);
         args.add(fieldReferenceExpression);
 
-        // greater than
-        CallExpression greaterExpression =
+        CallExpression expression;
+        OrcFilters.Predicate predicate;
+
+        // assert that 10 >= x expression is converted to x <= 10 ORC predicate
+        expression =
                 CallExpression.permanent(
                         BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL,
                         args,
                         DataTypes.BOOLEAN());
-        OrcFilters.Predicate predicate1 = OrcFilters.toOrcPredicate(greaterExpression);
-        OrcFilters.Predicate predicate2 =
-                new OrcFilters.LessThanEquals("long1", PredicateLeaf.Type.LONG, 10);
-        assertThat(predicate1).hasToString(predicate2.toString());
+        predicate = new OrcFilters.LessThanEquals("x", LONG, 10);
+        assertThat(OrcFilters.toOrcPredicate(expression)).hasToString(predicate.toString());
+
+        // assert that 10 > x expression is converted to x < 10 ORC predicate
+        expression =
+                CallExpression.permanent(
+                        BuiltInFunctionDefinitions.GREATER_THAN, args, DataTypes.BOOLEAN());
+        predicate = new OrcFilters.LessThan("x", LONG, 10);
+        assertThat(OrcFilters.toOrcPredicate(expression)).hasToString(predicate.toString());
+
+        // assert that 10 <= x expression is converted to NOT(x < 10) ORC predicate
+        expression =
+                CallExpression.permanent(
+                        BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL, args, DataTypes.BOOLEAN());
+        predicate = new OrcFilters.Not(new OrcFilters.LessThan("x", LONG, 10));
+        assertThat(OrcFilters.toOrcPredicate(expression)).hasToString(predicate.toString());
+
+        // assert that 10 < x expression is converted to NOT(x <= 10) ORC predicate
+        expression =
+                CallExpression.permanent(
+                        BuiltInFunctionDefinitions.LESS_THAN, args, DataTypes.BOOLEAN());
+        predicate = new OrcFilters.Not(new OrcFilters.LessThanEquals("x", LONG, 10));
+        assertThat(OrcFilters.toOrcPredicate(expression)).hasToString(predicate.toString());
     }
 }
