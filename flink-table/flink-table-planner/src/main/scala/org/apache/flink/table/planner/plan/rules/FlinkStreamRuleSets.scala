@@ -101,6 +101,8 @@ object FlinkStreamRuleSets {
         SIMPLIFY_COALESCE_RULES.asScala ++
         REDUCE_EXPRESSION_RULES.asScala ++
         List(
+          // pushes aggregate filter down
+          AggregateFilterPushdownRule.INSTANCE,
           // removes constant keys from an Agg
           CoreRules.AGGREGATE_PROJECT_PULL_UP_CONSTANTS,
           // fix: FLINK-17553 unsupported call error when constant exists in group window key

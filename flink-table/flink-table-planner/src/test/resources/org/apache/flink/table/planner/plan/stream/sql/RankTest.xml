@@ -900,9 +900,9 @@ LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
       <![CDATA[
 Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0])
 +- Exchange(distribution=[hash[b]])
-   +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) FILTER $f3 AS sum_c])
+   +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) AS sum_c])
       +- Exchange(distribution=[hash[a, b]])
-         +- Calc(select=[a, b, c, ((c >= 0) AND (a < 0)) IS TRUE AS $f3])
+         +- Calc(select=[a, b, c], where=[((c >= 0) AND (a < 0))])
             +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -936,9 +936,9 @@ LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
       <![CDATA[
 Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c ASC], select=[a, b, sum_c, w0$o0])
 +- Exchange(distribution=[hash[b]])
-   +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) FILTER $f3 AS sum_c])
+   +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) AS sum_c])
       +- Exchange(distribution=[hash[a, b]])
-         +- Calc(select=[a, b, c, ((c <= 0) AND (a < 0)) IS TRUE AS $f3])
+         +- Calc(select=[a, b, c], where=[((c <= 0) AND (a < 0))])
             +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -1178,9 +1178,9 @@ LogicalProject(c=[$0], b=[$1], d=[$2])
       <![CDATA[
 Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=9], partitionBy=[c, b], orderBy=[d DESC], select=[c, b, d])
 +- Exchange(distribution=[hash[c, b]])
-   +- GroupAggregate(groupBy=[c, b], select=[c, b, SUM(a) FILTER $f3 AS d])
+   +- GroupAggregate(groupBy=[c, b], select=[c, b, SUM(a) AS d])
       +- Exchange(distribution=[hash[c, b]])
-         +- Calc(select=[c, b, a, IS TRUE(>(a, 0)) AS $f3])
+         +- Calc(select=[c, b, a], where=[>(a, 0)])
             +- Deduplicate(keep=[FirstRow], key=[c], order=[PROCTIME])
                +- Exchange(distribution=[hash[c]])
                   +- Calc(select=[a, b, c, PROCTIME() AS $5])
