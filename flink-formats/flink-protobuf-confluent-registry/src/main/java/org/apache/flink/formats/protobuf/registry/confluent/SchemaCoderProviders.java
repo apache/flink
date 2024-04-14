@@ -143,6 +143,9 @@ public class SchemaCoderProviders {
                 RowType rowType,
                 SchemaRegistryClient schemaRegistryClient) {
             this.subject = subject;
+
+            // In case the rowType changes (due to addition or deletion of columns), the
+            // schema generated might not be compatible with schema's generated earlier.
             rowSchema =
                     FlinkToProtoSchemaConverter.fromFlinkRowType(
                             Preconditions.checkNotNull(rowType), ROW, PACKAGE);
@@ -198,6 +201,7 @@ public class SchemaCoderProviders {
             try {
                 schemaId = schemaRegistryClient.register(subject, rowSchema);
                 writeInt(out, schemaId);
+                /* We write empty indexes as schema derived from rowType will have root element only */
                 final ByteBuffer buffer = emptyMessageIndexes();
                 out.write(buffer.array());
             } catch (RestClientException e) {

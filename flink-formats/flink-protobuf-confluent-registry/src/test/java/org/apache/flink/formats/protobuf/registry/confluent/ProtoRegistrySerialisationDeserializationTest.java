@@ -87,7 +87,7 @@ import static org.junit.Assert.assertEquals;
  * and/or {@link ProtoToRowDataConvertersTest}.
  */
 @ExtendWith(TestLoggerExtension.class)
-public class ProtoRegistrySerialisationDeserialisationTest {
+public class ProtoRegistrySerialisationDeserializationTest {
 
     private static final String TEST_TOPIC = "test-topic";
 
@@ -163,6 +163,31 @@ public class ProtoRegistrySerialisationDeserialisationTest {
         SchemaCoder coder =
                 SchemaCoderProviders.createForPreRegisteredSchema(
                         schemaId, "io.confluent.test.Employee", client);
+        ProtoRegistrySerializationSchema protoSerializer =
+                new ProtoRegistrySerializationSchema(coder, rowType);
+        protoSerializer.open(new MockInitializationContext());
+        GenericRowData row = GenericRowData.of(1L, StringData.fromString("dummyName"), 10);
+        row.setRowKind(RowKind.INSERT);
+        byte[] payload = protoSerializer.serialize(row);
+        Map<String, ?> schemaRegistryConfig =
+                Collections.singletonMap(
+                        AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, "localhost");
+        ProtobufConverter protoConverter = new ProtobufConverter(client);
+        protoConverter.configure(schemaRegistryConfig, false); // out schema registry version
+        SchemaAndValue connectData = protoConverter.toConnectData(TEST_TOPIC, payload);
+        Struct value = (Struct) connectData.value();
+        assertEquals("dummyName", value.get("name"));
+    }
+
+    @Test
+    void testMessageIndexHandlingInferredFromRowTypeWithConnectDecoder() throws Exception {
+        final RowType rowType =
+                (RowType)
+                        ROW(FIELD("id", BIGINT()), FIELD("name", STRING()), FIELD("salary", INT()))
+                                .getLogicalType();
+
+        String subject = TEST_TOPIC + "-value";
+        SchemaCoder coder = SchemaCoderProviders.createDefault(subject, rowType, client);
         ProtoRegistrySerializationSchema protoSerializer =
                 new ProtoRegistrySerializationSchema(coder, rowType);
         protoSerializer.open(new MockInitializationContext());
