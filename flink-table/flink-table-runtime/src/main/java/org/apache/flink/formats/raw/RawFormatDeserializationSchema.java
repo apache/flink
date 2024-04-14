@@ -59,8 +59,6 @@ public class RawFormatDeserializationSchema implements DeserializationSchema<Row
 
     private final DataLengthValidator validator;
 
-    private transient GenericRowData reuse;
-
     public RawFormatDeserializationSchema(
             LogicalType deserializedType,
             TypeInformation<RowData> producedTypeInfo,
@@ -76,7 +74,6 @@ public class RawFormatDeserializationSchema implements DeserializationSchema<Row
 
     @Override
     public void open(InitializationContext context) throws Exception {
-        reuse = new GenericRowData(1);
         converter.open();
     }
 
@@ -89,8 +86,10 @@ public class RawFormatDeserializationSchema implements DeserializationSchema<Row
             validator.validate(message);
             field = converter.convert(message);
         }
-        reuse.setField(0, field);
-        return reuse;
+
+        GenericRowData rowData = new GenericRowData(1);
+        rowData.setField(0, field);
+        return rowData;
     }
 
     @Override
