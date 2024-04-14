@@ -54,10 +54,10 @@ public class MinioTestContainer extends GenericContainer<MinioTestContainer> {
     private final String defaultBucketName;
 
     public MinioTestContainer() {
-        this(randomString("bucket", 6));
+        this(randomString("bucket", 6), true);
     }
 
-    public MinioTestContainer(String defaultBucketName) {
+    public MinioTestContainer(String defaultBucketName, boolean reuseEnabled) {
         super(DockerImageVersions.MINIO);
 
         this.accessKey = randomString("accessKey", 10);
@@ -78,6 +78,7 @@ public class MinioTestContainer extends GenericContainer<MinioTestContainer> {
         // Very rarely, a 503 status will be returned continuously while the container is
         // starting up, slipping past the AmazonS3 client's default retry strategy.
         withStartupAttempts(3);
+        withReuse(reuseEnabled);
     }
 
     @Override
@@ -103,7 +104,8 @@ public class MinioTestContainer extends GenericContainer<MinioTestContainer> {
                 .build();
     }
 
-    private String getHttpEndpoint() {
+    /** Returns S3 endpoint value. */
+    public String getHttpEndpoint() {
         return String.format("http://%s:%s", getHost(), getMappedPort(DEFAULT_PORT));
     }
 
@@ -142,5 +144,20 @@ public class MinioTestContainer extends GenericContainer<MinioTestContainer> {
      */
     public String getS3UriForDefaultBucket() {
         return "s3://" + getDefaultBucketName();
+    }
+
+    /** Returns the S3 URI for default bucket with provided scheme. */
+    public String getS3UriForDefaultBucketWithScheme(String scheme) {
+        return scheme + "://" + getDefaultBucketName();
+    }
+
+    /** Returns S3 access key. */
+    public String getAccessKey() {
+        return accessKey;
+    }
+
+    /** Returns S3 secret key. */
+    public String getSecretKey() {
+        return secretKey;
     }
 }

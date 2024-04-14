@@ -47,7 +47,7 @@ public class MinioTestContainerTest {
             MINIO_EXTENSION =
                     new EachCallbackWrapper<>(
                             new TestContainerExtension<>(
-                                    () -> new MinioTestContainer(DEFAULT_BUCKET_NAME)));
+                                    () -> new MinioTestContainer(DEFAULT_BUCKET_NAME, false)));
 
     private static MinioTestContainer getTestContainer() {
         return MINIO_EXTENSION.getCustomExtension().getTestContainer();
