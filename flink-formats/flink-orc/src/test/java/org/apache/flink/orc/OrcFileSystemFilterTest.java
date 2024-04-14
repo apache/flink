@@ -86,4 +86,28 @@ class OrcFileSystemFilterTest {
         OrcFilters.Predicate predicate8 = new OrcFilters.And(predicate4, predicate6);
         assertThat(predicate7).hasToString(predicate8.toString());
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testApplyPredicateReverse() {
+        List<ResolvedExpression> args = new ArrayList<>();
+
+        // equal
+        FieldReferenceExpression fieldReferenceExpression =
+                new FieldReferenceExpression("long1", DataTypes.BIGINT(), 0, 0);
+        ValueLiteralExpression valueLiteralExpression = new ValueLiteralExpression(10);
+        args.add(valueLiteralExpression);
+        args.add(fieldReferenceExpression);
+
+        // greater than
+        CallExpression greaterExpression =
+                CallExpression.permanent(
+                        BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL,
+                        args,
+                        DataTypes.BOOLEAN());
+        OrcFilters.Predicate predicate1 = OrcFilters.toOrcPredicate(greaterExpression);
+        OrcFilters.Predicate predicate2 =
+                new OrcFilters.LessThanEquals("long1", PredicateLeaf.Type.LONG, 10);
+        assertThat(predicate1).hasToString(predicate2.toString());
+    }
 }

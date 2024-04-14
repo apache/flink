@@ -209,6 +209,15 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
     }
 
     @TestTemplate
+    void testOrcFilterPushDownLiteralFirst() throws ExecutionException, InterruptedException {
+        super.tableEnv().executeSql("insert into orcLimitTable values('a', 10, 10)").await();
+
+        List<Row> expected = Collections.singletonList(Row.of(10));
+        check("select y from orcLimitTable where y <= 10", expected);
+        check("select y from orcLimitTable where 10 >= y", expected);
+    }
+
+    @TestTemplate
     void testNestedTypes() throws Exception {
         String path = initNestedTypesFile(initNestedTypesData());
         super.tableEnv()
