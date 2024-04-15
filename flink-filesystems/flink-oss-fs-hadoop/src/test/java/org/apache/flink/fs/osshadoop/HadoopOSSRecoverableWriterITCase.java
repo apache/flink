@@ -29,7 +29,6 @@ import org.apache.flink.testutils.oss.OSSTestCredentials;
 
 import org.junit.jupiter.api.BeforeAll;
 
-import java.io.IOException;
 import java.util.UUID;
 
 import static org.apache.flink.fs.osshadoop.OSSFileSystemFactory.MAX_CONCURRENT_UPLOADS;
