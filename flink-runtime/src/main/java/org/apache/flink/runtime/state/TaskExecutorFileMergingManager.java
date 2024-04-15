@@ -17,9 +17,12 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManagerBuilder;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingType;
+import org.apache.flink.runtime.checkpoint.filemerging.PhysicalFilePool;
 import org.apache.flink.util.ShutdownHookUtil;
 
 import org.slf4j.Logger;
@@ -31,6 +34,11 @@ import javax.annotation.concurrent.GuardedBy;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.apache.flink.configuration.CheckpointingOptions.FILE_MERGING_ACROSS_BOUNDARY;
+import static org.apache.flink.configuration.CheckpointingOptions.FILE_MERGING_ENABLED;
+import static org.apache.flink.configuration.CheckpointingOptions.FILE_MERGING_MAX_FILE_SIZE;
+import static org.apache.flink.configuration.CheckpointingOptions.FILE_MERGING_POOL_BLOCKING;
 
 /**
  * There is one {@link FileMergingSnapshotManager} for each job per task manager. This class holds
@@ -67,20 +75,49 @@ public class TaskExecutorFileMergingManager {
      * org.apache.flink.runtime.taskexecutor.TaskExecutor#submitTask}.
      */
     public @Nullable FileMergingSnapshotManager fileMergingSnapshotManagerForJob(
-            @Nonnull JobID jobId) {
+            @Nonnull JobID jobId,
+            Configuration clusterConfiguration,
+            Configuration jobConfiguration) {
+        boolean mergingEnabled =
+                jobConfiguration
+                        .getOptional(FILE_MERGING_ENABLED)
+                        .orElse(clusterConfiguration.get(FILE_MERGING_ENABLED));
         synchronized (lock) {
             if (closed) {
                 throw new IllegalStateException(
                         "TaskExecutorFileMergingManager is already closed and cannot "
                                 + "register a new FileMergingSnapshotManager.");
             }
+            if (!mergingEnabled) {
+                return null;
+            }
             FileMergingSnapshotManager fileMergingSnapshotManager =
                     fileMergingSnapshotManagerByJobId.get(jobId);
             if (fileMergingSnapshotManager == null) {
-                // TODO FLINK-32440: choose different FileMergingSnapshotManager by configuration
+                FileMergingType fileMergingType =
+                        jobConfiguration
+                                        .getOptional(FILE_MERGING_ACROSS_BOUNDARY)
+                                        .orElse(
+                                                clusterConfiguration.get(
+                                                        FILE_MERGING_ACROSS_BOUNDARY))
+                                ? FileMergingType.MERGE_ACROSS_CHECKPOINT
+                                : FileMergingType.MERGE_WITHIN_CHECKPOINT;
+                MemorySize maxFileSize =
+                        jobConfiguration
+                                .getOptional(FILE_MERGING_MAX_FILE_SIZE)
+                                .orElse(clusterConfiguration.get(FILE_MERGING_MAX_FILE_SIZE));
+                Boolean usingBlockingPool =
+                        jobConfiguration
+                                .getOptional(FILE_MERGING_POOL_BLOCKING)
+                                .orElse(clusterConfiguration.get(FILE_MERGING_POOL_BLOCKING));
+
                 fileMergingSnapshotManager =
-                        new FileMergingSnapshotManagerBuilder(
-                                        jobId.toString(), FileMergingType.MERGE_WITHIN_CHECKPOINT)
+                        new FileMergingSnapshotManagerBuilder(jobId.toString(), fileMergingType)
+                                .setMaxFileSize(maxFileSize.getBytes())
+                                .setFilePoolType(
+                                        usingBlockingPool
+                                                ? PhysicalFilePool.Type.BLOCKING
+                                                : PhysicalFilePool.Type.NON_BLOCKING)
                                 .build();
                 fileMergingSnapshotManagerByJobId.put(jobId, fileMergingSnapshotManager);
                 LOG.info("Registered new file merging snapshot manager for job {}.", jobId);

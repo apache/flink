@@ -32,10 +32,10 @@ public class FileMergingSnapshotManagerBuilder {
     /** The file merging type. */
     private final FileMergingType fileMergingType;
 
-    /** Max size for a file. TODO: Make it configurable. */
+    /** Max size for a file. */
     private long maxFileSize = 32 * 1024 * 1024;
 
-    /** Type of physical file pool. TODO: Make it configurable. */
+    /** Type of physical file pool. */
     private PhysicalFilePool.Type filePoolType = PhysicalFilePool.Type.NON_BLOCKING;
 
     @Nullable private Executor ioExecutor = null;
