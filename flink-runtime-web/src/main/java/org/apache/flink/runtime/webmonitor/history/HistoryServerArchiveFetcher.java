@@ -114,6 +114,8 @@ class HistoryServerArchiveFetcher {
     private final boolean processExpiredArchiveDeletion;
     private final boolean processBeyondLimitArchiveDeletion;
     private final int maxHistorySize;
+    private final boolean cleanupIntervalEnable;
+    private final long cleanupIntervalMillis;
 
     /** Cache of all available jobs identified by their id. */
     private final Map<Path, Set<String>> cachedArchivesPerRefreshDirectory;
@@ -127,13 +129,17 @@ class HistoryServerArchiveFetcher {
             File webDir,
             Consumer<ArchiveEvent> jobArchiveEventListener,
             boolean cleanupExpiredArchives,
-            int maxHistorySize)
+            int maxHistorySize,
+            boolean cleanupIntervalEnable,
+            long cleanupIntervalMillis)
             throws IOException {
         this.refreshDirs = checkNotNull(refreshDirs);
         this.jobArchiveEventListener = jobArchiveEventListener;
         this.processExpiredArchiveDeletion = cleanupExpiredArchives;
         this.maxHistorySize = maxHistorySize;
         this.processBeyondLimitArchiveDeletion = this.maxHistorySize > 0;
+        this.cleanupIntervalEnable = cleanupIntervalEnable;
+        this.cleanupIntervalMillis = cleanupIntervalMillis;
         this.cachedArchivesPerRefreshDirectory = new HashMap<>();
         for (HistoryServer.RefreshLocation refreshDir : refreshDirs) {
             cachedArchivesPerRefreshDirectory.put(refreshDir.getPath(), new HashSet<>());
@@ -194,6 +200,14 @@ class HistoryServerArchiveFetcher {
                         continue;
                     }
 
+                    long archiveJobTime = cleanupIntervalMillis + jobArchive.getModificationTime();
+                    if (System.currentTimeMillis() > archiveJobTime && cleanupIntervalEnable) {
+                        archivesBeyondSizeLimit
+                                .computeIfAbsent(refreshDir, ignored -> new HashSet<>())
+                                .add(jobArchivePath);
+                        continue;
+                    }
+
                     if (cachedArchivesPerRefreshDirectory.get(refreshDir).contains(jobID)) {
                         LOG.trace(
                                 "Ignoring archive {} because it was already fetched.",
@@ -220,7 +234,8 @@ class HistoryServerArchiveFetcher {
                     && processExpiredArchiveDeletion) {
                 events.addAll(cleanupExpiredJobs(jobsToRemove));
             }
-            if (!archivesBeyondSizeLimit.isEmpty() && processBeyondLimitArchiveDeletion) {
+            if (!archivesBeyondSizeLimit.isEmpty()
+                    && (processBeyondLimitArchiveDeletion || cleanupIntervalEnable)) {
                 events.addAll(cleanupJobsBeyondSizeLimit(archivesBeyondSizeLimit));
             }
             if (!events.isEmpty()) {
