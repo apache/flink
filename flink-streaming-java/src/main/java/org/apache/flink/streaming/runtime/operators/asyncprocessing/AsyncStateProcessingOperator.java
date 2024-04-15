@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.operators.asyncprocessing;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 /**
  * A more detailed interface based on {@link AsyncStateProcessing}, which gives the essential
@@ -28,6 +29,9 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  */
 @Internal
 public interface AsyncStateProcessingOperator extends AsyncStateProcessing {
+
+    /** Get the {@link ElementOrder} of this operator. */
+    ElementOrder getElementOrder();
 
     /**
      * Set key context for async state processing.
@@ -41,4 +45,12 @@ public interface AsyncStateProcessingOperator extends AsyncStateProcessing {
 
     /** A callback that will be triggered after an element finishes {@code processElement}. */
     void postProcessElement();
+
+    /**
+     * Check the order of same-key record, and then process the record. Mainly used when the {@link
+     * #getElementOrder()} returns {@link ElementOrder#RECORD_ORDER}.
+     *
+     * @param processing the record processing logic.
+     */
+    void preserveRecordOrderAndProcess(ThrowingRunnable<Exception> processing);
 }

@@ -56,10 +56,23 @@ public interface AsyncStateProcessing {
             AsyncStateProcessingOperator asyncOperator,
             KeySelector<T, ?> keySelector,
             ThrowingConsumer<StreamRecord<T>, Exception> processor) {
-        return (record) -> {
-            asyncOperator.setAsyncKeyedContextElement(record, keySelector);
-            processor.accept(record);
-            asyncOperator.postProcessElement();
-        };
+        switch (asyncOperator.getElementOrder()) {
+            case RECORD_ORDER:
+                return (record) -> {
+                    asyncOperator.setAsyncKeyedContextElement(record, keySelector);
+                    asyncOperator.preserveRecordOrderAndProcess(() -> processor.accept(record));
+                    asyncOperator.postProcessElement();
+                };
+            case FIRST_STATE_ORDER:
+                return (record) -> {
+                    asyncOperator.setAsyncKeyedContextElement(record, keySelector);
+                    processor.accept(record);
+                    asyncOperator.postProcessElement();
+                };
+            default:
+                throw new UnsupportedOperationException(
+                        "Unknown element order for async processing:"
+                                + asyncOperator.getElementOrder());
+        }
     }
 }

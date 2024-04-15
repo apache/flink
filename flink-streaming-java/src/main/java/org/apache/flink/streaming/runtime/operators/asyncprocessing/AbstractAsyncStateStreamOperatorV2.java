@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.function.ThrowingConsumer;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 /**
  * This operator is an abstract class that give the {@link AbstractStreamOperatorV2} the ability to
@@ -68,6 +69,11 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
     }
 
     @Override
+    public ElementOrder getElementOrder() {
+        return ElementOrder.RECORD_ORDER;
+    }
+
+    @Override
     @SuppressWarnings("unchecked")
     public final <T> void setAsyncKeyedContextElement(
             StreamRecord<T> record, KeySelector<T, ?> keySelector) throws Exception {
@@ -94,6 +100,12 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
     }
 
     @Override
+    @SuppressWarnings("unchecked")
+    public final void preserveRecordOrderAndProcess(ThrowingRunnable<Exception> processing) {
+        asyncExecutionController.syncPointRequestWithCallback(processing);
+    }
+
+    @Override
     public final <T> ThrowingConsumer<StreamRecord<T>, Exception> getRecordProcessor(int inputId) {
         // The real logic should be in First/SecondInputOfTwoInput#getRecordProcessor.
         throw new UnsupportedOperationException(
@@ -104,5 +116,10 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
     @VisibleForTesting
     AsyncExecutionController<?> getAsyncExecutionController() {
         return asyncExecutionController;
+    }
+
+    @VisibleForTesting
+    RecordContext getCurrentProcessingContext() {
+        return currentProcessingContext;
     }
 }

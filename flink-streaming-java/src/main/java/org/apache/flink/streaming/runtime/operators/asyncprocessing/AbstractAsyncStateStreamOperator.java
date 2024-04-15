@@ -32,6 +32,7 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.function.ThrowingConsumer;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 /**
  * This operator is an abstract class that give the {@link AbstractStreamOperator} the ability to
@@ -66,6 +67,11 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
     }
 
     @Override
+    public ElementOrder getElementOrder() {
+        return ElementOrder.RECORD_ORDER;
+    }
+
+    @Override
     @SuppressWarnings("unchecked")
     public final <T> void setAsyncKeyedContextElement(
             StreamRecord<T> record, KeySelector<T, ?> keySelector) throws Exception {
@@ -93,32 +99,33 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
 
     @Override
     @SuppressWarnings("unchecked")
+    public final void preserveRecordOrderAndProcess(ThrowingRunnable<Exception> processing) {
+        asyncExecutionController.syncPointRequestWithCallback(processing);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
     public final <T> ThrowingConsumer<StreamRecord<T>, Exception> getRecordProcessor(int inputId) {
         // Ideally, only TwoStreamInputOperator/OneInputStreamOperator(Input) will invoke here.
         // Only those operators have the definition of processElement(1/2).
         if (this instanceof TwoInputStreamOperator) {
             switch (inputId) {
                 case 1:
-                    return record -> {
-                        setAsyncKeyedContextElement(record, (KeySelector<T, ?>) stateKeySelector1);
-                        ((TwoInputStreamOperator) this).processElement1(record);
-                        postProcessElement();
-                    };
+                    return AsyncStateProcessing.<T>makeRecordProcessor(
+                            this,
+                            (KeySelector) stateKeySelector1,
+                            ((TwoInputStreamOperator) this)::processElement1);
                 case 2:
-                    return record -> {
-                        setAsyncKeyedContextElement(record, (KeySelector<T, ?>) stateKeySelector2);
-                        ((TwoInputStreamOperator) this).processElement2(record);
-                        postProcessElement();
-                    };
+                    return AsyncStateProcessing.<T>makeRecordProcessor(
+                            this,
+                            (KeySelector) stateKeySelector2,
+                            ((TwoInputStreamOperator) this)::processElement2);
                 default:
                     break;
             }
         } else if (this instanceof Input && inputId == 1) {
-            return record -> {
-                setAsyncKeyedContextElement(record, (KeySelector<T, ?>) stateKeySelector1);
-                ((Input) this).processElement(record);
-                postProcessElement();
-            };
+            return AsyncStateProcessing.<T>makeRecordProcessor(
+                    this, (KeySelector) stateKeySelector1, ((Input) this)::processElement);
         }
         throw new IllegalArgumentException(
                 String.format(
@@ -129,5 +136,10 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
     @VisibleForTesting
     AsyncExecutionController<?> getAsyncExecutionController() {
         return asyncExecutionController;
+    }
+
+    @VisibleForTesting
+    RecordContext getCurrentProcessingContext() {
+        return currentProcessingContext;
     }
 }

@@ -60,7 +60,11 @@ public class StateRequestBuffer<K> {
     }
 
     void enqueueToActive(StateRequest<K, ?, ?> request) {
-        activeQueue.add(request);
+        if (request.getRequestType() == StateRequestType.SYNC_POINT) {
+            request.getFuture().complete(null);
+        } else {
+            activeQueue.add(request);
+        }
     }
 
     void enqueueToBlocking(StateRequest<K, ?, ?> request) {
@@ -83,7 +87,7 @@ public class StateRequestBuffer<K> {
         }
 
         StateRequest<K, ?, ?> stateRequest = blockingQueue.get(key).removeFirst();
-        activeQueue.add(stateRequest);
+        enqueueToActive(stateRequest);
         if (blockingQueue.get(key).isEmpty()) {
             blockingQueue.remove(key);
         }
