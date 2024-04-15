@@ -58,7 +58,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class ReadableWritableConfigurationTest {
 
     @Parameters(name = "testSpec = {0}, standardYaml = {1}")
-    public static Collection<Object[]> parameters() {
+    private static Collection<Object[]> parameters() {
         List<TestSpec<?>> testSpecs =
                 Arrays.asList(
                         new TestSpec<>(ConfigOptions.key("int").intType().defaultValue(-1))

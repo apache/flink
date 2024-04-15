@@ -54,7 +54,7 @@ public class ConfigurationConversionsTest {
     @Parameter private TestSpec testSpec;
 
     @BeforeEach
-    public void init() {
+    void init() {
         pc = new Configuration();
 
         pc.setInteger("int", 5);
@@ -71,7 +71,7 @@ public class ConfigurationConversionsTest {
     }
 
     @Parameters(name = "testSpec={0}")
-    public static Collection<TestSpec> getSpecs() {
+    private static Collection<TestSpec> getSpecs() {
         return Arrays.asList(
                 // from integer
                 TestSpec.whenAccessed(conf -> conf.getInteger("int", 0)).expect(5),

@@ -35,7 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class StructuredOptionsSplitterEscapeTest {
 
     @Parameters(name = "testSpec = {0}")
-    public static Collection<TestSpec> getEncodeSpecs() {
+    private static Collection<TestSpec> getEncodeSpecs() {
         return Arrays.asList(
                 TestSpec.encode("A,B,C,D", ";").expect("A,B,C,D"),
                 TestSpec.encode("A;BCD", ";").expect("'A;BCD'"),

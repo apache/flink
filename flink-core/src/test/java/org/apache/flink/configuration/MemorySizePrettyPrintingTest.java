@@ -33,7 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class MemorySizePrettyPrintingTest {
 
     @Parameters(name = "memorySize = {0}, expectedString = {1}")
-    public static Object[][] parameters() {
+    private static Object[][] parameters() {
         return new Object[][] {
             new Object[] {new MemorySize(MemoryUnit.KILO_BYTES.getMultiplier() + 1), "1025 bytes"},
             new Object[] {new MemorySize(100), "100 bytes"},
@@ -46,7 +46,7 @@ public class MemorySizePrettyPrintingTest {
         };
     }
 
-    @Parameter public MemorySize memorySize;
+    @Parameter private MemorySize memorySize;
 
     @Parameter(value = 1)
     public String expectedString;

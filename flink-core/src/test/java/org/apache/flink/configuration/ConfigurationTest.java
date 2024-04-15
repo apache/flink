@@ -48,10 +48,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @SuppressWarnings("deprecation")
 public class ConfigurationTest {
 
-    @Parameter public boolean standardYaml;
+    @Parameter private boolean standardYaml;
 
     @Parameters(name = "standardYaml: {0}")
-    public static Collection<Boolean> parameters() {
+    private static Collection<Boolean> parameters() {
         return Arrays.asList(true, false);
     }
 

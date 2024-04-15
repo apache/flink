@@ -35,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 public class ConfigurationParsingInvalidFormatsTest {
 
     @Parameters(name = "option = {0}, invalidString = {1}")
-    public static Object[][] getSpecs() {
+    private static Object[][] getSpecs() {
         return new Object[][] {
             new Object[] {ConfigOptions.key("int").intType().defaultValue(1), "ABC"},
             new Object[] {ConfigOptions.key("long").longType().defaultValue(1L), "ABC"},
@@ -66,7 +66,7 @@ public class ConfigurationParsingInvalidFormatsTest {
         };
     }
 
-    @Parameter public ConfigOption<?> option;
+    @Parameter private ConfigOption<?> option;
 
     @Parameter(value = 1)
     public String invalidString;

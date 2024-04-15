@@ -41,7 +41,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public class StructuredOptionsSplitterTest {
 
     @Parameters(name = "testSpec = {0}")
-    public static Collection<TestSpec> getSpecs() {
+    private static Collection<TestSpec> getSpecs() {
         return Arrays.asList(
 
                 // Use single quotes for quoting
