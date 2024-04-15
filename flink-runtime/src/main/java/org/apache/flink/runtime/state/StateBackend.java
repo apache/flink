@@ -105,6 +105,39 @@ public interface StateBackend extends java.io.Serializable {
             KeyedStateBackendParameters<K> parameters) throws Exception;
 
     /**
+     * Creates a new {@link AsyncKeyedStateBackend} which supports to access <b>keyed state</b>
+     * asynchronously.
+     *
+     * <p><i>Keyed State</i> is state where each value is bound to a key.
+     *
+     * @param parameters The arguments bundle for creating {@link AsyncKeyedStateBackend}.
+     * @param <K> The type of the keys by which the state is organized.
+     * @return The Async Keyed State Backend for the given job, operator.
+     * @throws Exception This method may forward all exceptions that occur while instantiating the
+     *     backend.
+     */
+    @Experimental
+    default <K> AsyncKeyedStateBackend createAsyncKeyedStateBackend(
+            KeyedStateBackendParameters<K> parameters) throws Exception {
+        throw new UnsupportedOperationException(
+                "Don't support createAsyncKeyedStateBackend by default");
+    }
+
+    /**
+     * Tells if a state backend supports the {@link AsyncKeyedStateBackend}.
+     *
+     * <p>If a state backend supports {@code AsyncKeyedStateBackend}, it could use {@link
+     * #createAsyncKeyedStateBackend(KeyedStateBackendParameters)} to create an async keyed state
+     * backend to access <b>keyed state</b> asynchronously.
+     *
+     * @return If the state backend supports {@link AsyncKeyedStateBackend}.
+     */
+    @Experimental
+    default boolean supportsAsyncKeyedStateBackend() {
+        return false;
+    }
+
+    /**
      * Creates a new {@link OperatorStateBackend} that can be used for storing operator state.
      *
      * <p>Operator state is state that is associated with parallel operator (or function) instances,
