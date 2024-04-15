@@ -21,7 +21,9 @@ package org.apache.flink.runtime.asyncprocessing;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.core.state.InternalStateFuture;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -247,5 +249,24 @@ public class AsyncExecutionController<K> {
         // 3. Ensure the currentContext is restored.
         setCurrentContext(storedContext);
         inFlightRecordNum.incrementAndGet();
+    }
+
+    /**
+     * A helper to request a {@link StateRequestType#SYNC_POINT} and run a callback if it finishes
+     * (once the record is not blocked).
+     *
+     * @param callback the callback to run if it finishes (once the record is not blocked).
+     */
+    public void syncPointRequestWithCallback(ThrowingRunnable<Exception> callback) {
+        handleRequest(null, StateRequestType.SYNC_POINT, null)
+                .thenAccept(
+                        v -> {
+                            try {
+                                callback.run();
+                            } catch (Exception e) {
+                                // TODO: Properly handle the exception and fail the entire job.
+                                throw new FlinkRuntimeException("Unexpected runtime exception", e);
+                            }
+                        });
     }
 }

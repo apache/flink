@@ -300,6 +300,50 @@ class AsyncExecutionControllerTest {
         }
     }
 
+    @Test
+    public void testSyncPoint() {
+        AtomicInteger counter = new AtomicInteger(0);
+
+        // Test the sync point processing without a key occupied.
+        RecordContext<String> recordContext = aec.buildContext("record", "key");
+        aec.setCurrentContext(recordContext);
+        recordContext.retain();
+        aec.syncPointRequestWithCallback(counter::incrementAndGet);
+        assertThat(counter.get()).isEqualTo(1);
+        assertThat(recordContext.getReferenceCount()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(0);
+        assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(0);
+        assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(1);
+        recordContext.release();
+        assertThat(aec.keyAccountingUnit.occupiedCount()).isEqualTo(0);
+
+        counter.set(0);
+        // Test the sync point processing with a key occupied.
+        RecordContext<String> recordContext1 = aec.buildContext("record1", "occupied");
+        aec.setCurrentContext(recordContext1);
+        userCode.run();
+
+        RecordContext<String> recordContext2 = aec.buildContext("record2", "occupied");
+        aec.setCurrentContext(recordContext2);
+        aec.syncPointRequestWithCallback(counter::incrementAndGet);
+        recordContext2.retain();
+        assertThat(counter.get()).isEqualTo(0);
+        assertThat(recordContext2.getReferenceCount()).isGreaterThan(1);
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(1);
+        aec.triggerIfNeeded(true);
+        assertThat(counter.get()).isEqualTo(0);
+        assertThat(recordContext2.getReferenceCount()).isGreaterThan(1);
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(1);
+        aec.triggerIfNeeded(true);
+        assertThat(counter.get()).isEqualTo(1);
+        assertThat(recordContext2.getReferenceCount()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(0);
+        assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(0);
+        recordContext2.release();
+    }
+
     private StateExecutor createStateExecutor() {
         TestAsyncStateBackend testAsyncStateBackend = new TestAsyncStateBackend();
         assertThat(testAsyncStateBackend.supportsAsyncKeyedStateBackend()).isTrue();

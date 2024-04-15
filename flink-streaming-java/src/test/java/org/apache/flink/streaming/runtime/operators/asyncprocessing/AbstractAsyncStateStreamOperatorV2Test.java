@@ -32,13 +32,18 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.Triggerable;
+import org.apache.flink.streaming.runtime.io.RecordProcessorUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -46,10 +51,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class AbstractAsyncStateStreamOperatorV2Test {
 
     protected KeyedOneInputStreamOperatorV2TestHarness<Integer, Tuple2<Integer, String>, String>
-            createTestHarness(int maxParalelism, int numSubtasks, int subtaskIndex)
+            createTestHarness(
+                    int maxParalelism, int numSubtasks, int subtaskIndex, ElementOrder elementOrder)
                     throws Exception {
         return new KeyedOneInputStreamOperatorV2TestHarness<>(
-                new TestOperatorFactory(),
+                new TestOperatorFactory(elementOrder),
                 new AbstractAsyncStateStreamOperatorTest.TestKeySelector(),
                 BasicTypeInfo.INT_TYPE_INFO,
                 maxParalelism,
@@ -60,7 +66,7 @@ public class AbstractAsyncStateStreamOperatorV2Test {
     @Test
     public void testCreateAsyncExecutionController() throws Exception {
         try (KeyedOneInputStreamOperatorV2TestHarness<Integer, Tuple2<Integer, String>, String>
-                testHarness = createTestHarness(128, 1, 0)) {
+                testHarness = createTestHarness(128, 1, 0, ElementOrder.RECORD_ORDER)) {
             testHarness.open();
             assertThat(testHarness.getBaseOperator())
                     .isInstanceOf(AbstractAsyncStateStreamOperatorV2.class);
@@ -68,6 +74,70 @@ public class AbstractAsyncStateStreamOperatorV2Test {
                             ((AbstractAsyncStateStreamOperatorV2) testHarness.getBaseOperator())
                                     .getAsyncExecutionController())
                     .isNotNull();
+        }
+    }
+
+    @Test
+    public void testRecordProcessorWithFirstStateOrder() throws Exception {
+        try (KeyedOneInputStreamOperatorV2TestHarness<Integer, Tuple2<Integer, String>, String>
+                testHarness = createTestHarness(128, 1, 0, ElementOrder.FIRST_STATE_ORDER)) {
+            testHarness.open();
+            SingleInputTestOperator testOperator =
+                    (SingleInputTestOperator) testHarness.getBaseOperator();
+            ThrowingConsumer<StreamRecord<Tuple2<Integer, String>>, Exception> processor =
+                    RecordProcessorUtils.getRecordProcessor(testOperator.getInputs().get(0));
+            ExecutorService anotherThread = Executors.newSingleThreadExecutor();
+            // Trigger the processor
+            anotherThread.execute(
+                    () -> {
+                        try {
+                            processor.accept(new StreamRecord<>(Tuple2.of(5, "5")));
+                        } catch (Exception e) {
+                        }
+                    });
+
+            Thread.sleep(1000);
+            assertThat(testOperator.getProcessed()).isEqualTo(1);
+            assertThat(testOperator.getCurrentProcessingContext().getReferenceCount()).isEqualTo(1);
+
+            // Proceed processing
+            testOperator.proceed();
+            anotherThread.shutdown();
+            Thread.sleep(1000);
+            assertThat(testOperator.getCurrentProcessingContext().getReferenceCount()).isEqualTo(0);
+        }
+    }
+
+    @Test
+    public void testRecordProcessorWithRecordOrder() throws Exception {
+        try (KeyedOneInputStreamOperatorV2TestHarness<Integer, Tuple2<Integer, String>, String>
+                testHarness = createTestHarness(128, 1, 0, ElementOrder.RECORD_ORDER)) {
+            testHarness.open();
+            SingleInputTestOperator testOperator =
+                    (SingleInputTestOperator) testHarness.getBaseOperator();
+            ThrowingConsumer<StreamRecord<Tuple2<Integer, String>>, Exception> processor =
+                    RecordProcessorUtils.getRecordProcessor(testOperator.getInputs().get(0));
+            ExecutorService anotherThread = Executors.newSingleThreadExecutor();
+            // Trigger the processor
+            anotherThread.execute(
+                    () -> {
+                        try {
+                            processor.accept(new StreamRecord<>(Tuple2.of(5, "5")));
+                        } catch (Exception e) {
+                        }
+                    });
+
+            Thread.sleep(1000);
+            assertThat(testOperator.getProcessed()).isEqualTo(1);
+            // Why greater than 1:  +1 when enter the processor; +1 when handle the SYNC_POINT
+            assertThat(testOperator.getCurrentProcessingContext().getReferenceCount())
+                    .isGreaterThan(1);
+
+            // Proceed processing
+            testOperator.proceed();
+            anotherThread.shutdown();
+            Thread.sleep(1000);
+            assertThat(testOperator.getCurrentProcessingContext().getReferenceCount()).isEqualTo(0);
         }
     }
 
@@ -90,10 +160,17 @@ public class AbstractAsyncStateStreamOperatorV2Test {
     }
 
     private static class TestOperatorFactory extends AbstractStreamOperatorFactory<String> {
+
+        private final ElementOrder elementOrder;
+
+        TestOperatorFactory(ElementOrder elementOrder) {
+            this.elementOrder = elementOrder;
+        }
+
         @Override
         public <T extends StreamOperator<String>> T createStreamOperator(
                 StreamOperatorParameters<String> parameters) {
-            return (T) new SingleInputTestOperator(parameters);
+            return (T) new SingleInputTestOperator(parameters, elementOrder);
         }
 
         @Override
@@ -111,8 +188,29 @@ public class AbstractAsyncStateStreamOperatorV2Test {
 
         private static final long serialVersionUID = 1L;
 
-        public SingleInputTestOperator(StreamOperatorParameters<String> parameters) {
+        final AtomicInteger processed = new AtomicInteger(0);
+
+        private final ElementOrder elementOrder;
+
+        final Object objectToWait = new Object();
+
+        final Input input;
+
+        public SingleInputTestOperator(
+                StreamOperatorParameters<String> parameters, ElementOrder elementOrder) {
             super(parameters, 1);
+            this.elementOrder = elementOrder;
+            input =
+                    new AbstractInput<Tuple2<Integer, String>, String>(this, 1) {
+                        @Override
+                        public void processElement(StreamRecord<Tuple2<Integer, String>> element)
+                                throws Exception {
+                            processed.incrementAndGet();
+                            synchronized (objectToWait) {
+                                objectToWait.wait();
+                            }
+                        }
+                    };
         }
 
         @Override
@@ -122,12 +220,12 @@ public class AbstractAsyncStateStreamOperatorV2Test {
 
         @Override
         public List<Input> getInputs() {
-            return Collections.singletonList(
-                    new AbstractInput<Tuple2<Integer, String>, String>(this, 1) {
-                        @Override
-                        public void processElement(StreamRecord<Tuple2<Integer, String>> element)
-                                throws Exception {}
-                    });
+            return Collections.singletonList(input);
+        }
+
+        @Override
+        public ElementOrder getElementOrder() {
+            return elementOrder;
         }
 
         @Override
@@ -136,5 +234,15 @@ public class AbstractAsyncStateStreamOperatorV2Test {
         @Override
         public void onProcessingTime(InternalTimer<Integer, VoidNamespace> timer)
                 throws Exception {}
+
+        public int getProcessed() {
+            return processed.get();
+        }
+
+        public void proceed() {
+            synchronized (objectToWait) {
+                objectToWait.notify();
+            }
+        }
     }
 }
