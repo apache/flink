@@ -38,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link StructuredOptionsSplitter}. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class StructuredOptionsSplitterTest {
+class StructuredOptionsSplitterTest {
 
     @Parameters(name = "testSpec = {0}")
     private static Collection<TestSpec> getSpecs() {
@@ -96,7 +96,7 @@ public class StructuredOptionsSplitterTest {
     @Parameter private TestSpec testSpec;
 
     @TestTemplate
-    public void testParse() {
+    void testParse() {
 
         Optional<String> expectedException = testSpec.getExpectedException();
         if (expectedException.isPresent()) {

@@ -55,7 +55,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * </ol>
  */
 @ExtendWith(ParameterizedTestExtension.class)
-public class ReadableWritableConfigurationTest {
+class ReadableWritableConfigurationTest {
 
     @Parameters(name = "testSpec = {0}, standardYaml = {1}")
     private static Collection<Object[]> parameters() {

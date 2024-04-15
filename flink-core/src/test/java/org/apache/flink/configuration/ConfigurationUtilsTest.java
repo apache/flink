@@ -45,7 +45,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link ConfigurationUtils}. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class ConfigurationUtilsTest {
+class ConfigurationUtilsTest {
 
     @Parameter private boolean standardYaml;
 

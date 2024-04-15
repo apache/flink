@@ -46,7 +46,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 @ExtendWith(ParameterizedTestExtension.class)
 @SuppressWarnings("deprecation")
-public class ConfigurationTest {
+class ConfigurationTest {
 
     @Parameter private boolean standardYaml;
 

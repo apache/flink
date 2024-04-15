@@ -43,7 +43,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 @SuppressWarnings("deprecation")
 @ExtendWith(ParameterizedTestExtension.class)
-public class ConfigurationConversionsTest {
+class ConfigurationConversionsTest {
 
     private static final byte[] EMPTY_BYTES = new byte[0];
     private static final long TOO_LONG = Integer.MAX_VALUE + 10L;
@@ -365,7 +365,7 @@ public class ConfigurationConversionsTest {
     }
 
     @TestTemplate
-    public void testConversions() throws Exception {
+    void testConversions() throws Exception {
 
         Optional<String> expectedException = testSpec.getExpectedException();
 

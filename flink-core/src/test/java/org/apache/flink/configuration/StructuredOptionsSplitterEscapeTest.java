@@ -32,7 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link StructuredOptionsSplitter#escapeWithSingleQuote}. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class StructuredOptionsSplitterEscapeTest {
+class StructuredOptionsSplitterEscapeTest {
 
     @Parameters(name = "testSpec = {0}")
     private static Collection<TestSpec> getEncodeSpecs() {

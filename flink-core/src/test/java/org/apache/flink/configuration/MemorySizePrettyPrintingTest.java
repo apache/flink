@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link MemorySize#toString()}. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class MemorySizePrettyPrintingTest {
+class MemorySizePrettyPrintingTest {
 
     @Parameters(name = "memorySize = {0}, expectedString = {1}")
     private static Object[][] parameters() {

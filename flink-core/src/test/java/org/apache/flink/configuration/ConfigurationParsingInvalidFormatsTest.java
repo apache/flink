@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Tests for reading configuration parameters with invalid formats. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class ConfigurationParsingInvalidFormatsTest {
+class ConfigurationParsingInvalidFormatsTest {
 
     @Parameters(name = "option = {0}, invalidString = {1}")
     private static Object[][] getSpecs() {
@@ -69,7 +69,7 @@ public class ConfigurationParsingInvalidFormatsTest {
     @Parameter private ConfigOption<?> option;
 
     @Parameter(value = 1)
-    public String invalidString;
+    private String invalidString;
 
     @TestTemplate
     void testInvalidStringParsingWithGetOptional() {
