@@ -50,8 +50,13 @@
             ></flink-dynamic-host>
           </span>
         </span>
-        <span *ngIf="selectedVertex?.detail?.status !== 'RUNNING'">
-          Operator is not running. Cannot sample back pressure.
+        <span
+          *ngIf="
+            selectedVertex?.detail?.status !== 'RUNNING' &&
+            selectedVertex?.detail?.status !== 'INITIALIZING'
+          "
+        >
+          Operator is not running or initializing. Cannot sample back pressure.
         </span>
       </th>
     </tr>

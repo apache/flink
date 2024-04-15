@@ -83,9 +83,9 @@ class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
                 SecureTestEnvironment.getTestKeytab());
 
         Configuration flinkConfig = new Configuration();
-        flinkConfig.setString(
+        flinkConfig.set(
                 SecurityOptions.KERBEROS_LOGIN_KEYTAB, SecureTestEnvironment.getTestKeytab());
-        flinkConfig.setString(
+        flinkConfig.set(
                 SecurityOptions.KERBEROS_LOGIN_PRINCIPAL,
                 SecureTestEnvironment.getHadoopServicePrincipal());
 

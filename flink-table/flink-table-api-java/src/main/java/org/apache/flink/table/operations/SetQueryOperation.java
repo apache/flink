@@ -63,6 +63,7 @@ public class SetQueryOperation implements QueryOperation {
      *   <li><b>UNION</b> returns records from both relations as a single relation
      * </ul>
      */
+    @Internal
     public enum SetQueryOperationType {
         INTERSECT,
         MINUS,
@@ -81,6 +82,24 @@ public class SetQueryOperation implements QueryOperation {
 
         return OperationUtils.formatWithChildren(
                 typeToString(), args, getChildren(), Operation::asSummaryString);
+    }
+
+    @Override
+    public String asSerializableString() {
+        return String.format(
+                "SELECT %s FROM (%s\n) %s (%s\n)",
+                OperationUtils.formatSelectColumns(resolvedSchema),
+                OperationUtils.indent(leftOperation.asSerializableString()),
+                asSerializableType(),
+                OperationUtils.indent(rightOperation.asSerializableString()));
+    }
+
+    private String asSerializableType() {
+        if (all) {
+            return type.toString() + " ALL";
+        } else {
+            return type.toString();
+        }
     }
 
     private String typeToString() {

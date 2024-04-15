@@ -94,26 +94,26 @@ abstract class AbstractTaskManagerProcessFailureRecoveryTest {
         File coordinateTempDir;
 
         Configuration config = new Configuration();
-        config.setString(JobManagerOptions.ADDRESS, "localhost");
-        config.setString(RestOptions.BIND_PORT, "0");
-        config.setLong(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, 200L);
-        config.setLong(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT, 10000L);
+        config.set(JobManagerOptions.ADDRESS, "localhost");
+        config.set(RestOptions.BIND_PORT, "0");
+        config.set(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, 200L);
+        config.set(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT, 10000L);
         config.set(HeartbeatManagerOptions.HEARTBEAT_RPC_FAILURE_THRESHOLD, 1);
-        config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
-        config.setString(
+        config.set(HighAvailabilityOptions.HA_MODE, "zookeeper");
+        config.set(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
                 zooKeeperExtensionWrapper.getCustomExtension().getConnectString());
-        config.setString(
+        config.set(
                 HighAvailabilityOptions.HA_STORAGE_PATH,
                 TempDirUtils.newFolder(temporaryFolder).getAbsolutePath());
-        config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
+        config.set(TaskManagerOptions.NUM_TASK_SLOTS, 2);
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
         config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("3200k"));
         config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("3200k"));
         config.set(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS, 16);
         config.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse("128m"));
         config.set(TaskManagerOptions.CPU_CORES, 1.0);
-        config.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
+        config.set(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
         config.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofSeconds(30L));
 
         try (final StandaloneSessionClusterEntrypoint clusterEntrypoint =

@@ -31,27 +31,24 @@ import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackendFactory;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.TernaryBoolean;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.net.URI;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** This test validates that state backends are properly loaded from configuration. */
-public class StateBackendLoadingTest {
+class StateBackendLoadingTest {
 
-    @Rule public final TemporaryFolder tmp = new TemporaryFolder();
+    @TempDir private java.nio.file.Path tmp;
 
     private final ClassLoader cl = getClass().getClassLoader();
 
@@ -62,21 +59,22 @@ public class StateBackendLoadingTest {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testNoStateBackendDefined() throws Exception {
-        assertNull(StateBackendLoader.loadStateBackendFromConfig(new Configuration(), cl, null));
+    void testDefaultStateBackend() throws Exception {
+        assertThat(StateBackendLoader.loadStateBackendFromConfig(new Configuration(), cl, null))
+                .isInstanceOf(HashMapStateBackend.class);
     }
 
     @Test
-    public void testInstantiateHashMapStateBackendBackendByDefault() throws Exception {
+    void testInstantiateHashMapStateBackendBackendByDefault() throws Exception {
         StateBackend backend =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                        null, TernaryBoolean.UNDEFINED, new Configuration(), cl, null);
+                        null, new Configuration(), new Configuration(), cl, null);
 
-        assertTrue(backend instanceof HashMapStateBackend);
+        assertThat(backend).isInstanceOf(HashMapStateBackend.class);
     }
 
     @Test
-    public void testApplicationDefinedHasPrecedence() throws Exception {
+    void testApplicationDefinedHasPrecedence() throws Exception {
         final StateBackend appBackend = Mockito.mock(StateBackend.class);
 
         final Configuration config = new Configuration();
@@ -84,8 +82,8 @@ public class StateBackendLoadingTest {
 
         StateBackend backend =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                        appBackend, TernaryBoolean.UNDEFINED, config, cl, null);
-        assertEquals(appBackend, backend);
+                        appBackend, config, config, cl, null);
+        assertThat(backend).isEqualTo(appBackend);
     }
 
     // ------------------------------------------------------------------------
@@ -94,7 +92,7 @@ public class StateBackendLoadingTest {
 
     /** Validates loading a memory state backend from the cluster configuration. */
     @Test
-    public void testLoadMemoryStateBackendNoParameters() throws Exception {
+    void testLoadMemoryStateBackendNoParameters() throws Exception {
         // we configure with the explicit string (rather than
         // AbstractStateBackend#X_STATE_BACKEND_NAME)
         // to guard against config-breaking changes of the name
@@ -108,8 +106,8 @@ public class StateBackendLoadingTest {
         StateBackend backend1 = StateBackendLoader.loadStateBackendFromConfig(config1, cl, null);
         StateBackend backend2 = StateBackendLoader.loadStateBackendFromConfig(config2, cl, null);
 
-        assertTrue(backend1 instanceof MemoryStateBackend);
-        assertTrue(backend2 instanceof MemoryStateBackend);
+        assertThat(backend1).isInstanceOf(MemoryStateBackend.class);
+        assertThat(backend2).isInstanceOf(MemoryStateBackend.class);
     }
 
     /**
@@ -117,9 +115,9 @@ public class StateBackendLoadingTest {
      * configuration.
      */
     @Test
-    public void testLoadMemoryStateWithParameters() throws Exception {
-        final String checkpointDir = new Path(tmp.newFolder().toURI()).toString();
-        final String savepointDir = new Path(tmp.newFolder().toURI()).toString();
+    void testLoadMemoryStateWithParameters() throws Exception {
+        final String checkpointDir = new Path(TempDirUtils.newFolder(tmp).toURI()).toString();
+        final String savepointDir = new Path(TempDirUtils.newFolder(tmp).toURI()).toString();
         final Path expectedCheckpointPath = new Path(checkpointDir);
         final Path expectedSavepointPath = new Path(savepointDir);
 
@@ -129,13 +127,13 @@ public class StateBackendLoadingTest {
 
         final Configuration config1 = new Configuration();
         config1.setString(backendKey, "jobmanager");
-        config1.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
-        config1.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
+        config1.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
+        config1.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
 
         final Configuration config2 = new Configuration();
         config2.setString(backendKey, MemoryStateBackendFactory.class.getName());
-        config2.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
-        config2.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
+        config2.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
+        config2.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
 
         MemoryStateBackend backend1 =
                 (MemoryStateBackend)
@@ -144,23 +142,23 @@ public class StateBackendLoadingTest {
                 (MemoryStateBackend)
                         StateBackendLoader.loadStateBackendFromConfig(config2, cl, null);
 
-        assertNotNull(backend1);
-        assertNotNull(backend2);
+        assertThat(backend1).isNotNull();
+        assertThat(backend2).isNotNull();
 
-        assertEquals(expectedCheckpointPath, backend1.getCheckpointPath());
-        assertEquals(expectedSavepointPath, backend1.getSavepointPath());
-        assertEquals(expectedCheckpointPath, backend2.getCheckpointPath());
-        assertEquals(expectedSavepointPath, backend2.getSavepointPath());
+        assertThat(backend1.getCheckpointPath()).isEqualTo(expectedCheckpointPath);
+        assertThat(backend1.getSavepointPath()).isEqualTo(expectedSavepointPath);
+        assertThat(backend2.getCheckpointPath()).isEqualTo(expectedCheckpointPath);
+        assertThat(backend2.getSavepointPath()).isEqualTo(expectedSavepointPath);
     }
 
     /**
      * Validates taking the application-defined memory state backend and adding additional
-     * parameters from the cluster configuration.
+     * parameters from configuration.
      */
     @Test
-    public void testConfigureMemoryStateBackend() throws Exception {
-        final String checkpointDir = new Path(tmp.newFolder().toURI()).toString();
-        final String savepointDir = new Path(tmp.newFolder().toURI()).toString();
+    void testConfigureMemoryStateBackend() throws Exception {
+        final String checkpointDir = new Path(TempDirUtils.newFolder(tmp).toURI()).toString();
+        final String savepointDir = new Path(TempDirUtils.newFolder(tmp).toURI()).toString();
         final Path expectedCheckpointPath = new Path(checkpointDir);
         final Path expectedSavepointPath = new Path(savepointDir);
 
@@ -170,30 +168,40 @@ public class StateBackendLoadingTest {
 
         final Configuration config = new Configuration();
         config.setString(backendKey, "filesystem"); // check that this is not accidentally picked up
-        config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
-        config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
+        config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
 
-        StateBackend loadedBackend =
+        StateBackend loadedBackendFromClusterConfig =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                        backend, TernaryBoolean.UNDEFINED, config, cl, null);
-        assertTrue(loadedBackend instanceof MemoryStateBackend);
+                        backend, new Configuration(), config, cl, null);
+        assertThat(loadedBackendFromClusterConfig).isInstanceOf(MemoryStateBackend.class);
 
-        final MemoryStateBackend memBackend = (MemoryStateBackend) loadedBackend;
-        assertEquals(expectedCheckpointPath, memBackend.getCheckpointPath());
-        assertEquals(expectedSavepointPath, memBackend.getSavepointPath());
-        assertEquals(maxSize, memBackend.getMaxStateSize());
+        final MemoryStateBackend memBackend1 = (MemoryStateBackend) loadedBackendFromClusterConfig;
+        assertThat(memBackend1.getCheckpointPath()).isEqualTo(expectedCheckpointPath);
+        assertThat(memBackend1.getSavepointPath()).isEqualTo(expectedSavepointPath);
+        assertThat(memBackend1.getMaxStateSize()).isEqualTo(maxSize);
+
+        StateBackend loadedBackendFromJobConfig =
+                StateBackendLoader.fromApplicationOrConfigOrDefault(
+                        backend, config, new Configuration(), cl, null);
+        assertThat(loadedBackendFromJobConfig).isInstanceOf(MemoryStateBackend.class);
+
+        final MemoryStateBackend memBackend2 = (MemoryStateBackend) loadedBackendFromJobConfig;
+        assertThat(memBackend2.getCheckpointPath()).isNull();
+        assertThat(memBackend2.getSavepointPath()).isNull();
+        assertThat(memBackend2.getMaxStateSize()).isEqualTo(maxSize);
     }
 
     /**
      * Validates taking the application-defined memory state backend and adding additional
-     * parameters from the cluster configuration, but giving precedence to application-defined
-     * parameters over configuration-defined parameters.
+     * parameters from configuration, but giving precedence to application-defined parameters over
+     * configuration-defined parameters.
      */
     @Test
-    public void testConfigureMemoryStateBackendMixed() throws Exception {
-        final String appCheckpointDir = new Path(tmp.newFolder().toURI()).toString();
-        final String checkpointDir = new Path(tmp.newFolder().toURI()).toString();
-        final String savepointDir = new Path(tmp.newFolder().toURI()).toString();
+    void testConfigureMemoryStateBackendMixed() throws Exception {
+        final String appCheckpointDir = new Path(TempDirUtils.newFolder(tmp).toURI()).toString();
+        final String checkpointDir = new Path(TempDirUtils.newFolder(tmp).toURI()).toString();
+        final String savepointDir = new Path(TempDirUtils.newFolder(tmp).toURI()).toString();
 
         final Path expectedCheckpointPath = new Path(appCheckpointDir);
         final Path expectedSavepointPath = new Path(savepointDir);
@@ -202,19 +210,30 @@ public class StateBackendLoadingTest {
 
         final Configuration config = new Configuration();
         config.setString(backendKey, "filesystem"); // check that this is not accidentally picked up
-        config.setString(
+        config.set(
                 CheckpointingOptions.CHECKPOINTS_DIRECTORY,
                 checkpointDir); // this parameter should not be picked up
-        config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
 
-        StateBackend loadedBackend =
+        // add parameters from cluster config
+        StateBackend loadedBackendFromJobConfig =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                        backend, TernaryBoolean.UNDEFINED, config, cl, null);
-        assertTrue(loadedBackend instanceof MemoryStateBackend);
+                        backend, new Configuration(), config, cl, null);
+        assertThat(loadedBackendFromJobConfig).isInstanceOf(MemoryStateBackend.class);
 
-        final MemoryStateBackend memBackend = (MemoryStateBackend) loadedBackend;
-        assertEquals(expectedCheckpointPath, memBackend.getCheckpointPath());
-        assertEquals(expectedSavepointPath, memBackend.getSavepointPath());
+        final MemoryStateBackend memBackend1 = (MemoryStateBackend) loadedBackendFromJobConfig;
+        assertThat(memBackend1.getCheckpointPath()).isEqualTo(expectedCheckpointPath);
+        assertThat(memBackend1.getSavepointPath()).isEqualTo(expectedSavepointPath);
+
+        // add parameters from job config
+        StateBackend loadedBackendFromClusterConfig =
+                StateBackendLoader.fromApplicationOrConfigOrDefault(
+                        backend, config, new Configuration(), cl, null);
+        assertThat(loadedBackendFromClusterConfig).isInstanceOf(MemoryStateBackend.class);
+
+        final MemoryStateBackend memBackend2 = (MemoryStateBackend) loadedBackendFromClusterConfig;
+        assertThat(memBackend2.getCheckpointPath()).isEqualTo(expectedCheckpointPath);
+        assertThat(memBackend2.getSavepointPath()).isNull();
     }
 
     // ------------------------------------------------------------------------
@@ -226,9 +245,9 @@ public class StateBackendLoadingTest {
      * configuration.
      */
     @Test
-    public void testLoadFileSystemStateBackend() throws Exception {
-        final String checkpointDir = new Path(tmp.newFolder().toURI()).toString();
-        final String savepointDir = new Path(tmp.newFolder().toURI()).toString();
+    void testLoadFileSystemStateBackend() throws Exception {
+        final String checkpointDir = new Path(TempDirUtils.newFolder(tmp).toURI()).toString();
+        final String savepointDir = new Path(TempDirUtils.newFolder(tmp).toURI()).toString();
         final Path expectedCheckpointsPath = new Path(checkpointDir);
         final Path expectedSavepointsPath = new Path(savepointDir);
         final MemorySize threshold = MemorySize.parse("900kb");
@@ -239,43 +258,44 @@ public class StateBackendLoadingTest {
         // to guard against config-breaking changes of the name
         final Configuration config1 = new Configuration();
         config1.setString(backendKey, "filesystem");
-        config1.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
-        config1.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
+        config1.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
+        config1.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
         config1.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, threshold);
-        config1.setInteger(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, minWriteBufferSize);
+        config1.set(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, minWriteBufferSize);
 
         final Configuration config2 = new Configuration();
         config2.setString(backendKey, FsStateBackendFactory.class.getName());
-        config2.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
-        config2.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
+        config2.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
+        config2.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
         config2.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, threshold);
-        config1.setInteger(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, minWriteBufferSize);
+        config1.set(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, minWriteBufferSize);
 
         StateBackend backend1 = StateBackendLoader.loadStateBackendFromConfig(config1, cl, null);
         StateBackend backend2 = StateBackendLoader.loadStateBackendFromConfig(config2, cl, null);
 
-        assertTrue(backend1 instanceof HashMapStateBackend);
-        assertTrue(backend2 instanceof FsStateBackend);
+        assertThat(backend1).isInstanceOf(HashMapStateBackend.class);
+        assertThat(backend2).isInstanceOf(FsStateBackend.class);
 
         HashMapStateBackend fs1 = (HashMapStateBackend) backend1;
         FsStateBackend fs2 = (FsStateBackend) backend2;
 
-        assertEquals(expectedCheckpointsPath, fs2.getCheckpointPath());
-        assertEquals(expectedSavepointsPath, fs2.getSavepointPath());
-        assertEquals(threshold.getBytes(), fs2.getMinFileSizeThreshold());
-        assertEquals(Math.max(threshold.getBytes(), minWriteBufferSize), fs2.getWriteBufferSize());
+        assertThat(fs2.getCheckpointPath()).isEqualTo(expectedCheckpointsPath);
+        assertThat(fs2.getSavepointPath()).isEqualTo(expectedSavepointsPath);
+        assertThat(fs2.getMinFileSizeThreshold()).isEqualTo(threshold.getBytes());
+        assertThat(fs2.getWriteBufferSize())
+                .isEqualTo(Math.max(threshold.getBytes(), minWriteBufferSize));
     }
 
     /**
      * Validates taking the application-defined file system state backend and adding with additional
-     * parameters from the cluster configuration, but giving precedence to application-defined
-     * parameters over configuration-defined parameters.
+     * parameters from configuration, but giving precedence to application-defined parameters over
+     * configuration-defined parameters.
      */
     @Test
-    public void testLoadFileSystemStateBackendMixed() throws Exception {
-        final String appCheckpointDir = new Path(tmp.newFolder().toURI()).toString();
-        final String checkpointDir = new Path(tmp.newFolder().toURI()).toString();
-        final String savepointDir = new Path(tmp.newFolder().toURI()).toString();
+    void testLoadFileSystemStateBackendMixed() throws Exception {
+        final String appCheckpointDir = new Path(TempDirUtils.newFolder(tmp).toURI()).toString();
+        final String checkpointDir = new Path(TempDirUtils.newFolder(tmp).toURI()).toString();
+        final String savepointDir = new Path(TempDirUtils.newFolder(tmp).toURI()).toString();
 
         final Path expectedCheckpointsPath = new Path(new URI(appCheckpointDir));
         final Path expectedSavepointsPath = new Path(savepointDir);
@@ -293,26 +313,26 @@ public class StateBackendLoadingTest {
 
         final Configuration config = new Configuration();
         config.setString(backendKey, "jobmanager"); // this should not be picked up
-        config.setString(
+        config.set(
                 CheckpointingOptions.CHECKPOINTS_DIRECTORY,
                 checkpointDir); // this should not be picked up
-        config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
         config.set(
                 CheckpointingOptions.FS_SMALL_FILE_THRESHOLD,
                 MemorySize.parse("20")); // this should not be picked up
-        config.setInteger(
+        config.set(
                 CheckpointingOptions.FS_WRITE_BUFFER_SIZE, 3000000); // this should not be picked up
 
         final StateBackend loadedBackend =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                        backend, TernaryBoolean.UNDEFINED, config, cl, null);
-        assertTrue(loadedBackend instanceof FsStateBackend);
+                        backend, config, config, cl, null);
+        assertThat(loadedBackend).isInstanceOf(FsStateBackend.class);
 
         final FsStateBackend fs = (FsStateBackend) loadedBackend;
-        assertEquals(expectedCheckpointsPath, fs.getCheckpointPath());
-        assertEquals(expectedSavepointsPath, fs.getSavepointPath());
-        assertEquals(threshold, fs.getMinFileSizeThreshold());
-        assertEquals(writeBufferSize, fs.getWriteBufferSize());
+        assertThat(fs.getCheckpointPath()).isEqualTo(expectedCheckpointsPath);
+        assertThat(fs.getSavepointPath()).isEqualTo(expectedSavepointsPath);
+        assertThat(fs.getMinFileSizeThreshold()).isEqualTo(threshold);
+        assertThat(fs.getWriteBufferSize()).isEqualTo(writeBufferSize);
     }
 
     // ------------------------------------------------------------------------
@@ -324,38 +344,32 @@ public class StateBackendLoadingTest {
      * loaded.
      */
     @Test
-    public void testLoadingFails() throws Exception {
+    void testLoadingFails() throws Exception {
         final Configuration config = new Configuration();
 
         // try a value that is neither recognized as a name, nor corresponds to a class
         config.setString(backendKey, "does.not.exist");
-        try {
-            StateBackendLoader.fromApplicationOrConfigOrDefault(
-                    null, TernaryBoolean.UNDEFINED, config, cl, null);
-            fail("should fail with an exception");
-        } catch (DynamicCodeLoadingException ignored) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                StateBackendLoader.fromApplicationOrConfigOrDefault(
+                                        null, config, new Configuration(), cl, null))
+                .isInstanceOf(DynamicCodeLoadingException.class);
 
         // try a class that is not a factory
         config.setString(backendKey, java.io.File.class.getName());
-        try {
-            StateBackendLoader.fromApplicationOrConfigOrDefault(
-                    null, TernaryBoolean.UNDEFINED, config, cl, null);
-            fail("should fail with an exception");
-        } catch (DynamicCodeLoadingException ignored) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                StateBackendLoader.fromApplicationOrConfigOrDefault(
+                                        null, config, new Configuration(), cl, null))
+                .isInstanceOf(DynamicCodeLoadingException.class);
 
         // a factory that fails
         config.setString(backendKey, FailingFactory.class.getName());
-        try {
-            StateBackendLoader.fromApplicationOrConfigOrDefault(
-                    null, TernaryBoolean.UNDEFINED, config, cl, null);
-            fail("should fail with an exception");
-        } catch (IOException ignored) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                StateBackendLoader.fromApplicationOrConfigOrDefault(
+                                        null, config, new Configuration(), cl, null))
+                .isInstanceOf(IOException.class);
     }
 
     // ------------------------------------------------------------------------
@@ -368,21 +382,22 @@ public class StateBackendLoadingTest {
      * directory under HA persistence directory.
      */
     @Test
-    public void testHighAvailabilityDefault() throws Exception {
-        final String haPersistenceDir = new Path(tmp.newFolder().toURI()).toString();
+    void testHighAvailabilityDefault() throws Exception {
+        final String haPersistenceDir = new Path(TempDirUtils.newFolder(tmp).toURI()).toString();
         testMemoryBackendHighAvailabilityDefault(haPersistenceDir, null);
 
-        final Path checkpointPath = new Path(tmp.newFolder().toURI().toString());
+        final Path checkpointPath = new Path(TempDirUtils.newFolder(tmp).toURI().toString());
         testMemoryBackendHighAvailabilityDefault(haPersistenceDir, checkpointPath);
     }
 
     @Test
-    public void testHighAvailabilityDefaultLocalPaths() throws Exception {
-        final String haPersistenceDir = new Path(tmp.newFolder().getAbsolutePath()).toString();
+    void testHighAvailabilityDefaultLocalPaths() throws Exception {
+        final String haPersistenceDir =
+                new Path(TempDirUtils.newFolder(tmp).getAbsolutePath()).toString();
         testMemoryBackendHighAvailabilityDefault(haPersistenceDir, null);
 
         final Path checkpointPath =
-                new Path(tmp.newFolder().toURI().toString())
+                new Path(TempDirUtils.newFolder(tmp).toURI().toString())
                         .makeQualified(FileSystem.getLocalFileSystem());
         testMemoryBackendHighAvailabilityDefault(haPersistenceDir, checkpointPath);
     }
@@ -390,20 +405,20 @@ public class StateBackendLoadingTest {
     private void testMemoryBackendHighAvailabilityDefault(
             String haPersistenceDir, Path checkpointPath) throws Exception {
         final Configuration config1 = new Configuration();
-        config1.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
-        config1.setString(HighAvailabilityOptions.HA_CLUSTER_ID, "myCluster");
-        config1.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haPersistenceDir);
+        config1.set(HighAvailabilityOptions.HA_MODE, "zookeeper");
+        config1.set(HighAvailabilityOptions.HA_CLUSTER_ID, "myCluster");
+        config1.set(HighAvailabilityOptions.HA_STORAGE_PATH, haPersistenceDir);
 
         final Configuration config2 = new Configuration();
         config2.setString(backendKey, "jobmanager");
-        config2.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
-        config2.setString(HighAvailabilityOptions.HA_CLUSTER_ID, "myCluster");
-        config2.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haPersistenceDir);
+        config2.set(HighAvailabilityOptions.HA_MODE, "zookeeper");
+        config2.set(HighAvailabilityOptions.HA_CLUSTER_ID, "myCluster");
+        config2.set(HighAvailabilityOptions.HA_STORAGE_PATH, haPersistenceDir);
 
         if (checkpointPath != null) {
-            config1.setString(
+            config1.set(
                     CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointPath.toUri().toString());
-            config2.setString(
+            config2.set(
                     CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointPath.toUri().toString());
         }
 
@@ -411,32 +426,32 @@ public class StateBackendLoadingTest {
 
         final StateBackend loaded1 =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                        appBackend, TernaryBoolean.UNDEFINED, config1, cl, null);
+                        appBackend, new Configuration(), config1, cl, null);
         final StateBackend loaded2 =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                        null, TernaryBoolean.UNDEFINED, config1, cl, null);
+                        null, new Configuration(), config1, cl, null);
         final StateBackend loaded3 =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                        null, TernaryBoolean.UNDEFINED, config2, cl, null);
+                        null, new Configuration(), config2, cl, null);
 
-        assertTrue(loaded1 instanceof MemoryStateBackend);
-        assertTrue(loaded2 instanceof HashMapStateBackend);
-        assertTrue(loaded3 instanceof MemoryStateBackend);
+        assertThat(loaded1).isInstanceOf(MemoryStateBackend.class);
+        assertThat(loaded2).isInstanceOf(HashMapStateBackend.class);
+        assertThat(loaded3).isInstanceOf(MemoryStateBackend.class);
 
         final MemoryStateBackend memBackend1 = (MemoryStateBackend) loaded1;
         final MemoryStateBackend memBackend2 = (MemoryStateBackend) loaded3;
 
-        assertNull(memBackend1.getSavepointPath());
+        assertThat(memBackend1.getSavepointPath()).isNull();
 
         if (checkpointPath != null) {
-            assertNotNull(memBackend1.getCheckpointPath());
-            assertNotNull(memBackend2.getCheckpointPath());
+            assertThat(memBackend1.getCheckpointPath()).isNotNull();
+            assertThat(memBackend2.getCheckpointPath()).isNotNull();
 
-            assertEquals(checkpointPath, memBackend1.getCheckpointPath());
-            assertEquals(checkpointPath, memBackend2.getCheckpointPath());
+            assertThat(memBackend1.getCheckpointPath()).isEqualTo(checkpointPath);
+            assertThat(memBackend2.getCheckpointPath()).isEqualTo(checkpointPath);
         } else {
-            assertNull(memBackend1.getCheckpointPath());
-            assertNull(memBackend2.getCheckpointPath());
+            assertThat(memBackend1.getCheckpointPath()).isNull();
+            assertThat(memBackend2.getCheckpointPath()).isNull();
         }
     }
 

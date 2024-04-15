@@ -60,10 +60,10 @@ class DefaultExecutionGraphDeploymentWithBlobServerTest
     protected BlobServer blobServer = null;
 
     @BeforeEach
-    public void setupBlobServer() throws IOException {
+    void setupBlobServer() throws IOException {
         Configuration config = new Configuration();
         // always offload the serialized job and task information
-        config.setInteger(BlobServerOptions.OFFLOAD_MINSIZE, 0);
+        config.set(BlobServerOptions.OFFLOAD_MINSIZE, 0);
         blobServer =
                 new AssertBlobServer(
                         config, TempDirUtils.newFolder(temporaryFolder), new VoidBlobStore());
@@ -75,7 +75,7 @@ class DefaultExecutionGraphDeploymentWithBlobServerTest
     }
 
     @AfterEach
-    public void shutdownBlobServer() throws IOException {
+    void shutdownBlobServer() throws IOException {
         if (blobServer != null) {
             blobServer.close();
         }

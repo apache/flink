@@ -32,7 +32,7 @@ class StandaloneLeaderElectionTest {
 
     private static final UUID SESSION_ID = UUID.randomUUID();
 
-    private static final String TEST_URL = "akka://users/jobmanager";
+    private static final String TEST_URL = "pekko://users/jobmanager";
 
     /**
      * Tests that the standalone leader election and retrieval service return the same leader URL.

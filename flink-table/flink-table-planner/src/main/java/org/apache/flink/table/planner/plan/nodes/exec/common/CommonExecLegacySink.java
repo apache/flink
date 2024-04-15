@@ -57,7 +57,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Base {@link ExecNode} to to write data into an external sink defined by a {@link TableSink}.
+ * Base {@link ExecNode} to write data into an external sink defined by a {@link TableSink}.
  *
  * @param <T> The return type of the {@link TableSink}.
  */

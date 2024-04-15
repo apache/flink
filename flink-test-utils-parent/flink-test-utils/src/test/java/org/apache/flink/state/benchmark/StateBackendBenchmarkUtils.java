@@ -35,10 +35,12 @@ import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackendBuilder;
+import org.apache.flink.contrib.streaming.state.RocksDBPriorityQueueConfig;
 import org.apache.flink.contrib.streaming.state.RocksDBResourceContainer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -46,6 +48,7 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
@@ -82,25 +85,33 @@ public class StateBackendBenchmarkUtils {
     private static File rootDir;
 
     public static KeyedStateBackend<Long> createKeyedStateBackend(
-            StateBackendType backendType, File baseDir) throws IOException {
+            StateBackendType backendType, File baseDir, TtlTimeProvider ttlTimeProvider)
+            throws IOException {
         switch (backendType) {
             case HEAP:
                 rootDir = prepareDirectory(rootDirName, baseDir);
-                return createHeapKeyedStateBackend(rootDir);
+                return createHeapKeyedStateBackend(rootDir, ttlTimeProvider);
             case ROCKSDB:
                 rootDir = prepareDirectory(rootDirName, baseDir);
-                return createRocksDBKeyedStateBackend(rootDir);
+                return createRocksDBKeyedStateBackend(rootDir, ttlTimeProvider);
             case HEAP_CHANGELOG:
                 rootDir = prepareDirectory(rootDirName, baseDir);
-                return createChangelogKeyedStateBackend(createHeapKeyedStateBackend(rootDir));
+                return createChangelogKeyedStateBackend(
+                        createHeapKeyedStateBackend(rootDir, ttlTimeProvider));
             case ROCKSDB_CHANGELOG:
                 rootDir = prepareDirectory(rootDirName, baseDir);
-                return createChangelogKeyedStateBackend(createRocksDBKeyedStateBackend(rootDir));
+                return createChangelogKeyedStateBackend(
+                        createRocksDBKeyedStateBackend(rootDir, ttlTimeProvider));
             case BATCH_EXECUTION:
-                return createBatchExecutionStateBackend();
+                return createBatchExecutionStateBackend(ttlTimeProvider);
             default:
                 throw new IllegalArgumentException("Unknown backend type: " + backendType);
         }
+    }
+
+    public static KeyedStateBackend<Long> createKeyedStateBackend(
+            StateBackendType backendType, File baseDir) throws IOException {
+        return createKeyedStateBackend(backendType, baseDir, TtlTimeProvider.DEFAULT);
     }
 
     public static KeyedStateBackend<Long> createKeyedStateBackend(StateBackendType backendType)
@@ -108,20 +119,25 @@ public class StateBackendBenchmarkUtils {
         return createKeyedStateBackend(backendType, null);
     }
 
-    private static CheckpointableKeyedStateBackend<Long> createBatchExecutionStateBackend() {
+    private static CheckpointableKeyedStateBackend<Long> createBatchExecutionStateBackend(
+            TtlTimeProvider ttlTimeProvider) {
+        Environment env = MockEnvironment.builder().build();
+        JobID jobID = new JobID();
+        KeyGroupRange keyGroupRange = new KeyGroupRange(0, 1);
         return new BatchExecutionStateBackend()
                 .createKeyedStateBackend(
-                        MockEnvironment.builder().build(),
-                        new JobID(),
-                        "Test",
-                        new LongSerializer(),
-                        2,
-                        new KeyGroupRange(0, 1),
-                        null,
-                        TtlTimeProvider.DEFAULT,
-                        new UnregisteredMetricsGroup(),
-                        Collections.emptyList(),
-                        null);
+                        new KeyedStateBackendParametersImpl<>(
+                                env,
+                                jobID,
+                                "Test",
+                                new LongSerializer(),
+                                2,
+                                keyGroupRange,
+                                null,
+                                ttlTimeProvider,
+                                new UnregisteredMetricsGroup(),
+                                Collections.emptyList(),
+                                null));
     }
 
     private static ChangelogKeyedStateBackend<Long> createChangelogKeyedStateBackend(
@@ -153,8 +169,8 @@ public class StateBackendBenchmarkUtils {
                         new Path(cpPathFile.getPath()), null, new JobID(), 1024, 4096));
     }
 
-    private static RocksDBKeyedStateBackend<Long> createRocksDBKeyedStateBackend(File rootDir)
-            throws IOException {
+    private static RocksDBKeyedStateBackend<Long> createRocksDBKeyedStateBackend(
+            File rootDir, TtlTimeProvider ttlTimeProvider) throws IOException {
         File recoveryBaseDir = prepareDirectory(recoveryDirName, rootDir);
         File dbPathFile = prepareDirectory(dbDirName, rootDir);
         ExecutionConfig executionConfig = new ExecutionConfig();
@@ -171,11 +187,13 @@ public class StateBackendBenchmarkUtils {
                         2,
                         new KeyGroupRange(0, 1),
                         executionConfig,
-                        new LocalRecoveryConfig(null),
-                        EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB,
-                        TtlTimeProvider.DEFAULT,
+                        LocalRecoveryConfig.BACKUP_AND_RECOVERY_DISABLED,
+                        RocksDBPriorityQueueConfig.buildWithPriorityQueueType(
+                                EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB),
+                        ttlTimeProvider,
                         LatencyTrackingStateConfig.disabled(),
                         new UnregisteredMetricsGroup(),
+                        (key, value) -> {},
                         Collections.emptyList(),
                         AbstractStateBackend.getCompressionDecorator(executionConfig),
                         new CloseableRegistry());
@@ -187,8 +205,8 @@ public class StateBackendBenchmarkUtils {
         }
     }
 
-    private static HeapKeyedStateBackend<Long> createHeapKeyedStateBackend(File rootDir)
-            throws IOException {
+    private static HeapKeyedStateBackend<Long> createHeapKeyedStateBackend(
+            File rootDir, TtlTimeProvider ttlTimeProvider) throws IOException {
         File recoveryBaseDir = prepareDirectory(recoveryDirName, rootDir);
         KeyGroupRange keyGroupRange = new KeyGroupRange(0, 1);
         int numberOfKeyGroups = keyGroupRange.getNumberOfKeyGroups();
@@ -203,18 +221,18 @@ public class StateBackendBenchmarkUtils {
                         numberOfKeyGroups,
                         keyGroupRange,
                         executionConfig,
-                        TtlTimeProvider.DEFAULT,
+                        ttlTimeProvider,
                         LatencyTrackingStateConfig.disabled(),
                         Collections.emptyList(),
                         AbstractStateBackend.getCompressionDecorator(executionConfig),
-                        new LocalRecoveryConfig(null),
+                        LocalRecoveryConfig.BACKUP_AND_RECOVERY_DISABLED,
                         priorityQueueSetFactory,
                         false,
                         new CloseableRegistry());
         return backendBuilder.build();
     }
 
-    private static File prepareDirectory(String prefix, File parentDir) throws IOException {
+    public static File prepareDirectory(String prefix, File parentDir) throws IOException {
         File target = File.createTempFile(prefix, "", parentDir);
         if (target.exists() && !target.delete()) {
             throw new IOException(

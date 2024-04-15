@@ -21,26 +21,25 @@ package org.apache.flink.streaming.api.operators.source;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.Matchers.contains;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for the {@link WatermarkToDataOutput}. */
-public class WatermarkToDataOutputTest {
+class WatermarkToDataOutputTest {
 
     @Test
-    public void testInitialZeroWatermark() {
+    void testInitialZeroWatermark() {
         final CollectingDataOutput<Object> testingOutput = new CollectingDataOutput<>();
         final WatermarkToDataOutput wmOutput = new WatermarkToDataOutput(testingOutput);
 
         wmOutput.emitWatermark(new org.apache.flink.api.common.eventtime.Watermark(0L));
 
-        assertThat(testingOutput.events, contains(new Watermark(0L)));
+        assertThat(testingOutput.events).contains(new Watermark(0L));
     }
 
     @Test
-    public void testWatermarksDoNotRegress() {
+    void testWatermarksDoNotRegress() {
         final CollectingDataOutput<Object> testingOutput = new CollectingDataOutput<>();
         final WatermarkToDataOutput wmOutput = new WatermarkToDataOutput(testingOutput);
 
@@ -51,21 +50,19 @@ public class WatermarkToDataOutputTest {
         wmOutput.emitWatermark(new org.apache.flink.api.common.eventtime.Watermark(17L));
         wmOutput.emitWatermark(new org.apache.flink.api.common.eventtime.Watermark(18L));
 
-        assertThat(
-                testingOutput.events,
-                contains(new Watermark(12L), new Watermark(17L), new Watermark(18L)));
+        assertThat(testingOutput.events)
+                .contains(new Watermark(12L), new Watermark(17L), new Watermark(18L));
     }
 
     @Test
-    public void becomingActiveEmitsStatus() {
+    void becomingActiveEmitsStatus() {
         final CollectingDataOutput<Object> testingOutput = new CollectingDataOutput<>();
         final WatermarkToDataOutput wmOutput = new WatermarkToDataOutput(testingOutput);
 
         wmOutput.markIdle();
         wmOutput.emitWatermark(new org.apache.flink.api.common.eventtime.Watermark(100L));
 
-        assertThat(
-                testingOutput.events,
-                contains(WatermarkStatus.IDLE, WatermarkStatus.ACTIVE, new Watermark(100L)));
+        assertThat(testingOutput.events)
+                .contains(WatermarkStatus.IDLE, WatermarkStatus.ACTIVE, new Watermark(100L));
     }
 }

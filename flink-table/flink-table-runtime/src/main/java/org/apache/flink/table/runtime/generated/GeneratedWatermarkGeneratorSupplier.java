@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.watermark.WatermarkEmitStrategy;
 import org.apache.flink.table.watermark.WatermarkParams;
@@ -69,7 +69,7 @@ public class GeneratedWatermarkGeneratorSupplier implements WatermarkGeneratorSu
                         .newInstance(Thread.currentThread().getContextClassLoader());
 
         try {
-            innerWatermarkGenerator.open(new Configuration());
+            innerWatermarkGenerator.open(DefaultOpenContext.INSTANCE);
         } catch (Exception e) {
             throw new RuntimeException("Fail to instantiate generated watermark generator.", e);
         }

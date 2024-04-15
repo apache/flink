@@ -18,6 +18,7 @@
 package org.apache.flink.api.scala.runtime
 
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
@@ -151,7 +152,7 @@ class TraversableSerializerTest {
 
   final private def runTests[T: TypeInformation](instances: Array[T]) {
     val typeInfo = implicitly[TypeInformation[T]]
-    val serializer = typeInfo.createSerializer(new ExecutionConfig)
+    val serializer = typeInfo.createSerializer(new SerializerConfigImpl)
     val typeClass = typeInfo.getTypeClass
     val test = new TraversableSerializerTestInstance[T](serializer, typeClass, -1, instances)
     test.testAll()

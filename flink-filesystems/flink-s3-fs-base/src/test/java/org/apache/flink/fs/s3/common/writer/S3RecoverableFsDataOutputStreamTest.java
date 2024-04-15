@@ -254,6 +254,16 @@ public class S3RecoverableFsDataOutputStreamTest {
         streamUnderTest.closeForCommit().commit();
     }
 
+    @Test(expected = Exception.class)
+    public void testSync() throws IOException {
+        streamUnderTest.write(bytesOf("hello"));
+        streamUnderTest.write(bytesOf(" world"));
+        streamUnderTest.sync();
+        assertThat(multipartUploadUnderTest, hasContent(bytesOf("hello world")));
+        streamUnderTest.write(randomBuffer(RefCountedBufferingFileStream.BUFFER_SIZE + 1));
+        assertThat(multipartUploadUnderTest, hasContent(bytesOf("hello world")));
+    }
+
     // ------------------------------------------------------------------------------------------------------------
     // Utils
     // ------------------------------------------------------------------------------------------------------------

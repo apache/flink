@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -30,6 +31,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /** Alter table with new table definition and table changes represents the modification. */
+@Internal
 public class AlterTableChangeOperation extends AlterTableOperation {
 
     private final List<TableChange> tableChanges;

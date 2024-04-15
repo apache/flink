@@ -20,13 +20,13 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 import org.apache.flink.table.api.ExplainDetail
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Tests for [[WatermarkAssignerChangelogNormalizeTransposeRule]] */
 class WatermarkAssignerChangelogNormalizeTransposeRuleTest extends TableTestBase {
   private val util: StreamTableTestUtil = streamTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     util.addTable(s"""
                      |CREATE TABLE simple_src (

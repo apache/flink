@@ -20,6 +20,8 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalCalc
+import org.apache.flink.table.planner.plan.utils.AsyncUtil
+import org.apache.flink.table.planner.plan.utils.AsyncUtil.containsAsyncCall
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
@@ -35,7 +37,8 @@ class StreamPhysicalCalcRule(config: Config) extends ConverterRule(config) {
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0)
     val program = calc.getProgram
-    !program.getExprList.asScala.exists(containsPythonCall(_))
+    !program.getExprList.asScala.exists(containsPythonCall(_)) &&
+    !program.getExprList.asScala.exists(containsAsyncCall)
   }
 
   def convert(rel: RelNode): RelNode = {

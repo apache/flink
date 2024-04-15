@@ -100,7 +100,7 @@ public class StateChangelogStorageTest<T extends ChangelogStateHandle> {
                 writer.nextSequenceNumber();
             }
 
-            SnapshotResult<T> res = writer.persist(prev).get();
+            SnapshotResult<T> res = writer.persist(prev, 1).get();
             T jmHandle = res.getJobManagerOwnedSnapshot();
             StateChangelogHandleReader<T> reader = client.createReader();
             assertByteMapsEqual(appendsByKeyGroup, extract(jmHandle, reader));
@@ -117,8 +117,8 @@ public class StateChangelogStorageTest<T extends ChangelogStateHandle> {
             while (ite.hasNext() && ale.hasNext()) {
                 assertThat(ale.next()).isEqualTo(ite.next());
             }
-            assertThat(ite.hasNext()).isFalse();
-            assertThat(ale.hasNext()).isFalse();
+            assertThat(ite).isExhausted();
+            assertThat(ale).isExhausted();
         }
     }
 

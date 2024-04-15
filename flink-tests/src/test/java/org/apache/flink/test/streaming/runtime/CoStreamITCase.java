@@ -48,7 +48,7 @@ public class CoStreamITCase extends AbstractTestBase {
 
         TestListResultSink<String> resultSink = new TestListResultSink<String>();
 
-        DataStream<Integer> src = env.fromElements(1, 3, 5);
+        DataStream<Integer> src = env.fromData(1, 3, 5);
 
         DataStream<Integer> filter1 =
                 src.filter(

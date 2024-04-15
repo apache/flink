@@ -37,7 +37,7 @@ public class CsvOutputFormatITCase extends AbstractTestBase {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<String> text = env.fromElements(WordCountData.TEXT);
+        DataStream<String> text = env.fromData(WordCountData.TEXT);
 
         DataStream<Tuple2<String, Integer>> counts = text.flatMap(new Tokenizer()).keyBy(0).sum(1);
 

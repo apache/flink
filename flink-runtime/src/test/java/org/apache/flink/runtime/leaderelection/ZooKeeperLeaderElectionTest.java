@@ -97,7 +97,7 @@ class ZooKeeperLeaderElectionTest {
     private Configuration configuration;
 
     private static final String COMPONENT_ID = "component-id";
-    private static final String LEADER_ADDRESS = "akka//user/jobmanager";
+    private static final String LEADER_ADDRESS = "pekko://user/jobmanager";
     private static final long timeout = 200L * 1000L;
 
     private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperLeaderElectionTest.class);
@@ -106,10 +106,10 @@ class ZooKeeperLeaderElectionTest {
     void before() {
         configuration = new Configuration();
 
-        configuration.setString(
+        configuration.set(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
                 zooKeeperResource.getCustomExtension().getConnectString());
-        configuration.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
+        configuration.set(HighAvailabilityOptions.HA_MODE, "zookeeper");
     }
 
     /** Tests that the ZooKeeperLeaderElection/RetrievalService return both the correct URL. */

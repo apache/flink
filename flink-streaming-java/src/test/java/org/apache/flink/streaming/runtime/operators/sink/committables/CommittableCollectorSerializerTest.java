@@ -22,6 +22,8 @@ import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
+import org.apache.flink.runtime.metrics.groups.MetricsGroupTestUtils;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 import org.apache.flink.streaming.api.connector.sink2.IntegerSerializer;
@@ -48,9 +50,11 @@ class CommittableCollectorSerializerTest {
             new IntegerSerializer();
     private static final int SUBTASK_ID = 1;
     private static final int NUMBER_OF_SUBTASKS = 1;
+    private static final SinkCommitterMetricGroup METRIC_GROUP =
+            MetricsGroupTestUtils.mockCommitterMetricGroup();
     private static final CommittableCollectorSerializer<Integer> SERIALIZER =
             new CommittableCollectorSerializer<>(
-                    COMMITTABLE_SERIALIZER, SUBTASK_ID, NUMBER_OF_SUBTASKS);
+                    COMMITTABLE_SERIALIZER, SUBTASK_ID, NUMBER_OF_SUBTASKS, METRIC_GROUP);
 
     @Test
     void testCommittableCollectorV1SerDe() throws IOException {
@@ -85,10 +89,10 @@ class CommittableCollectorSerializerTest {
 
         final CommittableCollectorSerializer<Integer> ccSerializer =
                 new CommittableCollectorSerializer<>(
-                        COMMITTABLE_SERIALIZER, subtaskId, numberOfSubtasks);
+                        COMMITTABLE_SERIALIZER, subtaskId, numberOfSubtasks, METRIC_GROUP);
 
         final CommittableCollector<Integer> committableCollector =
-                new CommittableCollector<>(subtaskId, numberOfSubtasks);
+                new CommittableCollector<>(subtaskId, numberOfSubtasks, METRIC_GROUP);
         committableCollector.addMessage(
                 new CommittableSummary<>(subtaskId, numberOfSubtasks, 1L, 1, 1, 0));
         committableCollector.addMessage(
@@ -122,17 +126,17 @@ class CommittableCollectorSerializerTest {
     }
 
     @Test
-    public void testCommittablesForSameSubtaskIdV2SerDe() throws IOException {
+    void testCommittablesForSameSubtaskIdV2SerDe() throws IOException {
 
         int subtaskId = 1;
         int numberOfSubtasks = 3;
 
         final CommittableCollectorSerializer<Integer> ccSerializer =
                 new CommittableCollectorSerializer<>(
-                        COMMITTABLE_SERIALIZER, subtaskId, numberOfSubtasks);
+                        COMMITTABLE_SERIALIZER, subtaskId, numberOfSubtasks, METRIC_GROUP);
 
         final CommittableCollector<Integer> committableCollector =
-                new CommittableCollector<>(subtaskId, numberOfSubtasks);
+                new CommittableCollector<>(subtaskId, numberOfSubtasks, METRIC_GROUP);
         committableCollector.addMessage(
                 new CommittableSummary<>(subtaskId, numberOfSubtasks, 1L, 1, 1, 0));
         committableCollector.addMessage(
@@ -172,7 +176,7 @@ class CommittableCollectorSerializerTest {
         // Sink.InitContext#INITIAL_CHECKPOINT_ID
         long checkpointId = Sink.InitContext.INITIAL_CHECKPOINT_ID + 1;
         final CommittableCollector<Integer> committableCollector =
-                new CommittableCollector<>(SUBTASK_ID, NUMBER_OF_SUBTASKS);
+                new CommittableCollector<>(SUBTASK_ID, NUMBER_OF_SUBTASKS, METRIC_GROUP);
         committableCollector.addMessage(
                 new CommittableSummary<>(SUBTASK_ID, NUMBER_OF_SUBTASKS, checkpointId, 1, 1, 0));
         committableCollector.addMessage(new CommittableWithLineage<>(1, checkpointId, SUBTASK_ID));

@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-test-utils-parent</artifactId>
-		<version>1.18-SNAPSHOT</version>
+		<version>1.20-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-clients-test-utils</artifactId>
@@ -91,6 +91,26 @@ under the License.
 							<finalName>test-user-classloader-job-lib-jar</finalName>
 							<shadedArtifactAttached>true</shadedArtifactAttached>
 							<shadedClassifierName>job-lib-jar</shadedClassifierName>
+						</configuration>
+					</execution>
+					<execution>
+						<id>test-user-classloader-no-main-jar</id>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<filters>
+								<filter>
+									<artifact>*</artifact>
+									<includes>
+										<include>**/TestUserClassLoaderAdditionalArtifact.*</include>
+										<include>META-INF/**</include>
+									</includes>
+								</filter>
+							</filters>
+							<finalName>test-user-classloader-additional-artifact-jar</finalName>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<shadedClassifierName>additional-artifact-jar</shadedClassifierName>
 						</configuration>
 					</execution>
 				</executions>

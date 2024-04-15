@@ -467,7 +467,7 @@
         "savepointPath" : {
           "type" : "string"
         },
-        "restoreMode" : {
+        "claimMode" : {
           "type" : "string",
           "enum" : [ "CLAIM", "NO_CLAIM", "LEGACY" ]
         },
@@ -476,6 +476,10 @@
           "additionalProperties" : {
             "type" : "string"
           }
+        },
+        "restoreMode" : {
+          "type" : "string",
+          "enum" : [ "CLAIM", "NO_CLAIM", "LEGACY" ]
         }
       }
     },
@@ -893,6 +897,9 @@
             "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobDetailsInfo:JobVertexDetailsInfo",
             "properties" : {
               "id" : {
+                "type" : "any"
+              },
+              "slotSharingGroupId" : {
                 "type" : "any"
               },
               "name" : {
@@ -1971,6 +1978,9 @@
               "location" : {
                 "type" : "string"
               },
+              "endpoint" : {
+                "type" : "string"
+              },
               "timestamp" : {
                 "type" : "integer"
               },
@@ -2014,6 +2024,9 @@
                   "location" : {
                     "type" : "string"
                   },
+                  "endpoint" : {
+                    "type" : "string"
+                  },
                   "taskManagerId" : {
                     "type" : "string"
                   },
@@ -2042,6 +2055,9 @@
                           "type" : "string"
                         },
                         "location" : {
+                          "type" : "string"
+                        },
+                        "endpoint" : {
                           "type" : "string"
                         },
                         "taskManagerId" : {
@@ -2598,6 +2614,9 @@
               "host" : {
                 "type" : "string"
               },
+              "endpoint" : {
+                "type" : "string"
+              },
               "start-time" : {
                 "type" : "integer"
               },
@@ -2941,6 +2960,9 @@
               "host" : {
                 "type" : "string"
               },
+              "endpoint" : {
+                "type" : "string"
+              },
               "user-accumulators" : {
                 "type" : "array",
                 "items" : {
@@ -3031,6 +3053,9 @@
           "type" : "integer"
         },
         "host" : {
+          "type" : "string"
+        },
+        "endpoint" : {
           "type" : "string"
         },
         "start-time" : {
@@ -3140,6 +3165,9 @@
           "type" : "integer"
         },
         "host" : {
+          "type" : "string"
+        },
+        "endpoint" : {
           "type" : "string"
         },
         "start-time" : {
@@ -3338,6 +3366,9 @@
               "host" : {
                 "type" : "string"
               },
+              "endpoint" : {
+                "type" : "string"
+              },
               "duration" : {
                 "type" : "integer"
               },
@@ -3391,6 +3422,9 @@
             "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexTaskManagersInfo:TaskManagersInfo",
             "properties" : {
               "host" : {
+                "type" : "string"
+              },
+              "endpoint" : {
                 "type" : "string"
               },
               "status" : {

@@ -18,6 +18,10 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+
+import org.junit.jupiter.api.extension.ExtendWith;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -27,7 +31,8 @@ import java.util.List;
  * Tests that the {@link JobExceptionsInfoWithHistory} with no root exception can be marshalled and
  * unmarshalled.
  */
-public class JobExceptionsInfoWithHistoryNoRootTest
+@ExtendWith(NoOpTestExtension.class)
+class JobExceptionsInfoWithHistoryNoRootTest
         extends RestResponseMarshallingTestBase<JobExceptionsInfoWithHistory> {
     @Override
     protected Class<JobExceptionsInfoWithHistory> getTestResponseClass() {
@@ -72,6 +77,7 @@ public class JobExceptionsInfoWithHistoryNoRootTest
                                                         Collections.emptyMap(),
                                                         "task name #2",
                                                         "location #2",
+                                                        "location #2",
                                                         "taskManagerId #2"))),
                                 new JobExceptionsInfoWithHistory.RootExceptionInfo(
                                         "local task failure #1",
@@ -79,6 +85,7 @@ public class JobExceptionsInfoWithHistoryNoRootTest
                                         1L,
                                         Collections.emptyMap(),
                                         "task name",
+                                        "location",
                                         "location",
                                         "taskManagerId",
                                         Collections.emptyList())),

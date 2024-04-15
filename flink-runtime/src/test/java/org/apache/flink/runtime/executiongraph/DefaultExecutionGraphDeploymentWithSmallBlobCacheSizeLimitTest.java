@@ -43,6 +43,7 @@ import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
+import org.apache.flink.runtime.util.NoOpGroupCache;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.function.FunctionUtils;
 
@@ -74,7 +75,7 @@ class DefaultExecutionGraphDeploymentWithSmallBlobCacheSizeLimitTest
         Configuration config = new Configuration();
         // Always offload the serialized JobInformation, TaskInformation and cached
         // ShuffleDescriptors
-        config.setInteger(BlobServerOptions.OFFLOAD_MINSIZE, 0);
+        config.set(BlobServerOptions.OFFLOAD_MINSIZE, 0);
         blobServer =
                 new BlobServer(
                         config, TempDirUtils.newFolder(temporaryFolder), new VoidBlobStore());
@@ -119,7 +120,11 @@ class DefaultExecutionGraphDeploymentWithSmallBlobCacheSizeLimitTest
         taskManagerGateway.setSubmitConsumer(
                 FunctionUtils.uncheckedConsumer(
                         taskDeploymentDescriptor -> {
-                            taskDeploymentDescriptor.loadBigData(blobCache);
+                            taskDeploymentDescriptor.loadBigData(
+                                    blobCache,
+                                    new NoOpGroupCache<>(),
+                                    new NoOpGroupCache<>(),
+                                    new NoOpGroupCache<>());
                             tdds.offer(taskDeploymentDescriptor);
                         }));
 

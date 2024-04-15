@@ -169,7 +169,7 @@ class ArchivedExecutionGraphTestUtils {
             Map<String, SerializedValue<OptionalFailure<Object>>> runtimeAccs,
             Map<String, SerializedValue<OptionalFailure<Object>>> archivedAccs)
             throws IOException, ClassNotFoundException {
-        assertThat(runtimeAccs.size()).isEqualTo(archivedAccs.size());
+        assertThat(runtimeAccs).hasSameSizeAs(archivedAccs);
         for (Entry<String, SerializedValue<OptionalFailure<Object>>> runtimeAcc :
                 runtimeAccs.entrySet()) {
             long runtimeUserAcc =

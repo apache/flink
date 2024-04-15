@@ -22,24 +22,23 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link MultipleJobsDetails} class. */
-public class MultipleJobsDetailsTest extends TestLogger {
+class MultipleJobsDetailsTest {
 
     /** Tests that we can un/marshal {@link MultipleJobsDetails} objects. */
     @Test
-    public void testMultipleJobsDetailsMarshalling() throws JsonProcessingException {
+    void testMultipleJobsDetailsMarshalling() throws JsonProcessingException {
         int[] verticesPerState = new int[ExecutionState.values().length];
 
         for (int i = 0; i < verticesPerState.length; i++) {
@@ -80,6 +79,6 @@ public class MultipleJobsDetailsTest extends TestLogger {
         final MultipleJobsDetails unmarshalled =
                 objectMapper.treeToValue(marshalled, MultipleJobsDetails.class);
 
-        assertEquals(expected, unmarshalled);
+        assertThat(unmarshalled).isEqualTo(expected);
     }
 }

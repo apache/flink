@@ -23,31 +23,29 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ListCheckpointed}. */
-public class ListCheckpointedTest {
+class ListCheckpointedTest {
 
     @Test
-    public void testUDFReturningNull() throws Exception {
+    void testUDFReturningNull() throws Exception {
         testUDF(new TestUserFunction(null));
     }
 
     @Test
-    public void testUDFReturningEmpty() throws Exception {
+    void testUDFReturningEmpty() throws Exception {
         testUDF(new TestUserFunction(Collections.<Integer>emptyList()));
     }
 
     @Test
-    public void testUDFReturningData() throws Exception {
+    void testUDFReturningData() throws Exception {
         testUDF(new TestUserFunction(Arrays.asList(1, 2, 3)));
     }
 
@@ -57,13 +55,13 @@ public class ListCheckpointedTest {
                 createTestHarness(userFunction)) {
             testHarness.open();
             snapshot = testHarness.snapshot(0L, 0L);
-            assertFalse(userFunction.isRestored());
+            assertThat(userFunction.isRestored()).isFalse();
         }
         try (AbstractStreamOperatorTestHarness<Integer> testHarness =
                 createTestHarness(userFunction)) {
             testHarness.initializeState(snapshot);
             testHarness.open();
-            assertTrue(userFunction.isRestored());
+            assertThat(userFunction.isRestored()).isTrue();
         }
     }
 
@@ -98,9 +96,9 @@ public class ListCheckpointedTest {
         @Override
         public void restoreState(List<Integer> state) throws Exception {
             if (null != expected) {
-                Assert.assertEquals(expected, state);
+                assertThat(state).isEqualTo(expected);
             } else {
-                assertTrue(state.isEmpty());
+                assertThat(state).isEmpty();
             }
             restored = true;
         }

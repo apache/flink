@@ -20,7 +20,11 @@ package org.apache.flink.table.planner.utils
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
+import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.inference.{TypeInference, TypeStrategies}
 
 import java.lang.{Iterable => JIterable}
 import java.math.BigDecimal
@@ -72,41 +76,50 @@ abstract class SumAggFunction[T: Numeric] extends AggregateFunction[T, SumAccumu
     }
   }
 
-  override def getAccumulatorType: TypeInformation[SumAccumulator[T]] = {
-    new TupleTypeInfo(classOf[SumAccumulator[T]], getValueTypeInfo, BasicTypeInfo.BOOLEAN_TYPE_INFO)
+  override def getTypeInference(typeFactory: DataTypeFactory): TypeInference = {
+    TypeInference.newBuilder
+      .typedArguments(getValueDataType)
+      .accumulatorTypeStrategy(
+        TypeStrategies.explicit(
+          DataTypes.STRUCTURED(
+            classOf[SumAccumulator[_]],
+            DataTypes.FIELD("f0", getValueDataType),
+            DataTypes.FIELD("f1", DataTypes.BOOLEAN()))))
+      .outputTypeStrategy(TypeStrategies.explicit(getValueDataType))
+      .build
   }
 
-  def getValueTypeInfo: TypeInformation[_]
+  def getValueDataType: DataType
 }
 
 /** Built-in Byte Sum aggregate function */
 class ByteSumAggFunction extends SumAggFunction[Byte] {
-  override def getValueTypeInfo = BasicTypeInfo.BYTE_TYPE_INFO
+  override def getValueDataType: DataType = DataTypes.BOOLEAN()
 }
 
 /** Built-in Short Sum aggregate function */
 class ShortSumAggFunction extends SumAggFunction[Short] {
-  override def getValueTypeInfo = BasicTypeInfo.SHORT_TYPE_INFO
+  override def getValueDataType: DataType = DataTypes.SMALLINT()
 }
 
 /** Built-in Int Sum aggregate function */
 class IntSumAggFunction extends SumAggFunction[Int] {
-  override def getValueTypeInfo = BasicTypeInfo.INT_TYPE_INFO
+  override def getValueDataType: DataType = DataTypes.INT()
 }
 
 /** Built-in Long Sum aggregate function */
 class LongSumAggFunction extends SumAggFunction[Long] {
-  override def getValueTypeInfo = BasicTypeInfo.LONG_TYPE_INFO
+  override def getValueDataType: DataType = DataTypes.BIGINT()
 }
 
 /** Built-in Float Sum aggregate function */
 class FloatSumAggFunction extends SumAggFunction[Float] {
-  override def getValueTypeInfo = BasicTypeInfo.FLOAT_TYPE_INFO
+  override def getValueDataType: DataType = DataTypes.FLOAT()
 }
 
 /** Built-in Double Sum aggregate function */
 class DoubleSumAggFunction extends SumAggFunction[Double] {
-  override def getValueTypeInfo = BasicTypeInfo.DOUBLE_TYPE_INFO
+  override def getValueDataType: DataType = DataTypes.DOUBLE()
 }
 
 /** The initial accumulator for Big Decimal Sum aggregate function */

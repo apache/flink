@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
@@ -30,6 +31,7 @@ import org.apache.flink.table.operations.OperationUtils;
 import java.util.List;
 
 /** Operation to describe ALTER TABLE DROP PARTITION statement. */
+@Internal
 public class DropPartitionsOperation extends AlterTableOperation {
 
     private final boolean ignoreIfPartitionNotExists;

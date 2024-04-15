@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -30,6 +31,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /** Operation to describe a CREATE TABLE statement. */
+@Internal
 public class CreateTableOperation implements CreateOperation {
     private final ObjectIdentifier tableIdentifier;
     private final CatalogTable catalogTable;

@@ -21,10 +21,10 @@ import org.apache.flink.table.planner.analyze.{FlinkStreamPlanAnalyzers, PlanAdv
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
+import org.apache.flink.table.planner.plan.nodes.physical.stream._
 
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.core.{Correlate, Join, TableScan}
+import org.apache.calcite.rel.core.{Aggregate, Correlate, Join, TableScan}
 import org.apache.calcite.rel.externalize.RelWriterImpl
 import org.apache.calcite.rel.hint.Hintable
 import org.apache.calcite.sql.SqlExplainLevel
@@ -45,7 +45,7 @@ class RelTreeWriterImpl(
     withRowType: Boolean = false,
     withTreeStyle: Boolean = true,
     withUpsertKey: Boolean = false,
-    withJoinHint: Boolean = true,
+    withQueryHint: Boolean = true,
     withQueryBlockAlias: Boolean = false,
     statementNum: Integer = 1,
     withAdvice: Boolean = false)
@@ -138,12 +138,27 @@ class RelTreeWriterImpl(
       case _ => // ignore
     }
 
-    if (withJoinHint) {
+    if (withQueryHint) {
       rel match {
         case _: Join | _: Correlate =>
           val joinHints = FlinkHints.getAllJoinHints(rel.asInstanceOf[Hintable].getHints)
           if (joinHints.nonEmpty) {
             printValues.add(Pair.of("joinHints", RelExplainUtil.hintsToString(joinHints)))
+          }
+          val stateTtlHints = FlinkHints.getAllStateTtlHints(rel.asInstanceOf[Hintable].getHints)
+          if (stateTtlHints.nonEmpty) {
+            printValues.add(Pair.of("stateTtlHints", RelExplainUtil.hintsToString(stateTtlHints)))
+          }
+
+        case _: Aggregate | _: StreamPhysicalGroupAggregateBase =>
+          val aggHints =
+            rel match {
+              case aggregate: Aggregate => aggregate.getHints
+              case _ => rel.asInstanceOf[StreamPhysicalGroupAggregateBase].hints
+            }
+          val stateTtlHints = FlinkHints.getAllStateTtlHints(aggHints)
+          if (stateTtlHints.nonEmpty) {
+            printValues.add(Pair.of("stateTtlHints", RelExplainUtil.hintsToString(stateTtlHints)))
           }
         case _ => // ignore
       }

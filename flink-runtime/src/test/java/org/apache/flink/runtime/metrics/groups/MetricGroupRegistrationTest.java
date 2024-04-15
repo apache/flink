@@ -30,20 +30,18 @@ import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.util.TestReporter;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the registration of groups and metrics on a {@link MetricGroup}. */
-public class MetricGroupRegistrationTest extends TestLogger {
+class MetricGroupRegistrationTest {
     /** Verifies that group methods instantiate the correct metric with the given name. */
     @Test
-    public void testMetricInstantiation() throws Exception {
+    void testMetricInstantiation() throws Exception {
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
@@ -55,8 +53,8 @@ public class MetricGroupRegistrationTest extends TestLogger {
                         registry, "host", new ResourceID("id"));
 
         Counter counter = root.counter("counter");
-        assertEquals(counter, TestReporter1.lastPassedMetric);
-        assertEquals("counter", TestReporter1.lastPassedName);
+        assertThat(TestReporter1.lastPassedMetric).isEqualTo(counter);
+        assertThat(TestReporter1.lastPassedName).isEqualTo("counter");
 
         Gauge<Object> gauge =
                 root.gauge(
@@ -68,8 +66,8 @@ public class MetricGroupRegistrationTest extends TestLogger {
                             }
                         });
 
-        Assert.assertEquals(gauge, TestReporter1.lastPassedMetric);
-        assertEquals("gauge", TestReporter1.lastPassedName);
+        assertThat(TestReporter1.lastPassedMetric).isEqualTo(gauge);
+        assertThat(TestReporter1.lastPassedName).isEqualTo("gauge");
 
         Histogram histogram =
                 root.histogram(
@@ -89,8 +87,8 @@ public class MetricGroupRegistrationTest extends TestLogger {
                             }
                         });
 
-        Assert.assertEquals(histogram, TestReporter1.lastPassedMetric);
-        assertEquals("histogram", TestReporter1.lastPassedName);
+        assertThat(TestReporter1.lastPassedMetric).isEqualTo(histogram);
+        assertThat(TestReporter1.lastPassedName).isEqualTo("histogram");
         registry.closeAsync().get();
     }
 
@@ -112,7 +110,7 @@ public class MetricGroupRegistrationTest extends TestLogger {
      * one will be returned instead.
      */
     @Test
-    public void testDuplicateGroupName() throws Exception {
+    void testDuplicateGroupName() throws Exception {
         Configuration config = new Configuration();
 
         MetricRegistryImpl registry =
@@ -125,7 +123,7 @@ public class MetricGroupRegistrationTest extends TestLogger {
         MetricGroup group1 = root.addGroup("group");
         MetricGroup group2 = root.addGroup("group");
         MetricGroup group3 = root.addGroup("group");
-        Assert.assertTrue(group1 == group2 && group2 == group3);
+        assertThat(group1 == group2 && group2 == group3).isTrue();
 
         registry.closeAsync().get();
     }

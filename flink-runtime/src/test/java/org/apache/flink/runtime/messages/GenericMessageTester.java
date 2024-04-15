@@ -29,9 +29,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 public class GenericMessageTester {
 
@@ -39,25 +38,25 @@ public class GenericMessageTester {
         Serializable copy = CommonTestUtils.createCopySerializable(instance);
 
         // test equals, hash code, toString
-        assertTrue(instance.equals(copy));
-        assertTrue(copy.equals(instance));
-        assertTrue(instance.hashCode() == copy.hashCode());
-        assertTrue(instance.toString().equals(copy.toString()));
+        assertThat(instance).isEqualTo(copy);
+        assertThat(copy).isEqualTo(instance);
+        assertThat(instance).hasSameHashCodeAs(copy);
+        assertThat(instance).hasToString(copy.toString());
     }
 
     public static void testMessageInstances(Serializable instance1, Serializable instance2)
             throws Exception {
         // test equals, hash code, toString
-        assertTrue(instance1.equals(instance2));
-        assertTrue(instance2.equals(instance1));
-        assertTrue(instance1.hashCode() == instance2.hashCode());
-        assertTrue(instance1.toString().equals(instance2.toString()));
+        assertThat(instance1).isEqualTo(instance2);
+        assertThat(instance2).isEqualTo(instance1);
+        assertThat(instance1).hasSameHashCodeAs(instance2);
+        assertThat(instance1).hasToString(instance2.toString());
 
         // test serializability
         Serializable copy = CommonTestUtils.createCopySerializable(instance1);
-        assertTrue(instance1.equals(copy));
-        assertTrue(copy.equals(instance1));
-        assertTrue(instance1.hashCode() == copy.hashCode());
+        assertThat(instance1).isEqualTo(copy);
+        assertThat(copy).isEqualTo(instance1);
+        assertThat(instance1).hasSameHashCodeAs(copy);
     }
 
     // ------------------------------------------------------------------------
@@ -75,7 +74,7 @@ public class GenericMessageTester {
                         (Class<?>)
                                 ((ParameterizedType) inst.getClass().getGenericInterfaces()[0])
                                         .getActualTypeArguments()[0];
-                assertNotNull("Cannot get type for extra instantiator", type);
+                assertThat(type).as("Cannot get type for extra instantiator").isNotNull();
                 extraInsts.put(type, inst);
             }
 
@@ -174,7 +173,7 @@ public class GenericMessageTester {
     //  Instantiators
     // ------------------------------------------------------------------------
 
-    public static interface Instantiator<T> {
+    public interface Instantiator<T> {
 
         T instantiate(Random rnd);
     }

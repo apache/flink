@@ -69,6 +69,7 @@ abstract class AggTestBase(isBatchMode: Boolean) {
     val call = mock(classOf[AggregateCall])
     when(aggInfo.agg).thenReturn(call)
     when(call.getName).thenReturn("avg1")
+    when(call.hasFilter).thenReturn(false)
     when(aggInfo.function).thenReturn(new LongAvgAggFunction)
     when(aggInfo.externalArgTypes).thenReturn(Array(DataTypes.BIGINT))
     when(aggInfo.externalAccTypes).thenReturn(Array(DataTypes.BIGINT, DataTypes.BIGINT))
@@ -83,6 +84,7 @@ abstract class AggTestBase(isBatchMode: Boolean) {
     val call = mock(classOf[AggregateCall])
     when(aggInfo.agg).thenReturn(call)
     when(call.getName).thenReturn("avg2")
+    when(call.hasFilter).thenReturn(false)
     when(aggInfo.function).thenReturn(new DoubleAvgAggFunction)
     when(aggInfo.externalArgTypes).thenReturn(Array(DataTypes.DOUBLE()))
     when(aggInfo.externalAccTypes).thenReturn(Array(DataTypes.DOUBLE, DataTypes.BIGINT))
@@ -98,6 +100,7 @@ abstract class AggTestBase(isBatchMode: Boolean) {
     val call = mock(classOf[AggregateCall])
     when(aggInfo.agg).thenReturn(call)
     when(call.getName).thenReturn("avg3")
+    when(call.hasFilter).thenReturn(false)
     when(aggInfo.function).thenReturn(imperativeAggFunc)
     when(aggInfo.externalArgTypes).thenReturn(Array(DataTypes.BIGINT()))
     when(aggInfo.externalAccTypes).thenReturn(

@@ -23,18 +23,19 @@ import org.apache.flink.api.common.ExecutionConfigTest;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for configuring {@link StreamExecutionEnvironment} via {@link
@@ -42,11 +43,11 @@ import static org.junit.Assert.assertThat;
  *
  * @see StreamExecutionEnvironmentComplexConfigurationTest
  */
-@RunWith(Parameterized.class)
-public class StreamExecutionEnvironmentConfigurationTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class StreamExecutionEnvironmentConfigurationTest {
 
-    @Parameterized.Parameters(name = "{0}")
-    public static Collection<TestSpec> specs() {
+    @Parameters(name = "{0}")
+    private static Collection<TestSpec> specs() {
         return Arrays.asList(
                 TestSpec.testValue(TimeCharacteristic.IngestionTime)
                         .whenSetFromFile("pipeline.time-characteristic", "IngestionTime")
@@ -83,10 +84,10 @@ public class StreamExecutionEnvironmentConfigurationTest {
                         .nonDefaultValue(100L));
     }
 
-    @Parameterized.Parameter public TestSpec spec;
+    @Parameter private TestSpec spec;
 
-    @Test
-    public void testLoadingFromConfiguration() {
+    @TestTemplate
+    void testLoadingFromConfiguration() {
         StreamExecutionEnvironment configFromSetters =
                 StreamExecutionEnvironment.getExecutionEnvironment();
         StreamExecutionEnvironment configFromFile =
@@ -100,8 +101,8 @@ public class StreamExecutionEnvironmentConfigurationTest {
         spec.assertEqual(configFromFile, configFromSetters);
     }
 
-    @Test
-    public void testNotOverridingIfNotSet() {
+    @TestTemplate
+    void testNotOverridingIfNotSet() {
         StreamExecutionEnvironment environment =
                 StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -160,11 +161,11 @@ public class StreamExecutionEnvironmentConfigurationTest {
         public void assertEqual(
                 StreamExecutionEnvironment configFromFile,
                 StreamExecutionEnvironment configFromSetters) {
-            assertThat(getter.apply(configFromFile), equalTo(getter.apply(configFromSetters)));
+            assertThat(getter.apply(configFromFile)).isEqualTo(getter.apply(configFromSetters));
         }
 
         public void assertEqualNonDefault(StreamExecutionEnvironment configFromFile) {
-            assertThat(getter.apply(configFromFile), equalTo(nonDefaultValue));
+            assertThat(getter.apply(configFromFile)).isEqualTo(nonDefaultValue);
         }
 
         @Override

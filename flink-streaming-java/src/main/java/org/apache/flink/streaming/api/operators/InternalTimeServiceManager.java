@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
@@ -73,6 +74,7 @@ public interface InternalTimeServiceManager<K> {
     @FunctionalInterface
     interface Provider extends Serializable {
         <K> InternalTimeServiceManager<K> create(
+                TaskIOMetricGroup taskIOMetricGroup,
                 CheckpointableKeyedStateBackend<K> keyedStatedBackend,
                 ClassLoader userClassloader,
                 KeyContext keyContext,

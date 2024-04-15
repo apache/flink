@@ -30,6 +30,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBui
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.util.HashSet;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,7 +44,7 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
     private InputChannelInfo channelInfo;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws IOException {
         // given: Segment provider with defined number of allocated segments.
         networkBufferPool = new NetworkBufferPool(preAllocatedSegments, 1024);
 
@@ -52,7 +53,10 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
                 new SingleInputGateBuilder()
                         .setChannelFactory(InputChannelBuilder::buildLocalRecoveredChannel)
                         .setSegmentProvider(networkBufferPool)
+                        .setBufferPoolFactory(
+                                networkBufferPool.createBufferPool(1, 1, preAllocatedSegments))
                         .build();
+        inputGate.setup();
 
         icsHandler = buildInputChannelStateHandler(inputGate);
 

@@ -19,8 +19,9 @@
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.FlinkVersion;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -31,7 +32,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.functions.windowing.PassThroughWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
@@ -55,19 +55,19 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.test.util.MigrationTest;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for checking whether {@link WindowOperator} can restore from snapshots that were done using
@@ -76,11 +76,11 @@ import static org.junit.Assert.fail;
  * <p>This also checks whether {@link WindowOperator} can restore from a checkpoint of the aligned
  * processing-time windows operator of previous Flink versions.
  */
-@RunWith(Parameterized.class)
-public class WindowOperatorMigrationTest implements MigrationTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class WindowOperatorMigrationTest implements MigrationTest {
 
-    @Parameterized.Parameters(name = "Migration Savepoint: {0}")
-    public static Collection<FlinkVersion> parameters() {
+    @Parameters(name = "Migration Savepoint: {0}")
+    private static Collection<FlinkVersion> parameters() {
         return FlinkVersion.rangeOf(
                 FlinkVersion.v1_8, MigrationTest.getMostRecentlyPublishedVersion());
     }
@@ -102,7 +102,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
         ListStateDescriptor<Tuple2<String, Integer>> stateDesc =
                 new ListStateDescriptor<>(
                         "window-contents",
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -116,7 +116,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector<String>(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(new SessionWindowFunction()),
                                 PurgingTrigger.of(CountTrigger.of(4)),
@@ -152,15 +152,15 @@ public class WindowOperatorMigrationTest implements MigrationTest {
         testHarness.close();
     }
 
-    @Test
-    public void testRestoreSessionWindowsWithCountTrigger() throws Exception {
+    @TestTemplate
+    void testRestoreSessionWindowsWithCountTrigger() throws Exception {
 
         final int sessionSize = 3;
 
         ListStateDescriptor<Tuple2<String, Integer>> stateDesc =
                 new ListStateDescriptor<>(
                         "window-contents",
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -174,7 +174,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector<String>(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(new SessionWindowFunction()),
                                 PurgingTrigger.of(CountTrigger.of(4)),
@@ -234,7 +234,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
         ListStateDescriptor<Tuple2<String, Integer>> stateDesc =
                 new ListStateDescriptor<>(
                         "window-contents",
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -248,7 +248,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector<String>(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(new SessionWindowFunction()),
                                 PurgingTrigger.of(CountTrigger.of(4)),
@@ -278,15 +278,15 @@ public class WindowOperatorMigrationTest implements MigrationTest {
      * This checks that we can restore from a virgin {@code WindowOperator} that has never seen any
      * elements.
      */
-    @Test
-    public void testRestoreSessionWindowsWithCountTriggerInMintCondition() throws Exception {
+    @TestTemplate
+    void testRestoreSessionWindowsWithCountTriggerInMintCondition() throws Exception {
 
         final int sessionSize = 3;
 
         ListStateDescriptor<Tuple2<String, Integer>> stateDesc =
                 new ListStateDescriptor<>(
                         "window-contents",
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -300,7 +300,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector<String>(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(new SessionWindowFunction()),
                                 PurgingTrigger.of(CountTrigger.of(4)),
@@ -371,7 +371,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer<>(),
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -385,7 +385,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector<>(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalSingleValueWindowFunction<>(
                                         new PassThroughWindowFunction<
@@ -443,15 +443,15 @@ public class WindowOperatorMigrationTest implements MigrationTest {
         testHarness.close();
     }
 
-    @Test
-    public void testRestoreReducingEventTimeWindows() throws Exception {
+    @TestTemplate
+    void testRestoreReducingEventTimeWindows() throws Exception {
         final int windowSize = 3;
 
         ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc =
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer<>(),
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -465,7 +465,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector<>(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalSingleValueWindowFunction<>(
                                         new PassThroughWindowFunction<
@@ -522,7 +522,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
         ListStateDescriptor<Tuple2<String, Integer>> stateDesc =
                 new ListStateDescriptor<>(
                         "window-contents",
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -536,7 +536,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector<>(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(
                                         new RichSumReducer<TimeWindow>()),
@@ -593,14 +593,14 @@ public class WindowOperatorMigrationTest implements MigrationTest {
         testHarness.close();
     }
 
-    @Test
-    public void testRestoreApplyEventTimeWindows() throws Exception {
+    @TestTemplate
+    void testRestoreApplyEventTimeWindows() throws Exception {
         final int windowSize = 3;
 
         ListStateDescriptor<Tuple2<String, Integer>> stateDesc =
                 new ListStateDescriptor<>(
                         "window-contents",
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -614,7 +614,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector<>(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(
                                         new RichSumReducer<TimeWindow>()),
@@ -671,7 +671,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer<>(),
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -686,7 +686,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector<>(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalSingleValueWindowFunction<>(
                                         new PassThroughWindowFunction<
@@ -733,15 +733,15 @@ public class WindowOperatorMigrationTest implements MigrationTest {
         testHarness.close();
     }
 
-    @Test
-    public void testRestoreReducingProcessingTimeWindows() throws Exception {
+    @TestTemplate
+    void testRestoreReducingProcessingTimeWindows() throws Exception {
         final int windowSize = 3;
 
         ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc =
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer<>(),
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -756,7 +756,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector<>(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalSingleValueWindowFunction<>(
                                         new PassThroughWindowFunction<
@@ -808,7 +808,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
         ListStateDescriptor<Tuple2<String, Integer>> stateDesc =
                 new ListStateDescriptor<>(
                         "window-contents",
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -823,7 +823,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector<>(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(
                                         new RichSumReducer<TimeWindow>()),
@@ -869,14 +869,14 @@ public class WindowOperatorMigrationTest implements MigrationTest {
         testHarness.close();
     }
 
-    @Test
-    public void testRestoreApplyProcessingTimeWindows() throws Exception {
+    @TestTemplate
+    void testRestoreApplyProcessingTimeWindows() throws Exception {
         final int windowSize = 3;
 
         ListStateDescriptor<Tuple2<String, Integer>> stateDesc =
                 new ListStateDescriptor<>(
                         "window-contents",
-                        STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                        STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         WindowOperator<
                         String,
@@ -891,7 +891,7 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector<>(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(
                                         new RichSumReducer<TimeWindow>()),
@@ -946,11 +946,11 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer<>(),
-                        inputType.createSerializer(new ExecutionConfig()));
+                        inputType.createSerializer(new SerializerConfigImpl()));
 
         TypeSerializer<NonPojoType> keySerializer =
-                TypeInformation.of(NonPojoType.class).createSerializer(new ExecutionConfig());
-        assertTrue(keySerializer instanceof KryoSerializer);
+                TypeInformation.of(NonPojoType.class).createSerializer(new SerializerConfigImpl());
+        assertThat(keySerializer).isInstanceOf(KryoSerializer.class);
 
         WindowOperator<
                         NonPojoType,
@@ -1030,8 +1030,8 @@ public class WindowOperatorMigrationTest implements MigrationTest {
         testHarness.close();
     }
 
-    @Test
-    public void testRestoreKryoSerializedKeysWindows() throws Exception {
+    @TestTemplate
+    void testRestoreKryoSerializedKeysWindows() throws Exception {
         final int windowSize = 3;
 
         TypeInformation<Tuple2<NonPojoType, Integer>> inputType =
@@ -1041,11 +1041,11 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                 new ReducingStateDescriptor<>(
                         "window-contents",
                         new SumReducer<>(),
-                        inputType.createSerializer(new ExecutionConfig()));
+                        inputType.createSerializer(new SerializerConfigImpl()));
 
         TypeSerializer<NonPojoType> keySerializer =
-                TypeInformation.of(NonPojoType.class).createSerializer(new ExecutionConfig());
-        assertTrue(keySerializer instanceof KryoSerializer);
+                TypeInformation.of(NonPojoType.class).createSerializer(new SerializerConfigImpl());
+        assertThat(keySerializer).isInstanceOf(KryoSerializer.class);
 
         WindowOperator<
                         NonPojoType,
@@ -1187,8 +1187,8 @@ public class WindowOperatorMigrationTest implements MigrationTest {
         private boolean openCalled = false;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             openCalled = true;
         }
 
@@ -1205,9 +1205,8 @@ public class WindowOperatorMigrationTest implements MigrationTest {
                 Collector<Tuple2<String, Integer>> out)
                 throws Exception {
 
-            if (!openCalled) {
-                fail("Open was not called");
-            }
+            assertThat(openCalled).as("Open was not called").isTrue();
+
             int sum = 0;
 
             for (Tuple2<String, Integer> t : input) {

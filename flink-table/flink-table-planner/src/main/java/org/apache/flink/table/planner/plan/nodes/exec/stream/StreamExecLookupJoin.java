@@ -76,12 +76,6 @@ import static org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecSi
         producedTransformations = CommonExecLookupJoin.LOOKUP_JOIN_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
-@ExecNodeMetadata(
-        name = "stream-exec-lookup-join",
-        version = 2,
-        producedTransformations = CommonExecLookupJoin.LOOKUP_JOIN_TRANSFORMATION,
-        minPlanVersion = FlinkVersion.v1_18,
-        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecLookupJoin extends CommonExecLookupJoin
         implements StreamExecNode<RowData>, MultipleTransformationTranslator<RowData> {
     public static final String FIELD_NAME_REQUIRE_UPSERT_MATERIALIZE = "requireUpsertMaterialize";
@@ -106,7 +100,8 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
     public StreamExecLookupJoin(
             ReadableConfig tableConfig,
             FlinkJoinType joinType,
-            @Nullable RexNode joinCondition,
+            @Nullable RexNode preFilterCondition,
+            @Nullable RexNode remainingJoinCondition,
             TemporalTableSourceSpec temporalTableSourceSpec,
             Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,
             @Nullable List<RexNode> projectionOnTemporalTable,
@@ -124,7 +119,8 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
                 ExecNodeContext.newContext(StreamExecLookupJoin.class),
                 ExecNodeContext.newPersistedConfig(StreamExecLookupJoin.class, tableConfig),
                 joinType,
-                joinCondition,
+                preFilterCondition,
+                remainingJoinCondition,
                 temporalTableSourceSpec,
                 lookupKeys,
                 projectionOnTemporalTable,
@@ -149,7 +145,9 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
             @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_JOIN_TYPE) FlinkJoinType joinType,
-            @JsonProperty(FIELD_NAME_JOIN_CONDITION) @Nullable RexNode joinCondition,
+            @JsonProperty(FIELD_NAME_PRE_FILTER_CONDITION) @Nullable RexNode preFilterCondition,
+            @JsonProperty(FIELD_NAME_REMAINING_JOIN_CONDITION) @Nullable
+                    RexNode remainingJoinCondition,
             @JsonProperty(FIELD_NAME_TEMPORAL_TABLE)
                     TemporalTableSourceSpec temporalTableSourceSpec,
             @JsonProperty(FIELD_NAME_LOOKUP_KEYS) Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,
@@ -175,7 +173,8 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
                 context,
                 persistedConfig,
                 joinType,
-                joinCondition,
+                preFilterCondition,
+                remainingJoinCondition,
                 temporalTableSourceSpec,
                 lookupKeys,
                 projectionOnTemporalTable,

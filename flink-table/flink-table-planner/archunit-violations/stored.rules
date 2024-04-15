@@ -1,0 +1,5 @@
+#
+#Sat Nov 25 01:49:59 CST 2023
+Junit4\ is\ forbidden,\ please\ use\ Junit5\ instead=a17c9d3e-9546-4787-a16e-91f74fc9a335
+Tests\ inheriting\ from\ AbstractTestBase\ should\ have\ name\ ending\ with\ ITCase=95e87b01-d1fe-4240-9e71-b8105bccba6a
+ITCASE\ tests\ should\ use\ a\ MiniCluster\ resource\ or\ extension=8905dbb5-c749-4c80-8848-c31e55f572f4

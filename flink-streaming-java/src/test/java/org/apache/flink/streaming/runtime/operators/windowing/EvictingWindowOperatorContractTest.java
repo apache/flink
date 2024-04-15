@@ -41,7 +41,7 @@ import org.apache.flink.util.OutputTag;
  *
  * <p>These tests document the implicit contract that exists between the windowing components.
  */
-public class EvictingWindowOperatorContractTest extends WindowOperatorContractTest {
+class EvictingWindowOperatorContractTest extends WindowOperatorContractTest {
 
     protected <W extends Window, OUT>
             KeyedOneInputStreamOperatorTestHarness<Integer, Integer, OUT> createWindowOperator(

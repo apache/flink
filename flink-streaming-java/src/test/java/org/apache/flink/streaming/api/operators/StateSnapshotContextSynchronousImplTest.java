@@ -27,28 +27,25 @@ import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.Closeable;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Tests for {@link StateSnapshotContextSynchronousImpl}. */
-public class StateSnapshotContextSynchronousImplTest extends TestLogger {
+class StateSnapshotContextSynchronousImplTest {
 
     private StateSnapshotContextSynchronousImpl snapshotContext;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() {
         CloseableRegistry closableRegistry = new CloseableRegistry();
         CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(1024);
         KeyGroupRange keyGroupRange = new KeyGroupRange(0, 2);
@@ -58,21 +55,21 @@ public class StateSnapshotContextSynchronousImplTest extends TestLogger {
     }
 
     @Test
-    public void testMetaData() {
-        assertEquals(42, snapshotContext.getCheckpointId());
-        assertEquals(4711, snapshotContext.getCheckpointTimestamp());
+    void testMetaData() {
+        assertThat(snapshotContext.getCheckpointId()).isEqualTo(42);
+        assertThat(snapshotContext.getCheckpointTimestamp()).isEqualTo(4711);
     }
 
     @Test
-    public void testCreateRawKeyedStateOutput() throws Exception {
+    void testCreateRawKeyedStateOutput() throws Exception {
         KeyedStateCheckpointOutputStream stream = snapshotContext.getRawKeyedOperatorStateOutput();
-        Assert.assertNotNull(stream);
+        assertThat(stream).isNotNull();
     }
 
     @Test
-    public void testCreateRawOperatorStateOutput() throws Exception {
+    void testCreateRawOperatorStateOutput() throws Exception {
         OperatorStateCheckpointOutputStream stream = snapshotContext.getRawOperatorStateOutput();
-        Assert.assertNotNull(stream);
+        assertThat(stream).isNotNull();
     }
 
     /**
@@ -80,7 +77,7 @@ public class StateSnapshotContextSynchronousImplTest extends TestLogger {
      * output streams.
      */
     @Test
-    public void testStreamClosingWhenClosing() throws Exception {
+    void testStreamClosingWhenClosing() throws Exception {
         long checkpointId = 42L;
         long checkpointTimestamp = 1L;
 
@@ -110,9 +107,9 @@ public class StateSnapshotContextSynchronousImplTest extends TestLogger {
         verify(streamFactory, times(2))
                 .createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
 
-        assertEquals(2, closableRegistry.size());
-        assertTrue(closableRegistry.contains(outputStream1));
-        assertTrue(closableRegistry.contains(outputStream2));
+        assertThat(closableRegistry.size()).isEqualTo(2);
+        assertThat(closableRegistry.contains(outputStream1)).isTrue();
+        assertThat(closableRegistry.contains(outputStream2)).isTrue();
 
         context.getKeyedStateStreamFuture().run();
         context.getOperatorStateStreamFuture().run();
@@ -120,11 +117,11 @@ public class StateSnapshotContextSynchronousImplTest extends TestLogger {
         verify(outputStream1).closeAndGetHandle();
         verify(outputStream2).closeAndGetHandle();
 
-        assertEquals(0, closableRegistry.size());
+        assertThat(closableRegistry.size()).isZero();
     }
 
     @Test
-    public void testStreamClosingExceptionally() throws Exception {
+    void testStreamClosingExceptionally() throws Exception {
         long checkpointId = 42L;
         long checkpointTimestamp = 1L;
 
@@ -154,16 +151,16 @@ public class StateSnapshotContextSynchronousImplTest extends TestLogger {
         verify(streamFactory, times(2))
                 .createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
 
-        assertEquals(2, closableRegistry.size());
-        assertTrue(closableRegistry.contains(outputStream1));
-        assertTrue(closableRegistry.contains(outputStream2));
+        assertThat(closableRegistry.size()).isEqualTo(2);
+        assertThat(closableRegistry.contains(outputStream1)).isTrue();
+        assertThat(closableRegistry.contains(outputStream2)).isTrue();
 
         context.closeExceptionally();
 
         verify(outputStream1).close();
         verify(outputStream2).close();
 
-        assertEquals(0, closableRegistry.size());
+        assertThat(closableRegistry.size()).isZero();
     }
 
     static final class InsightCloseableRegistry extends CloseableRegistry {

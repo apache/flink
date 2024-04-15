@@ -17,13 +17,14 @@
  */
 package org.apache.flink.api.common.typeutils.base.array;
 
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 abstract class PrimitiveArrayComparatorTestBase<T> extends ComparatorTestBase<T> {
-    private PrimitiveArrayTypeInfo<T> info;
+    private final PrimitiveArrayTypeInfo<T> info;
 
     public PrimitiveArrayComparatorTestBase(PrimitiveArrayTypeInfo<T> info) {
         this.info = info;
@@ -36,6 +37,6 @@ abstract class PrimitiveArrayComparatorTestBase<T> extends ComparatorTestBase<T>
 
     @Override
     protected TypeSerializer<T> createSerializer() {
-        return info.createSerializer(null);
+        return info.createSerializer((SerializerConfigImpl) null);
     }
 }

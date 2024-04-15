@@ -25,6 +25,7 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
+import org.apache.flink.api.connector.source.SupportsBatchSnapshot;
 import org.apache.flink.api.connector.source.SupportsIntermediateNoMoreSplits;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SplitEnumeratorMetricGroup;
@@ -40,6 +41,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.Callable;
@@ -65,7 +67,8 @@ import java.util.function.BiConsumer;
  * returned splits were processed, delegation to the current underlying enumerator resumes.
  */
 public class HybridSourceSplitEnumerator
-        implements SplitEnumerator<HybridSourceSplit, HybridSourceEnumeratorState> {
+        implements SplitEnumerator<HybridSourceSplit, HybridSourceEnumeratorState>,
+                SupportsBatchSnapshot {
     private static final Logger LOG = LoggerFactory.getLogger(HybridSourceSplitEnumerator.class);
 
     private final SplitEnumeratorContext<HybridSourceSplit> context;
@@ -259,6 +262,7 @@ public class HybridSourceSplitEnumerator
         if (currentEnumerator != null) {
             try {
                 currentEnumerator.close();
+                finishedReaders.clear();
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -302,6 +306,7 @@ public class HybridSourceSplitEnumerator
                     "Failed to create enumerator for sourceIndex=" + currentSourceIndex, e);
         }
         LOG.info("Starting enumerator for sourceIndex={}", currentSourceIndex);
+        context.setIsProcessingBacklog(currentSourceIndex < sources.size() - 1);
         currentEnumerator.start();
     }
 
@@ -359,7 +364,7 @@ public class HybridSourceSplitEnumerator
             }
             Integer lastIndex = null;
             for (Integer sourceIndex : readerSourceIndex.values()) {
-                if (lastIndex != null && lastIndex != sourceIndex) {
+                if (lastIndex != null && !lastIndex.equals(sourceIndex)) {
                     return filterRegisteredReaders(readers);
                 }
                 lastIndex = sourceIndex;
@@ -370,7 +375,7 @@ public class HybridSourceSplitEnumerator
         private Map<Integer, ReaderInfo> filterRegisteredReaders(Map<Integer, ReaderInfo> readers) {
             Map<Integer, ReaderInfo> readersForSource = new HashMap<>(readers.size());
             for (Map.Entry<Integer, ReaderInfo> e : readers.entrySet()) {
-                if (readerSourceIndex.get(e.getKey()) == (Integer) sourceIndex) {
+                if (Objects.equals(readerSourceIndex.get(e.getKey()), sourceIndex)) {
                     readersForSource.put(e.getKey(), e.getValue());
                 }
             }
@@ -421,6 +426,11 @@ public class HybridSourceSplitEnumerator
         @Override
         public void runInCoordinatorThread(Runnable runnable) {
             realContext.runInCoordinatorThread(runnable);
+        }
+
+        @Override
+        public void setIsProcessingBacklog(boolean isProcessingBacklog) {
+            realContext.setIsProcessingBacklog(isProcessingBacklog);
         }
     }
 

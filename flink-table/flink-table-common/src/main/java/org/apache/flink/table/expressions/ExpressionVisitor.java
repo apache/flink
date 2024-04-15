@@ -48,4 +48,8 @@ public interface ExpressionVisitor<R> {
     // --------------------------------------------------------------------------------------------
 
     R visit(Expression other);
+
+    default R visit(NestedFieldReferenceExpression nestedFieldReference) {
+        throw new UnsupportedOperationException("NestedFieldReferenceExpression is not supported.");
+    }
 }

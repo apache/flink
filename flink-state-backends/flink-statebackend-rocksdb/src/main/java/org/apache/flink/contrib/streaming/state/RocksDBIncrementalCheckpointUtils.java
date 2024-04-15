@@ -20,23 +20,39 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.RunnableWithException;
+
+import org.apache.flink.shaded.guava31.com.google.common.primitives.UnsignedBytes;
 
 import org.rocksdb.ColumnFamilyHandle;
+import org.rocksdb.LiveFileMetaData;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 /** Utils for RocksDB Incremental Checkpoint. */
 public class RocksDBIncrementalCheckpointUtils {
+
+    private static final Logger logger =
+            LoggerFactory.getLogger(RocksDBIncrementalCheckpointUtils.class);
+
     /**
-     * Evaluates state handle's "score" regarding to the target range when choosing the best state
+     * Evaluates state handle's "score" regarding the target range when choosing the best state
      * handle to init the initial db for recovery, if the overlap fraction is less than
      * overlapFractionThreshold, then just return {@code Score.MIN} to mean the handle has no chance
      * to be the initial handle.
@@ -85,9 +101,11 @@ public class RocksDBIncrementalCheckpointUtils {
         }
 
         @Override
-        public int compareTo(@Nonnull Score other) {
-            return Comparator.comparing(Score::getIntersectGroupRange)
-                    .thenComparing(Score::getOverlapFraction)
+        public int compareTo(@Nullable Score other) {
+            return Comparator.nullsFirst(
+                            Comparator.comparing(Score::getIntersectGroupRange)
+                                    .thenComparing(Score::getIntersectGroupRange)
+                                    .thenComparing(Score::getOverlapFraction))
                     .compare(this, other);
         }
     }
@@ -101,58 +119,284 @@ public class RocksDBIncrementalCheckpointUtils {
      * @param targetKeyGroupRange the target key group range.
      * @param currentKeyGroupRange the key group range of the db instance.
      * @param keyGroupPrefixBytes Number of bytes required to prefix the key groups.
+     * @param useDeleteFilesInRange whether to call db.deleteFilesInRanges for the deleted ranges.
      */
     public static void clipDBWithKeyGroupRange(
             @Nonnull RocksDB db,
             @Nonnull List<ColumnFamilyHandle> columnFamilyHandles,
             @Nonnull KeyGroupRange targetKeyGroupRange,
             @Nonnull KeyGroupRange currentKeyGroupRange,
-            @Nonnegative int keyGroupPrefixBytes)
+            @Nonnegative int keyGroupPrefixBytes,
+            boolean useDeleteFilesInRange)
             throws RocksDBException {
 
-        final byte[] beginKeyGroupBytes = new byte[keyGroupPrefixBytes];
-        final byte[] endKeyGroupBytes = new byte[keyGroupPrefixBytes];
+        List<byte[]> deleteFilesRanges = new ArrayList<>(4);
 
         if (currentKeyGroupRange.getStartKeyGroup() < targetKeyGroupRange.getStartKeyGroup()) {
-            CompositeKeySerializationUtils.serializeKeyGroup(
-                    currentKeyGroupRange.getStartKeyGroup(), beginKeyGroupBytes);
-            CompositeKeySerializationUtils.serializeKeyGroup(
-                    targetKeyGroupRange.getStartKeyGroup(), endKeyGroupBytes);
-            deleteRange(db, columnFamilyHandles, beginKeyGroupBytes, endKeyGroupBytes);
+            prepareRangeDeletes(
+                    keyGroupPrefixBytes,
+                    currentKeyGroupRange.getStartKeyGroup(),
+                    targetKeyGroupRange.getStartKeyGroup(),
+                    deleteFilesRanges);
         }
 
         if (currentKeyGroupRange.getEndKeyGroup() > targetKeyGroupRange.getEndKeyGroup()) {
-            CompositeKeySerializationUtils.serializeKeyGroup(
-                    targetKeyGroupRange.getEndKeyGroup() + 1, beginKeyGroupBytes);
-            CompositeKeySerializationUtils.serializeKeyGroup(
-                    currentKeyGroupRange.getEndKeyGroup() + 1, endKeyGroupBytes);
-            deleteRange(db, columnFamilyHandles, beginKeyGroupBytes, endKeyGroupBytes);
+            prepareRangeDeletes(
+                    keyGroupPrefixBytes,
+                    targetKeyGroupRange.getEndKeyGroup() + 1,
+                    currentKeyGroupRange.getEndKeyGroup() + 1,
+                    deleteFilesRanges);
+        }
+
+        logger.info(
+                "Performing range delete for backend with target key-groups range {} with boundaries set {} - deleteFilesInRanges = {}.",
+                targetKeyGroupRange.prettyPrintInterval(),
+                deleteFilesRanges.stream().map(Arrays::toString).collect(Collectors.toList()),
+                useDeleteFilesInRange);
+
+        deleteRangeData(db, columnFamilyHandles, deleteFilesRanges, useDeleteFilesInRange);
+    }
+
+    private static void prepareRangeDeletes(
+            int keyGroupPrefixBytes,
+            int beginKeyGroup,
+            int endKeyGroup,
+            List<byte[]> deleteFilesRangesOut) {
+        byte[] beginKeyGroupBytes = new byte[keyGroupPrefixBytes];
+        byte[] endKeyGroupBytes = new byte[keyGroupPrefixBytes];
+        CompositeKeySerializationUtils.serializeKeyGroup(beginKeyGroup, beginKeyGroupBytes);
+        CompositeKeySerializationUtils.serializeKeyGroup(endKeyGroup, endKeyGroupBytes);
+        deleteFilesRangesOut.add(beginKeyGroupBytes);
+        deleteFilesRangesOut.add(endKeyGroupBytes);
+    }
+
+    /**
+     * Delete the record that falls into the given deleteRanges of the db.
+     *
+     * @param db the target need to be clipped.
+     * @param columnFamilyHandles the column family need to be clipped.
+     * @param deleteRanges - pairs of deleted ranges (from1, to1, from2, to2, ...). For each pair
+     *     [from, to), the startKey ('from') is inclusive, the endKey ('to') is exclusive.
+     * @param useDeleteFilesInRange whether to use deleteFilesInRange to clean up redundant files.
+     */
+    private static void deleteRangeData(
+            RocksDB db,
+            List<ColumnFamilyHandle> columnFamilyHandles,
+            List<byte[]> deleteRanges,
+            boolean useDeleteFilesInRange)
+            throws RocksDBException {
+
+        if (deleteRanges.isEmpty()) {
+            // nothing to do.
+            return;
+        }
+
+        Preconditions.checkArgument(deleteRanges.size() % 2 == 0);
+        for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
+            // First delete the files in ranges
+            if (useDeleteFilesInRange) {
+                db.deleteFilesInRanges(columnFamilyHandle, deleteRanges, false);
+            }
+
+            // Then put range limiting tombstones in place.
+            for (int i = 0; i < deleteRanges.size() / 2; i++) {
+                // Using RocksDB's deleteRange will take advantage of delete
+                // tombstones, which mark the range as deleted.
+                //
+                // https://github.com/ververica/frocksdb/blob/FRocksDB-6.20.3/include/rocksdb/db.h#L363-L377
+                db.deleteRange(
+                        columnFamilyHandle, deleteRanges.get(i * 2), deleteRanges.get(i * 2 + 1));
+            }
         }
     }
 
     /**
-     * Delete the record falls into [beginKeyBytes, endKeyBytes) of the db.
+     * Returns true, if all entries in the sst files of the given DB is strictly within the expected
+     * key-group range for the DB.
      *
-     * @param db the target need to be clipped.
-     * @param columnFamilyHandles the column family need to be clipped.
-     * @param beginKeyBytes the begin key bytes
-     * @param endKeyBytes the end key bytes
+     * @param db the DB to check.
+     * @param dbExpectedKeyGroupRange the expected key-groups range of the DB.
+     * @param keyGroupPrefixBytes the number of bytes used to serialize the key-group prefix of keys
+     *     in the DB.
      */
-    private static void deleteRange(
+    public static boolean isSstDataInKeyGroupRange(
+            RocksDB db, int keyGroupPrefixBytes, KeyGroupRange dbExpectedKeyGroupRange) {
+        return checkSstDataAgainstKeyGroupRange(db, keyGroupPrefixBytes, dbExpectedKeyGroupRange)
+                .allInRange();
+    }
+
+    /**
+     * Returns a range compaction task as runnable if any data in the SST files of the given DB
+     * exceeds the proclaimed key-group range.
+     *
+     * @param db the DB to check and compact if needed.
+     * @param columnFamilyHandles list of column families to check.
+     * @param keyGroupPrefixBytes the number of bytes used to serialize the key-group prefix of keys
+     *     in the DB.
+     * @param dbExpectedKeyGroupRange the expected key-groups range of the DB.
+     * @return runnable that performs compaction upon execution if the key-groups range is exceeded.
+     *     Otherwise, empty optional is returned.
+     */
+    public static Optional<RunnableWithException> createRangeCompactionTaskIfNeeded(
+            RocksDB db,
+            Collection<ColumnFamilyHandle> columnFamilyHandles,
+            int keyGroupPrefixBytes,
+            KeyGroupRange dbExpectedKeyGroupRange) {
+
+        RangeCheckResult rangeCheckResult =
+                checkSstDataAgainstKeyGroupRange(db, keyGroupPrefixBytes, dbExpectedKeyGroupRange);
+
+        if (rangeCheckResult.allInRange()) {
+            // No keys exceed the proclaimed range of the backend, so we don't need a compaction
+            // from this point of view.
+            return Optional.empty();
+        }
+
+        return Optional.of(
+                () -> {
+                    /*
+                    try (CompactRangeOptions compactionOptions =
+                            new CompactRangeOptions()
+                                    .setExclusiveManualCompaction(true)
+                                    .setBottommostLevelCompaction(
+                                            CompactRangeOptions.BottommostLevelCompaction
+                                                    .kForceOptimized)) {
+
+                        if (!rangeCheckResult.leftInRange) {
+                            // Compact all keys before from the expected key-groups range
+                            for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
+                                db.compactRange(
+                                        columnFamilyHandle,
+                                        // TODO: change to null once this API is fixed
+                                        new byte[] {},
+                                        rangeCheckResult.minKey,
+                                        compactionOptions);
+                            }
+                        }
+
+                        if (!rangeCheckResult.rightInRange) {
+                            // Compact all keys after the expected key-groups range
+                            for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
+                                db.compactRange(
+                                        columnFamilyHandle,
+                                        rangeCheckResult.maxKey,
+                                        // TODO: change to null once this API is fixed
+                                        new byte[] {
+                                            (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff
+                                        },
+                                        compactionOptions);
+                            }
+                        }
+                    }
+                     */
+                });
+    }
+
+    /**
+     * Checks data in the SST files of the given DB for keys that exceed either the lower and upper
+     * bound of the proclaimed key-groups range of the DB.
+     *
+     * @param db the DB to check.
+     * @param keyGroupPrefixBytes the number of bytes used to serialize the key-group prefix of keys
+     *     in the DB.
+     * @param dbExpectedKeyGroupRange the expected key-groups range of the DB.
+     * @return the check result with detailed info about lower and upper bound violations.
+     */
+    private static RangeCheckResult checkSstDataAgainstKeyGroupRange(
+            RocksDB db, int keyGroupPrefixBytes, KeyGroupRange dbExpectedKeyGroupRange) {
+        final byte[] beginKeyGroupBytes = new byte[keyGroupPrefixBytes];
+        final byte[] endKeyGroupBytes = new byte[keyGroupPrefixBytes];
+
+        CompositeKeySerializationUtils.serializeKeyGroup(
+                dbExpectedKeyGroupRange.getStartKeyGroup(), beginKeyGroupBytes);
+
+        CompositeKeySerializationUtils.serializeKeyGroup(
+                dbExpectedKeyGroupRange.getEndKeyGroup() + 1, endKeyGroupBytes);
+
+        KeyRange dbKeyRange = getDBKeyRange(db);
+        Comparator<byte[]> comparator = UnsignedBytes.lexicographicalComparator();
+        return RangeCheckResult.of(
+                comparator.compare(dbKeyRange.minKey, beginKeyGroupBytes) >= 0,
+                comparator.compare(dbKeyRange.maxKey, endKeyGroupBytes) < 0,
+                beginKeyGroupBytes,
+                endKeyGroupBytes);
+    }
+
+    /** Returns a pair of minimum and maximum key in the sst files of the given database. */
+    private static KeyRange getDBKeyRange(RocksDB db) {
+        final Comparator<byte[]> comparator = UnsignedBytes.lexicographicalComparator();
+        final List<LiveFileMetaData> liveFilesMetaData = db.getLiveFilesMetaData();
+
+        if (liveFilesMetaData.isEmpty()) {
+            return KeyRange.EMPTY;
+        }
+
+        Iterator<LiveFileMetaData> liveFileMetaDataIterator = liveFilesMetaData.iterator();
+        LiveFileMetaData fileMetaData = liveFileMetaDataIterator.next();
+        byte[] smallestKey = fileMetaData.smallestKey();
+        byte[] largestKey = fileMetaData.largestKey();
+        while (liveFileMetaDataIterator.hasNext()) {
+            fileMetaData = liveFileMetaDataIterator.next();
+            byte[] sstSmallestKey = fileMetaData.smallestKey();
+            byte[] sstLargestKey = fileMetaData.largestKey();
+            if (comparator.compare(sstSmallestKey, smallestKey) < 0) {
+                smallestKey = sstSmallestKey;
+            }
+            if (comparator.compare(sstLargestKey, largestKey) > 0) {
+                largestKey = sstLargestKey;
+            }
+        }
+        return KeyRange.of(smallestKey, largestKey);
+    }
+
+    /**
+     * Exports the data of the given column families in the given DB.
+     *
+     * @param db the DB to export from.
+     * @param columnFamilyHandles the column families to export.
+     * @param registeredStateMetaInfoBases meta information about the registered states in the DB.
+     * @param exportBasePath the path to which the export files go.
+     * @param resultOutput output parameter for the metadata of the export.
+     * @throws RocksDBException on problems inside RocksDB.
+     */
+    /*
+    public static void exportColumnFamilies(
             RocksDB db,
             List<ColumnFamilyHandle> columnFamilyHandles,
-            byte[] beginKeyBytes,
-            byte[] endKeyBytes)
+            List<RegisteredStateMetaInfoBase> registeredStateMetaInfoBases,
+            Path exportBasePath,
+            Map<RegisteredStateMetaInfoBase, List<ExportImportFilesMetaData>> resultOutput)
             throws RocksDBException {
 
-        for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
-            // Using RocksDB's deleteRange will take advantage of delete
-            // tombstones, which mark the range as deleted.
-            //
-            // https://github.com/ververica/frocksdb/blob/FRocksDB-6.20.3/include/rocksdb/db.h#L363-L377
-            db.deleteRange(columnFamilyHandle, beginKeyBytes, endKeyBytes);
+        Preconditions.checkArgument(
+                columnFamilyHandles.size() == registeredStateMetaInfoBases.size(),
+                "Lists are aligned by index and must be of the same size!");
+
+        try (final Checkpoint checkpoint = Checkpoint.create(db)) {
+            for (int i = 0; i < columnFamilyHandles.size(); i++) {
+                RegisteredStateMetaInfoBase stateMetaInfo = registeredStateMetaInfoBases.get(i);
+
+                Path subPath = exportBasePath.resolve(UUID.randomUUID().toString());
+                ExportImportFilesMetaData exportedColumnFamilyMetaData =
+                        checkpoint.exportColumnFamily(
+                                columnFamilyHandles.get(i), subPath.toString());
+
+                File[] exportedSstFiles =
+                        subPath.toFile()
+                                .listFiles((file, name) -> name.toLowerCase().endsWith(".sst"));
+
+                if (exportedSstFiles != null && exportedSstFiles.length > 0) {
+                    resultOutput
+                            .computeIfAbsent(stateMetaInfo, (key) -> new ArrayList<>())
+                            .add(exportedColumnFamilyMetaData);
+                } else {
+                    // Close unused empty export result
+                    IOUtils.closeQuietly(exportedColumnFamilyMetaData);
+                }
+            }
         }
     }
+    */
 
     /** check whether the bytes is before prefixBytes in the character order. */
     public static boolean beforeThePrefixBytes(@Nonnull byte[] bytes, @Nonnull byte[] prefixBytes) {
@@ -172,26 +416,107 @@ public class RocksDBIncrementalCheckpointUtils {
      *
      * @param restoreStateHandles The candidate state handles.
      * @param targetKeyGroupRange The target key group range.
+     * @param overlapFractionThreshold configured threshold for overlap.
      * @return The best candidate or null if no candidate was a good fit.
+     * @param <T> the generic parameter type of the state handles.
      */
     @Nullable
-    public static KeyedStateHandle chooseTheBestStateHandleForInitial(
-            @Nonnull Collection<KeyedStateHandle> restoreStateHandles,
+    public static <T extends KeyedStateHandle> T chooseTheBestStateHandleForInitial(
+            @Nonnull List<T> restoreStateHandles,
             @Nonnull KeyGroupRange targetKeyGroupRange,
             double overlapFractionThreshold) {
 
-        KeyedStateHandle bestStateHandle = null;
+        int pos =
+                findTheBestStateHandleForInitial(
+                        restoreStateHandles, targetKeyGroupRange, overlapFractionThreshold);
+        return pos >= 0 ? restoreStateHandles.get(pos) : null;
+    }
+
+    /**
+     * Choose the best state handle according to the {@link #stateHandleEvaluator(KeyedStateHandle,
+     * KeyGroupRange, double)} to init the initial db from the given lists and returns its index.
+     *
+     * @param restoreStateHandles The candidate state handles.
+     * @param targetKeyGroupRange The target key group range.
+     * @param overlapFractionThreshold configured threshold for overlap.
+     * @return the index of the best candidate handle in the list or -1 if the list was empty.
+     * @param <T> the generic parameter type of the state handles.
+     */
+    public static <T extends KeyedStateHandle> int findTheBestStateHandleForInitial(
+            @Nonnull List<T> restoreStateHandles,
+            @Nonnull KeyGroupRange targetKeyGroupRange,
+            double overlapFractionThreshold) {
+
+        if (restoreStateHandles.isEmpty()) {
+            return -1;
+        }
+
+        // Shortcut for a common case (scale out)
+        if (restoreStateHandles.size() == 1) {
+            return 0;
+        }
+
+        int currentPos = 0;
+        int bestHandlePos = 0;
         Score bestScore = Score.MIN;
-        for (KeyedStateHandle rawStateHandle : restoreStateHandles) {
+        for (T rawStateHandle : restoreStateHandles) {
             Score handleScore =
                     stateHandleEvaluator(
                             rawStateHandle, targetKeyGroupRange, overlapFractionThreshold);
-            if (bestStateHandle == null || handleScore.compareTo(bestScore) > 0) {
-                bestStateHandle = rawStateHandle;
+            if (handleScore.compareTo(bestScore) > 0) {
+                bestHandlePos = currentPos;
                 bestScore = handleScore;
             }
+            ++currentPos;
+        }
+        return bestHandlePos;
+    }
+
+    /** Helper class tha defines a key-range in RocksDB as byte arrays for min and max key. */
+    private static final class KeyRange {
+        static final KeyRange EMPTY = KeyRange.of(new byte[0], new byte[0]);
+
+        final byte[] minKey;
+        final byte[] maxKey;
+
+        private KeyRange(byte[] minKey, byte[] maxKey) {
+            this.minKey = minKey;
+            this.maxKey = maxKey;
         }
 
-        return bestStateHandle;
+        static KeyRange of(byte[] minKey, byte[] maxKey) {
+            return new KeyRange(minKey, maxKey);
+        }
+    }
+
+    /**
+     * Helper class that represents the result of a range check of the actual keys in a RocksDB
+     * instance against the proclaimed key-group range of the instance. In short, this checks if the
+     * instance contains any keys (or tombstones for keys) that don't belong in the instance's
+     * key-groups range.
+     */
+    private static final class RangeCheckResult {
+        private final byte[] minKey;
+
+        private final byte[] maxKey;
+        final boolean leftInRange;
+        final boolean rightInRange;
+
+        private RangeCheckResult(
+                boolean leftInRange, boolean rightInRange, byte[] minKey, byte[] maxKey) {
+            this.leftInRange = leftInRange;
+            this.rightInRange = rightInRange;
+            this.minKey = minKey;
+            this.maxKey = maxKey;
+        }
+
+        boolean allInRange() {
+            return leftInRange && rightInRange;
+        }
+
+        static RangeCheckResult of(
+                boolean leftInRange, boolean rightInRange, byte[] minKey, byte[] maxKey) {
+            return new RangeCheckResult(leftInRange, rightInRange, minKey, maxKey);
+        }
     }
 }

@@ -31,7 +31,6 @@ import org.junit.jupiter.api.Test
 import java.math.{BigDecimal => JBigDecimal}
 
 import scala.collection.JavaConverters._
-import scala.collection.Seq
 
 /**
  * Conformance test of TableApi type Decimal(p,s). Served also as documentation of our Decimal

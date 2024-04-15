@@ -111,11 +111,11 @@ public final class RestClientConfiguration {
             sslHandlerFactory = null;
         }
 
-        final long connectionTimeout = config.getLong(RestOptions.CONNECTION_TIMEOUT);
+        final long connectionTimeout = config.get(RestOptions.CONNECTION_TIMEOUT);
 
-        final long idlenessTimeout = config.getLong(RestOptions.IDLENESS_TIMEOUT);
+        final long idlenessTimeout = config.get(RestOptions.IDLENESS_TIMEOUT);
 
-        int maxContentLength = config.getInteger(RestOptions.CLIENT_MAX_CONTENT_LENGTH);
+        int maxContentLength = config.get(RestOptions.CLIENT_MAX_CONTENT_LENGTH);
 
         return new RestClientConfiguration(
                 sslHandlerFactory, connectionTimeout, idlenessTimeout, maxContentLength);

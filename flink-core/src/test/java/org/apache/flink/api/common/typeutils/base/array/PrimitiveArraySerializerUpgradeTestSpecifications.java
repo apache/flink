@@ -19,7 +19,7 @@
 package org.apache.flink.api.common.typeutils.base.array;
 
 import org.apache.flink.FlinkVersion;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
@@ -41,7 +41,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
         public TypeSerializer<boolean[]> createPriorSerializer() {
             TypeSerializer<boolean[]> serializer =
                     TypeExtractor.createTypeInfo(boolean[].class)
-                            .createSerializer(new ExecutionConfig());
+                            .createSerializer(new SerializerConfigImpl());
             assertSame(serializer.getClass(), BooleanPrimitiveArraySerializer.class);
             return serializer;
         }
@@ -61,7 +61,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
         public TypeSerializer<boolean[]> createUpgradedSerializer() {
             TypeSerializer<boolean[]> serializer =
                     TypeExtractor.createTypeInfo(boolean[].class)
-                            .createSerializer(new ExecutionConfig());
+                            .createSerializer(new SerializerConfigImpl());
             assertSame(serializer.getClass(), BooleanPrimitiveArraySerializer.class);
             return serializer;
         }
@@ -90,7 +90,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
         public TypeSerializer<byte[]> createPriorSerializer() {
             TypeSerializer<byte[]> serializer =
                     TypeExtractor.createTypeInfo(byte[].class)
-                            .createSerializer(new ExecutionConfig());
+                            .createSerializer(new SerializerConfigImpl());
             assertSame(serializer.getClass(), BytePrimitiveArraySerializer.class);
             return serializer;
         }
@@ -111,7 +111,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
         public TypeSerializer<byte[]> createUpgradedSerializer() {
             TypeSerializer<byte[]> serializer =
                     TypeExtractor.createTypeInfo(byte[].class)
-                            .createSerializer(new ExecutionConfig());
+                            .createSerializer(new SerializerConfigImpl());
             assertSame(serializer.getClass(), BytePrimitiveArraySerializer.class);
             return serializer;
         }
@@ -141,7 +141,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
         public TypeSerializer<char[]> createPriorSerializer() {
             TypeSerializer<char[]> serializer =
                     TypeExtractor.createTypeInfo(char[].class)
-                            .createSerializer(new ExecutionConfig());
+                            .createSerializer(new SerializerConfigImpl());
             assertSame(serializer.getClass(), CharPrimitiveArraySerializer.class);
             return serializer;
         }
@@ -162,7 +162,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
         public TypeSerializer<char[]> createUpgradedSerializer() {
             TypeSerializer<char[]> serializer =
                     TypeExtractor.createTypeInfo(char[].class)
-                            .createSerializer(new ExecutionConfig());
+                            .createSerializer(new SerializerConfigImpl());
             assertSame(serializer.getClass(), CharPrimitiveArraySerializer.class);
             return serializer;
         }
@@ -192,7 +192,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
         public TypeSerializer<double[]> createPriorSerializer() {
             TypeSerializer<double[]> serializer =
                     TypeExtractor.createTypeInfo(double[].class)
-                            .createSerializer(new ExecutionConfig());
+                            .createSerializer(new SerializerConfigImpl());
             assertSame(serializer.getClass(), DoublePrimitiveArraySerializer.class);
             return serializer;
         }
@@ -213,7 +213,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
         public TypeSerializer<double[]> createUpgradedSerializer() {
             TypeSerializer<double[]> serializer =
                     TypeExtractor.createTypeInfo(double[].class)
-                            .createSerializer(new ExecutionConfig());
+                            .createSerializer(new SerializerConfigImpl());
             assertSame(serializer.getClass(), DoublePrimitiveArraySerializer.class);
             return serializer;
         }
@@ -243,7 +243,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
         public TypeSerializer<float[]> createPriorSerializer() {
             TypeSerializer<float[]> serializer =
                     TypeExtractor.createTypeInfo(float[].class)
-                            .createSerializer(new ExecutionConfig());
+                            .createSerializer(new SerializerConfigImpl());
             assertSame(serializer.getClass(), FloatPrimitiveArraySerializer.class);
             return serializer;
         }
@@ -264,7 +264,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
         public TypeSerializer<float[]> createUpgradedSerializer() {
             TypeSerializer<float[]> serializer =
                     TypeExtractor.createTypeInfo(float[].class)
-                            .createSerializer(new ExecutionConfig());
+                            .createSerializer(new SerializerConfigImpl());
             assertSame(serializer.getClass(), FloatPrimitiveArraySerializer.class);
             return serializer;
         }
@@ -294,7 +294,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
         public TypeSerializer<int[]> createPriorSerializer() {
             TypeSerializer<int[]> serializer =
                     TypeExtractor.createTypeInfo(int[].class)
-                            .createSerializer(new ExecutionConfig());
+                            .createSerializer(new SerializerConfigImpl());
             assertSame(serializer.getClass(), IntPrimitiveArraySerializer.class);
             return serializer;
         }
@@ -315,7 +315,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
         public TypeSerializer<int[]> createUpgradedSerializer() {
             TypeSerializer<int[]> serializer =
                     TypeExtractor.createTypeInfo(int[].class)
-                            .createSerializer(new ExecutionConfig());
+                            .createSerializer(new SerializerConfigImpl());
             assertSame(serializer.getClass(), IntPrimitiveArraySerializer.class);
             return serializer;
         }
@@ -345,7 +345,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
         public TypeSerializer<long[]> createPriorSerializer() {
             TypeSerializer<long[]> serializer =
                     TypeExtractor.createTypeInfo(long[].class)
-                            .createSerializer(new ExecutionConfig());
+                            .createSerializer(new SerializerConfigImpl());
             assertSame(serializer.getClass(), LongPrimitiveArraySerializer.class);
             return serializer;
         }
@@ -366,7 +366,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
         public TypeSerializer<long[]> createUpgradedSerializer() {
             TypeSerializer<long[]> serializer =
                     TypeExtractor.createTypeInfo(long[].class)
-                            .createSerializer(new ExecutionConfig());
+                            .createSerializer(new SerializerConfigImpl());
             assertSame(serializer.getClass(), LongPrimitiveArraySerializer.class);
             return serializer;
         }
@@ -396,7 +396,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
         public TypeSerializer<short[]> createPriorSerializer() {
             TypeSerializer<short[]> serializer =
                     TypeExtractor.createTypeInfo(short[].class)
-                            .createSerializer(new ExecutionConfig());
+                            .createSerializer(new SerializerConfigImpl());
             assertSame(serializer.getClass(), ShortPrimitiveArraySerializer.class);
             return serializer;
         }
@@ -417,7 +417,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
         public TypeSerializer<short[]> createUpgradedSerializer() {
             TypeSerializer<short[]> serializer =
                     TypeExtractor.createTypeInfo(short[].class)
-                            .createSerializer(new ExecutionConfig());
+                            .createSerializer(new SerializerConfigImpl());
             assertSame(serializer.getClass(), ShortPrimitiveArraySerializer.class);
             return serializer;
         }
@@ -447,7 +447,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
         public TypeSerializer<String[]> createPriorSerializer() {
             TypeSerializer<String[]> serializer =
                     TypeExtractor.createTypeInfo(String[].class)
-                            .createSerializer(new ExecutionConfig());
+                            .createSerializer(new SerializerConfigImpl());
             assertSame(serializer.getClass(), StringArraySerializer.class);
             return serializer;
         }
@@ -468,7 +468,7 @@ public class PrimitiveArraySerializerUpgradeTestSpecifications {
         public TypeSerializer<String[]> createUpgradedSerializer() {
             TypeSerializer<String[]> serializer =
                     TypeExtractor.createTypeInfo(String[].class)
-                            .createSerializer(new ExecutionConfig());
+                            .createSerializer(new SerializerConfigImpl());
             assertSame(serializer.getClass(), StringArraySerializer.class);
             return serializer;
         }

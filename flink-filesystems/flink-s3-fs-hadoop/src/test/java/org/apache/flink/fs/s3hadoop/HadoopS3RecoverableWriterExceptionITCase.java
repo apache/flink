@@ -58,11 +58,11 @@ public class HadoopS3RecoverableWriterExceptionITCase
         conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
         conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
 
-        conf.setLong(PART_UPLOAD_MIN_SIZE, PART_UPLOAD_MIN_SIZE_VALUE);
-        conf.setInteger(MAX_CONCURRENT_UPLOADS, MAX_CONCURRENT_UPLOADS_VALUE);
+        conf.set(PART_UPLOAD_MIN_SIZE, PART_UPLOAD_MIN_SIZE_VALUE);
+        conf.set(MAX_CONCURRENT_UPLOADS, MAX_CONCURRENT_UPLOADS_VALUE);
 
         final String defaultTmpDir = TEMP_FOLDER.getRoot().getAbsolutePath() + "s3_tmp_dir";
-        conf.setString(CoreOptions.TMP_DIRS, defaultTmpDir);
+        conf.set(CoreOptions.TMP_DIRS, defaultTmpDir);
 
         FileSystem.initialize(conf);
 

@@ -30,10 +30,10 @@ import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
 import org.apache.flink.table.runtime.operators.rank.TopNBuffer;
-import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowProcessor;
-import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerService;
-import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerServiceImpl;
-import org.apache.flink.table.runtime.operators.window.state.WindowMapState;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowProcessor;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowTimerServiceImpl;
+import org.apache.flink.table.runtime.operators.window.tvf.state.WindowMapState;
 import org.apache.flink.types.RowKind;
 
 import java.time.ZoneId;
@@ -119,7 +119,8 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
                 ctx.getKeyedStateBackend()
                         .getOrCreateKeyedState(namespaceSerializer, mapStateDescriptor);
 
-        this.windowTimerService = new WindowTimerServiceImpl(ctx.getTimerService(), shiftTimeZone);
+        this.windowTimerService =
+                new SlicingWindowTimerServiceImpl(ctx.getTimerService(), shiftTimeZone);
         this.windowState =
                 new WindowMapState<>(
                         (InternalMapState<RowData, Long, RowData, List<RowData>>) state);
@@ -170,7 +171,7 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
     }
 
     @Override
-    public void clearWindow(Long windowEnd) throws Exception {
+    public void clearWindow(long timerTimestamp, Long windowEnd) throws Exception {
         windowState.clear(windowEnd);
     }
 
@@ -187,7 +188,7 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
     }
 
     @Override
-    public void fireWindow(Long windowEnd) throws Exception {
+    public void fireWindow(long timerTimestamp, Long windowEnd) throws Exception {
         TopNBuffer buffer = new TopNBuffer(sortKeyComparator, ArrayList::new);
         // step 1: load state data into TopNBuffer
         Iterator<Map.Entry<RowData, List<RowData>>> stateIterator = windowState.iterator(windowEnd);

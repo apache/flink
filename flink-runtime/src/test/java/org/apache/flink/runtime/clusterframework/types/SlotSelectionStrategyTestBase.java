@@ -21,15 +21,16 @@ package org.apache.flink.runtime.clusterframework.types;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.SimpleSlotContext;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotInfoWithUtilization;
+import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.jobmaster.slotpool.FreeSlotInfoTracker;
+import org.apache.flink.runtime.jobmaster.slotpool.FreeSlotInfoTrackerTestUtils;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import java.net.InetAddress;
-import java.util.Collections;
-import java.util.HashSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 /** Test base for {@link SlotSelectionStrategy}. */
 abstract class SlotSelectionStrategyTestBase {
@@ -56,35 +57,27 @@ abstract class SlotSelectionStrategyTestBase {
 
     protected final TaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
 
-    protected final SlotInfoWithUtilization slotInfo1 =
-            SlotInfoWithUtilization.from(
-                    new SimpleSlotContext(aid1, tml1, 1, taskManagerGateway, resourceProfile),
-                    ignored -> 0.0d);
-    protected final SlotInfoWithUtilization slotInfo2 =
-            SlotInfoWithUtilization.from(
-                    new SimpleSlotContext(aid2, tml2, 2, taskManagerGateway, biggerResourceProfile),
-                    ignored -> 0.0d);
-    protected final SlotInfoWithUtilization slotInfo3 =
-            SlotInfoWithUtilization.from(
-                    new SimpleSlotContext(aid3, tml3, 3, taskManagerGateway, resourceProfile),
-                    ignored -> 0.0d);
-    protected final SlotInfoWithUtilization slotInfo4 =
-            SlotInfoWithUtilization.from(
-                    new SimpleSlotContext(aid4, tml4, 4, taskManagerGateway, resourceProfile),
-                    ignored -> 0.0d);
+    protected final SlotInfo slotInfo1 =
+            new SimpleSlotContext(aid1, tml1, 1, taskManagerGateway, resourceProfile);
+    protected final SlotInfo slotInfo2 =
+            new SimpleSlotContext(aid2, tml2, 2, taskManagerGateway, biggerResourceProfile);
+    protected final SlotInfo slotInfo3 =
+            new SimpleSlotContext(aid3, tml3, 3, taskManagerGateway, resourceProfile);
+    protected final SlotInfo slotInfo4 =
+            new SimpleSlotContext(aid4, tml4, 4, taskManagerGateway, resourceProfile);
 
-    protected final Set<SlotInfoWithUtilization> candidates =
-            Collections.unmodifiableSet(createCandidates());
+    protected final FreeSlotInfoTracker candidates = createCandidates();
 
     protected SlotSelectionStrategy selectionStrategy;
 
-    private Set<SlotInfoWithUtilization> createCandidates() {
-        Set<SlotInfoWithUtilization> candidates = new HashSet<>(4);
-        candidates.add(slotInfo1);
-        candidates.add(slotInfo2);
-        candidates.add(slotInfo3);
-        candidates.add(slotInfo4);
-        return candidates;
+    private FreeSlotInfoTracker createCandidates() {
+        Map<AllocationID, SlotInfo> candidates = new HashMap<>(4);
+
+        candidates.put(slotInfo1.getAllocationId(), slotInfo1);
+        candidates.put(slotInfo2.getAllocationId(), slotInfo2);
+        candidates.put(slotInfo3.getAllocationId(), slotInfo3);
+        candidates.put(slotInfo4.getAllocationId(), slotInfo4);
+        return FreeSlotInfoTrackerTestUtils.createDefaultFreeSlotInfoTracker(candidates);
     }
 
     protected Optional<SlotSelectionStrategy.SlotInfoAndLocality> runMatching(

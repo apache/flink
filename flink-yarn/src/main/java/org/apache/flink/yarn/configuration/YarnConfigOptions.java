@@ -170,7 +170,7 @@ public class YarnConfigOptions {
                                     + " (for example for environments sharing a Flink installation between users).");
 
     /**
-     * The config parameter defining the Akka actor system port for the ApplicationMaster and
+     * The config parameter defining the Pekko actor system port for the ApplicationMaster and
      * JobManager. The port can either be a port, such as "9123", a range of ports: "50100-50200" or
      * a list of ranges and or points: "50100-50200,50300-50400,51234". Setting the port to 0 will
      * let the OS choose an available port.
@@ -272,7 +272,12 @@ public class YarnConfigOptions {
                     .noDefaultValue()
                     .withDeprecatedKeys("yarn.ship-directories")
                     .withDescription(
-                            "A semicolon-separated list of files and/or directories to be shipped to the YARN cluster.");
+                            "A semicolon-separated list of files and/or directories to be shipped to the YARN "
+                                    + "cluster. These files/directories can come from the local path of flink client "
+                                    + "or HDFS. For example, "
+                                    + "\"/path/to/local/file;/path/to/local/directory;"
+                                    + "hdfs://$namenode_address/path/of/file;"
+                                    + "hdfs://$namenode_address/path/of/directory\"");
 
     public static final ConfigOption<List<String>> SHIP_ARCHIVES =
             key("yarn.ship-archives")
@@ -280,9 +285,12 @@ public class YarnConfigOptions {
                     .asList()
                     .noDefaultValue()
                     .withDescription(
-                            "A semicolon-separated list of archives to be shipped to the YARN cluster."
-                                    + " These archives will be un-packed when localizing and they can be any of the following types: "
-                                    + "\".tar.gz\", \".tar\", \".tgz\", \".dst\", \".jar\", \".zip\".");
+                            "A semicolon-separated list of archives to be shipped to the YARN cluster. "
+                                    + "These archives can come from the local path of flink client or HDFS. "
+                                    + "They will be un-packed when localizing and they can be any of the following "
+                                    + "types: \".tar.gz\", \".tar\", \".tgz\", \".dst\", \".jar\", \".zip\". "
+                                    + "For example, \"/path/to/local/archive.jar;"
+                                    + "hdfs://$namenode_address/path/to/archive.jar\"");
 
     public static final ConfigOption<String> FLINK_DIST_JAR =
             key("yarn.flink-dist-jar")
@@ -411,6 +419,25 @@ public class YarnConfigOptions {
                                             link(
                                                     "https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-common/yarn-default.xml",
                                                     "yarn-default.xml"))
+                                    .build());
+
+    public static final ConfigOption<String> YARN_CONTAINER_START_COMMAND_TEMPLATE =
+            key("yarn.container-start-command-template")
+                    .stringType()
+                    .defaultValue("%java% %jvmmem% %jvmopts% %logging% %class% %args% %redirects%")
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "This configuration parameter allows users to pass custom settings (such as JVM paths, arguments etc.) to start the YARN. The following placeholders will be replaced: ")
+                                    .list(
+                                            text("%java%: Path to the Java executable"),
+                                            text("%jvmmem%: JVM memory limits and tweaks"),
+                                            text("%jvmopts%: Options for the Java VM"),
+                                            text(
+                                                    "%logging%: Logging-related configuration settings"),
+                                            text("%class%: Main class to execute"),
+                                            text("%args%: Arguments for the main class"),
+                                            text("%redirects%: Output redirects"))
                                     .build());
 
     /**

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.connector.format.Format;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.utils.EncodingUtils;
@@ -55,16 +56,19 @@ public class TableDescriptor {
 
     private final @Nullable Schema schema;
     private final Map<String, String> options;
+    private final @Nullable TableDistribution distribution;
     private final List<String> partitionKeys;
     private final @Nullable String comment;
 
     protected TableDescriptor(
             @Nullable Schema schema,
             Map<String, String> options,
+            @Nullable TableDistribution distribution,
             List<String> partitionKeys,
             @Nullable String comment) {
         this.schema = schema;
         this.options = Collections.unmodifiableMap(options);
+        this.distribution = distribution;
         this.partitionKeys = Collections.unmodifiableList(partitionKeys);
         this.comment = comment;
     }
@@ -81,7 +85,12 @@ public class TableDescriptor {
         return descriptorBuilder;
     }
 
-    /** Creates a new {@link Builder} for a managed table. */
+    /**
+     * Creates a new {@link Builder} for a managed table.
+     *
+     * @deprecated This method will be removed soon. Please see FLIP-346 for more details.
+     */
+    @Deprecated
     public static Builder forManaged() {
         return new Builder();
     }
@@ -94,6 +103,10 @@ public class TableDescriptor {
 
     public Map<String, String> getOptions() {
         return options;
+    }
+
+    public Optional<TableDistribution> getDistribution() {
+        return Optional.ofNullable(distribution);
     }
 
     public List<String> getPartitionKeys() {
@@ -118,7 +131,13 @@ public class TableDescriptor {
                                                         + "It can only be omitted at certain "
                                                         + "documented locations."));
 
-        return CatalogTable.of(schema, getComment().orElse(null), getPartitionKeys(), getOptions());
+        return CatalogTable.newBuilder()
+                .schema(schema)
+                .options(getOptions())
+                .distribution(distribution)
+                .partitionKeys(partitionKeys)
+                .comment(getComment().orElse(null))
+                .build();
     }
 
     /** Converts this immutable instance into a mutable {@link Builder}. */
@@ -134,6 +153,8 @@ public class TableDescriptor {
                 partitionKeys.stream()
                         .map(EncodingUtils::escapeIdentifier)
                         .collect(Collectors.joining(", "));
+
+        final String distributedBy = distribution == null ? "" : distribution.toString();
 
         final String partitionedBy =
                 !partitionKeys.isEmpty()
@@ -151,9 +172,10 @@ public class TableDescriptor {
                         .collect(Collectors.joining(String.format(",%n")));
 
         return String.format(
-                "%s%nCOMMENT '%s'%n%s%nWITH (%n%s%n)",
+                "%s%nCOMMENT '%s'%n%s%s%nWITH (%n%s%n)",
                 schema != null ? schema : "",
                 comment != null ? comment : "",
+                distributedBy,
                 partitionedBy,
                 serializedOptions);
     }
@@ -171,13 +193,14 @@ public class TableDescriptor {
         TableDescriptor that = (TableDescriptor) obj;
         return Objects.equals(schema, that.schema)
                 && options.equals(that.options)
+                && Objects.equals(distribution, that.distribution)
                 && partitionKeys.equals(that.partitionKeys)
                 && Objects.equals(comment, that.comment);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(schema, options, partitionKeys, comment);
+        return Objects.hash(schema, options, distribution, partitionKeys, comment);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -188,6 +211,7 @@ public class TableDescriptor {
 
         private @Nullable Schema schema;
         private final Map<String, String> options;
+        private @Nullable TableDistribution distribution;
         private final List<String> partitionKeys;
         private @Nullable String comment;
 
@@ -199,6 +223,7 @@ public class TableDescriptor {
         protected Builder(TableDescriptor descriptor) {
             this.schema = descriptor.getSchema().orElse(null);
             this.options = new HashMap<>(descriptor.getOptions());
+            this.distribution = descriptor.getDistribution().orElse(null);
             this.partitionKeys = new ArrayList<>(descriptor.getPartitionKeys());
             this.comment = descriptor.getComment().orElse(null);
         }
@@ -329,6 +354,86 @@ public class TableDescriptor {
             return this;
         }
 
+        /**
+         * Defines that the table should be distributed into buckets using a hash algorithm over the
+         * given columns. The number of buckets is connector-defined.
+         */
+        public Builder distributedByHash(String... bucketKeys) {
+            validateBucketKeys(bucketKeys);
+            this.distribution = TableDistribution.ofHash(Arrays.asList(bucketKeys), null);
+            return this;
+        }
+
+        /**
+         * Defines that the table should be distributed into the given number of buckets using a
+         * hash algorithm over the given columns.
+         */
+        public Builder distributedByHash(int numberOfBuckets, String... bucketKeys) {
+            validateBucketKeys(bucketKeys);
+            this.distribution =
+                    TableDistribution.ofHash(Arrays.asList(bucketKeys), numberOfBuckets);
+            return this;
+        }
+
+        /**
+         * Defines that the table should be distributed into buckets using a range algorithm over
+         * the given columns. The number of buckets is connector-defined.
+         */
+        public Builder distributedByRange(String... bucketKeys) {
+            validateBucketKeys(bucketKeys);
+            this.distribution = TableDistribution.ofRange(Arrays.asList(bucketKeys), null);
+            return this;
+        }
+
+        /**
+         * Defines that the table should be distributed into the given number of buckets using a
+         * range algorithm over the given columns.
+         */
+        public Builder distributedByRange(int numberOfBuckets, String... bucketKeys) {
+            validateBucketKeys(bucketKeys);
+            this.distribution =
+                    TableDistribution.ofRange(Arrays.asList(bucketKeys), numberOfBuckets);
+            return this;
+        }
+
+        /**
+         * Defines that the table should be distributed into buckets over the given columns. The
+         * number of buckets and used algorithm are connector-defined.
+         */
+        public Builder distributedBy(String... bucketKeys) {
+            validateBucketKeys(bucketKeys);
+            this.distribution = TableDistribution.ofUnknown(Arrays.asList(bucketKeys), null);
+            return this;
+        }
+
+        /**
+         * Defines that the table should be distributed into the given number of buckets by the
+         * given columns. The used algorithm is connector-defined.
+         */
+        public Builder distributedBy(int numberOfBuckets, String... bucketKeys) {
+            validateBucketKeys(bucketKeys);
+            this.distribution =
+                    TableDistribution.ofUnknown(Arrays.asList(bucketKeys), numberOfBuckets);
+            return this;
+        }
+
+        /**
+         * Defines that the table should be distributed into the given number of buckets. The
+         * algorithm is connector-defined.
+         */
+        public Builder distributedInto(int numberOfBuckets) {
+            this.distribution = TableDistribution.ofUnknown(numberOfBuckets);
+            return this;
+        }
+
+        private static void validateBucketKeys(String[] bucketKeys) {
+            Preconditions.checkNotNull(bucketKeys, "Bucket keys must not be null.");
+            if (bucketKeys.length == 0) {
+                throw new ValidationException(
+                        "At least one bucket key must be defined for a distribution.");
+            }
+        }
+
         /** Define which columns this table is partitioned by. */
         public Builder partitionedBy(String... partitionKeys) {
             this.partitionKeys.addAll(Arrays.asList(partitionKeys));
@@ -343,7 +448,7 @@ public class TableDescriptor {
 
         /** Returns an immutable instance of {@link TableDescriptor}. */
         public TableDescriptor build() {
-            return new TableDescriptor(schema, options, partitionKeys, comment);
+            return new TableDescriptor(schema, options, distribution, partitionKeys, comment);
         }
     }
 }

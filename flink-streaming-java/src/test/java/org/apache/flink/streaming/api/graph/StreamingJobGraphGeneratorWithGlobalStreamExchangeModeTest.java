@@ -26,32 +26,28 @@ import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link StreamingJobGraphGenerator} on different {@link GlobalStreamExchangeMode}
  * settings.
  */
-public class StreamingJobGraphGeneratorWithGlobalStreamExchangeModeTest extends TestLogger {
+class StreamingJobGraphGeneratorWithGlobalStreamExchangeModeTest {
 
     @Test
-    public void testDefaultGlobalExchangeModeIsAllEdgesPipelined() {
+    void testDefaultGlobalExchangeModeIsAllEdgesPipelined() {
         final StreamGraph streamGraph = createStreamGraph();
-        assertThat(
-                streamGraph.getGlobalStreamExchangeMode(),
-                is(GlobalStreamExchangeMode.ALL_EDGES_PIPELINED));
+        assertThat(streamGraph.getGlobalStreamExchangeMode())
+                .isEqualTo(GlobalStreamExchangeMode.ALL_EDGES_PIPELINED);
     }
 
     @Test
-    public void testAllEdgesBlockingMode() {
+    void testAllEdgesBlockingMode() {
         final StreamGraph streamGraph =
                 createStreamGraph(GlobalStreamExchangeMode.ALL_EDGES_BLOCKING);
         final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
@@ -61,19 +57,16 @@ public class StreamingJobGraphGeneratorWithGlobalStreamExchangeModeTest extends 
         final JobVertex map1Vertex = verticesSorted.get(1);
         final JobVertex map2Vertex = verticesSorted.get(2);
 
-        assertEquals(
-                ResultPartitionType.BLOCKING,
-                sourceVertex.getProducedDataSets().get(0).getResultType());
-        assertEquals(
-                ResultPartitionType.BLOCKING,
-                map1Vertex.getProducedDataSets().get(0).getResultType());
-        assertEquals(
-                ResultPartitionType.BLOCKING,
-                map2Vertex.getProducedDataSets().get(0).getResultType());
+        assertThat(sourceVertex.getProducedDataSets().get(0).getResultType())
+                .isEqualTo(ResultPartitionType.BLOCKING);
+        assertThat(map1Vertex.getProducedDataSets().get(0).getResultType())
+                .isEqualTo(ResultPartitionType.BLOCKING);
+        assertThat(map2Vertex.getProducedDataSets().get(0).getResultType())
+                .isEqualTo(ResultPartitionType.BLOCKING);
     }
 
     @Test
-    public void testAllEdgesPipelinedMode() {
+    void testAllEdgesPipelinedMode() {
         final StreamGraph streamGraph = createStreamGraph();
         streamGraph.setGlobalStreamExchangeMode(GlobalStreamExchangeMode.ALL_EDGES_PIPELINED);
         final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
@@ -83,19 +76,16 @@ public class StreamingJobGraphGeneratorWithGlobalStreamExchangeModeTest extends 
         final JobVertex map1Vertex = verticesSorted.get(1);
         final JobVertex map2Vertex = verticesSorted.get(2);
 
-        assertEquals(
-                ResultPartitionType.PIPELINED_BOUNDED,
-                sourceVertex.getProducedDataSets().get(0).getResultType());
-        assertEquals(
-                ResultPartitionType.PIPELINED_BOUNDED,
-                map1Vertex.getProducedDataSets().get(0).getResultType());
-        assertEquals(
-                ResultPartitionType.PIPELINED_BOUNDED,
-                map2Vertex.getProducedDataSets().get(0).getResultType());
+        assertThat(sourceVertex.getProducedDataSets().get(0).getResultType())
+                .isEqualTo(ResultPartitionType.PIPELINED_BOUNDED);
+        assertThat(map1Vertex.getProducedDataSets().get(0).getResultType())
+                .isEqualTo(ResultPartitionType.PIPELINED_BOUNDED);
+        assertThat(map2Vertex.getProducedDataSets().get(0).getResultType())
+                .isEqualTo(ResultPartitionType.PIPELINED_BOUNDED);
     }
 
     @Test
-    public void testForwardEdgesPipelinedMode() {
+    void testForwardEdgesPipelinedMode() {
         final StreamGraph streamGraph =
                 createStreamGraph(GlobalStreamExchangeMode.FORWARD_EDGES_PIPELINED);
         final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
@@ -105,19 +95,16 @@ public class StreamingJobGraphGeneratorWithGlobalStreamExchangeModeTest extends 
         final JobVertex map1Vertex = verticesSorted.get(1);
         final JobVertex map2Vertex = verticesSorted.get(2);
 
-        assertEquals(
-                ResultPartitionType.PIPELINED_BOUNDED,
-                sourceVertex.getProducedDataSets().get(0).getResultType());
-        assertEquals(
-                ResultPartitionType.BLOCKING,
-                map1Vertex.getProducedDataSets().get(0).getResultType());
-        assertEquals(
-                ResultPartitionType.BLOCKING,
-                map2Vertex.getProducedDataSets().get(0).getResultType());
+        assertThat(sourceVertex.getProducedDataSets().get(0).getResultType())
+                .isEqualTo(ResultPartitionType.PIPELINED_BOUNDED);
+        assertThat(map1Vertex.getProducedDataSets().get(0).getResultType())
+                .isEqualTo(ResultPartitionType.BLOCKING);
+        assertThat(map2Vertex.getProducedDataSets().get(0).getResultType())
+                .isEqualTo(ResultPartitionType.BLOCKING);
     }
 
     @Test
-    public void testPointwiseEdgesPipelinedMode() {
+    void testPointwiseEdgesPipelinedMode() {
         final StreamGraph streamGraph =
                 createStreamGraph(GlobalStreamExchangeMode.POINTWISE_EDGES_PIPELINED);
         final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
@@ -127,21 +114,18 @@ public class StreamingJobGraphGeneratorWithGlobalStreamExchangeModeTest extends 
         final JobVertex map1Vertex = verticesSorted.get(1);
         final JobVertex map2Vertex = verticesSorted.get(2);
 
-        assertEquals(
-                ResultPartitionType.PIPELINED_BOUNDED,
-                sourceVertex.getProducedDataSets().get(0).getResultType());
-        assertEquals(
-                ResultPartitionType.PIPELINED_BOUNDED,
-                map1Vertex.getProducedDataSets().get(0).getResultType());
-        assertEquals(
-                ResultPartitionType.BLOCKING,
-                map2Vertex.getProducedDataSets().get(0).getResultType());
+        assertThat(sourceVertex.getProducedDataSets().get(0).getResultType())
+                .isEqualTo(ResultPartitionType.PIPELINED_BOUNDED);
+        assertThat(map1Vertex.getProducedDataSets().get(0).getResultType())
+                .isEqualTo(ResultPartitionType.PIPELINED_BOUNDED);
+        assertThat(map2Vertex.getProducedDataSets().get(0).getResultType())
+                .isEqualTo(ResultPartitionType.BLOCKING);
     }
 
     @Test
-    public void testGlobalExchangeModeDoesNotOverrideSpecifiedExchangeMode() {
+    void testGlobalExchangeModeDoesNotOverrideSpecifiedExchangeMode() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        final DataStream<Integer> source = env.fromElements(1, 2, 3).setParallelism(1);
+        final DataStream<Integer> source = env.fromData(1, 2, 3).setParallelism(1);
         final DataStream<Integer> forward =
                 new DataStream<>(
                         env,
@@ -158,9 +142,8 @@ public class StreamingJobGraphGeneratorWithGlobalStreamExchangeModeTest extends 
         final List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
         final JobVertex sourceVertex = verticesSorted.get(0);
 
-        assertEquals(
-                ResultPartitionType.PIPELINED_BOUNDED,
-                sourceVertex.getProducedDataSets().get(0).getResultType());
+        assertThat(sourceVertex.getProducedDataSets().get(0).getResultType())
+                .isEqualTo(ResultPartitionType.PIPELINED_BOUNDED);
     }
 
     /**
@@ -182,7 +165,7 @@ public class StreamingJobGraphGeneratorWithGlobalStreamExchangeModeTest extends 
             env.setBufferTimeout(-1);
         }
 
-        final DataStream<Integer> source = env.fromElements(1, 2, 3).setParallelism(1);
+        final DataStream<Integer> source = env.fromData(1, 2, 3).setParallelism(1);
 
         final DataStream<Integer> forward =
                 new DataStream<>(

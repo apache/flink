@@ -38,7 +38,6 @@ import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ConfigurationException;
-import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -53,7 +52,6 @@ import org.apache.flink.shaded.netty4.io.netty.util.Attribute;
 import org.apache.flink.shaded.netty4.io.netty.util.AttributeKey;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nonnull;
@@ -75,7 +73,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /** Tests for {@link AbstractHandler}. */
-@ExtendWith(TestLoggerExtension.class)
 class AbstractHandlerTest {
 
     private static final RestfulGateway mockRestfulGateway =
@@ -90,16 +87,16 @@ class AbstractHandlerTest {
         final String loopbackAddress = InetAddress.getLoopbackAddress().getHostAddress();
 
         final Configuration config = new Configuration();
-        config.setString(RestOptions.BIND_PORT, "0");
-        config.setString(RestOptions.BIND_ADDRESS, loopbackAddress);
-        config.setString(RestOptions.ADDRESS, loopbackAddress);
+        config.set(RestOptions.BIND_PORT, "0");
+        config.set(RestOptions.BIND_ADDRESS, loopbackAddress);
+        config.set(RestOptions.ADDRESS, loopbackAddress);
 
         REST_BASE_CONFIG = config;
     }
 
     private RestClient createRestClient(int serverPort) throws ConfigurationException {
         Configuration config = new Configuration(REST_BASE_CONFIG);
-        config.setInteger(RestOptions.PORT, serverPort);
+        config.set(RestOptions.PORT, serverPort);
 
         return new RestClient(config, Executors.directExecutor());
     }

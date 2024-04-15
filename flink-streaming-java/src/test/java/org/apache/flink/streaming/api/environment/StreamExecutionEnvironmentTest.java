@@ -23,25 +23,29 @@ import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.connector.source.Source;
+import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.StateChangelogOptions;
+import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.SplittableIterator;
@@ -65,7 +69,7 @@ class StreamExecutionEnvironmentTest {
     @Test
     void fromElementsWithBaseTypeTest1() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.fromElements(ParentClass.class, new SubClass(1, "Java"), new ParentClass(1, "hello"));
+        env.fromData(ParentClass.class, new SubClass(1, "Java"), new ParentClass(1, "hello"));
     }
 
     @Test
@@ -73,7 +77,7 @@ class StreamExecutionEnvironmentTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         assertThatThrownBy(
                         () ->
-                                env.fromElements(
+                                env.fromData(
                                         SubClass.class,
                                         new SubClass(1, "Java"),
                                         new ParentClass(1, "hello")))
@@ -83,28 +87,48 @@ class StreamExecutionEnvironmentTest {
     @Test
     void testFromElementsDeducedType() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        DataStreamSource<String> source = env.fromElements("a", "b");
+        DataStreamSource<String> source = env.fromData("a", "b");
 
-        FromElementsFunction<String> elementsFunction =
-                (FromElementsFunction<String>) getFunctionFromDataSource(source);
-        assertThat(elementsFunction.getSerializer())
-                .isEqualTo(BasicTypeInfo.STRING_TYPE_INFO.createSerializer(env.getConfig()));
+        DataGeneratorSource<String> generatorSource = getSourceFromStream(source);
+
+        assertThat(generatorSource.getProducedType()).isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
     }
 
     @Test
     void testFromElementsPostConstructionType() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        DataStreamSource<String> source = env.fromElements("a", "b");
+        DataStreamSource<String> source = env.fromData("a", "b");
         TypeInformation<String> customType = new GenericTypeInfo<>(String.class);
 
         source.returns(customType);
 
-        FromElementsFunction<String> elementsFunction =
-                (FromElementsFunction<String>) getFunctionFromDataSource(source);
-        assertThat(elementsFunction.getSerializer())
-                .isNotEqualTo(BasicTypeInfo.STRING_TYPE_INFO.createSerializer(env.getConfig()));
-        assertThat(elementsFunction.getSerializer())
-                .isEqualTo(customType.createSerializer(env.getConfig()));
+        DataGeneratorSource<String> generatorSource = getSourceFromStream(source);
+        source.sinkTo(new DiscardingSink<>());
+        env.getStreamGraph();
+
+        assertThat(generatorSource.getProducedType()).isNotEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
+        assertThat(generatorSource.getProducedType()).isEqualTo(customType);
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void testFromElementsPostConstructionTypeIncompatible() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStreamSource<String> source = env.fromData("a", "b");
+        source.returns((TypeInformation) BasicTypeInfo.INT_TYPE_INFO);
+        source.sinkTo(new DiscardingSink<>());
+
+        assertThatThrownBy(env::getStreamGraph)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("not all subclasses of java.lang.Integer");
+    }
+
+    @Test
+    void testFromElementsNullElement() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        assertThatThrownBy(() -> env.fromData("a", null, "c"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("contains a null element");
     }
 
     @Test
@@ -114,26 +138,15 @@ class StreamExecutionEnvironmentTest {
             TypeInformation<Integer> typeInfo = BasicTypeInfo.INT_TYPE_INFO;
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-            DataStreamSource<Integer> dataStream1 =
-                    env.fromCollection(new DummySplittableIterator<Integer>(), typeInfo);
-
-            assertThatThrownBy(() -> dataStream1.setParallelism(4))
-                    .isInstanceOf(IllegalArgumentException.class);
-
-            dataStream1.addSink(new DiscardingSink<Integer>());
-
             DataStreamSource<Integer> dataStream2 =
                     env.fromParallelCollection(new DummySplittableIterator<Integer>(), typeInfo)
                             .setParallelism(4);
 
-            dataStream2.addSink(new DiscardingSink<Integer>());
+            dataStream2.sinkTo(new DiscardingSink<>());
 
             final StreamGraph streamGraph = env.getStreamGraph();
             streamGraph.getStreamingPlanAsJSON();
 
-            assertThat(streamGraph.getStreamNode(dataStream1.getId()).getParallelism())
-                    .as("Parallelism of collection source must be 1.")
-                    .isOne();
             assertThat(streamGraph.getStreamNode(dataStream2.getId()).getParallelism())
                     .as("Parallelism of parallel collection source must be 4.")
                     .isEqualTo(4);
@@ -145,6 +158,8 @@ class StreamExecutionEnvironmentTest {
 
     @Test
     void testSources() {
+        // TODO: remove this test when SourceFunction API gets removed together with the deprecated
+        //  StreamExecutionEnvironment generateSequence() and fromCollection() methods
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         SourceFunction<Integer> srcFun =
@@ -158,16 +173,17 @@ class StreamExecutionEnvironmentTest {
                     public void cancel() {}
                 };
         DataStreamSource<Integer> src1 = env.addSource(srcFun);
-        src1.addSink(new DiscardingSink<Integer>());
+        src1.sinkTo(new DiscardingSink<>());
         assertThat(getFunctionFromDataSource(src1)).isEqualTo(srcFun);
 
         List<Long> list = Arrays.asList(0L, 1L, 2L);
 
-        DataStreamSource<Long> src2 = env.generateSequence(0, 2);
-        assertThat(getFunctionFromDataSource(src2)).isInstanceOf(StatefulSequenceSource.class);
+        DataStreamSource<Long> src2 = env.fromSequence(0, 2);
+        Object generatorSource = getSourceFromStream(src2);
+        assertThat(generatorSource).isInstanceOf(NumberSequenceSource.class);
 
-        DataStreamSource<Long> src3 = env.fromElements(0L, 1L, 2L);
-        assertThat(getFunctionFromDataSource(src3)).isInstanceOf(FromElementsFunction.class);
+        DataStreamSource<Long> src3 = env.fromData(0L, 1L, 2L);
+        assertThat(getSourceFromDataSourceTyped(src3)).isInstanceOf(DataGeneratorSource.class);
 
         DataStreamSource<Long> src4 = env.fromCollection(list);
         assertThat(getFunctionFromDataSource(src4)).isInstanceOf(FromElementsFunction.class);
@@ -274,8 +290,8 @@ class StreamExecutionEnvironmentTest {
         env.registerSlotSharingGroup(ssg2);
         env.registerSlotSharingGroup(SlotSharingGroup.newBuilder("ssg3").build());
 
-        final DataStream<Integer> source = env.fromElements(1).slotSharingGroup("ssg1");
-        source.map(value -> value).slotSharingGroup(ssg2).addSink(new DiscardingSink<>());
+        final DataStream<Integer> source = env.fromData(1).slotSharingGroup("ssg1");
+        source.map(value -> value).slotSharingGroup(ssg2).sinkTo(new DiscardingSink<>());
 
         final StreamGraph streamGraph = env.getStreamGraph();
         assertThat(streamGraph.getSlotSharingGroupResource("ssg1").get())
@@ -294,41 +310,33 @@ class StreamExecutionEnvironmentTest {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.registerSlotSharingGroup(ssg);
 
-        final DataStream<Integer> source = env.fromElements(1).slotSharingGroup("ssg1");
-        source.map(value -> value).slotSharingGroup(ssgConflict).addSink(new DiscardingSink<>());
+        final DataStream<Integer> source = env.fromData(1).slotSharingGroup("ssg1");
+        source.map(value -> value).slotSharingGroup(ssgConflict).sinkTo(new DiscardingSink<>());
 
         assertThatThrownBy(env::getStreamGraph).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void testGetStreamGraph() {
-        try {
-            TypeInformation<Integer> typeInfo = BasicTypeInfo.INT_TYPE_INFO;
-            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-            DataStreamSource<Integer> dataStream1 =
-                    env.fromCollection(new DummySplittableIterator<Integer>(), typeInfo);
-            dataStream1.addSink(new DiscardingSink<Integer>());
-            assertThat(env.getStreamGraph().getStreamNodes().size()).isEqualTo(2);
+        DataStreamSource<Integer> dataStream1 = env.fromData(1, 2, 3);
+        dataStream1.sinkTo(new DiscardingSink<>());
+        assertThat(env.getStreamGraph().getStreamNodes().size()).isEqualTo(2);
 
-            DataStreamSource<Integer> dataStream2 =
-                    env.fromCollection(new DummySplittableIterator<Integer>(), typeInfo);
-            dataStream2.addSink(new DiscardingSink<Integer>());
-            assertThat(env.getStreamGraph().getStreamNodes().size()).isEqualTo(2);
+        DataStreamSource<Integer> dataStream2 = env.fromData(1, 2, 3);
+        dataStream2.sinkTo(new DiscardingSink<>());
+        // Previous getStreamGraph() call cleaned dataStream1 transformations
+        assertThat(env.getStreamGraph().getStreamNodes().size()).isEqualTo(2);
 
-            DataStreamSource<Integer> dataStream3 =
-                    env.fromCollection(new DummySplittableIterator<Integer>(), typeInfo);
-            dataStream3.addSink(new DiscardingSink<Integer>());
-            // Does not clear the transformations.
-            env.getExecutionPlan();
-            DataStreamSource<Integer> dataStream4 =
-                    env.fromCollection(new DummySplittableIterator<Integer>(), typeInfo);
-            dataStream4.addSink(new DiscardingSink<Integer>());
-            assertThat(env.getStreamGraph().getStreamNodes().size()).isEqualTo(4);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        DataStreamSource<Integer> dataStream3 = env.fromData(1, 2, 3);
+        dataStream3.sinkTo(new DiscardingSink<>());
+        // Does not clear the transformations.
+        env.getExecutionPlan();
+        DataStreamSource<Integer> dataStream4 = env.fromData(1, 2, 3);
+        dataStream4.sinkTo(new DiscardingSink<>());
+        // dataStream3 are preserved
+        assertThat(env.getStreamGraph().getStreamNodes().size()).isEqualTo(4);
     }
 
     @Test
@@ -361,7 +369,7 @@ class StreamExecutionEnvironmentTest {
     }
 
     private void testJobName(String expectedJobName, StreamExecutionEnvironment env) {
-        env.fromElements(1, 2, 3).print();
+        env.fromData(1, 2, 3).print();
         StreamGraph streamGraph = env.getStreamGraph();
         assertThat(streamGraph.getJobName()).isEqualTo(expectedJobName);
     }
@@ -377,6 +385,44 @@ class StreamExecutionEnvironmentTest {
         DataStreamSource<Row> source2 = env.addSource(new RowSourceFunction());
         // the source type information should be derived from RowSourceFunction#getProducedType
         assertThat(source2.getType()).isEqualTo(new GenericTypeInfo<>(Row.class));
+    }
+
+    @Test
+    void testPeriodicMaterializeEnabled() {
+        Configuration config = new Configuration();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.configure(config, this.getClass().getClassLoader());
+        assertThat(env.getConfig().isPeriodicMaterializeEnabled())
+                .isEqualTo(StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED.defaultValue());
+
+        config.setBoolean(StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED.key(), false);
+        env.configure(config, this.getClass().getClassLoader());
+        assertThat(env.getConfig().isPeriodicMaterializeEnabled()).isFalse();
+    }
+
+    @Test
+    void testPeriodicMaterializeInterval() {
+        Configuration config = new Configuration();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.configure(config, this.getClass().getClassLoader());
+        assertThat(env.getConfig().getPeriodicMaterializeIntervalMillis())
+                .isEqualTo(
+                        StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL
+                                .defaultValue()
+                                .toMillis());
+
+        config.setString(StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL.key(), "60s");
+        env.configure(config, this.getClass().getClassLoader());
+        assertThat(env.getConfig().getPeriodicMaterializeIntervalMillis()).isEqualTo(60 * 1000);
+
+        assertThatThrownBy(
+                        () -> {
+                            config.setString(
+                                    StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL.key(),
+                                    "-1ms");
+                            env.configure(config, this.getClass().getClassLoader());
+                        })
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -406,14 +452,12 @@ class StreamExecutionEnvironmentTest {
                 .isEqualTo(ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT);
 
         // Setting execution.buffer-timeout's to 0ms will not take effect.
-        config.setString(ExecutionOptions.BUFFER_TIMEOUT.key(), "0ms");
-        env.configure(config, this.getClass().getClassLoader());
+        env.setBufferTimeout(0);
         assertThat(env.getBufferTimeout())
                 .isEqualTo(ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT);
 
         // Setting execution.buffer-timeout's to -1ms will not take effect.
-        config.setString(ExecutionOptions.BUFFER_TIMEOUT.key(), "-1ms");
-        env.configure(config, this.getClass().getClassLoader());
+        env.setBufferTimeout(-1);
         assertThat(env.getBufferTimeout())
                 .isEqualTo(ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT);
     }
@@ -431,6 +475,7 @@ class StreamExecutionEnvironmentTest {
                         () -> {
                             config.setString(ExecutionOptions.BUFFER_TIMEOUT.key(), "-1ms");
                             env.configure(config, this.getClass().getClassLoader());
+                            env.getBufferTimeout();
                         })
                 .isInstanceOf(IllegalArgumentException.class);
     }
@@ -486,10 +531,22 @@ class StreamExecutionEnvironmentTest {
     @SuppressWarnings("unchecked")
     private static <T> SourceFunction<T> getFunctionFromDataSource(
             DataStreamSource<T> dataStreamSource) {
-        dataStreamSource.addSink(new DiscardingSink<T>());
+        dataStreamSource.sinkTo(new DiscardingSink<>());
         AbstractUdfStreamOperator<?, ?> operator =
                 (AbstractUdfStreamOperator<?, ?>) getOperatorFromDataStream(dataStreamSource);
         return (SourceFunction<T>) operator.getUserFunction();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T, S extends Source<T, ?, ?>> S getSourceFromStream(DataStream<T> stream) {
+        return (S) ((SourceTransformation<T, ?, ?>) stream.getTransformation()).getSource();
+    }
+
+    private static <T> Source<T, ?, ?> getSourceFromDataSourceTyped(
+            DataStreamSource<T> dataStreamSource) {
+        dataStreamSource.sinkTo(new DiscardingSink<>());
+        dataStreamSource.getExecutionEnvironment().getStreamGraph();
+        return ((SourceTransformation<T, ?, ?>) dataStreamSource.getTransformation()).getSource();
     }
 
     private static class DummySplittableIterator<T> extends SplittableIterator<T> {

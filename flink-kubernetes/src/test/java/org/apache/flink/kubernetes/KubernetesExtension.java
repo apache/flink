@@ -58,7 +58,7 @@ public class KubernetesExtension implements BeforeAllCallback, AfterAllCallback 
         checkEnv();
         configuration = new Configuration();
         configuration.set(KubernetesConfigOptions.KUBE_CONFIG_FILE, kubeConfigFile);
-        configuration.setString(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
+        configuration.set(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
         configuration.set(
                 KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES,
                 KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES);

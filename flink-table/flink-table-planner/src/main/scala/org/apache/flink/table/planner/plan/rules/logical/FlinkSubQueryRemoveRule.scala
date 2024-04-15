@@ -17,9 +17,8 @@
  */
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.table.planner.alias.ClearJoinHintWithInvalidPropagationShuttle
 import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkRelFactories}
-import org.apache.flink.table.planner.hint.FlinkHints
+import org.apache.flink.table.planner.hint.{ClearQueryHintsWithInvalidPropagationShuttle, FlinkHints}
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand, RelOptUtil}
@@ -99,9 +98,9 @@ class FlinkSubQueryRemoveRule(
         // so hints in it should also be resolved with the same logic in SqlToRelConverter
         val newNode = relBuilder.build
         val nodeWithHint = RelOptUtil.propagateRelHints(newNode, false)
-        val nodeWithCapitalizedJoinHints = FlinkHints.capitalizeJoinHints(nodeWithHint)
+        val nodeWithCapitalizedQueryHints = FlinkHints.capitalizeQueryHints(nodeWithHint)
         val finalNode =
-          nodeWithCapitalizedJoinHints.accept(new ClearJoinHintWithInvalidPropagationShuttle)
+          nodeWithCapitalizedQueryHints.accept(new ClearQueryHintsWithInvalidPropagationShuttle)
         call.transformTo(finalNode)
       case _ => // do nothing
     }
@@ -216,6 +215,18 @@ class FlinkSubQueryRemoveRule(
 
       // EXISTS and NOT EXISTS
       case SqlKind.EXISTS =>
+        val mq = subQuery.rel.getCluster.getMetadataQuery
+        val minRowCount = mq.getMinRowCount(subQuery.rel)
+        // If the sub-query is guaranteed to produce at least one row, just return TRUE.
+        if (minRowCount != null && minRowCount >= 1d) {
+          return Option.apply(relBuilder.literal(!withNot))
+        }
+        val maxRowCount = mq.getMaxRowCount(subQuery.rel)
+        // If the sub-query is guaranteed to produce no rows then return FALSE.
+        if (maxRowCount != null && maxRowCount < 1d) {
+          return Option.apply(relBuilder.literal(withNot))
+        }
+
         val joinCondition = if (equivalent != null) {
           // EXISTS has correlation variables
           relBuilder.push(equivalent.getKey) // push join right

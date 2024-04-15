@@ -283,8 +283,8 @@ public class FlinkContainersSettings {
         }
 
         /**
-         * Sets a single Flink configuration parameter (the options for flink-conf.yaml) and returns
-         * a reference to this Builder enabling method chaining.
+         * Sets a single Flink configuration parameter (the options for config.yaml) and returns a
+         * reference to this Builder enabling method chaining.
          *
          * @param <T> The type parameter.
          * @param option The option.
@@ -391,7 +391,7 @@ public class FlinkContainersSettings {
             logProperties.setProperty("appender.rolling.fileName", "${sys:log.file}");
             logProperties.setProperty("appender.rolling.filePattern", "${sys:log.file}.%i");
             logProperties.setProperty("rootLogger.appenderRef.rolling.ref", "RollingFileAppender");
-            logProperties.setProperty("logger.akka.name", "akka");
+            logProperties.setProperty("logger.pekko.name", "org.apache.pekko");
             logProperties.setProperty("appender.console.type", "CONSOLE");
             logProperties.setProperty("appender.rolling.append", "true");
             logProperties.setProperty("appender.console.layout.type", "PatternLayout");
@@ -409,7 +409,7 @@ public class FlinkContainersSettings {
             logProperties.setProperty("logger.kafka.name", "org.apache.kafka");
             logProperties.setProperty("logger.netty.level", "OFF");
             logProperties.setProperty("appender.rolling.type", "RollingFile");
-            logProperties.setProperty("logger.akka.level", "INFO");
+            logProperties.setProperty("logger.pekko.level", "INFO");
             logProperties.setProperty("logger.hadoop.level", "INFO");
             logProperties.setProperty(
                     "appender.rolling.layout.pattern",
@@ -496,7 +496,7 @@ public class FlinkContainersSettings {
      * @return The job manager hostname.
      */
     public String getJobManagerHostname() {
-        return flinkConfig.getString(JobManagerOptions.ADDRESS);
+        return flinkConfig.get(JobManagerOptions.ADDRESS);
     }
 
     /**

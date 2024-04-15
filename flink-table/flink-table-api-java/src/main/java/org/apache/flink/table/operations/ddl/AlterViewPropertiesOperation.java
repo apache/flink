@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogView;
@@ -27,6 +28,7 @@ import org.apache.flink.table.operations.OperationUtils;
 import java.util.stream.Collectors;
 
 /** Operation to describe a ALTER VIEW .. SET .. statement. */
+@Internal
 public class AlterViewPropertiesOperation extends AlterViewOperation {
 
     private final CatalogView catalogView;

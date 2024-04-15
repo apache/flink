@@ -24,16 +24,20 @@ import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.connector.file.sink.FileSink;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.streaming.examples.join.WindowJoinSampleData.GradeSource;
-import org.apache.flink.streaming.examples.join.WindowJoinSampleData.SalarySource;
+
+import java.time.Duration;
 
 /**
  * Example illustrating a windowed stream join between two data streams.
@@ -55,6 +59,7 @@ public class WindowJoin {
         final ParameterTool params = ParameterTool.fromArgs(args);
         final long windowSize = params.getLong("windowSize", 2000);
         final long rate = params.getLong("rate", 3L);
+        final boolean fileOutput = params.has("output");
 
         System.out.println("Using windowSize=" + windowSize + ", data rate=" + rate);
         System.out.println(
@@ -68,20 +73,41 @@ public class WindowJoin {
 
         // create the data sources for both grades and salaries
         DataStream<Tuple2<String, Integer>> grades =
-                GradeSource.getSource(env, rate)
-                        .assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create());
+                env.fromSource(
+                                WindowJoinSampleData.getGradeGeneratorSource(rate),
+                                IngestionTimeWatermarkStrategy.create(),
+                                "Grades Data Generator")
+                        .setParallelism(1);
 
         DataStream<Tuple2<String, Integer>> salaries =
-                SalarySource.getSource(env, rate)
-                        .assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create());
+                env.fromSource(
+                                WindowJoinSampleData.getSalaryGeneratorSource(rate),
+                                IngestionTimeWatermarkStrategy.create(),
+                                "Grades Data Generator")
+                        .setParallelism(1);
 
         // run the actual window join program
         // for testability, this functionality is in a separate method.
         DataStream<Tuple3<String, Integer, Integer>> joinedStream =
                 runWindowJoin(grades, salaries, windowSize);
 
-        // print the results with a single thread, rather than in parallel
-        joinedStream.print().setParallelism(1);
+        if (fileOutput) {
+            joinedStream
+                    .sinkTo(
+                            FileSink.<Tuple3<String, Integer, Integer>>forRowFormat(
+                                            new Path(params.get("output")),
+                                            new SimpleStringEncoder<>())
+                                    .withRollingPolicy(
+                                            DefaultRollingPolicy.builder()
+                                                    .withMaxPartSize(MemorySize.ofMebiBytes(1))
+                                                    .withRolloverInterval(Duration.ofSeconds(10))
+                                                    .build())
+                                    .build())
+                    .name("output");
+        } else {
+            // print the results with a single thread, rather than in parallel
+            joinedStream.print().setParallelism(1);
+        }
 
         // execute program
         env.execute("Windowed Join Example");
@@ -95,7 +121,7 @@ public class WindowJoin {
         return grades.join(salaries)
                 .where(new NameKeySelector())
                 .equalTo(new NameKeySelector())
-                .window(TumblingEventTimeWindows.of(Time.milliseconds(windowSize)))
+                .window(TumblingEventTimeWindows.of(Duration.ofMillis(windowSize)))
                 .apply(
                         new JoinFunction<
                                 Tuple2<String, Integer>,

@@ -62,11 +62,9 @@ import scala.reflect.ClassTag
  *   still build your application in Scala, but you should move to the Java version of either the
  *   DataStream and/or Table API.
  * @see
- *   <a
- *   href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-265+Deprecate+and+remove+Scala+API+support">
- *   FLIP-265 Deprecate and remove Scala API support</a>
+ *   <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
  */
-@Deprecated
+@deprecated(org.apache.flink.api.scala.FLIP_265_WARNING, since = "1.17.0")
 @Public
 class ExecutionEnvironment(javaEnv: JavaEnv) {
 
@@ -403,7 +401,9 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     CollectionInputFormat.checkCollection(data.asJavaCollection, typeInfo.getTypeClass)
     val dataSource = new DataSource[T](
       javaEnv,
-      new CollectionInputFormat[T](data.asJavaCollection, typeInfo.createSerializer(getConfig)),
+      new CollectionInputFormat[T](
+        data.asJavaCollection,
+        typeInfo.createSerializer(getConfig.getSerializerConfig)),
       typeInfo,
       getCallLocationName())
     wrap(dataSource)
@@ -605,6 +605,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   }
 }
 
+@deprecated(org.apache.flink.api.scala.FLIP_265_WARNING, since = "1.17.0")
 @Public
 object ExecutionEnvironment {
 
@@ -751,7 +752,7 @@ object ExecutionEnvironment {
   /**
    * Creates a remote execution environment. The remote environment sends (parts of) the program to
    * a cluster for execution. Note that all file paths used in the program must be accessible from
-   * the cluster. The custom configuration file is used to configure Akka specific configuration
+   * the cluster. The custom configuration file is used to configure Pekko specific configuration
    * parameters for the Client only; Program parallelism can be set via
    * [[ExecutionEnvironment.setParallelism]].
    *

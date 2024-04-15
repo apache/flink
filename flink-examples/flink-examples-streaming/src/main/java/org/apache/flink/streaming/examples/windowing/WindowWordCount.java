@@ -102,7 +102,7 @@ public class WindowWordCount {
 
             text = env.fromSource(builder.build(), WatermarkStrategy.noWatermarks(), "file-input");
         } else {
-            text = env.fromElements(WordCountData.WORDS).name("in-memory-input");
+            text = env.fromData(WordCountData.WORDS).name("in-memory-input");
         }
 
         int windowSize = params.getInt("window").orElse(250);

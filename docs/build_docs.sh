@@ -24,6 +24,19 @@ then
 	exit 1
 fi
 git submodule update --init --recursive
-./setup_docs.sh
+
+# whether to skip integrate connector docs. If contains arg '--skip-integrate-connector-docs' and
+# the connectors directory is not empty, the external connector docs will not be generated.
+connectors_dir="./themes/connectors"
+SKIP_INTEGRATE_CONNECTOR_DOCS=""
+for arg in "$@"; do
+  if [ -d "$connectors_dir" ] && [ "$arg" == "--skip-integrate-connector-docs" ]; then
+    SKIP_INTEGRATE_CONNECTOR_DOCS="--skip-integrate-connector-docs"
+    break
+  fi
+done
+
+./setup_docs.sh $SKIP_INTEGRATE_CONNECTOR_DOCS
+
 hugo mod get -u
 hugo -b "" serve 

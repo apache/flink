@@ -32,8 +32,7 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -42,8 +41,11 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 /** Tests for the {@link CoBroadcastWithNonKeyedOperator}. */
-public class CoBroadcastWithNonKeyedOperatorTest {
+class CoBroadcastWithNonKeyedOperatorTest {
 
     private static final MapStateDescriptor<String, Integer> STATE_DESCRIPTOR =
             new MapStateDescriptor<>(
@@ -56,7 +58,7 @@ public class CoBroadcastWithNonKeyedOperatorTest {
                     BasicTypeInfo.STRING_TYPE_INFO);
 
     @Test
-    public void testMultiStateSupport() throws Exception {
+    void testMultiStateSupport() throws Exception {
         try (TwoInputStreamOperatorTestHarness<String, Integer, String> testHarness =
                 getInitializedTestHarness(
                         new FunctionWithMultipleStates(), STATE_DESCRIPTOR, STATE_DESCRIPTOR_A)) {
@@ -105,7 +107,7 @@ public class CoBroadcastWithNonKeyedOperatorTest {
     }
 
     @Test
-    public void testBroadcastState() throws Exception {
+    void testBroadcastState() throws Exception {
 
         final Set<String> keysToRegister = new HashSet<>();
         keysToRegister.add("test1");
@@ -169,14 +171,14 @@ public class CoBroadcastWithNonKeyedOperatorTest {
                 retrievedKeySet.add(entry.getKey());
             }
 
-            Assert.assertEquals(keysToRegister, retrievedKeySet);
+            assertThat(retrievedKeySet).isEqualTo(keysToRegister);
 
             out.collect(value + "WM:" + ctx.currentWatermark() + " TS:" + ctx.timestamp());
         }
     }
 
     @Test
-    public void testSideOutput() throws Exception {
+    void testSideOutput() throws Exception {
         try (TwoInputStreamOperatorTestHarness<String, Integer, String> testHarness =
                 getInitializedTestHarness(new FunctionWithSideOutput(), STATE_DESCRIPTOR)) {
 
@@ -244,7 +246,7 @@ public class CoBroadcastWithNonKeyedOperatorTest {
     }
 
     @Test
-    public void testScaleUp() throws Exception {
+    void testScaleUp() throws Exception {
         final Set<String> keysToRegister = new HashSet<>();
         keysToRegister.add("test1");
         keysToRegister.add("test2");
@@ -316,28 +318,28 @@ public class CoBroadcastWithNonKeyedOperatorTest {
             Queue<?> output2 = testHarness2.getOutput();
             Queue<?> output3 = testHarness3.getOutput();
 
-            Assert.assertEquals(expected.size(), output1.size());
+            assertThat(output1).hasSameSizeAs(expected);
             for (Object o : output1) {
                 StreamRecord<String> rec = (StreamRecord<String>) o;
-                Assert.assertTrue(expected.contains(rec.getValue()));
+                assertThat(rec.getValue()).isIn(expected);
             }
 
-            Assert.assertEquals(expected.size(), output2.size());
+            assertThat(output2).hasSameSizeAs(expected);
             for (Object o : output2) {
                 StreamRecord<String> rec = (StreamRecord<String>) o;
-                Assert.assertTrue(expected.contains(rec.getValue()));
+                assertThat(rec.getValue()).isIn(expected);
             }
 
-            Assert.assertEquals(expected.size(), output3.size());
+            assertThat(output3).hasSameSizeAs(expected);
             for (Object o : output3) {
                 StreamRecord<String> rec = (StreamRecord<String>) o;
-                Assert.assertTrue(expected.contains(rec.getValue()));
+                assertThat(rec.getValue()).isIn(expected);
             }
         }
     }
 
     @Test
-    public void testScaleDown() throws Exception {
+    void testScaleDown() throws Exception {
         final Set<String> keysToRegister = new HashSet<>();
         keysToRegister.add("test1");
         keysToRegister.add("test2");
@@ -409,16 +411,16 @@ public class CoBroadcastWithNonKeyedOperatorTest {
             Queue<?> output1 = testHarness1.getOutput();
             Queue<?> output2 = testHarness2.getOutput();
 
-            Assert.assertEquals(expected.size(), output1.size());
+            assertThat(output1).hasSameSizeAs(expected);
             for (Object o : output1) {
                 StreamRecord<String> rec = (StreamRecord<String>) o;
-                Assert.assertTrue(expected.contains(rec.getValue()));
+                assertThat(rec.getValue()).isIn(expected);
             }
 
-            Assert.assertEquals(expected.size(), output2.size());
+            assertThat(output2).hasSameSizeAs(expected);
             for (Object o : output2) {
                 StreamRecord<String> rec = (StreamRecord<String>) o;
-                Assert.assertTrue(expected.contains(rec.getValue()));
+                assertThat(rec.getValue()).isIn(expected);
             }
         }
     }
@@ -454,26 +456,30 @@ public class CoBroadcastWithNonKeyedOperatorTest {
     }
 
     @Test
-    public void testNoKeyedStateOnBroadcastSide() throws Exception {
-
-        boolean exceptionThrown = false;
+    void testNoKeyedStateOnBroadcastSide() throws Exception {
+        final ValueStateDescriptor<String> valueState =
+                new ValueStateDescriptor<>("any", BasicTypeInfo.STRING_TYPE_INFO);
 
         try (TwoInputStreamOperatorTestHarness<String, Integer, String> testHarness =
                 getInitializedTestHarness(
                         new BroadcastProcessFunction<String, Integer, String>() {
                             private static final long serialVersionUID = -1725365436500098384L;
 
-                            private final ValueStateDescriptor<String> valueState =
-                                    new ValueStateDescriptor<>(
-                                            "any", BasicTypeInfo.STRING_TYPE_INFO);
-
                             @Override
                             public void processBroadcastElement(
                                     Integer value, Context ctx, Collector<String> out)
                                     throws Exception {
-                                getRuntimeContext()
-                                        .getState(valueState)
-                                        .value(); // this should fail
+                                assertThatThrownBy(
+                                                () ->
+                                                        getRuntimeContext()
+                                                                .getState(valueState)
+                                                                .value())
+                                        .isInstanceOf(NullPointerException.class)
+                                        .hasMessage(
+                                                String.format(
+                                                        "Keyed state '%s' with type %s can only be used on a 'keyed stream', i.e., after a 'keyBy()' operation.",
+                                                        valueState.getName(),
+                                                        valueState.getType()));
                             }
 
                             @Override
@@ -486,31 +492,21 @@ public class CoBroadcastWithNonKeyedOperatorTest {
             testHarness.processWatermark1(new Watermark(10L));
             testHarness.processWatermark2(new Watermark(10L));
             testHarness.processElement2(new StreamRecord<>(5, 12L));
-        } catch (NullPointerException e) {
-            Assert.assertEquals(
-                    "Keyed state can only be used on a 'keyed stream', i.e., after a 'keyBy()' operation.",
-                    e.getMessage());
-            exceptionThrown = true;
-        }
-
-        if (!exceptionThrown) {
-            Assert.fail("No exception thrown");
         }
     }
 
     @Test
-    public void testNoKeyedStateOnNonBroadcastSide() throws Exception {
+    void testNoKeyedStateOnNonBroadcastSide() throws Exception {
 
         boolean exceptionThrown = false;
+
+        final ValueStateDescriptor<String> valueState =
+                new ValueStateDescriptor<>("any", BasicTypeInfo.STRING_TYPE_INFO);
 
         try (TwoInputStreamOperatorTestHarness<String, Integer, String> testHarness =
                 getInitializedTestHarness(
                         new BroadcastProcessFunction<String, Integer, String>() {
                             private static final long serialVersionUID = -1725365436500098384L;
-
-                            private final ValueStateDescriptor<String> valueState =
-                                    new ValueStateDescriptor<>(
-                                            "any", BasicTypeInfo.STRING_TYPE_INFO);
 
                             @Override
                             public void processBroadcastElement(
@@ -523,23 +519,22 @@ public class CoBroadcastWithNonKeyedOperatorTest {
                             public void processElement(
                                     String value, ReadOnlyContext ctx, Collector<String> out)
                                     throws Exception {
-                                getRuntimeContext()
-                                        .getState(valueState)
-                                        .value(); // this should fail
+                                assertThatThrownBy(
+                                                () ->
+                                                        getRuntimeContext()
+                                                                .getState(valueState)
+                                                                .value())
+                                        .isInstanceOf(NullPointerException.class)
+                                        .hasMessage(
+                                                String.format(
+                                                        "Keyed state '%s' with type %s can only be used on a 'keyed stream', i.e., after a 'keyBy()' operation.",
+                                                        valueState.getName(),
+                                                        valueState.getType()));
                             }
                         })) {
             testHarness.processWatermark1(new Watermark(10L));
             testHarness.processWatermark2(new Watermark(10L));
             testHarness.processElement1(new StreamRecord<>("5", 12L));
-        } catch (NullPointerException e) {
-            Assert.assertEquals(
-                    "Keyed state can only be used on a 'keyed stream', i.e., after a 'keyBy()' operation.",
-                    e.getMessage());
-            exceptionThrown = true;
-        }
-
-        if (!exceptionThrown) {
-            Assert.fail("No exception thrown");
         }
     }
 

@@ -27,14 +27,13 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.TestingStreamStateHandle;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -43,23 +42,20 @@ import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.createSubtaskStateWithUnionListState;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests the behavior of the {@link DefaultCheckpointPlan}. */
-public class DefaultCheckpointPlanTest {
+class DefaultCheckpointPlanTest {
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+            TestingUtils.defaultExecutorExtension();
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
-
-    @Rule public final ExpectedException expectedException = ExpectedException.none();
+    @TempDir private java.nio.file.Path temporaryFolder;
 
     @Test
-    public void testAbortionIfPartiallyFinishedVertexUsedUnionListState() throws Exception {
+    void testAbortionIfPartiallyFinishedVertexUsedUnionListState() throws Exception {
         JobVertexID jobVertexId = new JobVertexID();
         OperatorID operatorId = new OperatorID();
 
@@ -72,7 +68,7 @@ public class DefaultCheckpointPlanTest {
                                 Collections.singletonList(
                                         OperatorIDPair.generatedIDOnly(operatorId)),
                                 true)
-                        .build(EXECUTOR_RESOURCE.getExecutor());
+                        .build(EXECUTOR_EXTENSION.getExecutor());
         ExecutionVertex[] tasks = executionGraph.getJobVertex(jobVertexId).getTaskVertices();
         tasks[0].getCurrentExecutionAttempt().markFinished();
 
@@ -80,21 +76,21 @@ public class DefaultCheckpointPlanTest {
 
         Map<OperatorID, OperatorState> operatorStates = new HashMap<>();
         OperatorState operatorState = new OperatorState(operatorId, 2, 2);
-        operatorState.putState(0, createSubtaskStateWithUnionListState(TEMPORARY_FOLDER.newFile()));
+        operatorState.putState(
+                0, createSubtaskStateWithUnionListState(TempDirUtils.newFile(temporaryFolder)));
         operatorStates.put(operatorId, operatorState);
 
-        expectedException.expect(FlinkRuntimeException.class);
-        expectedException.expectMessage(
-                String.format(
-                        "The vertex %s (id = %s) has "
-                                + "used UnionListState, but part of its tasks are FINISHED",
-                        executionGraph.getJobVertex(jobVertexId).getName(), jobVertexId));
-        checkpointPlan.fulfillFinishedTaskStatus(operatorStates);
+        assertThatThrownBy(() -> checkpointPlan.fulfillFinishedTaskStatus(operatorStates))
+                .hasMessage(
+                        String.format(
+                                "The vertex %s (id = %s) has "
+                                        + "used UnionListState, but part of its tasks are FINISHED.",
+                                executionGraph.getJobVertex(jobVertexId).getName(), jobVertexId))
+                .isInstanceOf(FlinkRuntimeException.class);
     }
 
     @Test
-    public void testAbortionIfPartiallyOperatorsFinishedVertexUsedUnionListState()
-            throws Exception {
+    void testAbortionIfPartiallyOperatorsFinishedVertexUsedUnionListState() throws Exception {
         JobVertexID jobVertexId = new JobVertexID();
         OperatorID operatorId = new OperatorID();
 
@@ -107,30 +103,32 @@ public class DefaultCheckpointPlanTest {
                                 Collections.singletonList(
                                         OperatorIDPair.generatedIDOnly(operatorId)),
                                 true)
-                        .build(EXECUTOR_RESOURCE.getExecutor());
+                        .build(EXECUTOR_EXTENSION.getExecutor());
         ExecutionVertex[] tasks = executionGraph.getJobVertex(jobVertexId).getTaskVertices();
 
         CheckpointPlan checkpointPlan = createCheckpointPlan(executionGraph);
 
         Map<OperatorID, OperatorState> operatorStates = new HashMap<>();
         OperatorState operatorState = new OperatorState(operatorId, 2, 2);
-        operatorState.putState(0, createSubtaskStateWithUnionListState(TEMPORARY_FOLDER.newFile()));
+        operatorState.putState(
+                0, createSubtaskStateWithUnionListState(TempDirUtils.newFile(temporaryFolder)));
 
-        operatorState.putState(1, createSubtaskStateWithUnionListState(TEMPORARY_FOLDER.newFile()));
+        operatorState.putState(
+                1, createSubtaskStateWithUnionListState(TempDirUtils.newFile(temporaryFolder)));
         checkpointPlan.reportTaskHasFinishedOperators(tasks[1]);
         operatorStates.put(operatorId, operatorState);
 
-        expectedException.expect(FlinkRuntimeException.class);
-        expectedException.expectMessage(
-                String.format(
-                        "The vertex %s (id = %s) has "
-                                + "used UnionListState, but part of its tasks has called operators' finish method.",
-                        executionGraph.getJobVertex(jobVertexId).getName(), jobVertexId));
-        checkpointPlan.fulfillFinishedTaskStatus(operatorStates);
+        assertThatThrownBy(() -> checkpointPlan.fulfillFinishedTaskStatus(operatorStates))
+                .hasMessage(
+                        String.format(
+                                "The vertex %s (id = %s) has "
+                                        + "used UnionListState, but part of its tasks has called operators' finish method.",
+                                executionGraph.getJobVertex(jobVertexId).getName(), jobVertexId))
+                .isInstanceOf(FlinkRuntimeException.class);
     }
 
     @Test
-    public void testFulfillFinishedStates() throws Exception {
+    void testFulfillFinishedStates() throws Exception {
         JobVertexID fullyFinishedVertexId = new JobVertexID();
         JobVertexID finishedOnRestoreVertexId = new JobVertexID();
         JobVertexID partiallyFinishedVertexId = new JobVertexID();
@@ -163,7 +161,7 @@ public class DefaultCheckpointPlanTest {
                                         OperatorIDPair.generatedIDOnly(
                                                 partiallyFinishedOperatorId)),
                                 true)
-                        .build(EXECUTOR_RESOURCE.getExecutor());
+                        .build(EXECUTOR_EXTENSION.getExecutor());
         ExecutionVertex[] fullyFinishedVertexTasks =
                 executionGraph.getJobVertex(fullyFinishedVertexId).getTaskVertices();
         ExecutionVertex[] finishedOnRestoreVertexTasks =
@@ -181,16 +179,16 @@ public class DefaultCheckpointPlanTest {
         Map<OperatorID, OperatorState> operatorStates = new HashMap<>();
         checkpointPlan.fulfillFinishedTaskStatus(operatorStates);
 
-        assertEquals(3, operatorStates.size());
-        assertTrue(operatorStates.get(fullyFinishedOperatorId).isFullyFinished());
-        assertTrue(operatorStates.get(finishedOnRestoreOperatorId).isFullyFinished());
+        assertThat(operatorStates).hasSize(3);
+        assertThat(operatorStates.get(fullyFinishedOperatorId).isFullyFinished()).isTrue();
+        assertThat(operatorStates.get(finishedOnRestoreOperatorId).isFullyFinished()).isTrue();
         OperatorState operatorState = operatorStates.get(partiallyFinishedOperatorId);
-        assertFalse(operatorState.isFullyFinished());
-        assertTrue(operatorState.getState(0).isFinished());
+        assertThat(operatorState.isFullyFinished()).isFalse();
+        assertThat(operatorState.getState(0).isFinished()).isTrue();
     }
 
     @Test
-    public void testFulfillFullyFinishedStatesWithCoordinator() throws Exception {
+    void testFulfillFullyFinishedStatesWithCoordinator() throws Exception {
         JobVertexID finishedJobVertexID = new JobVertexID();
         OperatorID finishedOperatorID = new OperatorID();
 
@@ -203,7 +201,7 @@ public class DefaultCheckpointPlanTest {
                                 Collections.singletonList(
                                         OperatorIDPair.generatedIDOnly(finishedOperatorID)),
                                 true)
-                        .build(EXECUTOR_RESOURCE.getExecutor());
+                        .build(EXECUTOR_EXTENSION.getExecutor());
         executionGraph
                 .getJobVertex(finishedJobVertexID)
                 .getTaskVertices()[0]
@@ -217,8 +215,8 @@ public class DefaultCheckpointPlanTest {
         operatorStates.put(finishedOperatorID, operatorState);
 
         checkpointPlan.fulfillFinishedTaskStatus(operatorStates);
-        assertEquals(1, operatorStates.size());
-        assertTrue(operatorStates.get(finishedOperatorID).isFullyFinished());
+        assertThat(operatorStates).hasSize(1);
+        assertThat(operatorStates.get(finishedOperatorID).isFullyFinished()).isTrue();
     }
 
     private CheckpointPlan createCheckpointPlan(ExecutionGraph executionGraph) throws Exception {

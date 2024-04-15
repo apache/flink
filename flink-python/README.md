@@ -26,20 +26,20 @@ The auto-generated Python docs can be found at [https://nightlies.apache.org/fli
 
 ## Python Requirements
 
-Apache Flink Python API depends on Py4J (currently version 0.10.9.7), CloudPickle (currently version 2.2.0), python-dateutil(currently version >=2.8.0,<3), Apache Beam (currently version 2.43.0).
+Apache Flink Python API depends on Py4J (currently version 0.10.9.7), CloudPickle (currently version 2.2.0), python-dateutil (currently version >=2.8.0,<3), Apache Beam (currently version >=2.43.0,<2.49.0).
 
 ## Development Notices
 
 ### Protobuf Code Generation
 
-Protocol buffer is used in file `flink_fn_execution_pb2.py` and the file is generated from `flink-fn-execution.proto`. Whenever `flink-fn-execution.proto` is updated, please re-generate `flink_fn_execution_pb2.py` by executing:
+Protocol buffer is used in file `flink_fn_execution_pb2.py` and `flink_fn_execution_pb2.pyi`, the file is generated from `flink-fn-execution.proto`. Whenever `flink-fn-execution.proto` is updated, please re-generate `flink_fn_execution_pb2.py` and `flink_fn_execution_pb2.pyi` by executing:
 
 ```
 python pyflink/gen_protos.py
 ```
 
 PyFlink depends on the following libraries to execute the above script:
-1. grpcio-tools (>=1.29.0,<=1.46.3)
+1. grpcio-tools (>=1.29.0,<=1.50.0)
 2. setuptools (>=37.0.0)
 3. pip (>=20.3)
 

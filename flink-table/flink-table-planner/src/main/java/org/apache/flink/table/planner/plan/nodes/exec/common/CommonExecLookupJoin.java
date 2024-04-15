@@ -60,6 +60,7 @@ import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.runtime.collector.ListenableCollector;
 import org.apache.flink.table.runtime.collector.TableFunctionResultFuture;
 import org.apache.flink.table.runtime.generated.GeneratedCollector;
+import org.apache.flink.table.runtime.generated.GeneratedFilterCondition;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.generated.GeneratedResultFuture;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
@@ -144,7 +145,8 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
     public static final String LOOKUP_JOIN_MATERIALIZE_TRANSFORMATION = "lookup-join-materialize";
 
     public static final String FIELD_NAME_JOIN_TYPE = "joinType";
-    public static final String FIELD_NAME_JOIN_CONDITION = "joinCondition";
+    public static final String FIELD_NAME_PRE_FILTER_CONDITION = "preFilterCondition";
+    public static final String FIELD_NAME_REMAINING_JOIN_CONDITION = "joinCondition";
     public static final String FIELD_NAME_TEMPORAL_TABLE = "temporalTable";
     public static final String FIELD_NAME_LOOKUP_KEYS = "lookupKeys";
     public static final String FIELD_NAME_PROJECTION_ON_TEMPORAL_TABLE =
@@ -175,9 +177,14 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
     @JsonProperty(FIELD_NAME_FILTER_ON_TEMPORAL_TABLE)
     private final @Nullable RexNode filterOnTemporalTable;
 
-    /** join condition except equi-conditions extracted as lookup keys. */
-    @JsonProperty(FIELD_NAME_JOIN_CONDITION)
-    private final @Nullable RexNode joinCondition;
+    /** pre-filter condition on left input except lookup keys. */
+    @JsonProperty(FIELD_NAME_PRE_FILTER_CONDITION)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final @Nullable RexNode preFilterCondition;
+
+    /** remaining join condition except pre-filter & equi-conditions except lookup keys. */
+    @JsonProperty(FIELD_NAME_REMAINING_JOIN_CONDITION)
+    private final @Nullable RexNode remainingJoinCondition;
 
     @JsonProperty(FIELD_NAME_INPUT_CHANGELOG_MODE)
     private final ChangelogMode inputChangelogMode;
@@ -195,7 +202,8 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
             ExecNodeContext context,
             ReadableConfig persistedConfig,
             FlinkJoinType joinType,
-            @Nullable RexNode joinCondition,
+            @Nullable RexNode preFilterCondition,
+            @Nullable RexNode remainingJoinCondition,
             // TODO: refactor this into TableSourceTable, once legacy TableSource is removed
             TemporalTableSourceSpec temporalTableSourceSpec,
             Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,
@@ -210,7 +218,8 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
         super(id, context, persistedConfig, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.joinType = checkNotNull(joinType);
-        this.joinCondition = joinCondition;
+        this.preFilterCondition = preFilterCondition;
+        this.remainingJoinCondition = remainingJoinCondition;
         this.lookupKeys = Collections.unmodifiableMap(checkNotNull(lookupKeys));
         this.temporalTableSourceSpec = checkNotNull(temporalTableSourceSpec);
         this.projectionOnTemporalTable = projectionOnTemporalTable;
@@ -410,7 +419,11 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                         "TableFunctionResultFuture",
                         inputRowType,
                         rightRowType,
-                        JavaScalaConversionUtil.toScala(Optional.ofNullable(joinCondition)));
+                        JavaScalaConversionUtil.toScala(
+                                Optional.ofNullable(remainingJoinCondition)));
+        GeneratedFilterCondition generatedPreFilterCondition =
+                LookupJoinCodeGenerator.generatePreFilterCondition(
+                        config, classLoader, preFilterCondition, inputRowType);
 
         DataStructureConverter<?, ?> fetcherConverter =
                 DataStructureConverters.getConverter(generatedFuncWithType.dataType());
@@ -431,6 +444,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                             (DataStructureConverter<RowData, Object>) fetcherConverter,
                             generatedCalc,
                             generatedResultFuture,
+                            generatedPreFilterCondition,
                             InternalSerializers.create(rightRowType),
                             isLeftOuterJoin,
                             asyncLookupOptions.asyncBufferCapacity);
@@ -441,6 +455,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                             generatedFuncWithType.tableFunc(),
                             (DataStructureConverter<RowData, Object>) fetcherConverter,
                             generatedResultFuture,
+                            generatedPreFilterCondition,
                             InternalSerializers.create(rightRowType),
                             isLeftOuterJoin,
                             asyncLookupOptions.asyncBufferCapacity);
@@ -540,9 +555,14 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                         inputRowType,
                         rightRowType,
                         resultRowType,
-                        JavaScalaConversionUtil.toScala(Optional.ofNullable(joinCondition)),
+                        JavaScalaConversionUtil.toScala(
+                                Optional.ofNullable(remainingJoinCondition)),
                         JavaScalaConversionUtil.toScala(Optional.empty()),
                         true);
+
+        GeneratedFilterCondition generatedPreFilterCondition =
+                LookupJoinCodeGenerator.generatePreFilterCondition(
+                        config, classLoader, preFilterCondition, inputRowType);
         ProcessFunction<RowData, RowData> processFunc;
         if (projectionOnTemporalTable != null) {
             // a projection or filter after table source scan
@@ -560,6 +580,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                             generatedFetcher,
                             generatedCalc,
                             generatedCollector,
+                            generatedPreFilterCondition,
                             isLeftOuterJoin,
                             rightRowType.getFieldCount());
         } else {
@@ -568,6 +589,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                     new LookupJoinRunner(
                             generatedFetcher,
                             generatedCollector,
+                            generatedPreFilterCondition,
                             isLeftOuterJoin,
                             rightRowType.getFieldCount());
         }

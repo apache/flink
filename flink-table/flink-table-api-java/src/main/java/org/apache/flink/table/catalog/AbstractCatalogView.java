@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.util.StringUtils;
 
@@ -27,6 +28,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** An abstract catalog view. */
+@Internal
 public abstract class AbstractCatalogView implements CatalogView {
     // Original text of the view definition.
     private final String originalQuery;

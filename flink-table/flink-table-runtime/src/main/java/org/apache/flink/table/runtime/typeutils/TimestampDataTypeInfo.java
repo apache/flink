@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.TimestampData;
@@ -69,8 +70,13 @@ public class TimestampDataTypeInfo extends TypeInformation<TimestampData> {
     }
 
     @Override
-    public TypeSerializer<TimestampData> createSerializer(ExecutionConfig config) {
+    public TypeSerializer<TimestampData> createSerializer(SerializerConfig config) {
         return new TimestampDataSerializer(precision);
+    }
+
+    @Override
+    public TypeSerializer<TimestampData> createSerializer(ExecutionConfig config) {
+        return createSerializer(config.getSerializerConfig());
     }
 
     @Override

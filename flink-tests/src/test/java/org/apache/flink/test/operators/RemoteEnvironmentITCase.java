@@ -22,8 +22,8 @@ import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -60,7 +60,7 @@ public class RemoteEnvironmentITCase extends TestLogger {
     @Test
     public void testUserSpecificParallelism() throws Exception {
         Configuration config = new Configuration();
-        config.setString(AkkaOptions.STARTUP_TIMEOUT, VALID_STARTUP_TIMEOUT);
+        config.set(RpcOptions.STARTUP_TIMEOUT, VALID_STARTUP_TIMEOUT);
 
         final URI restAddress = MINI_CLUSTER_RESOURCE.getRestAddress();
         final String hostname = restAddress.getHost();
@@ -79,7 +79,10 @@ public class RemoteEnvironmentITCase extends TestLogger {
                                     public void mapPartition(
                                             Iterable<Integer> values, Collector<Integer> out)
                                             throws Exception {
-                                        out.collect(getRuntimeContext().getIndexOfThisSubtask());
+                                        out.collect(
+                                                getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getIndexOfThisSubtask());
                                     }
                                 });
         List<Integer> resultCollection = result.collect();

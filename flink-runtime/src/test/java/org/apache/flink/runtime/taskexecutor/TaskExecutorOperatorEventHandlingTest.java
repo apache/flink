@@ -41,15 +41,14 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.testutils.CancelableInvokable;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -58,24 +57,22 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.futureWillCompleteExceptionally;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for the (failure handling of the) delivery of Operator Events. */
-public class TaskExecutorOperatorEventHandlingTest extends TestLogger {
+class TaskExecutorOperatorEventHandlingTest {
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+            TestingUtils.defaultExecutorExtension();
 
     private MetricRegistryImpl metricRegistry;
 
     private TestingRpcService rpcService;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         rpcService = new TestingRpcService();
         metricRegistry =
                 new MetricRegistryImpl(
@@ -83,8 +80,8 @@ public class TaskExecutorOperatorEventHandlingTest extends TestLogger {
         metricRegistry.startQueryService(rpcService, new ResourceID("mqs"));
     }
 
-    @After
-    public void teardown() throws ExecutionException, InterruptedException {
+    @AfterEach
+    void teardown() throws ExecutionException, InterruptedException {
         if (rpcService != null) {
             rpcService.closeAsync().get();
         }
@@ -95,7 +92,7 @@ public class TaskExecutorOperatorEventHandlingTest extends TestLogger {
     }
 
     @Test
-    public void eventHandlingInTaskFailureFailsTask() throws Exception {
+    void eventHandlingInTaskFailureFailsTask() throws Exception {
         final JobID jobId = new JobID();
         final ExecutionAttemptID eid = createExecutionAttemptId(new JobVertexID(), 3, 0);
 
@@ -106,16 +103,17 @@ public class TaskExecutorOperatorEventHandlingTest extends TestLogger {
                     tmGateway.sendOperatorEventToTask(
                             eid, new OperatorID(), new SerializedValue<>(new TestOperatorEvent()));
 
-            assertThat(
-                    resultFuture,
-                    futureWillCompleteExceptionally(FlinkException.class, Duration.ofSeconds(10)));
-            assertEquals(
-                    ExecutionState.FAILED, env.getTaskSlotTable().getTask(eid).getExecutionState());
+            assertThat(resultFuture)
+                    .failsWithin(Duration.ofSeconds(10))
+                    .withThrowableOfType(ExecutionException.class)
+                    .withCauseInstanceOf(FlinkException.class);
+            assertThat(env.getTaskSlotTable().getTask(eid).getExecutionState())
+                    .isEqualTo(ExecutionState.FAILED);
         }
     }
 
     @Test
-    public void eventToCoordinatorDeliveryFailureFailsTask() throws Exception {
+    void eventToCoordinatorDeliveryFailureFailsTask() throws Exception {
         final JobID jobId = new JobID();
         final ExecutionAttemptID eid = createExecutionAttemptId(new JobVertexID(), 3, 0);
 
@@ -124,12 +122,12 @@ public class TaskExecutorOperatorEventHandlingTest extends TestLogger {
             final Task task = env.getTaskSlotTable().getTask(eid);
 
             task.getExecutingThread().join(10_000);
-            assertEquals(ExecutionState.FAILED, task.getExecutionState());
+            assertThat(task.getExecutionState()).isEqualTo(ExecutionState.FAILED);
         }
     }
 
     @Test
-    public void requestToCoordinatorDeliveryFailureFailsTask() throws Exception {
+    void requestToCoordinatorDeliveryFailureFailsTask() throws Exception {
         final JobID jobId = new JobID();
         final ExecutionAttemptID eid = createExecutionAttemptId(new JobVertexID(), 3, 0);
 
@@ -139,7 +137,7 @@ public class TaskExecutorOperatorEventHandlingTest extends TestLogger {
             final Task task = env.getTaskSlotTable().getTask(eid);
 
             task.getExecutingThread().join(10_000);
-            assertEquals(ExecutionState.FAILED, task.getExecutionState());
+            assertThat(task.getExecutionState()).isEqualTo(ExecutionState.FAILED);
         }
     }
 
@@ -179,9 +177,10 @@ public class TaskExecutorOperatorEventHandlingTest extends TestLogger {
                                                     throw new RuntimeException();
                                                 })
                                         .build())
-                        .build(EXECUTOR_RESOURCE.getExecutor());
+                        .build(EXECUTOR_EXTENSION.getExecutor());
 
-        env.getTaskSlotTable().allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
+        env.getTaskSlotTable()
+                .allocateSlot(0, jobId, tdd.getAllocationId(), Duration.ofSeconds(60));
 
         final TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
         tmGateway.submitTask(tdd, env.getJobMasterId(), Time.seconds(10)).get();

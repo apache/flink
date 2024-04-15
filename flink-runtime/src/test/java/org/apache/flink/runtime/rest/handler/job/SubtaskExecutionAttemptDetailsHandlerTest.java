@@ -31,6 +31,7 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionHistory;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.legacy.DefaultExecutionGraphCache;
@@ -45,23 +46,22 @@ import org.apache.flink.runtime.rest.messages.job.SubtaskAttemptPathParameter;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests of {@link SubtaskExecutionAttemptDetailsHandler}. */
-public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
+class SubtaskExecutionAttemptDetailsHandlerTest {
 
     @Test
-    public void testHandleRequest() throws Exception {
+    void testHandleRequest() throws Exception {
 
         final JobID jobID = new JobID();
         final JobVertexID jobVertexId = new JobVertexID();
@@ -116,6 +116,7 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
                         "test",
                         1,
                         1,
+                        new SlotSharingGroup(),
                         ResourceProfile.UNKNOWN,
                         emptyAccumulators);
 
@@ -190,6 +191,7 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
                         expectedState,
                         attempt,
                         "(unassigned)",
+                        "(unassigned)",
                         -1L,
                         0L,
                         -1L,
@@ -198,6 +200,6 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
                         statusDuration,
                         null);
 
-        assertEquals(expectedDetailsInfo, detailsInfo);
+        assertThat(detailsInfo).isEqualTo(expectedDetailsInfo);
     }
 }

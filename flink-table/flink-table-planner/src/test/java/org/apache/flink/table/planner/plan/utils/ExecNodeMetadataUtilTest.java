@@ -32,14 +32,13 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleExecNodeMetadata;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 
 import org.assertj.core.api.Condition;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,10 +52,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link ExecNodeMetadataUtil}. */
-public class ExecNodeMetadataUtilTest {
+class ExecNodeMetadataUtilTest {
 
     @Test
-    public void testNoJsonCreator() {
+    void testNoJsonCreator() {
         assertThatThrownBy(() -> ExecNodeMetadataUtil.addTestNode(DummyNodeNoJsonCreator.class))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage(
@@ -66,7 +65,7 @@ public class ExecNodeMetadataUtilTest {
     }
 
     @Test
-    public void testNoAnnotation() {
+    void testNoAnnotation() {
         assertThatThrownBy(() -> ExecNodeMetadataUtil.addTestNode(DummyNodeNoAnnotation.class))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage(
@@ -76,7 +75,7 @@ public class ExecNodeMetadataUtilTest {
     }
 
     @Test
-    public void testBothAnnotations() {
+    void testBothAnnotations() {
         assertThatThrownBy(() -> ExecNodeMetadataUtil.addTestNode(DummyNodeBothAnnotations.class))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage(
@@ -91,7 +90,7 @@ public class ExecNodeMetadataUtilTest {
     }
 
     @Test
-    public void testMultipleAnnotations() {
+    void testMultipleAnnotations() {
         // Using MultipleExecNodeMetadata annotation
         ExecNodeMetadataUtil.addTestNode(DummyNode.class);
         assertThat(ExecNodeMetadataUtil.retrieveExecNode("dummy-node", 1))
@@ -159,7 +158,7 @@ public class ExecNodeMetadataUtilTest {
     }
 
     @Test
-    public void testDuplicateConsumedOptions() {
+    void testDuplicateConsumedOptions() {
         ExecNodeMetadataUtil.addTestNode(DummyNodeDuplicateConsumedOptions.class);
         assertThatThrownBy(
                         () ->
@@ -177,7 +176,7 @@ public class ExecNodeMetadataUtilTest {
     }
 
     @Test
-    public void testDuplicateDeprecatedKeysConsumedOptions() {
+    void testDuplicateDeprecatedKeysConsumedOptions() {
         ExecNodeMetadataUtil.addTestNode(DummyNodeDuplicateDeprecatedKeysConsumedOptions.class);
         assertThatThrownBy(
                         () ->
@@ -196,7 +195,7 @@ public class ExecNodeMetadataUtilTest {
     }
 
     @Test
-    public void testDuplicateFallbackKeysConsumedOptions() {
+    void testDuplicateFallbackKeysConsumedOptions() {
         ExecNodeMetadataUtil.addTestNode(DummyNodeDuplicateFallbackKeysConsumedOptions.class);
         assertThatThrownBy(
                         () ->
@@ -215,13 +214,13 @@ public class ExecNodeMetadataUtilTest {
     }
 
     @Test
-    public void testNewContext() {
+    void testNewContext() {
         assertThatThrownBy(() -> ExecNodeContext.newContext(DummyNodeNoAnnotation.class))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage(
                         "ExecNode: org.apache.flink.table.planner.plan.utils."
                                 + "ExecNodeMetadataUtilTest.DummyNodeNoAnnotation is not "
-                                + "listed in the unsupported classes since it is not annotated "
+                                + "listed in the unsupported classes and it is not annotated "
                                 + "with: ExecNodeMetadata.");
 
         assertThatThrownBy(() -> ExecNodeContext.newContext(DummyNode.class))
@@ -233,13 +232,13 @@ public class ExecNodeMetadataUtilTest {
     }
 
     @Test
-    public void testStreamExecNodeJsonSerdeCoverage() {
+    void testStreamExecNodeJsonSerdeCoverage() {
         Set<Class<? extends ExecNode<?>>> subClasses = ExecNodeMetadataUtil.execNodes();
         List<Class<? extends ExecNode<?>>> classesWithoutJsonCreator = new ArrayList<>();
         List<Class<? extends ExecNode<?>>> classesWithJsonCreatorInUnsupportedList =
                 new ArrayList<>();
         for (Class<? extends ExecNode<?>> clazz : subClasses) {
-            boolean hasJsonCreator = JsonSerdeUtil.hasJsonCreatorAnnotation(clazz);
+            boolean hasJsonCreator = ExecNodeMetadataUtil.hasJsonCreatorAnnotation(clazz);
             if (hasJsonCreator && UNSUPPORTED_JSON_SERDE_CLASSES.contains(clazz)) {
                 classesWithJsonCreatorInUnsupportedList.add(clazz);
             }

@@ -20,7 +20,6 @@
 ##
 ## Variables with defaults (if not overwritten by environment)
 ##
-SCALA_VERSION=${SCALA_VERSION:-none}
 SKIP_GPG=${SKIP_GPG:-false}
 MVN=${MVN:-mvn}
 
@@ -58,20 +57,14 @@ mkdir -p ${PYTHON_RELEASE_DIR}
 
 # build maven package, create Flink distribution, generate signature
 make_binary_release() {
-  FLAGS=""
-  SCALA_VERSION=$1
-
-  echo "Creating binary release, SCALA_VERSION: ${SCALA_VERSION}"
-  dir_name="flink-$RELEASE_VERSION-bin-scala_${SCALA_VERSION}"
-
-  if [ $SCALA_VERSION = "2.12" ]; then
-      FLAGS="-Dscala-2.12"
-  else
-      echo "Invalid Scala version ${SCALA_VERSION}"
-  fi
+  local DEFAULT_SCALA_VERSION
+  DEFAULT_SCALA_VERSION="2.12"
+  echo "Creating binary release"
+  # the scala version is still included in the name to not break "backwards-compatibility" of the naming scheme
+  dir_name="flink-$RELEASE_VERSION-bin-scala_${DEFAULT_SCALA_VERSION}"
 
   # enable release profile here (to check for the maven version)
-  $MVN clean package $FLAGS -Prelease -pl flink-dist -am -Dgpg.skip -Dcheckstyle.skip=true -DskipTests
+  $MVN clean package -Prelease -pl flink-dist -am -Dgpg.skip -Dcheckstyle.skip=true -DskipTests
 
   cd flink-dist/target/flink-${RELEASE_VERSION}-bin
   ${FLINK_DIR}/tools/releasing/collect_license_files.sh ./flink-${RELEASE_VERSION} ./flink-${RELEASE_VERSION}
@@ -129,8 +122,8 @@ make_python_release() {
   cp ${pyflink_actual_name} "${PYTHON_RELEASE_DIR}/${pyflink_release_name}"
 
   wheel_packages_num=0
-  # py37,py38,py39,py310 for mac and linux (11 wheel packages)
-  EXPECTED_WHEEL_PACKAGES_NUM=11
+  # py38,py39,py310,py311 for mac 10.9, 11.0 and linux (12 wheel packages)
+  EXPECTED_WHEEL_PACKAGES_NUM=12
   # Need to move the downloaded wheel packages from Azure CI to the directory flink-python/dist manually.
   for wheel_file in *.whl; do
     if [[ ! ${wheel_file} =~ ^apache_flink-$PYFLINK_VERSION- ]]; then
@@ -165,10 +158,5 @@ make_python_release() {
   cd ${FLINK_DIR}
 }
 
-if [ "$SCALA_VERSION" == "none" ]; then
-  make_binary_release "2.12"
-  make_python_release
-else
-  make_binary_release "$SCALA_VERSION"
-  make_python_release
-fi
+make_binary_release
+make_python_release

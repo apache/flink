@@ -182,7 +182,7 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
             implements TypeSerializerSnapshot<T> {
         private static final int CURRENT_VERSION = 3;
 
-        private T[] previousEnums;
+        private T[] enums;
         private Class<T> enumClass;
 
         @SuppressWarnings("unused")
@@ -192,7 +192,7 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 
         EnumSerializerSnapshot(Class<T> enumClass, T[] enums) {
             this.enumClass = checkNotNull(enumClass);
-            this.previousEnums = checkNotNull(enums);
+            this.enums = checkNotNull(enums);
         }
 
         @Override
@@ -204,8 +204,8 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
         public void writeSnapshot(DataOutputView out) throws IOException {
             checkState(enumClass != null, "Enum class can not be null.");
             out.writeUTF(enumClass.getName());
-            out.writeInt(previousEnums.length);
-            for (T enumConstant : previousEnums) {
+            out.writeInt(enums.length);
+            for (T enumConstant : enums) {
                 out.writeUTF(enumConstant.name());
             }
         }
@@ -231,35 +231,37 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
                 }
             }
 
-            this.previousEnums = previousEnums;
+            this.enums = previousEnums;
         }
 
         @Override
         public TypeSerializer<T> restoreSerializer() {
             checkState(enumClass != null, "Enum class can not be null.");
 
-            return new EnumSerializer<>(enumClass, previousEnums);
+            return new EnumSerializer<>(enumClass, enums);
         }
 
         @Override
         public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
-                TypeSerializer<T> newSerializer) {
-            if (!(newSerializer instanceof EnumSerializer)) {
+                TypeSerializerSnapshot<T> oldSerializerSnapshot) {
+            if (!(oldSerializerSnapshot instanceof EnumSerializerSnapshot)) {
                 return TypeSerializerSchemaCompatibility.incompatible();
             }
 
-            EnumSerializer<T> newEnumSerializer = (EnumSerializer<T>) newSerializer;
-            if (!enumClass.equals(newEnumSerializer.enumClass)) {
+            EnumSerializerSnapshot<T> oldEnumSerializerSnapshot =
+                    (EnumSerializerSnapshot<T>) oldSerializerSnapshot;
+            if (!enumClass.equals(oldEnumSerializerSnapshot.enumClass)) {
                 return TypeSerializerSchemaCompatibility.incompatible();
             }
 
             T[] currentEnums = enumClass.getEnumConstants();
 
-            if (Arrays.equals(previousEnums, currentEnums)) {
+            if (Arrays.equals(oldEnumSerializerSnapshot.enums, currentEnums)) {
                 return TypeSerializerSchemaCompatibility.compatibleAsIs();
             }
 
-            Set<T> reconfiguredEnumSet = new LinkedHashSet<>(Arrays.asList(previousEnums));
+            Set<T> reconfiguredEnumSet =
+                    new LinkedHashSet<>(Arrays.asList(oldEnumSerializerSnapshot.enums));
             reconfiguredEnumSet.addAll(Arrays.asList(currentEnums));
 
             @SuppressWarnings("unchecked")

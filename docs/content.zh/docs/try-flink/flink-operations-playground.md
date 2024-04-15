@@ -377,8 +377,8 @@ Suspending job "<job-id>" with a savepoint.
 Suspended job "<job-id>" with a savepoint.
 ```
 
-Savepoint 已保存在 `state.savepoints.dir` 指定的路径中，该配置在 *flink-conf.yaml*
-中定义，*flink-conf.yaml* 挂载在本机的 */tmp/flink-savepoints-directory/* 目录下。
+Savepoint 已保存在 `state.savepoints.dir` 指定的路径中，该配置在 [*Flink 配置文件*]({{< ref "docs/deployment/config#flink-配置文件" >}})
+中定义，[*Flink 配置文件*]({{< ref "docs/deployment/config#flink-配置文件" >}}) 挂载在本机的 */tmp/flink-savepoints-directory/* 目录下。
 在下一步操作中我们会用到这个 Savepoint 路径，如果我们是通过 REST API 操作的，
 那么 Savepoint 路径会随着响应结果一起返回，我们可以直接查看文件系统来确认 Savepoint 保存情况。
 

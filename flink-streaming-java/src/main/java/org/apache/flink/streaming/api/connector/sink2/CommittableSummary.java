@@ -84,4 +84,14 @@ public class CommittableSummary<CommT> implements CommittableMessage<CommT> {
     public int getNumberOfFailedCommittables() {
         return numberOfFailedCommittables;
     }
+
+    public <NewCommT> CommittableSummary<NewCommT> map() {
+        return new CommittableSummary<>(
+                subtaskId,
+                numberOfSubtasks,
+                checkpointId,
+                numberOfCommittables,
+                numberOfPendingCommittables,
+                numberOfFailedCommittables);
+    }
 }

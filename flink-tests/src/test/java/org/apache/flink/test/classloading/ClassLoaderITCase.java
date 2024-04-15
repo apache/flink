@@ -24,10 +24,10 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
@@ -114,13 +114,13 @@ public class ClassLoaderITCase extends TestLogger {
 
         // we need to use the "filesystem" state backend to ensure FLINK-2543 is not happening
         // again.
-        config.setString(StateBackendOptions.STATE_BACKEND, "filesystem");
-        config.setString(
+        config.set(StateBackendOptions.STATE_BACKEND, "filesystem");
+        config.set(
                 CheckpointingOptions.CHECKPOINTS_DIRECTORY,
                 FOLDER.newFolder().getAbsoluteFile().toURI().toString());
 
         // Savepoint path
-        config.setString(
+        config.set(
                 CheckpointingOptions.SAVEPOINT_DIRECTORY,
                 FOLDER.newFolder().getAbsoluteFile().toURI().toString());
 
@@ -131,12 +131,12 @@ public class ClassLoaderITCase extends TestLogger {
         // implementation - use fs-based instead.
         // The randomization currently happens on the job level (environment); while this factory
         // can only be set on the cluster level; so we do it unconditionally here.
-        config.setString(STATE_CHANGE_LOG_STORAGE, IDENTIFIER);
-        config.setString(BASE_PATH, FOLDER.newFolder().getAbsolutePath());
+        config.set(STATE_CHANGE_LOG_STORAGE, IDENTIFIER);
+        config.set(BASE_PATH, FOLDER.newFolder().getAbsolutePath());
 
         // some tests check for serialization problems related to class-loading
         // this requires all RPCs to actually go through serialization
-        config.setBoolean(AkkaOptions.FORCE_RPC_INVOCATION_SERIALIZATION, true);
+        config.set(RpcOptions.FORCE_RPC_INVOCATION_SERIALIZATION, true);
 
         miniClusterResource =
                 new MiniClusterResource(

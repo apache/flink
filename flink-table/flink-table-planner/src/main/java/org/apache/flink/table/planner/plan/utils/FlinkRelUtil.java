@@ -23,9 +23,11 @@ import org.apache.calcite.rel.core.Calc;
 import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
+import org.apache.calcite.rex.RexProgramBuilder;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.rex.RexVisitorImpl;
 
@@ -115,6 +117,44 @@ public class FlinkRelUtil {
         }
 
         return mergeable(topInputRefCounter, topInputRefs, bottomProjects);
+    }
+
+    /**
+     * Merges the programs of two {@link Calc} instances and returns a new {@link Calc} instance
+     * with the merged program.
+     */
+    public static Calc merge(Calc topCalc, Calc bottomCalc) {
+        RexProgram topProgram = topCalc.getProgram();
+        RexBuilder rexBuilder = topCalc.getCluster().getRexBuilder();
+
+        // Merge the programs together.
+        RexProgram mergedProgram =
+                RexProgramBuilder.mergePrograms(topProgram, bottomCalc.getProgram(), rexBuilder);
+        if (!mergedProgram.getOutputRowType().equals(topProgram.getOutputRowType())) {
+            throw new IllegalArgumentException(
+                    "Output row type of merged program is not the same top program.");
+        }
+
+        RexProgram newMergedProgram;
+        if (mergedProgram.getCondition() != null) {
+            RexNode condition = mergedProgram.expandLocalRef(mergedProgram.getCondition());
+            RexNode simplifiedCondition =
+                    FlinkRexUtil.simplify(
+                            rexBuilder, condition, topCalc.getCluster().getPlanner().getExecutor());
+            if (simplifiedCondition.equals(condition)) {
+                newMergedProgram = mergedProgram;
+            } else {
+                RexProgramBuilder programBuilder =
+                        RexProgramBuilder.forProgram(mergedProgram, rexBuilder, true);
+                programBuilder.clearCondition();
+                programBuilder.addCondition(simplifiedCondition);
+                newMergedProgram = programBuilder.getProgram(true);
+            }
+        } else {
+            newMergedProgram = mergedProgram;
+        }
+
+        return topCalc.copy(topCalc.getTraitSet(), bottomCalc.getInput(), newMergedProgram);
     }
 
     /**

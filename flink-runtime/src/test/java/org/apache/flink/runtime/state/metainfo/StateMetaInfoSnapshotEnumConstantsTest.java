@@ -17,63 +17,62 @@
  */
 package org.apache.flink.runtime.state.metainfo;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * This test fixes the enum constants in {@link StateMetaInfoSnapshot} because any changes can break
  * backwards compatibility. Consider this before changing this test.
  */
-public class StateMetaInfoSnapshotEnumConstantsTest {
+class StateMetaInfoSnapshotEnumConstantsTest {
 
     @Test
-    public void testFixedBackendStateTypeEnumConstants() {
-        Assert.assertEquals(4, StateMetaInfoSnapshot.BackendStateType.values().length);
-        Assert.assertEquals(0, StateMetaInfoSnapshot.BackendStateType.KEY_VALUE.ordinal());
-        Assert.assertEquals(1, StateMetaInfoSnapshot.BackendStateType.OPERATOR.ordinal());
-        Assert.assertEquals(2, StateMetaInfoSnapshot.BackendStateType.BROADCAST.ordinal());
-        Assert.assertEquals(3, StateMetaInfoSnapshot.BackendStateType.PRIORITY_QUEUE.ordinal());
-        Assert.assertEquals(
-                "KEY_VALUE", StateMetaInfoSnapshot.BackendStateType.KEY_VALUE.toString());
-        Assert.assertEquals("OPERATOR", StateMetaInfoSnapshot.BackendStateType.OPERATOR.toString());
-        Assert.assertEquals(
-                "BROADCAST", StateMetaInfoSnapshot.BackendStateType.BROADCAST.toString());
-        Assert.assertEquals(
-                "PRIORITY_QUEUE", StateMetaInfoSnapshot.BackendStateType.PRIORITY_QUEUE.toString());
+    void testFixedBackendStateTypeEnumConstants() {
+        assertThat(StateMetaInfoSnapshot.BackendStateType.values()).hasSize(4);
+        assertThat(StateMetaInfoSnapshot.BackendStateType.KEY_VALUE.ordinal()).isZero();
+        assertThat(StateMetaInfoSnapshot.BackendStateType.OPERATOR.ordinal()).isOne();
+        assertThat(StateMetaInfoSnapshot.BackendStateType.BROADCAST.ordinal()).isEqualTo(2);
+        assertThat(StateMetaInfoSnapshot.BackendStateType.PRIORITY_QUEUE.ordinal()).isEqualTo(3);
+        assertThat(StateMetaInfoSnapshot.BackendStateType.KEY_VALUE.toString())
+                .isEqualTo("KEY_VALUE");
+        assertThat(StateMetaInfoSnapshot.BackendStateType.OPERATOR.toString())
+                .isEqualTo("OPERATOR");
+        assertThat(StateMetaInfoSnapshot.BackendStateType.BROADCAST.toString())
+                .isEqualTo("BROADCAST");
+        assertThat(StateMetaInfoSnapshot.BackendStateType.PRIORITY_QUEUE.toString())
+                .isEqualTo("PRIORITY_QUEUE");
     }
 
     @Test
-    public void testFixedOptionsEnumConstants() {
-        Assert.assertEquals(2, StateMetaInfoSnapshot.CommonOptionsKeys.values().length);
-        Assert.assertEquals(0, StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE.ordinal());
-        Assert.assertEquals(
-                1,
-                StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE.ordinal());
-        Assert.assertEquals(
-                "KEYED_STATE_TYPE",
-                StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE.toString());
-        Assert.assertEquals(
-                "OPERATOR_STATE_DISTRIBUTION_MODE",
-                StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE
-                        .toString());
+    void testFixedOptionsEnumConstants() {
+        assertThat(StateMetaInfoSnapshot.CommonOptionsKeys.values()).hasSize(2);
+        assertThat(StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE.ordinal()).isZero();
+        assertThat(
+                        StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE
+                                .ordinal())
+                .isOne();
+        assertThat(StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE.toString())
+                .isEqualTo("KEYED_STATE_TYPE");
+        assertThat(
+                        StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE
+                                .toString())
+                .isEqualTo("OPERATOR_STATE_DISTRIBUTION_MODE");
     }
 
     @Test
-    public void testFixedSerializerEnumConstants() {
-        Assert.assertEquals(3, StateMetaInfoSnapshot.CommonSerializerKeys.values().length);
-        Assert.assertEquals(0, StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER.ordinal());
-        Assert.assertEquals(
-                1, StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER.ordinal());
-        Assert.assertEquals(
-                2, StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.ordinal());
-        Assert.assertEquals(
-                "KEY_SERIALIZER",
-                StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER.toString());
-        Assert.assertEquals(
-                "NAMESPACE_SERIALIZER",
-                StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER.toString());
-        Assert.assertEquals(
-                "VALUE_SERIALIZER",
-                StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString());
+    void testFixedSerializerEnumConstants() {
+        assertThat(StateMetaInfoSnapshot.CommonSerializerKeys.values()).hasSize(3);
+        assertThat(StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER.ordinal()).isZero();
+        assertThat(StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER.ordinal())
+                .isOne();
+        assertThat(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.ordinal())
+                .isEqualTo(2);
+        assertThat(StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER.toString())
+                .isEqualTo("KEY_SERIALIZER");
+        assertThat(StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER.toString())
+                .isEqualTo("NAMESPACE_SERIALIZER");
+        assertThat(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString())
+                .isEqualTo("VALUE_SERIALIZER");
     }
 }

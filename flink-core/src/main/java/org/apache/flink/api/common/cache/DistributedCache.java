@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.cache;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -215,7 +216,7 @@ public class DistributedCache {
     public static List<Tuple2<String, DistributedCacheEntry>> parseCachedFilesFromString(
             List<String> files) {
         return files.stream()
-                .map(ConfigurationUtils::parseMap)
+                .map(ConfigurationUtils::parseStringToMap)
                 .map(
                         m ->
                                 Tuple2.of(
@@ -225,6 +226,21 @@ public class DistributedCache {
                                                 Optional.ofNullable(m.get("executable"))
                                                         .map(Boolean::parseBoolean)
                                                         .orElse(false))))
+                .collect(Collectors.toList());
+    }
+
+    @Internal
+    public static List<String> parseStringFromCachedFiles(
+            List<Tuple2<String, DistributedCacheEntry>> files) {
+        return files.stream()
+                .map(
+                        tuple -> {
+                            Map<String, String> map = new HashMap<>();
+                            map.put("name", tuple.f0);
+                            map.put("path", tuple.f1.filePath);
+                            map.put("executable", String.valueOf(tuple.f1.isExecutable));
+                            return ConfigurationUtils.parseMapToString(map);
+                        })
                 .collect(Collectors.toList());
     }
 

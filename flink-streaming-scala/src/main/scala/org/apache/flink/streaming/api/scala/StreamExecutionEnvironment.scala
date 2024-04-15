@@ -30,10 +30,10 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.configuration.{Configuration, ReadableConfig}
-import org.apache.flink.core.execution.{JobClient, JobListener}
+import org.apache.flink.core.execution.{CheckpointingMode, JobClient, JobListener}
 import org.apache.flink.core.fs.Path
 import org.apache.flink.runtime.state.StateBackend
-import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
+import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.environment.{CheckpointConfig, StreamExecutionEnvironment => JavaEnv}
 import org.apache.flink.streaming.api.functions.source._
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
@@ -48,6 +48,15 @@ import java.net.URI
 
 import scala.collection.JavaConverters._
 
+/**
+ * @deprecated
+ *   All Flink Scala APIs are deprecated and will be removed in a future Flink major version. You
+ *   can still build your application in Scala, but you should move to the Java version of either
+ *   the DataStream and/or Table API.
+ * @see
+ *   <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
+ */
+@deprecated(org.apache.flink.api.scala.FLIP_265_WARNING, since = "1.18.0")
 @Public
 class StreamExecutionEnvironment(javaEnv: JavaEnv) extends AutoCloseable {
 
@@ -193,9 +202,36 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) extends AutoCloseable {
   @PublicEvolving
   def enableCheckpointing(
       interval: Long,
-      mode: CheckpointingMode,
+      mode: org.apache.flink.streaming.api.CheckpointingMode,
       force: Boolean): StreamExecutionEnvironment = {
     javaEnv.enableCheckpointing(interval, mode, force)
+    this
+  }
+
+  /**
+   * Enables checkpointing for the streaming job. The distributed state of the streaming dataflow
+   * will be periodically snapshotted. In case of a failure, the streaming dataflow will be
+   * restarted from the latest completed checkpoint.
+   *
+   * The job draws checkpoints periodically, in the given interval. The system uses the given
+   * [[org.apache.flink.streaming.api.CheckpointingMode]] for the checkpointing ("exactly once" vs
+   * "at least once"). The state will be stored in the configured state backend.
+   *
+   * NOTE: Checkpointing iterative streaming dataflows in not properly supported at the moment. For
+   * that reason, iterative jobs will not be started if used with enabled checkpointing.
+   *
+   * @param interval
+   *   Time interval between state checkpoints in milliseconds.
+   * @param mode
+   *   The checkpointing mode, selecting between "exactly once" and "at least once" guarantees.
+   * @deprecated
+   *   Use [[enableCheckpointing(Long, CheckpointingMode)]] instead.
+   */
+  @deprecated
+  def enableCheckpointing(
+      interval: Long,
+      mode: org.apache.flink.streaming.api.CheckpointingMode): StreamExecutionEnvironment = {
+    javaEnv.enableCheckpointing(interval, mode)
     this
   }
 
@@ -209,8 +245,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) extends AutoCloseable {
    * be stored in the configured state backend.
    *
    * NOTE: Checkpointing iterative streaming dataflows in not properly supported at the moment. For
-   * that reason, iterative jobs will not be started if used with enabled checkpointing. To override
-   * this mechanism, use the [[enableCheckpointing(long, CheckpointingMode, boolean)]] method.
+   * that reason, iterative jobs will not be started if used with enabled checkpointing.
    *
    * @param interval
    *   Time interval between state checkpoints in milliseconds.
@@ -232,8 +267,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) extends AutoCloseable {
    * backend.
    *
    * NOTE: Checkpointing iterative streaming dataflows in not properly supported at the moment. For
-   * that reason, iterative jobs will not be started if used with enabled checkpointing. To override
-   * this mechanism, use the [[enableCheckpointing(long, CheckpointingMode, boolean)]] method.
+   * that reason, iterative jobs will not be started if used with enabled checkpointing.
    *
    * @param interval
    *   Time interval between state checkpoints in milliseconds.
@@ -257,7 +291,11 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) extends AutoCloseable {
     this
   }
 
+  /** @deprecated Use [[getCheckpointingConsistencyMode()]] instead. */
+  @deprecated
   def getCheckpointingMode = javaEnv.getCheckpointingMode()
+
+  def getCheckpointingConsistencyMode = javaEnv.getCheckpointingConsistencyMode()
 
   /**
    * Sets the state backend that describes how to store operator. It defines the data structures
@@ -810,7 +848,12 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) extends AutoCloseable {
    * should implement ParallelSourceFunction or extend RichParallelSourceFunction. In these cases
    * the resulting source will have the parallelism of the environment. To change this afterwards
    * call DataStreamSource.setParallelism(int)
+   *
+   * @deprecated
+   *   This method relies on the [[SourceFunction]] API, which is due to be removed. Use the
+   *   [[fromSource]] method based on the new [[Source]] API instead.
    */
+  @Deprecated
   def addSource[T: TypeInformation](function: SourceFunction[T]): DataStream[T] = {
     require(function != null, "Function must not be null.")
 
@@ -821,7 +864,11 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) extends AutoCloseable {
 
   /**
    * Create a DataStream using a user defined source function for arbitrary source functionality.
+   * @deprecated
+   *   This method relies on the [[SourceFunction]] API, which is due to be removed. Use the
+   *   [[fromSource]] method based on the new [[Source]] API instead.
    */
+  @Deprecated
   def addSource[T: TypeInformation](function: SourceContext[T] => Unit): DataStream[T] = {
     require(function != null, "Function must not be null.")
     val sourceFunction = new SourceFunction[T] {

@@ -29,9 +29,9 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
 import org.apache.flink.table.utils.PartitionPathUtils;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -59,10 +59,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
 /** IT Case for testing managed table compaction. */
-public class CompactManagedTableITCase extends BatchTestBase {
+class CompactManagedTableITCase extends BatchTestBase {
 
-    private final ObjectIdentifier tableIdentifier =
-            ObjectIdentifier.of(tEnv().getCurrentCatalog(), tEnv().getCurrentDatabase(), "MyTable");
+    private ObjectIdentifier tableIdentifier;
     private final Map<CatalogPartitionSpec, List<RowData>> collectedElements = new HashMap<>();
 
     private Path rootPath;
@@ -70,9 +69,12 @@ public class CompactManagedTableITCase extends BatchTestBase {
             referenceOfManagedTableFileEntries;
 
     @Override
-    @Before
+    @BeforeEach
     public void before() throws Exception {
         super.before();
+        tableIdentifier =
+                ObjectIdentifier.of(
+                        tEnv().getCurrentCatalog(), tEnv().getCurrentDatabase(), "MyTable");
         MANAGED_TABLES.put(tableIdentifier, new AtomicReference<>());
         referenceOfManagedTableFileEntries = new AtomicReference<>();
         MANAGED_TABLE_FILE_ENTRIES.put(tableIdentifier, referenceOfManagedTableFileEntries);
@@ -88,7 +90,7 @@ public class CompactManagedTableITCase extends BatchTestBase {
     }
 
     @Override
-    @After
+    @AfterEach
     public void after() {
         super.after();
         tEnv().executeSql("DROP TABLE MyTable");
@@ -101,7 +103,7 @@ public class CompactManagedTableITCase extends BatchTestBase {
     }
 
     @Test
-    public void testCompactPartitionOnNonPartitionedTable() {
+    void testCompactPartitionOnNonPartitionedTable() {
         String sql = "CREATE TABLE MyTable (id BIGINT, content STRING)";
         tEnv().executeSql(sql);
         assertThatThrownBy(
@@ -114,7 +116,7 @@ public class CompactManagedTableITCase extends BatchTestBase {
     }
 
     @Test
-    public void testCompactPartitionOnNonExistedPartitionKey() {
+    void testCompactPartitionOnNonExistedPartitionKey() {
         String sql =
                 "CREATE TABLE MyTable (\n"
                         + "  id BIGINT,\n"
@@ -133,7 +135,7 @@ public class CompactManagedTableITCase extends BatchTestBase {
     }
 
     @Test
-    public void testCompactPartitionOnNonExistedPartitionValue() throws Exception {
+    void testCompactPartitionOnNonExistedPartitionValue() throws Exception {
         String sql =
                 "CREATE TABLE MyTable (\n"
                         + "  id BIGINT,\n"
@@ -151,7 +153,7 @@ public class CompactManagedTableITCase extends BatchTestBase {
     }
 
     @Test
-    public void testCompactNonPartitionedTable() throws Exception {
+    void testCompactNonPartitionedTable() throws Exception {
         String sql = "CREATE TABLE MyTable (id BIGINT, content STRING)";
         prepare(sql, Collections.emptyList());
 
@@ -163,7 +165,7 @@ public class CompactManagedTableITCase extends BatchTestBase {
     }
 
     @Test
-    public void testCompactSinglePartitionedTable() throws Exception {
+    void testCompactSinglePartitionedTable() throws Exception {
         String sql =
                 "CREATE TABLE MyTable (\n"
                         + "  id BIGINT,\n"
@@ -189,7 +191,7 @@ public class CompactManagedTableITCase extends BatchTestBase {
     }
 
     @Test
-    public void testCompactMultiPartitionedTable() throws Exception {
+    void testCompactMultiPartitionedTable() throws Exception {
         String sql =
                 "CREATE TABLE MyTable ("
                         + "  id BIGINT,\n"

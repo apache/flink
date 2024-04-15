@@ -31,23 +31,22 @@ import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.testutils.ExceptionallyDoneFuture;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
 /** Tests for {@link OperatorSnapshotFutures}. */
-public class OperatorSnapshotFuturesTest extends TestLogger {
+class OperatorSnapshotFuturesTest {
 
     @Test
-    public void testCancelReturnsStateSize() throws Exception {
+    void testCancelReturnsStateSize() throws Exception {
         KeyGroupsStateHandle s1 =
                 new KeyGroupsStateHandle(
                         new KeyGroupRangeOffsets(0, 0),
@@ -65,7 +64,7 @@ public class OperatorSnapshotFuturesTest extends TestLogger {
                         ExceptionallyDoneFuture.of(new RuntimeException()),
                         ExceptionallyDoneFuture.of(new RuntimeException()));
         long stateSize = s1.getStateSize() + s2.getStateSize();
-        assertEquals(Tuple2.of(stateSize, stateSize), futures.cancel());
+        assertThat(futures.cancel()).isEqualTo(Tuple2.of(stateSize, stateSize));
     }
 
     /**
@@ -73,7 +72,7 @@ public class OperatorSnapshotFuturesTest extends TestLogger {
      * the StreamStateHandle result is retrievable that the state handle are discarded.
      */
     @Test
-    public void testCancelAndCleanup() throws Exception {
+    void testCancelAndCleanup() throws Exception {
         OperatorSnapshotFutures operatorSnapshotResult = new OperatorSnapshotFutures();
 
         operatorSnapshotResult.cancel();

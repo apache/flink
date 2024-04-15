@@ -40,7 +40,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -132,7 +132,7 @@ public class TimestampITCase extends TestLogger {
                 .connect(source2)
                 .map(new IdentityCoMap())
                 .transform("Custom Operator", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(true))
-                .addSink(new DiscardingSink<Integer>());
+                .sinkTo(new DiscardingSink<>());
 
         env.execute();
 
@@ -164,13 +164,13 @@ public class TimestampITCase extends TestLogger {
     public void testSelfUnionWatermarkPropagation() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
-        DataStream<Integer> dataStream1 = env.fromElements(1, 2, 3);
+        DataStream<Integer> dataStream1 = env.fromData(1, 2, 3);
 
         dataStream1
                 .union(dataStream1)
                 .transform(
                         "Custom Operator", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(false))
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
         env.execute();
 
         assertEquals(
@@ -206,7 +206,7 @@ public class TimestampITCase extends TestLogger {
                 .connect(source2)
                 .map(new IdentityCoMap())
                 .transform("Custom Operator", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(true))
-                .addSink(new DiscardingSink<Integer>());
+                .sinkTo(new DiscardingSink<Integer>());
 
         Thread t =
                 new Thread("stopper") {
@@ -309,7 +309,7 @@ public class TimestampITCase extends TestLogger {
                         "Custom Operator",
                         BasicTypeInfo.INT_TYPE_INFO,
                         new TimestampCheckingOperator())
-                .addSink(new DiscardingSink<Integer>());
+                .sinkTo(new DiscardingSink<Integer>());
 
         env.execute();
     }
@@ -335,7 +335,7 @@ public class TimestampITCase extends TestLogger {
                         "Custom Operator",
                         BasicTypeInfo.INT_TYPE_INFO,
                         new DisabledTimestampCheckingOperator())
-                .addSink(new DiscardingSink<Integer>());
+                .sinkTo(new DiscardingSink<Integer>());
 
         env.execute();
     }
@@ -697,7 +697,7 @@ public class TimestampITCase extends TestLogger {
         env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
         DataStream<Tuple2<String, Integer>> source1 =
-                env.fromElements(new Tuple2<>("a", 1), new Tuple2<>("b", 2));
+                env.fromData(new Tuple2<>("a", 1), new Tuple2<>("b", 2));
 
         source1.keyBy(0)
                 .window(TumblingEventTimeWindows.of(Time.seconds(5)))
@@ -727,7 +727,7 @@ public class TimestampITCase extends TestLogger {
         env.setParallelism(2);
 
         DataStream<Tuple2<String, Integer>> source1 =
-                env.fromElements(new Tuple2<>("a", 1), new Tuple2<>("b", 2));
+                env.fromData(new Tuple2<>("a", 1), new Tuple2<>("b", 2));
 
         source1.keyBy(0)
                 .window(TumblingEventTimeWindows.of(Time.seconds(5)))
@@ -798,7 +798,7 @@ public class TimestampITCase extends TestLogger {
         @Override
         public void close() throws Exception {
             super.close();
-            finalWatermarks[getRuntimeContext().getIndexOfThisSubtask()] = watermarks;
+            finalWatermarks[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] = watermarks;
         }
     }
 

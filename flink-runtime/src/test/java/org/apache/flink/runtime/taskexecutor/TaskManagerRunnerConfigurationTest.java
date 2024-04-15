@@ -18,11 +18,11 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptionsInternal;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
@@ -97,7 +97,7 @@ class TaskManagerRunnerConfigurationTest {
             assertThat(taskManagerRpcService.getAddress()).isEqualTo(taskmanagerHost);
         } finally {
             maybeCloseRpcService(taskManagerRpcService);
-            highAvailabilityServices.closeAndCleanupAllData();
+            highAvailabilityServices.closeWithOptionalClean(true);
         }
     }
 
@@ -115,7 +115,7 @@ class TaskManagerRunnerConfigurationTest {
             assertThat(taskManagerRpcService.getAddress()).isNotNull().isNotEmpty();
         } finally {
             maybeCloseRpcService(taskManagerRpcService);
-            highAvailabilityServices.closeAndCleanupAllData();
+            highAvailabilityServices.closeWithOptionalClean(true);
         }
     }
 
@@ -136,7 +136,7 @@ class TaskManagerRunnerConfigurationTest {
             assertThat(taskManagerRpcService.getAddress()).matches(InetAddresses::isInetAddress);
         } finally {
             maybeCloseRpcService(taskManagerRpcService);
-            highAvailabilityServices.closeAndCleanupAllData();
+            highAvailabilityServices.closeWithOptionalClean(true);
             IOUtils.closeQuietly(testJobManagerSocket);
         }
     }
@@ -146,7 +146,7 @@ class TaskManagerRunnerConfigurationTest {
         final Configuration config =
                 new Configuration(
                         createFlinkConfigWithPredefinedTaskManagerHostname("example.org"));
-        config.setString(TaskManagerOptions.RPC_PORT, "-1");
+        config.set(TaskManagerOptions.RPC_PORT, "-1");
 
         final HighAvailabilityServices highAvailabilityServices =
                 createHighAvailabilityServices(config);
@@ -159,7 +159,7 @@ class TaskManagerRunnerConfigurationTest {
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("Invalid port range definition: -1");
         } finally {
-            highAvailabilityServices.closeAndCleanupAllData();
+            highAvailabilityServices.closeWithOptionalClean(true);
         }
     }
 
@@ -212,7 +212,7 @@ class TaskManagerRunnerConfigurationTest {
         assertThat(MemorySize.parse(managedMemory + "b"))
                 .isEqualTo(configuration.get(TaskManagerOptions.MANAGED_MEMORY_SIZE));
         assertThat(jmHost).isEqualTo(configuration.get(JobManagerOptions.ADDRESS));
-        assertThat(jmPort).isEqualTo(configuration.getInteger(JobManagerOptions.PORT));
+        assertThat(jmPort).isEqualTo(configuration.get(JobManagerOptions.PORT));
     }
 
     @Test
@@ -249,24 +249,24 @@ class TaskManagerRunnerConfigurationTest {
     private static Configuration createFlinkConfigWithPredefinedTaskManagerHostname(
             final String taskmanagerHost) {
         final Configuration config = new Configuration();
-        config.setString(TaskManagerOptions.HOST, taskmanagerHost);
-        config.setString(JobManagerOptions.ADDRESS, "localhost");
+        config.set(TaskManagerOptions.HOST, taskmanagerHost);
+        config.set(JobManagerOptions.ADDRESS, "localhost");
         return new UnmodifiableConfiguration(config);
     }
 
     private static Configuration createFlinkConfigWithHostBindPolicy(
             final HostBindPolicy bindPolicy) {
         final Configuration config = new Configuration();
-        config.setString(TaskManagerOptions.HOST_BIND_POLICY, bindPolicy.toString());
-        config.setString(JobManagerOptions.ADDRESS, "localhost");
-        config.set(AkkaOptions.LOOKUP_TIMEOUT_DURATION, Duration.ofMillis(10));
+        config.set(TaskManagerOptions.HOST_BIND_POLICY, bindPolicy.toString());
+        config.set(JobManagerOptions.ADDRESS, "localhost");
+        config.set(RpcOptions.LOOKUP_TIMEOUT_DURATION, Duration.ofMillis(10));
         return new UnmodifiableConfiguration(config);
     }
 
     private static Configuration createFlinkConfigWithJobManagerPort(final int port) {
         Configuration config = new Configuration();
-        config.setString(JobManagerOptions.ADDRESS, "localhost");
-        config.setInteger(JobManagerOptions.PORT, port);
+        config.set(JobManagerOptions.ADDRESS, "localhost");
+        config.set(JobManagerOptions.PORT, port);
         return new UnmodifiableConfiguration(config);
     }
 

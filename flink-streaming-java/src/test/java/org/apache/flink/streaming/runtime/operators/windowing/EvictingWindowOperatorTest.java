@@ -18,8 +18,9 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeHint;
@@ -27,7 +28,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.windowing.PassThroughWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ReduceApplyWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
@@ -52,23 +52,24 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Comparator;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Tests for {@link EvictingWindowOperator}. */
-public class EvictingWindowOperatorTest {
+class EvictingWindowOperatorTest {
 
     private static final TypeInformation<Tuple2<String, Integer>> STRING_INT_TUPLE =
             TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {});
 
     /** Tests CountEvictor evictAfter behavior. */
     @Test
-    public void testCountEvictorEvictAfter() throws Exception {
+    void testCountEvictorEvictAfter() throws Exception {
         AtomicInteger closeCalled = new AtomicInteger(0);
         final int windowSize = 4;
         final int triggerCount = 2;
@@ -78,7 +79,7 @@ public class EvictingWindowOperatorTest {
         TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
                 (TypeSerializer<StreamRecord<Tuple2<String, Integer>>>)
                         new StreamElementSerializer(
-                                STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                                STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
                 new ListStateDescriptor<>("window-contents", streamRecordSerializer);
@@ -91,7 +92,7 @@ public class EvictingWindowOperatorTest {
                                 new GlobalWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(
                                         new RichSumReducer<GlobalWindow>(closeCalled)),
@@ -156,12 +157,12 @@ public class EvictingWindowOperatorTest {
 
         testHarness.close();
 
-        Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+        assertThat(closeCalled).as("Close was not called.").hasValue(1);
     }
 
     /** Tests TimeEvictor evictAfter behavior. */
     @Test
-    public void testTimeEvictorEvictAfter() throws Exception {
+    void testTimeEvictorEvictAfter() throws Exception {
         AtomicInteger closeCalled = new AtomicInteger(0);
         final int triggerCount = 2;
         final boolean evictAfter = true;
@@ -170,7 +171,7 @@ public class EvictingWindowOperatorTest {
         TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
                 (TypeSerializer<StreamRecord<Tuple2<String, Integer>>>)
                         new StreamElementSerializer(
-                                STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                                STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
                 new ListStateDescriptor<>("window-contents", streamRecordSerializer);
@@ -183,7 +184,7 @@ public class EvictingWindowOperatorTest {
                                 new GlobalWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(
                                         new RichSumReducer<GlobalWindow>(closeCalled)),
@@ -238,12 +239,12 @@ public class EvictingWindowOperatorTest {
 
         testHarness.close();
 
-        Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+        assertThat(closeCalled).as("Close was not called.").hasValue(1);
     }
 
     /** Tests TimeEvictor evictBefore behavior. */
     @Test
-    public void testTimeEvictorEvictBefore() throws Exception {
+    void testTimeEvictorEvictBefore() throws Exception {
         AtomicInteger closeCalled = new AtomicInteger(0);
         final int triggerCount = 2;
         final int windowSize = 4;
@@ -252,7 +253,7 @@ public class EvictingWindowOperatorTest {
         TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
                 (TypeSerializer<StreamRecord<Tuple2<String, Integer>>>)
                         new StreamElementSerializer(
-                                STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                                STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
                 new ListStateDescriptor<>("window-contents", streamRecordSerializer);
@@ -264,7 +265,7 @@ public class EvictingWindowOperatorTest {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(
                                         new RichSumReducer<TimeWindow>(closeCalled)),
@@ -319,7 +320,7 @@ public class EvictingWindowOperatorTest {
 
         testHarness.close();
 
-        Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+        assertThat(closeCalled).as("Close was not called.").hasValue(1);
     }
 
     /**
@@ -327,7 +328,7 @@ public class EvictingWindowOperatorTest {
      * evicted from the window.
      */
     @Test
-    public void testTimeEvictorNoTimestamp() throws Exception {
+    void testTimeEvictorNoTimestamp() throws Exception {
         AtomicInteger closeCalled = new AtomicInteger(0);
         final int triggerCount = 2;
         final boolean evictAfter = true;
@@ -336,7 +337,7 @@ public class EvictingWindowOperatorTest {
         TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
                 (TypeSerializer<StreamRecord<Tuple2<String, Integer>>>)
                         new StreamElementSerializer(
-                                STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                                STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
                 new ListStateDescriptor<>("window-contents", streamRecordSerializer);
@@ -349,7 +350,7 @@ public class EvictingWindowOperatorTest {
                                 new GlobalWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(
                                         new RichSumReducer<GlobalWindow>(closeCalled)),
@@ -402,12 +403,12 @@ public class EvictingWindowOperatorTest {
 
         testHarness.close();
 
-        Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+        assertThat(closeCalled).as("Close was not called.").hasValue(1);
     }
 
     /** Tests DeltaEvictor, evictBefore behavior. */
     @Test
-    public void testDeltaEvictorEvictBefore() throws Exception {
+    void testDeltaEvictorEvictBefore() throws Exception {
         AtomicInteger closeCalled = new AtomicInteger(0);
         final int triggerCount = 2;
         final boolean evictAfter = false;
@@ -417,7 +418,7 @@ public class EvictingWindowOperatorTest {
         TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
                 (TypeSerializer<StreamRecord<Tuple2<String, Integer>>>)
                         new StreamElementSerializer(
-                                STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                                STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
                 new ListStateDescriptor<>("window-contents", streamRecordSerializer);
@@ -430,7 +431,7 @@ public class EvictingWindowOperatorTest {
                                 new GlobalWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(
                                         new RichSumReducer<GlobalWindow>(closeCalled)),
@@ -496,12 +497,12 @@ public class EvictingWindowOperatorTest {
 
         testHarness.close();
 
-        Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+        assertThat(closeCalled).as("Close was not called.").hasValue(1);
     }
 
     /** Tests DeltaEvictor, evictAfter behavior. */
     @Test
-    public void testDeltaEvictorEvictAfter() throws Exception {
+    void testDeltaEvictorEvictAfter() throws Exception {
         AtomicInteger closeCalled = new AtomicInteger(0);
         final int triggerCount = 2;
         final boolean evictAfter = true;
@@ -511,7 +512,7 @@ public class EvictingWindowOperatorTest {
         TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
                 (TypeSerializer<StreamRecord<Tuple2<String, Integer>>>)
                         new StreamElementSerializer(
-                                STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                                STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
                 new ListStateDescriptor<>("window-contents", streamRecordSerializer);
@@ -524,7 +525,7 @@ public class EvictingWindowOperatorTest {
                                 new GlobalWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(
                                         new RichSumReducer<GlobalWindow>(closeCalled)),
@@ -590,12 +591,12 @@ public class EvictingWindowOperatorTest {
 
         testHarness.close();
 
-        Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+        assertThat(closeCalled).as("Close was not called.").hasValue(1);
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testCountTrigger() throws Exception {
+    void testCountTrigger() throws Exception {
 
         final int windowSize = 4;
         final int windowSlide = 2;
@@ -604,7 +605,7 @@ public class EvictingWindowOperatorTest {
         TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
                 (TypeSerializer<StreamRecord<Tuple2<String, Integer>>>)
                         new StreamElementSerializer(
-                                STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                                STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
                 new ListStateDescriptor<>("window-contents", streamRecordSerializer);
@@ -617,7 +618,7 @@ public class EvictingWindowOperatorTest {
                                 new GlobalWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(
                                         new ReduceApplyWindowFunction<>(
@@ -685,7 +686,7 @@ public class EvictingWindowOperatorTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testCountTriggerWithApply() throws Exception {
+    void testCountTriggerWithApply() throws Exception {
         AtomicInteger closeCalled = new AtomicInteger(0);
 
         final int windowSize = 4;
@@ -695,7 +696,7 @@ public class EvictingWindowOperatorTest {
         TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
                 (TypeSerializer<StreamRecord<Tuple2<String, Integer>>>)
                         new StreamElementSerializer(
-                                STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                                STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
                 new ListStateDescriptor<>("window-contents", streamRecordSerializer);
@@ -708,7 +709,7 @@ public class EvictingWindowOperatorTest {
                                 new GlobalWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(
                                         new RichSumReducer<GlobalWindow>(closeCalled)),
@@ -766,12 +767,12 @@ public class EvictingWindowOperatorTest {
 
         testHarness.close();
 
-        Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+        assertThat(closeCalled).as("Close was not called.").hasValue(1);
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testTumblingWindowWithApply() throws Exception {
+    void testTumblingWindowWithApply() throws Exception {
         AtomicInteger closeCalled = new AtomicInteger(0);
 
         final int windowSize = 4;
@@ -780,7 +781,7 @@ public class EvictingWindowOperatorTest {
         TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
                 (TypeSerializer<StreamRecord<Tuple2<String, Integer>>>)
                         new StreamElementSerializer(
-                                STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+                                STRING_INT_TUPLE.createSerializer(new SerializerConfigImpl()));
 
         ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
                 new ListStateDescriptor<>("window-contents", streamRecordSerializer);
@@ -792,7 +793,7 @@ public class EvictingWindowOperatorTest {
                                 new TimeWindow.Serializer(),
                                 new TupleKeySelector(),
                                 BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
-                                        new ExecutionConfig()),
+                                        new SerializerConfigImpl()),
                                 stateDesc,
                                 new InternalIterableWindowFunction<>(
                                         new RichSumReducer<TimeWindow>(closeCalled)),
@@ -870,8 +871,8 @@ public class EvictingWindowOperatorTest {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             openCalled = true;
         }
 
@@ -889,9 +890,7 @@ public class EvictingWindowOperatorTest {
                 Collector<Tuple2<String, Integer>> out)
                 throws Exception {
 
-            if (!openCalled) {
-                Assert.fail("Open was not called");
-            }
+            assertThat(openCalled).as("Open was not called").isTrue();
             int sum = 0;
 
             for (Tuple2<String, Integer> t : input) {

@@ -57,6 +57,7 @@ public class FlinkStatement extends BaseStatement {
     public ResultSet executeQuery(String sql) throws SQLException {
         StatementResult result = executeInternal(sql);
         if (!result.isQueryResult()) {
+            result.close();
             throw new SQLException(String.format("Statement[%s] is not a query.", sql));
         }
         currentResults = new FlinkResultSet(this, result);

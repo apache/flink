@@ -27,6 +27,8 @@ import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 
+import javax.annotation.Nullable;
+
 import java.util.Collection;
 import java.util.Collections;
 
@@ -39,8 +41,11 @@ import java.util.Collections;
 @PublicEvolving
 public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
     private static final long serialVersionUID = 1L;
+    @Nullable private final Trigger<Object, GlobalWindow> defaultTrigger;
 
-    private GlobalWindows() {}
+    private GlobalWindows(Trigger<Object, GlobalWindow> defaultTrigger) {
+        this.defaultTrigger = defaultTrigger;
+    }
 
     @Override
     public Collection<GlobalWindow> assignWindows(
@@ -50,22 +55,35 @@ public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
 
     @Override
     public Trigger<Object, GlobalWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
-        return new NeverTrigger();
+        throw new UnsupportedOperationException(
+                "This method is deprecated and shouldn't be invoked. Please use getDefaultTrigger() instead.");
+    }
+
+    @Override
+    public Trigger<Object, GlobalWindow> getDefaultTrigger() {
+        return defaultTrigger == null ? new NeverTrigger() : defaultTrigger;
     }
 
     @Override
     public String toString() {
-        return "GlobalWindows()";
+        return "GlobalWindows(trigger=" + getDefaultTrigger().getClass().getSimpleName() + ")";
     }
 
     /**
-     * Creates a new {@code GlobalWindows} {@link WindowAssigner} that assigns all elements to the
-     * same {@link GlobalWindow}.
-     *
-     * @return The global window policy.
+     * Creates a {@link WindowAssigner} that assigns all elements to the same {@link GlobalWindow}.
+     * The window is only useful if you also specify a custom trigger. Otherwise, the window will
+     * never be triggered and no computation will be performed.
      */
     public static GlobalWindows create() {
-        return new GlobalWindows();
+        return new GlobalWindows(new NeverTrigger());
+    }
+
+    /**
+     * Creates a {@link WindowAssigner} that assigns all elements to the same {@link GlobalWindow}
+     * and the window is triggered if and only if the input stream is ended.
+     */
+    public static GlobalWindows createWithEndOfStreamTrigger() {
+        return new GlobalWindows(new EndOfStreamTrigger());
     }
 
     /** A trigger that never fires, as default Trigger for GlobalWindows. */
@@ -99,6 +117,35 @@ public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
     @Override
     public TypeSerializer<GlobalWindow> getWindowSerializer(ExecutionConfig executionConfig) {
         return new GlobalWindow.Serializer();
+    }
+
+    /** A trigger that fires iff the input stream reaches EndOfStream. */
+    @Internal
+    public static class EndOfStreamTrigger extends Trigger<Object, GlobalWindow> {
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public TriggerResult onElement(
+                Object element, long timestamp, GlobalWindow window, TriggerContext ctx) {
+            ctx.registerEventTimeTimer(window.maxTimestamp());
+            return TriggerResult.CONTINUE;
+        }
+
+        @Override
+        public TriggerResult onEventTime(long time, GlobalWindow window, TriggerContext ctx) {
+            return time == window.maxTimestamp() ? TriggerResult.FIRE : TriggerResult.CONTINUE;
+        }
+
+        @Override
+        public TriggerResult onProcessingTime(long time, GlobalWindow window, TriggerContext ctx) {
+            return TriggerResult.CONTINUE;
+        }
+
+        @Override
+        public void clear(GlobalWindow window, TriggerContext ctx) throws Exception {}
+
+        @Override
+        public void onMerge(GlobalWindow window, OnMergeContext ctx) {}
     }
 
     @Override

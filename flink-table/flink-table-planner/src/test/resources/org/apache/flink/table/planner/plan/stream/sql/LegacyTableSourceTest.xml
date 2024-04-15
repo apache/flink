@@ -201,7 +201,7 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[name, id, amount, price], where=[(Func1$(amount) < 32)])
+Calc(select=[name, id, amount, price], where=[(myUdf(amount) < 32)])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[true], filter=[greaterThan(amount, 2)]]]], fields=[name, id, amount, price])
 ]]>
     </Resource>

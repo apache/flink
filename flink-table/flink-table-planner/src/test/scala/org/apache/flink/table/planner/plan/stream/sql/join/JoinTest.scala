@@ -19,9 +19,13 @@ package org.apache.flink.table.planner.plan.stream.sql.join
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableFunc1, TableTestBase}
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.Test
+
+import java.time.Duration
 
 class JoinTest extends TableTestBase {
 
@@ -580,5 +584,107 @@ class JoinTest extends TableTestBase {
       "The options of following hints cannot match the name of input tables or views: \n" +
         "`D` in `LOOKUP`"
     )
+  }
+
+  @Test
+  def testJoinPartitionTableWithNonExistentPartition(): Unit = {
+    util.tableEnv.executeSql("""
+                               |create table leftPartitionTable (
+                               | a1 varchar,
+                               | b1 int)
+                               | partitioned by (b1) 
+                               | with (
+                               | 'connector' = 'values',
+                               | 'bounded' = 'false',
+                               | 'partition-list' = 'b1:1'
+                               |)
+                               |""".stripMargin)
+    util.tableEnv.executeSql("""
+                               |create table rightPartitionTable (
+                               | a2 varchar,
+                               | b2 int)
+                               | partitioned by (b2) 
+                               | with (
+                               | 'connector' = 'values',
+                               | 'bounded' = 'false',
+                               | 'partition-list' = 'b2:2'
+                               |)
+                               |""".stripMargin)
+    // partition 'b2 = 3' not exists.
+    util.verifyExecPlan(
+      """
+        |SELECT * FROM leftPartitionTable, rightPartitionTable WHERE b1 = 1 AND b2 = 3 AND a1 = a2
+        |""".stripMargin)
+  }
+
+  @Test
+  def testJoinAccessSourcePkWithMiniBatchAssigner(): Unit = {
+    util.tableEnv.executeSql("""
+                               |create table left_table (
+                               | a varchar primary key not enforced,
+                               | b int
+                               |) with (
+                               | 'connector' = 'values'
+                               |)
+                               |""".stripMargin)
+
+    util.tableEnv.executeSql("""
+                               |create table right_table (
+                               | c varchar primary key not enforced,
+                               | d int
+                               |) with (
+                               | 'connector' = 'values'
+                               |)
+                               |""".stripMargin)
+
+    util.tableEnv.executeSql("""
+                               |create table sink (
+                               | e varchar primary key not enforced,
+                               | f int,
+                               | g int
+                               |) with (
+                               | 'connector' = 'values'
+                               |)
+                               |""".stripMargin)
+
+    util.tableEnv.getConfig.getConfiguration
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))
+    util.tableEnv.getConfig.getConfiguration
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(10))
+    util.tableEnv.getConfig.getConfiguration
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, Long.box(5000L))
+
+    util.verifyExplainInsert(
+      """
+        |insert into sink
+        |select left_table.a, left_table.b, right_table.d
+        | from left_table
+        | join right_table on left_table.a = right_table.c
+        |""".stripMargin
+    )
+  }
+
+  @Test
+  def testMiniBatchJoinWithNegativeMiniBatchSize(): Unit = {
+    util.tableEnv.getConfig.getConfiguration
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))
+    util.tableEnv.getConfig.getConfiguration
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(10))
+
+    val sql = "SELECT * FROM A JOIN B ON a1 = b1"
+
+    // without setting mini-batch size
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessage(
+        "Key: 'table.exec.mini-batch.size' , default: -1 (fallback keys: []) must be > 0.")
+      .isInstanceOf[IllegalArgumentException]
+
+    // set negative mini-batch size
+    util.tableEnv.getConfig.getConfiguration
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, Long.box(-500L))
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessage(
+        "Key: 'table.exec.mini-batch.size' , default: -1 (fallback keys: []) must be > 0.")
+      .isInstanceOf[IllegalArgumentException]
   }
 }

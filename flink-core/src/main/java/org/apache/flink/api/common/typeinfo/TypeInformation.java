@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
+import org.apache.flink.api.common.serialization.SerializerConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -174,6 +176,28 @@ public abstract class TypeInformation<T> implements Serializable {
      * @return A serializer for this type.
      */
     @PublicEvolving
+    public TypeSerializer<T> createSerializer(SerializerConfig config) {
+        if (config != null) {
+            ExecutionConfig executionConfig = ((SerializerConfigImpl) config).getExecutionConfig();
+            return createSerializer(executionConfig);
+        } else {
+            return createSerializer((ExecutionConfig) null);
+        }
+    }
+
+    /**
+     * Create {@link TypeSerializer} for this type.
+     *
+     * @param config the configuration of this job execution
+     * @deprecated This method is deprecated since Flink 1.19 and will be removed in Flink 1.20. The
+     *     users are recommended to implement {@link #createSerializer(SerializerConfig config)}. If
+     *     you implement {@link #createSerializer(SerializerConfig)}, this method will never be
+     *     invoked. If you don't implement {@link #createSerializer(SerializerConfig)}, this method
+     *     will be invoked in the default implementation of {@link
+     *     #createSerializer(SerializerConfig)}.
+     */
+    @PublicEvolving
+    @Deprecated
     public abstract TypeSerializer<T> createSerializer(ExecutionConfig config);
 
     @Override

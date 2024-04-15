@@ -190,7 +190,7 @@ object JsonGenerateUtils {
   private def generateArrayConverter(
       ctx: CodeGeneratorContext,
       elementType: LogicalType): String = {
-    val methodName = newName("convertArray")
+    val methodName = newName(ctx, "convertArray")
     val methodCode =
       s"""
          |private ${className[ArrayNode]} $methodName($ARRAY_DATA arrData) {
@@ -222,7 +222,7 @@ object JsonGenerateUtils {
            |""".stripMargin
     }.mkString
 
-    val methodName = newName("convertRow")
+    val methodName = newName(ctx, "convertRow")
     val methodCode =
       s"""
          |private ${className[ObjectNode]} $methodName(${CodeGenUtils.ROW_DATA} rowData) {
@@ -248,7 +248,7 @@ object JsonGenerateUtils {
           + "The key type must be a character string.")
     }
 
-    val methodName = newName("convertMap")
+    val methodName = newName(ctx, "convertMap")
     val methodCode =
       s"""
          |private ${className[ObjectNode]} $methodName($MAP_DATA mapData) {

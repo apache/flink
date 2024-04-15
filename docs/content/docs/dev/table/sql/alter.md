@@ -179,10 +179,10 @@ tables = table_env.list_tables()
 {{< tab "SQL CLI" >}}
 ```sql
 Flink SQL> CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...);
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> ALTER TABLE Orders ADD `order` INT COMMENT 'order identifier' FIRST;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> DESCRIBE Orders;
 +---------+--------+------+-----+--------+-----------+------------------+
@@ -196,7 +196,7 @@ Flink SQL> DESCRIBE Orders;
 4 rows in set
 
 Flink SQL> ALTER TABLE Orders ADD (ts TIMESTAMP(3), category STRING AFTER product, PRIMARY KEY(`order`) NOT ENFORCED, WATERMARK FOR ts AS ts - INTERVAL '1' HOUR);
-[INFO] Execute statement succeed. 
+[INFO] Execute statement succeeded. 
 
 Flink SQL> DESCRIBE Orders;
 +----------+------------------------+-------+------------+--------+--------------------------+------------------+
@@ -212,7 +212,7 @@ Flink SQL> DESCRIBE Orders;
 6 rows in set
 
 Flink SQL> ALTER TABLE Orders MODIFY (amount DOUBLE NOT NULL, category STRING COMMENT 'category identifier' AFTER `order`, WATERMARK FOR ts AS ts);
-[INFO] Execute statement succeed. 
+[INFO] Execute statement succeeded. 
 
 Flink SQL> DESCRIBE Orders;
 +----------+------------------------+-------+------------+--------+-----------+---------------------+
@@ -228,7 +228,7 @@ Flink SQL> DESCRIBE Orders;
 6 rows in set
 
 Flink SQL> ALTER TABLE Orders DROP WATERMARK;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> DESCRIBE Orders;
 +----------+--------------+-------+------------+--------+-----------+---------------------+
@@ -244,7 +244,7 @@ Flink SQL> DESCRIBE Orders;
 6 rows in set
 
 Flink SQL> ALTER TABLE Orders DROP (amount, ts, category);
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> DESCRIBE Orders;
 +---------+--------+-------+------------+--------+-----------+------------------+
@@ -257,7 +257,7 @@ Flink SQL> DESCRIBE Orders;
 3 rows in set
 
 Flink SQL> ALTER TABLE Orders RENAME `order` to `order_id`;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> DESCRIBE Orders;
 +----------+--------+-------+---------------+--------+-----------+------------------+
@@ -278,7 +278,7 @@ Flink SQL> SHOW TABLES;
 1 row in set
 
 Flink SQL> ALTER TABLE Orders RENAME TO NewOrders;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> SHOW TABLES;
 +------------+

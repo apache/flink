@@ -21,8 +21,8 @@ import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -57,7 +57,7 @@ public class ChangelogRecoverySwitchStateBackendITCase extends ChangelogRecovery
     @Override
     public void setup() throws Exception {
         Configuration configuration = new Configuration();
-        configuration.setInteger(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, 1);
+        configuration.set(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, 1);
         // reduce file threshold to reproduce FLINK-28843
         configuration.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, MemorySize.parse("20b"));
         FsStateChangelogStorageFactory.configure(

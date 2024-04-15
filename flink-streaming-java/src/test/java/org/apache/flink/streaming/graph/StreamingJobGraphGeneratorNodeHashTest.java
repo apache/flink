@@ -27,13 +27,12 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamNode;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -41,18 +40,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests the {@link StreamNode} hash assignment during translation from {@link StreamGraph} to
  * {@link JobGraph} instances.
  */
 @SuppressWarnings("serial")
-public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
+class StreamingJobGraphGeneratorNodeHashTest {
 
     // ------------------------------------------------------------------------
     // Deterministic hash assignment
@@ -70,7 +66,7 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
      * </pre>
      */
     @Test
-    public void testNodeHashIsDeterministic() throws Exception {
+    void testNodeHashIsDeterministic() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(4);
 
@@ -90,7 +86,7 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 
         src0.map(new NoOpMapFunction())
                 .union(src1, src2)
-                .addSink(new DiscardingSink<>())
+                .sinkTo(new DiscardingSink<>())
                 .name("sink");
 
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();
@@ -115,7 +111,7 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 
         src0.map(new NoOpMapFunction())
                 .union(src1, src2)
-                .addSink(new DiscardingSink<>())
+                .sinkTo(new DiscardingSink<>())
                 .name("sink");
 
         jobGraph = env.getStreamGraph().getJobGraph();
@@ -133,7 +129,7 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
      * </pre>
      */
     @Test
-    public void testNodeHashIdenticalSources() throws Exception {
+    void testNodeHashIdenticalSources() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(4);
         env.disableOperatorChaining();
@@ -141,18 +137,18 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
         DataStream<String> src0 = env.addSource(new NoOpSourceFunction());
         DataStream<String> src1 = env.addSource(new NoOpSourceFunction());
 
-        src0.union(src1).addSink(new DiscardingSink<>());
+        src0.union(src1).sinkTo(new DiscardingSink<>());
 
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
         List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
-        assertTrue(vertices.get(0).isInputVertex());
-        assertTrue(vertices.get(1).isInputVertex());
+        assertThat(vertices.get(0).isInputVertex()).isTrue();
+        assertThat(vertices.get(1).isInputVertex()).isTrue();
 
-        assertNotNull(vertices.get(0).getID());
-        assertNotNull(vertices.get(1).getID());
+        assertThat(vertices.get(0).getID()).isNotNull();
+        assertThat(vertices.get(1).getID()).isNotNull();
 
-        assertNotEquals(vertices.get(0).getID(), vertices.get(1).getID());
+        assertThat(vertices.get(0).getID()).isNotEqualTo(vertices.get(1).getID());
     }
 
     /**
@@ -166,14 +162,14 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
      * <p>The hashes for the single vertex in A and the source vertex in B need to be different.
      */
     @Test
-    public void testNodeHashAfterSourceUnchaining() throws Exception {
+    void testNodeHashAfterSourceUnchaining() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(4);
 
         env.addSource(new NoOpSourceFunction())
                 .map(new NoOpMapFunction())
                 .filter(new NoOpFilterFunction())
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
@@ -186,14 +182,14 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
                 .map(new NoOpMapFunction())
                 .startNewChain()
                 .filter(new NoOpFilterFunction())
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         jobGraph = env.getStreamGraph().getJobGraph();
 
         JobVertexID unchainedSourceId =
                 jobGraph.getVerticesSortedTopologicallyFromSources().get(0).getID();
 
-        assertNotEquals(sourceId, unchainedSourceId);
+        assertThat(unchainedSourceId).isNotEqualTo(sourceId);
     }
 
     /**
@@ -207,7 +203,7 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
      * <p>The hashes for the single vertex in A and the source vertex in B need to be different.
      */
     @Test
-    public void testNodeHashAfterIntermediateUnchaining() throws Exception {
+    void testNodeHashAfterIntermediateUnchaining() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(4);
 
@@ -216,12 +212,12 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
                 .name("map")
                 .startNewChain()
                 .filter(new NoOpFilterFunction())
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
         JobVertex chainedMap = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
-        assertTrue(chainedMap.getName().startsWith("map"));
+        assertThat(chainedMap.getName()).startsWith("map");
         JobVertexID chainedMapId = chainedMap.getID();
 
         env = StreamExecutionEnvironment.createLocalEnvironment();
@@ -233,15 +229,15 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
                 .startNewChain()
                 .filter(new NoOpFilterFunction())
                 .startNewChain()
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         jobGraph = env.getStreamGraph().getJobGraph();
 
         JobVertex unchainedMap = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
-        assertEquals("map", unchainedMap.getName());
+        assertThat(unchainedMap.getName()).isEqualTo("map");
         JobVertexID unchainedMapId = unchainedMap.getID();
 
-        assertNotEquals(chainedMapId, unchainedMapId);
+        assertThat(unchainedMapId).isNotEqualTo(chainedMapId);
     }
 
     /**
@@ -255,27 +251,27 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
      * </pre>
      */
     @Test
-    public void testNodeHashIdenticalNodes() throws Exception {
+    void testNodeHashIdenticalNodes() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(4);
         env.disableOperatorChaining();
 
         DataStream<String> src = env.addSource(new NoOpSourceFunction());
 
-        src.map(new NoOpMapFunction()).addSink(new DiscardingSink<>());
+        src.map(new NoOpMapFunction()).sinkTo(new DiscardingSink<>());
 
-        src.map(new NoOpMapFunction()).addSink(new DiscardingSink<>());
+        src.map(new NoOpMapFunction()).sinkTo(new DiscardingSink<>());
 
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();
         Set<JobVertexID> vertexIds = new HashSet<>();
         for (JobVertex vertex : jobGraph.getVertices()) {
-            assertTrue(vertexIds.add(vertex.getID()));
+            assertThat(vertexIds.add(vertex.getID())).isTrue();
         }
     }
 
     /** Tests that a changed operator name does not affect the hash. */
     @Test
-    public void testChangedOperatorName() throws Exception {
+    void testChangedOperatorName() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
         env.addSource(new NoOpSourceFunction(), "A").map(new NoOpMapFunction());
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();
@@ -288,7 +284,7 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 
         JobVertexID actual = jobGraph.getVerticesAsArray()[0].getID();
 
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     // ------------------------------------------------------------------------
@@ -311,7 +307,7 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
      * </pre>
      */
     @Test
-    public void testManualHashAssignment() throws Exception {
+    void testManualHashAssignment() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(4);
         env.disableOperatorChaining();
@@ -319,14 +315,14 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
         DataStream<String> src =
                 env.addSource(new NoOpSourceFunction()).name("source").uid("source");
 
-        src.map(new NoOpMapFunction()).addSink(new DiscardingSink<>()).name("sink0").uid("sink0");
+        src.map(new NoOpMapFunction()).sinkTo(new DiscardingSink<>()).name("sink0").uid("sink0");
 
-        src.map(new NoOpMapFunction()).addSink(new DiscardingSink<>()).name("sink1").uid("sink1");
+        src.map(new NoOpMapFunction()).sinkTo(new DiscardingSink<>()).name("sink1").uid("sink1");
 
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();
         Set<JobVertexID> ids = new HashSet<>();
         for (JobVertex vertex : jobGraph.getVertices()) {
-            assertTrue(ids.add(vertex.getID()));
+            assertThat(ids.add(vertex.getID())).isTrue();
         }
 
         // Resubmit a slightly different program
@@ -344,19 +340,19 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
         src.map(new NoOpMapFunction())
                 .keyBy(new NoOpKeySelector())
                 .reduce(new NoOpReduceFunction())
-                .addSink(new DiscardingSink<>())
+                .sinkTo(new DiscardingSink<>())
                 .name("sink0")
                 .uid("sink0");
 
         src.map(new NoOpMapFunction())
                 .keyBy(new NoOpKeySelector())
                 .reduce(new NoOpReduceFunction())
-                .addSink(new DiscardingSink<>())
+                .sinkTo(new DiscardingSink<>())
                 .name("sink1")
                 .uid("sink1");
 
         JobGraph newJobGraph = env.getStreamGraph().getJobGraph();
-        assertNotEquals(jobGraph.getJobID(), newJobGraph.getJobID());
+        assertThat(newJobGraph.getJobID()).isNotEqualTo(jobGraph.getJobID());
 
         for (JobVertex vertex : newJobGraph.getVertices()) {
             // Verify that the expected IDs are the same
@@ -364,14 +360,14 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
                     || vertex.getName().endsWith("sink0")
                     || vertex.getName().endsWith("sink1")) {
 
-                assertTrue(ids.contains(vertex.getID()));
+                assertThat(vertex.getID()).isIn(ids);
             }
         }
     }
 
     /** Tests that a collision on the manual hash throws an Exception. */
-    @Test(expected = IllegalArgumentException.class)
-    public void testManualHashAssignmentCollisionThrowsException() throws Exception {
+    @Test
+    void testManualHashAssignmentCollisionThrowsException() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(4);
         env.disableOperatorChaining();
@@ -380,15 +376,16 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
                 .uid("source")
                 .map(new NoOpMapFunction())
                 .uid("source") // Collision
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         // This call is necessary to generate the job graph
-        env.getStreamGraph().getJobGraph();
+        assertThatThrownBy(() -> env.getStreamGraph().getJobGraph())
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     /** Tests that a manual hash for an intermediate chain node is accepted. */
     @Test
-    public void testManualHashAssignmentForIntermediateNodeInChain() throws Exception {
+    void testManualHashAssignmentForIntermediateNodeInChain() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(4);
 
@@ -396,27 +393,27 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
                 // Intermediate chained node
                 .map(new NoOpMapFunction())
                 .uid("map")
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         env.getStreamGraph().getJobGraph();
     }
 
     /** Tests that a manual hash at the beginning of a chain is accepted. */
     @Test
-    public void testManualHashAssignmentForStartNodeInInChain() throws Exception {
+    void testManualHashAssignmentForStartNodeInInChain() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(4);
 
         env.addSource(new NoOpSourceFunction())
                 .uid("source")
                 .map(new NoOpMapFunction())
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         env.getStreamGraph().getJobGraph();
     }
 
     @Test
-    public void testUserProvidedHashingOnChainSupported() {
+    void testUserProvidedHashingOnChainSupported() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 
         env.addSource(new NoOpSourceFunction(), "src")
@@ -433,50 +430,53 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
         env.getStreamGraph().getJobGraph();
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void testDisablingAutoUidsFailsStreamGraphCreation() {
+    @Test
+    void testDisablingAutoUidsFailsStreamGraphCreation() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
         env.getConfig().disableAutoGeneratedUIDs();
 
-        env.addSource(new NoOpSourceFunction()).addSink(new DiscardingSink<>());
-        env.getStreamGraph();
+        env.addSource(new NoOpSourceFunction()).sinkTo(new DiscardingSink<>());
+
+        assertThatThrownBy(env::getStreamGraph).isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void testDisablingAutoUidsAcceptsManuallySetId() {
+    void testDisablingAutoUidsAcceptsManuallySetId() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
         env.getConfig().disableAutoGeneratedUIDs();
 
         env.addSource(new NoOpSourceFunction())
                 .uid("uid1")
-                .addSink(new DiscardingSink<>())
+                .sinkTo(new DiscardingSink<>())
                 .uid("uid2");
 
         env.getStreamGraph();
     }
 
     @Test
-    public void testDisablingAutoUidsAcceptsManuallySetHash() {
+    void testDisablingAutoUidsAcceptsManuallySetHash() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
         env.getConfig().disableAutoGeneratedUIDs();
 
         env.addSource(new NoOpSourceFunction())
                 .setUidHash("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-                .addSink(new DiscardingSink<>())
+                .addSink(new org.apache.flink.streaming.api.functions.sink.DiscardingSink<>())
+                // TODO remove this after sinkFunction is not supported.
                 .setUidHash("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 
         env.getStreamGraph();
     }
 
     @Test
-    public void testDisablingAutoUidsWorksWithKeyBy() throws Exception {
+    void testDisablingAutoUidsWorksWithKeyBy() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
         env.getConfig().disableAutoGeneratedUIDs();
 
         env.addSource(new NoOpSourceFunction())
                 .setUidHash("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
                 .keyBy(o -> o)
-                .addSink(new DiscardingSink<>())
+                .addSink(new org.apache.flink.streaming.api.functions.sink.DiscardingSink<>())
+                // TODO remove this after sinkFunction is not supported.
                 .setUidHash("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 
         env.getStreamGraph();
@@ -499,13 +499,12 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
      */
     private void verifyIdsEqual(JobGraph jobGraph, Map<JobVertexID, String> ids) {
         // Verify same number of vertices
-        assertEquals(jobGraph.getNumberOfVertices(), ids.size());
+        assertThat(ids).hasSize(jobGraph.getNumberOfVertices());
 
         // Verify that all IDs->name mappings are identical
         for (JobVertex vertex : jobGraph.getVertices()) {
             String expectedName = ids.get(vertex.getID());
-            assertNotNull(expectedName);
-            assertEquals(expectedName, vertex.getName());
+            assertThat(vertex.getName()).isNotNull().isEqualTo(expectedName);
         }
     }
 
@@ -514,11 +513,11 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
      */
     private void verifyIdsNotEqual(JobGraph jobGraph, Map<JobVertexID, String> ids) {
         // Verify same number of vertices
-        assertEquals(jobGraph.getNumberOfVertices(), ids.size());
+        assertThat(ids).hasSize(jobGraph.getNumberOfVertices());
 
         // Verify that all IDs->name mappings are identical
         for (JobVertex vertex : jobGraph.getVertices()) {
-            assertFalse(ids.containsKey(vertex.getID()));
+            assertThat(ids).doesNotContainKey(vertex.getID());
         }
     }
 

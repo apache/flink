@@ -26,6 +26,7 @@ export const JOB_MODULE_DEFAULT_CONFIG: Required<JobModuleConfig> = {
   routerTabs: [
     { title: 'Overview', path: 'overview' },
     { title: 'Exceptions', path: 'exceptions' },
+    { title: 'Data Skew', path: 'dataskew' },
     { title: 'TimeLine', path: 'timeline' },
     { title: 'Checkpoints', path: 'checkpoints' },
     { title: 'Configuration', path: 'configuration' }

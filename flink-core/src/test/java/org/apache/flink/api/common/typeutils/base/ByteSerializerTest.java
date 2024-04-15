@@ -44,7 +44,7 @@ class ByteSerializerTest extends SerializerTestBase<Byte> {
     @Override
     protected Byte[] getTestData() {
         Random rnd = new Random(874597969123412341L);
-        byte byteArray[] = new byte[1];
+        byte[] byteArray = new byte[1];
         rnd.nextBytes(byteArray);
 
         return new Byte[] {

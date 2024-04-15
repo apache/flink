@@ -18,10 +18,10 @@
 
 package org.apache.flink.test.streaming.runtime;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -69,7 +69,7 @@ public class BroadcastStateITCase extends AbstractTestBase {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         final DataStream<Long> srcOne =
-                env.generateSequence(0L, 5L)
+                env.fromSequence(0L, 5L)
                         .assignTimestampsAndWatermarks(
                                 new CustomWmEmitter<Long>() {
 
@@ -85,7 +85,7 @@ public class BroadcastStateITCase extends AbstractTestBase {
                         .keyBy((KeySelector<Long, Long>) value -> value);
 
         final DataStream<String> srcTwo =
-                env.fromCollection(expected.values())
+                env.fromData(expected.values())
                         .assignTimestampsAndWatermarks(
                                 new CustomWmEmitter<String>() {
 
@@ -130,7 +130,7 @@ public class BroadcastStateITCase extends AbstractTestBase {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         final DataStream<Long> srcOne =
-                env.generateSequence(0L, 5L)
+                env.fromSequence(0L, 5L)
                         .assignTimestampsAndWatermarks(
                                 new CustomWmEmitter<Long>() {
 
@@ -145,7 +145,7 @@ public class BroadcastStateITCase extends AbstractTestBase {
                                 });
 
         final DataStream<String> srcTwo =
-                env.fromCollection(expected.values())
+                env.fromData(expected.values())
                         .assignTimestampsAndWatermarks(
                                 new CustomWmEmitter<String>() {
 
@@ -233,8 +233,8 @@ public class BroadcastStateITCase extends AbstractTestBase {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
 
             descriptor =
                     new MapStateDescriptor<>(
@@ -288,8 +288,8 @@ public class BroadcastStateITCase extends AbstractTestBase {
         private transient MapStateDescriptor<Long, String> descriptor;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
 
             descriptor =
                     new MapStateDescriptor<>(

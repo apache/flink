@@ -26,19 +26,18 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorImpl;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxProcessor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
-import org.apache.flink.util.ExceptionUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
-import static org.junit.Assert.assertThrows;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** {@link BarrierAlignmentUtil} test. */
-public class BarrierAlignmentUtilTest {
+class BarrierAlignmentUtilTest {
 
     @Test
-    public void testDelayableTimerNotHiddenException() throws Exception {
+    void testDelayableTimerNotHiddenException() throws Exception {
         TaskMailbox mailbox = new TaskMailboxImpl();
         MailboxProcessor mailboxProcessor =
                 new MailboxProcessor(controller -> {}, mailbox, StreamTaskActionExecutor.IMMEDIATE);
@@ -63,12 +62,8 @@ public class BarrierAlignmentUtilTest {
 
         timerService.advance(delay.toMillis());
 
-        Throwable t =
-                assertThrows(
-                        "BarrierAlignmentUtil.DelayableTimer should not hidden exception",
-                        Exception.class,
-                        () -> mailboxProcessor.runMailboxStep());
-
-        ExceptionUtils.assertThrowable(t, ExpectedTestException.class);
+        assertThatThrownBy(mailboxProcessor::runMailboxStep)
+                .as("BarrierAlignmentUtil.DelayableTimer should not hidden exception")
+                .isInstanceOf(ExpectedTestException.class);
     }
 }

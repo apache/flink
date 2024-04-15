@@ -29,8 +29,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
-import org.apache.flink.table.runtime.operators.window.slicing.ClockService;
-import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
+import org.apache.flink.table.runtime.operators.window.tvf.common.ClockService;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
 
 import java.time.ZoneId;
 import java.util.TimeZone;
@@ -154,6 +154,7 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
                         getOperatorConfig()
                                 .getManagedMemoryFractionOperatorUseCaseOfSlot(
                                         ManagedMemoryUseCase.OPERATOR,
+                                        environment.getJobConfiguration(),
                                         environment.getTaskManagerInfo().getConfiguration(),
                                         environment.getUserCodeClassLoader().asClassLoader()));
     }

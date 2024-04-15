@@ -21,6 +21,7 @@ package org.apache.flink.api.common.operators.base;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -219,10 +220,12 @@ public class ReduceOperatorBase<T, FT extends ReduceFunction<T>>
         }
 
         FunctionUtils.setFunctionRuntimeContext(function, ctx);
-        FunctionUtils.openFunction(function, this.parameters);
+        FunctionUtils.openFunction(function, DefaultOpenContext.INSTANCE);
 
         TypeSerializer<T> serializer =
-                getOperatorInfo().getInputType().createSerializer(executionConfig);
+                getOperatorInfo()
+                        .getInputType()
+                        .createSerializer(executionConfig.getSerializerConfig());
 
         if (inputColumns.length > 0) {
             boolean[] inputOrderings = new boolean[inputColumns.length];

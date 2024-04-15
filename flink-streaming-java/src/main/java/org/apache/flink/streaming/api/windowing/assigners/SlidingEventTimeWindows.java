@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -41,7 +42,7 @@ import java.util.List;
  * DataStream<Tuple2<String, Integer>> in = ...;
  * KeyedStream<Tuple2<String, Integer>, String> keyed = in.keyBy(...);
  * WindowedStream<Tuple2<String, Integer>, String, TimeWindow> windowed =
- *   keyed.window(SlidingEventTimeWindows.of(Time.minutes(1), Time.seconds(10)));
+ *   keyed.window(SlidingEventTimeWindows.of(Duration.ofMinutes(1), Duration.ofSeconds(10)));
  * }</pre>
  */
 @PublicEvolving
@@ -94,6 +95,12 @@ public class SlidingEventTimeWindows extends WindowAssigner<Object, TimeWindow> 
 
     @Override
     public Trigger<Object, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
+        throw new UnsupportedOperationException(
+                "This method is deprecated and shouldn't be invoked. Please use getDefaultTrigger() instead.");
+    }
+
+    @Override
+    public Trigger<Object, TimeWindow> getDefaultTrigger() {
         return EventTimeTrigger.create();
     }
 
@@ -109,9 +116,23 @@ public class SlidingEventTimeWindows extends WindowAssigner<Object, TimeWindow> 
      * @param size The size of the generated windows.
      * @param slide The slide interval of the generated windows.
      * @return The time policy.
+     * @deprecated Use {@link #of(Duration, Duration)}
      */
+    @Deprecated
     public static SlidingEventTimeWindows of(Time size, Time slide) {
-        return new SlidingEventTimeWindows(size.toMilliseconds(), slide.toMilliseconds(), 0);
+        return of(size.toDuration(), slide.toDuration());
+    }
+
+    /**
+     * Creates a new {@code SlidingEventTimeWindows} {@link WindowAssigner} that assigns elements to
+     * sliding time windows based on the element timestamp.
+     *
+     * @param size The size of the generated windows.
+     * @param slide The slide interval of the generated windows.
+     * @return The time policy.
+     */
+    public static SlidingEventTimeWindows of(Duration size, Duration slide) {
+        return new SlidingEventTimeWindows(size.toMillis(), slide.toMillis(), 0);
     }
 
     /**
@@ -132,10 +153,34 @@ public class SlidingEventTimeWindows extends WindowAssigner<Object, TimeWindow> 
      * @param slide The slide interval of the generated windows.
      * @param offset The offset which window start would be shifted by.
      * @return The time policy.
+     * @deprecated Use {@link #of(Duration, Duration, Duration)}
      */
+    @Deprecated
     public static SlidingEventTimeWindows of(Time size, Time slide, Time offset) {
-        return new SlidingEventTimeWindows(
-                size.toMilliseconds(), slide.toMilliseconds(), offset.toMilliseconds());
+        return of(size.toDuration(), slide.toDuration(), offset.toDuration());
+    }
+
+    /**
+     * Creates a new {@code SlidingEventTimeWindows} {@link WindowAssigner} that assigns elements to
+     * time windows based on the element timestamp and offset.
+     *
+     * <p>For example, if you want window a stream by hour,but window begins at the 15th minutes of
+     * each hour, you can use {@code of(Duration.ofHours(1), Duration.ofMinutes(15))}, then you will
+     * get time windows start at 0:15:00,1:15:00,2:15:00,etc.
+     *
+     * <p>Rather than that,if you are living in somewhere which is not using UTC±00:00 time, such as
+     * China which is using UTC+08:00,and you want a time window with size of one day, and window
+     * begins at every 00:00:00 of local time,you may use {@code of(Duration.ofDays(1),
+     * Duration.ofHours(-8))}. The parameter of offset is {@code Duration.ofHours(-8))} since
+     * UTC+08:00 is 8 hours earlier than UTC time.
+     *
+     * @param size The size of the generated windows.
+     * @param slide The slide interval of the generated windows.
+     * @param offset The offset which window start would be shifted by.
+     * @return The time policy.
+     */
+    public static SlidingEventTimeWindows of(Duration size, Duration slide, Duration offset) {
+        return new SlidingEventTimeWindows(size.toMillis(), slide.toMillis(), offset.toMillis());
     }
 
     @Override

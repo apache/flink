@@ -43,6 +43,8 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperatorBuilder;
 import org.apache.flink.util.OutputTag;
 
+import java.time.Duration;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -83,7 +85,7 @@ public class WindowedStream<T, K, W extends Window> {
         this.builder =
                 new WindowOperatorBuilder<>(
                         windowAssigner,
-                        windowAssigner.getDefaultTrigger(input.getExecutionEnvironment()),
+                        windowAssigner.getDefaultTrigger(),
                         input.getExecutionConfig(),
                         input.getType(),
                         input.getKeySelector(),
@@ -103,9 +105,24 @@ public class WindowedStream<T, K, W extends Window> {
      * is {@code 0L}.
      *
      * <p>Setting an allowed lateness is only valid for event-time windows.
+     *
+     * @deprecated Use {@link #allowedLateness(Duration)}
      */
+    @Deprecated
     @PublicEvolving
     public WindowedStream<T, K, W> allowedLateness(Time lateness) {
+        return allowedLateness(lateness.toDuration());
+    }
+
+    /**
+     * Sets the time by which elements are allowed to be late. Elements that arrive behind the
+     * watermark by more than the specified time will be dropped. By default, the allowed lateness
+     * is {@code 0L}.
+     *
+     * <p>Setting an allowed lateness is only valid for event-time windows.
+     */
+    @PublicEvolving
+    public WindowedStream<T, K, W> allowedLateness(Duration lateness) {
         builder.allowedLateness(lateness);
         return this;
     }
@@ -113,7 +130,7 @@ public class WindowedStream<T, K, W extends Window> {
     /**
      * Send late arriving data to the side output identified by the given {@link OutputTag}. Data is
      * considered late after the watermark has passed the end of the window plus the allowed
-     * lateness set using {@link #allowedLateness(Time)}.
+     * lateness set using {@link #allowedLateness(Duration)}.
      *
      * <p>You can get the stream of late data using {@link
      * SingleOutputStreamOperator#getSideOutput(OutputTag)} on the {@link

@@ -17,7 +17,7 @@
  */
 package org.apache.flink.api.scala.operators
 
-import org.apache.flink.api.common.functions.RichMapFunction
+import org.apache.flink.api.common.functions.{OpenContext, RichMapFunction}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.scala.util.CollectionDataSets.MutableTuple3
@@ -184,7 +184,7 @@ class MapITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) 
     val bcMapDs = ds
       .map(new RichMapFunction[(Int, Long, String), (Int, Long, String)] {
         var f2Replace = 0
-        override def open(config: Configuration): Unit = {
+        override def open(openContext: OpenContext): Unit = {
           val ints = getRuntimeContext.getBroadcastVariable[Int]("ints").asScala
           f2Replace = ints.sum
         }
@@ -201,32 +201,5 @@ class MapITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) 
       "Comment#5\n" + "55,5,Comment#6\n" + "55,5,Comment#7\n" + "55,5,Comment#8\n" + "55,5," +
       "Comment#9\n" + "55,6,Comment#10\n" + "55,6,Comment#11\n" + "55,6,Comment#12\n" + "55," +
       "6,Comment#13\n" + "55,6,Comment#14\n" + "55,6,Comment#15\n"
-  }
-
-  @Test
-  def testPassingConfigurationObject(): Unit = {
-    /*
-     * Test passing configuration object.
-     */
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = CollectionDataSets.getSmall3TupleDataSet(env)
-    val conf = new Configuration
-    val testKey = "testVariable"
-    val testValue = 666
-    conf.setInteger(testKey, testValue)
-    val bcMapDs = ds
-      .map(new RichMapFunction[(Int, Long, String), (Int, Long, String)] {
-        override def open(config: Configuration): Unit = {
-          val fromConfig = config.getInteger(testKey, -1)
-          Assert.assertEquals(testValue, fromConfig)
-        }
-        override def map(in: (Int, Long, String)): (Int, Long, String) = {
-          in
-        }
-      })
-      .withParameters(conf)
-    bcMapDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
-    env.execute()
-    expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world"
   }
 }

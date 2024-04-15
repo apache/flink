@@ -40,17 +40,13 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.mockito.internal.util.collections.Sets;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -64,24 +60,22 @@ import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescripto
 import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.set;
 import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.to;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createBufferBuilder;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests {@link DemultiplexingRecordDeserializer}. */
-public class DemultiplexingRecordDeserializerTest {
-    @Rule public TemporaryFolder folder = new TemporaryFolder();
+class DemultiplexingRecordDeserializerTest {
 
     private final ThreadLocalRandom random = ThreadLocalRandom.current();
 
     private IOManager ioManager;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         ioManager = new IOManagerAsync();
     }
 
-    @After
-    public void cleanup() {
+    @AfterEach
+    void cleanup() {
         ioManager = new IOManagerAsync();
     }
 
@@ -90,7 +84,7 @@ public class DemultiplexingRecordDeserializerTest {
      * channels.
      */
     @Test
-    public void testUpscale() throws IOException {
+    void testUpscale() throws IOException {
         DemultiplexingRecordDeserializer<Long> deserializer =
                 DemultiplexingRecordDeserializer.create(
                         new InputChannelInfo(2, 0),
@@ -103,13 +97,12 @@ public class DemultiplexingRecordDeserializerTest {
                                         ioManager.getSpillingDirectoriesPaths()),
                         unused -> RecordFilter.all());
 
-        assertEquals(
-                Sets.newSet(
+        assertThat(deserializer.getVirtualChannelSelectors())
+                .containsOnly(
                         new SubtaskConnectionDescriptor(0, 2),
                         new SubtaskConnectionDescriptor(0, 3),
                         new SubtaskConnectionDescriptor(1, 2),
-                        new SubtaskConnectionDescriptor(1, 3)),
-                deserializer.getVirtualChannelSelectors());
+                        new SubtaskConnectionDescriptor(1, 3));
 
         for (int i = 0; i < 100; i++) {
             SubtaskConnectionDescriptor selector =
@@ -125,15 +118,14 @@ public class DemultiplexingRecordDeserializerTest {
                 deserializer.setNextBuffer(buffer);
             }
 
-            assertEquals(
-                    Arrays.asList(start + 1L, start + 2L, start + 3L), readLongs(deserializer));
-            assertTrue(memorySegment.isFreed());
+            assertThat(readLongs(deserializer)).containsExactly(start + 1L, start + 2L, start + 3L);
+            assertThat(memorySegment.isFreed()).isTrue();
         }
     }
 
     /** Tests that {@link RecordFilter} are used correctly. */
     @Test
-    public void testAmbiguousChannels() throws IOException {
+    void testAmbiguousChannels() throws IOException {
         DemultiplexingRecordDeserializer<Long> deserializer =
                 DemultiplexingRecordDeserializer.create(
                         new InputChannelInfo(1, 0),
@@ -146,13 +138,12 @@ public class DemultiplexingRecordDeserializerTest {
                                         ioManager.getSpillingDirectoriesPaths()),
                         unused -> new RecordFilter(new ModSelector(2), LongSerializer.INSTANCE, 1));
 
-        assertEquals(
-                Sets.newSet(
+        assertThat(deserializer.getVirtualChannelSelectors())
+                .containsOnly(
                         new SubtaskConnectionDescriptor(41, 2),
                         new SubtaskConnectionDescriptor(41, 3),
                         new SubtaskConnectionDescriptor(42, 2),
-                        new SubtaskConnectionDescriptor(42, 3)),
-                deserializer.getVirtualChannelSelectors());
+                        new SubtaskConnectionDescriptor(42, 3));
 
         for (int i = 0; i < 100; i++) {
             MemorySegment memorySegment = allocateUnpooledSegment(128);
@@ -166,20 +157,20 @@ public class DemultiplexingRecordDeserializerTest {
                 deserializer.setNextBuffer(buffer);
 
                 if (selector.getInputSubtaskIndex() == 41) {
-                    assertEquals(Arrays.asList((long) i, i + 1L), readLongs(deserializer));
+                    assertThat(readLongs(deserializer)).containsExactly((long) i, i + 1L);
                 } else {
                     // only odd should occur in output
-                    assertEquals(Arrays.asList(i / 2 * 2 + 1L), readLongs(deserializer));
+                    assertThat(readLongs(deserializer)).containsExactly(i / 2 * 2 + 1L);
                 }
             }
 
-            assertTrue(memorySegment.isFreed());
+            assertThat(memorySegment.isFreed()).isTrue();
         }
     }
 
     /** Tests that Watermarks are only forwarded when all watermarks are received. */
     @Test
-    public void testWatermarks() throws IOException {
+    void testWatermarks() throws IOException {
         DemultiplexingRecordDeserializer<Long> deserializer =
                 DemultiplexingRecordDeserializer.create(
                         new InputChannelInfo(0, 0),
@@ -190,7 +181,7 @@ public class DemultiplexingRecordDeserializerTest {
                                         ioManager.getSpillingDirectoriesPaths()),
                         unused -> RecordFilter.all());
 
-        assertEquals(4, deserializer.getVirtualChannelSelectors().size());
+        assertThat(deserializer.getVirtualChannelSelectors()).hasSize(4);
 
         for (Iterator<SubtaskConnectionDescriptor> iterator =
                         deserializer.getVirtualChannelSelectors().iterator();
@@ -207,13 +198,13 @@ public class DemultiplexingRecordDeserializerTest {
             }
 
             if (iterator.hasNext()) {
-                assertEquals(Collections.emptyList(), read(deserializer));
+                assertThat(read(deserializer)).isEmpty();
             } else {
                 // last channel, min should be 42 + 0 + 0
-                assertEquals(Arrays.asList(new Watermark(42)), read(deserializer));
+                assertThat(read(deserializer)).containsExactly(new Watermark(42));
             }
 
-            assertTrue(memorySegment.isFreed());
+            assertThat(memorySegment.isFreed()).isTrue();
         }
     }
 

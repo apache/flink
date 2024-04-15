@@ -32,6 +32,7 @@ import org.apache.flink.runtime.state.ConfigurableCheckpointStorage;
 import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageAccess;
 import org.apache.flink.util.MathUtils;
+import org.apache.flink.util.TernaryBoolean;
 
 import org.slf4j.LoggerFactory;
 
@@ -105,6 +106,12 @@ public class FileSystemCheckpointStorage
      * value of '-1' means not yet configured, in which case the default will be used.
      */
     private final int writeBufferSize;
+
+    /**
+     * Switch to create checkpoint sub-directory with name of jobId. A value of 'undefined' means
+     * not yet configured, in which case the default will be used.
+     */
+    private TernaryBoolean createCheckpointSubDirs = TernaryBoolean.UNDEFINED;
 
     /**
      * Creates a new checkpoint storage that stores its checkpoint data in the file system and
@@ -263,6 +270,9 @@ public class FileSystemCheckpointStorage
                         .withSavepointPath(original.location.getBaseSavepointPath())
                         .withConfiguration(configuration)
                         .build();
+        this.createCheckpointSubDirs =
+                original.createCheckpointSubDirs.resolveUndefined(
+                        configuration.get(CheckpointingOptions.CREATE_CHECKPOINT_SUB_DIR));
     }
 
     private int getValidFileStateThreshold(long fileStateThreshold) {
@@ -319,6 +329,8 @@ public class FileSystemCheckpointStorage
         return new FsCheckpointStorageAccess(
                 location.getBaseCheckpointPath(),
                 location.getBaseSavepointPath(),
+                createCheckpointSubDirs.getOrDefault(
+                        CheckpointingOptions.CREATE_CHECKPOINT_SUB_DIR.defaultValue()),
                 jobId,
                 getMinFileSizeThreshold(),
                 getWriteBufferSize());

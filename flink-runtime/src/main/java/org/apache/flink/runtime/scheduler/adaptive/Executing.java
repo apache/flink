@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
@@ -39,7 +41,10 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 
@@ -47,6 +52,11 @@ import java.util.concurrent.ScheduledFuture;
 class Executing extends StateWithExecutionGraph implements ResourceListener {
 
     private final Context context;
+    private final Instant lastRescale;
+    // only one schedule at the time
+    private boolean rescaleScheduled = false;
+    @VisibleForTesting final Duration scalingIntervalMin;
+    @VisibleForTesting @Nullable final Duration scalingIntervalMax;
 
     Executing(
             ExecutionGraph executionGraph,
@@ -55,7 +65,10 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
             Logger logger,
             Context context,
             ClassLoader userCodeClassLoader,
-            List<ExceptionHistoryEntry> failureCollection) {
+            List<ExceptionHistoryEntry> failureCollection,
+            Duration scalingIntervalMin,
+            @Nullable Duration scalingIntervalMax,
+            Instant lastRescale) {
         super(
                 context,
                 executionGraph,
@@ -67,11 +80,16 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
         this.context = context;
         Preconditions.checkState(
                 executionGraph.getState() == JobStatus.RUNNING, "Assuming running execution graph");
+        this.scalingIntervalMin = scalingIntervalMin;
+        this.scalingIntervalMax = scalingIntervalMax;
+        // Executing is recreated with each restart (when we rescale)
+        // we consider the first execution of the pipeline as a rescale event
+        this.lastRescale = lastRescale;
 
         deploy();
 
         // check if new resources have come available in the meantime
-        context.runIfState(this, this::maybeRescale, Duration.ZERO);
+        context.runIfState(this, this::rescaleWhenCooldownPeriodIsOver, Duration.ZERO);
     }
 
     @Override
@@ -89,8 +107,9 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
     }
 
     @Override
-    void onFailure(Throwable cause) {
-        FailureResultUtil.restartOrFail(context.howToHandleFailure(cause), context, this);
+    void onFailure(Throwable cause, CompletableFuture<Map<String, String>> failureLabels) {
+        FailureResultUtil.restartOrFail(
+                context.howToHandleFailure(cause, failureLabels), context, this);
     }
 
     @Override
@@ -124,23 +143,74 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
 
     @Override
     public void onNewResourcesAvailable() {
-        maybeRescale();
+        rescaleWhenCooldownPeriodIsOver();
     }
 
     @Override
     public void onNewResourceRequirements() {
-        maybeRescale();
+        rescaleWhenCooldownPeriodIsOver();
     }
 
-    private void maybeRescale() {
-        if (context.shouldRescale(getExecutionGraph())) {
-            getLogger().info("Can change the parallelism of job. Restarting job.");
+    /** Force rescaling as long as the target parallelism is different from the current one. */
+    private void forceRescale() {
+        if (context.shouldRescale(getExecutionGraph(), true)) {
+            getLogger()
+                    .info(
+                            "Added resources are still there after {} time({}), force a rescale.",
+                            JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MAX.key(),
+                            scalingIntervalMax);
             context.goToRestarting(
                     getExecutionGraph(),
                     getExecutionGraphHandler(),
                     getOperatorCoordinatorHandler(),
                     Duration.ofMillis(0L),
                     getFailures());
+        }
+    }
+
+    /**
+     * Rescale the job if {@link Context#shouldRescale} is true. Otherwise, force a rescale using
+     * {@link Executing#forceRescale()} after {@link
+     * JobManagerOptions#SCHEDULER_SCALING_INTERVAL_MAX}.
+     */
+    private void maybeRescale() {
+        rescaleScheduled = false;
+        if (context.shouldRescale(getExecutionGraph(), false)) {
+            getLogger().info("Can change the parallelism of the job. Restarting the job.");
+            context.goToRestarting(
+                    getExecutionGraph(),
+                    getExecutionGraphHandler(),
+                    getOperatorCoordinatorHandler(),
+                    Duration.ofMillis(0L),
+                    getFailures());
+        } else if (scalingIntervalMax != null) {
+            getLogger()
+                    .info(
+                            "The longer the pipeline runs, the more the (small) resource gain is worth the restarting time. "
+                                    + "Last resource added does not meet {}, force a rescale after {} time({}) if the resource is still there.",
+                            JobManagerOptions.MIN_PARALLELISM_INCREASE,
+                            JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MAX.key(),
+                            scalingIntervalMax);
+            if (timeSinceLastRescale().compareTo(scalingIntervalMax) > 0) {
+                forceRescale();
+            } else {
+                // schedule a force rescale in JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MAX time
+                context.runIfState(this, this::forceRescale, scalingIntervalMax);
+            }
+        }
+    }
+
+    private Duration timeSinceLastRescale() {
+        return Duration.between(lastRescale, Instant.now());
+    }
+
+    private void rescaleWhenCooldownPeriodIsOver() {
+        if (timeSinceLastRescale().compareTo(scalingIntervalMin) > 0) {
+            maybeRescale();
+        } else if (!rescaleScheduled) {
+            rescaleScheduled = true;
+            // schedule maybeRescale resetting the cooldown period
+            context.runIfState(this, this::maybeRescale, scalingIntervalMin);
         }
     }
 
@@ -163,8 +233,7 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
         schedulingProvider.stopCheckpointScheduler();
 
         final CompletableFuture<String> savepointFuture =
-                executionGraph
-                        .getCheckpointCoordinator()
+                Objects.requireNonNull(executionGraph.getCheckpointCoordinator())
                         .triggerSynchronousSavepoint(terminate, targetDirectory, formatType)
                         .thenApply(CompletedCheckpoint::getExternalPointer);
         return context.goToStopWithSavepoint(
@@ -188,17 +257,20 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
          * Asks how to handle the failure.
          *
          * @param failure failure describing the failure cause
+         * @param failureLabels future of labels from error classification.
          * @return {@link FailureResult} which describes how to handle the failure
          */
-        FailureResult howToHandleFailure(Throwable failure);
+        FailureResult howToHandleFailure(
+                Throwable failure, CompletableFuture<Map<String, String>> failureLabels);
 
         /**
          * Asks if we should rescale the currently executing job.
          *
          * @param executionGraph executionGraph for making the scaling decision.
+         * @param forceRescale should we force rescaling
          * @return true, if we should rescale
          */
-        boolean shouldRescale(ExecutionGraph executionGraph);
+        boolean shouldRescale(ExecutionGraph executionGraph, boolean forceRescale);
 
         /**
          * Runs the given action after a delay if the state at this time equals the expected state.
@@ -221,6 +293,8 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
         private final OperatorCoordinatorHandler operatorCoordinatorHandler;
         private final ClassLoader userCodeClassLoader;
         private final List<ExceptionHistoryEntry> failureCollection;
+        private final Duration scalingIntervalMin;
+        private final Duration scalingIntervalMax;
 
         Factory(
                 ExecutionGraph executionGraph,
@@ -229,7 +303,9 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
                 Logger log,
                 Context context,
                 ClassLoader userCodeClassLoader,
-                List<ExceptionHistoryEntry> failureCollection) {
+                List<ExceptionHistoryEntry> failureCollection,
+                Duration scalingIntervalMin,
+                Duration scalingIntervalMax) {
             this.context = context;
             this.log = log;
             this.executionGraph = executionGraph;
@@ -237,6 +313,8 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
             this.operatorCoordinatorHandler = operatorCoordinatorHandler;
             this.userCodeClassLoader = userCodeClassLoader;
             this.failureCollection = failureCollection;
+            this.scalingIntervalMin = scalingIntervalMin;
+            this.scalingIntervalMax = scalingIntervalMax;
         }
 
         public Class<Executing> getStateClass() {
@@ -251,7 +329,10 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
                     log,
                     context,
                     userCodeClassLoader,
-                    failureCollection);
+                    failureCollection,
+                    scalingIntervalMin,
+                    scalingIntervalMax,
+                    Instant.now());
         }
     }
 }

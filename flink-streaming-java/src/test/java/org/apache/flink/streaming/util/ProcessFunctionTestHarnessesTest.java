@@ -28,20 +28,16 @@ import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
-import java.util.Collections;
-
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ProcessFunctionTestHarnesses}. */
-public class ProcessFunctionTestHarnessesTest extends TestLogger {
+class ProcessFunctionTestHarnessesTest {
 
     @Test
-    public void testHarnessForProcessFunction() throws Exception {
+    void testHarnessForProcessFunction() throws Exception {
         ProcessFunction<Integer, Integer> function =
                 new ProcessFunction<Integer, Integer>() {
 
@@ -56,11 +52,11 @@ public class ProcessFunctionTestHarnessesTest extends TestLogger {
 
         harness.processElement(1, 10);
 
-        assertEquals(harness.extractOutputValues(), Collections.singletonList(1));
+        assertThat(harness.extractOutputValues()).containsExactly(1);
     }
 
     @Test
-    public void testHarnessForKeyedProcessFunction() throws Exception {
+    void testHarnessForKeyedProcessFunction() throws Exception {
         KeyedProcessFunction<Integer, Integer, Integer> function =
                 new KeyedProcessFunction<Integer, Integer, Integer>() {
                     @Override
@@ -75,11 +71,11 @@ public class ProcessFunctionTestHarnessesTest extends TestLogger {
 
         harness.processElement(1, 10);
 
-        assertEquals(harness.extractOutputValues(), Collections.singletonList(1));
+        assertThat(harness.extractOutputValues()).containsExactly(1);
     }
 
     @Test
-    public void testHarnessForCoProcessFunction() throws Exception {
+    void testHarnessForCoProcessFunction() throws Exception {
         CoProcessFunction<Integer, String, Integer> function =
                 new CoProcessFunction<Integer, String, Integer>() {
 
@@ -101,11 +97,11 @@ public class ProcessFunctionTestHarnessesTest extends TestLogger {
         harness.processElement2("0", 1);
         harness.processElement1(1, 10);
 
-        assertEquals(harness.extractOutputValues(), Arrays.asList(0, 1));
+        assertThat(harness.extractOutputValues()).containsExactly(0, 1);
     }
 
     @Test
-    public void testHarnessForKeyedCoProcessFunction() throws Exception {
+    void testHarnessForKeyedCoProcessFunction() throws Exception {
         KeyedCoProcessFunction<Integer, Integer, Integer, Integer> function =
                 new KeyedCoProcessFunction<Integer, Integer, Integer, Integer>() {
 
@@ -129,11 +125,11 @@ public class ProcessFunctionTestHarnessesTest extends TestLogger {
         harness.processElement1(0, 1);
         harness.processElement2(1, 10);
 
-        assertEquals(harness.extractOutputValues(), Arrays.asList(0, 1));
+        assertThat(harness.extractOutputValues()).containsExactly(0, 1);
     }
 
     @Test
-    public void testHarnessForBroadcastProcessFunction() throws Exception {
+    void testHarnessForBroadcastProcessFunction() throws Exception {
         BroadcastProcessFunction<Integer, String, Integer> function =
                 new BroadcastProcessFunction<Integer, String, Integer>() {
 
@@ -156,11 +152,11 @@ public class ProcessFunctionTestHarnessesTest extends TestLogger {
         harness.processBroadcastElement("0", 1);
         harness.processElement(1, 10);
 
-        assertEquals(harness.extractOutputValues(), Arrays.asList(0, 1));
+        assertThat(harness.extractOutputValues()).containsExactly(0, 1);
     }
 
     @Test
-    public void testHarnessForKeyedBroadcastProcessFunction() throws Exception {
+    void testHarnessForKeyedBroadcastProcessFunction() throws Exception {
         KeyedBroadcastProcessFunction<Integer, Integer, String, Integer> function =
                 new KeyedBroadcastProcessFunction<Integer, Integer, String, Integer>() {
 
@@ -189,6 +185,6 @@ public class ProcessFunctionTestHarnessesTest extends TestLogger {
         harness.processBroadcastElement("0", 1);
         harness.processElement(1, 10);
 
-        assertEquals(harness.extractOutputValues(), Arrays.asList(0, 1));
+        assertThat(harness.extractOutputValues()).containsExactly(0, 1);
     }
 }

@@ -19,10 +19,7 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.NestedSerializersSnapshotDelegate;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -108,19 +105,13 @@ public final class GenericArraySerializerConfigSnapshot<C> implements TypeSerial
                 componentClass, nestedSnapshot.getRestoredNestedSerializer(0));
     }
 
-    @Override
-    public TypeSerializerSchemaCompatibility<C[]> resolveSchemaCompatibility(
-            TypeSerializer<C[]> newSerializer) {
-        checkState(nestedSnapshot != null);
+    @Nullable
+    public TypeSerializerSnapshot<?>[] getNestedSerializerSnapshots() {
+        return nestedSnapshot == null ? null : nestedSnapshot.getNestedSerializerSnapshots();
+    }
 
-        if (!(newSerializer instanceof GenericArraySerializer)) {
-            return TypeSerializerSchemaCompatibility.incompatible();
-        }
-
-        // delegate to the new snapshot class
-        return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
-                newSerializer,
-                new GenericArraySerializerSnapshot<>(componentClass),
-                nestedSnapshot.getNestedSerializerSnapshots());
+    @Nullable
+    public Class<C> getComponentClass() {
+        return componentClass;
     }
 }

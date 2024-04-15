@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.types.inference;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
@@ -267,7 +267,7 @@ class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                                 NotComparableClass.class,
                                                 new TypeSerializer[0],
                                                 new Field[0],
-                                                new ExecutionConfig())))
+                                                new SerializerConfigImpl())))
                         .expectErrorMessage(
                                 String.format(
                                         "All types in a comparison should support 'EQUALS' comparison with"
@@ -352,7 +352,7 @@ class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase {
     }
 
     private static <T> DataType rawType(Class<T> clazz) {
-        return DataTypes.RAW(clazz, new KryoSerializer<>(clazz, new ExecutionConfig()));
+        return DataTypes.RAW(clazz, new KryoSerializer<>(clazz, new SerializerConfigImpl()));
     }
 
     private static DataType distinctType(String typeName, DataType sourceType) {

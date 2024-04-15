@@ -18,12 +18,14 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
 /** Operation to describe altering the schema of a table. */
+@Internal
 public class AlterTableSchemaOperation extends AlterTableOperation {
 
     // the CatalogTable with the updated schema

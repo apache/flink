@@ -42,9 +42,9 @@
         class="clickable"
       >
         <td>{{ job.name }}</td>
-        <td>{{ job['start-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
+        <td>{{ job['start-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
         <td>{{ job.duration | humanizeDuration }}</td>
-        <td>{{ job['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
+        <td>{{ job['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
         <td>
           <flink-task-badge [tasks]="job.tasks"></flink-task-badge>
         </td>

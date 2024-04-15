@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.functions.inference;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -63,7 +64,8 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
                 new AbstractList<DataType>() {
                     @Override
                     public DataType get(int pos) {
-                        final LogicalType logicalType = toLogicalType(binding.getOperandType(pos));
+                        LogicalType logicalType =
+                                FlinkTypeFactory.toLogicalType(binding.getOperandType(pos));
                         return fromLogicalToDataType(logicalType);
                     }
 

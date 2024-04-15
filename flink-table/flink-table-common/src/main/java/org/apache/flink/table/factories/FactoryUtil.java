@@ -120,6 +120,15 @@ public final class FactoryUtil {
                     .defaultValues("rest")
                     .withDescription("Specify the endpoints that are used.");
 
+    public static final ConfigOption<Integer> SOURCE_PARALLELISM =
+            ConfigOptions.key("scan.parallelism")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Defines a custom parallelism for the source. "
+                                    + "By default, if this option is not defined, the planner will derive the parallelism "
+                                    + "for each statement individually by also considering the global configuration.");
+
     public static final ConfigOption<WatermarkEmitStrategy> WATERMARK_EMIT_STRATEGY =
             ConfigOptions.key("scan.watermark.emit.strategy")
                     .enumType(WatermarkEmitStrategy.class)
@@ -397,6 +406,16 @@ public final class FactoryUtil {
     public static CatalogFactoryHelper createCatalogFactoryHelper(
             CatalogFactory factory, CatalogFactory.Context context) {
         return new CatalogFactoryHelper(factory, context);
+    }
+
+    /**
+     * Creates a utility that helps validating options for a {@link CatalogStoreFactory}.
+     *
+     * <p>Note: This utility checks for left-over options in the final step.
+     */
+    public static CatalogStoreFactoryHelper createCatalogStoreFactoryHelper(
+            CatalogStoreFactory factory, CatalogStoreFactory.Context context) {
+        return new CatalogStoreFactoryHelper(factory, context);
     }
 
     /**
@@ -729,6 +748,17 @@ public final class FactoryUtil {
         }
     }
 
+    /** Returns the {@link DynamicTableFactory} via {@link Catalog}. */
+    public static <T extends DynamicTableFactory> Optional<T> getDynamicTableFactory(
+            Class<T> factoryClass, @Nullable Catalog catalog) {
+        if (catalog == null) {
+            return Optional.empty();
+        }
+
+        return catalog.getFactory()
+                .map(f -> factoryClass.isAssignableFrom(f.getClass()) ? (T) f : null);
+    }
+
     // --------------------------------------------------------------------------------------------
     // Helper methods
     // --------------------------------------------------------------------------------------------
@@ -737,17 +767,6 @@ public final class FactoryUtil {
             Class<T> factoryClass, @Nullable Catalog catalog, DynamicTableFactory.Context context) {
         return getDynamicTableFactory(factoryClass, catalog)
                 .orElseGet(() -> discoverTableFactory(factoryClass, context));
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <T extends DynamicTableFactory> Optional<T> getDynamicTableFactory(
-            Class<T> factoryClass, @Nullable Catalog catalog) {
-        if (catalog == null) {
-            return Optional.empty();
-        }
-
-        return catalog.getFactory()
-                .map(f -> factoryClass.isAssignableFrom(f.getClass()) ? (T) f : null);
     }
 
     private static <T extends DynamicTableFactory> T discoverTableFactory(
@@ -1024,6 +1043,19 @@ public final class FactoryUtil {
 
         public CatalogFactoryHelper(CatalogFactory catalogFactory, CatalogFactory.Context context) {
             super(catalogFactory, context.getOptions(), PROPERTY_VERSION);
+        }
+    }
+
+    /**
+     * Helper utility for validating all options for a {@link CatalogStoreFactory}.
+     *
+     * @see #createCatalogStoreFactoryHelper(CatalogStoreFactory, CatalogStoreFactory.Context)
+     */
+    @PublicEvolving
+    public static class CatalogStoreFactoryHelper extends FactoryHelper<CatalogStoreFactory> {
+        public CatalogStoreFactoryHelper(
+                CatalogStoreFactory catalogStoreFactory, CatalogStoreFactory.Context context) {
+            super(catalogStoreFactory, context.getOptions(), PROPERTY_VERSION);
         }
     }
 
@@ -1346,6 +1378,41 @@ public final class FactoryUtil {
         @Override
         public String getName() {
             return name;
+        }
+
+        @Override
+        public Map<String, String> getOptions() {
+            return options;
+        }
+
+        @Override
+        public ReadableConfig getConfiguration() {
+            return configuration;
+        }
+
+        @Override
+        public ClassLoader getClassLoader() {
+            return classLoader;
+        }
+    }
+
+    /** Default implementation of {@link CatalogStoreFactory.Context}. */
+    @Internal
+    public static class DefaultCatalogStoreContext implements CatalogStoreFactory.Context {
+
+        private Map<String, String> options;
+
+        private ReadableConfig configuration;
+
+        private ClassLoader classLoader;
+
+        public DefaultCatalogStoreContext(
+                Map<String, String> options,
+                ReadableConfig configuration,
+                ClassLoader classLoader) {
+            this.options = options;
+            this.configuration = configuration;
+            this.classLoader = classLoader;
         }
 
         @Override

@@ -271,9 +271,7 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
         private int nullPaddingLength;
 
         @SuppressWarnings("unused")
-        public NullableSerializerSnapshot() {
-            super(NullableSerializer.class);
-        }
+        public NullableSerializerSnapshot() {}
 
         public NullableSerializerSnapshot(NullableSerializer<T> serializerInstance) {
             super(serializerInstance);
@@ -281,7 +279,6 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
         }
 
         private NullableSerializerSnapshot(int nullPaddingLength) {
-            super(NullableSerializer.class);
             checkArgument(
                     nullPaddingLength >= 0,
                     "Computed NULL padding can not be negative. %s",
@@ -328,8 +325,13 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 
         @Override
         protected OuterSchemaCompatibility resolveOuterSchemaCompatibility(
-                NullableSerializer<T> newSerializer) {
-            return (nullPaddingLength == newSerializer.nullPaddingLength())
+                TypeSerializerSnapshot<T> oldSerializerSnapshot) {
+            if (!(oldSerializerSnapshot instanceof NullableSerializerSnapshot)) {
+                return OuterSchemaCompatibility.INCOMPATIBLE;
+            }
+            NullableSerializerSnapshot<T> oldNullableSerializerSnapshot =
+                    (NullableSerializerSnapshot<T>) oldSerializerSnapshot;
+            return (nullPaddingLength == oldNullableSerializerSnapshot.nullPaddingLength)
                     ? OuterSchemaCompatibility.COMPATIBLE_AS_IS
                     : OuterSchemaCompatibility.INCOMPATIBLE;
         }

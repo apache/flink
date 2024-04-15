@@ -25,15 +25,14 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.Is.is;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests the {@link PipelineExecutorFactory} discovery in the {@link StreamExecutionEnvironment} and
@@ -44,12 +43,12 @@ public class ExecutorDiscoveryAndJobClientTest {
     private static final String EXEC_NAME = "test-executor";
 
     @Test
-    public void jobClientGetJobExecutionResultShouldBeCalledOnAttachedExecution() throws Exception {
+    void jobClientGetJobExecutionResultShouldBeCalledOnAttachedExecution() throws Exception {
         testHelper(true);
     }
 
     @Test
-    public void jobClientGetJobExecutionResultShouldBeCalledOnDetachedExecution() throws Exception {
+    void jobClientGetJobExecutionResultShouldBeCalledOnDetachedExecution() throws Exception {
         testHelper(false);
     }
 
@@ -59,13 +58,13 @@ public class ExecutorDiscoveryAndJobClientTest {
         configuration.set(DeploymentOptions.ATTACHED, attached);
 
         final JobExecutionResult result = executeTestJobBasedOnConfig(configuration);
-        assertThat(result.isJobExecutionResult(), is(attached));
+        assertThat(result.isJobExecutionResult()).isEqualTo(attached);
     }
 
     private JobExecutionResult executeTestJobBasedOnConfig(final Configuration configuration)
             throws Exception {
         final StreamExecutionEnvironment env = new StreamExecutionEnvironment(configuration);
-        env.fromCollection(Collections.singletonList(42)).addSink(new DiscardingSink<>());
+        env.fromData(Collections.singletonList(42)).sinkTo(new DiscardingSink<>());
         return env.execute();
     }
 

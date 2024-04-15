@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
@@ -148,4 +149,15 @@ public interface StreamOperator<OUT> extends CheckpointListener, KeyContext, Ser
     OperatorMetricGroup getMetricGroup();
 
     OperatorID getOperatorID();
+
+    /**
+     * Called to get the OperatorAttributes of the operator. If there is no defined attribute, a
+     * default OperatorAttributes is built.
+     *
+     * @return OperatorAttributes of the operator.
+     */
+    @Experimental
+    default OperatorAttributes getOperatorAttributes() {
+        return new OperatorAttributesBuilder().build();
+    }
 }

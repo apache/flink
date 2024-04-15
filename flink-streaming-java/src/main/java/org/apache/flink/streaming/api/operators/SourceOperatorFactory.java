@@ -18,7 +18,9 @@ limitations under the License.
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceReader;
@@ -151,6 +153,19 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
     @Override
     public boolean isStreamSource() {
         return true;
+    }
+
+    @Override
+    public boolean isOutputTypeConfigurable() {
+        return source instanceof OutputTypeConfigurable;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void setOutputType(TypeInformation<OUT> type, ExecutionConfig executionConfig) {
+        if (source instanceof OutputTypeConfigurable) {
+            ((OutputTypeConfigurable<OUT>) source).setOutputType(type, executionConfig);
+        }
     }
 
     /**

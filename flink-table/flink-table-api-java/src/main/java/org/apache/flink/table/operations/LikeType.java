@@ -18,7 +18,10 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.annotation.Internal;
+
 /** Like types enums. */
+@Internal
 public enum LikeType {
     /** case-sensitive to match a pattern. */
     LIKE,

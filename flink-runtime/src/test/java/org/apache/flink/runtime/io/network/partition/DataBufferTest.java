@@ -24,10 +24,11 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -40,28 +41,26 @@ import java.util.Queue;
 import java.util.Random;
 
 import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link SortBasedDataBuffer} and {@link HashBasedDataBuffer}. */
-@RunWith(Parameterized.class)
-public class DataBufferTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class DataBufferTest {
 
     private final boolean useHashBuffer;
 
-    @Parameterized.Parameters(name = "UseHashBuffer = {0}")
-    public static Object[] parameters() {
-        return new Object[] {true, false};
+    @Parameters(name = "UseHashBuffer = {0}")
+    private static List<Boolean> parameters() {
+        return Arrays.asList(true, false);
     }
 
     public DataBufferTest(boolean useHashBuffer) {
         this.useHashBuffer = useHashBuffer;
     }
 
-    @Test
-    public void testWriteAndReadDataBuffer() throws Exception {
+    @TestTemplate
+    void testWriteAndReadDataBuffer() throws Exception {
         int numSubpartitions = 10;
         int bufferSize = 1024;
         int bufferPoolSize = 512;
@@ -118,7 +117,7 @@ public class DataBufferTest {
             --numDataBuffers;
 
             while (dataBuffer.hasRemaining()) {
-                BufferWithChannel buffer = copyIntoSegment(bufferSize, dataBuffer);
+                BufferWithSubpartition buffer = copyIntoSegment(bufferSize, dataBuffer);
                 if (buffer == null) {
                     break;
                 }
@@ -131,21 +130,21 @@ public class DataBufferTest {
 
         // read all data from the sort buffer
         if (dataBuffer.hasRemaining()) {
-            assertTrue(dataBuffer instanceof HashBasedDataBuffer);
+            assertThat(dataBuffer).isInstanceOf(HashBasedDataBuffer.class);
             dataBuffer.finish();
             while (dataBuffer.hasRemaining()) {
                 addBufferRead(copyIntoSegment(bufferSize, dataBuffer), buffersRead, numBytesRead);
             }
         }
 
-        assertEquals(0, dataBuffer.numTotalBytes());
+        assertThat(dataBuffer.numTotalBytes()).isZero();
         checkWriteReadResult(
                 numSubpartitions, numBytesWritten, numBytesRead, dataWritten, buffersRead);
     }
 
-    private BufferWithChannel copyIntoSegment(int bufferSize, DataBuffer dataBuffer) {
+    private BufferWithSubpartition copyIntoSegment(int bufferSize, DataBuffer dataBuffer) {
         if (useHashBuffer) {
-            BufferWithChannel buffer = dataBuffer.getNextBuffer(null);
+            BufferWithSubpartition buffer = dataBuffer.getNextBuffer(null);
             if (buffer == null || !buffer.getBuffer().isBuffer()) {
                 return buffer;
             }
@@ -154,9 +153,9 @@ public class DataBufferTest {
             int numBytes = buffer.getBuffer().readableBytes();
             segment.put(0, buffer.getBuffer().getNioBufferReadable(), numBytes);
             buffer.getBuffer().recycleBuffer();
-            return new BufferWithChannel(
+            return new BufferWithSubpartition(
                     new NetworkBuffer(segment, MemorySegment::free, DataType.DATA_BUFFER, numBytes),
-                    buffer.getChannelIndex());
+                    buffer.getSubpartitionIndex());
         } else {
             MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
             return dataBuffer.getNextBuffer(segment);
@@ -164,10 +163,10 @@ public class DataBufferTest {
     }
 
     private void addBufferRead(
-            BufferWithChannel buffer, Queue<Buffer>[] buffersRead, int[] numBytesRead) {
-        int channel = buffer.getChannelIndex();
-        buffersRead[channel].add(buffer.getBuffer());
-        numBytesRead[channel] += buffer.getBuffer().readableBytes();
+            BufferWithSubpartition buffer, Queue<Buffer>[] buffersRead, int[] numBytesRead) {
+        int subpartition = buffer.getSubpartitionIndex();
+        buffersRead[subpartition].add(buffer.getBuffer());
+        numBytesRead[subpartition] += buffer.getBuffer().readableBytes();
     }
 
     public static void checkWriteReadResult(
@@ -177,7 +176,8 @@ public class DataBufferTest {
             Queue<DataAndType>[] dataWritten,
             Queue<Buffer>[] buffersRead) {
         for (int subpartitionIndex = 0; subpartitionIndex < numSubpartitions; ++subpartitionIndex) {
-            assertEquals(numBytesWritten[subpartitionIndex], numBytesRead[subpartitionIndex]);
+            assertThat(numBytesRead[subpartitionIndex])
+                    .isEqualTo(numBytesWritten[subpartitionIndex]);
 
             List<DataAndType> eventsWritten = new ArrayList<>();
             List<Buffer> eventsRead = new ArrayList<>();
@@ -202,18 +202,20 @@ public class DataBufferTest {
 
             subpartitionDataWritten.flip();
             subpartitionDataRead.flip();
-            assertEquals(subpartitionDataWritten, subpartitionDataRead);
+            assertThat(subpartitionDataRead).isEqualTo(subpartitionDataWritten);
 
-            assertEquals(eventsWritten.size(), eventsRead.size());
+            assertThat(eventsRead).hasSameSizeAs(eventsWritten);
             for (int i = 0; i < eventsWritten.size(); ++i) {
-                assertEquals(eventsWritten.get(i).dataType, eventsRead.get(i).getDataType());
-                assertEquals(eventsWritten.get(i).data, eventsRead.get(i).getNioBufferReadable());
+                assertThat(eventsRead.get(i).getDataType())
+                        .isEqualTo(eventsWritten.get(i).dataType);
+                assertThat(eventsRead.get(i).getNioBufferReadable())
+                        .isEqualTo(eventsWritten.get(i).data);
             }
         }
     }
 
-    @Test
-    public void testWriteReadWithEmptyChannel() throws Exception {
+    @TestTemplate
+    public void testWriteReadWithEmptySubpartition() throws Exception {
         int bufferPoolSize = 10;
         int bufferSize = 1024;
         int numSubpartitions = 5;
@@ -250,15 +252,19 @@ public class DataBufferTest {
     }
 
     private void checkReadResult(
-            DataBuffer dataBuffer, ByteBuffer expectedBuffer, int expectedChannel, int bufferSize) {
+            DataBuffer dataBuffer,
+            ByteBuffer expectedBuffer,
+            int expectedSubpartition,
+            int bufferSize) {
         MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
-        BufferWithChannel bufferWithChannel = dataBuffer.getNextBuffer(segment);
-        assertEquals(expectedChannel, bufferWithChannel.getChannelIndex());
-        assertEquals(expectedBuffer, bufferWithChannel.getBuffer().getNioBufferReadable());
+        BufferWithSubpartition bufferWithSubpartition = dataBuffer.getNextBuffer(segment);
+        assertThat(bufferWithSubpartition.getSubpartitionIndex()).isEqualTo(expectedSubpartition);
+        assertThat(bufferWithSubpartition.getBuffer().getNioBufferReadable())
+                .isEqualTo(expectedBuffer);
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testWriteEmptyData() throws Exception {
+    @TestTemplate
+    void testWriteEmptyData() throws Exception {
         int bufferSize = 1024;
 
         DataBuffer dataBuffer = createDataBuffer(1, bufferSize, 1);
@@ -266,31 +272,40 @@ public class DataBufferTest {
         ByteBuffer record = ByteBuffer.allocate(1);
         record.position(1);
 
-        dataBuffer.append(record, 0, Buffer.DataType.DATA_BUFFER);
+        assertThatThrownBy(() -> dataBuffer.append(record, 0, Buffer.DataType.DATA_BUFFER))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void testWriteFinishedDataBuffer() throws Exception {
+    @TestTemplate
+    void testWriteFinishedDataBuffer() throws Exception {
         int bufferSize = 1024;
 
         DataBuffer dataBuffer = createDataBuffer(1, bufferSize, 1);
         dataBuffer.finish();
 
-        dataBuffer.append(ByteBuffer.allocate(1), 0, Buffer.DataType.DATA_BUFFER);
+        assertThatThrownBy(
+                        () ->
+                                dataBuffer.append(
+                                        ByteBuffer.allocate(1), 0, Buffer.DataType.DATA_BUFFER))
+                .isInstanceOf(IllegalStateException.class);
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void testWriteReleasedDataBuffer() throws Exception {
+    @TestTemplate
+    void testWriteReleasedDataBuffer() throws Exception {
         int bufferSize = 1024;
 
         DataBuffer dataBuffer = createDataBuffer(1, bufferSize, 1);
         dataBuffer.release();
 
-        dataBuffer.append(ByteBuffer.allocate(1), 0, Buffer.DataType.DATA_BUFFER);
+        assertThatThrownBy(
+                        () ->
+                                dataBuffer.append(
+                                        ByteBuffer.allocate(1), 0, Buffer.DataType.DATA_BUFFER))
+                .isInstanceOf(IllegalStateException.class);
     }
 
-    @Test
-    public void testWriteMoreDataThanCapacity() throws Exception {
+    @TestTemplate
+    void testWriteMoreDataThanCapacity() throws Exception {
         int bufferPoolSize = 10;
         int bufferSize = 1024;
 
@@ -306,8 +321,8 @@ public class DataBufferTest {
         appendAndCheckResult(dataBuffer, bufferSize + 1, true, numBytes, numRecords, true);
     }
 
-    @Test
-    public void testWriteLargeRecord() throws Exception {
+    @TestTemplate
+    void testWriteLargeRecord() throws Exception {
         int bufferPoolSize = 10;
         int bufferSize = 1024;
 
@@ -325,58 +340,70 @@ public class DataBufferTest {
             throws IOException {
         ByteBuffer largeRecord = ByteBuffer.allocate(recordSize);
 
-        assertEquals(isFull, dataBuffer.append(largeRecord, 0, Buffer.DataType.DATA_BUFFER));
-        assertEquals(numBytes, dataBuffer.numTotalBytes());
-        assertEquals(numRecords, dataBuffer.numTotalRecords());
-        assertEquals(hasRemaining, dataBuffer.hasRemaining());
+        assertThat(dataBuffer.append(largeRecord, 0, Buffer.DataType.DATA_BUFFER))
+                .isEqualTo(isFull);
+        assertThat(dataBuffer.numTotalBytes()).isEqualTo(numBytes);
+        assertThat(dataBuffer.numTotalRecords()).isEqualTo(numRecords);
+        assertThat(dataBuffer.hasRemaining()).isEqualTo(hasRemaining);
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void testReadUnfinishedDataBuffer() throws Exception {
+    @TestTemplate
+    void testReadUnfinishedDataBuffer() throws Exception {
         int bufferSize = 1024;
 
         DataBuffer dataBuffer = createDataBuffer(1, bufferSize, 1);
         dataBuffer.append(ByteBuffer.allocate(1), 0, Buffer.DataType.DATA_BUFFER);
 
-        assertTrue(dataBuffer.hasRemaining());
-        dataBuffer.getNextBuffer(MemorySegmentFactory.allocateUnpooledSegment(bufferSize));
+        assertThat(dataBuffer.hasRemaining()).isTrue();
+        assertThatThrownBy(
+                        () ->
+                                dataBuffer.getNextBuffer(
+                                        MemorySegmentFactory.allocateUnpooledSegment(bufferSize)))
+                .isInstanceOf(IllegalStateException.class);
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void testReadReleasedDataBuffer() throws Exception {
+    @TestTemplate
+    void testReadReleasedDataBuffer() throws Exception {
         int bufferSize = 1024;
 
         DataBuffer dataBuffer = createDataBuffer(1, bufferSize, 1);
         dataBuffer.append(ByteBuffer.allocate(1), 0, Buffer.DataType.DATA_BUFFER);
         dataBuffer.finish();
-        assertTrue(dataBuffer.hasRemaining());
+        assertThat(dataBuffer.hasRemaining()).isTrue();
 
         dataBuffer.release();
-        assertTrue(dataBuffer.hasRemaining());
+        assertThat(dataBuffer.hasRemaining()).isTrue();
 
-        dataBuffer.getNextBuffer(MemorySegmentFactory.allocateUnpooledSegment(bufferSize));
+        assertThatThrownBy(
+                        () ->
+                                dataBuffer.getNextBuffer(
+                                        MemorySegmentFactory.allocateUnpooledSegment(bufferSize)))
+                .isInstanceOf(IllegalStateException.class);
     }
 
-    @Test
-    public void testReadEmptyDataBuffer() throws Exception {
+    @TestTemplate
+    void testReadEmptyDataBuffer() throws Exception {
         int bufferSize = 1024;
 
         DataBuffer dataBuffer = createDataBuffer(1, bufferSize, 1);
         dataBuffer.finish();
 
-        assertFalse(dataBuffer.hasRemaining());
-        assertNull(
-                dataBuffer.getNextBuffer(MemorySegmentFactory.allocateUnpooledSegment(bufferSize)));
+        assertThat(dataBuffer.hasRemaining()).isFalse();
+        assertThat(
+                        dataBuffer.getNextBuffer(
+                                MemorySegmentFactory.allocateUnpooledSegment(bufferSize)))
+                .isNull();
     }
 
-    @Test
-    public void testReleaseDataBuffer() throws Exception {
+    @TestTemplate
+    void testReleaseDataBuffer() throws Exception {
         int bufferPoolSize = 10;
         int bufferSize = 1024;
         int recordSize = (bufferPoolSize - 1) * bufferSize;
 
         NetworkBufferPool globalPool = new NetworkBufferPool(bufferPoolSize, bufferSize);
-        BufferPool bufferPool = globalPool.createBufferPool(bufferPoolSize, bufferPoolSize);
+        BufferPool bufferPool =
+                globalPool.createBufferPool(bufferPoolSize, bufferPoolSize, bufferPoolSize);
 
         LinkedList<MemorySegment> segments = new LinkedList<>();
         for (int i = 0; i < bufferPoolSize; ++i) {
@@ -386,17 +413,17 @@ public class DataBufferTest {
                 new SortBasedDataBuffer(segments, bufferPool, 1, bufferSize, bufferPoolSize, null);
         dataBuffer.append(ByteBuffer.allocate(recordSize), 0, Buffer.DataType.DATA_BUFFER);
 
-        assertEquals(bufferPoolSize, bufferPool.bestEffortGetNumOfUsedBuffers());
-        assertTrue(dataBuffer.hasRemaining());
-        assertEquals(1, dataBuffer.numTotalRecords());
-        assertEquals(recordSize, dataBuffer.numTotalBytes());
+        assertThat(bufferPool.bestEffortGetNumOfUsedBuffers()).isEqualTo(bufferPoolSize);
+        assertThat(dataBuffer.hasRemaining()).isTrue();
+        assertThat(dataBuffer.numTotalRecords()).isOne();
+        assertThat(dataBuffer.numTotalBytes()).isEqualTo(recordSize);
 
         // should release all data and resources
         dataBuffer.release();
-        assertEquals(0, bufferPool.bestEffortGetNumOfUsedBuffers());
-        assertTrue(dataBuffer.hasRemaining());
-        assertEquals(1, dataBuffer.numTotalRecords());
-        assertEquals(recordSize, dataBuffer.numTotalBytes());
+        assertThat(bufferPool.bestEffortGetNumOfUsedBuffers()).isZero();
+        assertThat(dataBuffer.hasRemaining()).isTrue();
+        assertThat(dataBuffer.numTotalRecords()).isOne();
+        assertThat(dataBuffer.numTotalBytes()).isEqualTo(recordSize);
     }
 
     private DataBuffer createDataBuffer(int bufferPoolSize, int bufferSize, int numSubpartitions)
@@ -408,7 +435,8 @@ public class DataBufferTest {
             int bufferPoolSize, int bufferSize, int numSubpartitions, int[] customReadOrder)
             throws Exception {
         NetworkBufferPool globalPool = new NetworkBufferPool(bufferPoolSize, bufferSize);
-        BufferPool bufferPool = globalPool.createBufferPool(bufferPoolSize, bufferPoolSize);
+        BufferPool bufferPool =
+                globalPool.createBufferPool(bufferPoolSize, bufferPoolSize, bufferPoolSize);
 
         LinkedList<MemorySegment> segments = new LinkedList<>();
         for (int i = 0; i < bufferPoolSize; ++i) {

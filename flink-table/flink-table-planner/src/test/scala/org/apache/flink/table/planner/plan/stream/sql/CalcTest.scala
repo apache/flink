@@ -25,17 +25,18 @@ import org.apache.flink.table.planner.plan.utils.MyPojo
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicUdf
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.{Before, Test}
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 import java.sql.{Date, Time, Timestamp}
 
 class CalcTest extends TableTestBase {
   private val util = streamTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     util.addTableSource[(Long, Int, String)]("MyTable", 'a, 'b, 'c)
-    util.addFunction("random_udf", new NonDeterministicUdf)
+    util.addTemporarySystemFunction("random_udf", new NonDeterministicUdf)
   }
 
   @Test
@@ -102,9 +103,10 @@ class CalcTest extends TableTestBase {
     util.verifyExecPlan("SELECT MyTable2.a.*, c, MyTable2.b.* FROM MyTable2")
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidFields(): Unit = {
-    util.tableEnv.sqlQuery("SELECT a, foo FROM MyTable")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.tableEnv.sqlQuery("SELECT a, foo FROM MyTable"))
   }
 
   @Test

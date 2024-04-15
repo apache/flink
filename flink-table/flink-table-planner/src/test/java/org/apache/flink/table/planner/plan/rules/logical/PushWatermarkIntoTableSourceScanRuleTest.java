@@ -37,8 +37,8 @@ import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.apache.calcite.rel.rules.CoreRules;
 import org.apache.calcite.tools.RuleSets;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
@@ -48,10 +48,10 @@ import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXE
  * Test rule {@link PushWatermarkIntoTableSourceScanAcrossCalcRule} and {@link
  * PushWatermarkIntoTableSourceScanRule}.
  */
-public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
+class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
     private final StreamTableTestUtil util = streamTestUtil(TableConfig.getDefault());
 
-    @Before
+    @BeforeEach
     public void setup() {
         FlinkChainedProgram<StreamOptimizeContext> program = new FlinkChainedProgram<>();
         program.addLast(
@@ -80,7 +80,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testSimpleWatermark() {
+    void testSimpleWatermark() {
         String ddl =
                 "CREATE TABLE MyTable("
                         + "  a INT,\n"
@@ -98,7 +98,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testWatermarkOnComputedColumn() {
+    void testWatermarkOnComputedColumn() {
         String ddl =
                 "CREATE TABLE MyTable("
                         + "  a INT,\n"
@@ -117,7 +117,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testWatermarkOnComputedColumnWithQuery() {
+    void testWatermarkOnComputedColumnWithQuery() {
         String ddl =
                 "CREATE TABLE MyTable("
                         + "  a INT,\n"
@@ -137,7 +137,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testWatermarkOnComputedColumnWithMultipleInputs() {
+    void testWatermarkOnComputedColumnWithMultipleInputs() {
         String ddl =
                 "CREATE TABLE MyTable("
                         + "  a STRING,\n"
@@ -155,7 +155,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testWatermarkOnRow() {
+    void testWatermarkOnRow() {
         String ddl =
                 "CREATE TABLE MyTable("
                         + "  a INT,\n"
@@ -174,7 +174,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testWatermarkOnNestedRow() {
+    void testWatermarkOnNestedRow() {
         String ddl =
                 "CREATE TABLE MyTable("
                         + "  a INT,\n"
@@ -193,7 +193,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testWatermarkWithMultiInputUdf() {
+    void testWatermarkWithMultiInputUdf() {
         JavaFunc5.closeCalled = false;
         JavaFunc5.openCalled = false;
         util.addTemporarySystemFunction("func", new JavaFunc5());
@@ -216,7 +216,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testWatermarkOnMetadata() {
+    void testWatermarkOnMetadata() {
         String ddl =
                 "CREATE TABLE MyTable("
                         + "  `a` INT,\n"
@@ -237,7 +237,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testWatermarkWithIdleSource() {
+    void testWatermarkWithIdleSource() {
         util.tableEnv().getConfig().set(TABLE_EXEC_SOURCE_IDLE_TIMEOUT, Duration.ofMillis(1000));
         String ddl =
                 "CREATE TABLE MyTable("
@@ -256,7 +256,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testWatermarkWithPythonFunctionInComputedColumn() {
+    void testWatermarkWithPythonFunctionInComputedColumn() {
         util.tableEnv()
                 .createTemporaryFunction(
                         "parse_ts",
@@ -277,7 +277,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testWatermarkEmitStrategyWithOptions() {
+    void testWatermarkEmitStrategyWithOptions() {
         String ddl =
                 "CREATE TABLE MyTable("
                         + "  a INT,\n"
@@ -296,7 +296,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testWatermarkEmitStrategyWithHint() {
+    void testWatermarkEmitStrategyWithHint() {
         String ddl =
                 "CREATE TABLE MyTable("
                         + "  a INT,\n"
@@ -316,7 +316,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testWatermarkAlignmentWithOptions() {
+    void testWatermarkAlignmentWithOptions() {
         String ddl =
                 "CREATE TABLE MyTable("
                         + "  a INT,\n"
@@ -336,7 +336,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testWatermarkAlignmentWithHint() {
+    void testWatermarkAlignmentWithHint() {
         String ddl =
                 "CREATE TABLE MyTable("
                         + "  a INT,\n"
@@ -357,7 +357,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testIdleSourceWithOptions() {
+    void testIdleSourceWithOptions() {
         util.tableEnv().getConfig().set(TABLE_EXEC_SOURCE_IDLE_TIMEOUT, Duration.ofMillis(1000));
         String ddl =
                 "CREATE TABLE MyTable("
@@ -377,7 +377,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testIdleSourceWithHint() {
+    void testIdleSourceWithHint() {
         util.tableEnv().getConfig().set(TABLE_EXEC_SOURCE_IDLE_TIMEOUT, Duration.ofMillis(1000));
         String ddl =
                 "CREATE TABLE MyTable("

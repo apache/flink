@@ -22,7 +22,7 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader
 import org.apache.flink.streaming.api.graph.StreamGraph
-import org.apache.flink.table.api.{ExplainDetail, ExplainFormat, PlanReference, TableConfig, TableException}
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.PlanReference.{ContentPlanReference, FilePlanReference, ResourcePlanReference}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.delegation.{Executor, InternalPlan}
@@ -190,10 +190,12 @@ class StreamPlanner(
     }
 
     new ExecNodeGraphInternalPlan(
-      JsonSerdeUtil
-        .createObjectWriter(ctx)
-        .withDefaultPrettyPrinter()
-        .writeValueAsString(execNodeGraph),
+      // ensures that the JSON output is always normalized
+      () =>
+        JsonSerdeUtil
+          .createObjectWriter(ctx)
+          .withDefaultPrettyPrinter()
+          .writeValueAsString(execNodeGraph),
       execNodeGraph)
   }
 
@@ -204,12 +206,12 @@ class StreamPlanner(
     val execGraph = translateToExecNodeGraph(optimizedRelNodes, isCompiled = true)
     afterTranslation()
 
-    new ExecNodeGraphInternalPlan(
-      JsonSerdeUtil
-        .createObjectWriter(createSerdeContext)
-        .withDefaultPrettyPrinter()
-        .writeValueAsString(execGraph),
-      execGraph)
+    val compiledJson = JsonSerdeUtil
+      .createObjectWriter(createSerdeContext)
+      .withDefaultPrettyPrinter()
+      .writeValueAsString(execGraph)
+
+    new ExecNodeGraphInternalPlan(() => compiledJson, execGraph)
   }
 
   override def translatePlan(plan: InternalPlan): util.List[Transformation[_]] = {

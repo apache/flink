@@ -92,7 +92,8 @@ public class SubtasksTimesInfo implements ResponseBody {
     public static final class SubtaskTimeInfo {
 
         public static final String FIELD_NAME_SUBTASK = "subtask";
-        public static final String FIELD_NAME_HOST = "host";
+        @Deprecated public static final String FIELD_NAME_HOST = "host";
+        public static final String FIELD_NAME_ENDPOINT = "endpoint";
         public static final String FIELD_NAME_DURATION = "duration";
         public static final String FIELD_NAME_TIMESTAMPS = "timestamps";
 
@@ -101,6 +102,9 @@ public class SubtasksTimesInfo implements ResponseBody {
 
         @JsonProperty(FIELD_NAME_HOST)
         private final String host;
+
+        @JsonProperty(FIELD_NAME_ENDPOINT)
+        private final String endpoint;
 
         @JsonProperty(FIELD_NAME_DURATION)
         private final long duration;
@@ -111,10 +115,12 @@ public class SubtasksTimesInfo implements ResponseBody {
         public SubtaskTimeInfo(
                 @JsonProperty(FIELD_NAME_SUBTASK) int subtask,
                 @JsonProperty(FIELD_NAME_HOST) String host,
+                @JsonProperty(FIELD_NAME_ENDPOINT) String endpoint,
                 @JsonProperty(FIELD_NAME_DURATION) long duration,
                 @JsonProperty(FIELD_NAME_TIMESTAMPS) Map<ExecutionState, Long> timestamps) {
             this.subtask = subtask;
             this.host = checkNotNull(host);
+            this.endpoint = checkNotNull(endpoint);
             this.duration = duration;
             this.timestamps = checkNotNull(timestamps);
         }
@@ -132,13 +138,14 @@ public class SubtasksTimesInfo implements ResponseBody {
             SubtaskTimeInfo that = (SubtaskTimeInfo) o;
             return subtask == that.subtask
                     && Objects.equals(host, that.host)
+                    && Objects.equals(endpoint, that.endpoint)
                     && duration == that.duration
                     && Objects.equals(timestamps, that.timestamps);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(subtask, host, duration, timestamps);
+            return Objects.hash(subtask, host, endpoint, duration, timestamps);
         }
     }
 }

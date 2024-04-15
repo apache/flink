@@ -69,9 +69,9 @@ public class BufferedKVExternalSorterTest {
             int spillNumber, int recordNumberPerFile, boolean spillCompress) {
         ioManager = new IOManagerAsync();
         conf = new Configuration();
-        conf.setInteger(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES, 5);
+        conf.set(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES, 5);
         if (!spillCompress) {
-            conf.setBoolean(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED, false);
+            conf.set(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED, false);
         }
         this.spillNumber = spillNumber;
         this.recordNumberPerFile = recordNumberPerFile;

@@ -19,12 +19,19 @@
 package org.apache.flink.runtime.hadoop;
 
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.security.token.delegation.AbstractDelegationTokenIdentifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.time.Clock;
 
 /**
  * Utility class for working with Hadoop user related classes. This should only be used if Hadoop is
  * on the classpath.
  */
 public class HadoopUserUtils {
+
+    private static final Logger LOG = LoggerFactory.getLogger(HadoopUserUtils.class);
 
     public static boolean isProxyUser(UserGroupInformation ugi) {
         return ugi.getAuthenticationMethod() == UserGroupInformation.AuthenticationMethod.PROXY;
@@ -34,5 +41,34 @@ public class HadoopUserUtils {
         return UserGroupInformation.isSecurityEnabled()
                 && ugi.getAuthenticationMethod()
                         == UserGroupInformation.AuthenticationMethod.KERBEROS;
+    }
+
+    public static long getIssueDate(
+            Clock clock, String tokenKind, AbstractDelegationTokenIdentifier identifier) {
+        long now = clock.millis();
+        long issueDate = identifier.getIssueDate();
+
+        if (issueDate > now) {
+            LOG.warn(
+                    "Token {} has set up issue date later than current time. (provided: "
+                            + "{} / current timestamp: {}) Please make sure clocks are in sync between "
+                            + "machines. If the issue is not a clock mismatch, consult token implementor to check "
+                            + "whether issue date is valid.",
+                    tokenKind,
+                    issueDate,
+                    now);
+            return issueDate;
+        } else if (issueDate > 0) {
+            return issueDate;
+        } else {
+            LOG.warn(
+                    "Token {} has not set up issue date properly. (provided: {}) "
+                            + "Using current timestamp ({}) as issue date instead. Consult token implementor to fix "
+                            + "the behavior.",
+                    tokenKind,
+                    issueDate,
+                    now);
+            return now;
+        }
     }
 }

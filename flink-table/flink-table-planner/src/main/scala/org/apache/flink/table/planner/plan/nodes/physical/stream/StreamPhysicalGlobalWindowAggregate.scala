@@ -75,8 +75,10 @@ class StreamPhysicalGlobalWindowAggregate(
     unwrapTypeFactory(inputRel),
     FlinkTypeFactory.toLogicalRowType(inputRowTypeOfLocalAgg),
     aggCalls,
+    AggregateUtil.needRetraction(this),
     windowing.getWindow,
-    isStateBackendDataViews = true)
+    isStateBackendDataViews = true
+  )
 
   override def isValid(litmus: Litmus, context: RelNode.Context): Boolean = {
     windowing match {
@@ -143,6 +145,7 @@ class StreamPhysicalGlobalWindowAggregate(
       aggCalls.toArray,
       windowing,
       namedWindowProperties.toArray,
+      AggregateUtil.needRetraction(this),
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(inputRowTypeOfLocalAgg),
       FlinkTypeFactory.toLogicalRowType(getRowType),

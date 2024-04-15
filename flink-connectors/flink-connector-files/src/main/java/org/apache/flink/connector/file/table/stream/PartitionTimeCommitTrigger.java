@@ -30,6 +30,7 @@ import org.apache.flink.connector.file.table.stream.PartitionCommitPredicate.Pre
 import org.apache.flink.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -144,12 +145,11 @@ public class PartitionTimeCommitTrigger implements PartitionCommitTrigger {
 
     @Override
     public void snapshotState(long checkpointId, long watermark) throws Exception {
-        pendingPartitionsState.clear();
-        pendingPartitionsState.add(new ArrayList<>(pendingPartitions));
+        pendingPartitionsState.update(
+                Collections.singletonList(new ArrayList<>(pendingPartitions)));
 
         watermarks.put(checkpointId, watermark);
-        watermarksState.clear();
-        watermarksState.add(new HashMap<>(watermarks));
+        watermarksState.update(Collections.singletonList(new HashMap<>(watermarks)));
     }
 
     @Override

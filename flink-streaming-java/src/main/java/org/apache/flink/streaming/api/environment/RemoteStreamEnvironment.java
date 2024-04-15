@@ -207,8 +207,8 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
         // these should be set in the end to overwrite any values from the client config provided in
         // the constructor.
-        effectiveConfiguration.setString(DeploymentOptions.TARGET, "remote");
-        effectiveConfiguration.setBoolean(DeploymentOptions.ATTACHED, true);
+        effectiveConfiguration.set(DeploymentOptions.TARGET, "remote");
+        effectiveConfiguration.set(DeploymentOptions.ATTACHED, true);
 
         return effectiveConfiguration;
     }
@@ -220,8 +220,8 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
     @Override
     public String toString() {
-        final String host = configuration.getString(JobManagerOptions.ADDRESS);
-        final int port = configuration.getInteger(JobManagerOptions.PORT);
+        final String host = configuration.get(JobManagerOptions.ADDRESS);
+        final int port = configuration.get(JobManagerOptions.PORT);
         final String parallelism = (getParallelism() == -1 ? "default" : "" + getParallelism());
 
         return "Remote Environment ("
@@ -239,7 +239,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
      * @return The hostname of the master
      */
     public String getHost() {
-        return configuration.getString(JobManagerOptions.ADDRESS);
+        return configuration.get(JobManagerOptions.ADDRESS);
     }
 
     /**
@@ -248,7 +248,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
      * @return The port of the master
      */
     public int getPort() {
-        return configuration.getInteger(JobManagerOptions.PORT);
+        return configuration.get(JobManagerOptions.PORT);
     }
 
     /** @deprecated This method is going to be removed in the next releases. */

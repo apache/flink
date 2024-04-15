@@ -1,5 +1,5 @@
 ---
-title: "SQL JDBC Driver"
+title: "Flink JDBC Driver"
 weight: 91
 type: docs
 aliases:
@@ -26,11 +26,15 @@ under the License.
 
 # Flink JDBC Driver
 
-Flink JDBC Driver is a Java library for connecting and submitting SQL statements to [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}) as the JDBC server.
+The Flink JDBC Driver is a Java library for enabling clients to send Flink SQL to your Flink cluster via the [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
 
-# Usage
+You can also use the [Hive JDBC Driver]({{< ref "docs/dev/table/sql-gateway/hiveserver2#hive-jdbc" >}}) with Flink. This is beneficial if you are running [Hive dialect SQL]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/overview">}}) and want to make use of the Hive Catalog. To use Hive JDBC with Flink you need to run the [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}) with the [HiveServer2 endpoint]({{<ref "docs/dev/table/sql-gateway/hiveserver2">}}).
 
-Before using Flink JDBC driver, you need to start a SQL Gateway as the JDBC server and binds it with your Flink cluster. We now assume that you have a gateway started and connected to a running Flink cluster.
+## Usage
+
+Before using the Flink JDBC driver you need to start a SQL Gateway with REST endpoint. This acts as the JDBC server and binds it with your Flink cluster.
+
+The examples below assume that you have a [gateway started]({{< ref "docs/dev/table/sql-gateway/overview#starting-the-sql-gateway" >}}) and connected to a running Flink cluster.
 
 ## Dependency
 
@@ -51,16 +55,23 @@ You can also add dependency of Flink JDBC driver in your maven or gradle project
     </dependency>
 ```
 
-## Use with a JDBC Tool
-### Use with Beeline
+## JDBC Clients
+
+The Flink JDBC driver is not included with the Flink distribution. You can download it from [Maven](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-jdbc-driver-bundle/). 
+
+You may also need the [SLF4J](https://repo1.maven.org/maven2/org/slf4j/slf4j-api/) (`slf4j-api-{slf4j.version}.jar`) jar.
+
+### Beeline
 
 Beeline is the command line tool for accessing [Apache Hive](https://hive.apache.org/), but it also supports general JDBC drivers. To install Hive and beeline, see [Hive documentation](https://cwiki.apache.org/confluence/display/Hive/GettingStarted#GettingStarted-RunningHiveServer2andBeeline.1).
 
 1. Download flink-jdbc-driver-bundle-{VERSION}.jar from [download page](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-jdbc-driver-bundle/) and add it to `$HIVE_HOME/lib`.
 2. Run beeline and connect to a Flink SQL gateway. As Flink SQL gateway currently ignores user names and passwords, just leave them empty.
-    ```
+
+    ```sql
     beeline> !connect jdbc:flink://localhost:8083
     ```
+
 3. Execute any statement you want.
 
 **Sample Commands**
@@ -99,23 +110,33 @@ No rows affected (0.108 seconds)
 0: jdbc:flink://localhost:8083> 
 ```
 
-### Use with SqlLine
+### SQLLine
 
-[SqlLine](https://github.com/julianhyde/sqlline) is a lightweight JDBC command line tool, it supports general JDBC drivers. You need to clone the codes from github and compile the project with mvn first.
+[SQLLine](https://github.com/julianhyde/sqlline) is a lightweight JDBC command line tool that supports general JDBC drivers. 
 
-1. Download flink-jdbc-driver-bundle-{VERSION}.jar from [download page](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-jdbc-driver-bundle/) and add it to `target` directory of SqlLine project. Notice that you need to copy slf4j-api-{slf4j.version}.jar to `target` which will be used by flink JDBC driver. 
-2. Run SqlLine with command `bin/sqlline` and connect to a Flink SQL gateway. As Flink SQL gateway currently ignores user names and passwords, just leave them empty.
-    ```
+To use SQLLine you will need to clone [the GitHub repository](https://github.com/julianhyde/sqlline) and compile the project first (`./mvnw package -DskipTests`).
+
+1. Download the following JARs and add them both to the `target` directory of SQLLine project:
+   1. [Flink JDBC Driver](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-jdbc-driver-bundle/) (`flink-jdbc-driver-bundle-{VERSION}.jar`) 
+   2. [SLF4J](https://repo1.maven.org/maven2/org/slf4j/slf4j-api/) (`slf4j-api-{slf4j.version}.jar`)
+2. Run SQLLine with command `./bin/sqlline` 
+3. From SQLLine, connect to a Flink SQL gateway using the `!connect` command. 
+
+    Since the Flink SQL gateway currently ignores user names and passwords just leave them empty.
+
+    ```sql
+	sqlline version 1.13.0-SNAPSHOT
     sqlline> !connect jdbc:flink://localhost:8083
+    Enter username for jdbc:flink://localhost:8083:
+    Enter password for jdbc:flink://localhost:8083:
+    0: jdbc:flink://localhost:8083>
     ```
-3. Execute any statement you want.
+
+4. You can now execute any Flink SQL statement you want.
 
 **Sample Commands**
-```
-sqlline version 1.12.0
-sqlline> !connect jdbc:flink://localhost:8083
-Enter username for jdbc:flink://localhost:8083:
-Enter password for jdbc:flink://localhost:8083:
+
+```sql
 0: jdbc:flink://localhost:8083> CREATE TABLE T(
 . . . . . . . . . . . . . . .)>      a INT,
 . . . . . . . . . . . . . . .)>      b VARCHAR(10)
@@ -125,6 +146,7 @@ Enter password for jdbc:flink://localhost:8083:
 . . . . . . . . . . . . . . .)>      'format' = 'csv'
 . . . . . . . . . . . . . . .)>  );
 No rows affected (0.122 seconds)
+
 0: jdbc:flink://localhost:8083> INSERT INTO T VALUES (1, 'Hi'), (2, 'Hello');
 +----------------------------------+
 |              job id              |
@@ -132,6 +154,7 @@ No rows affected (0.122 seconds)
 | fbade1ab4450fc57ebd5269fdf60dcfd |
 +----------------------------------+
 1 row selected (1.282 seconds)
+
 0: jdbc:flink://localhost:8083> SELECT * FROM T;
 +---+-------+
 | a |   b   |
@@ -143,7 +166,8 @@ No rows affected (0.122 seconds)
 0: jdbc:flink://localhost:8083>
 ```
 
-### Use with Tableau
+### Tableau
+
 [Tableau](https://www.tableau.com/) is an interactive data visualization software. It supports *Other Database (JDBC)* connection from version 2018.3. You'll need Tableau with version >= 2018.3 to use Flink JDBC driver. For general usage of *Other Database (JDBC)* in Tableau, see [Tableau documentation](https://help.tableau.com/current/pro/desktop/en-us/examples_otherdatabases_jdbc.htm).
 
 1. Download flink-jdbc-driver-(VERSION).jar from the [download page](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-jdbc-driver-bundle/) and add it to Tableau driver path.
@@ -155,13 +179,13 @@ No rows affected (0.122 seconds)
 
 ### Use with other JDBC Tools
 
-Any tool supporting JDBC API can be used with Flink JDBC driver and Flink SQL gateway. See the documentation of your desired tool on how to use a JDBC driver.
+Any tool supporting JDBC API can be used with Flink JDBC driver and Flink SQL gateway. See the documentation of your desired tool on how to use a custom JDBC driver.
 
 ## Use with Application
 
-### Use with Java
+### Java
 
-Flink JDBC driver is a library for accessing Flink clusters through the JDBC API. For the general usage of JDBC in Java, see [JDBC tutorial](https://docs.oracle.com/javase/tutorial/jdbc/index.html).
+The Flink JDBC driver is a library for accessing Flink clusters through the JDBC API. For the general usage of JDBC in Java, see [JDBC tutorial](https://docs.oracle.com/javase/tutorial/jdbc/index.html).
 
 1. Add the following dependency in pom.xml of project or download flink-jdbc-driver-bundle-{VERSION}.jar and add it to your classpath.
 2. Connect to a Flink SQL gateway in your Java code with specific url.
@@ -228,8 +252,8 @@ public class Sample {
 }
 ```
 
-### Use with Others
+### Other languages
 
-In addition to java, Flink JDBC driver can be used by any JVM language such as scala, kotlin and ect, you can add the dependency of Flink JDBC driver in your project and use it directly.
+In addition to Java, the Flink JDBC driver can be used by any JVM language such as Scala, Kotlin etc. Add the dependency of Flink JDBC driver in your project and use it directly.
 
-Most applications may use data access frameworks to access data, for example, JOOQ, MyBatis and Spring Data. You can config Flink JDBC driver in them to perform Flink queries on an exist Flink cluster, just like a regular database.
+Many applications access data in SQL databases, either directly, or through frameworks like JOOQ, MyBatis, and Spring Data. You can configure these applications and frameworks to use the Flink JDBC driver so that they perform SQL queries on a Flink cluster instead of a regular database.

@@ -155,7 +155,7 @@ class PartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
     val countsInPartition = rebalanced
       .map(new RichMapFunction[Long, (Int, Long)] {
         def map(in: Long) = {
-          (getRuntimeContext.getIndexOfThisSubtask, 1)
+          (getRuntimeContext.getTaskInfo.getIndexOfThisSubtask, 1)
         }
       })
       .groupBy(0)

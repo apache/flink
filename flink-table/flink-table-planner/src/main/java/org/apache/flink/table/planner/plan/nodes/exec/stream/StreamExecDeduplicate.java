@@ -86,18 +86,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
         producedTransformations = StreamExecDeduplicate.DEDUPLICATE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
-@ExecNodeMetadata(
-        name = "stream-exec-deduplicate",
-        version = 2,
-        consumedOptions = {
-            "table.exec.mini-batch.enabled",
-            "table.exec.mini-batch.size",
-            "table.exec.deduplicate.insert-update-after-sensitive-enabled",
-            "table.exec.deduplicate.mini-batch.compact-changes-enabled"
-        },
-        producedTransformations = StreamExecDeduplicate.DEDUPLICATE_TRANSFORMATION,
-        minPlanVersion = FlinkVersion.v1_18,
-        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecDeduplicate extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
@@ -183,7 +171,8 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
         final InternalTypeInfo<RowData> rowTypeInfo =
                 (InternalTypeInfo<RowData>) inputTransform.getOutputType();
         final TypeSerializer<RowData> rowSerializer =
-                rowTypeInfo.createSerializer(planner.getExecEnv().getConfig());
+                rowTypeInfo.createSerializer(
+                        planner.getExecEnv().getConfig().getSerializerConfig());
         final OneInputStreamOperator<RowData, RowData> operator;
 
         long stateRetentionTime =
@@ -265,10 +254,6 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
 
         protected boolean isCompactChanges() {
             return config.get(TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES_ENABLED);
-        }
-
-        protected long getMinRetentionTime() {
-            return config.get(ExecutionConfigOptions.IDLE_STATE_RETENTION).toMillis();
         }
 
         protected long getMiniBatchSize() {

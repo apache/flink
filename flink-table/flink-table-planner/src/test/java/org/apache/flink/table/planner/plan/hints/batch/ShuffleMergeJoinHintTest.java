@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.hints.batch;
 import org.apache.flink.table.planner.hint.JoinStrategy;
 
 /** Test for Shuffle Merge join hint. */
-public class ShuffleMergeJoinHintTest extends JoinHintTestBase {
+class ShuffleMergeJoinHintTest extends JoinHintTestBase {
 
     @Override
     protected String getTestSingleJoinHint() {

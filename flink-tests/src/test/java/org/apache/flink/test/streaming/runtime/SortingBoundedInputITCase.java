@@ -23,6 +23,7 @@ import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -223,7 +224,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
                 WatermarkStrategy.forGenerator(ctx -> GENERATE_WATERMARK_AFTER_4_14_TIMESTAMP)
                         .withTimestampAssigner((r, previousTimestamp) -> r.f1);
         SingleOutputStreamOperator<Tuple2<Integer, Integer>> elements =
-                env.fromElements(
+                env.fromData(
                                 Tuple2.of(1, 3),
                                 Tuple2.of(1, 1),
                                 Tuple2.of(2, 1),
@@ -252,7 +253,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
                                     private ValueState<Long> previousTimestampState;
 
                                     @Override
-                                    public void open(Configuration parameters) {
+                                    public void open(OpenContext openContext) {
                                         countState =
                                                 getRuntimeContext()
                                                         .getMapState(
@@ -351,7 +352,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
                 WatermarkStrategy.forGenerator(ctx -> GENERATE_WATERMARK_AFTER_4_14_TIMESTAMP)
                         .withTimestampAssigner((r, previousTimestamp) -> r.f1);
         SingleOutputStreamOperator<Integer> elements1 =
-                env.fromElements(
+                env.fromData(
                                 Tuple2.of(1, 3),
                                 Tuple2.of(1, 1),
                                 Tuple2.of(2, 1),
@@ -369,7 +370,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
                         .map(element -> element.f0);
 
         SingleOutputStreamOperator<Integer> elements2 =
-                env.fromElements(
+                env.fromData(
                                 Tuple2.of(1, 3),
                                 Tuple2.of(1, 1),
                                 Tuple2.of(2, 1),
@@ -403,7 +404,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
                                     private ValueState<Long> previousTimestampState;
 
                                     @Override
-                                    public void open(Configuration parameters) {
+                                    public void open(OpenContext openContext) {
                                         countState =
                                                 getRuntimeContext()
                                                         .getMapState(

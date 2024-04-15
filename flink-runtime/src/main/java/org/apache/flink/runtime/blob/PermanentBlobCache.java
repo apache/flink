@@ -54,7 +54,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * BLOB server.
  *
  * <p>If files for a job are not needed any more, they will enter a staged, i.e. deferred, cleanup.
- * Files may thus still be be accessible upon recovery and do not need to be re-downloaded.
+ * Files may thus still be accessible upon recovery and do not need to be re-downloaded.
  */
 public class PermanentBlobCache extends AbstractBlobCache implements JobPermanentBlobService {
 
@@ -153,7 +153,7 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
         // Initializing the clean up task
         this.cleanupTimer = new Timer(true);
 
-        this.cleanupInterval = blobClientConfig.getLong(BlobServerOptions.CLEANUP_INTERVAL) * 1000;
+        this.cleanupInterval = blobClientConfig.get(BlobServerOptions.CLEANUP_INTERVAL) * 1000;
         this.cleanupTimer.schedule(
                 new PermanentBlobCleanupTask(), cleanupInterval, cleanupInterval);
 

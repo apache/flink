@@ -105,12 +105,12 @@ data.map (new RichMapFunction<String, Integer>() {
 As already seen in previous examples all operations accept lambda functions for describing
 the operation:
 ```scala
-val data: DataSet[String] = // [...]
+val data: DataStream[String] = // [...]
 data.filter { _.startsWith("http://") }
 ```
 
 ```scala
-val data: DataSet[Int] = // [...]
+val data: DataStream[Int] = // [...]
 data.reduce { (i1,i2) => i1 + i2 }
 // or
 data.reduce { _ + _ }
@@ -147,16 +147,6 @@ data.map (new RichMapFunction[String, Int] {
 ```
 {{< /tab >}}
 {{< /tabs >}}
-
-Rich functions provide, in addition to the user-defined function (map,
-reduce, etc), four methods: `open`, `close`, `getRuntimeContext`, and
-`setRuntimeContext`. These are useful for parameterizing the function
-(see [Passing Parameters to Functions]({{< ref "docs/dev/dataset/overview" >}}#passing-parameters-to-functions)),
-creating and finalizing local state, accessing broadcast variables (see
-[Broadcast Variables]({{< ref "docs/dev/dataset/overview" >}}#broadcast-variables)), and for accessing runtime
-information such as accumulators and counters (see
-[Accumulators and Counters](#accumulators--counters)), and information
-on iterations (see [Iterations]({{< ref "docs/dev/dataset/iterations" >}})).
 
 {{< top >}}
 

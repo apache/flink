@@ -23,9 +23,9 @@ import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -41,7 +41,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** End to end tests for {@link PrintTableSinkFactory}. */
-public class PrintConnectorITCase extends StreamingTestBase {
+class PrintConnectorITCase extends StreamingTestBase {
 
     private final PrintStream originalSystemOut = System.out;
     private final PrintStream originalSystemErr = System.err;
@@ -49,14 +49,14 @@ public class PrintConnectorITCase extends StreamingTestBase {
     private final ByteArrayOutputStream arrayOutputStream = new ByteArrayOutputStream();
     private final ByteArrayOutputStream arrayErrorStream = new ByteArrayOutputStream();
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         System.setOut(new PrintStream(arrayOutputStream));
         System.setErr(new PrintStream(arrayErrorStream));
     }
 
-    @After
-    public void tearDown() {
+    @AfterEach
+    void tearDown() {
         if (System.out != originalSystemOut) {
             System.out.close();
         }
@@ -68,17 +68,17 @@ public class PrintConnectorITCase extends StreamingTestBase {
     }
 
     @Test
-    public void testTypes() throws Exception {
+    void testTypes() throws Exception {
         test(false);
     }
 
     @Test
-    public void testStandardError() throws Exception {
+    void testStandardError() throws Exception {
         test(true);
     }
 
     @Test
-    public void testWithParallelism() throws Exception {
+    void testWithParallelism() throws Exception {
         tEnv().executeSql(
                         "create table print_t ("
                                 + "f0 int,"
@@ -101,7 +101,7 @@ public class PrintConnectorITCase extends StreamingTestBase {
     }
 
     @Test
-    public void testWithPartitionedTableAll() throws Exception {
+    void testWithPartitionedTableAll() throws Exception {
         createPartitionedTable();
         tEnv().executeSql("INSERT INTO print_t PARTITION (f0=1,f1=1.1) SELECT 'n1'").await();
 
@@ -124,7 +124,7 @@ public class PrintConnectorITCase extends StreamingTestBase {
     }
 
     @Test
-    public void testWithPartitionedTablePart() throws Exception {
+    void testWithPartitionedTablePart() throws Exception {
         createPartitionedTable();
         tEnv().executeSql("INSERT INTO print_t PARTITION (f0=1) SELECT 1.1, 'n1'").await();
 

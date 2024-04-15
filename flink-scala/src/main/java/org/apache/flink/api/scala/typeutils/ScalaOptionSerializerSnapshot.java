@@ -31,9 +31,7 @@ public final class ScalaOptionSerializerSnapshot<E>
     private static final int VERSION = 2;
 
     @SuppressWarnings("WeakerAccess")
-    public ScalaOptionSerializerSnapshot() {
-        super(OptionSerializer.class);
-    }
+    public ScalaOptionSerializerSnapshot() {}
 
     public ScalaOptionSerializerSnapshot(OptionSerializer<E> serializerInstance) {
         super(serializerInstance);

@@ -40,7 +40,8 @@ class BatchPhysicalDynamicFilteringTableSourceScan(
     traitSet: RelTraitSet,
     hints: util.List[RelHint],
     tableSourceTable: TableSourceTable,
-    var input: RelNode) // var for updating
+    var input: RelNode, // var for updating
+    val dynamicFilteringIndices: util.List[Integer])
   extends BatchPhysicalTableSourceScan(cluster, traitSet, hints, tableSourceTable) {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
@@ -49,7 +50,8 @@ class BatchPhysicalDynamicFilteringTableSourceScan(
       traitSet,
       getHints,
       tableSourceTable,
-      inputs.get(0))
+      inputs.get(0),
+      dynamicFilteringIndices)
   }
 
   override def copy(
@@ -60,7 +62,8 @@ class BatchPhysicalDynamicFilteringTableSourceScan(
       traitSet,
       getHints,
       tableSourceTable,
-      input)
+      input,
+      dynamicFilteringIndices)
   }
 
   override def replaceInput(ordinalInParent: Int, rel: RelNode): Unit = {

@@ -30,33 +30,29 @@ import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.util.SourceOperatorTestHarness;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the emission of latency markers by {@link SourceOperator} operators. */
-public class SourceOperatorLatencyMetricsTest extends TestLogger {
+class SourceOperatorLatencyMetricsTest {
 
     private static final long MAX_PROCESSING_TIME = 100L;
     private static final long LATENCY_MARK_INTERVAL = 10L;
 
     /** Verifies that by default no latency metrics are emitted. */
     @Test
-    public void testLatencyMarkEmissionDisabled() throws Exception {
+    void testLatencyMarkEmissionDisabled() throws Exception {
         testLatencyMarkEmission(false, new Configuration(), new ExecutionConfig());
     }
 
     /** Verifies that latency metrics can be enabled via the {@link ExecutionConfig}. */
     @Test
-    public void testLatencyMarkEmissionEnabledViaExecutionConfig() throws Exception {
+    void testLatencyMarkEmissionEnabledViaExecutionConfig() throws Exception {
 
         Configuration taskConfiguration = new Configuration();
         ExecutionConfig executionConfig = new ExecutionConfig();
@@ -67,9 +63,9 @@ public class SourceOperatorLatencyMetricsTest extends TestLogger {
 
     /** Verifies that latency metrics can be enabled via the configuration. */
     @Test
-    public void testLatencyMarkEmissionEnabledViaFlinkConfig() throws Exception {
+    void testLatencyMarkEmissionEnabledViaFlinkConfig() throws Exception {
         Configuration taskConfiguration = new Configuration();
-        taskConfiguration.setLong(MetricOptions.LATENCY_INTERVAL, LATENCY_MARK_INTERVAL);
+        taskConfiguration.set(MetricOptions.LATENCY_INTERVAL, LATENCY_MARK_INTERVAL);
         ExecutionConfig executionConfig = new ExecutionConfig();
 
         testLatencyMarkEmission(true, taskConfiguration, executionConfig);
@@ -80,9 +76,9 @@ public class SourceOperatorLatencyMetricsTest extends TestLogger {
      * disabled via the configuration.
      */
     @Test
-    public void testLatencyMarkEmissionEnabledOverrideViaExecutionConfig() throws Exception {
+    void testLatencyMarkEmissionEnabledOverrideViaExecutionConfig() throws Exception {
         Configuration taskConfiguration = new Configuration();
-        taskConfiguration.setLong(MetricOptions.LATENCY_INTERVAL, 0);
+        taskConfiguration.set(MetricOptions.LATENCY_INTERVAL, 0L);
         ExecutionConfig executionConfig = new ExecutionConfig();
         executionConfig.setLatencyTrackingInterval(LATENCY_MARK_INTERVAL);
 
@@ -94,17 +90,13 @@ public class SourceOperatorLatencyMetricsTest extends TestLogger {
      * are enabled via the configuration.
      */
     @Test
-    public void testLatencyMarkEmissionDisabledOverrideViaExecutionConfig() throws Exception {
+    void testLatencyMarkEmissionDisabledOverrideViaExecutionConfig() throws Exception {
         Configuration taskConfiguration = new Configuration();
-        taskConfiguration.setLong(MetricOptions.LATENCY_INTERVAL, LATENCY_MARK_INTERVAL);
+        taskConfiguration.set(MetricOptions.LATENCY_INTERVAL, LATENCY_MARK_INTERVAL);
         ExecutionConfig executionConfig = new ExecutionConfig();
         executionConfig.setLatencyTrackingInterval(0);
 
         testLatencyMarkEmission(false, taskConfiguration, executionConfig);
-    }
-
-    private interface OperatorSetupOperation {
-        void setupSourceOperator(SourceOperator<Integer, ?> operator) throws Exception;
     }
 
     private void testLatencyMarkEmission(
@@ -132,7 +124,7 @@ public class SourceOperatorLatencyMetricsTest extends TestLogger {
 
             List<LatencyMarker> expectedOutput = new ArrayList<>();
             if (!shouldExpectLatencyMarkers) {
-                assertTrue(testHarness.getOutput().isEmpty());
+                assertThat(testHarness.getOutput()).isEmpty();
             } else {
                 expectedOutput.add(
                         new LatencyMarker(1, testHarness.getOperator().getOperatorID(), 0));
@@ -143,9 +135,7 @@ public class SourceOperatorLatencyMetricsTest extends TestLogger {
                             new LatencyMarker(
                                     markedTime, testHarness.getOperator().getOperatorID(), 0));
                 }
-                assertThat(
-                        (Collection<Object>) testHarness.getOutput(),
-                        contains(expectedOutput.toArray()));
+                assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
             }
         }
     }

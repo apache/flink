@@ -96,7 +96,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     @Override
     protected void setupInternal() throws IOException {
         checkState(
-                bufferPool.getNumberOfRequiredMemorySegments() >= getNumberOfSubpartitions(),
+                bufferPool.getMinNumberOfMemorySegments() >= getNumberOfSubpartitions(),
                 "Bug in result partition setup logic: Buffer pool has not enough guaranteed buffers for"
                         + " this result partition.");
     }
@@ -199,7 +199,8 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
                 EventSerializer.toBufferConsumer(event, isPriorityEvent)) {
             totalWrittenBytes += ((long) eventBufferConsumer.getWrittenBytes() * numSubpartitions);
             for (ResultSubpartition subpartition : subpartitions) {
-                // Retain the buffer so that it can be recycled by each channel of targetPartition
+                // Retain the buffer so that it can be recycled by each subpartition of
+                // targetPartition
                 subpartition.add(eventBufferConsumer.copy(), 0);
             }
         }
@@ -226,7 +227,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     }
 
     @Override
-    public ResultSubpartitionView createSubpartitionView(
+    protected ResultSubpartitionView createSubpartitionView(
             int subpartitionIndex, BufferAvailabilityListener availabilityListener)
             throws IOException {
         checkElementIndex(subpartitionIndex, numSubpartitions, "Subpartition not found.");
@@ -295,9 +296,32 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
             addToSubpartition(buffer, targetSubpartition, 0, record.remaining());
         }
 
-        buffer.appendAndCommit(record);
+        append(record, buffer);
 
         return buffer;
+    }
+
+    private int append(ByteBuffer record, BufferBuilder buffer) {
+        // Try to avoid hard back-pressure in the subsequent calls to request buffers
+        // by ignoring Buffer Debloater hints and extending the buffer if possible (trim).
+        // This decreases the probability of hard back-pressure in cases when
+        // the output size varies significantly and BD suggests too small values.
+        // The hint will be re-applied on the next iteration.
+        if (record.remaining() >= buffer.getWritableBytes()) {
+            // This 2nd check is expensive, so it shouldn't be re-ordered.
+            // However, it has the same cost as the subsequent call to request buffer, so it doesn't
+            // affect the performance much.
+            if (!bufferPool.isAvailable()) {
+                // add 1 byte to prevent immediately flushing the buffer and potentially fit the
+                // next record
+                int newSize =
+                        buffer.getMaxCapacity()
+                                + (record.remaining() - buffer.getWritableBytes())
+                                + 1;
+                buffer.trim(Math.max(buffer.getMaxCapacity(), newSize));
+            }
+        }
+        return buffer.appendAndCommit(record);
     }
 
     private void addToSubpartition(
@@ -339,7 +363,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
         // starting
         // with a complete record.
         // !! The next two lines can not change order.
-        final int partialRecordBytes = buffer.appendAndCommit(remainingRecordBytes);
+        final int partialRecordBytes = append(remainingRecordBytes, buffer);
         addToSubpartition(buffer, targetSubpartition, partialRecordBytes, partialRecordBytes);
 
         return buffer;
@@ -354,7 +378,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
             createBroadcastBufferConsumers(buffer, 0, record.remaining());
         }
 
-        buffer.appendAndCommit(record);
+        append(record, buffer);
 
         return buffer;
     }
@@ -368,7 +392,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
         // starting
         // with a complete record.
         // !! The next two lines can not change order.
-        final int partialRecordBytes = buffer.appendAndCommit(remainingRecordBytes);
+        final int partialRecordBytes = append(remainingRecordBytes, buffer);
         createBroadcastBufferConsumers(buffer, partialRecordBytes, partialRecordBytes);
 
         return buffer;
@@ -438,8 +462,8 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     }
 
     private void finishUnicastBufferBuilders() {
-        for (int channelIndex = 0; channelIndex < numSubpartitions; channelIndex++) {
-            finishUnicastBufferBuilder(channelIndex);
+        for (int subpartition = 0; subpartition < numSubpartitions; subpartition++) {
+            finishUnicastBufferBuilder(subpartition);
         }
     }
 

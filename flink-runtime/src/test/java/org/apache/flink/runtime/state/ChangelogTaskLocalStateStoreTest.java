@@ -28,8 +28,8 @@ import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle.Chan
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 
@@ -40,19 +40,15 @@ import java.nio.file.StandardOpenOption;
 import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
 /** Test for {@link ChangelogTaskLocalStateStore}. */
-public class ChangelogTaskLocalStateStoreTest extends TaskLocalStateStoreImplTest {
+class ChangelogTaskLocalStateStoreTest extends TaskLocalStateStoreImplTest {
 
-    private LocalRecoveryDirectoryProvider localRecoveryDirectoryProvider;
+    private LocalSnapshotDirectoryProvider localSnapshotDirectoryProvider;
 
-    @Before
+    @BeforeEach
     @Override
-    public void before() throws Exception {
+    void before() throws Exception {
         super.before();
         this.taskLocalStateStore =
                 createChangelogTaskLocalStateStore(
@@ -66,12 +62,13 @@ public class ChangelogTaskLocalStateStoreTest extends TaskLocalStateStoreImplTes
             AllocationID allocationID,
             JobVertexID jobVertexID,
             int subtaskIdx) {
-        LocalRecoveryDirectoryProviderImpl directoryProvider =
-                new LocalRecoveryDirectoryProviderImpl(
+        LocalSnapshotDirectoryProviderImpl directoryProvider =
+                new LocalSnapshotDirectoryProviderImpl(
                         allocationBaseDirs, jobID, jobVertexID, subtaskIdx);
-        this.localRecoveryDirectoryProvider = directoryProvider;
+        this.localSnapshotDirectoryProvider = directoryProvider;
 
-        LocalRecoveryConfig localRecoveryConfig = new LocalRecoveryConfig(directoryProvider);
+        LocalRecoveryConfig localRecoveryConfig =
+                LocalRecoveryConfig.backupAndRecoveryEnabled(directoryProvider);
         return new ChangelogTaskLocalStateStore(
                 jobID,
                 allocationID,
@@ -83,65 +80,65 @@ public class ChangelogTaskLocalStateStoreTest extends TaskLocalStateStoreImplTes
 
     @Test
     @Override
-    public void pruneCheckpoints() throws Exception {
+    void pruneCheckpoints() throws Exception {
         TestingTaskStateSnapshot stateSnapshot1 = storeChangelogStates(1, 1);
         TestingTaskStateSnapshot stateSnapshot2 = storeChangelogStates(2, 1);
         TestingTaskStateSnapshot stateSnapshot3 = storeChangelogStates(3, 1);
 
         taskLocalStateStore.pruneMatchingCheckpoints(id -> id != 2);
-        assertNull(taskLocalStateStore.retrieveLocalState(3));
-        assertTrue(stateSnapshot3.isDiscarded());
-        assertNull(taskLocalStateStore.retrieveLocalState(1));
-        assertTrue(stateSnapshot1.isDiscarded());
-        assertTrue(checkMaterializedDirExists(1));
-        assertEquals(stateSnapshot2, taskLocalStateStore.retrieveLocalState(2));
+        assertThat(taskLocalStateStore.retrieveLocalState(3)).isNull();
+        assertThat(stateSnapshot3.isDiscarded()).isTrue();
+        assertThat(taskLocalStateStore.retrieveLocalState(1)).isNull();
+        assertThat(stateSnapshot1.isDiscarded()).isTrue();
+        assertThat(checkMaterializedDirExists(1)).isTrue();
+        assertThat(taskLocalStateStore.retrieveLocalState(2)).isEqualTo(stateSnapshot2);
     }
 
     @Test
     @Override
-    public void confirmCheckpoint() throws Exception {
+    void confirmCheckpoint() throws Exception {
         TestingTaskStateSnapshot stateSnapshot1 = storeChangelogStates(1, 1);
         TestingTaskStateSnapshot stateSnapshot2 = storeChangelogStates(2, 1);
         TestingTaskStateSnapshot stateSnapshot3 = storeChangelogStates(3, 1);
 
         taskLocalStateStore.confirmCheckpoint(3);
-        assertNull(taskLocalStateStore.retrieveLocalState(2));
-        assertTrue(stateSnapshot2.isDiscarded());
-        assertTrue(stateSnapshot1.isDiscarded());
-        assertTrue(checkMaterializedDirExists(1));
-        assertEquals(stateSnapshot3, taskLocalStateStore.retrieveLocalState(3));
+        assertThat(taskLocalStateStore.retrieveLocalState(2)).isNull();
+        assertThat(stateSnapshot2.isDiscarded()).isTrue();
+        assertThat(stateSnapshot1.isDiscarded()).isTrue();
+        assertThat(checkMaterializedDirExists(1)).isTrue();
+        assertThat(taskLocalStateStore.retrieveLocalState(3)).isEqualTo(stateSnapshot3);
 
         TestingTaskStateSnapshot stateSnapshot4 = storeChangelogStates(4, 2);
         taskLocalStateStore.confirmCheckpoint(4);
-        assertNull(taskLocalStateStore.retrieveLocalState(3));
-        assertTrue(stateSnapshot3.isDiscarded());
+        assertThat(taskLocalStateStore.retrieveLocalState(3)).isNull();
+        assertThat(stateSnapshot3.isDiscarded()).isTrue();
         // delete materialization 1
-        assertFalse(checkMaterializedDirExists(1));
-        assertEquals(stateSnapshot4, taskLocalStateStore.retrieveLocalState(4));
+        assertThat(checkMaterializedDirExists(1)).isFalse();
+        assertThat(taskLocalStateStore.retrieveLocalState(4)).isEqualTo(stateSnapshot4);
     }
 
     @Test
     @Override
-    public void abortCheckpoint() throws Exception {
+    void abortCheckpoint() throws Exception {
         TestingTaskStateSnapshot stateSnapshot1 = storeChangelogStates(1, 1);
         TestingTaskStateSnapshot stateSnapshot2 = storeChangelogStates(2, 2);
         TestingTaskStateSnapshot stateSnapshot3 = storeChangelogStates(3, 2);
         taskLocalStateStore.abortCheckpoint(2);
-        assertNull(taskLocalStateStore.retrieveLocalState(2));
-        assertTrue(stateSnapshot2.isDiscarded());
+        assertThat(taskLocalStateStore.retrieveLocalState(2)).isNull();
+        assertThat(stateSnapshot2.isDiscarded()).isTrue();
         // the materialized part of checkpoint 2 retain, because it still used by checkpoint 3
-        assertTrue(checkMaterializedDirExists(2));
+        assertThat(checkMaterializedDirExists(2)).isTrue();
         // checkpoint 1 retain
-        assertEquals(stateSnapshot1, taskLocalStateStore.retrieveLocalState(1));
-        assertTrue(checkMaterializedDirExists(1));
-        assertEquals(stateSnapshot3, taskLocalStateStore.retrieveLocalState(3));
+        assertThat(taskLocalStateStore.retrieveLocalState(1)).isEqualTo(stateSnapshot1);
+        assertThat(checkMaterializedDirExists(1)).isTrue();
+        assertThat(taskLocalStateStore.retrieveLocalState(3)).isEqualTo(stateSnapshot3);
 
         taskLocalStateStore.abortCheckpoint(3);
-        assertFalse(checkMaterializedDirExists(2));
+        assertThat(checkMaterializedDirExists(2)).isFalse();
     }
 
     @Test
-    public void retrievePersistedLocalStateFromDisc() {
+    void retrievePersistedLocalStateFromDisc() {
         final TaskStateSnapshot taskStateSnapshot = createTaskStateSnapshot();
         final long checkpointId = 0L;
         taskLocalStateStore.storeLocalState(checkpointId, taskStateSnapshot);
@@ -156,7 +153,7 @@ public class ChangelogTaskLocalStateStoreTest extends TaskLocalStateStoreImplTes
     }
 
     @Test
-    public void deletesLocalStateIfRetrievalFails() throws IOException {
+    void deletesLocalStateIfRetrievalFails() throws IOException {
         final TaskStateSnapshot taskStateSnapshot = createTaskStateSnapshot();
         final long checkpointId = 0L;
         taskLocalStateStore.storeLocalState(checkpointId, taskStateSnapshot);
@@ -177,14 +174,14 @@ public class ChangelogTaskLocalStateStoreTest extends TaskLocalStateStoreImplTes
 
     private boolean checkMaterializedDirExists(long materializationID) {
         File materializedDir =
-                localRecoveryDirectoryProvider.subtaskSpecificCheckpointDirectory(
+                localSnapshotDirectoryProvider.subtaskSpecificCheckpointDirectory(
                         materializationID);
         return materializedDir.exists();
     }
 
     private void writeToMaterializedDir(long materializationID) {
         File materializedDir =
-                localRecoveryDirectoryProvider.subtaskSpecificCheckpointDirectory(
+                localSnapshotDirectoryProvider.subtaskSpecificCheckpointDirectory(
                         materializationID);
         if (!materializedDir.exists() && !materializedDir.mkdirs()) {
             throw new FlinkRuntimeException(

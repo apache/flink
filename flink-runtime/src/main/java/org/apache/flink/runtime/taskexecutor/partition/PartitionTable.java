@@ -41,6 +41,11 @@ public class PartitionTable<K> {
         return trackedPartitionsPerKey.containsKey(key);
     }
 
+    public Collection<ResultPartitionID> getTrackedPartitions(K key) {
+        Preconditions.checkNotNull(key);
+        return trackedPartitionsPerKey.getOrDefault(key, Collections.emptySet());
+    }
+
     /** Starts the tracking of the given partition for the given key. */
     public void startTrackingPartitions(K key, Collection<ResultPartitionID> newPartitionIds) {
         Preconditions.checkNotNull(key);

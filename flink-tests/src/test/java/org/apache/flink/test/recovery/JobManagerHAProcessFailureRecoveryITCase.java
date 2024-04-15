@@ -35,6 +35,7 @@ import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.PluginUtils;
+import org.apache.flink.core.testutils.EachCallbackWrapper;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -49,24 +50,22 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.testutils.DispatcherProcess;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
-import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
+import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.apache.commons.io.FileUtils;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.time.Duration;
@@ -78,9 +77,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Verify behaviour in case of JobManager process failure during job execution.
@@ -97,35 +95,22 @@ import static org.junit.Assert.fail;
  * <p>This follows the same structure as {@link AbstractTaskManagerProcessFailureRecoveryTest}.
  */
 @SuppressWarnings("serial")
-@RunWith(Parameterized.class)
-public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
+@ExtendWith(ParameterizedTestExtension.class)
+class JobManagerHAProcessFailureRecoveryITCase {
 
-    private static ZooKeeperTestEnvironment zooKeeper;
+    private final ZooKeeperExtension zooKeeperExtension = new ZooKeeperExtension();
+
+    @RegisterExtension
+    final EachCallbackWrapper<ZooKeeperExtension> zooKeeperResource =
+            new EachCallbackWrapper<>(zooKeeperExtension);
 
     private static final Duration TEST_TIMEOUT = Duration.ofMinutes(5);
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+            TestingUtils.defaultExecutorExtension();
 
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-    @BeforeClass
-    public static void setup() {
-        zooKeeper = new ZooKeeperTestEnvironment(1);
-    }
-
-    @Before
-    public void cleanUp() throws Exception {
-        zooKeeper.deleteAll();
-    }
-
-    @AfterClass
-    public static void tearDown() throws Exception {
-        if (zooKeeper != null) {
-            zooKeeper.shutdown();
-        }
-    }
+    @TempDir private java.nio.file.Path tempDir;
 
     protected static final String READY_MARKER_FILE_PREFIX = "ready_";
     protected static final String FINISH_MARKER_FILE_PREFIX = "finish_";
@@ -137,15 +122,11 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
     //  Parametrization (run pipelined and batch)
     // --------------------------------------------------------------------------------------------
 
-    private final ExecutionMode executionMode;
+    @Parameter private ExecutionMode executionMode;
 
-    public JobManagerHAProcessFailureRecoveryITCase(ExecutionMode executionMode) {
-        this.executionMode = executionMode;
-    }
-
-    @Parameterized.Parameters(name = "ExecutionMode {0}")
-    public static Collection<Object[]> executionMode() {
-        return Arrays.asList(new Object[][] {{ExecutionMode.PIPELINED}, {ExecutionMode.BATCH}});
+    @Parameters(name = "executionMode={0}")
+    private static Collection<ExecutionMode> executionMode() {
+        return Arrays.asList(ExecutionMode.PIPELINED, ExecutionMode.BATCH);
     }
 
     /**
@@ -159,10 +140,9 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
             String zkQuorum, final File coordinateDir, final File zookeeperStoragePath)
             throws Exception {
         Configuration config = new Configuration();
-        config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-        config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkQuorum);
-        config.setString(
-                HighAvailabilityOptions.HA_STORAGE_PATH, zookeeperStoragePath.getAbsolutePath());
+        config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+        config.set(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkQuorum);
+        config.set(HighAvailabilityOptions.HA_STORAGE_PATH, zookeeperStoragePath.getAbsolutePath());
 
         ExecutionEnvironment env =
                 ExecutionEnvironment.createRemoteEnvironment("leader", 1, config);
@@ -190,7 +170,9 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
                                     public Long map(Long value) throws Exception {
                                         if (!markerCreated) {
                                             int taskIndex =
-                                                    getRuntimeContext().getIndexOfThisSubtask();
+                                                    getRuntimeContext()
+                                                            .getTaskInfo()
+                                                            .getIndexOfThisSubtask();
                                             AbstractTaskManagerProcessFailureRecoveryTest.touchFile(
                                                     new File(
                                                             coordinateDir,
@@ -225,11 +207,13 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
                                     @Override
                                     public void flatMap(Long value, Collector<Long> out)
                                             throws Exception {
-                                        assertEquals(
-                                                numElements * (numElements + 1L) / 2L,
-                                                (long) value);
+                                        assertThat((long) value)
+                                                .isEqualTo(numElements * (numElements + 1L) / 2L);
 
-                                        int taskIndex = getRuntimeContext().getIndexOfThisSubtask();
+                                        int taskIndex =
+                                                getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getIndexOfThisSubtask();
                                         AbstractTaskManagerProcessFailureRecoveryTest.touchFile(
                                                 new File(
                                                         coordinateDir,
@@ -237,22 +221,21 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
                                     }
                                 });
 
-        result.output(new DiscardingOutputFormat<Long>());
+        result.output(new DiscardingOutputFormat<>());
 
         env.execute();
     }
 
-    @Test
-    public void testDispatcherProcessFailure() throws Exception {
-        final Time timeout = Time.seconds(30L);
-        final File zookeeperStoragePath = temporaryFolder.newFolder();
+    @TestTemplate
+    void testDispatcherProcessFailure() throws Exception {
+        final File zookeeperStoragePath = TempDirUtils.newFolder(tempDir);
 
         // Config
         final int numberOfJobManagers = 2;
         final int numberOfTaskManagers = 2;
         final int numberOfSlotsPerTaskManager = 2;
 
-        assertEquals(PARALLELISM, numberOfTaskManagers * numberOfSlotsPerTaskManager);
+        assertThat(numberOfTaskManagers * numberOfSlotsPerTaskManager).isEqualTo(PARALLELISM);
 
         // Job managers
         final DispatcherProcess[] dispatcherProcesses = new DispatcherProcess[numberOfJobManagers];
@@ -270,13 +253,13 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
         // Cluster config
         Configuration config =
                 ZooKeeperTestUtils.createZooKeeperHAConfig(
-                        zooKeeper.getConnectString(), zookeeperStoragePath.getPath());
+                        zooKeeperExtension.getConnectString(), zookeeperStoragePath.getPath());
         // Task manager configuration
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
         config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("3200k"));
         config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("3200k"));
         config.set(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS, 16);
-        config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
+        config.set(TaskManagerOptions.NUM_TASK_SLOTS, 2);
         config.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse("128m"));
         config.set(TaskManagerOptions.CPU_CORES, 1.0);
         TaskExecutorResourceUtils.adjustForLocalExecution(config);
@@ -288,7 +271,7 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
             final Deadline deadline = Deadline.fromNow(TEST_TIMEOUT);
 
             // Coordination directory
-            coordinateTempDir = temporaryFolder.newFolder();
+            coordinateTempDir = TempDirUtils.newFolder(tempDir);
 
             // Start first process
             dispatcherProcesses[0] = new DispatcherProcess(0, config);
@@ -297,7 +280,7 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
             highAvailabilityServices =
                     HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
                             config,
-                            EXECUTOR_RESOURCE.getExecutor(),
+                            EXECUTOR_EXTENSION.getExecutor(),
                             NoOpFatalErrorHandler.INSTANCE);
 
             final PluginManager pluginManager =
@@ -343,7 +326,7 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
                         public void run() {
                             try {
                                 testJobManagerFailure(
-                                        zooKeeper.getConnectString(),
+                                        zooKeeperExtension.getConnectString(),
                                         coordinateDirClosure,
                                         zookeeperStoragePath);
                             } catch (Throwable t) {
@@ -385,7 +368,7 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
                     deadline.timeLeft().toMillis());
 
             // check that the program really finished
-            assertFalse("The program did not finish in time", programTrigger.isAlive());
+            assertThat(programTrigger.isAlive()).as("The program did not finish in time").isFalse();
 
             // check whether the program encountered an error
             if (errorRef[0] != null) {
@@ -427,7 +410,7 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
             }
 
             if (highAvailabilityServices != null) {
-                highAvailabilityServices.closeAndCleanupAllData();
+                highAvailabilityServices.closeWithOptionalClean(true);
             }
 
             RpcUtils.terminateRpcService(rpcService);

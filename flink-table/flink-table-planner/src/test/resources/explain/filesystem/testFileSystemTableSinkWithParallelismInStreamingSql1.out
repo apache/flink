@@ -54,9 +54,9 @@ Sink(table=[default_catalog.default_database.test_compact_sink_table], fields=[i
     } ]
   }, {
     "id" : ,
-    "type" : "Sink: end",
-    "pact" : "Data Sink",
-    "contents" : "Sink: end",
+    "type" : "end: Writer",
+    "pact" : "Operator",
+    "contents" : "end: Writer",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,

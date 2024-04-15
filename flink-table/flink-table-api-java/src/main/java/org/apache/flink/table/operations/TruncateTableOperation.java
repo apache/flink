@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.internal.TableResultInternal;
@@ -35,6 +36,7 @@ import org.apache.flink.table.operations.utils.ExecutableOperationUtils;
 import java.util.Collections;
 
 /** Operation to describe an {@code TRUNCATE TABLE} statement. */
+@Internal
 public class TruncateTableOperation implements ExecutableOperation {
 
     private final ObjectIdentifier tableIdentifier;

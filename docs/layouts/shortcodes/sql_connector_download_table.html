@@ -24,42 +24,55 @@
   {{ $name := .Get 0 }}
   {{ $connector := index .Site.Data $name }}
   {{ $connector_version := $connector.version  }}
+  {{ $flink_compatibility := $connector.flink_compatibility  }}
   {{ $flink_version := .Site.Params.VersionTitle }}
   {{ $full_version := printf "%s-%s" $connector_version $flink_version }}
   
   {{ $path := .Page.Path }}
   
   {{ $hash := md5 now }}
-  
+
+{{ $containsVersion := false }}
+{{ range $flink_compatibility }}
+    {{ if in . $flink_version }}
+        {{ $containsVersion = true }}
+        {{ break }}
+    {{ end }}
+{{ end }}
+
   {{ if $.Site.Params.IsStable }}
-  <table style="display:table;margin-left:auto;margin-right:auto" id="download-table">
-    <thead>
-      <th style="text-align:left">Maven dependency</th>
-      <th style="text-align:left">SQL Client</th>
-    </thead>
-    <tbody>
-      {{ range $connector.variants }}
-      <tr>
-        <td style="text-align: left">
-          <div id="{{ $hash }}" onclick="selectTextAndCopy('{{ $hash }}')"class="highlight">
-<pre class="chroma"><code class="language-xml" data-lang="xml"><span class="nt">&ltdependency&gt</span>
-  <span class="nt">&ltgroupId&gt</span>org.apache.flink<span class="nt">&lt/groupId&gt</span>
-  <span class="nt">&ltartifactId&gt</span>{{- .maven -}}<span class="nt">&lt/artifactId&gt</span>
-  <span class="nt">&ltversion&gt</span>{{- $full_version -}}<span class="nt">&lt/version&gt</span>
-<span class="nt">&lt/dependency&gt</span></code></pre></div>
-          <div class="book-hint info" style="text-align:center;display:none" copyable="flink-module" copyattribute="{{ $hash }}">
-            Copied to clipboard!
-          </div> 
-        </td>
-        <td style="text-align: left">
-          <a href="{{ replace .sql_url "$full_version" $full_version}}">Download</a>
-        </td>
-      </tr>
-      {{ end }}
-    </tbody>
-  </table>
+    {{ if $containsVersion }}
+      <table style="display:table;margin-left:auto;margin-right:auto" id="download-table">
+        <thead>
+          <th style="text-align:left">Maven dependency</th>
+          <th style="text-align:left">SQL Client</th>
+        </thead>
+        <tbody>
+          {{ range $connector.variants }}
+          <tr>
+            <td style="text-align: left">
+              <div id="{{ $hash }}" onclick="selectTextAndCopy('{{ $hash }}')"class="highlight">
+    <pre class="chroma"><code class="language-xml" data-lang="xml"><span class="nt">&ltdependency&gt</span>
+      <span class="nt">&ltgroupId&gt</span>org.apache.flink<span class="nt">&lt/groupId&gt</span>
+      <span class="nt">&ltartifactId&gt</span>{{- .maven -}}<span class="nt">&lt/artifactId&gt</span>
+      <span class="nt">&ltversion&gt</span>{{- $full_version -}}<span class="nt">&lt/version&gt</span>
+    <span class="nt">&lt/dependency&gt</span></code></pre></div>
+              <div class="book-hint info" style="text-align:center;display:none" copyable="flink-module" copyattribute="{{ $hash }}">
+                Copied to clipboard!
+              </div>
+            </td>
+            <td style="text-align: left">
+              <a href="{{ replace .sql_url "$full_version" $full_version}}">Download</a>
+            </td>
+          </tr>
+          {{ end }}
+        </tbody>
+      </table>
+    {{ else }}
+        <p style="font-weight: bold">There is no connector (yet) available for Flink version {{ printf $flink_version }}.</p>
+    {{ end }}
   {{ else }}
-  Only available for stable versions.
+    <p style="font-weight: bold">Only available for stable versions.</p>
   {{ end }}
 
-  
+

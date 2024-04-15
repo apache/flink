@@ -36,7 +36,7 @@ import org.apache.calcite.rel.hint.RelHint
 import java.util
 
 /**
- * Stream physical RelNode to to write data into an external sink defined by a [[DynamicTableSink]].
+ * Stream physical RelNode to write data into an external sink defined by a [[DynamicTableSink]].
  */
 class StreamPhysicalSink(
     cluster: RelOptCluster,

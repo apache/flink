@@ -43,7 +43,7 @@ public class SqlGatewayRestEndpointTestUtils {
         return rebuildRestEndpointOptions(context.getEndpointOptions());
     }
 
-    /** Create the configuration generated from flink-conf.yaml. */
+    /** Create the configuration generated from config.yaml. */
     public static Configuration getFlinkConfig(
             String address, String bindAddress, String portRange) {
         final Configuration config = new Configuration();

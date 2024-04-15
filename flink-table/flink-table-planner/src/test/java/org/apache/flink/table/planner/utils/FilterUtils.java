@@ -22,11 +22,14 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
+import org.apache.flink.table.expressions.NestedFieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Optional;
@@ -50,7 +53,9 @@ public class FilterUtils {
     }
 
     public static boolean isRetainedAfterApplyingFilterPredicates(
-            List<ResolvedExpression> predicates, Function<String, Comparable<?>> getter) {
+            List<ResolvedExpression> predicates,
+            Function<String, Comparable<?>> getter,
+            @Nullable Function<int[], Comparable<?>> nestedFieldGetter) {
         for (ResolvedExpression predicate : predicates) {
             if (predicate instanceof CallExpression) {
                 FunctionDefinition definition =
@@ -62,13 +67,17 @@ public class FilterUtils {
                         if (!(expr instanceof CallExpression && expr.getChildren().size() == 2)) {
                             throw new TableException(expr + " not supported!");
                         }
-                        result = binaryFilterApplies((CallExpression) expr, getter);
+                        result =
+                                binaryFilterApplies(
+                                        (CallExpression) expr, getter, nestedFieldGetter);
                         if (result) {
                             break;
                         }
                     }
                 } else if (predicate.getChildren().size() == 2) {
-                    result = binaryFilterApplies((CallExpression) predicate, getter);
+                    result =
+                            binaryFilterApplies(
+                                    (CallExpression) predicate, getter, nestedFieldGetter);
                 } else {
                     throw new UnsupportedOperationException(
                             String.format("Unsupported expr: %s.", predicate));
@@ -96,6 +105,12 @@ public class FilterUtils {
             }
         }
 
+        if (expr instanceof NestedFieldReferenceExpression) {
+            if (filterableFields.contains(((NestedFieldReferenceExpression) expr).getName())) {
+                return true;
+            }
+        }
+
         if (expr instanceof ValueLiteralExpression) {
             return true;
         }
@@ -113,12 +128,14 @@ public class FilterUtils {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static boolean binaryFilterApplies(
-            CallExpression binExpr, Function<String, Comparable<?>> getter) {
+            CallExpression binExpr,
+            Function<String, Comparable<?>> getter,
+            Function<int[], Comparable<?>> nestedFieldGetter) {
         List<Expression> children = binExpr.getChildren();
         Preconditions.checkArgument(children.size() == 2);
 
-        Comparable lhsValue = getValue(children.get(0), getter);
-        Comparable rhsValue = getValue(children.get(1), getter);
+        Comparable lhsValue = getValue(children.get(0), getter, nestedFieldGetter);
+        Comparable rhsValue = getValue(children.get(1), getter, nestedFieldGetter);
         FunctionDefinition functionDefinition = binExpr.getFunctionDefinition();
         if (BuiltInFunctionDefinitions.GREATER_THAN.equals(functionDefinition)) {
             return lhsValue.compareTo(rhsValue) > 0;
@@ -141,7 +158,10 @@ public class FilterUtils {
         return Comparable.class.isAssignableFrom(clazz);
     }
 
-    private static Comparable<?> getValue(Expression expr, Function<String, Comparable<?>> getter) {
+    private static Comparable<?> getValue(
+            Expression expr,
+            Function<String, Comparable<?>> getter,
+            Function<int[], Comparable<?>> nestedFieldGetter) {
         if (expr instanceof ValueLiteralExpression) {
             Optional<?> value =
                     ((ValueLiteralExpression) expr)
@@ -156,8 +176,17 @@ public class FilterUtils {
             return getter.apply(((FieldReferenceExpression) expr).getName());
         }
 
+        if (expr instanceof NestedFieldReferenceExpression) {
+            if (nestedFieldGetter != null) {
+                return nestedFieldGetter.apply(
+                        ((NestedFieldReferenceExpression) expr).getFieldIndices());
+            } else {
+                throw new RuntimeException("NestedFieldReferenceExpression not supported!");
+            }
+        }
+
         if (expr instanceof CallExpression && expr.getChildren().size() == 1) {
-            Object child = getValue(expr.getChildren().get(0), getter);
+            Object child = getValue(expr.getChildren().get(0), getter, nestedFieldGetter);
             FunctionDefinition functionDefinition = ((CallExpression) expr).getFunctionDefinition();
             if (functionDefinition.equals(UPPER)) {
                 return child.toString().toUpperCase();

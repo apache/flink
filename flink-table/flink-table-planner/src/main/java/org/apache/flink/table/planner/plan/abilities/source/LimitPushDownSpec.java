@@ -57,6 +57,11 @@ public final class LimitPushDownSpec extends SourceAbilitySpecBase {
     }
 
     @Override
+    public boolean needAdjustFieldReferenceAfterProjection() {
+        return false;
+    }
+
+    @Override
     public String getDigests(SourceAbilityContext context) {
         return "limit=[" + this.limit + "]";
     }

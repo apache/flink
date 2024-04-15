@@ -20,10 +20,10 @@ package org.apache.flink.streaming.api.operators.collect.utils;
 
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -36,11 +36,11 @@ import org.apache.flink.streaming.api.operators.collect.CollectSinkFunction;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorCoordinator;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 
-import org.junit.Assert;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * A wrapper class for creating, checkpointing and closing {@link
@@ -58,6 +58,7 @@ public class CollectSinkFunctionTestWrapper<IN> {
     private final int maxBytesPerBatch;
 
     private final IOManager ioManager;
+
     private final StreamingRuntimeContext runtimeContext;
     private final MockOperatorEventGateway gateway;
     private final CollectSinkOperatorCoordinator coordinator;
@@ -99,7 +100,7 @@ public class CollectSinkFunctionTestWrapper<IN> {
         function = new CollectSinkFunction<>(serializer, maxBytesPerBatch, ACCUMULATOR_NAME);
         function.setRuntimeContext(runtimeContext);
         function.setOperatorEventGateway(gateway);
-        function.open(new Configuration());
+        function.open(DefaultOpenContext.INSTANCE);
         coordinator.handleEventFromOperator(0, 0, gateway.getNextEvent());
     }
 
@@ -109,7 +110,7 @@ public class CollectSinkFunctionTestWrapper<IN> {
         function.setRuntimeContext(runtimeContext);
         function.setOperatorEventGateway(gateway);
         function.initializeState(functionInitializationContext);
-        function.open(new Configuration());
+        function.open(DefaultOpenContext.INSTANCE);
         coordinator.handleEventFromOperator(0, 0, gateway.getNextEvent());
     }
 
@@ -165,7 +166,7 @@ public class CollectSinkFunctionTestWrapper<IN> {
         List<byte[]> serializedResults =
                 SerializedListAccumulator.deserializeList(
                         accLocalValue, BytePrimitiveArraySerializer.INSTANCE);
-        Assert.assertEquals(1, serializedResults.size());
+        assertThat(serializedResults).hasSize(1);
         byte[] serializedResult = serializedResults.get(0);
         return CollectSinkFunction.deserializeAccumulatorResult(serializedResult);
     }
@@ -174,5 +175,9 @@ public class CollectSinkFunctionTestWrapper<IN> {
     public ArrayList<byte[]> getAccumulatorLocalValue() {
         Accumulator accumulator = runtimeContext.getAccumulator(ACCUMULATOR_NAME);
         return ((SerializedListAccumulator) accumulator).getLocalValue();
+    }
+
+    public StreamingRuntimeContext getRuntimeContext() {
+        return runtimeContext;
     }
 }

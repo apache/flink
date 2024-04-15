@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.runtime.operators.rank;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.StateTtlConfig;
@@ -27,7 +28,6 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
@@ -106,12 +106,12 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
         this.sortKeyType = sortKeySelector.getProducedType();
         this.serializableComparator = comparableRecordComparator;
         this.generatedEqualiser = generatedEqualiser;
-        this.inputRowSer = inputRowType.createSerializer(new ExecutionConfig());
+        this.inputRowSer = inputRowType.createSerializer(new SerializerConfigImpl());
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
 
         // compile equaliser
         equaliser = generatedEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());

@@ -33,7 +33,7 @@ These Python libraries are highly optimized and provide high-performance data st
 [non-vectorized user-defined functions]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}) on how to define vectorized user-defined functions.
 Users only need to add an extra parameter `func_type="pandas"` in the decorator `udf` or `udaf` to mark it as a vectorized user-defined function.
 
-**NOTE:** Python UDF execution requires Python version (3.7, 3.8, 3.9 or 3.10) with PyFlink installed. It's required on both the client side and the cluster side. 
+**NOTE:** Python UDF execution requires Python version (3.8, 3.9 or 3.10) with PyFlink installed. It's required on both the client side and the cluster side. 
 
 ## Vectorized Scalar Functions
 

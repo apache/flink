@@ -138,6 +138,7 @@ arithmetic functions
     Expression.var_pop
     Expression.var_samp
     Expression.collect
+    Expression.array_agg
     Expression.alias
     Expression.cast
     Expression.try_cast
@@ -234,10 +235,14 @@ advanced type helper functions
     Expression.array_reverse
     Expression.array_max
     Expression.array_slice
+    Expression.array_min
+    Expression.array_sort
     Expression.array_union
     Expression.map_entries
     Expression.map_keys
+    Expression.map_union
     Expression.map_values
+    Expression.array_except
 
 
 time definition functions

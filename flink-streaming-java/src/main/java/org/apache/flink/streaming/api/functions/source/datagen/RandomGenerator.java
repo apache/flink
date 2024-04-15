@@ -35,6 +35,7 @@ public abstract class RandomGenerator<T> implements DataGenerator<T> {
 
     protected transient RandomDataGenerator random;
     protected float nullRate;
+    protected boolean varLen;
 
     @Override
     public void open(
@@ -53,6 +54,11 @@ public abstract class RandomGenerator<T> implements DataGenerator<T> {
             return supplier.get();
         }
         return null;
+    }
+
+    public RandomGenerator<T> withVarLen(boolean varLen) {
+        this.varLen = varLen;
+        return this;
     }
 
     @Override

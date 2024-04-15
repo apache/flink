@@ -23,7 +23,6 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.delegate.DelegatingStateBackend;
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
@@ -80,7 +79,7 @@ public class CheckpointStorageLoader {
             if (logger != null) {
                 logger.debug(
                         "The configuration {} has not be set in the current"
-                                + " sessions flink-conf.yaml. Falling back to a default CheckpointStorage"
+                                + " sessions config.yaml. Falling back to a default CheckpointStorage"
                                 + " type. Users are strongly encouraged explicitly set this configuration"
                                 + " so they understand how their applications are checkpointing"
                                 + " snapshots for fault-tolerance.",
@@ -139,14 +138,15 @@ public class CheckpointStorageLoader {
      * StreamExecutionEnvironment}.
      *
      * <p>3) Use the {@link CheckpointStorage} instance configured via the clusters
-     * <b>flink-conf.yaml</b>.
+     * <b>config.yaml</b>.
      *
      * <p>4) Load a default {@link CheckpointStorage} instance.
      *
      * @param fromApplication The checkpoint storage instance passed to the jobs
      *     StreamExecutionEnvironment. Or null if not was set.
      * @param configuredStateBackend The jobs configured state backend.
-     * @param config The configuration to load the checkpoint storage from.
+     * @param jobConfig The job level configuration to load the checkpoint storage from.
+     * @param clusterConfig The cluster level configuration to load the checkpoint storage from.
      * @param classLoader The class loader that should be used to load the checkpoint storage.
      * @param logger Optionally, a logger to log actions to (may be null).
      * @return The configured checkpoint storage instance.
@@ -157,26 +157,21 @@ public class CheckpointStorageLoader {
      */
     public static CheckpointStorage load(
             @Nullable CheckpointStorage fromApplication,
-            @Nullable Path defaultSavepointDirectory,
             StateBackend configuredStateBackend,
-            Configuration config,
+            Configuration jobConfig,
+            Configuration clusterConfig,
             ClassLoader classLoader,
             @Nullable Logger logger)
             throws IllegalConfigurationException, DynamicCodeLoadingException {
 
-        Preconditions.checkNotNull(config, "config");
+        Preconditions.checkNotNull(jobConfig, "jobConfig");
+        Preconditions.checkNotNull(clusterConfig, "clusterConfig");
         Preconditions.checkNotNull(classLoader, "classLoader");
         Preconditions.checkNotNull(configuredStateBackend, "statebackend");
 
-        if (defaultSavepointDirectory != null) {
-            // If a savepoint directory was manually specified in code
-            // we override any value set in the flink-conf. This allows
-            // us to pass this value to the CheckpointStorage instance
-            // where it is needed at runtime while keeping its API logically
-            // separated for users.
-            config.set(
-                    CheckpointingOptions.SAVEPOINT_DIRECTORY, defaultSavepointDirectory.toString());
-        }
+        // Job level config can override the cluster level config.
+        Configuration mergedConfig = new Configuration(clusterConfig);
+        mergedConfig.addAll(jobConfig);
 
         // Legacy state backends always take precedence for backwards compatibility.
         StateBackend rootStateBackend =
@@ -196,7 +191,7 @@ public class CheckpointStorageLoader {
                             rootStateBackend.getClass().getName(),
                             LEGACY_PRECEDENCE_LOG_MESSAGE);
                 }
-                if (config.get(CheckpointingOptions.CHECKPOINT_STORAGE) != null) {
+                if (mergedConfig.get(CheckpointingOptions.CHECKPOINT_STORAGE) != null) {
                     logger.warn(
                             "Config option '{}' is ignored because legacy state backend '{}' is used. {}",
                             CheckpointingOptions.CHECKPOINT_STORAGE.key(),
@@ -207,20 +202,23 @@ public class CheckpointStorageLoader {
             return (CheckpointStorage) rootStateBackend;
         }
 
+        // In the FLINK-2.0, the checkpoint storage from application will not be supported
+        // anymore.
         if (fromApplication != null) {
             if (fromApplication instanceof ConfigurableCheckpointStorage) {
                 if (logger != null) {
                     logger.info(
                             "Using job/cluster config to configure application-defined checkpoint storage: {}",
                             fromApplication);
-                    if (config.get(CheckpointingOptions.CHECKPOINT_STORAGE) != null) {
+                    if (mergedConfig.get(CheckpointingOptions.CHECKPOINT_STORAGE) != null) {
                         logger.warn(
                                 "Config option '{}' is ignored because the checkpoint storage passed via StreamExecutionEnvironment takes precedence.",
                                 CheckpointingOptions.CHECKPOINT_STORAGE.key());
                     }
                 }
                 return ((ConfigurableCheckpointStorage) fromApplication)
-                        .configure(config, classLoader);
+                        // Use cluster config for backwards compatibility.
+                        .configure(clusterConfig, classLoader);
             }
             if (logger != null) {
                 logger.info("Using application defined checkpoint storage: {}", fromApplication);
@@ -228,8 +226,8 @@ public class CheckpointStorageLoader {
             return fromApplication;
         }
 
-        return fromConfig(config, classLoader, logger)
-                .orElseGet(() -> createDefaultCheckpointStorage(config, classLoader, logger));
+        return fromConfig(mergedConfig, classLoader, logger)
+                .orElseGet(() -> createDefaultCheckpointStorage(mergedConfig, classLoader, logger));
     }
 
     /**

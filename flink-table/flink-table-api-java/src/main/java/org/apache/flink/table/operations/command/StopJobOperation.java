@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.operations.command;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.operations.Operation;
 
 /** Operation to stop a running job. */
+@Internal
 public class StopJobOperation implements Operation {
 
     private final String jobId;

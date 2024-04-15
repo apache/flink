@@ -25,9 +25,12 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.util.TimeUtils;
 
+import javax.annotation.Nonnull;
+
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.code;
@@ -126,6 +129,10 @@ public class TaskManagerOptions {
                                     + " additional non-shared TaskManager-specific config file.");
 
     /** The local address of the network interface that the task manager binds to. */
+    @Documentation.Section({
+        Documentation.Sections.COMMON_HOST_PORT,
+        Documentation.Sections.ALL_TASK_MANAGER
+    })
     public static final ConfigOption<String> BIND_HOST =
             key("taskmanager.bind-host")
                     .stringType()
@@ -152,6 +159,10 @@ public class TaskManagerOptions {
                                     + " range of ports to avoid collisions when multiple TaskManagers are running on the same machine.");
 
     /** The local port that the task manager binds to. */
+    @Documentation.Section({
+        Documentation.Sections.COMMON_HOST_PORT,
+        Documentation.Sections.ALL_TASK_MANAGER
+    })
     public static final ConfigOption<Integer> RPC_BIND_PORT =
             key("taskmanager.rpc.bind-port")
                     .intType()
@@ -161,6 +172,19 @@ public class TaskManagerOptions {
                                     + " (configured by '"
                                     + RPC_PORT.key()
                                     + "') will be used.");
+
+    /** The default port that <code>CollectSinkFunction$ServerThread</code> is using. */
+    @Documentation.Section({
+        Documentation.Sections.COMMON_HOST_PORT,
+        Documentation.Sections.ALL_TASK_MANAGER
+    })
+    public static final ConfigOption<Integer> COLLECT_PORT =
+            key("taskmanager.collect-sink.port")
+                    .intType()
+                    .defaultValue(0)
+                    .withDescription(
+                            "The port used for the client to retrieve query results from the TaskManager. "
+                                    + "The default value is 0, which corresponds to a random port assignment.");
 
     /**
      * The initial registration backoff between two consecutive registration attempts. The backoff
@@ -242,15 +266,15 @@ public class TaskManagerOptions {
     public static final ConfigOption<Duration> SLOT_TIMEOUT =
             key("taskmanager.slot.timeout")
                     .durationType()
-                    .defaultValue(AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue())
-                    .withFallbackKeys(AkkaOptions.ASK_TIMEOUT_DURATION.key())
+                    .defaultValue(RpcOptions.ASK_TIMEOUT_DURATION.defaultValue())
+                    .withFallbackKeys(RpcOptions.ASK_TIMEOUT_DURATION.key())
                     .withDescription(
                             Description.builder()
                                     .text(
                                             "Timeout used for identifying inactive slots. The TaskManager will free the slot if it does not become active "
                                                     + "within the given amount of time. Inactive slots can be caused by an out-dated slot request. If no "
                                                     + "value is configured, then it will fall back to %s.",
-                                            code(AkkaOptions.ASK_TIMEOUT_DURATION.key()))
+                                            code(RpcOptions.ASK_TIMEOUT_DURATION.key()))
                                     .build());
 
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
@@ -699,6 +723,154 @@ public class TaskManagerOptions {
                     .withDescription(
                             "Time we wait for the timers in milliseconds to finish all pending timer threads"
                                     + " when the stream task is cancelled.");
+
+    /** This configures how to redirect the {@link System#out} and {@link System#err}. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    public static final ConfigOption<SystemOutMode> TASK_MANAGER_SYSTEM_OUT_MODE =
+            ConfigOptions.key("taskmanager.system-out.mode")
+                    .enumType(SystemOutMode.class)
+                    .defaultValue(SystemOutMode.DEFAULT)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Redirection mode of %s and %s for all %s.",
+                                            code("System.out"),
+                                            code("System.err"),
+                                            code("TaskManagers"))
+                                    .list(
+                                            text(
+                                                    "%s: %s don't redirect the %s and %s, it's the default value.",
+                                                    code(SystemOutMode.DEFAULT.name()),
+                                                    code("TaskManagers"),
+                                                    code("System.out"),
+                                                    code("System.err")),
+                                            text(
+                                                    "%s: %s redirect %s and %s to LOG.info and LOG.error.",
+                                                    code(SystemOutMode.LOG.name()),
+                                                    code("TaskManagers"),
+                                                    code("System.out"),
+                                                    code("System.err")),
+                                            text(
+                                                    "%s: %s ignore %s and %s directly.",
+                                                    code(SystemOutMode.IGNORE.name()),
+                                                    code("TaskManagers"),
+                                                    code("System.out"),
+                                                    code("System.err")))
+                                    .build());
+
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    public static final ConfigOption<Boolean> TASK_MANAGER_SYSTEM_OUT_LOG_THREAD_NAME =
+            ConfigOptions.key("taskmanager.system-out.log.thread-name.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Whether to log the thread name when %s is LOG.",
+                                            code(TASK_MANAGER_SYSTEM_OUT_MODE.key()))
+                                    .build());
+
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    public static final ConfigOption<MemorySize> TASK_MANAGER_SYSTEM_OUT_LOG_CACHE_SIZE =
+            ConfigOptions.key("taskmanager.system-out.log.cache-upper-size")
+                    .memoryType()
+                    .defaultValue(MemorySize.parse("100 kb"))
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The cache upper size when Flink caches current line context "
+                                                    + "of %s or %s when %s is LOG.",
+                                            code("System.out"),
+                                            code("System.err"),
+                                            code(TASK_MANAGER_SYSTEM_OUT_MODE.key()))
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_TASK_MANAGER
+    })
+    public static final ConfigOption<TaskManagerLoadBalanceMode> TASK_MANAGER_LOAD_BALANCE_MODE =
+            ConfigOptions.key("taskmanager.load-balance.mode")
+                    .enumType(TaskManagerLoadBalanceMode.class)
+                    .defaultValue(TaskManagerLoadBalanceMode.NONE)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Mode for the load-balance allocation strategy across all available %s.",
+                                            code("TaskManagers"))
+                                    .list(
+                                            text(
+                                                    "The %s mode tries to spread out the slots evenly across all available %s.",
+                                                    code(TaskManagerLoadBalanceMode.SLOTS.name()),
+                                                    code("TaskManagers")),
+                                            text(
+                                                    "The %s mode is the default mode without any specified strategy.",
+                                                    code(TaskManagerLoadBalanceMode.NONE.name())))
+                                    .build());
+
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    @Documentation.OverrideDefault("System.getProperty(\"log.file\")")
+    public static final ConfigOption<String> TASK_MANAGER_LOG_PATH =
+            ConfigOptions.key("taskmanager.log.path")
+                    .stringType()
+                    .defaultValue(System.getProperty("log.file"))
+                    .withDescription("The path to the log file of the task manager.");
+
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    public static final ConfigOption<Duration> FS_STREAM_OPENING_TIME_OUT =
+            ConfigOptions.key("taskmanager.runtime.fs-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ZERO)
+                    .withDeprecatedKeys("taskmanager.runtime.fs_timeout")
+                    .withDescription(
+                            "The timeout for filesystem stream opening. A value of 0 indicates infinite waiting.");
+
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    public static final ConfigOption<Integer> MINI_CLUSTER_NUM_TASK_MANAGERS =
+            ConfigOptions.key("minicluster.number-of-taskmanagers")
+                    .intType()
+                    .defaultValue(1)
+                    .withDeprecatedKeys("local.number-taskmanager")
+                    .withDescription("The number of task managers of MiniCluster.");
+
+    /** Type of redirection of {@link System#out} and {@link System#err}. */
+    public enum SystemOutMode {
+
+        /** Don't change the {@link System#out} and {@link System#err}, it's the default value. */
+        DEFAULT,
+
+        /** Redirect all {@link System#out} and {@link System#err} to LOG. */
+        LOG,
+
+        /** Ignore all {@link System#out} and {@link System#err} directly. */
+        IGNORE
+    }
+
+    /** Type of {@link TaskManagerOptions#TASK_MANAGER_LOAD_BALANCE_MODE}. */
+    public enum TaskManagerLoadBalanceMode {
+        NONE,
+        SLOTS;
+
+        /**
+         * The method is mainly to load the {@link
+         * TaskManagerOptions#TASK_MANAGER_LOAD_BALANCE_MODE} from {@link Configuration}, which is
+         * compatible with {@link ClusterOptions#EVENLY_SPREAD_OUT_SLOTS_STRATEGY}.
+         */
+        public static TaskManagerLoadBalanceMode loadFromConfiguration(
+                @Nonnull Configuration configuration) {
+            Optional<TaskManagerLoadBalanceMode> taskManagerLoadBalanceModeOptional =
+                    configuration.getOptional(TaskManagerOptions.TASK_MANAGER_LOAD_BALANCE_MODE);
+            if (taskManagerLoadBalanceModeOptional.isPresent()) {
+                return taskManagerLoadBalanceModeOptional.get();
+            }
+            boolean evenlySpreadOutSlots =
+                    configuration.get(ClusterOptions.EVENLY_SPREAD_OUT_SLOTS_STRATEGY);
+
+            return evenlySpreadOutSlots
+                    ? TaskManagerLoadBalanceMode.SLOTS
+                    : TaskManagerOptions.TASK_MANAGER_LOAD_BALANCE_MODE.defaultValue();
+        }
+    }
 
     // ------------------------------------------------------------------------
 

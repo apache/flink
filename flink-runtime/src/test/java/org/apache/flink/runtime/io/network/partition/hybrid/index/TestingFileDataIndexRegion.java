@@ -39,6 +39,8 @@ public class TestingFileDataIndexRegion implements FileDataIndexRegionHelper.Reg
 
     private final Supplier<Long> getRegionFileOffsetSupplier;
 
+    private final Supplier<Long> getRegionFileEndOffsetSupplier;
+
     private final Supplier<Integer> getNumBuffersSupplier;
 
     private final Function<Integer, Boolean> containBufferFunction;
@@ -47,11 +49,13 @@ public class TestingFileDataIndexRegion implements FileDataIndexRegionHelper.Reg
             Supplier<Integer> getSizeSupplier,
             Supplier<Integer> getFirstBufferIndexSupplier,
             Supplier<Long> getRegionFileOffsetSupplier,
+            Supplier<Long> getRegionFileEndOffsetSupplier,
             Supplier<Integer> getNumBuffersSupplier,
             Function<Integer, Boolean> containBufferFunction) {
         this.getSizeSupplier = getSizeSupplier;
         this.getFirstBufferIndexSupplier = getFirstBufferIndexSupplier;
         this.getRegionFileOffsetSupplier = getRegionFileOffsetSupplier;
+        this.getRegionFileEndOffsetSupplier = getRegionFileEndOffsetSupplier;
         this.getNumBuffersSupplier = getNumBuffersSupplier;
         this.containBufferFunction = containBufferFunction;
     }
@@ -67,8 +71,13 @@ public class TestingFileDataIndexRegion implements FileDataIndexRegionHelper.Reg
     }
 
     @Override
-    public long getRegionFileOffset() {
+    public long getRegionStartOffset() {
         return getRegionFileOffsetSupplier.get();
+    }
+
+    @Override
+    public long getRegionEndOffset() {
+        return getRegionFileEndOffsetSupplier.get();
     }
 
     @Override
@@ -87,7 +96,7 @@ public class TestingFileDataIndexRegion implements FileDataIndexRegionHelper.Reg
         regionBuffer.clear();
         regionBuffer.putInt(region.getFirstBufferIndex());
         regionBuffer.putInt(region.getNumBuffers());
-        regionBuffer.putLong(region.getRegionFileOffset());
+        regionBuffer.putLong(region.getRegionStartOffset());
         regionBuffer.flip();
         BufferReaderWriterUtil.writeBuffers(channel, regionBuffer.capacity(), regionBuffer);
     }
@@ -130,6 +139,8 @@ public class TestingFileDataIndexRegion implements FileDataIndexRegionHelper.Reg
 
         private Supplier<Long> getRegionFileOffsetSupplier = () -> 0L;
 
+        private Supplier<Long> getRegionFileEndOffsetSupplier = () -> 0L;
+
         private Supplier<Integer> getNumBuffersSupplier = () -> 0;
 
         private Function<Integer, Boolean> containBufferFunction = bufferIndex -> false;
@@ -152,6 +163,12 @@ public class TestingFileDataIndexRegion implements FileDataIndexRegionHelper.Reg
             return this;
         }
 
+        public TestingFileDataIndexRegion.Builder setGetRegionFileEndOffsetSupplier(
+                Supplier<Long> getRegionFileEndOffsetSupplier) {
+            this.getRegionFileEndOffsetSupplier = getRegionFileEndOffsetSupplier;
+            return this;
+        }
+
         public TestingFileDataIndexRegion.Builder setGetNumBuffersSupplier(
                 Supplier<Integer> getNumBuffersSupplier) {
             this.getNumBuffersSupplier = getNumBuffersSupplier;
@@ -169,6 +186,7 @@ public class TestingFileDataIndexRegion implements FileDataIndexRegionHelper.Reg
                     getSizeSupplier,
                     getFirstBufferIndexSupplier,
                     getRegionFileOffsetSupplier,
+                    getRegionFileEndOffsetSupplier,
                     getNumBuffersSupplier,
                     containBufferFunction);
         }

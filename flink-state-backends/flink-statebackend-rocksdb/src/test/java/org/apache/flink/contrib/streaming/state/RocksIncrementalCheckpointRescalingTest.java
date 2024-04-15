@@ -18,6 +18,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -41,17 +42,29 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 /** Tests to guard rescaling from checkpoint. */
+@RunWith(Parameterized.class)
 public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
 
     @Rule public TemporaryFolder rootFolder = new TemporaryFolder();
 
+    @Parameterized.Parameters(name = "useIngestDbRestoreMode: {0}")
+    public static Collection<Boolean> parameters() {
+        return Arrays.asList(false, true);
+    }
+
+    @Parameterized.Parameter public boolean useIngestDbRestoreMode;
+
     private final int maxParallelism = 10;
 
-    private KeySelector<String, String> keySelector = new TestKeySelector();
+    private final KeySelector<String, String> keySelector = new TestKeySelector();
 
     private String[] records;
 
@@ -419,7 +432,12 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
     }
 
     private StateBackend getStateBackend() throws Exception {
-        return new RocksDBStateBackend("file://" + rootFolder.newFolder().getAbsolutePath(), true);
+        RocksDBStateBackend rocksDBStateBackend =
+                new RocksDBStateBackend("file://" + rootFolder.newFolder().getAbsolutePath(), true);
+        Configuration configuration = new Configuration();
+        configuration.setBoolean(
+                RocksDBConfigurableOptions.USE_INGEST_DB_RESTORE_MODE, useIngestDbRestoreMode);
+        return rocksDBStateBackend.configure(configuration, getClass().getClassLoader());
     }
 
     /** A simple keyed function for tests. */
@@ -428,8 +446,8 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
         private ValueState<Integer> counterState;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             counterState =
                     this.getRuntimeContext()
                             .getState(new ValueStateDescriptor<>("counter", Integer.class));

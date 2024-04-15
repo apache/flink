@@ -85,5 +85,5 @@ class CheckpointingMode(Enum):
     def _to_j_checkpointing_mode(self):
         gateway = get_gateway()
         JCheckpointingMode = \
-            gateway.jvm.org.apache.flink.streaming.api.CheckpointingMode
+            gateway.jvm.org.apache.flink.core.execution.CheckpointingMode
         return getattr(JCheckpointingMode, self.name)

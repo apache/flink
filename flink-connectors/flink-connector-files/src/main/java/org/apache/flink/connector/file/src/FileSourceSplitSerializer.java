@@ -64,7 +64,7 @@ public final class FileSourceSplitSerializer implements SimpleVersionedSerialize
         final DataOutputSerializer out = SERIALIZER_CACHE.get();
 
         out.writeUTF(split.splitId());
-        split.path().write(out);
+        Path.serializeToDataOutputView(split.path(), out);
         out.writeLong(split.offset());
         out.writeLong(split.length());
         out.writeLong(split.fileModificationTime());
@@ -100,8 +100,8 @@ public final class FileSourceSplitSerializer implements SimpleVersionedSerialize
         final DataInputDeserializer in = new DataInputDeserializer(serialized);
 
         final String id = in.readUTF();
-        final Path path = new Path();
-        path.read(in);
+        Path result = Path.deserializeFromDataInputView(in);
+        Path path = result == null ? new Path() : result;
         final long offset = in.readLong();
         final long len = in.readLong();
         final long modificationTime = in.readLong();

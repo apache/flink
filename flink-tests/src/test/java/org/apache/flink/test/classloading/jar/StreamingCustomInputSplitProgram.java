@@ -25,13 +25,13 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 
 import java.io.Serializable;
 import java.time.Duration;
@@ -46,7 +46,7 @@ public class StreamingCustomInputSplitProgram {
     public static void main(String[] args) throws Exception {
         Configuration config = new Configuration();
 
-        config.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(5));
+        config.set(RpcOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(5));
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -59,7 +59,7 @@ public class StreamingCustomInputSplitProgram {
                                 return new Tuple2<Integer, Double>(value, value * 0.5);
                             }
                         })
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         env.execute();
     }

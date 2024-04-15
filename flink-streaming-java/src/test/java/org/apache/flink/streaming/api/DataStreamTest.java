@@ -57,8 +57,8 @@ import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -83,13 +83,8 @@ import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.TestLogger;
 
-import org.hamcrest.core.StringStartsWith;
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
@@ -97,26 +92,20 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.List;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for {@link DataStream}. */
 @SuppressWarnings("serial")
-public class DataStreamTest extends TestLogger {
-
-    @Rule public ExpectedException expectedException = ExpectedException.none();
+class DataStreamTest {
 
     /** Ensure that WatermarkStrategy is easy to use in the API, without superfluous generics. */
     @Test
-    public void testErgonomicWatermarkStrategy() {
+    void testErgonomicWatermarkStrategy() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<String> input = env.fromElements("bonjour");
+        DataStream<String> input = env.fromData("bonjour");
 
         // as soon as you have a chain of methods the first call needs a generic
         input.assignTimestampsAndWatermarks(
@@ -135,12 +124,12 @@ public class DataStreamTest extends TestLogger {
      * @throws Exception
      */
     @Test
-    public void testUnion() throws Exception {
+    void testUnion() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(4);
 
         DataStream<Long> input1 =
-                env.generateSequence(0, 0)
+                env.fromSequence(0, 0)
                         .map(
                                 new MapFunction<Long, Long>() {
                                     @Override
@@ -160,7 +149,7 @@ public class DataStreamTest extends TestLogger {
                                 });
 
         DataStream<Long> input6 =
-                env.generateSequence(0, 0)
+                env.fromSequence(0, 0)
                         .map(
                                 new MapFunction<Long, Long>() {
                                     @Override
@@ -181,7 +170,7 @@ public class DataStreamTest extends TestLogger {
                                 });
 
         DataStream<Long> input2 =
-                env.generateSequence(0, 0)
+                env.fromSequence(0, 0)
                         .map(
                                 new MapFunction<Long, Long>() {
                                     @Override
@@ -192,7 +181,7 @@ public class DataStreamTest extends TestLogger {
                         .setParallelism(4);
 
         DataStream<Long> input3 =
-                env.generateSequence(0, 0)
+                env.fromSequence(0, 0)
                         .map(
                                 new MapFunction<Long, Long>() {
                                     @Override
@@ -214,7 +203,7 @@ public class DataStreamTest extends TestLogger {
                         .setParallelism(4);
 
         DataStream<Long> input4 =
-                env.generateSequence(0, 0)
+                env.fromSequence(0, 0)
                         .map(
                                 new MapFunction<Long, Long>() {
                                     @Override
@@ -225,7 +214,7 @@ public class DataStreamTest extends TestLogger {
                         .setParallelism(2);
 
         DataStream<Long> input5 =
-                env.generateSequence(0, 0)
+                env.fromSequence(0, 0)
                         .map(
                                 new MapFunction<Long, Long>() {
                                     @Override
@@ -250,15 +239,14 @@ public class DataStreamTest extends TestLogger {
         StreamGraph streamGraph = getStreamGraph(env);
 
         // verify self union
-        assertTrue(streamGraph.getStreamNode(selfUnion.getId()).getInEdges().size() == 2);
+        assertThat(streamGraph.getStreamNode(selfUnion.getId()).getInEdges()).hasSize(2);
         for (StreamEdge edge : streamGraph.getStreamNode(selfUnion.getId()).getInEdges()) {
-            assertTrue(edge.getPartitioner() instanceof ForwardPartitioner);
+            assertThat(edge.getPartitioner()).isInstanceOf(ForwardPartitioner.class);
         }
 
         // verify self union with different partitioners
-        assertTrue(
-                streamGraph.getStreamNode(selfUnionDifferentPartition.getId()).getInEdges().size()
-                        == 2);
+        assertThat(streamGraph.getStreamNode(selfUnionDifferentPartition.getId()).getInEdges())
+                .hasSize(2);
         boolean hasForward = false;
         boolean hasBroadcast = false;
         for (StreamEdge edge :
@@ -270,33 +258,31 @@ public class DataStreamTest extends TestLogger {
                 hasBroadcast = true;
             }
         }
-        assertTrue(hasForward && hasBroadcast);
+        assertThat(hasForward && hasBroadcast).isTrue();
 
         // verify union of streams with differing parallelism
-        assertTrue(
-                streamGraph.getStreamNode(unionDifferingParallelism.getId()).getInEdges().size()
-                        == 2);
+        assertThat(streamGraph.getStreamNode(unionDifferingParallelism.getId()).getInEdges())
+                .hasSize(2);
         for (StreamEdge edge :
                 streamGraph.getStreamNode(unionDifferingParallelism.getId()).getInEdges()) {
             if (edge.getSourceId() == input2.getId()) {
-                assertTrue(edge.getPartitioner() instanceof ForwardPartitioner);
+                assertThat(edge.getPartitioner()).isInstanceOf(ForwardPartitioner.class);
             } else if (edge.getSourceId() == input3.getId()) {
-                assertTrue(edge.getPartitioner() instanceof RebalancePartitioner);
+                assertThat(edge.getPartitioner()).isInstanceOf(RebalancePartitioner.class);
             } else {
                 fail("Wrong input edge.");
             }
         }
 
         // verify union of streams with differing partitionings
-        assertTrue(
-                streamGraph.getStreamNode(unionDifferingPartitioning.getId()).getInEdges().size()
-                        == 2);
+        assertThat(streamGraph.getStreamNode(unionDifferingPartitioning.getId()).getInEdges())
+                .hasSize(2);
         for (StreamEdge edge :
                 streamGraph.getStreamNode(unionDifferingPartitioning.getId()).getInEdges()) {
             if (edge.getSourceId() == input4.getId()) {
-                assertTrue(edge.getPartitioner() instanceof BroadcastPartitioner);
+                assertThat(edge.getPartitioner()).isInstanceOf(BroadcastPartitioner.class);
             } else if (edge.getSourceId() == input5.getId()) {
-                assertTrue(edge.getPartitioner() instanceof ForwardPartitioner);
+                assertThat(edge.getPartitioner()).isInstanceOf(ForwardPartitioner.class);
             } else {
                 fail("Wrong input edge.");
             }
@@ -309,11 +295,11 @@ public class DataStreamTest extends TestLogger {
      * @throws Exception
      */
     @Test
-    public void testNaming() throws Exception {
+    void testNaming() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Long> dataStream1 =
-                env.generateSequence(0, 0)
+                env.fromSequence(0, 0)
                         .name("testSource1")
                         .map(
                                 new MapFunction<Long, Long>() {
@@ -325,7 +311,7 @@ public class DataStreamTest extends TestLogger {
                         .name("testMap");
 
         DataStream<Long> dataStream2 =
-                env.generateSequence(0, 0)
+                env.fromSequence(0, 0)
                         .name("testSource2")
                         .map(
                                 new MapFunction<Long, Long>() {
@@ -367,12 +353,12 @@ public class DataStreamTest extends TestLogger {
         // test functionality through the operator names in the execution plan
         String plan = env.getExecutionPlan();
 
-        assertTrue(plan.contains("testSource1"));
-        assertTrue(plan.contains("testSource2"));
-        assertTrue(plan.contains("testMap"));
-        assertTrue(plan.contains("testMap"));
-        assertTrue(plan.contains("testCoFlatMap"));
-        assertTrue(plan.contains("testWindowReduce"));
+        assertThat(plan).contains("testSource1");
+        assertThat(plan).contains("testSource2");
+        assertThat(plan).contains("testMap");
+        assertThat(plan).contains("testMap");
+        assertThat(plan).contains("testCoFlatMap");
+        assertThat(plan).contains("testWindowReduce");
     }
 
     /**
@@ -380,11 +366,11 @@ public class DataStreamTest extends TestLogger {
      * result in different and correct topologies. Does the some for the {@link ConnectedStreams}.
      */
     @Test
-    public void testPartitioning() {
+    void testPartitioning() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Tuple2<Long, Long>> src1 = env.fromElements(new Tuple2<>(0L, 0L));
-        DataStream<Tuple2<Long, Long>> src2 = env.fromElements(new Tuple2<>(0L, 0L));
+        DataStream<Tuple2<Long, Long>> src1 = env.fromData(new Tuple2<>(0L, 0L));
+        DataStream<Tuple2<Long, Long>> src2 = env.fromData(new Tuple2<>(0L, 0L));
         ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connected = src1.connect(src2);
 
         // Testing DataStream grouping
@@ -398,15 +384,19 @@ public class DataStreamTest extends TestLogger {
         int id3 = createDownStreamId(group3);
         int id4 = createDownStreamId(group4);
 
-        assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), id1)));
-        assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), id2)));
-        assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), id3)));
-        assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), id4)));
+        assertThat(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), id1)))
+                .isTrue();
+        assertThat(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), id2)))
+                .isTrue();
+        assertThat(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), id3)))
+                .isTrue();
+        assertThat(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), id4)))
+                .isTrue();
 
-        assertTrue(isKeyed(group1));
-        assertTrue(isKeyed(group2));
-        assertTrue(isKeyed(group3));
-        assertTrue(isKeyed(group4));
+        assertThat(isKeyed(group1)).isTrue();
+        assertThat(isKeyed(group2)).isTrue();
+        assertThat(isKeyed(group3)).isTrue();
+        assertThat(isKeyed(group4)).isTrue();
 
         // Testing DataStream partitioning
         DataStream<Tuple2<Long, Long>> partition1 = src1.keyBy(0);
@@ -419,15 +409,19 @@ public class DataStreamTest extends TestLogger {
         int pid3 = createDownStreamId(partition3);
         int pid4 = createDownStreamId(partition4);
 
-        assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), pid1)));
-        assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), pid2)));
-        assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), pid3)));
-        assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), pid4)));
+        assertThat(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), pid1)))
+                .isTrue();
+        assertThat(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), pid2)))
+                .isTrue();
+        assertThat(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), pid3)))
+                .isTrue();
+        assertThat(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), pid4)))
+                .isTrue();
 
-        assertTrue(isKeyed(partition1));
-        assertTrue(isKeyed(partition3));
-        assertTrue(isKeyed(partition2));
-        assertTrue(isKeyed(partition4));
+        assertThat(isKeyed(partition1)).isTrue();
+        assertThat(isKeyed(partition3)).isTrue();
+        assertThat(isKeyed(partition2)).isTrue();
+        assertThat(isKeyed(partition4)).isTrue();
 
         // Testing DataStream custom partitioning
         Partitioner<Long> longPartitioner =
@@ -448,16 +442,22 @@ public class DataStreamTest extends TestLogger {
         int cid2 = createDownStreamId(customPartition3);
         int cid3 = createDownStreamId(customPartition4);
 
-        assertTrue(
-                isCustomPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), cid1)));
-        assertTrue(
-                isCustomPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), cid2)));
-        assertTrue(
-                isCustomPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), cid3)));
+        assertThat(
+                        isCustomPartitioned(
+                                getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), cid1)))
+                .isTrue();
+        assertThat(
+                        isCustomPartitioned(
+                                getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), cid2)))
+                .isTrue();
+        assertThat(
+                        isCustomPartitioned(
+                                getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), cid3)))
+                .isTrue();
 
-        assertFalse(isKeyed(customPartition1));
-        assertFalse(isKeyed(customPartition3));
-        assertFalse(isKeyed(customPartition4));
+        assertThat(isKeyed(customPartition1)).isFalse();
+        assertThat(isKeyed(customPartition3)).isFalse();
+        assertThat(isKeyed(customPartition4)).isFalse();
 
         // Testing ConnectedStreams grouping
         ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connectedGroup1 =
@@ -480,46 +480,66 @@ public class DataStreamTest extends TestLogger {
                 connected.keyBy(new FirstSelector(), new FirstSelector());
         Integer downStreamId5 = createDownStreamId(connectedGroup5);
 
-        assertTrue(
-                isPartitioned(
-                        getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), downStreamId1)));
-        assertTrue(
-                isPartitioned(
-                        getStreamGraph(env).getStreamEdgesOrThrow(src2.getId(), downStreamId1)));
+        assertThat(
+                        isPartitioned(
+                                getStreamGraph(env)
+                                        .getStreamEdgesOrThrow(src1.getId(), downStreamId1)))
+                .isTrue();
+        assertThat(
+                        isPartitioned(
+                                getStreamGraph(env)
+                                        .getStreamEdgesOrThrow(src2.getId(), downStreamId1)))
+                .isTrue();
 
-        assertTrue(
-                isPartitioned(
-                        getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), downStreamId2)));
-        assertTrue(
-                isPartitioned(
-                        getStreamGraph(env).getStreamEdgesOrThrow(src2.getId(), downStreamId2)));
+        assertThat(
+                        isPartitioned(
+                                getStreamGraph(env)
+                                        .getStreamEdgesOrThrow(src1.getId(), downStreamId2)))
+                .isTrue();
+        assertThat(
+                        isPartitioned(
+                                getStreamGraph(env)
+                                        .getStreamEdgesOrThrow(src2.getId(), downStreamId2)))
+                .isTrue();
 
-        assertTrue(
-                isPartitioned(
-                        getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), downStreamId3)));
-        assertTrue(
-                isPartitioned(
-                        getStreamGraph(env).getStreamEdgesOrThrow(src2.getId(), downStreamId3)));
+        assertThat(
+                        isPartitioned(
+                                getStreamGraph(env)
+                                        .getStreamEdgesOrThrow(src1.getId(), downStreamId3)))
+                .isTrue();
+        assertThat(
+                        isPartitioned(
+                                getStreamGraph(env)
+                                        .getStreamEdgesOrThrow(src2.getId(), downStreamId3)))
+                .isTrue();
 
-        assertTrue(
-                isPartitioned(
-                        getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), downStreamId4)));
-        assertTrue(
-                isPartitioned(
-                        getStreamGraph(env).getStreamEdgesOrThrow(src2.getId(), downStreamId4)));
+        assertThat(
+                        isPartitioned(
+                                getStreamGraph(env)
+                                        .getStreamEdgesOrThrow(src1.getId(), downStreamId4)))
+                .isTrue();
+        assertThat(
+                        isPartitioned(
+                                getStreamGraph(env)
+                                        .getStreamEdgesOrThrow(src2.getId(), downStreamId4)))
+                .isTrue();
 
-        assertTrue(
-                isPartitioned(
-                        getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), downStreamId5)));
-        assertTrue(
-                isPartitioned(
-                        getStreamGraph(env).getStreamEdgesOrThrow(src2.getId(), downStreamId5)));
+        assertThat(
+                        isPartitioned(
+                                getStreamGraph(env)
+                                        .getStreamEdgesOrThrow(src1.getId(), downStreamId5)))
+                .isTrue();
+        assertThat(
+                        isPartitioned(
+                                getStreamGraph(env)
+                                        .getStreamEdgesOrThrow(src2.getId(), downStreamId5)))
+                .isTrue();
 
-        assertTrue(isKeyed(connectedGroup1));
-        assertTrue(isKeyed(connectedGroup2));
-        assertTrue(isKeyed(connectedGroup3));
-        assertTrue(isKeyed(connectedGroup4));
-        assertTrue(isKeyed(connectedGroup5));
+        assertThat(isKeyed(connectedGroup1)).isTrue();
+        assertThat(isKeyed(connectedGroup2)).isTrue();
+        assertThat(isKeyed(connectedGroup3)).isTrue();
+        assertThat(isKeyed(connectedGroup4)).isTrue();
+        assertThat(isKeyed(connectedGroup5)).isTrue();
 
         // Testing ConnectedStreams partitioning
         ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connectedPartition1 =
@@ -542,64 +562,74 @@ public class DataStreamTest extends TestLogger {
                 connected.keyBy(new FirstSelector(), new FirstSelector());
         Integer connectDownStreamId5 = createDownStreamId(connectedPartition5);
 
-        assertTrue(
-                isPartitioned(
-                        getStreamGraph(env)
-                                .getStreamEdgesOrThrow(src1.getId(), connectDownStreamId1)));
-        assertTrue(
-                isPartitioned(
-                        getStreamGraph(env)
-                                .getStreamEdgesOrThrow(src2.getId(), connectDownStreamId1)));
+        assertThat(
+                        isPartitioned(
+                                getStreamGraph(env)
+                                        .getStreamEdgesOrThrow(src1.getId(), connectDownStreamId1)))
+                .isTrue();
+        assertThat(
+                        isPartitioned(
+                                getStreamGraph(env)
+                                        .getStreamEdgesOrThrow(src2.getId(), connectDownStreamId1)))
+                .isTrue();
 
-        assertTrue(
-                isPartitioned(
-                        getStreamGraph(env)
-                                .getStreamEdgesOrThrow(src1.getId(), connectDownStreamId2)));
-        assertTrue(
-                isPartitioned(
-                        getStreamGraph(env)
-                                .getStreamEdgesOrThrow(src2.getId(), connectDownStreamId2)));
+        assertThat(
+                        isPartitioned(
+                                getStreamGraph(env)
+                                        .getStreamEdgesOrThrow(src1.getId(), connectDownStreamId2)))
+                .isTrue();
+        assertThat(
+                        isPartitioned(
+                                getStreamGraph(env)
+                                        .getStreamEdgesOrThrow(src2.getId(), connectDownStreamId2)))
+                .isTrue();
 
-        assertTrue(
-                isPartitioned(
-                        getStreamGraph(env)
-                                .getStreamEdgesOrThrow(src1.getId(), connectDownStreamId3)));
-        assertTrue(
-                isPartitioned(
-                        getStreamGraph(env)
-                                .getStreamEdgesOrThrow(src2.getId(), connectDownStreamId3)));
+        assertThat(
+                        isPartitioned(
+                                getStreamGraph(env)
+                                        .getStreamEdgesOrThrow(src1.getId(), connectDownStreamId3)))
+                .isTrue();
+        assertThat(
+                        isPartitioned(
+                                getStreamGraph(env)
+                                        .getStreamEdgesOrThrow(src2.getId(), connectDownStreamId3)))
+                .isTrue();
 
-        assertTrue(
-                isPartitioned(
-                        getStreamGraph(env)
-                                .getStreamEdgesOrThrow(src1.getId(), connectDownStreamId4)));
-        assertTrue(
-                isPartitioned(
-                        getStreamGraph(env)
-                                .getStreamEdgesOrThrow(src2.getId(), connectDownStreamId4)));
+        assertThat(
+                        isPartitioned(
+                                getStreamGraph(env)
+                                        .getStreamEdgesOrThrow(src1.getId(), connectDownStreamId4)))
+                .isTrue();
+        assertThat(
+                        isPartitioned(
+                                getStreamGraph(env)
+                                        .getStreamEdgesOrThrow(src2.getId(), connectDownStreamId4)))
+                .isTrue();
 
-        assertTrue(
-                isPartitioned(
-                        getStreamGraph(env)
-                                .getStreamEdgesOrThrow(src1.getId(), connectDownStreamId5)));
-        assertTrue(
-                isPartitioned(
-                        getStreamGraph(env)
-                                .getStreamEdgesOrThrow(src2.getId(), connectDownStreamId5)));
+        assertThat(
+                        isPartitioned(
+                                getStreamGraph(env)
+                                        .getStreamEdgesOrThrow(src1.getId(), connectDownStreamId5)))
+                .isTrue();
+        assertThat(
+                        isPartitioned(
+                                getStreamGraph(env)
+                                        .getStreamEdgesOrThrow(src2.getId(), connectDownStreamId5)))
+                .isTrue();
 
-        assertTrue(isKeyed(connectedPartition1));
-        assertTrue(isKeyed(connectedPartition2));
-        assertTrue(isKeyed(connectedPartition3));
-        assertTrue(isKeyed(connectedPartition4));
-        assertTrue(isKeyed(connectedPartition5));
+        assertThat(isKeyed(connectedPartition1)).isTrue();
+        assertThat(isKeyed(connectedPartition2)).isTrue();
+        assertThat(isKeyed(connectedPartition3)).isTrue();
+        assertThat(isKeyed(connectedPartition4)).isTrue();
+        assertThat(isKeyed(connectedPartition5)).isTrue();
     }
 
     /** Tests whether parallelism gets set. */
     @Test
-    public void testParallelism() {
+    void testParallelism() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStreamSource<Tuple2<Long, Long>> src = env.fromElements(new Tuple2<>(0L, 0L));
+        DataStreamSource<Tuple2<Long, Long>> src = env.fromData(new Tuple2<>(0L, 0L));
         env.setParallelism(10);
 
         SingleOutputStreamOperator<Long> map =
@@ -623,7 +653,7 @@ public class DataStreamTest extends TestLogger {
                                     }
                                 });
 
-        windowed.addSink(new DiscardingSink<Long>());
+        windowed.sinkTo(new DiscardingSink<Long>());
 
         DataStreamSink<Long> sink =
                 map.addSink(
@@ -634,57 +664,52 @@ public class DataStreamTest extends TestLogger {
                             public void invoke(Long value) throws Exception {}
                         });
 
-        assertEquals(1, getStreamGraph(env).getStreamNode(src.getId()).getParallelism());
-        assertEquals(10, getStreamGraph(env).getStreamNode(map.getId()).getParallelism());
-        assertEquals(1, getStreamGraph(env).getStreamNode(windowed.getId()).getParallelism());
-        assertEquals(
-                10,
-                getStreamGraph(env)
-                        .getStreamNode(sink.getTransformation().getId())
-                        .getParallelism());
+        assertThat(getStreamGraph(env).getStreamNode(src.getId()).getParallelism()).isOne();
+        assertThat(getStreamGraph(env).getStreamNode(map.getId()).getParallelism()).isEqualTo(10);
+        assertThat(getStreamGraph(env).getStreamNode(windowed.getId()).getParallelism()).isOne();
+        assertThat(
+                        getStreamGraph(env)
+                                .getStreamNode(sink.getTransformation().getId())
+                                .getParallelism())
+                .isEqualTo(10);
 
         env.setParallelism(7);
 
         // Some parts, such as windowing rely on the fact that previous operators have a parallelism
         // set when instantiating the Discretizer. This would break if we dynamically changed
         // the parallelism of operations when changing the setting on the Execution Environment.
-        assertEquals(1, getStreamGraph(env).getStreamNode(src.getId()).getParallelism());
-        assertEquals(10, getStreamGraph(env).getStreamNode(map.getId()).getParallelism());
-        assertEquals(1, getStreamGraph(env).getStreamNode(windowed.getId()).getParallelism());
-        assertEquals(
-                10,
-                getStreamGraph(env)
-                        .getStreamNode(sink.getTransformation().getId())
-                        .getParallelism());
+        assertThat(getStreamGraph(env).getStreamNode(src.getId()).getParallelism()).isOne();
+        assertThat(getStreamGraph(env).getStreamNode(map.getId()).getParallelism()).isEqualTo(10);
+        assertThat(getStreamGraph(env).getStreamNode(windowed.getId()).getParallelism()).isOne();
+        assertThat(
+                        getStreamGraph(env)
+                                .getStreamNode(sink.getTransformation().getId())
+                                .getParallelism())
+                .isEqualTo(10);
 
-        try {
-            src.setParallelism(3);
-            fail();
-        } catch (IllegalArgumentException success) {
-            // do nothing
-        }
-
-        DataStreamSource<Long> parallelSource = env.generateSequence(0, 0);
-        parallelSource.addSink(new DiscardingSink<Long>());
-        assertEquals(7, getStreamGraph(env).getStreamNode(parallelSource.getId()).getParallelism());
+        DataStreamSource<Long> parallelSource = env.fromSequence(0, 0);
+        parallelSource.sinkTo(new DiscardingSink<Long>());
+        assertThat(getStreamGraph(env).getStreamNode(parallelSource.getId()).getParallelism())
+                .isEqualTo(7);
 
         parallelSource.setParallelism(3);
-        assertEquals(3, getStreamGraph(env).getStreamNode(parallelSource.getId()).getParallelism());
+        assertThat(getStreamGraph(env).getStreamNode(parallelSource.getId()).getParallelism())
+                .isEqualTo(3);
 
         map.setParallelism(2);
-        assertEquals(2, getStreamGraph(env).getStreamNode(map.getId()).getParallelism());
+        assertThat(getStreamGraph(env).getStreamNode(map.getId()).getParallelism()).isEqualTo(2);
 
         sink.setParallelism(4);
-        assertEquals(
-                4,
-                getStreamGraph(env)
-                        .getStreamNode(sink.getTransformation().getId())
-                        .getParallelism());
+        assertThat(
+                        getStreamGraph(env)
+                                .getStreamNode(sink.getTransformation().getId())
+                                .getParallelism())
+                .isEqualTo(4);
     }
 
     /** Tests whether resources get set. */
     @Test
-    public void testResources() throws Exception {
+    void testResources() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         ResourceSpec minResource1 = ResourceSpec.newBuilder(1.0, 100).build();
@@ -718,7 +743,7 @@ public class DataStreamTest extends TestLogger {
                         "setResources", ResourceSpec.class, ResourceSpec.class);
         sinkMethod.setAccessible(true);
 
-        DataStream<Long> source1 = env.generateSequence(0, 0);
+        DataStream<Long> source1 = env.fromSequence(0, 0);
         opMethod.invoke(source1, minResource1, preferredResource1);
 
         DataStream<Long> map1 =
@@ -731,7 +756,7 @@ public class DataStreamTest extends TestLogger {
                         });
         opMethod.invoke(map1, minResource2, preferredResource2);
 
-        DataStream<Long> source2 = env.generateSequence(0, 0);
+        DataStream<Long> source2 = env.fromSequence(0, 0);
         opMethod.invoke(source2, minResource3, preferredResource3);
 
         DataStream<Long> map2 =
@@ -776,62 +801,54 @@ public class DataStreamTest extends TestLogger {
         DataStreamSink<Long> sink = windowed.print();
         sinkMethod.invoke(sink, minResource7, preferredResource7);
 
-        assertEquals(
-                minResource1, getStreamGraph(env).getStreamNode(source1.getId()).getMinResources());
-        assertEquals(
-                preferredResource1,
-                getStreamGraph(env).getStreamNode(source1.getId()).getPreferredResources());
+        assertThat(getStreamGraph(env).getStreamNode(source1.getId()).getMinResources())
+                .isEqualTo(minResource1);
+        assertThat(getStreamGraph(env).getStreamNode(source1.getId()).getPreferredResources())
+                .isEqualTo(preferredResource1);
 
-        assertEquals(
-                minResource2, getStreamGraph(env).getStreamNode(map1.getId()).getMinResources());
-        assertEquals(
-                preferredResource2,
-                getStreamGraph(env).getStreamNode(map1.getId()).getPreferredResources());
+        assertThat(getStreamGraph(env).getStreamNode(map1.getId()).getMinResources())
+                .isEqualTo(minResource2);
+        assertThat(getStreamGraph(env).getStreamNode(map1.getId()).getPreferredResources())
+                .isEqualTo(preferredResource2);
 
-        assertEquals(
-                minResource3, getStreamGraph(env).getStreamNode(source2.getId()).getMinResources());
-        assertEquals(
-                preferredResource3,
-                getStreamGraph(env).getStreamNode(source2.getId()).getPreferredResources());
+        assertThat(getStreamGraph(env).getStreamNode(source2.getId()).getMinResources())
+                .isEqualTo(minResource3);
+        assertThat(getStreamGraph(env).getStreamNode(source2.getId()).getPreferredResources())
+                .isEqualTo(preferredResource3);
 
-        assertEquals(
-                minResource4, getStreamGraph(env).getStreamNode(map2.getId()).getMinResources());
-        assertEquals(
-                preferredResource4,
-                getStreamGraph(env).getStreamNode(map2.getId()).getPreferredResources());
+        assertThat(getStreamGraph(env).getStreamNode(map2.getId()).getMinResources())
+                .isEqualTo(minResource4);
+        assertThat(getStreamGraph(env).getStreamNode(map2.getId()).getPreferredResources())
+                .isEqualTo(preferredResource4);
 
-        assertEquals(
-                minResource5,
-                getStreamGraph(env).getStreamNode(connected.getId()).getMinResources());
-        assertEquals(
-                preferredResource5,
-                getStreamGraph(env).getStreamNode(connected.getId()).getPreferredResources());
+        assertThat(getStreamGraph(env).getStreamNode(connected.getId()).getMinResources())
+                .isEqualTo(minResource5);
+        assertThat(getStreamGraph(env).getStreamNode(connected.getId()).getPreferredResources())
+                .isEqualTo(preferredResource5);
 
-        assertEquals(
-                minResource6,
-                getStreamGraph(env).getStreamNode(windowed.getId()).getMinResources());
-        assertEquals(
-                preferredResource6,
-                getStreamGraph(env).getStreamNode(windowed.getId()).getPreferredResources());
+        assertThat(getStreamGraph(env).getStreamNode(windowed.getId()).getMinResources())
+                .isEqualTo(minResource6);
+        assertThat(getStreamGraph(env).getStreamNode(windowed.getId()).getPreferredResources())
+                .isEqualTo(preferredResource6);
 
-        assertEquals(
-                minResource7,
-                getStreamGraph(env)
-                        .getStreamNode(sink.getTransformation().getId())
-                        .getMinResources());
-        assertEquals(
-                preferredResource7,
-                getStreamGraph(env)
-                        .getStreamNode(sink.getTransformation().getId())
-                        .getPreferredResources());
+        assertThat(
+                        getStreamGraph(env)
+                                .getStreamNode(sink.getTransformation().getId())
+                                .getMinResources())
+                .isEqualTo(minResource7);
+        assertThat(
+                        getStreamGraph(env)
+                                .getStreamNode(sink.getTransformation().getId())
+                                .getPreferredResources())
+                .isEqualTo(preferredResource7);
     }
 
     @Test
-    public void testTypeInfo() {
+    void testTypeInfo() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Long> src1 = env.generateSequence(0, 0);
-        assertEquals(TypeExtractor.getForClass(Long.class), src1.getType());
+        DataStream<Long> src1 = env.fromSequence(0, 0);
+        assertThat(src1.getType()).isEqualTo(TypeExtractor.getForClass(Long.class));
 
         DataStream<Tuple2<Integer, String>> map =
                 src1.map(
@@ -842,7 +859,7 @@ public class DataStreamTest extends TestLogger {
                             }
                         });
 
-        assertEquals(TypeExtractor.getForObject(new Tuple2<>(0, "")), map.getType());
+        assertThat(map.getType()).isEqualTo(TypeExtractor.getForObject(new Tuple2<>(0, "")));
 
         DataStream<String> window =
                 map.windowAll(GlobalWindows.create())
@@ -858,7 +875,7 @@ public class DataStreamTest extends TestLogger {
                                             throws Exception {}
                                 });
 
-        assertEquals(TypeExtractor.getForClass(String.class), window.getType());
+        assertThat(window.getType()).isEqualTo(TypeExtractor.getForClass(String.class));
 
         DataStream<CustomPOJO> flatten =
                 window.windowAll(GlobalWindows.create())
@@ -888,7 +905,7 @@ public class DataStreamTest extends TestLogger {
                                     }
                                 });
 
-        assertEquals(TypeExtractor.getForClass(CustomPOJO.class), flatten.getType());
+        assertThat(flatten.getType()).isEqualTo(TypeExtractor.getForClass(CustomPOJO.class));
     }
 
     /**
@@ -897,9 +914,9 @@ public class DataStreamTest extends TestLogger {
      */
     @Test
     @Deprecated
-    public void testKeyedStreamProcessTranslation() {
+    void testKeyedStreamProcessTranslation() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        DataStreamSource<Long> src = env.generateSequence(0, 0);
+        DataStreamSource<Long> src = env.fromSequence(0, 0);
 
         ProcessFunction<Long, Integer> processFunction =
                 new ProcessFunction<Long, Integer>() {
@@ -921,10 +938,11 @@ public class DataStreamTest extends TestLogger {
         DataStream<Integer> processed =
                 src.keyBy(new IdentityKeySelector<Long>()).process(processFunction);
 
-        processed.addSink(new DiscardingSink<Integer>());
+        processed.sinkTo(new DiscardingSink<Integer>());
 
-        assertEquals(processFunction, getFunctionForDataStream(processed));
-        assertTrue(getOperatorForDataStream(processed) instanceof LegacyKeyedProcessOperator);
+        assertThat(getFunctionForDataStream(processed)).isEqualTo(processFunction);
+        assertThat(getOperatorForDataStream(processed))
+                .isInstanceOf(LegacyKeyedProcessOperator.class);
     }
 
     /**
@@ -932,9 +950,9 @@ public class DataStreamTest extends TestLogger {
      * to an operator.
      */
     @Test
-    public void testKeyedStreamKeyedProcessTranslation() {
+    void testKeyedStreamKeyedProcessTranslation() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        DataStreamSource<Long> src = env.generateSequence(0, 0);
+        DataStreamSource<Long> src = env.fromSequence(0, 0);
 
         KeyedProcessFunction<Long, Long, Integer> keyedProcessFunction =
                 new KeyedProcessFunction<Long, Long, Integer>() {
@@ -956,10 +974,10 @@ public class DataStreamTest extends TestLogger {
         DataStream<Integer> processed =
                 src.keyBy(new IdentityKeySelector<Long>()).process(keyedProcessFunction);
 
-        processed.addSink(new DiscardingSink<Integer>());
+        processed.sinkTo(new DiscardingSink<Integer>());
 
-        assertEquals(keyedProcessFunction, getFunctionForDataStream(processed));
-        assertTrue(getOperatorForDataStream(processed) instanceof KeyedProcessOperator);
+        assertThat(getFunctionForDataStream(processed)).isEqualTo(keyedProcessFunction);
+        assertThat(getOperatorForDataStream(processed)).isInstanceOf(KeyedProcessOperator.class);
     }
 
     /**
@@ -967,9 +985,9 @@ public class DataStreamTest extends TestLogger {
      * operator.
      */
     @Test
-    public void testProcessTranslation() {
+    void testProcessTranslation() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        DataStreamSource<Long> src = env.generateSequence(0, 0);
+        DataStreamSource<Long> src = env.fromSequence(0, 0);
 
         ProcessFunction<Long, Integer> processFunction =
                 new ProcessFunction<Long, Integer>() {
@@ -990,10 +1008,10 @@ public class DataStreamTest extends TestLogger {
 
         DataStream<Integer> processed = src.process(processFunction);
 
-        processed.addSink(new DiscardingSink<Integer>());
+        processed.sinkTo(new DiscardingSink<Integer>());
 
-        assertEquals(processFunction, getFunctionForDataStream(processed));
-        assertTrue(getOperatorForDataStream(processed) instanceof ProcessOperator);
+        assertThat(getFunctionForDataStream(processed)).isEqualTo(processFunction);
+        assertThat(getOperatorForDataStream(processed)).isInstanceOf(ProcessOperator.class);
     }
 
     /**
@@ -1001,7 +1019,7 @@ public class DataStreamTest extends TestLogger {
      * KeyedBroadcastProcessFunction}.
      */
     @Test
-    public void testFailedTranslationOnKeyed() {
+    void testFailedTranslationOnKeyed() {
 
         final MapStateDescriptor<Long, String> descriptor =
                 new MapStateDescriptor<>(
@@ -1009,7 +1027,7 @@ public class DataStreamTest extends TestLogger {
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final DataStream<Long> srcOne =
-                env.generateSequence(0L, 5L)
+                env.fromSequence(0L, 5L)
                         .assignTimestampsAndWatermarks(
                                 new CustomWmEmitter<Long>() {
 
@@ -1022,7 +1040,7 @@ public class DataStreamTest extends TestLogger {
                         .keyBy((KeySelector<Long, Long>) value -> value);
 
         final DataStream<String> srcTwo =
-                env.fromElements("Test:0", "Test:1", "Test:2", "Test:3", "Test:4", "Test:5")
+                env.fromData("Test:0", "Test:1", "Test:2", "Test:3", "Test:4", "Test:5")
                         .assignTimestampsAndWatermarks(
                                 new CustomWmEmitter<String>() {
                                     @Override
@@ -1035,27 +1053,32 @@ public class DataStreamTest extends TestLogger {
         BroadcastStream<String> broadcast = srcTwo.broadcast(descriptor);
         BroadcastConnectedStream<Long, String> bcStream = srcOne.connect(broadcast);
 
-        expectedException.expect(IllegalArgumentException.class);
-        bcStream.process(
-                new BroadcastProcessFunction<Long, String, String>() {
-                    @Override
-                    public void processBroadcastElement(
-                            String value, Context ctx, Collector<String> out) throws Exception {
-                        // do nothing
-                    }
+        assertThatThrownBy(
+                        () ->
+                                bcStream.process(
+                                        new BroadcastProcessFunction<Long, String, String>() {
+                                            @Override
+                                            public void processBroadcastElement(
+                                                    String value,
+                                                    Context ctx,
+                                                    Collector<String> out) {
+                                                // do nothing
+                                            }
 
-                    @Override
-                    public void processElement(
-                            Long value, ReadOnlyContext ctx, Collector<String> out)
-                            throws Exception {
-                        // do nothing
-                    }
-                });
+                                            @Override
+                                            public void processElement(
+                                                    Long value,
+                                                    ReadOnlyContext ctx,
+                                                    Collector<String> out) {
+                                                // do nothing
+                                            }
+                                        }))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     /** Tests that with a non-keyed stream we have to provide a {@link BroadcastProcessFunction}. */
     @Test
-    public void testFailedTranslationOnNonKeyed() {
+    void testFailedTranslationOnNonKeyed() {
 
         final MapStateDescriptor<Long, String> descriptor =
                 new MapStateDescriptor<>(
@@ -1063,7 +1086,7 @@ public class DataStreamTest extends TestLogger {
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final DataStream<Long> srcOne =
-                env.generateSequence(0L, 5L)
+                env.fromSequence(0L, 5L)
                         .assignTimestampsAndWatermarks(
                                 new CustomWmEmitter<Long>() {
 
@@ -1075,7 +1098,7 @@ public class DataStreamTest extends TestLogger {
                                 });
 
         final DataStream<String> srcTwo =
-                env.fromElements("Test:0", "Test:1", "Test:2", "Test:3", "Test:4", "Test:5")
+                env.fromData("Test:0", "Test:1", "Test:2", "Test:3", "Test:4", "Test:5")
                         .assignTimestampsAndWatermarks(
                                 new CustomWmEmitter<String>() {
                                     @Override
@@ -1088,31 +1111,37 @@ public class DataStreamTest extends TestLogger {
         BroadcastStream<String> broadcast = srcTwo.broadcast(descriptor);
         BroadcastConnectedStream<Long, String> bcStream = srcOne.connect(broadcast);
 
-        expectedException.expect(IllegalArgumentException.class);
-        bcStream.process(
-                new KeyedBroadcastProcessFunction<String, Long, String, String>() {
-                    @Override
-                    public void processBroadcastElement(
-                            String value, Context ctx, Collector<String> out) throws Exception {
-                        // do nothing
-                    }
+        assertThatThrownBy(
+                        () ->
+                                bcStream.process(
+                                        new KeyedBroadcastProcessFunction<
+                                                String, Long, String, String>() {
+                                            @Override
+                                            public void processBroadcastElement(
+                                                    String value,
+                                                    Context ctx,
+                                                    Collector<String> out) {
+                                                // do nothing
+                                            }
 
-                    @Override
-                    public void processElement(
-                            Long value, ReadOnlyContext ctx, Collector<String> out)
-                            throws Exception {
-                        // do nothing
-                    }
-                });
+                                            @Override
+                                            public void processElement(
+                                                    Long value,
+                                                    ReadOnlyContext ctx,
+                                                    Collector<String> out) {
+                                                // do nothing
+                                            }
+                                        }))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     /** Tests that verifies window operator has different name and description. */
     @Test
-    public void testWindowOperatorDescription() {
+    void testWindowOperatorDescription() {
         // global window
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         DataStream<Long> dataStream1 =
-                env.generateSequence(0, 0)
+                env.fromSequence(0, 0)
                         .windowAll(GlobalWindows.create())
                         .trigger(PurgingTrigger.of(CountTrigger.of(10)))
                         .reduce(
@@ -1125,17 +1154,17 @@ public class DataStreamTest extends TestLogger {
                                     }
                                 });
         // name is simplified
-        assertEquals("GlobalWindows", dataStream1.getTransformation().getName());
+        assertThat(dataStream1.getTransformation().getName()).isEqualTo("GlobalWindows");
         // description contains detail of function:
         // TriggerWindow(GlobalWindows(), ReducingStateDescriptor{name=window-contents,
         // defaultValue=null,
         // serializer=org.apache.flink.api.common.typeutils.base.LongSerializer@6af9fcb2},
         // PurgingTrigger(CountTrigger(10)), AllWindowedStream.reduce(AllWindowedStream.java:229))
-        assertTrue(dataStream1.getTransformation().getDescription().contains("PurgingTrigger"));
+        assertThat(dataStream1.getTransformation().getDescription()).contains("PurgingTrigger");
 
         // keyed window
         DataStream<Long> dataStream2 =
-                env.generateSequence(0, 0)
+                env.fromSequence(0, 0)
                         .keyBy(value -> value)
                         .window(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
                         .trigger(PurgingTrigger.of(CountTrigger.of(10)))
@@ -1149,11 +1178,11 @@ public class DataStreamTest extends TestLogger {
                                     }
                                 });
         // name is simplified
-        assertEquals("TumblingEventTimeWindows", dataStream2.getTransformation().getName());
+        assertThat(dataStream2.getTransformation().getName()).isEqualTo("TumblingEventTimeWindows");
         // description contains detail of function:
         // Window(TumblingEventTimeWindows(1000), PurgingTrigger, ReduceFunction$36,
         // PassThroughWindowFunction)
-        assertTrue(dataStream2.getTransformation().getDescription().contains("PurgingTrigger"));
+        assertThat(dataStream2.getTransformation().getDescription()).contains("PurgingTrigger");
     }
 
     /**
@@ -1162,11 +1191,11 @@ public class DataStreamTest extends TestLogger {
      * @throws Exception
      */
     @Test
-    public void testUserDefinedDescription() {
+    void testUserDefinedDescription() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Long> dataStream1 =
-                env.generateSequence(0, 0)
+                env.fromSequence(0, 0)
                         .name("testSource1")
                         .setDescription("this is test source 1")
                         .map(
@@ -1180,7 +1209,7 @@ public class DataStreamTest extends TestLogger {
                         .setDescription("this is test map 1");
 
         DataStream<Long> dataStream2 =
-                env.generateSequence(0, 0)
+                env.fromSequence(0, 0)
                         .name("testSource2")
                         .setDescription("this is test source 2")
                         .map(
@@ -1226,12 +1255,13 @@ public class DataStreamTest extends TestLogger {
         // test functionality through the operator names in the execution plan
         String plan = env.getExecutionPlan();
 
-        assertTrue(plan.contains("this is test source 1"));
-        assertTrue(plan.contains("this is test source 2"));
-        assertTrue(plan.contains("this is test map 1"));
-        assertTrue(plan.contains("this is test map 2"));
-        assertTrue(plan.contains("this is test co flat map"));
-        assertTrue(plan.contains("this is test window reduce"));
+        assertThat(plan)
+                .contains(
+                        "this is test source 1",
+                        "this is test map 1",
+                        "this is test map 2",
+                        "this is test co flat map",
+                        "this is test window reduce");
     }
 
     private abstract static class CustomWmEmitter<T>
@@ -1245,10 +1275,10 @@ public class DataStreamTest extends TestLogger {
     }
 
     @Test
-    public void operatorTest() {
+    void operatorTest() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStreamSource<Long> src = env.generateSequence(0, 0);
+        DataStreamSource<Long> src = env.fromSequence(0, 0);
 
         MapFunction<Long, Integer> mapFunction =
                 new MapFunction<Long, Integer>() {
@@ -1258,8 +1288,8 @@ public class DataStreamTest extends TestLogger {
                     }
                 };
         DataStream<Integer> map = src.map(mapFunction);
-        map.addSink(new DiscardingSink<Integer>());
-        assertEquals(mapFunction, getFunctionForDataStream(map));
+        map.sinkTo(new DiscardingSink<Integer>());
+        assertThat(getFunctionForDataStream(map)).isEqualTo(mapFunction);
 
         FlatMapFunction<Long, Integer> flatMapFunction =
                 new FlatMapFunction<Long, Integer>() {
@@ -1269,8 +1299,8 @@ public class DataStreamTest extends TestLogger {
                     public void flatMap(Long value, Collector<Integer> out) throws Exception {}
                 };
         DataStream<Integer> flatMap = src.flatMap(flatMapFunction);
-        flatMap.addSink(new DiscardingSink<Integer>());
-        assertEquals(flatMapFunction, getFunctionForDataStream(flatMap));
+        flatMap.sinkTo(new DiscardingSink<Integer>());
+        assertThat(getFunctionForDataStream(flatMap)).isEqualTo(flatMapFunction);
 
         FilterFunction<Integer> filterFunction =
                 new FilterFunction<Integer>() {
@@ -1282,21 +1312,12 @@ public class DataStreamTest extends TestLogger {
 
         DataStream<Integer> unionFilter = map.union(flatMap).filter(filterFunction);
 
-        unionFilter.addSink(new DiscardingSink<Integer>());
+        unionFilter.sinkTo(new DiscardingSink<Integer>());
 
-        assertEquals(filterFunction, getFunctionForDataStream(unionFilter));
+        assertThat(getFunctionForDataStream(unionFilter)).isEqualTo(filterFunction);
 
-        try {
-            getStreamGraph(env).getStreamEdgesOrThrow(map.getId(), unionFilter.getId());
-        } catch (RuntimeException e) {
-            fail(e.getMessage());
-        }
-
-        try {
-            getStreamGraph(env).getStreamEdgesOrThrow(flatMap.getId(), unionFilter.getId());
-        } catch (RuntimeException e) {
-            fail(e.getMessage());
-        }
+        getStreamGraph(env).getStreamEdgesOrThrow(map.getId(), unionFilter.getId());
+        getStreamGraph(env).getStreamEdgesOrThrow(flatMap.getId(), unionFilter.getId());
 
         ConnectedStreams<Integer, Integer> connect = map.connect(flatMap);
         CoMapFunction<Integer, Integer, String> coMapper =
@@ -1314,56 +1335,47 @@ public class DataStreamTest extends TestLogger {
                     }
                 };
         DataStream<String> coMap = connect.map(coMapper);
-        coMap.addSink(new DiscardingSink<String>());
-        assertEquals(coMapper, getFunctionForDataStream(coMap));
+        coMap.sinkTo(new DiscardingSink<String>());
+        assertThat(getFunctionForDataStream(coMap)).isEqualTo(coMapper);
 
-        try {
-            getStreamGraph(env).getStreamEdgesOrThrow(map.getId(), coMap.getId());
-        } catch (RuntimeException e) {
-            fail(e.getMessage());
-        }
-
-        try {
-            getStreamGraph(env).getStreamEdgesOrThrow(flatMap.getId(), coMap.getId());
-        } catch (RuntimeException e) {
-            fail(e.getMessage());
-        }
+        getStreamGraph(env).getStreamEdgesOrThrow(map.getId(), coMap.getId());
+        getStreamGraph(env).getStreamEdgesOrThrow(flatMap.getId(), coMap.getId());
     }
 
     @Test
-    public void testKeyedConnectedStreamsType() {
+    void testKeyedConnectedStreamsType() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStreamSource<Integer> stream1 = env.fromElements(1, 2);
-        DataStreamSource<Integer> stream2 = env.fromElements(1, 2);
+        DataStreamSource<Integer> stream1 = env.fromData(1, 2);
+        DataStreamSource<Integer> stream2 = env.fromData(1, 2);
 
         ConnectedStreams<Integer, Integer> connectedStreams =
                 stream1.connect(stream2).keyBy(v -> v, v -> v);
 
         KeyedStream<?, ?> firstKeyedInput = (KeyedStream<?, ?>) connectedStreams.getFirstInput();
         KeyedStream<?, ?> secondKeyedInput = (KeyedStream<?, ?>) connectedStreams.getSecondInput();
-        assertThat(firstKeyedInput.getKeyType(), equalTo(Types.INT));
-        assertThat(secondKeyedInput.getKeyType(), equalTo(Types.INT));
+        assertThat(firstKeyedInput.getKeyType()).isEqualTo(Types.INT);
+        assertThat(secondKeyedInput.getKeyType()).isEqualTo(Types.INT);
     }
 
     @Test
-    public void sinkKeyTest() {
+    void sinkKeyTest() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStreamSink<Long> sink = env.generateSequence(1, 100).print();
-        assertEquals(
-                0,
-                getStreamGraph(env)
-                        .getStreamNode(sink.getTransformation().getId())
-                        .getStatePartitioners()
-                        .length);
-        assertTrue(
-                getStreamGraph(env)
+        DataStreamSink<Long> sink = env.fromSequence(1, 100).print();
+        assertThat(
+                        getStreamGraph(env)
+                                .getStreamNode(sink.getTransformation().getId())
+                                .getStatePartitioners()
+                                .length)
+                .isZero();
+        assertThat(
+                        getStreamGraph(env)
                                 .getStreamNode(sink.getTransformation().getId())
                                 .getInEdges()
                                 .get(0)
-                                .getPartitioner()
-                        instanceof ForwardPartitioner);
+                                .getPartitioner())
+                .isInstanceOf(ForwardPartitioner.class);
 
         KeySelector<Long, Long> key1 =
                 new KeySelector<Long, Long>() {
@@ -1376,34 +1388,36 @@ public class DataStreamTest extends TestLogger {
                     }
                 };
 
-        DataStreamSink<Long> sink2 = env.generateSequence(1, 100).keyBy(key1).print();
+        DataStreamSink<Long> sink2 = env.fromSequence(1, 100).keyBy(key1).print();
 
-        assertEquals(
-                1,
-                getStreamGraph(env)
-                        .getStreamNode(sink2.getTransformation().getId())
-                        .getStatePartitioners()
-                        .length);
-        assertNotNull(
-                getStreamGraph(env)
-                        .getStreamNode(sink2.getTransformation().getId())
-                        .getStateKeySerializer());
-        assertNotNull(
-                getStreamGraph(env)
-                        .getStreamNode(sink2.getTransformation().getId())
-                        .getStateKeySerializer());
-        assertEquals(
-                key1,
-                getStreamGraph(env)
-                        .getStreamNode(sink2.getTransformation().getId())
-                        .getStatePartitioners()[0]);
-        assertTrue(
-                getStreamGraph(env)
+        assertThat(
+                        getStreamGraph(env)
+                                .getStreamNode(sink2.getTransformation().getId())
+                                .getStatePartitioners()
+                                .length)
+                .isOne();
+        assertThat(
+                        getStreamGraph(env)
+                                .getStreamNode(sink2.getTransformation().getId())
+                                .getStateKeySerializer())
+                .isNotNull();
+        assertThat(
+                        getStreamGraph(env)
+                                .getStreamNode(sink2.getTransformation().getId())
+                                .getStateKeySerializer())
+                .isNotNull();
+        assertThat(
+                        getStreamGraph(env)
+                                .getStreamNode(sink2.getTransformation().getId())
+                                .getStatePartitioners()[0])
+                .isEqualTo(key1);
+        assertThat(
+                        getStreamGraph(env)
                                 .getStreamNode(sink2.getTransformation().getId())
                                 .getInEdges()
                                 .get(0)
-                                .getPartitioner()
-                        instanceof KeyGroupStreamPartitioner);
+                                .getPartitioner())
+                .isInstanceOf(KeyGroupStreamPartitioner.class);
 
         KeySelector<Long, Long> key2 =
                 new KeySelector<Long, Long>() {
@@ -1416,33 +1430,33 @@ public class DataStreamTest extends TestLogger {
                     }
                 };
 
-        DataStreamSink<Long> sink3 = env.generateSequence(1, 100).keyBy(key2).print();
+        DataStreamSink<Long> sink3 = env.fromSequence(1, 100).keyBy(key2).print();
 
-        assertEquals(
-                1,
-                getStreamGraph(env)
-                        .getStreamNode(sink3.getTransformation().getId())
-                        .getStatePartitioners()
-                        .length);
-        assertEquals(
-                key2,
-                getStreamGraph(env)
-                        .getStreamNode(sink3.getTransformation().getId())
-                        .getStatePartitioners()[0]);
-        assertTrue(
-                getStreamGraph(env)
+        assertThat(
+                        getStreamGraph(env)
+                                .getStreamNode(sink3.getTransformation().getId())
+                                .getStatePartitioners()
+                                .length)
+                .isOne();
+        assertThat(
+                        getStreamGraph(env)
+                                .getStreamNode(sink3.getTransformation().getId())
+                                .getStatePartitioners()[0])
+                .isEqualTo(key2);
+        assertThat(
+                        getStreamGraph(env)
                                 .getStreamNode(sink3.getTransformation().getId())
                                 .getInEdges()
                                 .get(0)
-                                .getPartitioner()
-                        instanceof KeyGroupStreamPartitioner);
+                                .getPartitioner())
+                .isInstanceOf(KeyGroupStreamPartitioner.class);
     }
 
     @Test
-    public void testChannelSelectors() {
+    void testChannelSelectors() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStreamSource<Long> src = env.generateSequence(0, 0);
+        DataStreamSource<Long> src = env.fromSequence(0, 0);
 
         DataStream<Long> broadcast = src.broadcast();
         DataStreamSink<Long> broadcastSink = broadcast.print();
@@ -1451,7 +1465,7 @@ public class DataStreamTest extends TestLogger {
                         .getStreamEdges(src.getId(), broadcastSink.getTransformation().getId())
                         .get(0)
                         .getPartitioner();
-        assertTrue(broadcastPartitioner instanceof BroadcastPartitioner);
+        assertThat(broadcastPartitioner).isInstanceOf(BroadcastPartitioner.class);
 
         DataStream<Long> shuffle = src.shuffle();
         DataStreamSink<Long> shuffleSink = shuffle.print();
@@ -1460,7 +1474,7 @@ public class DataStreamTest extends TestLogger {
                         .getStreamEdges(src.getId(), shuffleSink.getTransformation().getId())
                         .get(0)
                         .getPartitioner();
-        assertTrue(shufflePartitioner instanceof ShufflePartitioner);
+        assertThat(shufflePartitioner).isInstanceOf(ShufflePartitioner.class);
 
         DataStream<Long> forward = src.forward();
         DataStreamSink<Long> forwardSink = forward.print();
@@ -1469,7 +1483,7 @@ public class DataStreamTest extends TestLogger {
                         .getStreamEdges(src.getId(), forwardSink.getTransformation().getId())
                         .get(0)
                         .getPartitioner();
-        assertTrue(forwardPartitioner instanceof ForwardPartitioner);
+        assertThat(forwardPartitioner).isInstanceOf(ForwardPartitioner.class);
 
         DataStream<Long> rebalance = src.rebalance();
         DataStreamSink<Long> rebalanceSink = rebalance.print();
@@ -1478,7 +1492,7 @@ public class DataStreamTest extends TestLogger {
                         .getStreamEdges(src.getId(), rebalanceSink.getTransformation().getId())
                         .get(0)
                         .getPartitioner();
-        assertTrue(rebalancePartitioner instanceof RebalancePartitioner);
+        assertThat(rebalancePartitioner).isInstanceOf(RebalancePartitioner.class);
 
         DataStream<Long> global = src.global();
         DataStreamSink<Long> globalSink = global.print();
@@ -1487,7 +1501,7 @@ public class DataStreamTest extends TestLogger {
                         .getStreamEdges(src.getId(), globalSink.getTransformation().getId())
                         .get(0)
                         .getPartitioner();
-        assertTrue(globalPartitioner instanceof GlobalPartitioner);
+        assertThat(globalPartitioner).isInstanceOf(GlobalPartitioner.class);
     }
 
     /////////////////////////////////////////////////////////////
@@ -1495,7 +1509,7 @@ public class DataStreamTest extends TestLogger {
     /////////////////////////////////////////////////////////////
 
     @Test
-    public void testPrimitiveArrayKeyRejection() {
+    void testPrimitiveArrayKeyRejection() {
 
         KeySelector<Tuple2<Integer[], String>, int[]> keySelector =
                 new KeySelector<Tuple2<Integer[], String>, int[]>() {
@@ -1514,7 +1528,7 @@ public class DataStreamTest extends TestLogger {
     }
 
     @Test
-    public void testBasicArrayKeyRejection() {
+    void testBasicArrayKeyRejection() {
 
         KeySelector<Tuple2<Integer[], String>, Integer[]> keySelector =
                 new KeySelector<Tuple2<Integer[], String>, Integer[]>() {
@@ -1529,7 +1543,7 @@ public class DataStreamTest extends TestLogger {
     }
 
     @Test
-    public void testObjectArrayKeyRejection() {
+    void testObjectArrayKeyRejection() {
 
         KeySelector<Tuple2<Integer[], String>, Object[]> keySelector =
                 new KeySelector<Tuple2<Integer[], String>, Object[]>() {
@@ -1556,63 +1570,55 @@ public class DataStreamTest extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<Integer[], String>> input =
-                env.fromElements(new Tuple2<>(new Integer[] {1, 2}, "barfoo"));
+                env.fromData(new Tuple2<>(new Integer[] {1, 2}, "barfoo"));
 
-        Assert.assertEquals(
-                expectedKeyType, TypeExtractor.getKeySelectorTypes(keySelector, input.getType()));
+        assertThat(TypeExtractor.getKeySelectorTypes(keySelector, input.getType()))
+                .isEqualTo(expectedKeyType);
 
         // adjust the rule
-        expectedException.expect(InvalidProgramException.class);
-        expectedException.expectMessage(
-                new StringStartsWith("Type " + expectedKeyType + " cannot be used as key."));
-
-        input.keyBy(keySelector);
+        assertThatThrownBy(() -> input.keyBy(keySelector))
+                .isInstanceOf(InvalidProgramException.class)
+                .hasMessageStartingWith("Type " + expectedKeyType + " cannot be used as key.");
     }
 
     @Test
-    public void testEnumKeyRejection() {
+    void testEnumKeyRejection() {
         KeySelector<Tuple2<TestEnum, String>, TestEnum> keySelector = value -> value.f0;
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<TestEnum, String>> input =
-                env.fromElements(Tuple2.of(TestEnum.FOO, "Foo"), Tuple2.of(TestEnum.BAR, "Bar"));
+                env.fromData(Tuple2.of(TestEnum.FOO, "Foo"), Tuple2.of(TestEnum.BAR, "Bar"));
 
-        expectedException.expect(InvalidProgramException.class);
-        expectedException.expectMessage(
-                new StringStartsWith(
-                        "Type " + EnumTypeInfo.of(TestEnum.class) + " cannot be used as key."));
-
-        input.keyBy(keySelector);
+        assertThatThrownBy(() -> input.keyBy(keySelector))
+                .isInstanceOf(InvalidProgramException.class)
+                .hasMessageStartingWith(
+                        "Type " + EnumTypeInfo.of(TestEnum.class) + " cannot be used as key.");
     }
 
     ////////////////			Composite Key Tests : POJOs			////////////////
 
     @Test
-    public void testPOJOWithNestedArrayNoHashCodeKeyRejection() {
+    void testPOJOWithNestedArrayNoHashCodeKeyRejection() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<POJOWithHashCode> input =
-                env.fromElements(new POJOWithHashCode(new int[] {1, 2}));
+        DataStream<POJOWithHashCode> input = env.fromData(new POJOWithHashCode(new int[] {1, 2}));
 
         TypeInformation<?> expectedTypeInfo =
                 new TupleTypeInfo<Tuple1<int[]>>(
                         PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO);
 
         // adjust the rule
-        expectedException.expect(InvalidProgramException.class);
-        expectedException.expectMessage(
-                new StringStartsWith("Type " + expectedTypeInfo + " cannot be used as key."));
-
-        input.keyBy("id");
+        assertThatThrownBy(() -> input.keyBy("id"))
+                .isInstanceOf(InvalidProgramException.class)
+                .hasMessageStartingWith("Type " + expectedTypeInfo + " cannot be used as key.");
     }
 
     @Test
-    public void testPOJOWithNestedArrayAndHashCodeWorkAround() {
+    void testPOJOWithNestedArrayAndHashCodeWorkAround() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<POJOWithHashCode> input =
-                env.fromElements(new POJOWithHashCode(new int[] {1, 2}));
+        DataStream<POJOWithHashCode> input = env.fromData(new POJOWithHashCode(new int[] {1, 2}));
 
         input.keyBy(
                         new KeySelector<POJOWithHashCode, POJOWithHashCode>() {
@@ -1625,14 +1631,14 @@ public class DataStreamTest extends TestLogger {
                 .addSink(
                         new SinkFunction<POJOWithHashCode>() {
                             @Override
-                            public void invoke(POJOWithHashCode value) throws Exception {
-                                Assert.assertEquals(value.getId(), new int[] {1, 2});
+                            public void invoke(POJOWithHashCode value) {
+                                assertThat(value.getId()).containsExactly(1, 2);
                             }
                         });
     }
 
     @Test
-    public void testPOJOnoHashCodeKeyRejection() {
+    void testPOJOnoHashCodeKeyRejection() {
 
         KeySelector<POJOWithoutHashCode, POJOWithoutHashCode> keySelector =
                 new KeySelector<POJOWithoutHashCode, POJOWithoutHashCode>() {
@@ -1645,49 +1651,51 @@ public class DataStreamTest extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<POJOWithoutHashCode> input =
-                env.fromElements(new POJOWithoutHashCode(new int[] {1, 2}));
+                env.fromData(new POJOWithoutHashCode(new int[] {1, 2}));
 
         // adjust the rule
-        expectedException.expect(InvalidProgramException.class);
-
-        input.keyBy(keySelector);
+        assertThatThrownBy(() -> input.keyBy(keySelector))
+                .isInstanceOf(InvalidProgramException.class);
     }
 
     ////////////////			Composite Key Tests : Tuples			////////////////
 
     @Test
-    public void testTupleNestedArrayKeyRejection() {
+    void testTupleNestedArrayKeyRejection() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<Integer[], String>> input =
-                env.fromElements(new Tuple2<>(new Integer[] {1, 2}, "test-test"));
+                env.fromData(new Tuple2<>(new Integer[] {1, 2}, "test-test"));
 
         TypeInformation<?> expectedTypeInfo =
                 new TupleTypeInfo<Tuple2<Integer[], String>>(
                         BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
         // adjust the rule
-        expectedException.expect(InvalidProgramException.class);
-        expectedException.expectMessage(
-                new StringStartsWith("Type " + expectedTypeInfo + " cannot be used as key."));
-
-        input.keyBy(
-                new KeySelector<Tuple2<Integer[], String>, Tuple2<Integer[], String>>() {
-                    @Override
-                    public Tuple2<Integer[], String> getKey(Tuple2<Integer[], String> value)
-                            throws Exception {
-                        return value;
-                    }
-                });
+        assertThatThrownBy(
+                        () ->
+                                input.keyBy(
+                                        new KeySelector<
+                                                Tuple2<Integer[], String>,
+                                                Tuple2<Integer[], String>>() {
+                                            @Override
+                                            public Tuple2<Integer[], String> getKey(
+                                                    Tuple2<Integer[], String> value)
+                                                    throws Exception {
+                                                return value;
+                                            }
+                                        }))
+                .isInstanceOf(InvalidProgramException.class)
+                .hasMessageStartingWith("Type " + expectedTypeInfo + " cannot be used as key.");
     }
 
     @Test
-    public void testPrimitiveKeyAcceptance() throws Exception {
+    void testPrimitiveKeyAcceptance() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         env.setMaxParallelism(1);
 
-        DataStream<Integer> input = env.fromElements(new Integer(10000));
+        DataStream<Integer> input = env.fromData(new Integer(10000));
 
         KeyedStream<Integer, Object> keyedStream =
                 input.keyBy(
@@ -1702,7 +1710,7 @@ public class DataStreamTest extends TestLogger {
                 new SinkFunction<Integer>() {
                     @Override
                     public void invoke(Integer value) throws Exception {
-                        Assert.assertEquals(10000L, (long) value);
+                        assertThat(value).isEqualTo(10000);
                     }
                 });
     }
@@ -1792,7 +1800,7 @@ public class DataStreamTest extends TestLogger {
                                 return null;
                             }
                         });
-        coMap.addSink(new DiscardingSink());
+        coMap.sinkTo(new DiscardingSink());
         return coMap.getId();
     }
 

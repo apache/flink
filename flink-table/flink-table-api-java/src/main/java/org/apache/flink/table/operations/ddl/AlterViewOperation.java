@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
 /** Abstract Operation to describe all ALTER VIEW statements. */
+@Internal
 public abstract class AlterViewOperation implements AlterOperation {
 
     protected final ObjectIdentifier viewIdentifier;

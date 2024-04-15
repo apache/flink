@@ -105,7 +105,13 @@ import java.util.List;
  * </ul>
  *
  * @param <T> The type of the DataSet, i.e., the type of the elements of the DataSet.
+ * @deprecated All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a
+ *     future Flink major version. You can still build your application in DataSet, but you should
+ *     move to either the DataStream and/or Table API.
+ * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741">
+ *     FLIP-131: Consolidate the user-facing Dataflow SDKs/APIs (and deprecate the DataSet API</a>
  */
+@Deprecated
 @Public
 public abstract class DataSet<T> {
 
@@ -411,7 +417,9 @@ public abstract class DataSet<T> {
     public List<T> collect() throws Exception {
         final String id = new AbstractID().toString();
         final TypeSerializer<T> serializer =
-                getType().createSerializer(getExecutionEnvironment().getConfig());
+                getType()
+                        .createSerializer(
+                                getExecutionEnvironment().getConfig().getSerializerConfig());
 
         this.output(new Utils.CollectHelper<>(id, serializer)).name("collect()");
         JobExecutionResult res = getExecutionEnvironment().execute();
@@ -1558,7 +1566,7 @@ public abstract class DataSet<T> {
      * dataset.writeAsText("file:///path1"); }</pre>
      *   <li>A directory is always created when <a
      *       href="https://nightlies.apache.org/flink/flink-docs-master/setup/config.html#file-systems">fs.output.always-create-directory</a>
-     *       is set to true in flink-conf.yaml file, even when parallelism is set to 1.
+     *       is set to true in config.yaml file, even when parallelism is set to 1.
      *       <pre>{@code .
      * └── path1/
      *     └── 1 }</pre>

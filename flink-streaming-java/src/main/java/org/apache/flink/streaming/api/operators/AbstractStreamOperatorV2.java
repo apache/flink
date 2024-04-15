@@ -50,6 +50,8 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamOperatorStateHandler.CheckpointedStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributesBuilder;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -60,6 +62,7 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -97,6 +100,7 @@ public abstract class AbstractStreamOperatorV2<OUT>
 
     protected final LatencyStats latencyStats;
     protected final ProcessingTimeService processingTimeService;
+    protected final RecordAttributes[] lastRecordAttributes;
 
     private StreamOperatorStateHandler stateHandler;
     private InternalTimeServiceManager<?> timeServiceManager;
@@ -114,6 +118,10 @@ public abstract class AbstractStreamOperatorV2<OUT>
                         environment.getTaskManagerInfo().getConfiguration(),
                         parameters.getContainingTask().getIndexInSubtaskGroup());
         processingTimeService = Preconditions.checkNotNull(parameters.getProcessingTimeService());
+        lastRecordAttributes = new RecordAttributes[numberOfInputs];
+        for (int i = 0; i < numberOfInputs; ++i) {
+            lastRecordAttributes[i] = RecordAttributes.EMPTY_RECORD_ATTRIBUTES;
+        }
         executionConfig = parameters.getContainingTask().getExecutionConfig();
         userCodeClassLoader = parameters.getContainingTask().getUserCodeClassLoader();
         cancelables = parameters.getContainingTask().getCancelables();
@@ -133,7 +141,7 @@ public abstract class AbstractStreamOperatorV2<OUT>
     private LatencyStats createLatencyStats(
             Configuration taskManagerConfig, int indexInSubtaskGroup) {
         try {
-            int historySize = taskManagerConfig.getInteger(MetricOptions.LATENCY_HISTORY_SIZE);
+            int historySize = taskManagerConfig.get(MetricOptions.LATENCY_HISTORY_SIZE);
             if (historySize <= 0) {
                 LOG.warn(
                         "{} has been set to a value equal or below 0: {}. Using default.",
@@ -143,7 +151,7 @@ public abstract class AbstractStreamOperatorV2<OUT>
             }
 
             final String configuredGranularity =
-                    taskManagerConfig.getString(MetricOptions.LATENCY_SOURCE_GRANULARITY);
+                    taskManagerConfig.get(MetricOptions.LATENCY_SOURCE_GRANULARITY);
             LatencyStats.Granularity granularity;
             try {
                 granularity =
@@ -198,6 +206,7 @@ public abstract class AbstractStreamOperatorV2<OUT>
                         metrics,
                         config.getManagedMemoryFractionOperatorUseCaseOfSlot(
                                 ManagedMemoryUseCase.STATE_BACKEND,
+                                runtimeContext.getJobConfiguration(),
                                 runtimeContext.getTaskManagerRuntimeInfo().getConfiguration(),
                                 runtimeContext.getUserCodeClassLoader()),
                         isUsingCustomRawKeyedState());
@@ -334,7 +343,7 @@ public abstract class AbstractStreamOperatorV2<OUT>
      */
     protected String getOperatorName() {
         if (runtimeContext != null) {
-            return runtimeContext.getTaskNameWithSubtasks();
+            return runtimeContext.getTaskInfo().getTaskNameWithSubtasks();
         } else {
             return getClass().getSimpleName();
         }
@@ -494,6 +503,13 @@ public abstract class AbstractStreamOperatorV2<OUT>
         if (wasIdle != combinedWatermark.isIdle()) {
             output.emitWatermarkStatus(watermarkStatus);
         }
+    }
+
+    public void processRecordAttributes(RecordAttributes recordAttributes, int inputId)
+            throws Exception {
+        lastRecordAttributes[inputId - 1] = recordAttributes;
+        output.emitRecordAttributes(
+                new RecordAttributesBuilder(Arrays.asList(lastRecordAttributes)).build());
     }
 
     @Override

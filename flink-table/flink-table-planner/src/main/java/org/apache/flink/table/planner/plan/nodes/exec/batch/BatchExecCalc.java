@@ -71,9 +71,9 @@ public class BatchExecCalc extends CommonExecCalc implements BatchExecNode<RowDa
 
     @Override
     protected OpFusionCodegenSpecGenerator translateToFusionCodegenSpecInternal(
-            PlannerBase planner, ExecNodeConfig config) {
+            PlannerBase planner, ExecNodeConfig config, CodeGeneratorContext parentCtx) {
         OpFusionCodegenSpecGenerator input =
-                getInputEdges().get(0).translateToFusionCodegenSpec(planner);
+                getInputEdges().get(0).translateToFusionCodegenSpec(planner, parentCtx);
         OpFusionCodegenSpecGenerator calcGenerator =
                 new OneInputOpFusionCodegenSpecGenerator(
                         input,
@@ -81,7 +81,9 @@ public class BatchExecCalc extends CommonExecCalc implements BatchExecNode<RowDa
                         (RowType) getOutputType(),
                         new CalcFusionCodegenSpec(
                                 new CodeGeneratorContext(
-                                        config, planner.getFlinkContext().getClassLoader()),
+                                        config,
+                                        planner.getFlinkContext().getClassLoader(),
+                                        parentCtx),
                                 JavaScalaConversionUtil.toScala(projection),
                                 JavaScalaConversionUtil.toScala(Optional.ofNullable(condition))));
         input.addOutput(1, calcGenerator);

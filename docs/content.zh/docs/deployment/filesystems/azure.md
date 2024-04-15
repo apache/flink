@@ -63,8 +63,11 @@ env.readTextFile("wasb://<your-container>@$<your-azure-account>.blob.core.window
 // 写入 Azure Blob 存储
 stream.writeAsText("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>");
 
-// 将 Azure Blob 存储用作 FsStatebackend
-env.setStateBackend(new FsStateBackend("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>"));
+// 将 Azure Blob 存储用作 checkpoint storage
+Configuration config = new Configuration();
+config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>");
+env.configure(config);
 ```
 
 ## Shaded Hadoop Azure Blob 存储文件系统
@@ -83,13 +86,13 @@ cp ./opt/flink-azure-fs-hadoop-{{< version >}}.jar ./plugins/azure-fs-hadoop/
 ### WASB
 
 Hadoop 的 WASB Azure 文件系统支持通过 Hadoop 配置来配置凭据，如 [Hadoop Azure Blob Storage 文档](https://hadoop.apache.org/docs/current/hadoop-azure/index.html#Configuring_Credentials) 所述。
-为方便起见，Flink 将所有的 Flink 配置添加 `fs.azure` 键前缀后转发至文件系统的 Hadoop 配置中。因此，可通过以下方法在 `flink-conf.yaml` 中配置 Azure Blob 存储密钥：
+为方便起见，Flink 将所有的 Flink 配置添加 `fs.azure` 键前缀后转发至文件系统的 Hadoop 配置中。因此，可通过以下方法在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 中配置 Azure Blob 存储密钥：
 
 ```yaml
 fs.azure.account.key.<account_name>.blob.core.windows.net: <azure_storage_key>
 ```
 
-或者通过在 `flink-conf.yaml` 中设置以下配置键，将文件系统配置为从环境变量 `AZURE_STORAGE_KEY` 读取 Azure Blob 存储密钥：
+或者通过在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 中设置以下配置键，将文件系统配置为从环境变量 `AZURE_STORAGE_KEY` 读取 Azure Blob 存储密钥：
 
 ```yaml
 fs.azure.account.keyprovider.<account_name>.blob.core.windows.net: org.apache.flink.fs.azurefs.EnvironmentVariableKeyProvider
@@ -104,7 +107,7 @@ Azure 推荐使用 Azure 托管身份来使用 abfs 访问 ADLS Gen2 存储帐�
 {{< /hint >}}
 
 ##### 使用存储密钥访问ABFS(不鼓励)
-Azure blob 存储密钥可以通过以下方式在 `flink-conf.yaml` 中配置：
+Azure blob 存储密钥可以通过以下方式在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 中配置：
 
 ```yaml
 fs.azure.account.key.<account_name>.dfs.core.windows.net: <azure_storage_key>

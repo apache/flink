@@ -192,7 +192,7 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
     private CompletableFuture<Acknowledge> finish(
             DispatcherGateway dispatcherGateway, ApplicationStatus applicationStatus) {
         boolean shouldShutDownOnFinish =
-                configuration.getBoolean(DeploymentOptions.SHUTDOWN_ON_APPLICATION_FINISH);
+                configuration.get(DeploymentOptions.SHUTDOWN_ON_APPLICATION_FINISH);
         return shouldShutDownOnFinish
                 ? dispatcherGateway.shutDownCluster(applicationStatus)
                 : CompletableFuture.completedFuture(Acknowledge.get());
@@ -209,7 +209,7 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
         final Optional<String> configuredJobId =
                 configuration.getOptional(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID);
         final boolean submitFailedJobOnApplicationError =
-                configuration.getBoolean(DeploymentOptions.SUBMIT_FAILED_JOB_ON_APPLICATION_ERROR);
+                configuration.get(DeploymentOptions.SUBMIT_FAILED_JOB_ON_APPLICATION_ERROR);
         if (!HighAvailabilityMode.isHighAvailabilityModeActivated(configuration)
                 && !configuredJobId.isPresent()) {
             return runApplicationAsync(

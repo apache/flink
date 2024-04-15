@@ -21,6 +21,7 @@ package org.apache.flink.runtime.highavailability;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -32,6 +33,8 @@ import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -43,14 +46,25 @@ public abstract class AbstractThreadsafeJobResultStore implements JobResultStore
 
     private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
 
-    @Override
-    public void createDirtyResult(JobResultEntry jobResultEntry) throws IOException {
-        Preconditions.checkState(
-                !hasJobResultEntry(jobResultEntry.getJobId()),
-                "Job result store already contains an entry for job %s",
-                jobResultEntry.getJobId());
+    private final Executor ioExecutor;
 
-        withWriteLock(() -> createDirtyResultInternal(jobResultEntry));
+    protected AbstractThreadsafeJobResultStore(Executor ioExecutor) {
+        this.ioExecutor = ioExecutor;
+    }
+
+    @Override
+    public CompletableFuture<Void> createDirtyResultAsync(JobResultEntry jobResultEntry) {
+        return hasJobResultEntryAsync(jobResultEntry.getJobId())
+                .thenAccept(
+                        hasJobResultEntry ->
+                                Preconditions.checkState(
+                                        !hasJobResultEntry,
+                                        "Job result store already contains an entry for job %s",
+                                        jobResultEntry.getJobId()))
+                .thenCompose(
+                        ignoredVoid ->
+                                withWriteLockAsync(
+                                        () -> createDirtyResultInternal(jobResultEntry)));
     }
 
     @GuardedBy("readWriteLock")
@@ -58,13 +72,19 @@ public abstract class AbstractThreadsafeJobResultStore implements JobResultStore
             throws IOException;
 
     @Override
-    public void markResultAsClean(JobID jobId) throws IOException, NoSuchElementException {
-        if (hasCleanJobResultEntry(jobId)) {
-            LOG.debug("The job {} is already marked as clean. No action required.", jobId);
-            return;
-        }
+    public CompletableFuture<Void> markResultAsCleanAsync(JobID jobId) {
+        return hasCleanJobResultEntryAsync(jobId)
+                .thenCompose(
+                        hasCleanJobResultEntry -> {
+                            if (hasCleanJobResultEntry) {
+                                LOG.debug(
+                                        "The job {} is already marked as clean. No action required.",
+                                        jobId);
+                                return FutureUtils.completedVoidFuture();
+                            }
 
-        withWriteLock(() -> markResultAsCleanInternal(jobId));
+                            return withWriteLockAsync(() -> markResultAsCleanInternal(jobId));
+                        });
     }
 
     @GuardedBy("readWriteLock")
@@ -72,24 +92,24 @@ public abstract class AbstractThreadsafeJobResultStore implements JobResultStore
             throws IOException, NoSuchElementException;
 
     @Override
-    public boolean hasJobResultEntry(JobID jobId) throws IOException {
-        return withReadLock(
+    public CompletableFuture<Boolean> hasJobResultEntryAsync(JobID jobId) {
+        return withReadLockAsync(
                 () ->
                         hasDirtyJobResultEntryInternal(jobId)
                                 || hasCleanJobResultEntryInternal(jobId));
     }
 
     @Override
-    public boolean hasDirtyJobResultEntry(JobID jobId) throws IOException {
-        return withReadLock(() -> hasDirtyJobResultEntryInternal(jobId));
+    public CompletableFuture<Boolean> hasDirtyJobResultEntryAsync(JobID jobId) {
+        return withReadLockAsync(() -> hasDirtyJobResultEntryInternal(jobId));
     }
 
     @GuardedBy("readWriteLock")
     protected abstract boolean hasDirtyJobResultEntryInternal(JobID jobId) throws IOException;
 
     @Override
-    public boolean hasCleanJobResultEntry(JobID jobId) throws IOException {
-        return withReadLock(() -> hasCleanJobResultEntryInternal(jobId));
+    public CompletableFuture<Boolean> hasCleanJobResultEntryAsync(JobID jobId) {
+        return withReadLockAsync(() -> hasCleanJobResultEntryInternal(jobId));
     }
 
     @GuardedBy("readWriteLock")
@@ -103,6 +123,14 @@ public abstract class AbstractThreadsafeJobResultStore implements JobResultStore
     @GuardedBy("readWriteLock")
     protected abstract Set<JobResult> getDirtyResultsInternal() throws IOException;
 
+    private CompletableFuture<Void> withWriteLockAsync(ThrowingRunnable<IOException> runnable) {
+        return FutureUtils.runAsync(
+                () -> {
+                    withWriteLock(runnable);
+                },
+                ioExecutor);
+    }
+
     private void withWriteLock(ThrowingRunnable<IOException> runnable) throws IOException {
         readWriteLock.writeLock().lock();
         try {
@@ -112,10 +140,15 @@ public abstract class AbstractThreadsafeJobResultStore implements JobResultStore
         }
     }
 
-    private <T> T withReadLock(SupplierWithException<T, IOException> runnable) throws IOException {
+    private <T> CompletableFuture<T> withReadLockAsync(
+            SupplierWithException<T, IOException> runnable) {
+        return FutureUtils.supplyAsync(() -> withReadLock(runnable), ioExecutor);
+    }
+
+    private <T> T withReadLock(SupplierWithException<T, IOException> supplier) throws IOException {
         readWriteLock.readLock().lock();
         try {
-            return runnable.get();
+            return supplier.get();
         } finally {
             readWriteLock.readLock().unlock();
         }

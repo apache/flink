@@ -52,6 +52,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assumptions.assumeThat;
@@ -422,7 +423,7 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                 DEFAULT_TOTAL_RESOURCE_PROFILE, DEFAULT_NUM_SLOTS_PER_WORKER);
                 resourceAllocatorBuilder.setDeclareResourceNeededConsumer(
                         (resourceDeclarations) -> {
-                            assertThat(requestCount.get()).isLessThan(2);
+                            assertThat(requestCount).hasValueLessThan(2);
                             if (!resourceDeclarations.isEmpty()) {
                                 allocateResourceFutures
                                         .get(requestCount.getAndIncrement())
@@ -447,7 +448,7 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                                             createResourceRequirements(jobId, 1)));
                             assertFutureCompleteAndReturn(allocateResourceFutures.get(0));
                             assertFutureNotComplete(allocateResourceFutures.get(1));
-                            assertThat(requestCount.get()).isEqualTo(1);
+                            assertThat(requestCount).hasValue(1);
                         });
             }
         };
@@ -795,7 +796,7 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                 resourceAllocatorBuilder.setDeclareResourceNeededConsumer(
                         (resourceDeclarations) -> {
                             if (!resourceDeclarations.isEmpty()) {
-                                assertThat(requestCount.get()).isLessThan(2);
+                                assertThat(requestCount).hasValueLessThan(2);
                                 allocateResourceFutures
                                         .get(requestCount.getAndIncrement())
                                         .complete(null);
@@ -913,13 +914,15 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
         context.runTest(
                 () -> {
                     // sanity check to ensure metrics were actually registered
-                    assertThat(registeredMetrics.get()).isGreaterThan(0);
+                    assertThat(registeredMetrics).hasValueGreaterThan(0);
                     context.runInMainThreadAndWait(
-                            () -> {
-                                assertThatNoException()
-                                        .isThrownBy(() -> closeFn.accept(context.getSlotManager()));
-                            });
-                    assertThat(registeredMetrics.get()).isEqualTo(0);
+                            () ->
+                                    assertThatNoException()
+                                            .isThrownBy(
+                                                    () ->
+                                                            closeFn.accept(
+                                                                    context.getSlotManager())));
+                    assertThat(registeredMetrics).hasValue(0);
                 });
     }
 
@@ -980,7 +983,77 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                             // clear requirements, which should trigger slots being reclaimed
                             runInMainThreadAndWait(
                                     () -> getSlotManager().clearResourceRequirements(jobId));
-                            assertThat(freeInactiveSlotsJobIdFuture.get()).isEqualTo(jobId);
+                            assertThatFuture(freeInactiveSlotsJobIdFuture)
+                                    .eventuallySucceeds()
+                                    .isEqualTo(jobId);
+                        });
+            }
+        };
+    }
+
+    @Test
+    void testClearResourceRequirementsWithPendingTaskManager() throws Exception {
+        new Context() {
+            {
+                final JobID jobId = new JobID();
+                final CompletableFuture<Void> allocateResourceFuture = new CompletableFuture<>();
+
+                resourceAllocatorBuilder.setDeclareResourceNeededConsumer(
+                        (resourceDeclarations) -> allocateResourceFuture.complete(null));
+
+                final PendingTaskManager pendingTaskManager1 =
+                        new PendingTaskManager(
+                                DEFAULT_TOTAL_RESOURCE_PROFILE, DEFAULT_NUM_SLOTS_PER_WORKER);
+                final PendingTaskManager pendingTaskManager2 =
+                        new PendingTaskManager(
+                                DEFAULT_TOTAL_RESOURCE_PROFILE, DEFAULT_NUM_SLOTS_PER_WORKER);
+                resourceAllocationStrategyBuilder.setTryFulfillRequirementsFunction(
+                        ((jobIDCollectionMap, taskManagerResourceInfoProvider) ->
+                                ResourceAllocationResult.builder()
+                                        .addPendingTaskManagerAllocate(pendingTaskManager1)
+                                        .addPendingTaskManagerAllocate(pendingTaskManager2)
+                                        .addAllocationOnPendingResource(
+                                                jobId,
+                                                pendingTaskManager1.getPendingTaskManagerId(),
+                                                DEFAULT_SLOT_RESOURCE_PROFILE)
+                                        .addAllocationOnPendingResource(
+                                                jobId,
+                                                pendingTaskManager2.getPendingTaskManagerId(),
+                                                DEFAULT_SLOT_RESOURCE_PROFILE)
+                                        .build()));
+                runTest(
+                        () -> {
+                            // assign allocations to pending task managers
+                            runInMainThread(
+                                    () ->
+                                            getSlotManager()
+                                                    .processResourceRequirements(
+                                                            createResourceRequirements(jobId, 2)));
+                            assertFutureCompleteAndReturn(allocateResourceFuture);
+
+                            // cancel all slot requests, will trigger
+                            // PendingTaskManager#clearPendingAllocationsOfJob
+                            runInMainThreadAndWait(
+                                    () ->
+                                            getSlotManager()
+                                                    .processResourceRequirements(
+                                                            ResourceRequirements.empty(
+                                                                    jobId, "foobar")));
+
+                            // disconnect to job master,will trigger
+                            // PendingTaskManager#clearPendingAllocationsOfJob again
+                            CompletableFuture<Void> clearFuture = new CompletableFuture<>();
+                            runInMainThread(
+                                    () -> {
+                                        try {
+                                            getSlotManager().clearResourceRequirements(jobId);
+                                        } catch (Exception e) {
+                                            clearFuture.completeExceptionally(e);
+                                        }
+                                        clearFuture.complete(null);
+                                    });
+
+                            assertFutureCompleteAndReturn(clearFuture);
                         });
             }
         };

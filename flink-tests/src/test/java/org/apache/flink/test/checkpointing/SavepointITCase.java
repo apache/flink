@@ -21,6 +21,7 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
@@ -41,6 +42,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
@@ -55,7 +57,6 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
@@ -76,8 +77,8 @@ import org.apache.flink.streaming.api.datastream.IterativeStream;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -212,7 +213,7 @@ public class SavepointITCase extends TestLogger {
         DataStream<Long> stream =
                 env.fromSequence(0, Long.MAX_VALUE)
                         .transform("pass-through", BasicTypeInfo.LONG_TYPE_INFO, operator);
-        stream.addSink(new DiscardingSink<>());
+        stream.sinkTo(new DiscardingSink<>());
 
         final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
         final JobID jobId = jobGraph.getJobID();
@@ -319,7 +320,7 @@ public class SavepointITCase extends TestLogger {
         env.addSource(new InfiniteTestSource())
                 .name("Infinite Source")
                 .map(new FailingOnCompletedSavepointMapFunction(2))
-                .addSink(new DiscardingSink<>())
+                .sinkTo(new DiscardingSink<>())
                 // different parallelism to break chaining and add some concurrent tasks
                 .setParallelism(sinkParallelism);
 
@@ -481,7 +482,7 @@ public class SavepointITCase extends TestLogger {
                             private ListState<Long> last;
 
                             @Override
-                            public void open(Configuration parameters) {
+                            public void open(OpenContext openContext) {
                                 // we use list state here to create sst files of a significant size
                                 // if sst files do not reach certain thresholds they are not stored
                                 // in files, but as a byte stream in checkpoints metadata
@@ -729,7 +730,7 @@ public class SavepointITCase extends TestLogger {
         final int numSlotsPerTaskManager = 1;
 
         final Configuration config = new Configuration();
-        config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
 
         final MiniClusterWithClientResource cluster =
                 new MiniClusterWithClientResource(
@@ -802,7 +803,7 @@ public class SavepointITCase extends TestLogger {
         env.getCheckpointConfig().disableCheckpointing();
         env.setParallelism(1);
 
-        env.addSource(new IntegerStreamSource()).addSink(new DiscardingSink<>());
+        env.addSource(new IntegerStreamSource()).sinkTo(new DiscardingSink<>());
 
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
@@ -920,7 +921,7 @@ public class SavepointITCase extends TestLogger {
                     env.addSource(new InfiniteTestSource())
                             .transform("pass-through", BasicTypeInfo.INT_TYPE_INFO, operator);
 
-            stream.addSink(new DiscardingSink<>());
+            stream.sinkTo(new DiscardingSink<>());
 
             final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
             final JobID jobId = jobGraph.getJobID();
@@ -956,7 +957,7 @@ public class SavepointITCase extends TestLogger {
         int parallelism = numTaskManagers * numSlotsPerTaskManager;
 
         final Configuration config = new Configuration();
-        config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
 
         MiniClusterWithClientResource cluster =
                 new MiniClusterWithClientResource(
@@ -1051,7 +1052,7 @@ public class SavepointITCase extends TestLogger {
                 .setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
         env.addSource(new InfiniteTestSource())
                 .name("Infinite test source")
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
@@ -1143,7 +1144,7 @@ public class SavepointITCase extends TestLogger {
                             failingPipelineLatch.trigger();
                             return value;
                         })
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
         env.addSource(new InfiniteTestSource())
                 .name("Succeeding Source")
                 .map(
@@ -1151,7 +1152,7 @@ public class SavepointITCase extends TestLogger {
                             succeedingPipelineLatch.trigger();
                             return value;
                         })
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
@@ -1237,7 +1238,7 @@ public class SavepointITCase extends TestLogger {
 
         // Flink configuration
         final Configuration config = new Configuration();
-        config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
 
         String savepointPath;
 
@@ -1269,7 +1270,7 @@ public class SavepointITCase extends TestLogger {
                     .uid("statefulCounter")
                     .shuffle()
                     .map(value -> 2 * value)
-                    .addSink(new DiscardingSink<>());
+                    .sinkTo(new DiscardingSink<>());
 
             JobGraph originalJobGraph = env.getStreamGraph().getJobGraph();
 
@@ -1317,7 +1318,7 @@ public class SavepointITCase extends TestLogger {
                     .uid("statefulCounter")
                     .shuffle()
                     .map(value -> value)
-                    .addSink(new DiscardingSink<>());
+                    .sinkTo(new DiscardingSink<>());
 
             JobGraph modifiedJobGraph = env.getStreamGraph().getJobGraph();
 
@@ -1366,7 +1367,7 @@ public class SavepointITCase extends TestLogger {
         DataStream<Integer> stream =
                 env.addSource(new InfiniteTestSource()).shuffle().map(new StatefulCounter());
 
-        stream.addSink(new DiscardingSink<>());
+        stream.sinkTo(new DiscardingSink<>());
 
         return env.getStreamGraph().getJobGraph();
     }
@@ -1478,10 +1479,10 @@ public class SavepointITCase extends TestLogger {
         private byte[] data;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             if (data == null) {
                 // We need this to be large, because we want to test with files
-                Random rand = new Random(getRuntimeContext().getIndexOfThisSubtask());
+                Random rand = new Random(getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
                 data =
                         new byte
                                 [(int)
@@ -1692,7 +1693,8 @@ public class SavepointITCase extends TestLogger {
 
         @Override
         public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
-            iterTestCheckpointVerify[getRuntimeContext().getIndexOfThisSubtask()] = emittedCount;
+            iterTestCheckpointVerify[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] =
+                    emittedCount;
             return Collections.singletonList(emittedCount);
         }
 
@@ -1702,9 +1704,11 @@ public class SavepointITCase extends TestLogger {
                 this.emittedCount = state.get(0);
             }
             Assert.assertEquals(
-                    iterTestCheckpointVerify[getRuntimeContext().getIndexOfThisSubtask()],
+                    iterTestCheckpointVerify[
+                            getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()],
                     emittedCount);
-            iterTestRestoreWait[getRuntimeContext().getIndexOfThisSubtask()].trigger();
+            iterTestRestoreWait[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()]
+                    .trigger();
         }
     }
 
@@ -1716,7 +1720,7 @@ public class SavepointITCase extends TestLogger {
         private ValueState<Boolean> operatorState;
 
         @Override
-        public void open(Configuration configuration) {
+        public void open(OpenContext openContext) {
             operatorState = this.getRuntimeContext().getState(DESCRIPTOR);
         }
 
@@ -1728,7 +1732,8 @@ public class SavepointITCase extends TestLogger {
             }
 
             if (30 == value) {
-                iterTestSnapshotWait[getRuntimeContext().getIndexOfThisSubtask()].trigger();
+                iterTestSnapshotWait[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()]
+                        .trigger();
             }
         }
     }
@@ -1761,11 +1766,10 @@ public class SavepointITCase extends TestLogger {
 
     private Configuration getFileBasedCheckpointsConfig(final String savepointDir) {
         final Configuration config = new Configuration();
-        config.setString(StateBackendOptions.STATE_BACKEND, "filesystem");
-        config.setString(
-                CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
+        config.set(StateBackendOptions.STATE_BACKEND, "filesystem");
+        config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
         config.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, MemorySize.ZERO);
-        config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
         return config;
     }
 

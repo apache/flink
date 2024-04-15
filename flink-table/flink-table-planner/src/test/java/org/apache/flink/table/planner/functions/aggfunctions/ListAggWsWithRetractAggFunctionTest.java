@@ -31,7 +31,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /** Test case for built-in ListAggWs with retraction aggregate function. */
-public final class ListAggWsWithRetractAggFunctionTest
+final class ListAggWsWithRetractAggFunctionTest
         extends AggFunctionTestBase<StringData, StringData, ListAggWsWithRetractAccumulator> {
 
     @Override

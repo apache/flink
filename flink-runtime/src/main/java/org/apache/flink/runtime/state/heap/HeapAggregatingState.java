@@ -28,8 +28,6 @@ import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.util.Preconditions;
 
-import java.io.IOException;
-
 /**
  * Heap-backed partitioned {@link AggregatingState} that is snapshotted into files.
  *
@@ -93,20 +91,14 @@ class HeapAggregatingState<K, N, IN, ACC, OUT> extends AbstractHeapMergingState<
     }
 
     @Override
-    public void add(IN value) throws IOException {
+    public void add(IN value) throws Exception {
         final N namespace = currentNamespace;
 
         if (value == null) {
             clear();
             return;
         }
-
-        try {
-            stateTable.transform(namespace, value, aggregateTransformation);
-        } catch (Exception e) {
-            throw new IOException(
-                    "Exception while applying AggregateFunction in aggregating state", e);
-        }
+        stateTable.transform(namespace, value, aggregateTransformation);
     }
 
     // ------------------------------------------------------------------------

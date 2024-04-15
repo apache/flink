@@ -32,8 +32,10 @@ import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
@@ -59,10 +61,10 @@ import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.util.LongArrayList;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
+import org.apache.flink.util.clock.SystemClock;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -75,11 +77,13 @@ import java.util.OptionalLong;
 import java.util.Set;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /** Tests for {@link StateInitializationContextImpl}. */
-public class StateInitializationContextImplTest {
+class StateInitializationContextImplTest {
 
     static final int NUM_HANDLES = 10;
 
@@ -89,8 +93,8 @@ public class StateInitializationContextImplTest {
     private int writtenKeyGroups;
     private Set<Integer> writtenOperatorStates;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() throws Exception {
 
         this.writtenKeyGroups = 0;
         this.writtenOperatorStates = new HashSet<>();
@@ -170,6 +174,7 @@ public class StateInitializationContextImplTest {
                         new JobID(),
                         createExecutionAttemptId(),
                         new TestTaskLocalStateStore(),
+                        null,
                         new InMemoryStateChangelogStorage(),
                         new TaskExecutorStateChangelogStoragesManager(),
                         jobManagerTaskRestore,
@@ -184,10 +189,13 @@ public class StateInitializationContextImplTest {
                 new StreamTaskStateInitializerImpl(
                         environment,
                         stateBackend,
+                        new SubTaskInitializationMetricsBuilder(
+                                SystemClock.getInstance().absoluteTimeMillis()),
                         TtlTimeProvider.DEFAULT,
                         new InternalTimeServiceManager.Provider() {
                             @Override
                             public <K> InternalTimeServiceManager<K> create(
+                                    TaskIOMetricGroup taskIOMetricGroup,
                                     CheckpointableKeyedStateBackend<K> keyedStatedBackend,
                                     ClassLoader userClassloader,
                                     KeyContext keyContext,
@@ -234,7 +242,7 @@ public class StateInitializationContextImplTest {
     }
 
     @Test
-    public void getOperatorStateStreams() throws Exception {
+    void getOperatorStateStreams() throws Exception {
 
         int i = 0;
         int s = 0;
@@ -243,12 +251,12 @@ public class StateInitializationContextImplTest {
             if (0 == i % 4) {
                 ++i;
             }
-            Assert.assertNotNull(streamProvider);
+            assertThat(streamProvider).isNotNull();
             try (InputStream is = streamProvider.getStream()) {
                 DataInputView div = new DataInputViewStreamWrapper(is);
 
                 int val = div.readInt();
-                Assert.assertEquals(i * NUM_HANDLES + s, val);
+                assertThat(val).isEqualTo(i * NUM_HANDLES + s);
             }
 
             ++s;
@@ -260,47 +268,47 @@ public class StateInitializationContextImplTest {
     }
 
     @Test
-    public void getKeyedStateStreams() throws Exception {
+    void getKeyedStateStreams() throws Exception {
 
         int readKeyGroupCount = 0;
 
         for (KeyGroupStatePartitionStreamProvider stateStreamProvider :
                 initializationContext.getRawKeyedStateInputs()) {
 
-            Assert.assertNotNull(stateStreamProvider);
+            assertThat(stateStreamProvider).isNotNull();
 
             try (InputStream is = stateStreamProvider.getStream()) {
                 DataInputView div = new DataInputViewStreamWrapper(is);
                 int val = div.readInt();
                 ++readKeyGroupCount;
-                Assert.assertEquals(stateStreamProvider.getKeyGroupId(), val);
+                assertThat(val).isEqualTo(stateStreamProvider.getKeyGroupId());
             }
         }
 
-        Assert.assertEquals(writtenKeyGroups, readKeyGroupCount);
+        assertThat(readKeyGroupCount).isEqualTo(writtenKeyGroups);
     }
 
     @Test
-    public void getOperatorStateStore() throws Exception {
+    void getOperatorStateStore() throws Exception {
 
         Set<Integer> readStatesCount = new HashSet<>();
 
         for (StatePartitionStreamProvider statePartitionStreamProvider :
                 initializationContext.getRawOperatorStateInputs()) {
 
-            Assert.assertNotNull(statePartitionStreamProvider);
+            assertThat(statePartitionStreamProvider).isNotNull();
 
             try (InputStream is = statePartitionStreamProvider.getStream()) {
                 DataInputView div = new DataInputViewStreamWrapper(is);
-                Assert.assertTrue(readStatesCount.add(div.readInt()));
+                assertThat(readStatesCount.add(div.readInt())).isTrue();
             }
         }
 
-        Assert.assertEquals(writtenOperatorStates, readStatesCount);
+        assertThat(readStatesCount).isEqualTo(writtenOperatorStates);
     }
 
     @Test
-    public void close() throws Exception {
+    void close() throws Exception {
 
         int count = 0;
         int stopCount = NUM_HANDLES / 2;
@@ -309,7 +317,7 @@ public class StateInitializationContextImplTest {
         try {
             for (KeyGroupStatePartitionStreamProvider stateStreamProvider :
                     initializationContext.getRawKeyedStateInputs()) {
-                Assert.assertNotNull(stateStreamProvider);
+                assertThat(stateStreamProvider).isNotNull();
 
                 if (count == stopCount) {
                     closableRegistry.close();
@@ -320,10 +328,8 @@ public class StateInitializationContextImplTest {
                     DataInputView div = new DataInputViewStreamWrapper(is);
                     try {
                         int val = div.readInt();
-                        Assert.assertEquals(stateStreamProvider.getKeyGroupId(), val);
-                        if (isClosed) {
-                            Assert.fail("Close was ignored: stream");
-                        }
+                        assertThat(val).isEqualTo(stateStreamProvider.getKeyGroupId());
+                        assertThat(isClosed).as("Close was ignored: stream").isFalse();
                         ++count;
                     } catch (IOException ioex) {
                         if (!isClosed) {
@@ -332,10 +338,10 @@ public class StateInitializationContextImplTest {
                     }
                 }
             }
-            Assert.fail("Close was ignored: registry");
+            fail("Close was ignored: registry");
         } catch (IOException iex) {
-            Assert.assertTrue(isClosed);
-            Assert.assertEquals(stopCount, count);
+            assertThat(isClosed).isTrue();
+            assertThat(count).isEqualTo(stopCount);
         }
     }
 

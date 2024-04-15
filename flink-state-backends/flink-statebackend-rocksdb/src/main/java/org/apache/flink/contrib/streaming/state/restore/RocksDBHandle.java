@@ -186,6 +186,35 @@ class RocksDBHandle implements AutoCloseable {
     }
 
     /**
+     * Registers a new column family and imports data from the given export.
+     *
+     * @param stateMetaInfo info about the state to create.
+     * @param cfMetaDataList the data to import.
+     */
+    /*
+    void registerStateColumnFamilyHandleWithImport(
+            RegisteredStateMetaInfoBase stateMetaInfo,
+            List<ExportImportFilesMetaData> cfMetaDataList) {
+
+        Preconditions.checkState(!kvStateInformation.containsKey(stateMetaInfo.getName()));
+
+        RocksDbKvStateInfo stateInfo =
+                RocksDBOperationUtils.createStateInfo(
+                        stateMetaInfo,
+                        db,
+                        columnFamilyOptionsFactory,
+                        ttlCompactFiltersManager,
+                        writeBufferManagerCapacity,
+                        cfMetaDataList);
+
+        RocksDBOperationUtils.registerKvStateInformation(
+                kvStateInformation, nativeMetricMonitor, stateMetaInfo.getName(), stateInfo);
+
+        columnFamilyHandles.add(stateInfo.columnFamilyHandle);
+    }
+    */
+
+    /**
      * This recreates the new working directory of the recovered RocksDB instance and links/copies
      * the contents from a local state.
      */

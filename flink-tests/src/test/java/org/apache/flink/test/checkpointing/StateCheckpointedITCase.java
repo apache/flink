@@ -18,12 +18,12 @@
 
 package org.apache.flink.test.checkpointing;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -159,10 +159,10 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
             final Random rnd = new Random();
             final StringBuilder stringBuilder = new StringBuilder();
 
-            final int step = getRuntimeContext().getNumberOfParallelSubtasks();
+            final int step = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
 
             if (index == 0) {
-                index = getRuntimeContext().getIndexOfThisSubtask();
+                index = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             }
 
             while (isRunning && index < numElements) {
@@ -226,7 +226,7 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 
         @Override
         public void close() {
-            counts[getRuntimeContext().getIndexOfThisSubtask()] = count;
+            counts[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] = count;
         }
 
         @Override
@@ -259,7 +259,7 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 
         @Override
         public void close() {
-            counts[getRuntimeContext().getIndexOfThisSubtask()] = count;
+            counts[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] = count;
         }
 
         @Override
@@ -292,7 +292,7 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 
         @Override
         public void close() throws IOException {
-            counts[getRuntimeContext().getIndexOfThisSubtask()] = count;
+            counts[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] = count;
         }
 
         @Override
@@ -330,7 +330,7 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
         }
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             count = 0;
         }
 
@@ -339,7 +339,7 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
             count++;
             if (!hasFailed
                     && count >= failurePos
-                    && getRuntimeContext().getIndexOfThisSubtask() == 1) {
+                    && getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 1) {
                 wasCheckpointedBeforeFailure = wasCheckpointed;
                 hasFailed = true;
                 throw new Exception("Test Failure");
@@ -401,7 +401,7 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 
         @Override
         public void close() throws Exception {
-            maps[getRuntimeContext().getIndexOfThisSubtask()] = counts;
+            maps[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] = counts;
         }
 
         @Override

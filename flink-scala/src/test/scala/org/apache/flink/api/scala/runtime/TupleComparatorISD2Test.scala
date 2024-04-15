@@ -18,6 +18,7 @@
 package org.apache.flink.api.scala.runtime
 
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeutils.{TypeComparator, TypeSerializer}
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.api.scala._
@@ -33,7 +34,7 @@ class TupleComparatorISD2Test extends TupleComparatorTestBase[(Int, String, Doub
 
   protected def createSerializer: TypeSerializer[(Int, String, Double)] = {
     val ti = createTypeInformation[(Int, String, Double)]
-    ti.createSerializer(new ExecutionConfig)
+    ti.createSerializer(new SerializerConfigImpl)
   }
 
   protected def getSortedTestData: Array[(Int, String, Double)] = {

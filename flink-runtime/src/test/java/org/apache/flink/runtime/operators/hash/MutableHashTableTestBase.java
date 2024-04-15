@@ -45,16 +45,16 @@ import org.apache.flink.runtime.operators.testutils.types.StringPairPairComparat
 import org.apache.flink.runtime.operators.testutils.types.StringPairSerializer;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public abstract class MutableHashTableTestBase {
+abstract class MutableHashTableTestBase {
 
     protected static final long RANDOM_SEED = 76518743207143L;
 
@@ -112,7 +112,7 @@ public abstract class MutableHashTableTestBase {
             TypeSerializer<T> serializer, TypeComparator<T> comparator, List<MemorySegment> memory);
 
     @Test
-    public void testDifferentProbers() {
+    void testDifferentProbers() {
         final int NUM_MEM_PAGES = 32 * NUM_PAIRS / PAGE_SIZE;
         AbstractMutableHashTable<IntPair> table =
                 getHashTable(intPairSerializer, intPairComparator, getMemory(NUM_MEM_PAGES));
@@ -122,14 +122,14 @@ public abstract class MutableHashTableTestBase {
         AbstractHashTableProber<IntPair, IntPair> prober2 =
                 table.getProber(intPairComparator, pairComparator);
 
-        assertFalse(prober1 == prober2);
+        assertThat(prober1).isNotEqualTo(prober2);
 
         table.close(); // (This also tests calling close without calling open first.)
-        assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+        assertThat(table.getFreeMemory()).withFailMessage("Memory lost").hasSize(NUM_MEM_PAGES);
     }
 
     @Test
-    public void testBuildAndRetrieve() throws Exception {
+    void testBuildAndRetrieve() throws Exception {
         final int NUM_MEM_PAGES = 32 * NUM_PAIRS / PAGE_SIZE;
         AbstractMutableHashTable<IntPair> table =
                 getHashTable(intPairSerializer, intPairComparator, getMemory(NUM_MEM_PAGES));
@@ -148,16 +148,16 @@ public abstract class MutableHashTableTestBase {
         IntPair target = new IntPair();
 
         for (int i = 0; i < NUM_PAIRS; i++) {
-            assertNotNull(prober.getMatchFor(pairs[i], target));
-            assertEquals(pairs[i].getValue(), target.getValue());
+            assertThat(prober.getMatchFor(pairs[i], target)).isNotNull();
+            assertThat(target.getValue()).isEqualTo((pairs[i].getValue()));
         }
 
         table.close();
-        assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+        assertThat(table.getFreeMemory()).withFailMessage("Memory lost").hasSize(NUM_MEM_PAGES);
     }
 
     @Test
-    public void testEntryIterator() throws Exception {
+    void testEntryIterator() throws Exception {
         final int NUM_MEM_PAGES = SIZE * NUM_LISTS / PAGE_SIZE;
         AbstractMutableHashTable<IntList> table =
                 getHashTable(serializerV, comparatorV, getMemory(NUM_MEM_PAGES));
@@ -181,12 +181,12 @@ public abstract class MutableHashTableTestBase {
         }
         table.close();
 
-        assertTrue(sum == result);
-        assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+        assertThat(sum).isEqualTo(result);
+        assertThat(table.getFreeMemory()).withFailMessage("Memory lost").hasSize(NUM_MEM_PAGES);
     }
 
     @Test
-    public void testMultipleProbers() throws Exception {
+    void testMultipleProbers() throws Exception {
         final int NUM_MEM_PAGES = SIZE * NUM_LISTS / PAGE_SIZE;
         AbstractMutableHashTable<IntList> table =
                 getHashTable(serializerV, comparatorV, getMemory(NUM_MEM_PAGES));
@@ -208,16 +208,16 @@ public abstract class MutableHashTableTestBase {
 
         IntList target = new IntList();
         for (int i = 0; i < NUM_LISTS; i++) {
-            assertNotNull(pairProber.getMatchFor(pairs[i], target));
-            assertNotNull(listProber.getMatchFor(lists[i], target));
-            assertArrayEquals(lists[i].getValue(), target.getValue());
+            assertThat(pairProber.getMatchFor(pairs[i], target)).isNotNull();
+            assertThat(listProber.getMatchFor(lists[i], target)).isNotNull();
+            assertThat(lists[i].getValue()).isEqualTo(target.getValue());
         }
         table.close();
-        assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+        assertThat(table.getFreeMemory()).withFailMessage("Memory lost").hasSize(NUM_MEM_PAGES);
     }
 
     @Test
-    public void testVariableLengthBuildAndRetrieve() throws Exception {
+    void testVariableLengthBuildAndRetrieve() throws Exception {
         final int NUM_MEM_PAGES = SIZE * NUM_LISTS / PAGE_SIZE;
         AbstractMutableHashTable<IntList> table =
                 getHashTable(serializerV, comparatorV, getMemory(NUM_MEM_PAGES));
@@ -240,8 +240,8 @@ public abstract class MutableHashTableTestBase {
         IntList target = new IntList();
 
         for (int i = 0; i < NUM_LISTS; i++) {
-            assertNotNull(prober.getMatchFor(lists[i], target));
-            assertArrayEquals(lists[i].getValue(), target.getValue());
+            assertThat(prober.getMatchFor(lists[i], target)).isNotNull();
+            assertThat(lists[i].getValue()).isEqualTo(target.getValue());
         }
 
         final IntList[] overwriteLists = getRandomizedIntLists(NUM_LISTS, rnd);
@@ -252,16 +252,16 @@ public abstract class MutableHashTableTestBase {
         }
 
         for (int i = 0; i < NUM_LISTS; i++) {
-            assertNotNull("" + i, prober.getMatchFor(overwriteLists[i], target));
-            assertArrayEquals(overwriteLists[i].getValue(), target.getValue());
+            assertThat(prober.getMatchFor(overwriteLists[i], target)).isNotNull();
+            assertThat(overwriteLists[i].getValue()).isEqualTo(target.getValue());
         }
 
         table.close();
-        assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+        assertThat(table.getFreeMemory()).withFailMessage("Memory lost").hasSize(NUM_MEM_PAGES);
     }
 
     @Test
-    public void testVariableLengthBuildAndRetrieveMajorityUpdated() throws Exception {
+    void testVariableLengthBuildAndRetrieveMajorityUpdated() throws Exception {
         final int NUM_MEM_PAGES = SIZE * NUM_LISTS / PAGE_SIZE;
         AbstractMutableHashTable<IntList> table =
                 getHashTable(serializerV, comparatorV, getMemory(NUM_MEM_PAGES));
@@ -280,8 +280,8 @@ public abstract class MutableHashTableTestBase {
         IntList target = new IntList();
 
         for (int i = 0; i < NUM_LISTS; i++) {
-            assertNotNull(prober.getMatchFor(lists[i], target));
-            assertArrayEquals(lists[i].getValue(), target.getValue());
+            assertThat(prober.getMatchFor(lists[i], target)).isNotNull();
+            assertThat(lists[i].getValue()).isEqualTo(target.getValue());
         }
 
         final IntList[] overwriteLists = getRandomizedIntLists(NUM_LISTS, rnd);
@@ -295,16 +295,16 @@ public abstract class MutableHashTableTestBase {
         }
 
         for (int i = 0; i < NUM_LISTS; i++) {
-            assertNotNull("" + i, prober.getMatchFor(lists[i], target));
-            assertArrayEquals(lists[i].getValue(), target.getValue());
+            assertThat(prober.getMatchFor(lists[i], target)).isNotNull();
+            assertThat(lists[i].getValue()).isEqualTo(target.getValue());
         }
 
         table.close();
-        assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+        assertThat(table.getFreeMemory()).withFailMessage("Memory lost").hasSize(NUM_MEM_PAGES);
     }
 
     @Test
-    public void testVariableLengthBuildAndRetrieveMinorityUpdated() throws Exception {
+    void testVariableLengthBuildAndRetrieveMinorityUpdated() throws Exception {
         final int NUM_LISTS = 20000;
         final int NUM_MEM_PAGES = SIZE * NUM_LISTS / PAGE_SIZE;
         AbstractMutableHashTable<IntList> table =
@@ -326,8 +326,8 @@ public abstract class MutableHashTableTestBase {
         IntList target = new IntList();
 
         for (int i = 0; i < NUM_LISTS; i++) {
-            assertNotNull(prober.getMatchFor(lists[i], target));
-            assertArrayEquals(lists[i].getValue(), target.getValue());
+            assertThat(prober.getMatchFor(lists[i], target)).isNotNull();
+            assertThat(lists[i].getValue()).isEqualTo(target.getValue());
         }
 
         final IntList[] overwriteLists = getRandomizedIntLists(NUM_LISTS / STEP_SIZE, rnd);
@@ -341,16 +341,16 @@ public abstract class MutableHashTableTestBase {
         }
 
         for (int i = 0; i < NUM_LISTS; i++) {
-            assertNotNull(prober.getMatchFor(lists[i], target));
-            assertArrayEquals(lists[i].getValue(), target.getValue());
+            assertThat(prober.getMatchFor(lists[i], target)).isNotNull();
+            assertThat(lists[i].getValue()).isEqualTo(target.getValue());
         }
 
         table.close();
-        assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+        assertThat(table.getFreeMemory()).withFailMessage("Memory lost").hasSize(NUM_MEM_PAGES);
     }
 
     @Test
-    public void testRepeatedBuildAndRetrieve() throws Exception {
+    void testRepeatedBuildAndRetrieve() throws Exception {
         final int NUM_MEM_PAGES = SIZE * NUM_LISTS / PAGE_SIZE;
         AbstractMutableHashTable<IntList> table =
                 getHashTable(serializerV, comparatorV, getMemory(NUM_MEM_PAGES));
@@ -373,8 +373,8 @@ public abstract class MutableHashTableTestBase {
         IntList target = new IntList();
 
         for (int i = 0; i < NUM_LISTS; i++) {
-            assertNotNull(prober.getMatchFor(lists[i], target));
-            assertArrayEquals(lists[i].getValue(), target.getValue());
+            assertThat(prober.getMatchFor(lists[i], target)).isNotNull();
+            assertThat(lists[i].getValue()).isEqualTo(target.getValue());
         }
 
         IntList[] overwriteLists;
@@ -387,17 +387,17 @@ public abstract class MutableHashTableTestBase {
             }
 
             for (int i = 0; i < NUM_LISTS; i++) {
-                assertNotNull("" + i, prober.getMatchFor(overwriteLists[i], target));
-                assertArrayEquals(overwriteLists[i].getValue(), target.getValue());
+                assertThat(prober.getMatchFor(overwriteLists[i], target)).isNotNull();
+                assertThat(overwriteLists[i].getValue()).isEqualTo(target.getValue());
             }
         }
 
         table.close();
-        assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+        assertThat(table.getFreeMemory()).withFailMessage("Memory lost").hasSize(NUM_MEM_PAGES);
     }
 
     @Test
-    public void testProberUpdate() throws Exception {
+    void testProberUpdate() throws Exception {
         final int NUM_MEM_PAGES = SIZE * NUM_LISTS / PAGE_SIZE;
         AbstractMutableHashTable<IntList> table =
                 getHashTable(serializerV, comparatorV, getMemory(NUM_MEM_PAGES));
@@ -418,22 +418,22 @@ public abstract class MutableHashTableTestBase {
         IntList target = new IntList();
 
         for (int i = 0; i < NUM_LISTS; i++) {
-            assertNotNull("" + i, prober.getMatchFor(lists[i], target));
-            assertArrayEquals(lists[i].getValue(), target.getValue());
+            assertThat(prober.getMatchFor(lists[i], target)).isNotNull();
+            assertThat(lists[i].getValue()).isEqualTo(target.getValue());
             prober.updateMatch(overwriteLists[i]);
         }
 
         for (int i = 0; i < NUM_LISTS; i++) {
-            assertNotNull("" + i, prober.getMatchFor(overwriteLists[i], target));
-            assertArrayEquals(overwriteLists[i].getValue(), target.getValue());
+            assertThat(prober.getMatchFor(overwriteLists[i], target)).isNotNull();
+            assertThat(overwriteLists[i].getValue()).isEqualTo(target.getValue());
         }
 
         table.close();
-        assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+        assertThat(table.getFreeMemory()).withFailMessage("Memory lost").hasSize(NUM_MEM_PAGES);
     }
 
     @Test
-    public void testVariableLengthStringBuildAndRetrieve() throws IOException {
+    void testVariableLengthStringBuildAndRetrieve() throws IOException {
         final int NUM_MEM_PAGES = 40 * NUM_PAIRS / PAGE_SIZE;
         AbstractMutableHashTable<StringPair> table =
                 getHashTable(serializerS, comparatorS, getMemory(NUM_MEM_PAGES));
@@ -461,8 +461,8 @@ public abstract class MutableHashTableTestBase {
                 table.getProber(comparatorS, pairComparatorS);
         StringPair temp = new StringPair();
         while (probeTester.next(target) != null) {
-            assertNotNull("" + target.getKey(), prober.getMatchFor(target, temp));
-            assertEquals(temp.getValue(), target.getValue());
+            assertThat(prober.getMatchFor(target, temp)).isNotNull();
+            assertThat(target.getValue()).isEqualTo(temp.getValue());
         }
 
         while (updater.next(target) != null) {
@@ -471,12 +471,12 @@ public abstract class MutableHashTableTestBase {
         }
 
         while (updateTester.next(target) != null) {
-            assertNotNull(prober.getMatchFor(target, temp));
-            assertEquals(target.getValue(), temp.getValue());
+            assertThat(prober.getMatchFor(target, temp)).isNotNull();
+            assertThat(target.getValue()).isEqualTo(temp.getValue());
         }
 
         table.close();
-        assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+        assertThat(table.getFreeMemory()).withFailMessage("Memory lost").hasSize(NUM_MEM_PAGES);
     }
 
     protected static IntPair[] getRandomizedIntPairs(int num, Random rnd) {

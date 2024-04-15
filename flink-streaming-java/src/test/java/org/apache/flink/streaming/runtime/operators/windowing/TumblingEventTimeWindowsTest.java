@@ -19,50 +19,40 @@
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.WindowStagger;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.apache.flink.streaming.util.StreamRecordMatchers.timeWindow;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /** Tests for {@link TumblingEventTimeWindows}. */
-public class TumblingEventTimeWindowsTest extends TestLogger {
+class TumblingEventTimeWindowsTest {
 
     @Test
-    public void testWindowAssignment() {
+    void testWindowAssignment() {
         WindowAssigner.WindowAssignerContext mockContext =
                 mock(WindowAssigner.WindowAssignerContext.class);
 
         TumblingEventTimeWindows assigner = TumblingEventTimeWindows.of(Time.milliseconds(5000));
 
-        assertThat(
-                assigner.assignWindows("String", 0L, mockContext), contains(timeWindow(0, 5000)));
-        assertThat(
-                assigner.assignWindows("String", 4999L, mockContext),
-                contains(timeWindow(0, 5000)));
-        assertThat(
-                assigner.assignWindows("String", 5000L, mockContext),
-                contains(timeWindow(5000, 10000)));
+        assertThat(assigner.assignWindows("String", 0L, mockContext))
+                .containsExactly(new TimeWindow(0, 5000));
+        assertThat(assigner.assignWindows("String", 4999L, mockContext))
+                .containsExactly(new TimeWindow(0, 5000));
+        assertThat(assigner.assignWindows("String", 5000L, mockContext))
+                .containsExactly(new TimeWindow(5000, 10000));
     }
 
     @Test
-    public void testWindowAssignmentWithStagger() {
+    void testWindowAssignmentWithStagger() {
         WindowAssigner.WindowAssignerContext mockContext =
                 mock(WindowAssigner.WindowAssignerContext.class);
 
@@ -71,57 +61,48 @@ public class TumblingEventTimeWindowsTest extends TestLogger {
                         Time.milliseconds(5000), Time.milliseconds(0), WindowStagger.NATURAL);
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(150L);
-        assertThat(
-                assigner.assignWindows("String", 150L, mockContext),
-                contains(timeWindow(150, 5150)));
-        assertThat(
-                assigner.assignWindows("String", 5099L, mockContext),
-                contains(timeWindow(150, 5150)));
-        assertThat(
-                assigner.assignWindows("String", 5300L, mockContext),
-                contains(timeWindow(5150, 10150)));
+        assertThat(assigner.assignWindows("String", 150L, mockContext))
+                .containsExactly(new TimeWindow(150, 5150));
+        assertThat(assigner.assignWindows("String", 5099L, mockContext))
+                .containsExactly(new TimeWindow(150, 5150));
+        assertThat(assigner.assignWindows("String", 5300L, mockContext))
+                .containsExactly(new TimeWindow(5150, 10150));
     }
 
     @Test
-    public void testWindowAssignmentWithGlobalOffset() {
+    void testWindowAssignmentWithGlobalOffset() {
         WindowAssigner.WindowAssignerContext mockContext =
                 mock(WindowAssigner.WindowAssignerContext.class);
 
         TumblingEventTimeWindows assigner =
                 TumblingEventTimeWindows.of(Time.milliseconds(5000), Time.milliseconds(100));
 
-        assertThat(
-                assigner.assignWindows("String", 100L, mockContext),
-                contains(timeWindow(100, 5100)));
-        assertThat(
-                assigner.assignWindows("String", 5099L, mockContext),
-                contains(timeWindow(100, 5100)));
-        assertThat(
-                assigner.assignWindows("String", 5100L, mockContext),
-                contains(timeWindow(5100, 10100)));
+        assertThat(assigner.assignWindows("String", 100L, mockContext))
+                .containsExactly(new TimeWindow(100, 5100));
+        assertThat(assigner.assignWindows("String", 5099L, mockContext))
+                .containsExactly(new TimeWindow(100, 5100));
+        assertThat(assigner.assignWindows("String", 5100L, mockContext))
+                .containsExactly(new TimeWindow(5100, 10100));
     }
 
     @Test
-    public void testWindowAssignmentWithNegativeGlobalOffset() {
+    void testWindowAssignmentWithNegativeGlobalOffset() {
         WindowAssigner.WindowAssignerContext mockContext =
                 mock(WindowAssigner.WindowAssignerContext.class);
 
         TumblingEventTimeWindows assigner =
                 TumblingEventTimeWindows.of(Time.milliseconds(5000), Time.milliseconds(-100));
 
-        assertThat(
-                assigner.assignWindows("String", 0L, mockContext),
-                contains(timeWindow(-100, 4900)));
-        assertThat(
-                assigner.assignWindows("String", 4899L, mockContext),
-                contains(timeWindow(-100, 4900)));
-        assertThat(
-                assigner.assignWindows("String", 4900L, mockContext),
-                contains(timeWindow(4900, 9900)));
+        assertThat(assigner.assignWindows("String", 0L, mockContext))
+                .containsExactly(new TimeWindow(-100, 4900));
+        assertThat(assigner.assignWindows("String", 4899L, mockContext))
+                .containsExactly(new TimeWindow(-100, 4900));
+        assertThat(assigner.assignWindows("String", 4900L, mockContext))
+                .containsExactly(new TimeWindow(4900, 9900));
     }
 
     @Test
-    public void testTimeUnits() {
+    void testTimeUnits() {
         // sanity check with one other time unit
 
         WindowAssigner.WindowAssignerContext mockContext =
@@ -130,51 +111,38 @@ public class TumblingEventTimeWindowsTest extends TestLogger {
         TumblingEventTimeWindows assigner =
                 TumblingEventTimeWindows.of(Time.seconds(5), Time.seconds(1));
 
-        assertThat(
-                assigner.assignWindows("String", 1000L, mockContext),
-                contains(timeWindow(1000, 6000)));
-        assertThat(
-                assigner.assignWindows("String", 5999L, mockContext),
-                contains(timeWindow(1000, 6000)));
-        assertThat(
-                assigner.assignWindows("String", 6000L, mockContext),
-                contains(timeWindow(6000, 11000)));
+        assertThat(assigner.assignWindows("String", 1000L, mockContext))
+                .containsExactly(new TimeWindow(1000, 6000));
+        assertThat(assigner.assignWindows("String", 5999L, mockContext))
+                .containsExactly(new TimeWindow(1000, 6000));
+        assertThat(assigner.assignWindows("String", 6000L, mockContext))
+                .containsExactly(new TimeWindow(6000, 11000));
     }
 
     @Test
-    public void testInvalidParameters() {
-        try {
-            TumblingEventTimeWindows.of(Time.seconds(-1));
-            fail("should fail");
-        } catch (IllegalArgumentException e) {
-            assertThat(e.toString(), containsString("abs(offset) < size"));
-        }
+    void testInvalidParameters() {
 
-        try {
-            TumblingEventTimeWindows.of(Time.seconds(10), Time.seconds(20));
-            fail("should fail");
-        } catch (IllegalArgumentException e) {
-            assertThat(e.toString(), containsString("abs(offset) < size"));
-        }
+        assertThatThrownBy(() -> TumblingEventTimeWindows.of(Time.seconds(-1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("abs(offset) < size");
 
-        try {
-            TumblingEventTimeWindows.of(Time.seconds(10), Time.seconds(-11));
-            fail("should fail");
-        } catch (IllegalArgumentException e) {
-            assertThat(e.toString(), containsString("abs(offset) < size"));
-        }
+        assertThatThrownBy(() -> TumblingEventTimeWindows.of(Time.seconds(10), Time.seconds(20)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("abs(offset) < size");
+
+        assertThatThrownBy(() -> TumblingEventTimeWindows.of(Time.seconds(10), Time.seconds(-11)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("abs(offset) < size");
     }
 
     @Test
-    public void testProperties() {
+    void testProperties() {
         TumblingEventTimeWindows assigner =
                 TumblingEventTimeWindows.of(Time.seconds(5), Time.milliseconds(100));
 
-        assertTrue(assigner.isEventTime());
-        assertEquals(
-                new TimeWindow.Serializer(), assigner.getWindowSerializer(new ExecutionConfig()));
-        assertThat(
-                assigner.getDefaultTrigger(mock(StreamExecutionEnvironment.class)),
-                instanceOf(EventTimeTrigger.class));
+        assertThat(assigner.isEventTime()).isTrue();
+        assertThat(assigner.getWindowSerializer(new ExecutionConfig()))
+                .isEqualTo(new TimeWindow.Serializer());
+        assertThat(assigner.getDefaultTrigger()).isInstanceOf(EventTimeTrigger.class);
     }
 }

@@ -52,8 +52,7 @@ import java.util.function.Predicate;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** A collection of utility methods for testing the ExecutionGraph and its related classes. */
 public class ExecutionGraphTestUtils {
@@ -232,11 +231,21 @@ public class ExecutionGraphTestUtils {
 
     /**
      * Takes all vertices in the given ExecutionGraph and switches their current execution to
+     * INITIALIZING.
+     */
+    public static void switchAllVerticesToInitializing(ExecutionGraph eg) {
+        for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
+            vertex.getCurrentExecutionAttempt().switchToInitializing();
+        }
+    }
+
+    /**
+     * Takes all vertices in the given ExecutionGraph and switches their current execution to
      * RUNNING.
      */
     public static void switchAllVerticesToRunning(ExecutionGraph eg) {
         for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
-            vertex.getCurrentExecutionAttempt().switchToRecovering();
+            vertex.getCurrentExecutionAttempt().switchToInitializing();
             vertex.getCurrentExecutionAttempt().switchToRunning();
         }
     }
@@ -481,63 +490,61 @@ public class ExecutionGraphTestUtils {
      * @param outputJobVertices downstream vertices of the verified vertex, used to check produced
      *     data sets of generated vertex
      */
-    public static void verifyGeneratedExecutionJobVertex(
+    static void verifyGeneratedExecutionJobVertex(
             ExecutionGraph executionGraph,
             JobVertex originJobVertex,
             @Nullable List<JobVertex> inputJobVertices,
             @Nullable List<JobVertex> outputJobVertices) {
 
         ExecutionJobVertex ejv = executionGraph.getAllVertices().get(originJobVertex.getID());
-        assertNotNull(ejv);
+        assertThat(ejv).isNotNull();
 
         // verify basic properties
-        assertEquals(originJobVertex.getParallelism(), ejv.getParallelism());
-        assertEquals(executionGraph.getJobID(), ejv.getJobId());
-        assertEquals(originJobVertex.getID(), ejv.getJobVertexId());
-        assertEquals(originJobVertex, ejv.getJobVertex());
+        assertThat(originJobVertex.getParallelism()).isEqualTo(ejv.getParallelism());
+        assertThat(executionGraph.getJobID()).isEqualTo(ejv.getJobId());
+        assertThat(originJobVertex.getID()).isEqualTo(ejv.getJobVertexId());
+        assertThat(originJobVertex).isEqualTo(ejv.getJobVertex());
 
         // verify produced data sets
         if (outputJobVertices == null) {
-            assertEquals(0, ejv.getProducedDataSets().length);
+            assertThat(ejv.getProducedDataSets()).isEmpty();
         } else {
-            assertEquals(outputJobVertices.size(), ejv.getProducedDataSets().length);
+            assertThat(outputJobVertices).hasSize(ejv.getProducedDataSets().length);
             for (int i = 0; i < outputJobVertices.size(); i++) {
-                assertEquals(
-                        originJobVertex.getProducedDataSets().get(i).getId(),
-                        ejv.getProducedDataSets()[i].getId());
-                assertEquals(
-                        originJobVertex.getParallelism(),
-                        ejv.getProducedDataSets()[0].getPartitions().length);
+                assertThat(originJobVertex.getProducedDataSets().get(i).getId())
+                        .isEqualTo(ejv.getProducedDataSets()[i].getId());
+                assertThat(originJobVertex.getParallelism())
+                        .isEqualTo(ejv.getProducedDataSets()[0].getPartitions().length);
             }
         }
 
         // verify task vertices for their basic properties and their inputs
-        assertEquals(originJobVertex.getParallelism(), ejv.getTaskVertices().length);
+        assertThat(originJobVertex.getParallelism()).isEqualTo(ejv.getTaskVertices().length);
 
         int subtaskIndex = 0;
         for (ExecutionVertex ev : ejv.getTaskVertices()) {
-            assertEquals(executionGraph.getJobID(), ev.getJobId());
-            assertEquals(originJobVertex.getID(), ev.getJobvertexId());
+            assertThat(executionGraph.getJobID()).isEqualTo(ev.getJobId());
+            assertThat(originJobVertex.getID()).isEqualTo(ev.getJobvertexId());
 
-            assertEquals(originJobVertex.getParallelism(), ev.getTotalNumberOfParallelSubtasks());
-            assertEquals(subtaskIndex, ev.getParallelSubtaskIndex());
+            assertThat(originJobVertex.getParallelism())
+                    .isEqualTo(ev.getTotalNumberOfParallelSubtasks());
+            assertThat(subtaskIndex).isEqualTo(ev.getParallelSubtaskIndex());
 
             if (inputJobVertices == null) {
-                assertEquals(0, ev.getNumberOfInputs());
+                assertThat(ev.getNumberOfInputs()).isZero();
             } else {
-                assertEquals(inputJobVertices.size(), ev.getNumberOfInputs());
+                assertThat(inputJobVertices).hasSize(ev.getNumberOfInputs());
 
                 for (int i = 0; i < inputJobVertices.size(); i++) {
                     ConsumedPartitionGroup consumedPartitionGroup = ev.getConsumedPartitionGroup(i);
-                    assertEquals(
-                            inputJobVertices.get(i).getParallelism(),
-                            consumedPartitionGroup.size());
+                    assertThat(inputJobVertices.get(i).getParallelism())
+                            .isEqualTo(consumedPartitionGroup.size());
 
                     int expectedPartitionNum = 0;
                     for (IntermediateResultPartitionID consumedPartitionId :
                             consumedPartitionGroup) {
-                        assertEquals(
-                                expectedPartitionNum, consumedPartitionId.getPartitionNumber());
+                        assertThat(consumedPartitionId.getPartitionNumber())
+                                .isEqualTo(expectedPartitionNum);
 
                         expectedPartitionNum++;
                     }

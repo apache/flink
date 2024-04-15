@@ -20,6 +20,7 @@ package org.apache.flink.api.java.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.configuration.Configuration;
@@ -32,7 +33,14 @@ import java.util.Map;
  * org.apache.flink.api.common.functions.RichReduceFunction}, or {@link
  * org.apache.flink.api.common.functions.RichCoGroupFunction}. The UDF operators stand in contrast
  * to operators that execute built-in operations, like aggregations.
+ *
+ * @deprecated All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a
+ *     future Flink major version. You can still build your application in DataSet, but you should
+ *     move to either the DataStream and/or Table API.
+ * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741">
+ *     FLIP-131: Consolidate the user-facing Dataflow SDKs/APIs (and deprecate the DataSet API</a>
  */
+@Deprecated
 @Public
 public interface UdfOperator<O extends UdfOperator<O>> {
 
@@ -42,7 +50,7 @@ public interface UdfOperator<O extends UdfOperator<O>> {
 
     /**
      * Gets the configuration parameters that will be passed to the UDF's open method {@link
-     * org.apache.flink.api.common.functions.AbstractRichFunction#open(Configuration)}. The
+     * org.apache.flink.api.common.functions.AbstractRichFunction#open(OpenContext)}. The
      * configuration is set via the {@link #withParameters(Configuration)} method.
      *
      * @return The configuration parameters for the UDF.
@@ -73,7 +81,7 @@ public interface UdfOperator<O extends UdfOperator<O>> {
     /**
      * Sets the configuration parameters for the UDF. These are optional parameters that are passed
      * to the UDF in the {@link
-     * org.apache.flink.api.common.functions.AbstractRichFunction#open(Configuration)} method.
+     * org.apache.flink.api.common.functions.AbstractRichFunction#open(OpenContext)} method.
      *
      * @param parameters The configuration parameters for the UDF.
      * @return The operator itself, to allow chaining function calls.

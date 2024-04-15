@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
@@ -75,6 +76,21 @@ public enum PartitionTestUtils {
     }
 
     public static ResultPartition createPartition(
+            ResultPartitionType type,
+            FileChannelManager channelManager,
+            NetworkBufferPool networkBufferPool,
+            boolean compressionEnabled,
+            int networkBufferSize) {
+        return new ResultPartitionBuilder()
+                .setResultPartitionType(type)
+                .setFileChannelManager(channelManager)
+                .setNetworkBufferPool(networkBufferPool)
+                .setBlockingShuffleCompressionEnabled(compressionEnabled)
+                .setNetworkBufferSize(networkBufferSize)
+                .build();
+    }
+
+    public static ResultPartition createPartition(
             NettyShuffleEnvironment environment,
             ResultPartitionType partitionType,
             int numChannels) {
@@ -106,7 +122,8 @@ public enum PartitionTestUtils {
         final ResultPartitionManager partitionManager = new ResultPartitionManager();
         final ResultPartition parent = subpartition.parent;
         partitionManager.registerResultPartition(parent);
-        return partitionManager.createSubpartitionView(parent.partitionId, 0, listener);
+        return partitionManager.createSubpartitionView(
+                parent.partitionId, new ResultSubpartitionIndexSet(0), listener);
     }
 
     static void verifyCreateSubpartitionViewThrowsException(
@@ -114,7 +131,9 @@ public enum PartitionTestUtils {
         assertThatThrownBy(
                         () ->
                                 partitionManager.createSubpartitionView(
-                                        partitionId, 0, new NoOpBufferAvailablityListener()))
+                                        partitionId,
+                                        new ResultSubpartitionIndexSet(0),
+                                        new NoOpBufferAvailablityListener()))
                 .as("Should throw a PartitionNotFoundException.")
                 .isInstanceOf(PartitionNotFoundException.class)
                 .satisfies(
@@ -144,7 +163,7 @@ public enum PartitionTestUtils {
             int bufferSize,
             byte[] dataBytes)
             throws Exception {
-        List<BufferWithChannel> buffers = new ArrayList<>();
+        List<BufferWithSubpartition> buffers = new ArrayList<>();
         for (int i = 0; i < numSubpartitions; ++i) {
             for (int j = 0; j < numBuffersPerSubpartition; ++j) {
                 Buffer.DataType dataType =
@@ -157,7 +176,7 @@ public enum PartitionTestUtils {
                 Buffer buffer =
                         new NetworkBuffer(
                                 segment, FreeingBufferRecycler.INSTANCE, dataType, bufferSize);
-                buffers.add(new BufferWithChannel(buffer, i));
+                buffers.add(new BufferWithSubpartition(buffer, i));
             }
         }
 

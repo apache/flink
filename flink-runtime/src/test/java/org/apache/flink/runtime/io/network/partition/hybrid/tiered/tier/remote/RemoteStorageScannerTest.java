@@ -34,12 +34,10 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.RejectedExecutionException;
 
 import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.SegmentPartitionFile.getSegmentPath;
 import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.SegmentPartitionFile.writeSegmentFinishFile;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
 /** Tests for {@link RemoteStorageScanner}. */
 class RemoteStorageScannerTest {
@@ -123,9 +121,6 @@ class RemoteStorageScannerTest {
         remoteStorageScanner.watchSegment(DEFAULT_PARTITION_ID, DEFAULT_SUBPARTITION_ID, 0);
         remoteStorageScanner.start();
         future.get();
-        remoteStorageScanner.close();
-        assertThatThrownBy(remoteStorageScanner::start)
-                .isInstanceOf(RejectedExecutionException.class);
     }
 
     @Test

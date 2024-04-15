@@ -25,19 +25,19 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.buffer.TestingBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
@@ -45,16 +45,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static junit.framework.TestCase.assertEquals;
-import static junit.framework.TestCase.assertTrue;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.verifyBufferResponseHeader;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createRemoteInputChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
-import static org.junit.Assert.assertNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests the client side message decoder. */
-public class NettyMessageClientDecoderDelegateTest extends TestLogger {
+class NettyMessageClientDecoderDelegateTest {
 
     private static final int BUFFER_SIZE = 1024;
 
@@ -72,20 +70,25 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
 
     private InputChannelID releasedInputChannelId;
 
-    @Before
-    public void setup() throws IOException, InterruptedException {
+    @BeforeEach
+    void setup() throws IOException, InterruptedException {
         CreditBasedPartitionRequestClientHandler handler =
                 new CreditBasedPartitionRequestClientHandler();
         networkBufferPool = new NetworkBufferPool(NUMBER_OF_BUFFER_RESPONSES, BUFFER_SIZE);
         channel = new EmbeddedChannel(new NettyMessageClientDecoderDelegate(handler));
 
         inputGate = createSingleInputGate(1, networkBufferPool);
+        inputGate.setBufferPool(
+                TestingBufferPool.builder()
+                        .setRequestMemorySegmentSupplier(
+                                () -> MemorySegmentFactory.allocateUnpooledSegment(1024))
+                        .build());
         RemoteInputChannel inputChannel =
                 createRemoteInputChannel(
                         inputGate, new TestingPartitionRequestClient(), NUMBER_OF_BUFFER_RESPONSES);
         inputGate.setInputChannels(inputChannel);
-        inputGate.setup();
-        inputChannel.requestSubpartition();
+        inputGate.setupChannels();
+        inputChannel.requestSubpartitions();
         handler.addInputChannel(inputChannel);
         inputChannelId = inputChannel.getInputChannelId();
 
@@ -97,8 +100,8 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
         releasedInputChannelId = releasedInputChannel.getInputChannelId();
     }
 
-    @After
-    public void tearDown() throws IOException {
+    @AfterEach
+    void tearDown() throws IOException {
         if (inputGate != null) {
             inputGate.close();
         }
@@ -115,7 +118,7 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
 
     /** Verifies that the client side decoder works well for unreleased input channels. */
     @Test
-    public void testClientMessageDecode() throws Exception {
+    void testClientMessageDecode() throws Exception {
         testNettyMessageClientDecoding(false, false, false);
     }
 
@@ -124,7 +127,7 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
      * consume data buffers of the input channels.
      */
     @Test
-    public void testClientMessageDecodeWithEmptyBuffers() throws Exception {
+    void testClientMessageDecodeWithEmptyBuffers() throws Exception {
         testNettyMessageClientDecoding(true, false, false);
     }
 
@@ -133,7 +136,7 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
      * channel. The data buffer part should be discarded before reading the next message.
      */
     @Test
-    public void testClientMessageDecodeWithReleasedInputChannel() throws Exception {
+    void testClientMessageDecodeWithReleasedInputChannel() throws Exception {
         testNettyMessageClientDecoding(false, true, false);
     }
 
@@ -142,7 +145,7 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
      * channel. The data buffer part should be discarded before reading the next message.
      */
     @Test
-    public void testClientMessageDecodeWithRemovedInputChannel() throws Exception {
+    void testClientMessageDecodeWithRemovedInputChannel() throws Exception {
         testNettyMessageClientDecoding(false, false, true);
     }
 
@@ -234,7 +237,7 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
             int seqNumber) {
 
         Buffer buffer = createDataBuffer(bufferSize, dataType);
-        messages.add(new BufferResponse(buffer, seqNumber, inputChannelId, 1));
+        messages.add(new BufferResponse(buffer, seqNumber, inputChannelId, 0, 1));
     }
 
     private Buffer createDataBuffer(int size, Buffer.DataType dataType) {
@@ -318,7 +321,7 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
         List<NettyMessage> decodedMessages = new ArrayList<>();
         Object input;
         while ((input = channel.readInbound()) != null) {
-            assertTrue(input instanceof NettyMessage);
+            assertThat(input).isInstanceOf(NettyMessage.class);
             decodedMessages.add((NettyMessage) input);
         }
 
@@ -327,17 +330,17 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
 
     private void verifyDecodedMessages(
             List<BufferResponse> expectedMessages, List<NettyMessage> decodedMessages) {
-        assertEquals(expectedMessages.size(), decodedMessages.size());
+        assertThat(decodedMessages).hasSameSizeAs(expectedMessages);
         for (int i = 0; i < expectedMessages.size(); ++i) {
-            assertEquals(expectedMessages.get(i).getClass(), decodedMessages.get(i).getClass());
+            assertThat(decodedMessages.get(i)).isInstanceOf(expectedMessages.get(i).getClass());
 
             BufferResponse expected = expectedMessages.get(i);
             BufferResponse actual = (BufferResponse) decodedMessages.get(i);
             verifyBufferResponseHeader(expected, actual);
             if (expected.bufferSize == 0 || !expected.receiverId.equals(inputChannelId)) {
-                assertNull(actual.getBuffer());
+                assertThat(actual.getBuffer()).isNull();
             } else {
-                assertEquals(expected.getBuffer(), actual.getBuffer());
+                assertThat(actual.getBuffer()).isEqualTo(expected.getBuffer());
             }
         }
     }

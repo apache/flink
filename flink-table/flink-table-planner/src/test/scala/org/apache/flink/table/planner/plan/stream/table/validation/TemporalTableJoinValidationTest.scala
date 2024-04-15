@@ -21,7 +21,8 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.Test
 
 import java.sql.Timestamp
 
@@ -52,26 +53,20 @@ class TemporalTableJoinValidationTest extends TableTestBase {
 
   @Test
   def testInvalidFieldReference(): Unit = {
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Cannot resolve field [foobar]")
-
-    ratesHistory.createTemporalTableFunction('rowtime, 'foobar)
+    assertThatThrownBy(() => ratesHistory.createTemporalTableFunction('rowtime, 'foobar))
+      .hasMessageContaining("Cannot resolve field [foobar]")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
   def testInvalidStringFieldReference(): Unit = {
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Cannot resolve field [foobar]")
-
-    ratesHistory.createTemporalTableFunction($"rowtime", $"foobar")
+    assertThatThrownBy(() => ratesHistory.createTemporalTableFunction($"rowtime", $"foobar"))
+      .hasMessageContaining("Cannot resolve field [foobar]")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
   def testNonTimeIndicatorOnRightSide(): Unit = {
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "Non rowtime timeAttribute [TIMESTAMP(3)] used to create TemporalTableFunction")
-
     val rates = ratesHistoryWithoutTimeAttribute.createTemporalTableFunction('rowtime, 'currency)
 
     val result = orders
@@ -79,15 +74,14 @@ class TemporalTableJoinValidationTest extends TableTestBase {
       .select($"o_amount" * $"rate")
       .as("rate")
 
-    util.verifyExplain(result)
+    assertThatThrownBy(() => util.verifyExplain(result))
+      .hasMessageContaining(
+        "Non rowtime timeAttribute [TIMESTAMP(3)] used to create TemporalTableFunction")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
   def testNonTimeIndicatorOnLeftSide(): Unit = {
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "Non rowtime timeAttribute [TIMESTAMP(3)] passed as the argument to TemporalTableFunction")
-
     val rates = ratesHistory.createTemporalTableFunction('rowtime, 'currency)
 
     val result = ordersWithoutTimeAttribute
@@ -95,16 +89,14 @@ class TemporalTableJoinValidationTest extends TableTestBase {
       .select($"o_amount" * $"rate")
       .as("rate")
 
-    util.verifyExplain(result)
+    assertThatThrownBy(() => util.verifyExplain(result))
+      .hasMessageContaining(
+        "Non rowtime timeAttribute [TIMESTAMP(3)] passed as the argument to TemporalTableFunction")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
   def testMixedTimeIndicators(): Unit = {
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "Non rowtime timeAttribute [TIMESTAMP_LTZ(3) *PROCTIME*] passed as the argument " +
-        "to TemporalTableFunction")
-
     val rates = ratesHistory.createTemporalTableFunction('rowtime, 'currency)
 
     val result = ordersProctime
@@ -112,6 +104,10 @@ class TemporalTableJoinValidationTest extends TableTestBase {
       .select($"o_amount" * $"rate")
       .as("rate")
 
-    util.verifyExplain(result)
+    assertThatThrownBy(() => util.verifyExplain(result))
+      .hasMessageContaining(
+        "Non rowtime timeAttribute [TIMESTAMP_LTZ(3) *PROCTIME*] passed as the argument " +
+          "to TemporalTableFunction")
+      .isInstanceOf[ValidationException]
   }
 }

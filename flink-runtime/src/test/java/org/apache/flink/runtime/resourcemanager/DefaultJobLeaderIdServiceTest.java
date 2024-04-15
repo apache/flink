@@ -23,14 +23,12 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.mockito.ArgumentCaptor;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import java.util.ArrayDeque;
 import java.util.Arrays;
@@ -42,28 +40,24 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.eq;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 /** Tests for the {@link DefaultJobLeaderIdService}. */
-public class DefaultJobLeaderIdServiceTest extends TestLogger {
+class DefaultJobLeaderIdServiceTest {
 
     /** Tests adding a job and finding out its leader id. */
-    @Test(timeout = 10000)
-    public void testAddingJob() throws Exception {
+    @Test
+    @Timeout(value = 10000, unit = TimeUnit.MILLISECONDS)
+    void testAddingJob() throws Exception {
         final JobID jobId = new JobID();
         final String address = "foobar";
         final JobMasterId leaderId = JobMasterId.generate();
@@ -90,14 +84,15 @@ public class DefaultJobLeaderIdServiceTest extends TestLogger {
         // notify the leader id service about the new leader
         leaderRetrievalService.notifyListener(address, leaderId.toUUID());
 
-        assertEquals(leaderId, leaderIdFuture.get());
+        assertThat(leaderIdFuture).isCompletedWithValue(leaderId);
 
-        assertTrue(jobLeaderIdService.containsJob(jobId));
+        assertThat(jobLeaderIdService.containsJob(jobId)).isTrue();
     }
 
     /** Tests that removing a job completes the job leader id future exceptionally. */
-    @Test(timeout = 10000)
-    public void testRemovingJob() throws Exception {
+    @Test
+    @Timeout(value = 10000, unit = TimeUnit.MILLISECONDS)
+    void testRemovingJob() throws Exception {
         final JobID jobId = new JobID();
         TestingHighAvailabilityServices highAvailabilityServices =
                 new TestingHighAvailabilityServices();
@@ -122,15 +117,12 @@ public class DefaultJobLeaderIdServiceTest extends TestLogger {
         // remove the job before we could find a leader
         jobLeaderIdService.removeJob(jobId);
 
-        assertFalse(jobLeaderIdService.containsJob(jobId));
+        assertThat(jobLeaderIdService.containsJob(jobId)).isFalse();
 
-        try {
-            leaderIdFuture.get();
-
-            fail("The leader id future should be completed exceptionally.");
-        } catch (ExecutionException ignored) {
-            // expected exception
-        }
+        assertThatFuture(leaderIdFuture)
+                .withFailMessage("The leader id future should be completed exceptionally.")
+                .eventuallyFails()
+                .withThrowableOfType(ExecutionException.class);
     }
 
     /**
@@ -138,7 +130,7 @@ public class DefaultJobLeaderIdServiceTest extends TestLogger {
      * JobLeaderIdActions#notifyJobTimeout(JobID, UUID)} when executed.
      */
     @Test
-    public void testInitialJobTimeout() throws Exception {
+    void testInitialJobTimeout() throws Exception {
         final JobID jobId = new JobID();
         TestingHighAvailabilityServices highAvailabilityServices =
                 new TestingHighAvailabilityServices();
@@ -158,7 +150,7 @@ public class DefaultJobLeaderIdServiceTest extends TestLogger {
 
         jobLeaderIdService.addJob(jobId);
 
-        assertTrue(jobLeaderIdService.containsJob(jobId));
+        assertThat(jobLeaderIdService.containsJob(jobId)).isTrue();
 
         ArgumentCaptor<Runnable> runnableArgumentCaptor = ArgumentCaptor.forClass(Runnable.class);
         verify(scheduledExecutor)
@@ -172,15 +164,17 @@ public class DefaultJobLeaderIdServiceTest extends TestLogger {
         verify(jobLeaderIdActions, times(1))
                 .notifyJobTimeout(eq(jobId), timeoutIdArgumentCaptor.capture());
 
-        assertTrue(jobLeaderIdService.isValidTimeout(jobId, timeoutIdArgumentCaptor.getValue()));
+        assertThat(jobLeaderIdService.isValidTimeout(jobId, timeoutIdArgumentCaptor.getValue()))
+                .isTrue();
     }
 
     /**
      * Tests that a timeout get cancelled once a job leader has been found. Furthermore, it tests
      * that a new timeout is registered after the jobmanager has lost leadership.
      */
-    @Test(timeout = 10000)
-    public void jobTimeoutAfterLostLeadership() throws Exception {
+    @Test
+    @Timeout(value = 10000, unit = TimeUnit.MILLISECONDS)
+    void jobTimeoutAfterLostLeadership() throws Exception {
         final JobID jobId = new JobID();
         final String address = "foobar";
         final JobMasterId leaderId = JobMasterId.generate();
@@ -199,13 +193,9 @@ public class DefaultJobLeaderIdServiceTest extends TestLogger {
 
         final AtomicReference<Runnable> lastRunnable = new AtomicReference<>();
         doAnswer(
-                        new Answer() {
-                            @Override
-                            public Object answer(InvocationOnMock invocation) throws Throwable {
-                                lastRunnable.set((Runnable) invocation.getArguments()[0]);
-
-                                return timeoutQueue.poll();
-                            }
+                        invocation -> {
+                            lastRunnable.set((Runnable) invocation.getArguments()[0]);
+                            return timeoutQueue.poll();
                         })
                 .when(scheduledExecutor)
                 .schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
@@ -216,12 +206,9 @@ public class DefaultJobLeaderIdServiceTest extends TestLogger {
         final AtomicReference<UUID> lastTimeoutId = new AtomicReference<>();
 
         doAnswer(
-                        new Answer() {
-                            @Override
-                            public Object answer(InvocationOnMock invocation) throws Throwable {
-                                lastTimeoutId.set((UUID) invocation.getArguments()[1]);
-                                return null;
-                            }
+                        invocation -> {
+                            lastTimeoutId.set((UUID) invocation.getArguments()[1]);
+                            return null;
                         })
                 .when(jobLeaderIdActions)
                 .notifyJobTimeout(eq(jobId), any(UUID.class));
@@ -238,9 +225,9 @@ public class DefaultJobLeaderIdServiceTest extends TestLogger {
         // notify the leader id service about the new leader
         leaderRetrievalService.notifyListener(address, leaderId.toUUID());
 
-        assertEquals(leaderId, leaderIdFuture.get());
+        assertThat(leaderIdFuture).isCompletedWithValue(leaderId);
 
-        assertTrue(jobLeaderIdService.containsJob(jobId));
+        assertThat(jobLeaderIdService.containsJob(jobId)).isTrue();
 
         // check that the first timeout got cancelled
         verify(timeout1, times(1)).cancel(anyBoolean());
@@ -251,14 +238,14 @@ public class DefaultJobLeaderIdServiceTest extends TestLogger {
         // initial timeout runnable which should no longer have an effect
         Runnable runnable = lastRunnable.get();
 
-        assertNotNull(runnable);
+        assertThat(runnable).isNotNull();
 
         runnable.run();
 
         verify(jobLeaderIdActions, times(1)).notifyJobTimeout(eq(jobId), any(UUID.class));
 
         // the timeout should no longer be valid
-        assertFalse(jobLeaderIdService.isValidTimeout(jobId, lastTimeoutId.get()));
+        assertThat(jobLeaderIdService.isValidTimeout(jobId, lastTimeoutId.get())).isFalse();
 
         // lose leadership
         leaderRetrievalService.notifyListener("", null);
@@ -269,14 +256,14 @@ public class DefaultJobLeaderIdServiceTest extends TestLogger {
         // the second runnable should be the new timeout
         runnable = lastRunnable.get();
 
-        assertNotNull(runnable);
+        assertThat(runnable).isNotNull();
 
         runnable.run();
 
         verify(jobLeaderIdActions, times(2)).notifyJobTimeout(eq(jobId), any(UUID.class));
 
         // the new timeout should be valid
-        assertTrue(jobLeaderIdService.isValidTimeout(jobId, lastTimeoutId.get()));
+        assertThat(jobLeaderIdService.isValidTimeout(jobId, lastTimeoutId.get())).isTrue();
     }
 
     /**
@@ -284,8 +271,9 @@ public class DefaultJobLeaderIdServiceTest extends TestLogger {
      * leader being elected. Specifically, it tests that the future is not completed if the
      * leadership was revoked without a new leader having been elected.
      */
-    @Test(timeout = 10000)
-    public void testLeaderFutureWaitsForValidLeader() throws Exception {
+    @Test
+    @Timeout(value = 10000, unit = TimeUnit.MILLISECONDS)
+    void testLeaderFutureWaitsForValidLeader() throws Exception {
         final JobID jobId = new JobID();
         TestingHighAvailabilityServices highAvailabilityServices =
                 new TestingHighAvailabilityServices();
@@ -312,17 +300,19 @@ public class DefaultJobLeaderIdServiceTest extends TestLogger {
 
         final CompletableFuture<JobMasterId> leaderIdFuture = jobLeaderIdService.getLeaderId(jobId);
         // there is currently no leader, so this should not be completed
-        assertThat(leaderIdFuture.isDone(), is(false));
+        assertThat(leaderIdFuture).isNotDone();
 
         // elect a new leader
         final UUID newLeaderId = UUID.randomUUID();
         leaderRetrievalService.notifyListener("foo", newLeaderId);
-        assertThat(leaderIdFuture.get(), is(JobMasterId.fromUuidOrNull(newLeaderId)));
+        assertThatFuture(leaderIdFuture)
+                .eventuallySucceeds()
+                .isEqualTo(JobMasterId.fromUuidOrNull(newLeaderId));
     }
 
     /** Tests that whether the service has been started. */
     @Test
-    public void testIsStarted() throws Exception {
+    void testIsStarted() throws Exception {
         final JobID jobId = new JobID();
         TestingHighAvailabilityServices highAvailabilityServices =
                 new TestingHighAvailabilityServices();
@@ -335,15 +325,15 @@ public class DefaultJobLeaderIdServiceTest extends TestLogger {
         DefaultJobLeaderIdService jobLeaderIdService =
                 new DefaultJobLeaderIdService(highAvailabilityServices, scheduledExecutor, timeout);
 
-        assertFalse(jobLeaderIdService.isStarted());
+        assertThat(jobLeaderIdService.isStarted()).isFalse();
 
         jobLeaderIdService.start(jobLeaderIdActions);
 
-        assertTrue(jobLeaderIdService.isStarted());
+        assertThat(jobLeaderIdService.isStarted()).isTrue();
 
         jobLeaderIdService.stop();
 
-        assertFalse(jobLeaderIdService.isStarted());
+        assertThat(jobLeaderIdService.isStarted()).isFalse();
     }
 
     private static class NoOpJobLeaderIdActions implements JobLeaderIdActions {

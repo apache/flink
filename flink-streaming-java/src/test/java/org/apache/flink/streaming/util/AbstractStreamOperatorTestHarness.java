@@ -33,9 +33,11 @@ import org.apache.flink.runtime.checkpoint.RoundRobinOperatorStateRepartitioner;
 import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
@@ -72,6 +74,7 @@ import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorEventDispatcherImpl;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -83,6 +86,7 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.clock.SystemClock;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -146,6 +150,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
             new InternalTimeServiceManager.Provider() {
                 @Override
                 public <K> InternalTimeServiceManager<K> create(
+                        TaskIOMetricGroup taskIOMetricGroup,
                         CheckpointableKeyedStateBackend<K> keyedStatedBackend,
                         ClassLoader userClassloader,
                         KeyContext keyContext,
@@ -155,6 +160,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
                         throws Exception {
                     InternalTimeServiceManagerImpl<K> typedTimeServiceManager =
                             InternalTimeServiceManagerImpl.create(
+                                    taskIOMetricGroup,
                                     keyedStatedBackend,
                                     userClassloader,
                                     keyContext,
@@ -336,6 +342,8 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
         return new StreamTaskStateInitializerImpl(
                 env,
                 stateBackend,
+                new SubTaskInitializationMetricsBuilder(
+                        SystemClock.getInstance().absoluteTimeMillis()),
                 ttlTimeProvider,
                 timeServiceManagerProvider,
                 StreamTaskCancellationContext.alwaysRunning());
@@ -604,7 +612,10 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
             }
         }
 
-        operator.initializeState(mockTask.createStreamTaskStateInitializer());
+        operator.initializeState(
+                mockTask.createStreamTaskStateInitializer(
+                        new SubTaskInitializationMetricsBuilder(
+                                SystemClock.getInstance().absoluteTimeMillis())));
         initializeCalled = true;
     }
 
@@ -841,11 +852,16 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
         }
 
         @Override
+        public void emitRecordAttributes(RecordAttributes recordAttributes) {
+            outputList.add(recordAttributes);
+        }
+
+        @Override
         public void collect(StreamRecord<OUT> element) {
             if (outputSerializer == null) {
                 outputSerializer =
                         TypeExtractor.getForObject(element.getValue())
-                                .createSerializer(executionConfig);
+                                .createSerializer(executionConfig.getSerializerConfig());
             }
             if (element.hasTimestamp()) {
                 outputList.add(
@@ -858,7 +874,8 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
         @Override
         public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
-            sideOutputSerializer = outputTag.getTypeInfo().createSerializer(executionConfig);
+            sideOutputSerializer =
+                    outputTag.getTypeInfo().createSerializer(executionConfig.getSerializerConfig());
 
             ConcurrentLinkedQueue<Object> sideOutputList = sideOutputLists.get(outputTag);
             if (sideOutputList == null) {

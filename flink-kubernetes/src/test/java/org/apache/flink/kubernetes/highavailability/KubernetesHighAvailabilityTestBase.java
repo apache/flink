@@ -38,7 +38,6 @@ import org.apache.flink.util.function.RunnableWithException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -52,7 +51,7 @@ class KubernetesHighAvailabilityTestBase {
 
     public static final String LOCK_IDENTITY = UUID.randomUUID().toString();
     public static final String LEADER_ADDRESS =
-            "akka.tcp://flink@172.20.1.21:6123/user/rpc/dispatcher";
+            "pekko.tcp://flink@172.20.1.21:6123/user/rpc/dispatcher";
     public static final String LEADER_CONFIGMAP_NAME = "leader-test-cluster";
 
     protected static final long TIMEOUT = 30L * 1000L;
@@ -89,7 +88,6 @@ class KubernetesHighAvailabilityTestBase {
         final Configuration configuration;
 
         final CompletableFuture<Void> closeKubeClientFuture;
-        final CompletableFuture<Map<String, String>> deleteConfigMapByLabelsFuture;
 
         Context() throws Exception {
             kubernetesTestFixture =
@@ -102,8 +100,6 @@ class KubernetesHighAvailabilityTestBase {
             flinkKubeClient = kubernetesTestFixture.getFlinkKubeClient();
             configuration = kubernetesTestFixture.getConfiguration();
             closeKubeClientFuture = kubernetesTestFixture.getCloseKubeClientFuture();
-            deleteConfigMapByLabelsFuture =
-                    kubernetesTestFixture.getDeleteConfigMapByLabelsFuture();
             electionEventHandler = new TestingLeaderElectionListener();
             leaderElectionDriver = createLeaderElectionDriver();
 

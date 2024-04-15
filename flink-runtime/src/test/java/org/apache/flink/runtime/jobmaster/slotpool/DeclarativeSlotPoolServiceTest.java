@@ -338,7 +338,7 @@ class DeclarativeSlotPoolServiceTest {
             slotPoolService.releaseFreeSlotsOnTaskManager(
                     taskManagerLocation.getResourceID(), new FlinkException("Test cause"));
 
-            assertThat(slotPool.getFreeSlotsInformation()).isEmpty();
+            assertThat(slotPool.getFreeSlotInfoTracker().getAvailableSlots()).isEmpty();
             assertThat(
                             Iterables.getOnlyElement(slotPool.getAllSlotsInformation())
                                     .getAllocationId())

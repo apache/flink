@@ -67,6 +67,7 @@ public abstract class TableStreamOperator<OUT> extends AbstractStreamOperator<OU
                         getOperatorConfig()
                                 .getManagedMemoryFractionOperatorUseCaseOfSlot(
                                         ManagedMemoryUseCase.OPERATOR,
+                                        environment.getJobConfiguration(),
                                         environment.getTaskManagerInfo().getConfiguration(),
                                         environment.getUserCodeClassLoader().asClassLoader()));
     }

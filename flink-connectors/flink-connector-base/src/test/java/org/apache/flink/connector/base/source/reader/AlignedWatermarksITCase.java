@@ -37,7 +37,7 @@ import org.apache.flink.runtime.testutils.InMemoryReporter;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.test.junit5.InjectMiniCluster;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.testutils.logging.LoggerAuditingExtension;
@@ -145,7 +145,7 @@ public class AlignedWatermarksITCase {
                                     }
                                 });
 
-        slowSource.union(fastSource).addSink(new DiscardingSink<>());
+        slowSource.union(fastSource).sinkTo(new DiscardingSink<>());
 
         return env.getStreamGraph().getJobGraph();
     }

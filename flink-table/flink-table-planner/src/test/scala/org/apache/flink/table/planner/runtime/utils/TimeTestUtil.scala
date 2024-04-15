@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.operators.{AbstractStreamOperator, OneInputStreamOperator}
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
+import org.apache.flink.streaming.runtime.streamrecord.{RecordAttributes, StreamRecord}
 import org.apache.flink.table.planner.JLong
 
 object TimeTestUtil {
@@ -69,8 +69,7 @@ object TimeTestUtil {
 
     override def snapshotState(context: StateSnapshotContext): Unit = {
       super.snapshotState(context)
-      watermarkState.clear()
-      watermarkState.add(currentWatermark)
+      watermarkState.update(java.util.Collections.singletonList(currentWatermark))
     }
 
     override def initializeState(context: StateInitializationContext): Unit = {
@@ -99,6 +98,8 @@ object TimeTestUtil {
       }
     }
 
+    override def processRecordAttributes(recordAttributes: RecordAttributes): Unit =
+      super.processRecordAttributes(recordAttributes)
   }
 
 }

@@ -18,8 +18,13 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+
+import org.junit.jupiter.api.extension.ExtendWith;
+
 /** Tests for the {@link EnvironmentInfo}. */
-public class EnvironmentInfoTest extends RestResponseMarshallingTestBase<EnvironmentInfo> {
+@ExtendWith(NoOpTestExtension.class)
+class EnvironmentInfoTest extends RestResponseMarshallingTestBase<EnvironmentInfo> {
     @Override
     protected Class<EnvironmentInfo> getTestResponseClass() {
         return EnvironmentInfo.class;

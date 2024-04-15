@@ -156,6 +156,7 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
                         accTypes,
                         inputCountIndex,
                         generateUpdateBefore,
+                        generator.isIncrementalUpdate(),
                         config.getStateRetentionTime());
         final OneInputStreamOperator<RowData, RowData> operator =
                 new KeyedProcessOperator<>(aggFunction);

@@ -138,7 +138,7 @@ Calc(select=[c.d.e AS e, c.d AS d])
 LogicalProject(a=[$0], b=[$1])
 +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
    +- LogicalProject(a=[$0], b=[$1], c=[$2], originTime=[$3], rowtime=[TO_TIMESTAMP_LTZ($3, 3)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyLtzTable]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyLtzTable, metadata=[originTime]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -176,7 +176,7 @@ Calc(select=[a, b, EXTRACT(SECOND, CAST(Reinterpret((c + 5000:INTERVAL SECOND)) 
 LogicalProject(a=[$0], b=[$1])
 +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
    +- LogicalProject(a=[$0], b=[$1], c=[$2], originTime=[$3], rowtime=[TO_TIMESTAMP(FROM_UNIXTIME(/($3, 1000)), _UTF-16LE'yyyy-MM-dd HH:mm:ss')])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, metadata=[originTime]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">

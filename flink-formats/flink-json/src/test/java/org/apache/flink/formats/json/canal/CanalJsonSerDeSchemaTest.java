@@ -218,7 +218,8 @@ class CanalJsonSerDeSchemaTest {
                         TimestampFormat.ISO_8601,
                         JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
-                        true);
+                        true,
+                        false);
         serializationSchema.open(new DummyInitializationContext());
 
         List<String> result = new ArrayList<>();

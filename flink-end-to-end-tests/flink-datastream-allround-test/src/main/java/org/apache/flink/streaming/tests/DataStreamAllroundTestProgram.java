@@ -127,7 +127,8 @@ public class DataStreamAllroundTestProgram {
                                         Arrays.asList(
                                                 new KryoSerializer<>(
                                                         ComplexPayload.class,
-                                                        env.getConfig()), // KryoSerializer
+                                                        env.getConfig()
+                                                                .getSerializerConfig()), // KryoSerializer
                                                 new StatefulComplexPayloadSerializer()), // custom
                                         // stateful
                                         // serializer

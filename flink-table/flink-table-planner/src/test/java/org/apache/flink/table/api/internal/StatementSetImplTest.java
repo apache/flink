@@ -23,27 +23,27 @@ import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link StatementSetImpl}. */
-public class StatementSetImplTest {
+class StatementSetImplTest {
 
     TableEnvironmentInternal tableEnv;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         tableEnv =
                 (TableEnvironmentInternal)
                         TableEnvironment.create(EnvironmentSettings.inStreamingMode());
     }
 
     @Test
-    public void testGetJsonPlan() throws IOException {
+    void testGetJsonPlan() throws IOException {
         String srcTableDdl =
                 "CREATE TABLE MyTable (\n"
                         + "  a bigint,\n"

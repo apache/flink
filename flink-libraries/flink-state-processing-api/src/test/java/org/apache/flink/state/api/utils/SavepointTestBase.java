@@ -18,8 +18,8 @@
 
 package org.apache.flink.state.api.utils;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.client.program.ClusterClient;
@@ -103,7 +103,7 @@ public abstract class SavepointTestBase extends AbstractTestBase {
         try {
             SourceFunction<T> inner =
                     new FromElementsFunction<>(
-                            typeInfo.createSerializer(new ExecutionConfig()), data);
+                            typeInfo.createSerializer(new SerializerConfigImpl()), data);
             return new WaitingSource<>(inner, typeInfo);
         } catch (IOException e) {
             throw new RuntimeException(e);

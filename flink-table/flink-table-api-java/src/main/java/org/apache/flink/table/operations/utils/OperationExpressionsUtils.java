@@ -61,6 +61,7 @@ public class OperationExpressionsUtils {
     // --------------------------------------------------------------------------------------------
 
     /** Container for extracted expressions of the same family. */
+    @Internal
     public static class CategorizedExpressions {
         private final List<Expression> projections;
         private final List<Expression> aggregations;

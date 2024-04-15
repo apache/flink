@@ -25,12 +25,11 @@ import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook.Factory;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.checkpoint.WithMasterCheckpointHook;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
@@ -40,23 +39,21 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 import static java.util.Arrays.asList;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests that when sources implement {@link WithMasterCheckpointHook} the hooks are properly
  * configured in the job's checkpoint settings.
  */
 @SuppressWarnings("serial")
-public class WithMasterCheckpointHookConfigTest extends TestLogger {
+class WithMasterCheckpointHookConfigTest {
 
     /**
      * This test creates a program with 4 sources (2 with master hooks, 2 without). The resulting
      * job graph must have 2 configured master hooks.
      */
     @Test
-    public void testHookConfiguration() throws Exception {
+    void testHookConfiguration() throws Exception {
         // create some sources some of which configure master hooks
         final TestSource source1 = new TestSource();
         final TestSourceWithHook source2 = new TestSourceWithHook("foo");
@@ -84,24 +81,24 @@ public class WithMasterCheckpointHookConfigTest extends TestLogger {
                 .union(env.addSource(source2).map(identity))
                 .union(env.addSource(source3).map(identityWithHook1))
                 .union(env.addSource(source4).map(identityWithHook2))
-                .addSink(new DiscardingSink<String>());
+                .sinkTo(new DiscardingSink<>());
 
         final JobGraph jg = env.getStreamGraph().getJobGraph();
 
         SerializedValue<Factory[]> serializedConfiguredHooks =
                 jg.getCheckpointingSettings().getMasterHooks();
-        assertNotNull(serializedConfiguredHooks);
+        assertThat(serializedConfiguredHooks).isNotNull();
 
         Factory[] configuredHooks =
                 serializedConfiguredHooks.deserializeValue(getClass().getClassLoader());
-        assertEquals(hooks.size(), configuredHooks.length);
+        assertThat(configuredHooks).hasSameSizeAs(hooks);
 
         // check that all hooks are contained and exist exactly once
         for (Factory f : configuredHooks) {
             MasterTriggerRestoreHook<?> hook = f.create();
-            assertTrue(hooks.remove(hook));
+            assertThat(hooks.remove(hook)).isTrue();
         }
-        assertTrue(hooks.isEmpty());
+        assertThat(hooks).isEmpty();
     }
 
     // -----------------------------------------------------------------------

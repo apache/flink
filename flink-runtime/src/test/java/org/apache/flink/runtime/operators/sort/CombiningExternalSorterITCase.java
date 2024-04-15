@@ -19,13 +19,13 @@
 package org.apache.flink.runtime.operators.sort;
 
 import org.apache.flink.api.common.functions.GroupCombineFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.api.common.typeutils.base.IntComparator;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -38,12 +38,10 @@ import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.Valu
 import org.apache.flink.runtime.util.ReusingKeyGroupedIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,9 +51,9 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class CombiningExternalSorterITCase extends TestLogger {
+class CombiningExternalSorterITCase {
 
     private static final Logger LOG = LoggerFactory.getLogger(CombiningExternalSorterITCase.class);
 
@@ -81,8 +79,8 @@ public class CombiningExternalSorterITCase extends TestLogger {
     private TypeComparator<Tuple2<Integer, String>> comparator1;
     private TypeComparator<Tuple2<Integer, Integer>> comparator2;
 
-    @Before
-    public void beforeTest() {
+    @BeforeEach
+    void beforeTest() {
         this.memoryManager = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_SIZE).build();
         this.ioManager = new IOManagerAsync();
 
@@ -93,21 +91,22 @@ public class CombiningExternalSorterITCase extends TestLogger {
         this.comparator2 = TestData.getIntIntTupleComparator();
     }
 
-    @After
-    public void afterTest() throws Exception {
+    @AfterEach
+    void afterTest() throws Exception {
         this.ioManager.close();
 
         if (this.memoryManager != null) {
-            Assert.assertTrue(
-                    "Memory leak: not all segments have been returned to the memory manager.",
-                    this.memoryManager.verifyEmpty());
+            assertThat(this.memoryManager.verifyEmpty())
+                    .withFailMessage(
+                            "Memory Leak: not all segments have been returned to the memory manager.")
+                    .isTrue();
             this.memoryManager.shutdown();
             this.memoryManager = null;
         }
     }
 
     @Test
-    public void testCombine() throws Exception {
+    void testCombine() throws Exception {
         int noKeys = 100;
         int noKeyCnt = 10000;
 
@@ -149,17 +148,17 @@ public class CombiningExternalSorterITCase extends TestLogger {
                 getReducingIterator(
                         iterator, serializerFactory2.getSerializer(), comparator2.duplicate());
         while (result.hasNext()) {
-            assertEquals(noKeyCnt, result.next().intValue());
+            assertThat(result.next()).isEqualTo(noKeyCnt);
         }
 
         merger.close();
 
         // if the combiner was opened, it must have been closed
-        assertEquals(comb.opened, comb.closed);
+        assertThat(comb.opened).isEqualTo(comb.closed);
     }
 
     @Test
-    public void testCombineSpilling() throws Exception {
+    void testCombineSpilling() throws Exception {
         int noKeys = 100;
         int noKeyCnt = 10000;
 
@@ -201,17 +200,17 @@ public class CombiningExternalSorterITCase extends TestLogger {
                 getReducingIterator(
                         iterator, serializerFactory2.getSerializer(), comparator2.duplicate());
         while (result.hasNext()) {
-            assertEquals(noKeyCnt, result.next().intValue());
+            assertThat(result.next()).isEqualTo(noKeyCnt);
         }
 
         merger.close();
 
         // if the combiner was opened, it must have been closed
-        assertEquals(comb.opened, comb.closed);
+        assertThat(comb.opened).isEqualTo(comb.closed);
     }
 
     @Test
-    public void testCombineSpillingDisableObjectReuse() throws Exception {
+    void testCombineSpillingDisableObjectReuse() throws Exception {
         int noKeys = 100;
         int noKeyCnt = 10000;
 
@@ -253,14 +252,14 @@ public class CombiningExternalSorterITCase extends TestLogger {
                 getReducingIterator(
                         iterator, serializerFactory2.getSerializer(), comparator2.duplicate());
         while (result.hasNext()) {
-            assertEquals(4950, result.next().intValue());
+            assertThat(result.next()).isEqualTo(4950);
         }
 
         merger.close();
     }
 
     @Test
-    public void testSortAndValidate() throws Exception {
+    void testSortAndValidate() throws Exception {
         final Hashtable<Integer, Integer> countTable = new Hashtable<>(KEY_MAX);
         for (int i = 1; i <= KEY_MAX; i++) {
             countTable.put(i, 0);
@@ -300,7 +299,7 @@ public class CombiningExternalSorterITCase extends TestLogger {
         Tuple2<Integer, String> rec = new Tuple2<>();
 
         for (int i = 0; i < NUM_PAIRS; i++) {
-            Assert.assertTrue((rec = generator.next(rec)) != null);
+            assertThat(rec = generator.next(rec)).isNotNull();
             final Integer key = rec.f0;
             rec.setField("1", 1);
             reader.emit(rec);
@@ -317,32 +316,32 @@ public class CombiningExternalSorterITCase extends TestLogger {
         Tuple2<Integer, String> rec1 = new Tuple2<>();
         Tuple2<Integer, String> rec2 = new Tuple2<>();
 
-        Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
+        assertThat(rec1 = iterator.next(rec1)).isNotNull();
         countTable.put(rec1.f0, countTable.get(rec1.f0) - (Integer.parseInt(rec1.f1)));
 
         while ((rec2 = iterator.next(rec2)) != null) {
             int k1 = rec1.f0;
             int k2 = rec2.f0;
 
-            Assert.assertTrue(keyComparator.compare(k1, k2) <= 0);
+            assertThat(keyComparator.compare(k1, k2)).isLessThanOrEqualTo(0);
             countTable.put(k2, countTable.get(k2) - (Integer.parseInt(rec2.f1)));
 
             rec1 = rec2;
         }
 
         for (Integer cnt : countTable.values()) {
-            assertEquals(0, (int) cnt);
+            assertThat(cnt).isZero();
         }
 
         merger.close();
 
         // if the combiner was opened, it must have been closed
-        assertEquals(comb.opened, comb.closed);
+        assertThat(comb.opened).isEqualTo(comb.closed);
     }
 
     // --------------------------------------------------------------------------------------------
 
-    public static class TestCountCombiner
+    private static class TestCountCombiner
             extends RichGroupReduceFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>
             implements GroupCombineFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> {
         private static final long serialVersionUID = 1L;
@@ -375,7 +374,7 @@ public class CombiningExternalSorterITCase extends TestLogger {
                 Collector<Tuple2<Integer, Integer>> out) {}
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             opened = true;
         }
 
@@ -385,7 +384,7 @@ public class CombiningExternalSorterITCase extends TestLogger {
         }
     }
 
-    public static class TestCountCombiner2
+    private static class TestCountCombiner2
             extends RichGroupReduceFunction<Tuple2<Integer, String>, Tuple2<Integer, String>>
             implements GroupCombineFunction<Tuple2<Integer, String>, Tuple2<Integer, String>> {
         private static final long serialVersionUID = 1L;
@@ -414,7 +413,7 @@ public class CombiningExternalSorterITCase extends TestLogger {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             opened = true;
         }
 
@@ -426,7 +425,7 @@ public class CombiningExternalSorterITCase extends TestLogger {
 
     // --------------------------------------------------------------------------------------------
 
-    public static class MaterializedCountCombiner
+    private static class MaterializedCountCombiner
             extends RichGroupReduceFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>
             implements GroupCombineFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> {
         private static final long serialVersionUID = 1L;

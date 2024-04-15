@@ -25,7 +25,6 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.MemorySize;
@@ -233,8 +232,8 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
         // Flink configuration
         final Configuration config = new Configuration();
 
-        config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
-        config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, DEFAULT_PARALLELISM);
+        config.set(TaskManagerOptions.MINI_CLUSTER_NUM_TASK_MANAGERS, 1);
+        config.set(TaskManagerOptions.NUM_TASK_SLOTS, DEFAULT_PARALLELISM);
 
         UUID id = UUID.randomUUID();
         final File checkpointDir = TEMP_FOLDER.newFolder("checkpoints_" + id).getAbsoluteFile();
@@ -247,12 +246,11 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
         LOG.info("Created temporary checkpoint directory: " + checkpointDir + ".");
         LOG.info("Created savepoint directory: " + savepointDir + ".");
 
-        config.setString(StateBackendOptions.STATE_BACKEND, "memory");
-        config.setString(
-                CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
+        config.set(StateBackendOptions.STATE_BACKEND, "memory");
+        config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
         config.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, MemorySize.ZERO);
-        config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
-        config.setLong(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, 300L);
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
+        config.set(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, 300L);
 
         return config;
     }
@@ -268,11 +266,6 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
         final Deadline deadLine = Deadline.fromNow(Duration.ofMinutes(5));
 
         ClusterClient<?> client = miniClusterResource.getClusterClient();
-
-        // TODO [FLINK-29802] Remove this after ChangelogStateBackend supports native savepoint.
-        if (snapshotType == SnapshotType.SAVEPOINT_NATIVE) {
-            env.enableChangelogStateBackend(false);
-        }
 
         // Submit the job
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();

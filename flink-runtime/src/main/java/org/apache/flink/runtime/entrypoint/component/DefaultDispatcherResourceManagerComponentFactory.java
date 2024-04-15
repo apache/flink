@@ -149,12 +149,12 @@ public class DefaultDispatcherResourceManagerComponentFactory
 
             final ScheduledExecutorService executor =
                     WebMonitorEndpoint.createExecutorService(
-                            configuration.getInteger(RestOptions.SERVER_NUM_THREADS),
-                            configuration.getInteger(RestOptions.SERVER_THREAD_PRIORITY),
+                            configuration.get(RestOptions.SERVER_NUM_THREADS),
+                            configuration.get(RestOptions.SERVER_THREAD_PRIORITY),
                             "DispatcherRestEndpoint");
 
             final long updateInterval =
-                    configuration.getLong(MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL);
+                    configuration.get(MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL);
             final MetricFetcher metricFetcher =
                     updateInterval == 0
                             ? VoidMetricFetcher.INSTANCE

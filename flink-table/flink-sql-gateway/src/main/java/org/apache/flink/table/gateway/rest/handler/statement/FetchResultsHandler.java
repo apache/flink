@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.gateway.rest.handler.statement;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.util.HandlerRequestUtils;
@@ -39,13 +40,18 @@ import org.apache.flink.table.gateway.rest.message.statement.FetchResultsRowForm
 import org.apache.flink.table.gateway.rest.message.statement.FetchResultsTokenPathParameter;
 import org.apache.flink.table.gateway.rest.message.statement.NotReadyFetchResultResponse;
 import org.apache.flink.table.gateway.rest.serde.ResultInfo;
+import org.apache.flink.table.gateway.rest.util.RowDataLocalTimeZoneConverter;
 import org.apache.flink.table.gateway.rest.util.RowFormat;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import javax.annotation.Nonnull;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 /** Handler to fetch results. */
 public class FetchResultsHandler
@@ -100,13 +106,24 @@ public class FetchResultsHandler
             return CompletableFuture.completedFuture(
                     new NotReadyFetchResultResponse(nextResultUri));
         } else {
+            RowDataLocalTimeZoneConverter timeZoneConverter = null;
+            if (rowFormat == RowFormat.JSON) {
+                List<LogicalType> logicalTypeList =
+                        resultSet.getResultSchema().getColumnDataTypes().stream()
+                                .map(DataType::getLogicalType)
+                                .collect(Collectors.toList());
+                timeZoneConverter =
+                        new RowDataLocalTimeZoneConverter(
+                                logicalTypeList,
+                                Configuration.fromMap(service.getSessionConfig(sessionHandle)));
+            }
             return CompletableFuture.completedFuture(
                     new FetchResultResponseBodyImpl(
                             resultType,
                             resultSet.isQueryResult(),
                             resultSet.getJobID(),
                             resultSet.getResultKind(),
-                            ResultInfo.createResultInfo(resultSet, rowFormat),
+                            ResultInfo.createResultInfo(resultSet, rowFormat, timeZoneConverter),
                             nextResultUri));
         }
     }

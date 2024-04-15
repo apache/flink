@@ -37,9 +37,9 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketWriter;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.util.function.SupplierWithException;
@@ -173,7 +173,7 @@ public class StreamingSink {
         }
 
         DataStreamSink<?> discardingSink =
-                stream.addSink(new DiscardingSink<>()).name("end").setParallelism(1);
+                stream.sinkTo(new DiscardingSink<>()).name("end").setParallelism(1);
         providerContext.generateUid("discarding-sink").ifPresent(discardingSink::uid);
         return discardingSink;
     }

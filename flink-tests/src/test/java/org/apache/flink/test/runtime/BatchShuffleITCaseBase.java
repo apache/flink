@@ -19,6 +19,8 @@
 package org.apache.flink.test.runtime;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.connector.source.Boundedness;
@@ -40,6 +42,7 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
@@ -66,34 +69,51 @@ class BatchShuffleITCaseBase {
     private static Path tmpDir;
 
     @BeforeAll
-    static void setup(@TempDir Path path) throws Exception {
+    static void setupClass(@TempDir Path path) throws Exception {
         tmpDir = TempDirUtils.newFolder(path, UUID.randomUUID().toString()).toPath();
     }
 
+    @BeforeEach
+    public void setup() {
+        Arrays.fill(NUM_RECEIVED_RECORDS, 0);
+    }
+
     protected JobGraph createJobGraph(
-            int numRecordsToSend, boolean failExecution, Configuration configuration) {
-        return createJobGraph(numRecordsToSend, failExecution, false, configuration);
+            int numRecordsToSend,
+            boolean failExecution,
+            Configuration configuration,
+            boolean enableAdaptiveAutoParallelism) {
+        return createJobGraph(
+                numRecordsToSend,
+                failExecution,
+                false,
+                configuration,
+                enableAdaptiveAutoParallelism);
     }
 
     protected JobGraph createJobGraph(
             int numRecordsToSend,
             boolean failExecution,
             boolean deletePartitionFile,
-            Configuration configuration) {
-        configuration.setBoolean(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED, false);
+            Configuration configuration,
+            boolean enableAdaptiveAutoParallelism) {
+        configuration.set(
+                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED,
+                enableAdaptiveAutoParallelism);
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(10, 0L));
+        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(2, 0L));
         env.setParallelism(NUM_SLOTS_PER_TASK_MANAGER);
 
         DataStream<String> source =
                 new DataStreamSource<>(
-                        env,
-                        BasicTypeInfo.STRING_TYPE_INFO,
-                        new StreamSource<>(new StringSource(numRecordsToSend)),
-                        true,
-                        "source",
-                        Boundedness.BOUNDED);
+                                env,
+                                BasicTypeInfo.STRING_TYPE_INFO,
+                                new StreamSource<>(new StringSource(numRecordsToSend)),
+                                true,
+                                "source",
+                                Boundedness.BOUNDED)
+                        .setParallelism(PARALLELISM);
         source.rebalance()
                 .map(value -> value)
                 .shuffle()
@@ -116,15 +136,16 @@ class BatchShuffleITCaseBase {
             throws Exception {
         JobGraphRunningUtil.execute(
                 jobGraph, configuration, NUM_TASK_MANAGERS, NUM_SLOTS_PER_TASK_MANAGER);
-        checkAllDataReceived(numRecordsToSend);
+        checkAllDataReceived(numRecordsToSend, PARALLELISM, 1);
     }
 
-    private void checkAllDataReceived(int numRecordsToSend) {
+    protected void checkAllDataReceived(
+            int numRecordsToSend, int parallelism, int numResultPartitions) {
         assertThat(Arrays.stream(NUM_RECEIVED_RECORDS).sum())
-                .isEqualTo(numRecordsToSend * PARALLELISM);
+                .isEqualTo(numRecordsToSend * parallelism * numResultPartitions);
     }
 
-    private static class StringSource implements ParallelSourceFunction<String> {
+    static class StringSource implements ParallelSourceFunction<String> {
         private volatile boolean isRunning = true;
         private int numRecordsToSend;
 
@@ -145,21 +166,29 @@ class BatchShuffleITCaseBase {
         }
     }
 
-    private static class VerifySink extends RichSinkFunction<String> {
+    static class VerifySink extends RichSinkFunction<String> {
         private final boolean failExecution;
 
         private final boolean deletePartitionFile;
 
+        private boolean isWatermarkReceived;
+
         VerifySink(boolean failExecution, boolean deletePartitionFile) {
             this.failExecution = failExecution;
             this.deletePartitionFile = deletePartitionFile;
+            this.isWatermarkReceived = false;
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            NUM_RECEIVED_RECORDS[getRuntimeContext().getIndexOfThisSubtask()] = 0;
-            if (getRuntimeContext().getAttemptNumber() > 0
-                    || getRuntimeContext().getIndexOfThisSubtask() != 0) {
+        public void open(OpenContext openContext) throws Exception {
+            int indexOfSubtask = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
+            int attemptNumber = getRuntimeContext().getTaskInfo().getAttemptNumber();
+
+            if (attemptNumber > 0) {
+                NUM_RECEIVED_RECORDS[indexOfSubtask] = 0;
+            }
+
+            if (attemptNumber > 0 || indexOfSubtask != 0) {
                 return;
             }
 
@@ -175,9 +204,21 @@ class BatchShuffleITCaseBase {
         }
 
         @Override
+        public void writeWatermark(Watermark watermark) {
+            assertThat(watermark.getTimestamp()).isEqualTo(Long.MAX_VALUE);
+            isWatermarkReceived = true;
+        }
+
+        @Override
         public void invoke(String value, Context context) throws Exception {
-            NUM_RECEIVED_RECORDS[getRuntimeContext().getIndexOfThisSubtask()]++;
+            assertThat(isWatermarkReceived).isFalse();
+            NUM_RECEIVED_RECORDS[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()]++;
             assertThat(value).isEqualTo(RECORD);
+        }
+
+        @Override
+        public void finish() {
+            assertThat(isWatermarkReceived).isTrue();
         }
 
         private static void deleteFiles(File root) throws IOException {

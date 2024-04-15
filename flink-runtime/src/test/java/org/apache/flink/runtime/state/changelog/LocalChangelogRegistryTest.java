@@ -19,21 +19,19 @@
 package org.apache.flink.runtime.state.changelog;
 
 import org.apache.flink.runtime.state.TestingStreamStateHandle;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** {@link LocalChangelogRegistryImpl}'s test. */
-public class LocalChangelogRegistryTest extends TestLogger {
+class LocalChangelogRegistryTest {
 
     @Test
-    public void testRegistryNormal() {
+    void testRegistryNormal() {
         LocalChangelogRegistry localStateRegistry =
-                new LocalChangelogRegistryImpl(Executors.directExecutor());
+                new LocalChangelogRegistryImpl(Executors.newDirectExecutorService());
         TestingStreamStateHandle handle1 = new TestingStreamStateHandle();
         TestingStreamStateHandle handle2 = new TestingStreamStateHandle();
         // checkpoint 1: handle1, handle2
@@ -46,11 +44,11 @@ public class LocalChangelogRegistryTest extends TestLogger {
         localStateRegistry.register(handle3, 2);
 
         localStateRegistry.discardUpToCheckpoint(2);
-        assertTrue(handle1.isDisposed());
-        assertFalse(handle2.isDisposed());
+        assertThat(handle1.isDisposed()).isTrue();
+        assertThat(handle2.isDisposed()).isFalse();
 
         localStateRegistry.discardUpToCheckpoint(3);
-        assertTrue(handle2.isDisposed());
-        assertTrue(handle3.isDisposed());
+        assertThat(handle2.isDisposed()).isTrue();
+        assertThat(handle3.isDisposed()).isTrue();
     }
 }

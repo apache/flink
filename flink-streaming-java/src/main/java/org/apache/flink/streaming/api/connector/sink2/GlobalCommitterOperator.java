@@ -24,6 +24,8 @@ import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerial
 import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalSinkCommitterMetricGroup;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -69,6 +71,7 @@ class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamOperator
     private CommittableCollector<CommT> committableCollector;
     private long lastCompletedCheckpointId = -1;
     private SimpleVersionedSerializer<CommT> committableSerializer;
+    private SinkCommitterMetricGroup metricGroup;
 
     @Nullable private GlobalCommitter<CommT, GlobalCommT> globalCommitter;
     @Nullable private SimpleVersionedSerializer<GlobalCommT> globalCommittableSerializer;
@@ -88,7 +91,8 @@ class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamOperator
             Output<StreamRecord<Void>> output) {
         super.setup(containingTask, config, output);
         committer = committerFactory.get();
-        committableCollector = CommittableCollector.of(getRuntimeContext());
+        metricGroup = InternalSinkCommitterMetricGroup.wrap(metrics);
+        committableCollector = CommittableCollector.of(getRuntimeContext(), metricGroup);
         committableSerializer = committableSerializerFactory.get();
         if (committer instanceof SinkV1Adapter.GlobalCommitterAdapter) {
             final SinkV1Adapter<?, CommT, ?, GlobalCommT>.GlobalCommitterAdapter gc =
@@ -114,14 +118,16 @@ class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamOperator
         final CommittableCollectorSerializer<CommT> committableCollectorSerializer =
                 new CommittableCollectorSerializer<>(
                         committableSerializer,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getMaxNumberOfParallelSubtasks());
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getMaxNumberOfParallelSubtasks(),
+                        metricGroup);
         final SimpleVersionedSerializer<GlobalCommittableWrapper<CommT, GlobalCommT>> serializer =
                 new GlobalCommitterSerializer<>(
                         committableCollectorSerializer,
                         globalCommittableSerializer,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getMaxNumberOfParallelSubtasks());
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getMaxNumberOfParallelSubtasks(),
+                        metricGroup);
         globalCommitterState =
                 new SimpleVersionedListState<>(
                         context.getOperatorStateStore()

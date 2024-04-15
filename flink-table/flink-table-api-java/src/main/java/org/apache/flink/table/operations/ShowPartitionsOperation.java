@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableResultInternal;
@@ -36,6 +37,7 @@ import java.util.Map;
 import static org.apache.flink.table.api.internal.TableResultUtils.buildStringArrayResult;
 
 /** Operation to describe a SHOW PARTITIONS statement. */
+@Internal
 public class ShowPartitionsOperation implements ShowOperation {
 
     protected final ObjectIdentifier tableIdentifier;

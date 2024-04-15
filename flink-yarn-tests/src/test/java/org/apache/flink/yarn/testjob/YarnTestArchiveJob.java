@@ -18,12 +18,13 @@
 
 package org.apache.flink.yarn.testjob;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
@@ -110,7 +111,7 @@ public class YarnTestArchiveJob {
         env.addSource(
                         new SourceFunctionWithArchive<>(
                                 LIST, localizedPath, TypeInformation.of(String.class)))
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         return env.getStreamGraph().getJobGraph();
     }
@@ -129,7 +130,7 @@ public class YarnTestArchiveJob {
             this.returnType = returnType;
         }
 
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             for (Map.Entry<String, String> entry : srcFiles.entrySet()) {
                 Path path = Paths.get(resourcePath + File.separator + entry.getKey());
                 String content = new String(Files.readAllBytes(path));

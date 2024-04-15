@@ -20,19 +20,20 @@ package org.apache.flink.table.planner.plan.rules.logical
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkChainedProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE, StreamOptimizeContext}
-import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase, TableTestUtil}
+import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.tools.RuleSets
-import org.junit.{Before, Test}
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Test for [[LogicalCorrelateToJoinFromTemporalTableRule]]. */
 class LogicalCorrelateToJoinFromTemporalTableRuleTest extends TableTestBase {
 
   protected val util: StreamTableTestUtil = streamTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     util.addTable("""
                     |CREATE TABLE T1 (
@@ -116,45 +117,51 @@ class LogicalCorrelateToJoinFromTemporalTableRuleTest extends TableTestBase {
   @Test
   def testProcTimeTemporalJoinOnTrue(): Unit = {
     setUpCurrentRule(LogicalCorrelateToJoinFromTemporalTableRule.WITHOUT_FILTER)
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "Currently the join key in " +
+    assertThatThrownBy(
+      () =>
+        util.verifyRelPlan(
+          "SELECT * FROM T1 JOIN T3 FOR SYSTEM_TIME AS OF T1.rowtime AS dimTable " +
+            "ON TRUE"))
+      .hasMessageContaining("Currently the join key in " +
         "Temporal Table Join can not be empty.")
-    util.verifyRelPlan(
-      "SELECT * FROM T1 JOIN T3 FOR SYSTEM_TIME AS OF T1.rowtime AS dimTable " +
-        "ON TRUE")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
   def testRowTimeTemporalJoinOnTrue(): Unit = {
     setUpCurrentRule(LogicalCorrelateToJoinFromTemporalTableRule.WITHOUT_FILTER)
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "Currently the join key in " +
+    assertThatThrownBy(
+      () =>
+        util.verifyRelPlan(
+          "SELECT * FROM T1 JOIN T3 FOR SYSTEM_TIME AS OF T1.proctime AS dimTable " +
+            "ON TRUE"))
+      .hasMessageContaining("Currently the join key in " +
         "Temporal Table Join can not be empty.")
-    util.verifyRelPlan(
-      "SELECT * FROM T1 JOIN T3 FOR SYSTEM_TIME AS OF T1.proctime AS dimTable " +
-        "ON TRUE")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
   def testRightTemporalJoin(): Unit = {
     setUpCurrentRule(LogicalCorrelateToJoinFromTemporalTableRule.WITH_FILTER)
-    expectedException.expect(classOf[AssertionError])
-    expectedException.expectMessage("Correlate has invalid join type RIGHT")
-    util.verifyRelPlan(
-      "SELECT * FROM T1 RIGHT JOIN T3 FOR SYSTEM_TIME AS OF T1.rowtime AS dimTable " +
-        "ON T1.id = dimTable.id AND dimTable.rate > 10")
+    assertThatThrownBy(
+      () =>
+        util.verifyRelPlan(
+          "SELECT * FROM T1 RIGHT JOIN T3 FOR SYSTEM_TIME AS OF T1.proctime AS dimTable " +
+            "ON T1.id = dimTable.id AND dimTable.rate > 10"))
+      .hasMessageContaining("Correlate has invalid join type RIGHT")
+      .isInstanceOf[AssertionError]
   }
 
   @Test
   def testFullTemporalJoin(): Unit = {
     setUpCurrentRule(LogicalCorrelateToJoinFromTemporalTableRule.WITH_FILTER)
-    expectedException.expect(classOf[AssertionError])
-    expectedException.expectMessage("Correlate has invalid join type FULL")
-    util.verifyRelPlan(
-      "SELECT * FROM T1 FULL JOIN T3 FOR SYSTEM_TIME AS OF T1.rowtime AS dimTable " +
-        "ON T1.id = dimTable.id AND dimTable.rate > 10")
+    assertThatThrownBy(
+      () =>
+        util.verifyRelPlan(
+          "SELECT * FROM T1 FULL JOIN T3 FOR SYSTEM_TIME AS OF T1.proctime AS dimTable " +
+            "ON T1.id = dimTable.id AND dimTable.rate > 10"))
+      .hasMessageContaining("Correlate has invalid join type FULL")
+      .isInstanceOf[AssertionError]
   }
 
   def setUpCurrentRule(rule: RelOptRule): Unit = {

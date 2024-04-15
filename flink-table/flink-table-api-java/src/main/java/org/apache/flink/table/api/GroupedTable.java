@@ -51,8 +51,7 @@ public interface GroupedTable {
      * <p>Example:
      *
      * <pre>{@code
-     * AggregateFunction aggFunc = new MyAggregateFunction();
-     * tableEnv.registerFunction("aggFunc", aggFunc);
+     * tableEnv.createTemporarySystemFunction("aggFunc", MyAggregateFunction.class);
      * tab.groupBy($("key"))
      *   .aggregate(call("aggFunc", $("a"), $("b")).as("f0", "f1", "f2"))
      *   .select($("key"), $("f0"), $("f1"));
@@ -76,8 +75,7 @@ public interface GroupedTable {
      * <p>Example:
      *
      * <pre>{@code
-     * TableAggregateFunction tableAggFunc = new MyTableAggregateFunction();
-     * tableEnv.registerFunction("tableAggFunc", tableAggFunc);
+     * tableEnv.createTemporarySystemFunction("tableAggFunc", MyTableAggregateFunction.class);
      * tab.groupBy($("key"))
      *   .flatAggregate(call("tableAggFunc", $("a"), $("b")).as("x", "y", "z"))
      *   .select($("key"), $("x"), $("y"), $("z"));

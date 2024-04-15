@@ -31,7 +31,7 @@ import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.util.clock.SystemClock;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -47,19 +47,19 @@ import java.util.stream.IntStream;
  * The test generates two random streams (input channels) which independently and randomly generate
  * checkpoint barriers. The two streams are very unaligned, putting heavy work on the BarrierBuffer.
  */
-public class AlignedCheckpointsMassiveRandomTest {
+class AlignedCheckpointsMassiveRandomTest {
 
     private static final int PAGE_SIZE = 1024;
 
     @Test
-    public void testWithTwoChannelsAndRandomBarriers() throws Exception {
+    void testWithTwoChannelsAndRandomBarriers() throws Exception {
         NetworkBufferPool networkBufferPool1 = null;
         NetworkBufferPool networkBufferPool2 = null;
         try {
             networkBufferPool1 = new NetworkBufferPool(100, PAGE_SIZE);
             networkBufferPool2 = new NetworkBufferPool(100, PAGE_SIZE);
-            BufferPool pool1 = networkBufferPool1.createBufferPool(100, 100);
-            BufferPool pool2 = networkBufferPool2.createBufferPool(100, 100);
+            BufferPool pool1 = networkBufferPool1.createBufferPool(100, 100, 100);
+            BufferPool pool2 = networkBufferPool2.createBufferPool(100, 100, 100);
 
             RandomGeneratingInputGate myIG =
                     new RandomGeneratingInputGate(

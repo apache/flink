@@ -31,7 +31,14 @@ import org.apache.flink.streaming.api.scala.{ConnectedStreams, DataStream}
  *   The type of the data stream items coming from the first connection
  * @tparam IN2
  *   The type of the data stream items coming from the second connection
+ * @deprecated
+ *   All Flink Scala APIs are deprecated and will be removed in a future Flink major version. You
+ *   can still build your application in Scala, but you should move to the Java version of either
+ *   the DataStream and/or Table API.
+ * @see
+ *   <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
  */
+@deprecated(org.apache.flink.api.scala.FLIP_265_WARNING, since = "1.18.0")
 class OnConnectedStream[IN1, IN2](stream: ConnectedStreams[IN1, IN2]) {
 
   /**

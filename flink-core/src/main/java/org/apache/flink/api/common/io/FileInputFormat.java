@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.io.compression.Bzip2InputStreamFactory;
 import org.apache.flink.api.common.io.compression.DeflateInflaterInputStreamFactory;
 import org.apache.flink.api.common.io.compression.GzipInflaterInputStreamFactory;
@@ -26,7 +27,6 @@ import org.apache.flink.api.common.io.compression.InflaterInputStreamFactory;
 import org.apache.flink.api.common.io.compression.XZInputStreamFactory;
 import org.apache.flink.api.common.io.compression.ZStandardInputStreamFactory;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.BlockLocation;
@@ -49,6 +49,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.apache.flink.configuration.TaskManagerOptions.FS_STREAM_OPENING_TIME_OUT;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -97,17 +98,14 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
      * @param configuration The configuration to load defaults from
      */
     private static void initDefaultsFromConfiguration(Configuration configuration) {
-        final long to =
-                configuration.getLong(
-                        ConfigConstants.FS_STREAM_OPENING_TIMEOUT_KEY,
-                        ConfigConstants.DEFAULT_FS_STREAM_OPENING_TIMEOUT);
+        final long to = configuration.get(FS_STREAM_OPENING_TIME_OUT).toMillis();
         if (to < 0) {
             LOG.error(
                     "Invalid timeout value for filesystem stream opening: "
                             + to
                             + ". Using default value of "
-                            + ConfigConstants.DEFAULT_FS_STREAM_OPENING_TIMEOUT);
-            DEFAULT_OPENING_TIMEOUT = ConfigConstants.DEFAULT_FS_STREAM_OPENING_TIMEOUT;
+                            + FS_STREAM_OPENING_TIME_OUT.defaultValue().toMillis());
+            DEFAULT_OPENING_TIMEOUT = FS_STREAM_OPENING_TIME_OUT.defaultValue().toMillis();
         } else if (to == 0) {
             DEFAULT_OPENING_TIMEOUT = 300000; // 5 minutes
         } else {
@@ -155,6 +153,11 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
         synchronized (INFLATER_INPUT_STREAM_FACTORIES) {
             return INFLATER_INPUT_STREAM_FACTORIES.get(fileExtension);
         }
+    }
+
+    @VisibleForTesting
+    public static Set<String> getSupportedCompressionFormats() {
+        return INFLATER_INPUT_STREAM_FACTORIES.keySet();
     }
 
     /**
@@ -841,8 +844,11 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 
         this.currentSplit = fileSplit;
         this.splitStart = fileSplit.getStart();
-        this.splitLength = fileSplit.getLength();
-
+        final Path path = fileSplit.getPath();
+        this.splitLength =
+                testForUnsplittable(path.getFileSystem().getFileStatus(path))
+                        ? READ_WHOLE_SPLIT_FLAG
+                        : fileSplit.getLength();
         if (LOG.isDebugEnabled()) {
             LOG.debug(
                     "Opening input split "
@@ -1131,5 +1137,6 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
     private static final String FILE_PARAMETER_KEY = "input.file.path";
 
     /** The config parameter which defines whether input directories are recursively traversed. */
+    @Deprecated
     public static final String ENUMERATE_NESTED_FILES_FLAG = "recursive.file.enumeration";
 }

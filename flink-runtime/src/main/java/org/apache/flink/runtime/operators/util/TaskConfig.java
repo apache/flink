@@ -74,8 +74,6 @@ public class TaskConfig implements Serializable {
 
     private static final String DRIVER_PAIR_COMPARATOR_FACTORY = "driver.paircomp";
 
-    private static final String DRIVER_MUTABLE_OBJECT_MODE = "diver.mutableobjects";
-
     // -------------------------------------- Inputs ----------------------------------------------
 
     private static final String NUM_INPUTS = "in.num";
@@ -289,19 +287,14 @@ public class TaskConfig implements Serializable {
             InstantiationUtil.writeObjectToConfig(wrapper, this.config, STUB_OBJECT);
         } catch (IOException e) {
             throw new CorruptConfigurationException(
-                    "Could not write the user code wrapper "
-                            + wrapper.getClass()
-                            + " : "
-                            + e.toString(),
-                    e);
+                    "Could not write the user code wrapper " + wrapper.getClass() + " : " + e, e);
         }
     }
 
     @SuppressWarnings("unchecked")
     public <T> UserCodeWrapper<T> getStubWrapper(ClassLoader cl) {
         try {
-            return (UserCodeWrapper<T>)
-                    InstantiationUtil.readObjectFromConfig(this.config, STUB_OBJECT, cl);
+            return InstantiationUtil.readObjectFromConfig(this.config, STUB_OBJECT, cl);
         } catch (ClassNotFoundException | IOException e) {
             throw new CorruptConfigurationException(
                     "Could not read the user code wrapper: " + e.getMessage(), e);
@@ -364,14 +357,6 @@ public class TaskConfig implements Serializable {
         } else {
             return DriverStrategy.values()[ls];
         }
-    }
-
-    public void setMutableObjectMode(boolean mode) {
-        this.config.setBoolean(DRIVER_MUTABLE_OBJECT_MODE, mode);
-    }
-
-    public boolean getMutableObjectMode() {
-        return this.config.getBoolean(DRIVER_MUTABLE_OBJECT_MODE, false);
     }
 
     public void setDriverComparator(TypeComparatorFactory<?> factory, int inputNum) {
@@ -681,9 +666,8 @@ public class TaskConfig implements Serializable {
     public Partitioner<?> getOutputPartitioner(int outputNum, final ClassLoader cl)
             throws ClassNotFoundException {
         try {
-            return (Partitioner<?>)
-                    InstantiationUtil.readObjectFromConfig(
-                            config, OUTPUT_PARTITIONER + outputNum, cl);
+            return InstantiationUtil.readObjectFromConfig(
+                    config, OUTPUT_PARTITIONER + outputNum, cl);
         } catch (ClassNotFoundException e) {
             throw e;
         } catch (Throwable t) {
@@ -1045,14 +1029,13 @@ public class TaskConfig implements Serializable {
             return Collections.emptyList();
         }
 
-        List<AggregatorWithName<?>> list = new ArrayList<AggregatorWithName<?>>(numAggs);
+        List<AggregatorWithName<?>> list = new ArrayList<>(numAggs);
         for (int i = 0; i < numAggs; i++) {
             Aggregator<Value> aggObj;
             try {
                 aggObj =
-                        (Aggregator<Value>)
-                                InstantiationUtil.readObjectFromConfig(
-                                        this.config, ITERATION_AGGREGATOR_PREFIX + i, cl);
+                        InstantiationUtil.readObjectFromConfig(
+                                this.config, ITERATION_AGGREGATOR_PREFIX + i, cl);
             } catch (IOException e) {
                 throw new RuntimeException(
                         "Error while reading the aggregator object from the task configuration.");
@@ -1068,7 +1051,7 @@ public class TaskConfig implements Serializable {
             if (name == null) {
                 throw new RuntimeException("Missing config entry for aggregator.");
             }
-            list.add(new AggregatorWithName<Value>(name, aggObj));
+            list.add(new AggregatorWithName<>(name, aggObj));
         }
         return list;
     }

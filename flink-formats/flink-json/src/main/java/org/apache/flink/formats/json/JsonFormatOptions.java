@@ -73,6 +73,20 @@ public class JsonFormatOptions {
                     .withDescription(
                             "Optional flag to specify whether to encode all decimals as plain numbers instead of possible scientific notations, false by default.");
 
+    public static final ConfigOption<Boolean> ENCODE_IGNORE_NULL_FIELDS =
+            ConfigOptions.key("encode.ignore-null-fields")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Optional flag to specify whether to ignore null fields when encoding, false by default.");
+
+    public static final ConfigOption<Boolean> DECODE_JSON_PARSER_ENABLED =
+            ConfigOptions.key("decode.json-parser.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Optional flag to specify whether to use the Jackson JsonParser to decode json with better performance, true by default.");
+
     // --------------------------------------------------------------------------------------------
     // Enums
     // --------------------------------------------------------------------------------------------

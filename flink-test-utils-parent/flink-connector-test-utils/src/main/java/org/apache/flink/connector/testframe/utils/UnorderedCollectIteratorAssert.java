@@ -18,7 +18,7 @@
 
 package org.apache.flink.connector.testframe.utils;
 
-import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.core.execution.CheckpointingMode;
 
 import org.assertj.core.api.AbstractAssert;
 
@@ -29,6 +29,7 @@ import java.util.Set;
 
 import static java.util.stream.Collectors.toSet;
 import static org.apache.flink.shaded.guava31.com.google.common.base.Predicates.not;
+import static org.apache.flink.streaming.api.CheckpointingMode.convertToCheckpointingMode;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -56,6 +57,18 @@ public class UnorderedCollectIteratorAssert<T>
     public UnorderedCollectIteratorAssert<T> withNumRecordsLimit(int limit) {
         this.limit = limit;
         return this;
+    }
+
+    /**
+     * This method is required for downstream projects e.g. Flink connectors extending this test for
+     * the case when there should be supported Flink versions below 1.20. Could be removed together
+     * with dropping support for Flink 1.19.
+     */
+    @Deprecated
+    public void matchesRecordsFromSource(
+            List<List<T>> recordsBySplitsFromSource,
+            org.apache.flink.streaming.api.CheckpointingMode semantic) {
+        matchesRecordsFromSource(recordsBySplitsFromSource, convertToCheckpointingMode(semantic));
     }
 
     public void matchesRecordsFromSource(

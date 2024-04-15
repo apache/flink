@@ -72,12 +72,12 @@ public class BatchExecInputAdapter extends ExecNodeBase<RowData>
 
     @Override
     protected OpFusionCodegenSpecGenerator translateToFusionCodegenSpecInternal(
-            PlannerBase planner, ExecNodeConfig config) {
+            PlannerBase planner, ExecNodeConfig config, CodeGeneratorContext parentCtx) {
         return new SourceOpFusionCodegenSpecGenerator(
                 (RowType) getOutputType(),
                 new InputAdapterFusionCodegenSpec(
                         new CodeGeneratorContext(
-                                config, planner.getFlinkContext().getClassLoader()),
+                                config, planner.getFlinkContext().getClassLoader(), parentCtx),
                         multipleInputId));
     }
 }

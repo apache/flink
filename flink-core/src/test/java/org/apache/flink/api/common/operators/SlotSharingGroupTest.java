@@ -20,19 +20,17 @@ package org.apache.flink.api.common.operators;
 
 import org.apache.flink.configuration.MemorySize;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link SlotSharingGroup}. */
-public class SlotSharingGroupTest {
+class SlotSharingGroupTest {
     @Test
-    public void testBuildSlotSharingGroupWithSpecificResource() {
+    void testBuildSlotSharingGroupWithSpecificResource() {
         final String name = "ssg";
         final MemorySize heap = MemorySize.ofMebiBytes(100);
         final MemorySize offHeap = MemorySize.ofMebiBytes(200);
@@ -46,39 +44,48 @@ public class SlotSharingGroupTest {
                         .setExternalResource("gpu", 1)
                         .build();
 
-        assertThat(slotSharingGroup.getName(), is(name));
-        assertThat(slotSharingGroup.getCpuCores().get(), is(1.0));
-        assertThat(slotSharingGroup.getTaskHeapMemory().get(), is(heap));
-        assertThat(slotSharingGroup.getTaskOffHeapMemory().get(), is(offHeap));
-        assertThat(slotSharingGroup.getManagedMemory().get(), is(managed));
-        assertThat(
-                slotSharingGroup.getExternalResources(), is(Collections.singletonMap("gpu", 1.0)));
+        assertThat(slotSharingGroup.getName()).isEqualTo(name);
+        assertThat(slotSharingGroup.getCpuCores()).contains(1.0);
+        assertThat(slotSharingGroup.getTaskHeapMemory()).contains(heap);
+        assertThat(slotSharingGroup.getTaskOffHeapMemory()).contains(offHeap);
+        assertThat(slotSharingGroup.getManagedMemory()).contains(managed);
+        assertThat(slotSharingGroup.getExternalResources())
+                .isEqualTo(Collections.singletonMap("gpu", 1.0));
     }
 
     @Test
-    public void testBuildSlotSharingGroupWithUnknownResource() {
+    void testBuildSlotSharingGroupWithUnknownResource() {
         final String name = "ssg";
         final SlotSharingGroup slotSharingGroup = SlotSharingGroup.newBuilder(name).build();
 
-        assertThat(slotSharingGroup.getName(), is(name));
-        assertFalse(slotSharingGroup.getCpuCores().isPresent());
-        assertFalse(slotSharingGroup.getTaskHeapMemory().isPresent());
-        assertFalse(slotSharingGroup.getManagedMemory().isPresent());
-        assertFalse(slotSharingGroup.getTaskOffHeapMemory().isPresent());
-        assertTrue(slotSharingGroup.getExternalResources().isEmpty());
+        assertThat(slotSharingGroup.getName()).isEqualTo(name);
+        assertThat(slotSharingGroup.getCpuCores()).isNotPresent();
+        assertThat(slotSharingGroup.getTaskHeapMemory()).isNotPresent();
+        assertThat(slotSharingGroup.getManagedMemory()).isNotPresent();
+        assertThat(slotSharingGroup.getTaskOffHeapMemory()).isNotPresent();
+        assertThat(slotSharingGroup.getExternalResources()).isEmpty();
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testBuildSlotSharingGroupWithIllegalConfig() {
-        SlotSharingGroup.newBuilder("ssg")
-                .setCpuCores(1)
-                .setTaskHeapMemory(MemorySize.ZERO)
-                .setTaskOffHeapMemoryMB(10)
-                .build();
+    @Test
+    void testBuildSlotSharingGroupWithIllegalConfig() {
+        assertThatThrownBy(
+                        () ->
+                                SlotSharingGroup.newBuilder("ssg")
+                                        .setCpuCores(1)
+                                        .setTaskHeapMemory(MemorySize.ZERO)
+                                        .setTaskOffHeapMemoryMB(10)
+                                        .build())
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testBuildSlotSharingGroupWithoutAllRequiredConfig() {
-        SlotSharingGroup.newBuilder("ssg").setCpuCores(1).setTaskOffHeapMemoryMB(10).build();
+    @Test
+    void testBuildSlotSharingGroupWithoutAllRequiredConfig() {
+        assertThatThrownBy(
+                        () ->
+                                SlotSharingGroup.newBuilder("ssg")
+                                        .setCpuCores(1)
+                                        .setTaskOffHeapMemoryMB(10)
+                                        .build())
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

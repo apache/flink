@@ -83,6 +83,7 @@ public final class Expressions {
      * }</pre>
      *
      * @see #col(String)
+     * @see #withAllColumns()
      */
     // CHECKSTYLE.OFF: MethodName
     public static ApiExpression $(String name) {
@@ -101,6 +102,8 @@ public final class Expressions {
      * <pre>{@code
      * tab.select(col("key"), col("value"))
      * }</pre>
+     *
+     * @see #withAllColumns()
      */
     public static ApiExpression col(String name) {
         return $(name);
@@ -209,30 +212,27 @@ public final class Expressions {
      * Use this constant for a time interval. Unbounded over windows start with the first row of a
      * partition.
      */
-    public static final ApiExpression UNBOUNDED_ROW =
-            apiCall(BuiltInFunctionDefinitions.UNBOUNDED_ROW);
+    public static final ApiExpression UNBOUNDED_ROW = lit(OverWindowRange.UNBOUNDED_ROW);
 
     /**
      * Offset constant to be used in the {@code preceding} clause of unbounded {@link Over} windows.
      * Use this constant for a row-count interval. Unbounded over windows start with the first row
      * of a partition.
      */
-    public static final ApiExpression UNBOUNDED_RANGE =
-            apiCall(BuiltInFunctionDefinitions.UNBOUNDED_RANGE);
+    public static final ApiExpression UNBOUNDED_RANGE = lit(OverWindowRange.UNBOUNDED_RANGE);
 
     /**
      * Offset constant to be used in the {@code following} clause of {@link Over} windows. Use this
      * for setting the upper bound of the window to the current row.
      */
-    public static final ApiExpression CURRENT_ROW = apiCall(BuiltInFunctionDefinitions.CURRENT_ROW);
+    public static final ApiExpression CURRENT_ROW = lit(OverWindowRange.CURRENT_ROW);
 
     /**
      * Offset constant to be used in the {@code following} clause of {@link Over} windows. Use this
      * for setting the upper bound of the window to the sort key of the current row, i.e., all rows
      * with the same sort key as the current row are included in the window.
      */
-    public static final ApiExpression CURRENT_RANGE =
-            apiCall(BuiltInFunctionDefinitions.CURRENT_RANGE);
+    public static final ApiExpression CURRENT_RANGE = lit(OverWindowRange.CURRENT_RANGE);
 
     /**
      * Returns the current SQL date in local time zone, the return type of this expression is {@link
@@ -729,13 +729,33 @@ public final class Expressions {
     }
 
     /**
+     * Creates an expression that selects all columns. It can be used wherever an array of
+     * expression is accepted such as function calls, projections, or groupings.
+     *
+     * <p>This expression is a synonym of $("*"). It is semantically equal to {@code SELECT *} in
+     * SQL when used in a projection.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * tab.select(withAllColumns())
+     * }</pre>
+     *
+     * @see #withColumns(Object, Object...)
+     * @see #withoutColumns(Object, Object...)
+     */
+    public static ApiExpression withAllColumns() {
+        return $("*");
+    }
+
+    /**
      * Creates an expression that selects a range of columns. It can be used wherever an array of
      * expression is accepted such as function calls, projections, or groupings.
      *
      * <p>A range can either be index-based or name-based. Indices start at 1 and boundaries are
      * inclusive.
      *
-     * <p>e.g. withColumns(range("b", "c")) or withoutColumns($("*"))
+     * <p>e.g. withColumns(range("b", "c")) or withColumns($("*"))
      */
     public static ApiExpression withColumns(Object head, Object... tail) {
         return apiCallAtLeastOneArgument(BuiltInFunctionDefinitions.WITH_COLUMNS, head, tail);

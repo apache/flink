@@ -19,6 +19,7 @@
 package org.apache.flink.examples.java.distcp;
 
 import org.apache.flink.api.common.accumulators.LongCounter;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -27,7 +28,6 @@ import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.operators.FlatMapOperator;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
@@ -45,6 +45,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.examples.java.util.DataSetDeprecationInfo.DATASET_DEPRECATION_INFO;
+
 /**
  * A main class of the Flink distcp utility. It's a simple reimplementation of Hadoop distcp (see <a
  * href="http://hadoop.apache.org/docs/r1.2.1/distcp.html">http://hadoop.apache.org/docs/r1.2.1/distcp.html</a>)
@@ -53,6 +55,10 @@ import java.util.Map;
  *
  * <p>When running locally, local file systems paths can be used. However, in a distributed
  * environment HDFS paths must be provided both as input and output.
+ *
+ * <p>Note: All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a future
+ * Flink major version. You can still build your application in DataSet, but you should move to
+ * either the DataStream and/or Table API. This class is retained for testing purposes.
  */
 public class DistCp {
 
@@ -61,6 +67,8 @@ public class DistCp {
     public static final String FILES_COPIED_CNT_NAME = "FILES_COPIED";
 
     public static void main(String[] args) throws Exception {
+
+        LOGGER.warn(DATASET_DEPRECATION_INFO);
 
         // set up the execution environment
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -111,7 +119,7 @@ public class DistCp {
                             private LongCounter bytesCounter;
 
                             @Override
-                            public void open(Configuration parameters) throws Exception {
+                            public void open(OpenContext openContext) throws Exception {
                                 bytesCounter =
                                         getRuntimeContext().getLongCounter(BYTES_COPIED_CNT_NAME);
                                 fileCounter =

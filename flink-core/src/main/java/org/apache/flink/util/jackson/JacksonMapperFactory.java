@@ -19,6 +19,7 @@ package org.apache.flink.util.jackson;
 
 import org.apache.flink.annotation.Experimental;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
@@ -31,6 +32,12 @@ public final class JacksonMapperFactory {
 
     public static ObjectMapper createObjectMapper() {
         final ObjectMapper objectMapper = new ObjectMapper();
+        registerModules(objectMapper);
+        return objectMapper;
+    }
+
+    public static ObjectMapper createObjectMapper(JsonFactory jsonFactory) {
+        final ObjectMapper objectMapper = new ObjectMapper(jsonFactory);
         registerModules(objectMapper);
         return objectMapper;
     }

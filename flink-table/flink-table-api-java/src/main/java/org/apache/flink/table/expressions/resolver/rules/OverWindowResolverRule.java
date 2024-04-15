@@ -19,6 +19,7 @@
 package org.apache.flink.table.expressions.resolver.rules;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.OverWindowRange;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
@@ -26,7 +27,6 @@ import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.expressions.resolver.LocalOverWindow;
 import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
-import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import java.util.ArrayList;
@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BIGINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_TIME;
 
@@ -105,9 +106,9 @@ final class OverWindowResolverRule implements ResolverRule {
                                                 .getPreceding()
                                                 .accept(OVER_WINDOW_KIND_EXTRACTOR);
                                 if (kind == WindowKind.ROW) {
-                                    return unresolvedCall(BuiltInFunctionDefinitions.CURRENT_ROW);
+                                    return valueLiteral(OverWindowRange.CURRENT_ROW);
                                 } else {
-                                    return unresolvedCall(BuiltInFunctionDefinitions.CURRENT_RANGE);
+                                    return valueLiteral(OverWindowRange.CURRENT_RANGE);
                                 }
                             });
         }
@@ -133,18 +134,24 @@ final class OverWindowResolverRule implements ResolverRule {
             } else if (literalType.is(INTERVAL_DAY_TIME)) {
                 return WindowKind.RANGE;
             }
-            return defaultMethod(valueLiteral);
-        }
 
-        @Override
-        public WindowKind visit(UnresolvedCallExpression unresolvedCall) {
-            final FunctionDefinition definition = unresolvedCall.getFunctionDefinition();
-            if (definition == BuiltInFunctionDefinitions.UNBOUNDED_ROW) {
-                return WindowKind.ROW;
-            } else if (definition == BuiltInFunctionDefinitions.UNBOUNDED_RANGE) {
-                return WindowKind.RANGE;
-            }
-            return defaultMethod(unresolvedCall);
+            return valueLiteral
+                    .getValueAs(OverWindowRange.class)
+                    .map(
+                            v -> {
+                                switch (v) {
+                                    case CURRENT_ROW:
+                                    case UNBOUNDED_ROW:
+                                        return WindowKind.ROW;
+                                    case CURRENT_RANGE:
+                                    case UNBOUNDED_RANGE:
+                                        return WindowKind.RANGE;
+                                    default:
+                                        throw new IllegalArgumentException(
+                                                "Unexpected window range: " + v);
+                                }
+                            })
+                    .orElseGet(() -> defaultMethod(valueLiteral));
         }
 
         @Override

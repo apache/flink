@@ -19,12 +19,12 @@ package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.table.planner.plan.rules.logical.PushLimitIntoTableSourceScanRule
 
-import org.junit.Before
+import org.junit.jupiter.api.BeforeEach
 
 /** Test for [[PushLimitIntoTableSourceScanRule]]. */
 class LimitableSourceTest extends LimitTest {
 
-  @Before
+  @BeforeEach
   override def setup(): Unit = {
     val ddl =
       s"""

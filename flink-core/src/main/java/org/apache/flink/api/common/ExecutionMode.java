@@ -23,7 +23,15 @@ import org.apache.flink.annotation.Public;
 /**
  * The execution mode specifies how a batch program is executed in terms of data exchange:
  * pipelining or batched.
+ *
+ * @deprecated The {@link ExecutionMode} is deprecated because it's only used in DataSet APIs. All
+ *     Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a future Flink
+ *     major version. You can still build your application in DataSet, but you should move to either
+ *     the DataStream and/or Table API.
+ * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741">
+ *     FLIP-131: Consolidate the user-facing Dataflow SDKs/APIs (and deprecate the DataSet API</a>
  */
+@Deprecated
 @Public
 public enum ExecutionMode {
 

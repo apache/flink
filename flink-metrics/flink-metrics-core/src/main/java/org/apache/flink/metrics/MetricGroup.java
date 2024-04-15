@@ -18,7 +18,9 @@
 
 package org.apache.flink.metrics;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.traces.SpanBuilder;
 
 import java.util.Map;
 
@@ -32,6 +34,13 @@ import java.util.Map;
  */
 @Public
 public interface MetricGroup {
+
+    // ------------------------------------------------------------------------
+    //  Spans
+    // ------------------------------------------------------------------------
+
+    @Experimental
+    default void addSpan(SpanBuilder spanBuilder) {}
 
     // ------------------------------------------------------------------------
     //  Metrics

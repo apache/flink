@@ -19,12 +19,16 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.HashMap;
 import java.util.Map;
 
 /** Tests that the {@link JobConfigInfo} can be marshalled and unmarshalled. */
-public class JobConfigInfoTest extends RestResponseMarshallingTestBase<JobConfigInfo> {
+@ExtendWith(NoOpTestExtension.class)
+class JobConfigInfoTest extends RestResponseMarshallingTestBase<JobConfigInfo> {
 
     @Override
     protected Class<JobConfigInfo> getTestResponseClass() {

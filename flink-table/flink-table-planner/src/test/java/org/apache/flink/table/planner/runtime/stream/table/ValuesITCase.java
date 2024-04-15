@@ -29,7 +29,7 @@ import org.apache.flink.table.types.UnresolvedDataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -50,9 +50,9 @@ import static org.apache.flink.table.api.Expressions.withColumns;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** End to end tests for {@link org.apache.flink.table.api.TableEnvironment#fromValues}. */
-public class ValuesITCase extends StreamingTestBase {
+class ValuesITCase extends StreamingTestBase {
     @Test
-    public void testTypeConversions() throws Exception {
+    void testTypeConversions() throws Exception {
         List<Row> data =
                 Arrays.asList(
                         Row.of(
@@ -185,7 +185,7 @@ public class ValuesITCase extends StreamingTestBase {
     }
 
     @Test
-    public void testAllTypes() throws Exception {
+    void testAllTypes() throws Exception {
         List<Row> data =
                 Arrays.asList(
                         rowWithNestedRow(
@@ -269,7 +269,7 @@ public class ValuesITCase extends StreamingTestBase {
     }
 
     @Test
-    public void testProjectionWithValues() throws Exception {
+    void testProjectionWithValues() throws Exception {
         List<Row> data =
                 Arrays.asList(
                         Row.of(
@@ -327,28 +327,12 @@ public class ValuesITCase extends StreamingTestBase {
     }
 
     @Test
-    public void testRegisteringValuesWithComplexTypes() {
+    void testRegisteringValuesWithComplexTypes() {
         Map<Integer, Integer> mapData = new HashMap<>();
         mapData.put(1, 1);
         mapData.put(2, 2);
 
-        Row row = Row.of(mapData, Row.of(1, 2, 3), new int[] {1, 2});
-        Table values = tEnv().fromValues(Collections.singletonList(row));
-        tEnv().createTemporaryView("values_t", values);
-        List<Row> results =
-                CollectionUtil.iteratorToList(
-                        tEnv().executeSql("select * from values_t").collect());
-
-        assertThat(results).containsExactly(row);
-    }
-
-    @Test
-    public void testArrayWithNullablePrimitiveType() {
-        Map<Integer, Integer> mapData = new HashMap<>();
-        mapData.put(1, 1);
-        mapData.put(2, 2);
-
-        Row row = Row.of(mapData, Row.of(1, 2, 3), new Integer[] {1, 2, null});
+        Row row = Row.of(mapData, Row.of(1, 2, 3), new Integer[] {1, 2});
         Table values = tEnv().fromValues(Collections.singletonList(row));
         tEnv().createTemporaryView("values_t", values);
         List<Row> results =

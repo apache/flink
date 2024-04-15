@@ -114,8 +114,8 @@ class TableFunctionCallGen(rexCall: RexCall, tableFunction: TableFunction[_])
     val externalType = fromDataTypeToLogicalType(externalDataType)
     val wrappedInternalType = LogicalTypeUtils.toRowType(externalType)
 
-    val collectorCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader)
-    val externalTerm = newName("externalRecord")
+    val collectorCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader, ctx)
+    val externalTerm = newName(ctx, "externalRecord")
 
     // code for wrapping atomic types
     val collectorCode = if (!isCompositeType(externalType)) {
@@ -144,7 +144,7 @@ class TableFunctionCallGen(rexCall: RexCall, tableFunction: TableFunction[_])
       CodeGenUtils.genToInternalConverter(ctx, externalDataType),
       collectorCode
     )
-    val resultCollectorTerm = newName("resultConverterCollector")
+    val resultCollectorTerm = newName(ctx, "resultConverterCollector")
     CollectorCodeGenerator.addToContext(ctx, resultCollectorTerm, resultCollector)
     resultCollectorTerm
   }

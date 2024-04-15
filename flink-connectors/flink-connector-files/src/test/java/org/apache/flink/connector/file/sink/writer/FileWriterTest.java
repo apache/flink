@@ -31,7 +31,7 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.metrics.testutils.MetricListener;
-import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
+import org.apache.flink.runtime.metrics.groups.MetricsGroupTestUtils;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
@@ -292,7 +292,7 @@ class FileWriterTest {
         final OperatorIOMetricGroup operatorIOMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup().getIOMetricGroup();
         final SinkWriterMetricGroup sinkWriterMetricGroup =
-                InternalSinkWriterMetricGroup.mock(
+                MetricsGroupTestUtils.mockWriterMetricGroup(
                         metricListener.getMetricGroup(), operatorIOMetricGroup);
 
         Counter recordsCounter = sinkWriterMetricGroup.getIOMetricGroup().getNumRecordsOutCounter();
@@ -471,7 +471,7 @@ class FileWriterTest {
                 basePath,
                 rollingPolicy,
                 outputFileConfig,
-                InternalSinkWriterMetricGroup.mock(metricListener.getMetricGroup()));
+                MetricsGroupTestUtils.mockWriterMetricGroup(metricListener.getMetricGroup()));
     }
 
     private FileWriter<String> createWriter(
@@ -484,7 +484,7 @@ class FileWriterTest {
             throws IOException {
         return new FileWriter<>(
                 basePath,
-                InternalSinkWriterMetricGroup.mock(metricListener.getMetricGroup()),
+                MetricsGroupTestUtils.mockWriterMetricGroup(metricListener.getMetricGroup()),
                 bucketAssigner,
                 new DefaultFileWriterBucketFactory<>(),
                 new RowWiseBucketWriter<>(

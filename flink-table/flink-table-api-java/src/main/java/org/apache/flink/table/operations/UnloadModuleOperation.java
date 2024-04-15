@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
@@ -25,6 +26,7 @@ import org.apache.flink.table.api.internal.TableResultInternal;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Operation to describe an UNLOAD MODULE statement. */
+@Internal
 public class UnloadModuleOperation implements Operation, ExecutableOperation {
     private final String moduleName;
 

@@ -41,7 +41,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
-import org.apache.flink.table.planner.plan.nodes.exec.visitor.AbstractExecNodeExactlyOnceVisitor;
 import org.apache.flink.table.runtime.operators.fusion.OperatorFusionCodegenFactory;
 import org.apache.flink.table.runtime.operators.multipleinput.BatchMultipleInputStreamOperatorFactory;
 import org.apache.flink.table.runtime.operators.multipleinput.TableOperatorWrapperGenerator;
@@ -169,8 +168,14 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
                 i++;
             }
 
+            // Create a parent CodeGeneratorContext to ensure that all codes in multiple operator
+            // fusion codegen share the same ancestors CodeGeneratorContext. This way, we can
+            // avoid naming conflicts.
+            CodeGeneratorContext parentCtx =
+                    new CodeGeneratorContext(config, planner.getFlinkContext().getClassLoader());
+
             OpFusionCodegenSpecGenerator inputGenerator =
-                    rootNode.translateToFusionCodegenSpec(planner);
+                    rootNode.translateToFusionCodegenSpec(planner, parentCtx);
             // wrap output operator spec generator of fusion codegen
             OpFusionCodegenSpecGenerator outputGenerator =
                     new OneInputOpFusionCodegenSpecGenerator(
@@ -179,12 +184,15 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
                             (RowType) getOutputType(),
                             new OutputFusionCodegenSpec(
                                     new CodeGeneratorContext(
-                                            config, planner.getFlinkContext().getClassLoader())));
+                                            config,
+                                            planner.getFlinkContext().getClassLoader(),
+                                            parentCtx)));
             inputGenerator.addOutput(1, outputGenerator);
 
             // generate fusion operator
             Tuple2<OperatorFusionCodegenFactory<RowData>, Object> multipleOperatorTuple =
-                    FusionCodegenUtil.generateFusionOperator(outputGenerator, inputSelectionSpecs);
+                    FusionCodegenUtil.generateFusionOperator(
+                            outputGenerator, inputSelectionSpecs, parentCtx);
             operatorFactory = multipleOperatorTuple._1;
 
             Pair<Integer, Integer> parallelismPair = getInputMaxParallelism(inputTransforms);
@@ -248,23 +256,6 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
         multipleInputTransform.setChainingStrategy(ChainingStrategy.HEAD_WITH_SOURCES);
 
         return multipleInputTransform;
-    }
-
-    @Override
-    public void resetTransformation() {
-        super.resetTransformation();
-        // For BatchExecMultipleInput, we also need to reset transformation for
-        // rootNode in BatchExecMultipleInput.
-        AbstractExecNodeExactlyOnceVisitor visitor =
-                new AbstractExecNodeExactlyOnceVisitor() {
-
-                    @Override
-                    protected void visitNode(ExecNode<?> node) {
-                        ((ExecNodeBase<?>) node).resetTransformation();
-                        visitInputs(node);
-                    }
-                };
-        rootNode.accept(visitor);
     }
 
     public List<ExecEdge> getOriginalEdges() {

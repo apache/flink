@@ -39,15 +39,16 @@ import org.apache.flink.runtime.operators.testutils.types.IntPairComparator;
 import org.apache.flink.runtime.operators.testutils.types.IntPairSerializer;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Random;
 
-public class FixedLengthRecordSorterTest {
+import static org.assertj.core.api.Assertions.assertThat;
+
+class FixedLengthRecordSorterTest {
 
     private static final long SEED = 649180756312423613L;
 
@@ -63,8 +64,8 @@ public class FixedLengthRecordSorterTest {
 
     private TypeComparator<IntPair> comparator;
 
-    @Before
-    public void beforeTest() {
+    @BeforeEach
+    void beforeTest() {
         this.memoryManager =
                 MemoryManagerBuilder.newBuilder()
                         .setMemorySize(MEMORY_SIZE)
@@ -75,11 +76,12 @@ public class FixedLengthRecordSorterTest {
         this.comparator = new IntPairComparator();
     }
 
-    @After
-    public void afterTest() throws Exception {
-        if (!this.memoryManager.verifyEmpty()) {
-            Assert.fail("Memory Leak: Some memory has not been returned to the memory manager.");
-        }
+    @AfterEach
+    void afterTest() throws Exception {
+        assertThat(this.memoryManager.verifyEmpty())
+                .withFailMessage(
+                        "Memory Leak: Some memory has not been returned to the memory manager.")
+                .isTrue();
 
         if (this.ioManager != null) {
             ioManager.close();
@@ -98,7 +100,7 @@ public class FixedLengthRecordSorterTest {
     }
 
     @Test
-    public void testWriteAndRead() throws Exception {
+    void testWriteAndRead() throws Exception {
         final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
         final List<MemorySegment> memory =
                 this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
@@ -132,12 +134,8 @@ public class FixedLengthRecordSorterTest {
             int rv = readTarget.getValue();
             int gv = record.getValue();
 
-            if (gk != rk) {
-                Assert.fail("The re-read key is wrong " + i);
-            }
-            if (gv != rv) {
-                Assert.fail("The re-read value is wrong");
-            }
+            assertThat(rk).withFailMessage("The re-read key is wrong %d", i).isEqualTo(gk);
+            assertThat(rv).withFailMessage("The re-read value is wrong %d", i).isEqualTo(gv);
         }
         //		System.out.println("READ TIME " + (System.currentTimeMillis() - startTime));
         //		System.out.println("RECORDS " + num);
@@ -148,7 +146,7 @@ public class FixedLengthRecordSorterTest {
     }
 
     @Test
-    public void testWriteAndIterator() throws Exception {
+    void testWriteAndIterator() throws Exception {
         final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
         final List<MemorySegment> memory =
                 this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
@@ -182,11 +180,11 @@ public class FixedLengthRecordSorterTest {
             int rv = readTarget.getValue();
             int gv = record.getValue();
 
-            Assert.assertEquals("The re-read key is wrong", gk, rk);
-            Assert.assertEquals("The re-read value is wrong", gv, rv);
+            assertThat(rk).withFailMessage("The re-read key is wrong").isEqualTo(gk);
+            assertThat(rv).withFailMessage("The re-read value is wrong").isEqualTo(gv);
         }
 
-        Assert.assertEquals("Incorrect number of records", num, count);
+        assertThat(count).withFailMessage("Incorrect number of records").isEqualTo(num);
 
         // release the memory occupied by the buffers
         sorter.dispose();
@@ -194,7 +192,7 @@ public class FixedLengthRecordSorterTest {
     }
 
     @Test
-    public void testReset() throws Exception {
+    void testReset() throws Exception {
         final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
         final List<MemorySegment> memory =
                 this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
@@ -223,10 +221,10 @@ public class FixedLengthRecordSorterTest {
             num2++;
         } while (sorter.write(record) && num2 < 3354624);
 
-        Assert.assertEquals(
-                "The number of records written after the reset was not the same as before.",
-                num,
-                num2);
+        assertThat(num2)
+                .withFailMessage(
+                        "The number of records written after the reset was not the same as before.")
+                .isEqualTo(num);
 
         // re-read the records
         generator.reset();
@@ -243,8 +241,8 @@ public class FixedLengthRecordSorterTest {
             int rv = readTarget.getValue();
             int gv = record.getValue();
 
-            Assert.assertEquals("The re-read key is wrong", gk, rk);
-            Assert.assertEquals("The re-read value is wrong", gv, rv);
+            assertThat(rk).withFailMessage("The re-read key is wrong %d", i).isEqualTo(gk);
+            assertThat(rv).withFailMessage("The re-read value is wrong %d", i).isEqualTo(gv);
         }
 
         // release the memory occupied by the buffers
@@ -257,7 +255,7 @@ public class FixedLengthRecordSorterTest {
      * then resets the generator, goes backwards through the buffer and compares for equality.
      */
     @Test
-    public void testSwap() throws Exception {
+    void testSwap() throws Exception {
         final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
         final List<MemorySegment> memory =
                 this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
@@ -294,8 +292,8 @@ public class FixedLengthRecordSorterTest {
             int rv = readTarget.getValue();
             int gv = record.getValue();
 
-            Assert.assertEquals("The re-read key is wrong", gk, rk);
-            Assert.assertEquals("The re-read value is wrong", gv, rv);
+            assertThat(rk).withFailMessage("The re-read key is wrong %d", i).isEqualTo(gk);
+            assertThat(rv).withFailMessage("The re-read value is wrong %d", i).isEqualTo(gv);
         }
 
         // release the memory occupied by the buffers
@@ -308,7 +306,7 @@ public class FixedLengthRecordSorterTest {
      * elements. It expects that earlier elements are lower than later ones.
      */
     @Test
-    public void testCompare() throws Exception {
+    void testCompare() throws Exception {
         final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
         final List<MemorySegment> memory =
                 this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
@@ -333,9 +331,9 @@ public class FixedLengthRecordSorterTest {
             int cmp = sorter.compare(pos1, pos2);
 
             if (pos1 < pos2) {
-                Assert.assertTrue(cmp <= 0);
+                assertThat(cmp).isLessThanOrEqualTo(0);
             } else {
-                Assert.assertTrue(cmp >= 0);
+                assertThat(cmp).isGreaterThanOrEqualTo(0);
             }
         }
 
@@ -345,7 +343,7 @@ public class FixedLengthRecordSorterTest {
     }
 
     @Test
-    public void testSort() throws Exception {
+    void testSort() throws Exception {
         final int NUM_RECORDS = 559273;
         final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
         final List<MemorySegment> memory =
@@ -378,9 +376,9 @@ public class FixedLengthRecordSorterTest {
             current = readTarget.getKey();
 
             final int cmp = last - current;
-            if (cmp > 0) {
-                Assert.fail("Next key is not larger or equal to previous key.");
-            }
+            assertThat(cmp)
+                    .withFailMessage("Next key is not larger or equal to previous key.")
+                    .isLessThanOrEqualTo(0);
             last = current;
         }
 
@@ -390,7 +388,7 @@ public class FixedLengthRecordSorterTest {
     }
 
     @Test
-    public void testFlushFullMemoryPage() throws Exception {
+    void testFlushFullMemoryPage() throws Exception {
         // Insert IntPair which would fill 2 memory pages.
         final int NUM_RECORDS = 2 * MEMORY_PAGE_SIZE / 8;
         final List<MemorySegment> memory =
@@ -435,12 +433,12 @@ public class FixedLengthRecordSorterTest {
         record = iterator.next(record);
         int i = 0;
         while (record != null) {
-            Assert.assertEquals(i, record.getKey());
+            assertThat(record.getKey()).isEqualTo(i);
             record = iterator.next(record);
             i++;
         }
 
-        Assert.assertEquals(NUM_RECORDS, i);
+        assertThat(i).isEqualTo(NUM_RECORDS);
 
         this.memoryManager.release(dataBuffer);
         // release the memory occupied by the buffers
@@ -449,7 +447,7 @@ public class FixedLengthRecordSorterTest {
     }
 
     @Test
-    public void testFlushPartialMemoryPage() throws Exception {
+    void testFlushPartialMemoryPage() throws Exception {
         // Insert IntPair which would fill 2 memory pages.
         final int NUM_RECORDS = 2 * MEMORY_PAGE_SIZE / 8;
         final List<MemorySegment> memory =
@@ -494,12 +492,12 @@ public class FixedLengthRecordSorterTest {
         record = iterator.next(record);
         int i = 1;
         while (record != null) {
-            Assert.assertEquals(i, record.getKey());
+            assertThat(record.getKey()).isEqualTo(i);
             record = iterator.next(record);
             i++;
         }
 
-        Assert.assertEquals(NUM_RECORDS, i);
+        assertThat(i).isEqualTo(NUM_RECORDS);
 
         this.memoryManager.release(dataBuffer);
         // release the memory occupied by the buffers

@@ -19,8 +19,10 @@
 package org.apache.flink.connector.testframe.external.source;
 
 import org.apache.flink.api.connector.source.Boundedness;
-import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.core.execution.CheckpointingMode;
 
+import static org.apache.flink.streaming.api.CheckpointingMode.convertFromCheckpointingMode;
+import static org.apache.flink.streaming.api.CheckpointingMode.convertToCheckpointingMode;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Settings for configuring the source under testing. */
@@ -37,9 +39,14 @@ public class TestingSourceSettings {
         return boundedness;
     }
 
-    /** Checkpointing mode required for the source. */
-    public CheckpointingMode getCheckpointingMode() {
-        return checkpointingMode;
+    /**
+     * Checkpointing mode required for the source. This method is required for downstream projects
+     * e.g. Flink connectors extending this test for the case when there should be supported Flink
+     * versions below 1.20. Could be removed together with dropping support for Flink 1.19.
+     */
+    @Deprecated
+    public org.apache.flink.streaming.api.CheckpointingMode getCheckpointingMode() {
+        return convertFromCheckpointingMode(checkpointingMode);
     }
 
     private TestingSourceSettings(Boundedness boundedness, CheckpointingMode checkpointingMode) {
@@ -59,6 +66,18 @@ public class TestingSourceSettings {
 
         public Builder setCheckpointingMode(CheckpointingMode checkpointingMode) {
             this.checkpointingMode = checkpointingMode;
+            return this;
+        }
+
+        /**
+         * This method is required for downstream projects e.g. Flink connectors extending this test
+         * for the case when there should be supported Flink versions below 1.20. Could be removed
+         * together with dropping support for Flink 1.19.
+         */
+        @Deprecated
+        public Builder setCheckpointingMode(
+                org.apache.flink.streaming.api.CheckpointingMode checkpointingMode) {
+            this.checkpointingMode = convertToCheckpointingMode(checkpointingMode);
             return this;
         }
 

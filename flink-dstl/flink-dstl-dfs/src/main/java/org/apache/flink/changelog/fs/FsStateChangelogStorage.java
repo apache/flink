@@ -32,6 +32,7 @@ import org.apache.flink.runtime.state.changelog.LocalChangelogRegistry;
 import org.apache.flink.runtime.state.changelog.LocalChangelogRegistryImpl;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -142,7 +143,7 @@ public class FsStateChangelogStorage extends FsStateChangelogStorageForRecovery
         this.changelogRegistry = changelogRegistry;
         this.uploader = uploader;
         this.localRecoveryConfig = localRecoveryConfig;
-        if (localRecoveryConfig.isLocalRecoveryEnabled()) {
+        if (localRecoveryConfig.isLocalBackupEnabled()) {
             this.localChangelogRegistry =
                     new LocalChangelogRegistryImpl(Executors.newSingleThreadExecutor());
         }
@@ -167,6 +168,7 @@ public class FsStateChangelogStorage extends FsStateChangelogStorageForRecovery
     @Override
     public void close() throws Exception {
         uploader.close();
+        IOUtils.closeQuietly(localChangelogRegistry);
     }
 
     @Override

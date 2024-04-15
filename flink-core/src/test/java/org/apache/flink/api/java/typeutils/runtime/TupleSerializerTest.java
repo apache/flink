@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.SerializerTestInstance;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -316,7 +316,7 @@ public class TupleSerializerTest {
     private <T extends Tuple> void runTests(int length, T... instances) {
         TupleTypeInfo<T> tupleTypeInfo =
                 (TupleTypeInfo<T>) TypeExtractor.getForObject(instances[0]);
-        TypeSerializer<T> serializer = tupleTypeInfo.createSerializer(new ExecutionConfig());
+        TypeSerializer<T> serializer = tupleTypeInfo.createSerializer(new SerializerConfigImpl());
 
         Class<T> tupleClass = tupleTypeInfo.getTypeClass();
 

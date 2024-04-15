@@ -18,6 +18,7 @@
 from copy import deepcopy
 
 from pyflink.common import Configuration
+from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
@@ -163,3 +164,17 @@ class ConfigurationTests(PyFlinkTestCase):
         self.assertEqual(conf, conf2)
 
         self.assertEqual(str(conf), "{k1=v1, k2=1}")
+
+    def test_parse_jars_value(self):
+        jvm = get_gateway().jvm
+        # test parse YAML list
+        value = "- jar1\n- jar2\n- jar3"
+        expected_result = ['jar1', 'jar2', 'jar3']
+        result = Configuration.parse_jars_value(value, jvm)
+        self.assertEqual(result, expected_result)
+
+        # test parse legacy pattern
+        value = "jar1;jar2;jar3"
+        expected_result = ['jar1', 'jar2', 'jar3']
+        result = Configuration.parse_jars_value(value, jvm)
+        self.assertEqual(result, expected_result)

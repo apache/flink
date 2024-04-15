@@ -30,12 +30,9 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.examples.java.wordcount.WordCount;
-import org.apache.flink.runtime.blob.BlobCacheCorruptionTest;
-import org.apache.flink.runtime.blob.BlobCacheRecoveryTest;
-import org.apache.flink.runtime.blob.BlobServerCorruptionTest;
-import org.apache.flink.runtime.blob.BlobServerRecoveryTest;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.blob.BlobUtils;
+import org.apache.flink.runtime.blob.TestingBlobHelpers;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.OperatingSystem;
@@ -207,18 +204,19 @@ public class HDFSTest {
     public void testBlobServerRecovery() throws Exception {
         org.apache.flink.configuration.Configuration config =
                 new org.apache.flink.configuration.Configuration();
-        config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-        config.setString(
+        config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+        config.set(
                 BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-        config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, hdfsURI);
+        config.set(HighAvailabilityOptions.HA_STORAGE_PATH, hdfsURI);
 
         BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
         try {
-            BlobServerRecoveryTest.testBlobServerRecovery(
+            TestingBlobHelpers.testBlobServerRecovery(
                     config, blobStoreService, temporaryFolder.newFolder());
         } finally {
-            blobStoreService.closeAndCleanupAllData();
+            blobStoreService.cleanupAllData();
+            blobStoreService.close();
         }
     }
 
@@ -230,18 +228,19 @@ public class HDFSTest {
     public void testBlobServerCorruptedFile() throws Exception {
         org.apache.flink.configuration.Configuration config =
                 new org.apache.flink.configuration.Configuration();
-        config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-        config.setString(
+        config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+        config.set(
                 BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-        config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, hdfsURI);
+        config.set(HighAvailabilityOptions.HA_STORAGE_PATH, hdfsURI);
 
         BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
         try {
-            BlobServerCorruptionTest.testGetFailsFromCorruptFile(
+            TestingBlobHelpers.testGetFailsFromCorruptFile(
                     config, blobStoreService, temporaryFolder.newFolder());
         } finally {
-            blobStoreService.closeAndCleanupAllData();
+            blobStoreService.cleanupAllData();
+            blobStoreService.close();
         }
     }
 
@@ -253,18 +252,19 @@ public class HDFSTest {
     public void testBlobCacheRecovery() throws Exception {
         org.apache.flink.configuration.Configuration config =
                 new org.apache.flink.configuration.Configuration();
-        config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-        config.setString(
+        config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+        config.set(
                 BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-        config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, hdfsURI);
+        config.set(HighAvailabilityOptions.HA_STORAGE_PATH, hdfsURI);
 
         BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
         try {
-            BlobCacheRecoveryTest.testBlobCacheRecovery(
+            TestingBlobHelpers.testBlobCacheRecovery(
                     config, blobStoreService, temporaryFolder.newFolder());
         } finally {
-            blobStoreService.closeAndCleanupAllData();
+            blobStoreService.cleanupAllData();
+            blobStoreService.close();
         }
     }
 
@@ -276,18 +276,19 @@ public class HDFSTest {
     public void testBlobCacheCorruptedFile() throws Exception {
         org.apache.flink.configuration.Configuration config =
                 new org.apache.flink.configuration.Configuration();
-        config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-        config.setString(
+        config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+        config.set(
                 BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-        config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, hdfsURI);
+        config.set(HighAvailabilityOptions.HA_STORAGE_PATH, hdfsURI);
 
         BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
         try {
-            BlobCacheCorruptionTest.testGetFailsFromCorruptFile(
+            TestingBlobHelpers.testGetFailsFromCorruptFile(
                     new JobID(), config, blobStoreService, temporaryFolder.newFolder());
         } finally {
-            blobStoreService.closeAndCleanupAllData();
+            blobStoreService.cleanupAllData();
+            blobStoreService.close();
         }
     }
 

@@ -50,6 +50,7 @@ import static org.apache.flink.table.functions.UserDefinedFunctionHelper.isClass
  * </ul>
  *
  * @see ScalarFunction
+ * @see AsyncScalarFunction
  * @see TableFunction
  * @see AsyncTableFunction
  * @see AggregateFunction

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichCoGroupFunction;
 import org.apache.flink.api.common.functions.RichCrossFunction;
 import org.apache.flink.api.common.functions.RichFlatJoinFunction;
@@ -30,6 +31,7 @@ import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.functions.RichJoinFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
@@ -46,7 +48,6 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple9;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.Either;
 import org.apache.flink.types.IntValue;
@@ -1821,7 +1822,7 @@ public class TypeExtractorTest {
                     public void setRuntimeContext(RuntimeContext t) {}
 
                     @Override
-                    public void open(Configuration parameters) throws Exception {}
+                    public void open(OpenContext openContext) throws Exception {}
 
                     @Override
                     public RuntimeContext getRuntimeContext() {
@@ -2403,8 +2404,13 @@ public class TypeExtractorTest {
                     }
 
                     @Override
-                    public TypeSerializer<Object> createSerializer(ExecutionConfig config) {
+                    public TypeSerializer<Object> createSerializer(SerializerConfig config) {
                         return null;
+                    }
+
+                    @Override
+                    public TypeSerializer<Object> createSerializer(ExecutionConfig config) {
+                        return createSerializer(config.getSerializerConfig());
                     }
 
                     @Override

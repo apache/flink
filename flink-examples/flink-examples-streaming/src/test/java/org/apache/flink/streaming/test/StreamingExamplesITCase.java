@@ -80,12 +80,12 @@ public class StreamingExamplesITCase extends AbstractTestBase {
                     StreamExecutionEnvironment.getExecutionEnvironment();
 
             DataStream<Tuple2<String, Integer>> grades =
-                    env.fromElements(WindowJoinData.GRADES_INPUT.split("\n"))
+                    env.fromData(WindowJoinData.GRADES_INPUT.split("\n"))
                             .assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create())
                             .map(new Parser());
 
             DataStream<Tuple2<String, Integer>> salaries =
-                    env.fromElements(WindowJoinData.SALARIES_INPUT.split("\n"))
+                    env.fromData(WindowJoinData.SALARIES_INPUT.split("\n"))
                             .assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create())
                             .map(new Parser());
 

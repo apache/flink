@@ -23,7 +23,7 @@
     <parent>
         <artifactId>flink-end-to-end-tests</artifactId>
         <groupId>org.apache.flink</groupId>
-        <version>1.18-SNAPSHOT</version>
+        <version>1.20-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -36,6 +36,18 @@
             <artifactId>flink-end-to-end-tests-common</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-table-runtime</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-json</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
 
         <!-- The following dependencies are for connector/format sql-jars that
             we copy using the maven-dependency-plugin. When extending the test

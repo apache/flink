@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
@@ -41,11 +42,14 @@ import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Future;
 
@@ -54,6 +58,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** A standalone implementation of the {@link RuntimeContext}, created by runtime UDF operators. */
 @Internal
 public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
+
+    private final JobInfo jobInfo;
 
     private final TaskInfo taskInfo;
 
@@ -68,12 +74,14 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
     private final OperatorMetricGroup metrics;
 
     public AbstractRuntimeUDFContext(
+            JobInfo jobInfo,
             TaskInfo taskInfo,
             UserCodeClassLoader userCodeClassLoader,
             ExecutionConfig executionConfig,
             Map<String, Accumulator<?, ?>> accumulators,
             Map<String, Future<Path>> cpTasks,
             OperatorMetricGroup metrics) {
+        this.jobInfo = checkNotNull(jobInfo);
         this.taskInfo = checkNotNull(taskInfo);
         this.userCodeClassLoader = userCodeClassLoader;
         this.executionConfig = executionConfig;
@@ -83,43 +91,29 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
     }
 
     @Override
+    @Deprecated
     public ExecutionConfig getExecutionConfig() {
         return executionConfig;
     }
 
     @Override
-    public String getTaskName() {
-        return taskInfo.getTaskName();
+    public <T> TypeSerializer<T> createSerializer(TypeInformation<T> typeInformation) {
+        return typeInformation.createSerializer(executionConfig.getSerializerConfig());
     }
 
     @Override
-    public int getNumberOfParallelSubtasks() {
-        return taskInfo.getNumberOfParallelSubtasks();
+    public Map<String, String> getGlobalJobParameters() {
+        return Collections.unmodifiableMap(executionConfig.getGlobalJobParameters().toMap());
     }
 
     @Override
-    public int getMaxNumberOfParallelSubtasks() {
-        return taskInfo.getMaxNumberOfParallelSubtasks();
-    }
-
-    @Override
-    public int getIndexOfThisSubtask() {
-        return taskInfo.getIndexOfThisSubtask();
+    public boolean isObjectReuseEnabled() {
+        return executionConfig.isObjectReuseEnabled();
     }
 
     @Override
     public OperatorMetricGroup getMetricGroup() {
         return metrics;
-    }
-
-    @Override
-    public int getAttemptNumber() {
-        return taskInfo.getAttemptNumber();
-    }
-
-    @Override
-    public String getTaskNameWithSubtasks() {
-        return taskInfo.getTaskNameWithSubtasks();
     }
 
     @Override
@@ -172,6 +166,16 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
     @Override
     public DistributedCache getDistributedCache() {
         return this.distributedCache;
+    }
+
+    @Override
+    public JobInfo getJobInfo() {
+        return jobInfo;
+    }
+
+    @Override
+    public TaskInfo getTaskInfo() {
+        return taskInfo;
     }
 
     // --------------------------------------------------------------------------------------------

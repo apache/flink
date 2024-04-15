@@ -25,8 +25,7 @@ import java.util.Collection;
 
 /**
  * The {@code Committer} is responsible for committing the data staged by the {@link
- * TwoPhaseCommittingSink.PrecommittingSinkWriter} in the second step of a two-phase commit
- * protocol.
+ * CommittingSinkWriter} in the second step of a two-phase commit protocol.
  *
  * <p>A commit must be idempotent: If some failure occurs in Flink during commit phase, Flink will
  * restart from previous checkpoint and re-attempt to commit all committables. Thus, some or all

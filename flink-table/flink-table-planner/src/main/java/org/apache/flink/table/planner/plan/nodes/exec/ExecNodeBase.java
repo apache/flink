@@ -27,6 +27,7 @@ import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.fusion.OpFusionCodegenSpecGenerator;
 import org.apache.flink.table.planner.plan.nodes.exec.serde.ConfigurationJsonSerializerFilter;
@@ -280,10 +281,6 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
         return detailName;
     }
 
-    public void resetTransformation() {
-        this.transformation = null;
-    }
-
     @VisibleForTesting
     @JsonIgnore
     public Transformation<T> getTransformation() {
@@ -296,7 +293,8 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
     }
 
     @Override
-    public OpFusionCodegenSpecGenerator translateToFusionCodegenSpec(Planner planner) {
+    public OpFusionCodegenSpecGenerator translateToFusionCodegenSpec(
+            Planner planner, CodeGeneratorContext parentCtx) {
         if (fusionCodegenSpecGenerator == null) {
             fusionCodegenSpecGenerator =
                     translateToFusionCodegenSpecInternal(
@@ -304,7 +302,8 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
                             ExecNodeConfig.of(
                                     ((PlannerBase) planner).getTableConfig(),
                                     persistedConfig,
-                                    isCompiled));
+                                    isCompiled),
+                            parentCtx);
         }
 
         return fusionCodegenSpecGenerator;
@@ -320,7 +319,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
      *     ExecNodeConfig}.
      */
     protected OpFusionCodegenSpecGenerator translateToFusionCodegenSpecInternal(
-            PlannerBase planner, ExecNodeConfig config) {
+            PlannerBase planner, ExecNodeConfig config, CodeGeneratorContext parentCtx) {
         throw new TableException("This ExecNode doesn't support operator fusion codegen now.");
     }
 }

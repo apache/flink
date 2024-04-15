@@ -19,12 +19,11 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier
 import org.apache.flink.configuration.{Configuration, ReadableConfig}
-import org.apache.flink.metrics.MetricGroup
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{newName, ROW_DATA}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
-import org.apache.flink.table.runtime.generated.{GeneratedWatermarkGenerator, WatermarkGenerator}
+import org.apache.flink.table.runtime.generated.{GeneratedWatermarkGenerator, WatermarkGenerator, WatermarkGeneratorCodeGeneratorFunctionContextWrapper}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{LogicalTypeRoot, RowType}
 
@@ -49,12 +48,12 @@ object WatermarkGeneratorCodeGenerator {
         "WatermarkGenerator only accepts output data type of TIMESTAMP or TIMESTAMP_LTZ," +
           " but is " + watermarkOutputType)
     }
-    val funcName = newName("WatermarkGenerator")
     val ctx = if (contextTerm.isDefined) {
       new WatermarkGeneratorFunctionContext(tableConfig, classLoader, contextTerm.get)
     } else {
       new CodeGeneratorContext(tableConfig, classLoader)
     }
+    val funcName = newName(ctx, "WatermarkGenerator")
     val generator = new ExprCodeGenerator(ctx, false)
       .bindInput(inputType, inputTerm = "row")
       .bindConstructorTerm(contextTerm.orNull)
@@ -135,11 +134,4 @@ class WatermarkGeneratorFunctionContext(
   override def addReusableConverter(dataType: DataType, classLoaderTerm: String = null): String = {
     super.addReusableConverter(dataType, "this.getClass().getClassLoader()")
   }
-}
-
-class WatermarkGeneratorCodeGeneratorFunctionContextWrapper(
-    context: WatermarkGeneratorSupplier.Context)
-  extends FunctionContext(null, null, null) {
-
-  override def getMetricGroup: MetricGroup = context.getMetricGroup
 }

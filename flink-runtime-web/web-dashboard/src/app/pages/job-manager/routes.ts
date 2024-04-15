@@ -78,6 +78,14 @@ export const JOB_MANAGER_ROUTES: Routes = [
         }
       },
       {
+        path: 'profiler',
+        loadComponent: () =>
+          import('./profiler/job-manager-profiler.component').then(m => m.JobManagerProfilerComponent),
+        data: {
+          path: 'profiler'
+        }
+      },
+      {
         path: '**',
         redirectTo: 'metrics',
         pathMatch: 'full'

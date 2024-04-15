@@ -19,15 +19,20 @@
 package org.apache.flink.runtime.io.network.partition.hybrid;
 
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.metrics.TimerGauge;
 
 /** All metrics that {@link HsResultPartition} needs to count, except numBytesProduced. */
 public class HsOutputMetrics {
     private final Counter numBytesOut;
     private final Counter numBuffersOut;
 
-    public HsOutputMetrics(Counter numBytesOut, Counter numBuffersOut) {
+    private final TimerGauge hardBackpressureTimerGauge;
+
+    public HsOutputMetrics(
+            Counter numBytesOut, Counter numBuffersOut, TimerGauge hardBackpressureTimerGauge) {
         this.numBytesOut = numBytesOut;
         this.numBuffersOut = numBuffersOut;
+        this.hardBackpressureTimerGauge = hardBackpressureTimerGauge;
     }
 
     public Counter getNumBytesOut() {
@@ -36,5 +41,9 @@ public class HsOutputMetrics {
 
     public Counter getNumBuffersOut() {
         return numBuffersOut;
+    }
+
+    public TimerGauge getHardBackpressureTimerGauge() {
+        return hardBackpressureTimerGauge;
     }
 }

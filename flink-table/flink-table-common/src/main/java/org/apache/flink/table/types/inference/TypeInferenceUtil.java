@@ -210,11 +210,54 @@ public final class TypeInferenceUtil {
     }
 
     /**
+     * Validates argument counts.
+     *
+     * @param argumentCount expected argument count
+     * @param actualCount actual argument count
+     * @param throwOnFailure if true, the function throws a {@link ValidationException} if the
+     *     actual value does not meet the expected argument count
+     * @return a boolean indicating if expected argument counts match the actual counts
+     */
+    public static boolean validateArgumentCount(
+            ArgumentCount argumentCount, int actualCount, boolean throwOnFailure) {
+        final int minCount = argumentCount.getMinCount().orElse(0);
+        if (actualCount < minCount) {
+            if (throwOnFailure) {
+                throw new ValidationException(
+                        String.format(
+                                "Invalid number of arguments. At least %d arguments expected but %d passed.",
+                                minCount, actualCount));
+            }
+            return false;
+        }
+        final int maxCount = argumentCount.getMaxCount().orElse(Integer.MAX_VALUE);
+        if (actualCount > maxCount) {
+            if (throwOnFailure) {
+                throw new ValidationException(
+                        String.format(
+                                "Invalid number of arguments. At most %d arguments expected but %d passed.",
+                                maxCount, actualCount));
+            }
+            return false;
+        }
+        if (!argumentCount.isValidCount(actualCount)) {
+            if (throwOnFailure) {
+                throw new ValidationException(
+                        String.format(
+                                "Invalid number of arguments. %d arguments passed.", actualCount));
+            }
+            return false;
+        }
+        return true;
+    }
+
+    /**
      * Information what the outer world (i.e. an outer wrapping call) expects from the current
      * function call. This can be helpful for an {@link InputTypeStrategy}.
      *
      * @see CallContext#getOutputDataType()
      */
+    @Internal
     public interface SurroundingInfo {
 
         static SurroundingInfo of(
@@ -268,6 +311,7 @@ public final class TypeInferenceUtil {
      * <p>This includes casts that need to be inserted, reordering of arguments (*), or insertion of
      * default values (*) where (*) is future work.
      */
+    @Internal
     public static final class Result {
 
         private final List<DataType> expectedArgumentTypes;
@@ -381,39 +425,6 @@ public final class TypeInferenceUtil {
         arg.getName().ifPresent(n -> stringBuilder.append(n).append(" "));
         stringBuilder.append(arg.getType());
         return stringBuilder.toString();
-    }
-
-    private static boolean validateArgumentCount(
-            ArgumentCount argumentCount, int actualCount, boolean throwOnFailure) {
-        final int minCount = argumentCount.getMinCount().orElse(0);
-        if (actualCount < minCount) {
-            if (throwOnFailure) {
-                throw new ValidationException(
-                        String.format(
-                                "Invalid number of arguments. At least %d arguments expected but %d passed.",
-                                minCount, actualCount));
-            }
-            return false;
-        }
-        final int maxCount = argumentCount.getMaxCount().orElse(Integer.MAX_VALUE);
-        if (actualCount > maxCount) {
-            if (throwOnFailure) {
-                throw new ValidationException(
-                        String.format(
-                                "Invalid number of arguments. At most %d arguments expected but %d passed.",
-                                maxCount, actualCount));
-            }
-            return false;
-        }
-        if (!argumentCount.isValidCount(actualCount)) {
-            if (throwOnFailure) {
-                throw new ValidationException(
-                        String.format(
-                                "Invalid number of arguments. %d arguments passed.", actualCount));
-            }
-            return false;
-        }
-        return true;
     }
 
     private static AdaptedCallContext inferInputTypes(

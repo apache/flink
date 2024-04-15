@@ -60,7 +60,7 @@ public class HoppingWindowSpec implements WindowSpec {
     }
 
     @Override
-    public String toSummaryString(String windowing) {
+    public String toSummaryString(String windowing, String[] inputFieldNames) {
         if (offset == null) {
             return String.format(
                     "HOP(%s, size=[%s], slide=[%s])",
@@ -119,5 +119,10 @@ public class HoppingWindowSpec implements WindowSpec {
                     formatWithHighestUnit(slide),
                     formatWithHighestUnit(offset));
         }
+    }
+
+    @Override
+    public boolean isAlignedWindow() {
+        return true;
     }
 }

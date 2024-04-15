@@ -40,11 +40,15 @@ GROUP BY window_start, window_end, ...
 
 ### 窗口表值函数
 
-Flink 支持在 `TUMBLE`， `HOP` 和 `CUMULATE` 上进行窗口聚合。
+Flink 支持在 `TUMBLE`，`HOP`，`CUMULATE` 和 `SESSION` 上进行窗口聚合。
 在流模式下，窗口表值函数的时间属性字段必须是 [事件时间或处理时间]({{< ref "docs/dev/table/concepts/time_attributes" >}})。关于窗口函数更多信息，参见 [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})。
 在批模式下，窗口表值函数的时间属性字段必须是 `TIMESTAMP` 或 `TIMESTAMP_LTZ` 类型的。
 
-这里有关于 `TUMBLE`，`HOP` 和 `CUMULATE` 窗口聚合的几个例子：
+{{< hint info >}}
+注意：`SESSION` 窗口聚合目前不支持批模式。
+{{< /hint >}}
+
+这里有关于 `TUMBLE`，`HOP`，`CUMULATE` 和 `SESSION` 窗口聚合的几个例子：
 
 ```sql
 -- tables must have time attribute, e.g. `bidtime` in this table
@@ -71,48 +75,74 @@ Flink SQL> SELECT * FROM Bid;
 +------------------+-------+------+-------------+
 
 -- tumbling window aggregation
-Flink SQL> SELECT window_start, window_end, SUM(price)
+Flink SQL> SELECT window_start, window_end, SUM(price) AS total_price
   FROM TABLE(
     TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES))
   GROUP BY window_start, window_end;
-+------------------+------------------+-------+
-|     window_start |       window_end | price |
-+------------------+------------------+-------+
-| 2020-04-15 08:00 | 2020-04-15 08:10 | 11.00 |
-| 2020-04-15 08:10 | 2020-04-15 08:20 | 10.00 |
-+------------------+------------------+-------+
++------------------+------------------+-------------+
+|     window_start |       window_end | total_price |
++------------------+------------------+-------------+
+| 2020-04-15 08:00 | 2020-04-15 08:10 |       11.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:20 |       10.00 |
++------------------+------------------+-------------+
 
 -- hopping window aggregation
-Flink SQL> SELECT window_start, window_end, SUM(price)
+Flink SQL> SELECT window_start, window_end, SUM(price) AS total_price
   FROM TABLE(
     HOP(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES, INTERVAL '10' MINUTES))
   GROUP BY window_start, window_end;
-+------------------+------------------+-------+
-|     window_start |       window_end | price |
-+------------------+------------------+-------+
-| 2020-04-15 08:00 | 2020-04-15 08:10 | 11.00 |
-| 2020-04-15 08:05 | 2020-04-15 08:15 | 15.00 |
-| 2020-04-15 08:10 | 2020-04-15 08:20 | 10.00 |
-| 2020-04-15 08:15 | 2020-04-15 08:25 | 6.00  |
-+------------------+------------------+-------+
++------------------+------------------+-------------+
+|     window_start |       window_end | total_price |
++------------------+------------------+-------------+
+| 2020-04-15 08:00 | 2020-04-15 08:10 |       11.00 |
+| 2020-04-15 08:05 | 2020-04-15 08:15 |       15.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:20 |       10.00 |
+| 2020-04-15 08:15 | 2020-04-15 08:25 |        6.00 |
++------------------+------------------+-------------+
 
 -- cumulative window aggregation
-Flink SQL> SELECT window_start, window_end, SUM(price)
+Flink SQL> SELECT window_start, window_end, SUM(price) AS total_price
   FROM TABLE(
     CUMULATE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '2' MINUTES, INTERVAL '10' MINUTES))
   GROUP BY window_start, window_end;
-+------------------+------------------+-------+
-|     window_start |       window_end | price |
-+------------------+------------------+-------+
-| 2020-04-15 08:00 | 2020-04-15 08:06 | 4.00  |
-| 2020-04-15 08:00 | 2020-04-15 08:08 | 6.00  |
-| 2020-04-15 08:00 | 2020-04-15 08:10 | 11.00 |
-| 2020-04-15 08:10 | 2020-04-15 08:12 | 3.00  |
-| 2020-04-15 08:10 | 2020-04-15 08:14 | 4.00  |
-| 2020-04-15 08:10 | 2020-04-15 08:16 | 4.00  |
-| 2020-04-15 08:10 | 2020-04-15 08:18 | 10.00 |
-| 2020-04-15 08:10 | 2020-04-15 08:20 | 10.00 |
-+------------------+------------------+-------+
++------------------+------------------+-------------+
+|     window_start |       window_end | total_price |
++------------------+------------------+-------------+
+| 2020-04-15 08:00 | 2020-04-15 08:06 |        4.00 |
+| 2020-04-15 08:00 | 2020-04-15 08:08 |        6.00 |
+| 2020-04-15 08:00 | 2020-04-15 08:10 |       11.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:12 |        3.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:14 |        4.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:16 |        4.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:18 |       10.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:20 |       10.00 |
++------------------+------------------+-------------+
+
+-- session window aggregation with partition keys
+Flink SQL> SELECT window_start, window_end, supplier_id, SUM(price) AS total_price
+           FROM TABLE(
+               SESSION(TABLE Bid PARTITION BY supplier_id, DESCRIPTOR(bidtime), INTERVAL '2' MINUTES))
+           GROUP BY window_start, window_end, supplier_id;
++------------------+------------------+-------------+-------------+
+|     window_start |       window_end | supplier_id | total_price |
++------------------+------------------+-------------+-------------+
+| 2020-04-15 08:05 | 2020-04-15 08:09 | supplier1   |        6.00 |
+| 2020-04-15 08:09 | 2020-04-15 08:13 | supplier2   |        8.00 |
+| 2020-04-15 08:13 | 2020-04-15 08:15 | supplier1   |        1.00 |
+| 2020-04-15 08:17 | 2020-04-15 08:19 | supplier2   |        6.00 |
++------------------+------------------+-------------+-------------+
+
+-- session window aggregation without partition keys
+Flink SQL> SELECT window_start, window_end, SUM(price) AS total_price
+           FROM TABLE(
+               SESSION(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '2' MINUTES))
+           GROUP BY window_start, window_end;
++------------------+------------------+-------------+
+|     window_start |       window_end | total_price |
++------------------+------------------+-------------+
+| 2020-04-15 08:05 | 2020-04-15 08:15 |       15.00 |
+| 2020-04-15 08:17 | 2020-04-15 08:19 |        6.00 |
++------------------+------------------+-------------+
 ```
 
 *注意: 为了更好地理解窗口行为，这里把 timestamp 值后面的 0 去掉了，例如：在 Flink SQL Client 中，如果类型是 `TIMESTAMP(3)`，`2020-04-15 08:05` 应该显示成 `2020-04-15 08:05:00.000`。*
@@ -124,20 +154,20 @@ Flink SQL> SELECT window_start, window_end, SUM(price)
 `GROUPING SETS` 窗口聚合中 `GROUP BY` 子句必须包含 `window_start` 和 `window_end` 列，但 `GROUPING SETS` 子句中不能包含这两个字段。
 
 ```sql
-Flink SQL> SELECT window_start, window_end, supplier_id, SUM(price) as price
+Flink SQL> SELECT window_start, window_end, supplier_id, SUM(price) AS total_price
   FROM TABLE(
     TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES))
   GROUP BY window_start, window_end, GROUPING SETS ((supplier_id), ());
-+------------------+------------------+-------------+-------+
-|     window_start |       window_end | supplier_id | price |
-+------------------+------------------+-------------+-------+
-| 2020-04-15 08:00 | 2020-04-15 08:10 |      (NULL) | 11.00 |
-| 2020-04-15 08:00 | 2020-04-15 08:10 |   supplier2 |  5.00 |
-| 2020-04-15 08:00 | 2020-04-15 08:10 |   supplier1 |  6.00 |
-| 2020-04-15 08:10 | 2020-04-15 08:20 |      (NULL) | 10.00 |
-| 2020-04-15 08:10 | 2020-04-15 08:20 |   supplier2 |  9.00 |
-| 2020-04-15 08:10 | 2020-04-15 08:20 |   supplier1 |  1.00 |
-+------------------+------------------+-------------+-------+
++------------------+------------------+-------------+-------------+
+|     window_start |       window_end | supplier_id | total_price |
++------------------+------------------+-------------+-------------+
+| 2020-04-15 08:00 | 2020-04-15 08:10 |      (NULL) |       11.00 |
+| 2020-04-15 08:00 | 2020-04-15 08:10 |   supplier2 |        5.00 |
+| 2020-04-15 08:00 | 2020-04-15 08:10 |   supplier1 |        6.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:20 |      (NULL) |       10.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:20 |   supplier2 |        9.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:20 |   supplier1 |        1.00 |
++------------------+------------------+-------------+-------------+
 ```
 
 `GROUPING SETS` 的每个子列表可以是：空的，多列或表达式，它们的解释方式和直接使用 `GROUP BY` 子句是一样的。一个空的 Grouping Sets 表示所有行都聚合在一个分组下，即使没有数据，也会输出结果。
@@ -153,7 +183,7 @@ Flink SQL> SELECT window_start, window_end, supplier_id, SUM(price) as price
 例如：下面这个查询和上个例子中的效果是一样的。
 
 ```sql
-SELECT window_start, window_end, supplier_id, SUM(price) as price
+SELECT window_start, window_end, supplier_id, SUM(price) AS total_price
 FROM TABLE(
     TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES))
 GROUP BY window_start, window_end, ROLLUP (supplier_id);
@@ -168,12 +198,12 @@ GROUP BY window_start, window_end, ROLLUP (supplier_id);
 例如：下面两个查询是等效的。
 
 ```sql
-SELECT window_start, window_end, item, supplier_id, SUM(price) as price
+SELECT window_start, window_end, item, supplier_id, SUM(price) AS total_price
   FROM TABLE(
     TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES))
   GROUP BY window_start, window_end, CUBE (supplier_id, item);
 
-SELECT window_start, window_end, item, supplier_id, SUM(price) as price
+SELECT window_start, window_end, item, supplier_id, SUM(price) AS total_price
   FROM TABLE(
     TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES))
   GROUP BY window_start, window_end, GROUPING SETS (
@@ -200,13 +230,13 @@ SELECT window_start, window_end, item, supplier_id, SUM(price) as price
 -- tumbling 5 minutes for each supplier_id
 CREATE VIEW window1 AS
 -- Note: The window start and window end fields of inner Window TVF are optional in the select clause. However, if they appear in the clause, they need to be aliased to prevent name conflicting with the window start and window end of the outer Window TVF.
-SELECT window_start as window_5mintumble_start, window_end as window_5mintumble_end, window_time as rowtime, SUM(price) as partial_price
+SELECT window_start AS window_5mintumble_start, window_end AS window_5mintumble_end, window_time AS rowtime, SUM(price) AS partial_price
   FROM TABLE(
     TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES))
   GROUP BY supplier_id, window_start, window_end, window_time;
 
 -- tumbling 10 minutes on the first window
-SELECT window_start, window_end, SUM(partial_price) as total_price
+SELECT window_start, window_end, SUM(partial_price) AS total_price
   FROM TABLE(
       TUMBLE(TABLE window1, DESCRIPTOR(rowtime), INTERVAL '10' MINUTES))
   GROUP BY window_start, window_end;

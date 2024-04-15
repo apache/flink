@@ -18,7 +18,10 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.fs.Path;
@@ -33,7 +36,6 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 
-import static org.apache.flink.configuration.CheckpointingOptions.LOCAL_RECOVERY;
 import static org.apache.flink.runtime.testutils.PseudoRandomValueSelector.randomize;
 
 /** A {@link StreamExecutionEnvironment} that executes its jobs on {@link MiniCluster}. */
@@ -118,35 +120,51 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
                     Duration.ofSeconds(0),
                     Duration.ofMillis(100),
                     Duration.ofSeconds(2));
+            randomize(conf, CheckpointingOptions.CLEANER_PARALLEL_MODE, true, false);
+            randomize(conf, ExecutionOptions.SNAPSHOT_COMPRESSION, true, false);
         }
+
+        randomize(
+                conf,
+                // This config option is defined in the rocksdb module :(
+                ConfigOptions.key("state.backend.rocksdb.use-ingest-db-restore-mode")
+                        .booleanType()
+                        .noDefaultValue(),
+                true,
+                false);
 
         // randomize ITTests for enabling state change log
-        if (isConfigurationSupportedByChangelog(miniCluster.getConfiguration())) {
+        if (!conf.contains(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)) {
             if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_ON)) {
-                if (!conf.contains(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)) {
-                    conf.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true);
-                    miniCluster.overrideRestoreModeForChangelogStateBackend();
-                }
+                conf.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true);
             } else if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_RAND)) {
-                boolean enabled =
-                        randomize(conf, StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true, false);
-                if (enabled) {
-                    randomize(
-                            conf,
-                            StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL,
-                            Duration.ofMillis(100),
-                            Duration.ofMillis(500),
-                            Duration.ofSeconds(1),
-                            Duration.ofSeconds(5),
-                            Duration.ofSeconds(-1));
-                    miniCluster.overrideRestoreModeForChangelogStateBackend();
-                }
+                randomize(conf, StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true, false);
             }
         }
-    }
 
-    private static boolean isConfigurationSupportedByChangelog(Configuration configuration) {
-        return !configuration.get(LOCAL_RECOVERY);
+        // randomize periodic materialization when enabling state change log
+        if (conf.get(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)) {
+            if (!conf.contains(StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED)) {
+                // More situations about enabling periodic materialization should be tested
+                randomize(
+                        conf,
+                        StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED,
+                        true,
+                        true,
+                        true,
+                        false);
+            }
+            if (!conf.contains(StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL)) {
+                randomize(
+                        conf,
+                        StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL,
+                        Duration.ofMillis(100),
+                        Duration.ofMillis(500),
+                        Duration.ofSeconds(1),
+                        Duration.ofSeconds(5));
+            }
+            miniCluster.overrideRestoreModeForChangelogStateBackend();
+        }
     }
 
     /**

@@ -19,13 +19,24 @@ package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.annotation.{Public, PublicEvolving}
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
 
 import scala.collection.JavaConverters._
 import scala.util.Try
 
-/** TypeInformation for [[scala.util.Try]]. */
+/**
+ * TypeInformation for [[scala.util.Try]].
+ *
+ * @deprecated
+ *   All Flink Scala APIs are deprecated and will be removed in a future Flink major version. You
+ *   can still build your application in Scala, but you should move to the Java version of either
+ *   the DataStream and/or Table API.
+ * @see
+ *   <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
+ */
+@deprecated(org.apache.flink.api.scala.FLIP_265_WARNING, since = "1.18.0")
 @Public
 class TryTypeInfo[A, T <: Try[A]](val elemTypeInfo: TypeInformation[A]) extends TypeInformation[T] {
 
@@ -45,14 +56,19 @@ class TryTypeInfo[A, T <: Try[A]](val elemTypeInfo: TypeInformation[A]) extends 
   override def getGenericParameters = Map[String, TypeInformation[_]]("T" -> elemTypeInfo).asJava
 
   @PublicEvolving
-  def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] = {
+  override def createSerializer(serializerConfig: SerializerConfig): TypeSerializer[T] = {
     if (elemTypeInfo == null) {
       // this happens when the type of a DataSet is None, i.e. DataSet[Failure]
-      new TrySerializer(new NothingSerializer, executionConfig).asInstanceOf[TypeSerializer[T]]
+      new TrySerializer(new NothingSerializer, serializerConfig).asInstanceOf[TypeSerializer[T]]
     } else {
-      new TrySerializer(elemTypeInfo.createSerializer(executionConfig), executionConfig)
+      new TrySerializer(elemTypeInfo.createSerializer(serializerConfig), serializerConfig)
         .asInstanceOf[TypeSerializer[T]]
     }
+  }
+
+  @PublicEvolving
+  def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] = {
+    createSerializer(executionConfig.getSerializerConfig)
   }
 
   override def equals(obj: Any): Boolean = {

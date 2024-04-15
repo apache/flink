@@ -33,7 +33,7 @@ public class TestingUtils {
 
     public static final Duration TESTING_DURATION = Duration.ofMinutes(2L);
     public static final Time TIMEOUT = Time.minutes(1L);
-    public static final Duration DEFAULT_AKKA_ASK_TIMEOUT = Duration.ofSeconds(200);
+    public static final Duration DEFAULT_ASK_TIMEOUT = Duration.ofSeconds(200);
 
     public static Time infiniteTime() {
         return Time.milliseconds(Integer.MAX_VALUE);

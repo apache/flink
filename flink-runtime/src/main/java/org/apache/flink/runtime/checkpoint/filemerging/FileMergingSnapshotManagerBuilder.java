@@ -17,6 +17,8 @@
 
 package org.apache.flink.runtime.checkpoint.filemerging;
 
+import org.apache.flink.util.Preconditions;
+
 import javax.annotation.Nullable;
 
 import java.util.concurrent.Executor;
@@ -24,8 +26,17 @@ import java.util.concurrent.Executor;
 /** A builder that builds the {@link FileMergingSnapshotManager}. */
 public class FileMergingSnapshotManagerBuilder {
 
-    /** The id for identify a {@link FileMergingSnapshotManager}. */
+    /** The id for identifying a {@link FileMergingSnapshotManager}. */
     private final String id;
+
+    /** The file merging type. */
+    private final FileMergingType fileMergingType;
+
+    /** Max size for a file. */
+    private long maxFileSize = 32 * 1024 * 1024;
+
+    /** Type of physical file pool. */
+    private PhysicalFilePool.Type filePoolType = PhysicalFilePool.Type.NON_BLOCKING;
 
     @Nullable private Executor ioExecutor = null;
 
@@ -34,8 +45,22 @@ public class FileMergingSnapshotManagerBuilder {
      *
      * @param id the id of the manager.
      */
-    public FileMergingSnapshotManagerBuilder(String id) {
+    public FileMergingSnapshotManagerBuilder(String id, FileMergingType type) {
         this.id = id;
+        this.fileMergingType = type;
+    }
+
+    /** Set the max file size. */
+    public FileMergingSnapshotManagerBuilder setMaxFileSize(long maxFileSize) {
+        Preconditions.checkArgument(maxFileSize > 0);
+        this.maxFileSize = maxFileSize;
+        return this;
+    }
+
+    /** Set the type of physical file pool. */
+    public FileMergingSnapshotManagerBuilder setFilePoolType(PhysicalFilePool.Type filePoolType) {
+        this.filePoolType = filePoolType;
+        return this;
     }
 
     /**
@@ -50,15 +75,27 @@ public class FileMergingSnapshotManagerBuilder {
     /**
      * Create file-merging snapshot manager based on configuration.
      *
-     * <p>TODO (FLINK-32072): Create manager during the initialization of task manager services.
-     *
-     * <p>TODO (FLINK-32074): Support another type of FileMergingSnapshotManager that merges files
-     * across different checkpoints.
-     *
      * @return the created manager.
      */
     public FileMergingSnapshotManager build() {
-        return new WithinCheckpointFileMergingSnapshotManager(
-                id, ioExecutor == null ? Runnable::run : ioExecutor);
+        switch (fileMergingType) {
+            case MERGE_WITHIN_CHECKPOINT:
+                return new WithinCheckpointFileMergingSnapshotManager(
+                        id,
+                        maxFileSize,
+                        filePoolType,
+                        ioExecutor == null ? Runnable::run : ioExecutor);
+            case MERGE_ACROSS_CHECKPOINT:
+                return new AcrossCheckpointFileMergingSnapshotManager(
+                        id,
+                        maxFileSize,
+                        filePoolType,
+                        ioExecutor == null ? Runnable::run : ioExecutor);
+            default:
+                throw new UnsupportedOperationException(
+                        String.format(
+                                "Unsupported type %s when creating file merging manager",
+                                fileMergingType));
+        }
     }
 }

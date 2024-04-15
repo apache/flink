@@ -128,6 +128,24 @@ public class ExecutionOptions {
                                                             + "throughput"))
                                     .build());
 
+    public static final ConfigOption<MemorySize> SORT_PARTITION_MEMORY =
+            ConfigOptions.key("execution.sort-partition.memory")
+                    .memoryType()
+                    .defaultValue(MemorySize.ofMebiBytes(128))
+                    .withDescription(
+                            "Sets the managed memory size for sort partition operator in NonKeyedPartitionWindowedStream."
+                                    + "The memory size is only a weight hint. Thus, it will affect the operator's memory weight within a "
+                                    + "task, but the actual memory used depends on the running environment.");
+
+    public static final ConfigOption<MemorySize> SORT_KEYED_PARTITION_MEMORY =
+            ConfigOptions.key("execution.sort-keyed-partition.memory")
+                    .memoryType()
+                    .defaultValue(MemorySize.ofMebiBytes(128))
+                    .withDescription(
+                            "Sets the managed memory size for sort partition operator on KeyedPartitionWindowedStream."
+                                    + "The memory size is only a weight hint. Thus, it will affect the operator's memory weight within a "
+                                    + "task, but the actual memory used depends on the running environment.");
+
     @Documentation.ExcludeFromDocumentation(
             "This is an expert option, that we do not want to expose in the documentation")
     public static final ConfigOption<Boolean> SORT_INPUTS =

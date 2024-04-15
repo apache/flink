@@ -27,16 +27,17 @@ import org.apache.flink.runtime.testutils.recordutils.RecordSerializer;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-public class NonReusingBlockResettableIteratorTest {
+import static org.assertj.core.api.Assertions.assertThat;
+
+class NonReusingBlockResettableIteratorTest {
 
     private static final int MEMORY_CAPACITY = 3 * 128 * 1024;
 
@@ -50,8 +51,8 @@ public class NonReusingBlockResettableIteratorTest {
 
     private final TypeSerializer<Record> serializer = RecordSerializer.get();
 
-    @Before
-    public void startup() {
+    @BeforeEach
+    void startup() {
         // set up IO and memory manager
         this.memman = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_CAPACITY).build();
 
@@ -65,22 +66,22 @@ public class NonReusingBlockResettableIteratorTest {
         this.reader = objects.iterator();
     }
 
-    @After
-    public void shutdown() {
+    @AfterEach
+    void shutdown() {
         this.objects = null;
 
         // check that the memory manager got all segments back
-        if (!this.memman.verifyEmpty()) {
-            Assert.fail(
-                    "A memory leak has occurred: Not all memory was properly returned to the memory manager.");
-        }
+        assertThat(this.memman.verifyEmpty())
+                .withFailMessage(
+                        "A memory leak has occurred: Not all memory was properly returned to the memory manager.")
+                .isTrue();
 
         this.memman.shutdown();
         this.memman = null;
     }
 
     @Test
-    public void testSerialBlockResettableIterator() throws Exception {
+    void testSerialBlockResettableIterator() throws Exception {
         final AbstractInvokable memOwner = new DummyInvokable();
         // create the resettable Iterator
         final NonReusingBlockResettableIterator<Record> iterator =
@@ -99,7 +100,7 @@ public class NonReusingBlockResettableIteratorTest {
             while (iterator.hasNext()) {
                 Record target = iterator.next();
                 int val = target.getField(0, IntValue.class).getValue();
-                Assert.assertEquals(upper++, val);
+                assertThat(val).isEqualTo(upper++);
             }
             // now reset the buffer a few times
             for (int i = 0; i < 5; ++i) {
@@ -108,18 +109,18 @@ public class NonReusingBlockResettableIteratorTest {
                 while (iterator.hasNext()) {
                     Record target = iterator.next();
                     int val = target.getField(0, IntValue.class).getValue();
-                    Assert.assertEquals(lower + (count++), val);
+                    assertThat(val).isEqualTo(lower + (count++));
                 }
-                Assert.assertEquals(upper - lower, count);
+                assertThat(count).isEqualTo(upper - lower);
             }
         } while (iterator.nextBlock());
-        Assert.assertEquals(NUM_VALUES, upper);
+        assertThat(upper).isEqualTo(NUM_VALUES);
         // close the iterator
         iterator.close();
     }
 
     @Test
-    public void testDoubleBufferedBlockResettableIterator() throws Exception {
+    void testDoubleBufferedBlockResettableIterator() throws Exception {
         final AbstractInvokable memOwner = new DummyInvokable();
         // create the resettable Iterator
         final NonReusingBlockResettableIterator<Record> iterator =
@@ -138,7 +139,7 @@ public class NonReusingBlockResettableIteratorTest {
             while (iterator.hasNext()) {
                 Record target = iterator.next();
                 int val = target.getField(0, IntValue.class).getValue();
-                Assert.assertEquals(upper++, val);
+                assertThat(val).isEqualTo(upper++);
             }
             // now reset the buffer a few times
             for (int i = 0; i < 5; ++i) {
@@ -147,19 +148,19 @@ public class NonReusingBlockResettableIteratorTest {
                 while (iterator.hasNext()) {
                     Record target = iterator.next();
                     int val = target.getField(0, IntValue.class).getValue();
-                    Assert.assertEquals(lower + (count++), val);
+                    assertThat(val).isEqualTo(lower + (count++));
                 }
-                Assert.assertEquals(upper - lower, count);
+                assertThat(count).isEqualTo(upper - lower);
             }
         } while (iterator.nextBlock());
-        Assert.assertEquals(NUM_VALUES, upper);
+        assertThat(upper).isEqualTo(NUM_VALUES);
 
         // close the iterator
         iterator.close();
     }
 
     @Test
-    public void testTwelveFoldBufferedBlockResettableIterator() throws Exception {
+    void testTwelveFoldBufferedBlockResettableIterator() throws Exception {
         final AbstractInvokable memOwner = new DummyInvokable();
         // create the resettable Iterator
         final NonReusingBlockResettableIterator<Record> iterator =
@@ -178,7 +179,7 @@ public class NonReusingBlockResettableIteratorTest {
             while (iterator.hasNext()) {
                 Record target = iterator.next();
                 int val = target.getField(0, IntValue.class).getValue();
-                Assert.assertEquals(upper++, val);
+                assertThat(val).isEqualTo(upper++);
             }
             // now reset the buffer a few times
             for (int i = 0; i < 5; ++i) {
@@ -187,12 +188,12 @@ public class NonReusingBlockResettableIteratorTest {
                 while (iterator.hasNext()) {
                     Record target = iterator.next();
                     int val = target.getField(0, IntValue.class).getValue();
-                    Assert.assertEquals(lower + (count++), val);
+                    assertThat(val).isEqualTo(lower + (count++));
                 }
-                Assert.assertEquals(upper - lower, count);
+                assertThat(count).isEqualTo(upper - lower);
             }
         } while (iterator.nextBlock());
-        Assert.assertEquals(NUM_VALUES, upper);
+        assertThat(upper).isEqualTo(NUM_VALUES);
 
         // close the iterator
         iterator.close();

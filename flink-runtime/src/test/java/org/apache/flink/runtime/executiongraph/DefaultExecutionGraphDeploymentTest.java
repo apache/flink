@@ -65,6 +65,7 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
+import org.apache.flink.runtime.util.NoOpGroupCache;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.function.FunctionUtils;
@@ -178,7 +179,11 @@ class DefaultExecutionGraphDeploymentTest {
         taskManagerGateway.setSubmitConsumer(
                 FunctionUtils.uncheckedConsumer(
                         taskDeploymentDescriptor -> {
-                            taskDeploymentDescriptor.loadBigData(blobCache);
+                            taskDeploymentDescriptor.loadBigData(
+                                    blobCache,
+                                    new NoOpGroupCache<>(),
+                                    new NoOpGroupCache<>(),
+                                    new NoOpGroupCache<>());
                             tdd.complete(taskDeploymentDescriptor);
                         }));
 
@@ -201,10 +206,8 @@ class DefaultExecutionGraphDeploymentTest {
         TaskDeploymentDescriptor descr = tdd.get();
         assertThat(descr).isNotNull();
 
-        JobInformation jobInformation =
-                descr.getSerializedJobInformation().deserializeValue(getClass().getClassLoader());
-        TaskInformation taskInformation =
-                descr.getSerializedTaskInformation().deserializeValue(getClass().getClassLoader());
+        JobInformation jobInformation = descr.getJobInformation();
+        TaskInformation taskInformation = descr.getTaskInformation();
 
         assertThat(descr.getJobId()).isEqualTo(jobId);
         assertThat(jobInformation.getJobId()).isEqualTo(jobId);
@@ -218,8 +221,8 @@ class DefaultExecutionGraphDeploymentTest {
                 descr.getProducedPartitions();
         Collection<InputGateDeploymentDescriptor> consumedPartitions = descr.getInputGates();
 
-        assertThat(producedPartitions.size()).isEqualTo(2);
-        assertThat(consumedPartitions.size()).isEqualTo(1);
+        assertThat(producedPartitions).hasSize((2));
+        assertThat(consumedPartitions).hasSize(1);
 
         Iterator<ResultPartitionDeploymentDescriptor> iteratorProducedPartitions =
                 producedPartitions.iterator();
@@ -526,7 +529,7 @@ class DefaultExecutionGraphDeploymentTest {
         scheduler.startScheduling();
 
         Map<ExecutionAttemptID, Execution> executions = eg.getRegisteredExecutions();
-        assertThat(executions.size()).isEqualTo(dop1 + dop2);
+        assertThat(executions).hasSize(dop1 + dop2);
 
         return scheduler;
     }
@@ -537,7 +540,7 @@ class DefaultExecutionGraphDeploymentTest {
         final int negativeMaxNumberOfCheckpointsToRetain = -10;
 
         final Configuration jobManagerConfig = new Configuration();
-        jobManagerConfig.setInteger(
+        jobManagerConfig.set(
                 CheckpointingOptions.MAX_RETAINED_CHECKPOINTS,
                 negativeMaxNumberOfCheckpointsToRetain);
 

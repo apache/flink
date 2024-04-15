@@ -20,10 +20,10 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -60,8 +60,8 @@ public class BatchExecDynamicFilteringDataCollector extends ExecNodeBase<Object>
                     .withDescription(
                             "If the collector collects more data than the threshold (default is 8M), "
                                     + "an empty DynamicFilterEvent with a flag only will be sent to Coordinator, "
-                                    + "which could avoid exceeding the akka limit and out-of-memory (see "
-                                    + AkkaOptions.FRAMESIZE.key()
+                                    + "which could avoid exceeding the pekko limit and out-of-memory (see "
+                                    + RpcOptions.FRAMESIZE.key()
                                     + "). Otherwise a DynamicFilterEvent with all deduplicated records will be sent to Coordinator.");
 
     private final List<Integer> dynamicFilteringFieldIndices;

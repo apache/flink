@@ -21,10 +21,12 @@ source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/common_docker.sh
 
 CONTAINER_SCRIPTS=${END_TO_END_DIR}/test-scripts/container-scripts
-MINIKUBE_START_RETRIES=3
-MINIKUBE_START_BACKOFF=5
+RETRY_COUNT=3
+RETRY_BACKOFF_TIME=5
 RESULT_HASH="e682ec6622b5e83f2eb614617d5ab2cf"
 MINIKUBE_VERSION="v1.28.0"
+CRICTL_VERSION="v1.24.2"
+CRI_DOCKERD_VERSION="0.2.3"
 
 NON_LINUX_ENV_NOTE="****** Please start/stop minikube manually in non-linux environment. ******"
 
@@ -39,8 +41,9 @@ function setup_kubernetes_for_linux {
     if ! [ -x "$(command -v kubectl)" ]; then
         echo "Installing kubectl ..."
         local version=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
-        curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/$version/bin/linux/$arch/kubectl && \
-            chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+        download_kubectl_url="https://storage.googleapis.com/kubernetes-release/release/$version/bin/linux/$arch/kubectl"
+        retry_download "${download_kubectl_url}"
+        chmod +x kubectl && sudo mv kubectl /usr/local/bin/
     fi
     # Download minikube when it is not installed beforehand.
     if [ -x "$(command -v minikube)" ] && [[ "$(minikube version | grep -c $MINIKUBE_VERSION)" == "0" ]]; then
@@ -50,36 +53,56 @@ function setup_kubernetes_for_linux {
 
     if ! [ -x "$(command -v minikube)" ]; then
       echo "Installing minikube $MINIKUBE_VERSION ..."
-      curl -Lo minikube https://storage.googleapis.com/minikube/releases/$MINIKUBE_VERSION/minikube-linux-$arch && \
-          chmod +x minikube && sudo mv minikube /usr/bin/minikube
+      download_minikube_url="https://storage.googleapis.com/minikube/releases/$MINIKUBE_VERSION/minikube-linux-$arch"
+      retry_download "${download_minikube_url}"
+      chmod +x "minikube-linux-$arch" && sudo mv "minikube-linux-$arch" /usr/bin/minikube
     fi
 
     # conntrack is required for minikube 1.9 and later
     sudo apt-get install conntrack
     # crictl is required for cri-dockerd
-    VERSION="v1.24.2"
-    wget https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-$VERSION-linux-amd64.tar.gz
-    sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
-    rm -f crictl-$VERSION-linux-amd64.tar.gz
+    local crictl_archive
+    crictl_archive="crictl-$CRICTL_VERSION-linux-${arch}.tar.gz"
+    download_crictl_url="https://github.com/kubernetes-sigs/cri-tools/releases/download/${CRICTL_VERSION}/${crictl_archive}"
+    retry_download "${download_crictl_url}"
+    sudo tar zxvf ${crictl_archive} -C /usr/local/bin
+    rm -f ${crictl_archive}
+
     # cri-dockerd is required to use Kubernetes 1.24+ and the none driver
-    if [ -e cri-dockerd ];
-     then rm -r cri-dockerd
-    fi
-    git clone https://github.com/Mirantis/cri-dockerd.git
-    cd cri-dockerd
-    # Checkout version 0.2.3
-    git checkout tags/v0.2.3 -b v0.2.3
-    mkdir bin
-    go get && go build -o bin/cri-dockerd
-    mkdir -p /usr/local/bin
-    sudo install -o root -g root -m 0755 bin/cri-dockerd /usr/local/bin/cri-dockerd
-    sudo cp -a packaging/systemd/* /etc/systemd/system
-    sudo sed -i -e 's,/usr/bin/cri-dockerd,/usr/local/bin/cri-dockerd,' /etc/systemd/system/cri-docker.service
+    local cri_dockerd_archive cri_dockerd_binary
+    cri_dockerd_archive="cri-dockerd-${CRI_DOCKERD_VERSION}.${arch}.tgz"
+    cri_dockerd_binary="cri-dockerd"
+    retry_download "https://github.com/Mirantis/cri-dockerd/releases/download/v${CRI_DOCKERD_VERSION}/${cri_dockerd_archive}"
+    tar xzvf $cri_dockerd_archive "cri-dockerd/${cri_dockerd_binary}" --strip-components=1
+    sudo install -o root -g root -m 0755 "${cri_dockerd_binary}" "/usr/local/bin/${cri_dockerd_binary}"
+    rm ${cri_dockerd_binary}
+
+    retry_download "https://raw.githubusercontent.com/Mirantis/cri-dockerd/v${CRI_DOCKERD_VERSION}/packaging/systemd/cri-docker.service"
+    retry_download "https://raw.githubusercontent.com/Mirantis/cri-dockerd/v${CRI_DOCKERD_VERSION}/packaging/systemd/cri-docker.socket"
+    sudo mv cri-docker.socket cri-docker.service /etc/systemd/system/
+    sudo sed -i -e "s,/usr/bin/${cri_dockerd_binary},/usr/local/bin/${cri_dockerd_binary}," /etc/systemd/system/cri-docker.service
+
     sudo systemctl daemon-reload
     sudo systemctl enable cri-docker.service
     sudo systemctl enable --now cri-docker.socket
+
     # required to resolve HOST_JUJU_LOCK_PERMISSION error of "minikube start --vm-driver=none"
     sudo sysctl fs.protected_regular=0
+}
+
+function retry_download {
+    if [[ "$#" != 1 ]]; then
+       echo "Fatal error: No parameter or too many parameters passed: $@"
+       exit 1;
+    fi
+
+    local download_url download_command
+    download_url="$1"
+    download_command="wget -nv ${download_url}"
+    if ! retry_times ${RETRY_COUNT} ${RETRY_BACKOFF_TIME} "${download_command}"; then
+      echo "ERROR: Download failed repeatedly after ${RETRY_COUNT} tries. Aborting..."
+      exit 1
+    fi
 }
 
 function check_kubernetes_status {
@@ -133,7 +156,7 @@ function start_kubernetes {
         echo "The mounting process is running with pid $minikube_mount_pid"
     else
         setup_kubernetes_for_linux
-        if ! retry_times ${MINIKUBE_START_RETRIES} ${MINIKUBE_START_BACKOFF} start_kubernetes_if_not_running; then
+        if ! retry_times ${RETRY_COUNT} ${RETRY_BACKOFF_TIME} start_kubernetes_if_not_running; then
             echo "Could not start minikube. Aborting..."
             exit 1
         fi
@@ -148,7 +171,7 @@ function stop_kubernetes {
     else
         echo "Stopping minikube ..."
         stop_command="minikube stop"
-        if ! retry_times ${MINIKUBE_START_RETRIES} ${MINIKUBE_START_BACKOFF} "${stop_command}"; then
+        if ! retry_times ${RETRY_COUNT} ${RETRY_BACKOFF_TIME} "${stop_command}"; then
             echo "Could not stop minikube. Aborting..."
             exit 1
         fi

@@ -51,7 +51,7 @@ class DataStreamTest extends AbstractTestBase {
   def testNaming(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
-    val source1Operator = env.generateSequence(0, 0).name("testSource1")
+    val source1Operator = env.fromSequence(0, 0).name("testSource1")
     val source1 = source1Operator
     assert("testSource1" == source1Operator.getName)
 
@@ -61,7 +61,7 @@ class DataStreamTest extends AbstractTestBase {
     assert("testMap" == dataStream1.getName)
 
     val dataStream2 = env
-      .generateSequence(0, 0)
+      .fromSequence(0, 0)
       .name("testSource2")
       .keyBy(x => x)
       .reduce((x, y) => 0L)
@@ -103,12 +103,12 @@ class DataStreamTest extends AbstractTestBase {
   def testUserDefinedDescription(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val dataStream1 = env
-      .generateSequence(0, 0)
+      .fromSequence(0, 0)
       .setDescription("this is test source 1")
       .map(x => x)
       .setDescription("this is test map 1")
     val dataStream2 = env
-      .generateSequence(0, 0)
+      .fromSequence(0, 0)
       .setDescription("this is test source 2")
       .map(x => x)
       .setDescription("this is test map 2")
@@ -327,7 +327,7 @@ class DataStreamTest extends AbstractTestBase {
         .getStreamNode(sink.getTransformation.getId)
         .getParallelism)
 
-    val parallelSource = env.generateSequence(0, 0)
+    val parallelSource = env.fromSequence(0, 0)
     parallelSource.print()
 
     assert(newParallelism == getStreamGraph(env).getStreamNode(parallelSource.getId).getParallelism)
@@ -439,7 +439,7 @@ class DataStreamTest extends AbstractTestBase {
   def testTypeInfo() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
-    val src1: DataStream[Long] = env.generateSequence(0, 0)
+    val src1: DataStream[Long] = env.fromSequence(0, 0)
     assert(TypeExtractor.getForClass(classOf[Long]) == src1.getType)
 
     val map: DataStream[(Integer, String)] = src1.map(x => null)
@@ -476,7 +476,7 @@ class DataStreamTest extends AbstractTestBase {
   def testKeyedStreamProcessTranslation(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
-    val src = env.generateSequence(0, 0)
+    val src = env.fromSequence(0, 0)
 
     val processFunction = new ProcessFunction[Long, Int] {
       override def processElement(
@@ -499,7 +499,7 @@ class DataStreamTest extends AbstractTestBase {
   def testKeyedStreamKeyedProcessTranslation(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
-    val src = env.generateSequence(0, 0)
+    val src = env.fromSequence(0, 0)
 
     val keyedProcessFunction = new KeyedProcessFunction[Long, Long, Int] {
       override def processElement(
@@ -522,7 +522,7 @@ class DataStreamTest extends AbstractTestBase {
   def testProcessTranslation(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
-    val src = env.generateSequence(0, 0)
+    val src = env.fromSequence(0, 0)
 
     val processFunction = new ProcessFunction[Long, Int] {
       override def processElement(
@@ -540,7 +540,7 @@ class DataStreamTest extends AbstractTestBase {
   @Test def operatorTest() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
-    val src = env.generateSequence(0, 0)
+    val src = env.fromSequence(0, 0)
 
     val mapFunction = new MapFunction[Long, Int] {
       override def map(value: Long): Int = 0
@@ -632,7 +632,7 @@ class DataStreamTest extends AbstractTestBase {
   def testChannelSelectors() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
-    val src = env.generateSequence(0, 0)
+    val src = env.fromSequence(0, 0)
 
     val broadcast = src.broadcast
     val broadcastSink = broadcast.print()

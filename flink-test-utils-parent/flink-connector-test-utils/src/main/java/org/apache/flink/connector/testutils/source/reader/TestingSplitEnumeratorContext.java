@@ -160,6 +160,11 @@ public class TestingSplitEnumeratorContext<SplitT extends SourceSplit>
         executor.execute(runnable);
     }
 
+    @Override
+    public void setIsProcessingBacklog(boolean isProcessingBacklog) {
+        throw new UnsupportedOperationException();
+    }
+
     private static <T> Runnable callableWithResultHandler(
             Callable<T> callable, BiConsumer<T, Throwable> handler) {
         return () -> {

@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.avro;
 
+import org.apache.flink.formats.avro.AvroFormatOptions.AvroEncoding;
 import org.apache.flink.util.WrappingRuntimeException;
 
 import org.apache.avro.Schema;
@@ -30,7 +31,7 @@ import java.io.IOException;
 import java.util.Objects;
 
 /**
- * Serialization schema that serializes to Avro binary format.
+ * Serialization schema that serializes to Avro format.
  *
  * @param <T> the type to be serialized
  */
@@ -42,6 +43,7 @@ public class RegistryAvroSerializationSchema<T> extends AvroSerializationSchema<
     private final SchemaCoder.SchemaCoderProvider schemaCoderProvider;
 
     protected SchemaCoder schemaCoder;
+
     /**
      * Creates a Avro serialization schema.
      *
@@ -56,19 +58,52 @@ public class RegistryAvroSerializationSchema<T> extends AvroSerializationSchema<
             Class<T> recordClazz,
             Schema schema,
             SchemaCoder.SchemaCoderProvider schemaCoderProvider) {
-        super(recordClazz, schema);
+        this(recordClazz, schema, schemaCoderProvider, AvroEncoding.BINARY);
+    }
+
+    /**
+     * Creates a Avro serialization schema.
+     *
+     * @param recordClazz class to serialize. Should be either {@link SpecificRecord} or {@link
+     *     GenericRecord}.
+     * @param schema writers's Avro schema. Should be provided if recordClazz is {@link
+     *     GenericRecord}
+     * @param schemaCoderProvider schema provider that allows instantiation of {@link SchemaCoder}
+     *     that will be used for schema writing
+     * @param encoding Avro serialization approach to use.
+     */
+    public RegistryAvroSerializationSchema(
+            Class<T> recordClazz,
+            Schema schema,
+            SchemaCoder.SchemaCoderProvider schemaCoderProvider,
+            AvroEncoding encoding) {
+        super(recordClazz, schema, encoding);
         this.schemaCoderProvider = schemaCoderProvider;
     }
 
     public static <T extends SpecificRecord> RegistryAvroSerializationSchema<T> forSpecific(
             Class<T> tClass, SchemaCoder.SchemaCoderProvider schemaCoderProvider) {
-        return new RegistryAvroSerializationSchema<>(tClass, null, schemaCoderProvider);
+        return forSpecific(tClass, schemaCoderProvider, AvroEncoding.BINARY);
+    }
+
+    public static <T extends SpecificRecord> RegistryAvroSerializationSchema<T> forSpecific(
+            Class<T> tClass,
+            SchemaCoder.SchemaCoderProvider schemaCoderProvider,
+            AvroEncoding encoding) {
+        return new RegistryAvroSerializationSchema<>(tClass, null, schemaCoderProvider, encoding);
     }
 
     public static RegistryAvroSerializationSchema<GenericRecord> forGeneric(
             Schema schema, SchemaCoder.SchemaCoderProvider schemaCoderProvider) {
+        return forGeneric(schema, schemaCoderProvider, AvroEncoding.BINARY);
+    }
+
+    public static RegistryAvroSerializationSchema<GenericRecord> forGeneric(
+            Schema schema,
+            SchemaCoder.SchemaCoderProvider schemaCoderProvider,
+            AvroEncoding encoding) {
         return new RegistryAvroSerializationSchema<>(
-                GenericRecord.class, schema, schemaCoderProvider);
+                GenericRecord.class, schema, schemaCoderProvider, encoding);
     }
 
     @Override

@@ -34,8 +34,6 @@ Flink 目前支持两种 SQL 方言: `default` 和 `hive`。你需要先切换�
 **Note:**
 
 - 为了使用 Hive 方言, 你必须首先添加和 Hive 相关的依赖. 请参考 [Hive dependencies]({{< ref "docs/connectors/table/hive/overview" >}}#dependencies) 如何添加这些依赖。
-- 从 Flink 1.15版本开始，如果需要在 Flink SQL Client 或者 [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}) 使用 Hive 方言的话，请首先将 `FLINK_HOME/opt` 下面的 `flink-table-planner{{< scala_version >}}-{{< version >}}.jar` jar 包放到 `FLINK_HOME/lib` 下，并将 `FLINK_HOME/lib`
-  下的 `flink-table-planner-loader-{{< version >}}.jar` jar 包移出 `FLINK_HOME/lib` 目录。否则将抛出 `ValidationException`。具体原因请参考 [FLINK-25128](https://issues.apache.org/jira/browse/FLINK-25128)。
 - 请确保当前的 Catalog 是 [HiveCatalog]({{< ref "docs/connectors/table/hive/hive_catalog" >}}). 否则, 将使用 Flink 的默认方言。
   在启动了 [HiveServer2 Endpoint]({{< ref "docs/dev/table/hive-compatibility/hiveserver2" >}}) 的 SQL Gateway 下，默认当前的 Catalog 就是 HiveCatalog。
 - 为了实现更好的语法和语义的兼容，强烈建议首先加载 [HiveModule]({{< ref "docs/connectors/table/hive/hive_functions" >}}#use-hive-built-in-functions-via-hivemodule) 并将其放在 Module 列表的首位，以便在函数解析时优先使用 Hive 内置函数。

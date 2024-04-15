@@ -139,7 +139,7 @@ class RemoveCachedShuffleDescriptorTest {
                     final ShuffleDescriptor[] shuffleDescriptors =
                             deserializeShuffleDescriptors(
                                     getConsumedCachedShuffleDescriptor(executionGraph, v2)
-                                            .getAllSerializedShuffleDescriptors(),
+                                            .getAllSerializedShuffleDescriptorGroups(),
                                     jobId,
                                     blobWriter);
                     assertThat(shuffleDescriptors).hasSize(PARALLELISM);
@@ -207,7 +207,7 @@ class RemoveCachedShuffleDescriptorTest {
                     final ShuffleDescriptor[] shuffleDescriptors =
                             deserializeShuffleDescriptors(
                                     getConsumedCachedShuffleDescriptor(executionGraph, v2)
-                                            .getAllSerializedShuffleDescriptors(),
+                                            .getAllSerializedShuffleDescriptorGroups(),
                                     jobId,
                                     blobWriter);
                     assertThat(shuffleDescriptors).hasSize(PARALLELISM);
@@ -272,7 +272,7 @@ class RemoveCachedShuffleDescriptorTest {
                     final ShuffleDescriptor[] shuffleDescriptors =
                             deserializeShuffleDescriptors(
                                     getConsumedCachedShuffleDescriptor(executionGraph, v2)
-                                            .getAllSerializedShuffleDescriptors(),
+                                            .getAllSerializedShuffleDescriptorGroups(),
                                     jobId,
                                     blobWriter);
                     assertThat(shuffleDescriptors).hasSize(1);
@@ -298,7 +298,7 @@ class RemoveCachedShuffleDescriptorTest {
                     final ShuffleDescriptor[] shuffleDescriptorsForOtherVertex =
                             deserializeShuffleDescriptors(
                                     getConsumedCachedShuffleDescriptor(executionGraph, v2, 1)
-                                            .getAllSerializedShuffleDescriptors(),
+                                            .getAllSerializedShuffleDescriptorGroups(),
                                     jobId,
                                     blobWriter);
                     assertThat(shuffleDescriptorsForOtherVertex).hasSize(1);
@@ -354,7 +354,7 @@ class RemoveCachedShuffleDescriptorTest {
                     final ShuffleDescriptor[] shuffleDescriptors =
                             deserializeShuffleDescriptors(
                                     getConsumedCachedShuffleDescriptor(executionGraph, v2)
-                                            .getAllSerializedShuffleDescriptors(),
+                                            .getAllSerializedShuffleDescriptorGroups(),
                                     jobId,
                                     blobWriter);
                     assertThat(shuffleDescriptors).hasSize(1);
@@ -374,7 +374,7 @@ class RemoveCachedShuffleDescriptorTest {
                     final ShuffleDescriptor[] shuffleDescriptorsForOtherVertex =
                             deserializeShuffleDescriptors(
                                     getConsumedCachedShuffleDescriptor(executionGraph, v2, 1)
-                                            .getAllSerializedShuffleDescriptors(),
+                                            .getAllSerializedShuffleDescriptorGroups(),
                                     jobId,
                                     blobWriter);
                     assertThat(shuffleDescriptorsForOtherVertex).hasSize(1);

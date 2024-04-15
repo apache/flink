@@ -24,12 +24,9 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.operators.collect.utils.CollectSinkFunctionTestWrapper;
 import org.apache.flink.streaming.api.operators.collect.utils.TestJobClient;
 import org.apache.flink.util.OptionalFailure;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.RunnableWithException;
 
-import org.hamcrest.CoreMatchers;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -42,12 +39,13 @@ import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.streaming.api.operators.collect.utils.CollectSinkFunctionTestWrapper.ACCUMULATOR_NAME;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Random IT cases for {@link CollectSinkFunction}. It will perform random insert, random checkpoint
  * and random restart.
  */
-public class CollectSinkFunctionRandomITCase extends TestLogger {
+class CollectSinkFunctionRandomITCase {
 
     private static final int MAX_RESULTS_PER_BATCH = 3;
     private static final JobID TEST_JOB_ID = new JobID();
@@ -59,7 +57,7 @@ public class CollectSinkFunctionRandomITCase extends TestLogger {
     private boolean jobFinished;
 
     @Test
-    public void testUncheckpointedFunction() throws Exception {
+    void testUncheckpointedFunction() throws Exception {
         // run multiple times for this random test
         for (int testCount = 30; testCount > 0; testCount--) {
             functionWrapper =
@@ -80,7 +78,7 @@ public class CollectSinkFunctionRandomITCase extends TestLogger {
     }
 
     @Test
-    public void testCheckpointedFunction() throws Exception {
+    void testCheckpointedFunction() throws Exception {
         // run multiple times for this random test
         for (int testCount = 30; testCount > 0; testCount--) {
             functionWrapper =
@@ -124,7 +122,7 @@ public class CollectSinkFunctionRandomITCase extends TestLogger {
     private void assertResultsEqualAfterSort(List<Integer> expected, List<Integer> actual) {
         Collections.sort(expected);
         Collections.sort(actual);
-        Assert.assertThat(actual, CoreMatchers.is(expected));
+        assertThat(actual).isEqualTo(expected);
     }
 
     /**

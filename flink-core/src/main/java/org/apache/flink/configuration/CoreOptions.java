@@ -31,6 +31,7 @@ import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
 import java.util.List;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.TextElement.code;
 
 /** The set of configuration options for core parameters. */
 @PublicEvolving
@@ -81,7 +82,7 @@ public class CoreOptions {
      *
      * <p>It is important that all classes whose objects move between Flink's runtime and any user
      * code (including Flink connectors that run as part of the user code) are covered by these
-     * patterns here. Otherwise it is be possible that the Flink runtime and the user code load two
+     * patterns here. Otherwise, it is possible that the Flink runtime and the user code load two
      * different copies of a class through the different class loaders. That leads to errors like "X
      * cannot be cast to X" exceptions, where both class names are equal, or "X cannot be assigned
      * to Y", where X should be a subclass of Y.
@@ -272,8 +273,54 @@ public class CoreOptions {
                                     .text("Java options to start the JVM of the Flink Client with.")
                                     .build());
 
+    public static final ConfigOption<String> FLINK_SQL_GATEWAY_JVM_OPTIONS =
+            ConfigOptions.key("env.java.opts.sql-gateway")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Java options to start the JVM of the Flink SQL Gateway with.")
+                                    .build());
+
+    public static final ConfigOption<String> FLINK_DEFAULT_JVM_OPTIONS =
+            ConfigOptions.key("env.java.default-opts.all")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "A string of default JVM options to prepend to %s."
+                                                    + " This is intended to be set by administrators.",
+                                            code(FLINK_JVM_OPTIONS.key()))
+                                    .build());
+
+    public static final ConfigOption<String> FLINK_DEFAULT_JM_JVM_OPTIONS =
+            ConfigOptions.key("env.java.default-opts.jobmanager")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "A string of default JVM options to prepend to %s."
+                                                    + " This is intended to be set by administrators.",
+                                            code(FLINK_JM_JVM_OPTIONS.key()))
+                                    .build());
+
+    public static final ConfigOption<String> FLINK_DEFAULT_TM_JVM_OPTIONS =
+            ConfigOptions.key("env.java.default-opts.taskmanager")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "A string of default JVM options to prepend to %s."
+                                                    + " This is intended to be set by administrators.",
+                                            code(FLINK_TM_JVM_OPTIONS.key()))
+                                    .build());
+
     /**
-     * This options is here only for documentation generation, it is only evaluated in the shell
+     * This option is here only for documentation generation, it is only evaluated in the shell
      * scripts.
      */
     @SuppressWarnings("unused")
@@ -297,7 +344,7 @@ public class CoreOptions {
                             "Defines the directory where the flink-<host>-<process>.pid files are saved.");
 
     /**
-     * This options is here only for documentation generation, it is only evaluated in the shell
+     * This option is here only for documentation generation, it is only evaluated in the shell
      * scripts.
      */
     @SuppressWarnings("unused")
@@ -306,6 +353,17 @@ public class CoreOptions {
                     .intType()
                     .defaultValue(10)
                     .withDescription("The maximum number of old log files to keep.");
+
+    /**
+     * This option is here only for documentation generation, it is only evaluated in the shell
+     * scripts.
+     */
+    @SuppressWarnings("unused")
+    public static final ConfigOption<String> FLINK_LOG_LEVEL =
+            ConfigOptions.key("env.log.level")
+                    .stringType()
+                    .defaultValue("INFO")
+                    .withDescription("Defines the level of the root logger.");
 
     /**
      * This option is here only for documentation generation, it is only evaluated in the shell
@@ -322,7 +380,7 @@ public class CoreOptions {
                                     + "Note that redirected files do not support rolling rotate.");
 
     /**
-     * This options is here only for documentation generation, it is only evaluated in the shell
+     * This option is here only for documentation generation, it is only evaluated in the shell
      * scripts.
      */
     @SuppressWarnings("unused")
@@ -336,7 +394,7 @@ public class CoreOptions {
                                     + " stop-zookeeper-quorum.sh).");
 
     /**
-     * This options is here only for documentation generation, it is only evaluated in the shell
+     * This option is here only for documentation generation, it is only evaluated in the shell
      * scripts.
      */
     @SuppressWarnings("unused")
@@ -349,7 +407,7 @@ public class CoreOptions {
                                     + " configuration. You can also set it via environment variable.");
 
     /**
-     * This options is here only for documentation generation, it is only evaluated in the shell
+     * This option is here only for documentation generation, it is only evaluated in the shell
      * scripts.
      */
     @SuppressWarnings("unused")
@@ -362,7 +420,7 @@ public class CoreOptions {
                                     + " set it via environment variable.");
 
     /**
-     * This options is here only for documentation generation, it is only evaluated in the shell
+     * This option is here only for documentation generation, it is only evaluated in the shell
      * scripts.
      */
     @SuppressWarnings("unused")

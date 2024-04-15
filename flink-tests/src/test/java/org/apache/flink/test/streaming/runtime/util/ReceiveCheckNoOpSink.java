@@ -18,7 +18,7 @@
 
 package org.apache.flink.test.streaming.runtime.util;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 
 import java.util.ArrayList;
@@ -38,7 +38,7 @@ public final class ReceiveCheckNoOpSink<T> extends RichSinkFunction<T> {
         received.add(tuple);
     }
 
-    public void open(Configuration conf) {
+    public void open(OpenContext openContext) {
         received = new ArrayList<T>();
     }
 

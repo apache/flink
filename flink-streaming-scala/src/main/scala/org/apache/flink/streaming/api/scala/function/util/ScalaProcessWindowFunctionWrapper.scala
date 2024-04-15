@@ -17,7 +17,7 @@
  */
 package org.apache.flink.streaming.api.scala.function.util
 
-import org.apache.flink.api.common.functions.RuntimeContext
+import org.apache.flink.api.common.functions.{OpenContext, RuntimeContext}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.windowing.{ProcessAllWindowFunction => JProcessAllWindowFunction}
 import org.apache.flink.streaming.api.functions.windowing.{ProcessWindowFunction => JProcessWindowFunction}
@@ -36,7 +36,14 @@ import scala.collection.JavaConverters._
  * The Scala and Java Window functions differ in their type of "Iterable":
  *   - Scala WindowFunction: scala.Iterable
  *   - Java WindowFunction: java.lang.Iterable
+ * @deprecated
+ *   All Flink Scala APIs are deprecated and will be removed in a future Flink major version. You
+ *   can still build your application in Scala, but you should move to the Java version of either
+ *   the DataStream and/or Table API.
+ * @see
+ *   <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
  */
+@deprecated(org.apache.flink.api.scala.FLIP_265_WARNING, since = "1.18.0")
 final class ScalaProcessWindowFunctionWrapper[IN, OUT, KEY, W <: Window](
     private[this] val func: ScalaProcessWindowFunction[IN, OUT, KEY, W])
   extends JProcessWindowFunction[IN, OUT, KEY, W] {
@@ -87,10 +94,10 @@ final class ScalaProcessWindowFunctionWrapper[IN, OUT, KEY, W <: Window](
     }
   }
 
-  override def open(parameters: Configuration): Unit = {
-    super.open(parameters)
+  override def open(openContext: OpenContext): Unit = {
+    super.open(openContext)
     func match {
-      case rfunc: ScalaProcessWindowFunction[IN, OUT, KEY, W] => rfunc.open(parameters)
+      case rfunc: ScalaProcessWindowFunction[IN, OUT, KEY, W] => rfunc.open(openContext)
       case _ =>
     }
   }
@@ -153,10 +160,10 @@ final class ScalaProcessAllWindowFunctionWrapper[IN, OUT, W <: Window](
     }
   }
 
-  override def open(parameters: Configuration): Unit = {
-    super.open(parameters)
+  override def open(openContext: OpenContext): Unit = {
+    super.open(openContext)
     func match {
-      case rfunc: ScalaProcessAllWindowFunction[IN, OUT, W] => rfunc.open(parameters)
+      case rfunc: ScalaProcessAllWindowFunction[IN, OUT, W] => rfunc.open(openContext)
       case _ =>
     }
   }

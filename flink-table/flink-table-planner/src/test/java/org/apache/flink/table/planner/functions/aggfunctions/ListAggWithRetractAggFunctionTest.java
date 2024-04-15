@@ -28,7 +28,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /** Test case for built-in LISTAGG with retraction aggregate function. */
-public final class ListAggWithRetractAggFunctionTest
+final class ListAggWithRetractAggFunctionTest
         extends AggFunctionTestBase<StringData, StringData, ListAggWithRetractAccumulator> {
 
     @Override

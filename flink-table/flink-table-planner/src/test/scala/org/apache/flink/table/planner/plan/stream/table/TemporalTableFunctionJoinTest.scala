@@ -19,15 +19,14 @@ package org.apache.flink.table.planner.plan.stream.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.expressions.{Expression, FieldReferenceExpression}
+import org.apache.flink.table.expressions.FieldReferenceExpression
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.{PROCTIME_INDICATOR, ROWTIME_INDICATOR}
 
-import org.hamcrest.Matchers.{equalTo, startsWith}
-import org.junit.Assert.{assertEquals, assertThat}
-import org.junit.Test
+import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
+import org.junit.jupiter.api.Test
 
 import java.sql.Timestamp
 
@@ -111,7 +110,7 @@ class TemporalTableFunctionJoinTest extends TableTestBase {
     val rates = ratesHistory
       .filter('rate > 110L)
       .createTemporalTableFunction('rowtime, 'currency)
-    util.addFunction("Rates", rates)
+    util.addTemporarySystemFunction("Rates", rates)
 
     val result = orders
       .joinLateral(rates('o_rowtime))
@@ -143,16 +142,15 @@ class TemporalTableFunctionJoinTest extends TableTestBase {
 
   @Test
   def testUncorrelatedJoin(): Unit = {
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(startsWith("Unsupported argument"))
-
     val result = orders
       .joinLateral(
         rates(java.sql.Timestamp.valueOf("2016-06-27 10:10:42.123")),
         'o_currency === 'currency)
       .select($"o_amount" * $"rate")
 
-    util.verifyExecPlan(result)
+    assertThatThrownBy(() => util.verifyExecPlan(result))
+      .hasMessageContaining("Unsupported argument")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -171,9 +169,8 @@ class TemporalTableFunctionJoinTest extends TableTestBase {
       inputRates: TemporalTableFunction,
       proctime: Boolean = false): Unit = {
     val rates = inputRates.asInstanceOf[TemporalTableFunctionImpl]
-    assertThat(
-      rates.getPrimaryKey,
-      equalTo[Expression](new FieldReferenceExpression("currency", DataTypes.STRING(), 0, 0)))
+    assertThat(rates.getPrimaryKey).isEqualTo(
+      new FieldReferenceExpression("currency", DataTypes.STRING(), 0, 0))
 
     val (timeFieldName, timeFieldType) =
       if (proctime) {
@@ -182,11 +179,9 @@ class TemporalTableFunctionJoinTest extends TableTestBase {
         ("rowtime", fromLegacyInfoToDataType(ROWTIME_INDICATOR))
       }
 
-    assertThat(
-      rates.getTimeAttribute,
-      equalTo[Expression](new FieldReferenceExpression(timeFieldName, timeFieldType, 0, 2)))
-
-    assertEquals(expectedSchema.toRowType, rates.getResultType)
+    assertThat(rates.getTimeAttribute).isEqualTo(
+      new FieldReferenceExpression(timeFieldName, timeFieldType, 0, 2))
+    assertThat(rates.getResultType).isEqualTo(expectedSchema.toRowType)
   }
 
 }

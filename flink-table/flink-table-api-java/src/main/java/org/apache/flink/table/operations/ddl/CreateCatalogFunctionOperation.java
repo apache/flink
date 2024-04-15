@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableResultImpl;
@@ -35,6 +36,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /** Operation to describe a CREATE FUNCTION statement for catalog functions. */
+@Internal
 public class CreateCatalogFunctionOperation implements CreateOperation {
     private final ObjectIdentifier functionIdentifier;
     private final CatalogFunction catalogFunction;

@@ -70,7 +70,7 @@ public class JobManagerSharedServicesTest extends TestLogger {
     public void testFutureExecutorConfiguration() throws Exception {
         final int futurePoolSize = 8;
         final Configuration config = new Configuration();
-        config.setInteger(JobManagerOptions.JOB_MANAGER_FUTURE_POOL_SIZE, futurePoolSize);
+        config.set(JobManagerOptions.JOB_MANAGER_FUTURE_POOL_SIZE, futurePoolSize);
 
         final JobManagerSharedServices jobManagerSharedServices =
                 buildJobManagerSharedServices(config);
@@ -98,7 +98,7 @@ public class JobManagerSharedServicesTest extends TestLogger {
     public void testIoExecutorConfiguration() throws Exception {
         final int ioPoolSize = 5;
         final Configuration config = new Configuration();
-        config.setInteger(JobManagerOptions.JOB_MANAGER_IO_POOL_SIZE, ioPoolSize);
+        config.set(JobManagerOptions.JOB_MANAGER_IO_POOL_SIZE, ioPoolSize);
 
         final JobManagerSharedServices jobManagerSharedServices =
                 buildJobManagerSharedServices(config);

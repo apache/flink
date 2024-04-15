@@ -18,45 +18,43 @@
 
 package org.apache.flink.runtime.util;
 
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.PreviousAllocationSlotSelectionStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.instanceOf;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link SlotSelectionStrategyUtils}. */
-public class SlotSelectionStrategyUtilsTest extends TestLogger {
+class SlotSelectionStrategyUtilsTest {
 
     @Test
-    public void testCreatePreviousAllocationSlotSelectionStrategyForLocalRecoveryStreamingJob() {
+    void testCreatePreviousAllocationSlotSelectionStrategyForLocalRecoveryStreamingJob() {
         final Configuration configuration = new Configuration();
-        configuration.set(CheckpointingOptions.LOCAL_RECOVERY, true);
+        configuration.set(StateRecoveryOptions.LOCAL_RECOVERY, true);
 
         final SlotSelectionStrategy slotSelectionStrategy =
                 SlotSelectionStrategyUtils.selectSlotSelectionStrategy(
                         JobType.STREAMING, configuration);
 
-        assertThat(
-                slotSelectionStrategy, instanceOf(PreviousAllocationSlotSelectionStrategy.class));
+        assertThat(slotSelectionStrategy)
+                .isInstanceOf(PreviousAllocationSlotSelectionStrategy.class);
     }
 
     @Test
-    public void testCreateLocationPreferenceSlotSelectionStrategyForLocalRecoveryBatchJob() {
+    void testCreateLocationPreferenceSlotSelectionStrategyForLocalRecoveryBatchJob() {
         final Configuration configuration = new Configuration();
-        configuration.set(CheckpointingOptions.LOCAL_RECOVERY, true);
+        configuration.set(StateRecoveryOptions.LOCAL_RECOVERY, true);
 
         final SlotSelectionStrategy slotSelectionStrategy =
                 SlotSelectionStrategyUtils.selectSlotSelectionStrategy(
                         JobType.BATCH, configuration);
 
-        assertThat(
-                slotSelectionStrategy, instanceOf(LocationPreferenceSlotSelectionStrategy.class));
+        assertThat(slotSelectionStrategy)
+                .isInstanceOf(LocationPreferenceSlotSelectionStrategy.class);
     }
 }

@@ -28,8 +28,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
-import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
-import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategyFactoryLoader;
+import org.apache.flink.runtime.executiongraph.failover.RestartBackoffTimeStrategy;
+import org.apache.flink.runtime.executiongraph.failover.RestartBackoffTimeStrategyFactoryLoader;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
@@ -47,7 +47,6 @@ import org.apache.flink.runtime.shuffle.ShuffleMaster;
 
 import org.slf4j.Logger;
 
-import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
@@ -55,14 +54,7 @@ import java.util.concurrent.ScheduledExecutorService;
 /** Factory for the adaptive scheduler. */
 public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
 
-    private final Duration initialResourceAllocationTimeout;
-    private final Duration resourceStabilizationTimeout;
-
-    public AdaptiveSchedulerFactory(
-            Duration initialResourceAllocationTimeout, Duration resourceStabilizationTimeout) {
-        this.initialResourceAllocationTimeout = initialResourceAllocationTimeout;
-        this.resourceStabilizationTimeout = resourceStabilizationTimeout;
-    }
+    public AdaptiveSchedulerFactory() {}
 
     @Override
     public SchedulerNG createInstance(
@@ -100,6 +92,7 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
                                 jobGraph.getSerializedExecutionConfig()
                                         .deserializeValue(userCodeLoader)
                                         .getRestartStrategy(),
+                                jobGraph.getJobConfiguration(),
                                 jobMasterConfiguration,
                                 jobGraph.isCheckpointingEnabled())
                         .create();
@@ -126,6 +119,7 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
                         partitionTracker);
 
         return new AdaptiveScheduler(
+                AdaptiveScheduler.Settings.of(jobMasterConfiguration),
                 jobGraph,
                 JobResourceRequirements.readFromJobGraph(jobGraph).orElse(null),
                 jobMasterConfiguration,
@@ -135,8 +129,6 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
                 userCodeLoader,
                 new CheckpointsCleaner(),
                 checkpointRecoveryFactory,
-                initialResourceAllocationTimeout,
-                resourceStabilizationTimeout,
                 jobManagerJobMetricGroup,
                 restartBackoffTimeStrategy,
                 initializationTimestamp,

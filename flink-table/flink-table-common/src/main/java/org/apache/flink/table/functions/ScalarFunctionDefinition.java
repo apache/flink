@@ -19,7 +19,6 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.util.Preconditions;
@@ -62,8 +61,12 @@ public final class ScalarFunctionDefinition implements FunctionDefinition {
 
     @Override
     public TypeInference getTypeInference(DataTypeFactory factory) {
-        throw new TableException(
-                "Functions implemented for the old type system are not supported.");
+        return TypeInference.newBuilder()
+                .inputTypeStrategy(
+                        LegacyUserDefinedFunctionInference.getInputTypeStrategy(scalarFunction))
+                .outputTypeStrategy(
+                        LegacyUserDefinedFunctionInference.getOutputTypeStrategy(scalarFunction))
+                .build();
     }
 
     @Override

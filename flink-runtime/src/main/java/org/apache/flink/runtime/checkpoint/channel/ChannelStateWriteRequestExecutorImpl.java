@@ -18,9 +18,11 @@
 package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.function.RunnableWithException;
 
 import org.slf4j.Logger;
@@ -91,17 +93,21 @@ class ChannelStateWriteRequestExecutorImpl implements ChannelStateWriteRequestEx
     @GuardedBy("registerLock")
     private final Consumer<ChannelStateWriteRequestExecutor> onRegistered;
 
+    private final JobID jobID;
+
     ChannelStateWriteRequestExecutorImpl(
             ChannelStateWriteRequestDispatcher dispatcher,
             int maxSubtasksPerChannelStateFile,
             Consumer<ChannelStateWriteRequestExecutor> onRegistered,
-            Object registerLock) {
+            Object registerLock,
+            JobID jobID) {
         this(
                 dispatcher,
                 new ArrayDeque<>(),
                 maxSubtasksPerChannelStateFile,
                 registerLock,
-                onRegistered);
+                onRegistered,
+                jobID);
     }
 
     ChannelStateWriteRequestExecutorImpl(
@@ -109,44 +115,48 @@ class ChannelStateWriteRequestExecutorImpl implements ChannelStateWriteRequestEx
             Deque<ChannelStateWriteRequest> deque,
             int maxSubtasksPerChannelStateFile,
             Object registerLock,
-            Consumer<ChannelStateWriteRequestExecutor> onRegistered) {
+            Consumer<ChannelStateWriteRequestExecutor> onRegistered,
+            JobID jobID) {
         this.dispatcher = dispatcher;
         this.deque = deque;
         this.maxSubtasksPerChannelStateFile = maxSubtasksPerChannelStateFile;
         this.registerLock = registerLock;
         this.onRegistered = onRegistered;
-        this.thread = new Thread(this::run, "Channel state writer ");
+        this.thread = new Thread(this::run, "Channel state writer");
         this.subtasks = new HashSet<>();
         this.thread.setDaemon(true);
+        this.jobID = jobID;
     }
 
     @VisibleForTesting
     void run() {
-        try {
-            FileSystemSafetyNet.initializeSafetyNetForThread();
-            loop();
-        } catch (Exception ex) {
-            thrown = ex;
-        } finally {
+        try (MdcUtils.MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobID))) {
             try {
-                closeAll(
-                        this::cleanupRequests,
-                        () -> {
-                            Throwable cause;
-                            synchronized (lock) {
-                                cause = thrown == null ? new CancellationException() : thrown;
-                            }
-                            dispatcher.fail(cause);
-                        });
-            } catch (Exception e) {
-                synchronized (lock) {
-                    //noinspection NonAtomicOperationOnVolatileField
-                    thrown = ExceptionUtils.firstOrSuppressed(e, thrown);
+                FileSystemSafetyNet.initializeSafetyNetForThread();
+                loop();
+            } catch (Exception ex) {
+                thrown = ex;
+            } finally {
+                try {
+                    closeAll(
+                            this::cleanupRequests,
+                            () -> {
+                                Throwable cause;
+                                synchronized (lock) {
+                                    cause = thrown == null ? new CancellationException() : thrown;
+                                }
+                                dispatcher.fail(cause);
+                            });
+                } catch (Exception e) {
+                    synchronized (lock) {
+                        //noinspection NonAtomicOperationOnVolatileField
+                        thrown = ExceptionUtils.firstOrSuppressed(e, thrown);
+                    }
                 }
+                FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
             }
-            FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
+            LOG.debug("loop terminated");
         }
-        LOG.debug("loop terminated");
     }
 
     private void loop() throws Exception {

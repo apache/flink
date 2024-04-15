@@ -34,7 +34,12 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.STREAM
  * Extracts the timestamp of a StreamRecord into a rowtime attribute.
  *
  * <p>Note: This extractor only works for StreamTableSources.
+ *
+ * @deprecated This class will not be supported in the new source design around {@link
+ *     org.apache.flink.table.connector.source.DynamicTableSource}. See FLIP-95 for more
+ *     information.
  */
+@Deprecated
 @PublicEvolving
 public final class StreamRecordTimestamp extends TimestampExtractor {
 

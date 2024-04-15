@@ -64,6 +64,7 @@ class CalcFusionCodegenSpec(
     } else if (condition.isEmpty) { // only projection
       val projectionExprs = projection.map(getExprCodeGenerator.generateExpression)
       s"""
+         |${opCodegenCtx.reuseLocalVariableCode()}
          |${evaluateRequiredVariables(toScala(inputVars), projectionUsedColumns)}
          |${fusionContext.processConsume(toJava(projectionExprs))}
          |""".stripMargin
@@ -78,6 +79,7 @@ class CalcFusionCodegenSpec(
       if (onlyFilter) {
         s"""
            |$filterAccessCode
+           |${opCodegenCtx.reuseLocalVariableCode()}
            |${filterExpr.code}
            |if (${filterExpr.resultTerm}) {
            |  ${fusionContext.processConsume(inputVars)}
@@ -88,6 +90,7 @@ class CalcFusionCodegenSpec(
         val projectionExprs = projection.map(getExprCodeGenerator.generateExpression)
         s"""
            |$filterAccessCode
+           |${opCodegenCtx.reuseLocalVariableCode()}
            |${filterExpr.code}
            |if (${filterExpr.resultTerm}) {
            |  ${evaluateRequiredVariables(toScala(inputVars), projectionUsedColumns)}

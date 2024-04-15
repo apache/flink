@@ -86,7 +86,7 @@ public class YarnLogConfigUtil {
         checkNotNull(configuration);
 
         final String logConfigFilePath =
-                configuration.getString(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE);
+                configuration.get(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE);
         if (logConfigFilePath == null) {
             return "";
         }

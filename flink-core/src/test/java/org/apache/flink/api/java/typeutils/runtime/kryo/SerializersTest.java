@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.core.fs.Path;
 
@@ -61,7 +61,7 @@ public class SerializersTest {
 
     @Test
     public void testTypeRegistration() {
-        ExecutionConfig conf = new ExecutionConfig();
+        SerializerConfigImpl conf = new SerializerConfigImpl();
         Serializers.recursivelyRegisterType(ClassWithNested.class, conf, new HashSet<Class<?>>());
 
         KryoSerializer<String> kryo =
@@ -78,7 +78,7 @@ public class SerializersTest {
         Assert.assertTrue(kryo.getKryo().getRegistration(Node.class).getId() > 0);
 
         // register again and make sure classes are still registered
-        ExecutionConfig conf2 = new ExecutionConfig();
+        SerializerConfigImpl conf2 = new SerializerConfigImpl();
         Serializers.recursivelyRegisterType(ClassWithNested.class, conf2, new HashSet<Class<?>>());
         KryoSerializer<String> kryo2 = new KryoSerializer<>(String.class, conf);
         assertTrue(kryo2.getKryo().getRegistration(FromNested.class).getId() > 0);
@@ -86,7 +86,7 @@ public class SerializersTest {
 
     @Test
     public void testTypeRegistrationFromTypeInfo() {
-        ExecutionConfig conf = new ExecutionConfig();
+        SerializerConfigImpl conf = new SerializerConfigImpl();
         Serializers.recursivelyRegisterType(
                 new GenericTypeInfo<>(ClassWithNested.class), conf, new HashSet<Class<?>>());
 

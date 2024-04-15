@@ -18,31 +18,25 @@
 
 package org.apache.flink.runtime.rest.messages.job.metrics;
 
-import org.apache.flink.util.TestLogger;
+import org.junit.jupiter.api.Test;
 
-import org.junit.Test;
-
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link JobManagerMetricsHeaders}. */
-public class JobManagerMetricsHeadersTest extends TestLogger {
+class JobManagerMetricsHeadersTest {
 
     private final JobManagerMetricsHeaders jobManagerMetricsHeaders =
             JobManagerMetricsHeaders.getInstance();
 
     @Test
-    public void testUrl() {
-        assertThat(
-                jobManagerMetricsHeaders.getTargetRestEndpointURL(),
-                equalTo("/jobmanager/metrics"));
+    void testUrl() {
+        assertThat(jobManagerMetricsHeaders.getTargetRestEndpointURL())
+                .isEqualTo("/jobmanager/metrics");
     }
 
     @Test
-    public void testMessageParameters() {
-        assertThat(
-                jobManagerMetricsHeaders.getUnresolvedMessageParameters(),
-                instanceOf(JobManagerMetricsMessageParameters.class));
+    void testMessageParameters() {
+        assertThat(jobManagerMetricsHeaders.getUnresolvedMessageParameters())
+                .isInstanceOf(JobManagerMetricsMessageParameters.class);
     }
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.AvailabilityNotifier;
@@ -26,6 +27,7 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierCons
 
 import java.io.IOException;
 import java.util.Optional;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 /** Test implementation for {@link TierConsumerAgent}. */
@@ -39,20 +41,33 @@ public class TestingTierConsumerAgent implements TierConsumerAgent {
 
     private final Runnable closeNotifier;
 
+    private final BiFunction<TieredStoragePartitionId, ResultSubpartitionIndexSet, Integer>
+            peekNextBufferSubpartitionIdFunction;
+
     private TestingTierConsumerAgent(
             Runnable startNotifier,
             Supplier<Buffer> bufferSupplier,
             Runnable availabilityNotifierRegistrationRunnable,
-            Runnable closeNotifier) {
+            Runnable closeNotifier,
+            BiFunction<TieredStoragePartitionId, ResultSubpartitionIndexSet, Integer>
+                    peekNextBufferSubpartitionIdFunction) {
         this.startNotifier = startNotifier;
         this.bufferSupplier = bufferSupplier;
         this.availabilityNotifierRegistrationRunnable = availabilityNotifierRegistrationRunnable;
         this.closeNotifier = closeNotifier;
+        this.peekNextBufferSubpartitionIdFunction = peekNextBufferSubpartitionIdFunction;
     }
 
     @Override
     public void start() {
         startNotifier.run();
+    }
+
+    @Override
+    public int peekNextBufferSubpartitionId(
+            TieredStoragePartitionId partitionId, ResultSubpartitionIndexSet indexSet)
+            throws IOException {
+        return peekNextBufferSubpartitionIdFunction.apply(partitionId, indexSet);
     }
 
     @Override
@@ -85,6 +100,9 @@ public class TestingTierConsumerAgent implements TierConsumerAgent {
 
         private Runnable closeNotifier = () -> {};
 
+        private BiFunction<TieredStoragePartitionId, ResultSubpartitionIndexSet, Integer>
+                peekNextBufferSubpartitionIdFunction = (ignore1, ignore2) -> -1;
+
         public Builder() {}
 
         public Builder setStartNotifier(Runnable startNotifier) {
@@ -109,12 +127,20 @@ public class TestingTierConsumerAgent implements TierConsumerAgent {
             return this;
         }
 
+        public Builder setPeekNextBufferSubpartitionIdFunction(
+                BiFunction<TieredStoragePartitionId, ResultSubpartitionIndexSet, Integer>
+                        peekNextBufferSubpartitionIdFunction) {
+            this.peekNextBufferSubpartitionIdFunction = peekNextBufferSubpartitionIdFunction;
+            return this;
+        }
+
         public TestingTierConsumerAgent build() {
             return new TestingTierConsumerAgent(
                     startNotifier,
                     bufferSupplier,
                     availabilityNotifierRegistrationRunnable,
-                    closeNotifier);
+                    closeNotifier,
+                    peekNextBufferSubpartitionIdFunction);
         }
     }
 }

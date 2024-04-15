@@ -23,24 +23,31 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.LocalBufferPool;
+import org.apache.flink.runtime.metrics.TimerGauge;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
 
 import org.apache.flink.shaded.guava31.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -58,6 +65,9 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
 
     /** Time to wait for requesting new buffers before triggering buffer reclaiming. */
     private static final int INITIAL_REQUEST_BUFFER_TIMEOUT_FOR_RECLAIMING_MS = 50;
+
+    /** The maximum delay time before triggering buffer reclaiming. */
+    private static final int MAX_DELAY_TIME_TO_TRIGGER_RECLAIM_BUFFER_MS = 1000;
 
     /** The tiered storage memory specs of each memory user owner. */
     private final Map<Object, TieredStorageMemorySpec> tieredMemorySpecs;
@@ -87,6 +97,24 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
     private final Map<Object, Integer> numOwnerRequestedBuffers;
 
     /**
+     * The queue that contains all available buffers. This field should be thread-safe because it
+     * can be touched both by the task thread and the netty thread.
+     */
+    private final BlockingQueue<MemorySegment> bufferQueue;
+
+    /** The lock guarding concurrency issues during releasing. */
+    private final ReadWriteLock releasedStateLock;
+
+    /** The number of buffers that are guaranteed to be reclaimed. */
+    private int numGuaranteedReclaimableBuffers;
+
+    /**
+     * Time gauge to measure that hard backpressure time. Pre-create it to avoid checkNotNull in
+     * hot-path for performance purpose.
+     */
+    private TimerGauge hardBackpressureTimerGauge = new TimerGauge();
+
+    /**
      * This is for triggering buffer reclaiming while blocked on requesting new buffers.
      *
      * <p>Note: This can be null iff buffer reclaiming is not supported.
@@ -97,13 +125,22 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
     private BufferPool bufferPool;
 
     /**
-     * Indicate whether the {@link TieredStorageMemoryManagerImpl} is initialized. Before setting
+     * Indicates whether the {@link TieredStorageMemoryManagerImpl} is initialized. Before setting
      * up, this field is false.
      *
      * <p>Note that before requesting buffers or getting the maximum allowed buffers, this
      * initialized state should be checked.
      */
     private boolean isInitialized;
+
+    /**
+     * Indicates whether the {@link TieredStorageMemoryManagerImpl} is released.
+     *
+     * <p>Note that before recycling buffers, this released state should be checked to determine
+     * whether to recycle the buffer back to the internal queue or to the buffer pool.
+     */
+    @GuardedBy("readWriteLock")
+    private boolean isReleased;
 
     /**
      * The constructor of the {@link TieredStorageMemoryManagerImpl}.
@@ -120,6 +157,9 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
         this.numRequestedBuffers = new AtomicInteger(0);
         this.numOwnerRequestedBuffers = new ConcurrentHashMap<>();
         this.bufferReclaimRequestListeners = new ArrayList<>();
+        this.bufferQueue = new LinkedBlockingQueue<>();
+        this.releasedStateLock = new ReentrantReadWriteLock();
+        this.isReleased = false;
         this.isInitialized = false;
     }
 
@@ -131,6 +171,8 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
                     !tieredMemorySpecs.containsKey(memorySpec.getOwner()),
                     "Duplicated memory spec.");
             tieredMemorySpecs.put(memorySpec.getOwner(), memorySpec);
+            numGuaranteedReclaimableBuffers +=
+                    memorySpec.isGuaranteedReclaimable() ? memorySpec.getNumGuaranteedBuffers() : 0;
         }
 
         if (mayReclaimBuffer) {
@@ -146,6 +188,12 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
     }
 
     @Override
+    public void setMetricGroup(TaskIOMetricGroup metricGroup) {
+        this.hardBackpressureTimerGauge =
+                checkNotNull(metricGroup.getHardBackPressuredTimePerSecond());
+    }
+
+    @Override
     public void listenBufferReclaimRequest(Runnable onBufferReclaimRequest) {
         bufferReclaimRequestListeners.add(onBufferReclaimRequest);
     }
@@ -154,18 +202,19 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
     public BufferBuilder requestBufferBlocking(Object owner) {
         checkIsInitialized();
 
-        reclaimBuffersIfNeeded();
+        reclaimBuffersIfNeeded(0);
 
-        CompletableFuture<Void> requestBufferFuture = new CompletableFuture<>();
-        scheduleCheckRequestBufferFuture(
-                requestBufferFuture, INITIAL_REQUEST_BUFFER_TIMEOUT_FOR_RECLAIMING_MS);
-        MemorySegment memorySegment = null;
-        try {
-            memorySegment = bufferPool.requestMemorySegmentBlocking();
-        } catch (InterruptedException e) {
-            ExceptionUtils.rethrow(e);
+        MemorySegment memorySegment = bufferQueue.poll();
+        // Requests the buffer as soon as possible from wherever it is available in the buffer pool
+        // or the internal queue.
+        hardBackpressureTimerGauge.markStart();
+        while (memorySegment == null) {
+            memorySegment = requestBufferBlockingFromPool();
+            if (memorySegment == null) {
+                memorySegment = requestBufferFromQueue();
+            }
         }
-        requestBufferFuture.complete(null);
+        hardBackpressureTimerGauge.markEnd();
 
         incNumRequestedBuffer(owner);
         return new BufferBuilder(
@@ -196,6 +245,29 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
     }
 
     @Override
+    public boolean ensureCapacity(int numAdditionalBuffers) {
+        checkIsInitialized();
+
+        final int numRequestedByGuaranteedReclaimableOwners =
+                tieredMemorySpecs.values().stream()
+                        .filter(TieredStorageMemorySpec::isGuaranteedReclaimable)
+                        .mapToInt(spec -> numOwnerRequestedBuffer(spec.getOwner()))
+                        .sum();
+
+        while (bufferQueue.size() + numRequestedByGuaranteedReclaimableOwners
+                < numGuaranteedReclaimableBuffers + numAdditionalBuffers) {
+            hardBackpressureTimerGauge.markStart();
+            MemorySegment memorySegment = requestBufferBlockingFromPool();
+            hardBackpressureTimerGauge.markEnd();
+            if (memorySegment == null) {
+                return false;
+            }
+            bufferQueue.add(memorySegment);
+        }
+        return true;
+    }
+
+    @Override
     public int numOwnerRequestedBuffer(Object owner) {
         return numOwnerRequestedBuffers.getOrDefault(owner, 0);
     }
@@ -210,18 +282,79 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
 
     @Override
     public void release() {
-        checkState(numRequestedBuffers.get() == 0, "Leaking buffers.");
-        if (executor != null) {
-            executor.shutdown();
-            try {
-                if (!executor.awaitTermination(5L, TimeUnit.MINUTES)) {
-                    throw new TimeoutException(
-                            "Timeout for shutting down the buffer reclaim checker executor.");
+        try {
+            releasedStateLock.writeLock().lock();
+            isReleased = true;
+
+            if (executor != null) {
+                executor.shutdown();
+                try {
+                    if (!executor.awaitTermination(5L, TimeUnit.MINUTES)) {
+                        throw new TimeoutException(
+                                "Timeout for shutting down the buffer reclaim checker executor.");
+                    }
+                } catch (Exception e) {
+                    ExceptionUtils.rethrow(e);
                 }
-            } catch (Exception e) {
-                ExceptionUtils.rethrow(e);
+            }
+            while (!bufferQueue.isEmpty()) {
+                MemorySegment segment = bufferQueue.poll();
+                bufferPool.recycle(segment);
+                numRequestedBuffers.decrementAndGet();
+            }
+        } finally {
+            releasedStateLock.writeLock().unlock();
+        }
+    }
+
+    public int getBufferPoolSize() {
+        return bufferPool == null ? -1 : bufferPool.getNumBuffers();
+    }
+
+    /**
+     * @return a memory segment from the buffer pool or null if the memory manager has requested all
+     *     segments of the buffer pool.
+     */
+    @Nullable
+    private MemorySegment requestBufferBlockingFromPool() {
+        MemorySegment memorySegment = null;
+        while (numRequestedBuffers.get() < bufferPool.getNumBuffers()) {
+            memorySegment = bufferPool.requestMemorySegment();
+            if (memorySegment == null) {
+                try {
+                    // Wait until a buffer is available or timeout before entering the next loop
+                    // iteration.
+                    bufferPool.getAvailableFuture().get(100, TimeUnit.MILLISECONDS);
+                } catch (TimeoutException ignored) {
+                } catch (Exception e) {
+                    ExceptionUtils.rethrow(e);
+                }
+            } else {
+                numRequestedBuffers.incrementAndGet();
+                break;
             }
         }
+
+        return memorySegment;
+    }
+
+    /** @return a memory segment from the internal buffer queue. */
+    @Nullable
+    private MemorySegment requestBufferFromQueue() {
+        CompletableFuture<Void> requestBufferFuture = new CompletableFuture<>();
+        scheduleCheckRequestBufferFuture(
+                requestBufferFuture, INITIAL_REQUEST_BUFFER_TIMEOUT_FOR_RECLAIMING_MS);
+
+        MemorySegment memorySegment = null;
+        try {
+            memorySegment = bufferQueue.poll(100, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            ExceptionUtils.rethrow(e);
+        } finally {
+            requestBufferFuture.complete(null);
+        }
+
+        return memorySegment;
     }
 
     private void scheduleCheckRequestBufferFuture(
@@ -243,43 +376,54 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
         if (requestBufferFuture.isDone()) {
             return;
         }
-        reclaimBuffersIfNeeded();
+        reclaimBuffersIfNeeded(delayForNextCheckMs);
         scheduleCheckRequestBufferFuture(requestBufferFuture, delayForNextCheckMs);
     }
 
     private void incNumRequestedBuffer(Object owner) {
         numOwnerRequestedBuffers.compute(
                 owner, (ignore, numRequested) -> numRequested == null ? 1 : numRequested + 1);
-        numRequestedBuffers.incrementAndGet();
     }
 
     private void decNumRequestedBuffer(Object owner) {
         numOwnerRequestedBuffers.compute(
                 owner, (ignore, numRequested) -> checkNotNull(numRequested) - 1);
-        numRequestedBuffers.decrementAndGet();
     }
 
-    private void reclaimBuffersIfNeeded() {
-        if (shouldReclaimBuffersBeforeRequesting()) {
+    private void reclaimBuffersIfNeeded(long delayForNextCheckMs) {
+        if (shouldReclaimBuffersBeforeRequesting(delayForNextCheckMs)) {
             bufferReclaimRequestListeners.forEach(Runnable::run);
         }
     }
 
-    private boolean shouldReclaimBuffersBeforeRequesting() {
+    private boolean shouldReclaimBuffersBeforeRequesting(long delayForNextCheckMs) {
         // The accuracy of the memory usage ratio may be compromised due to the varying buffer pool
         // sizes. However, this only impacts a single iteration of the buffer usage check. Upon the
         // next iteration, the buffer reclaim will eventually be triggered.
         int numTotal = bufferPool.getNumBuffers();
         int numRequested = numRequestedBuffers.get();
-        return numRequested >= numTotal
-                // Because we do the checking before requesting buffers, we need add additional one
-                // buffer when calculating the usage ratio.
-                || ((numRequested + 1) * 1.0 / numTotal) > numTriggerReclaimBuffersRatio;
+
+        // Because we do the checking before requesting buffers, we need add additional one
+        // buffer when calculating the usage ratio.
+        return (numRequested + 1 - bufferQueue.size()) * 1.0 / numTotal
+                        > numTriggerReclaimBuffersRatio
+                || delayForNextCheckMs > MAX_DELAY_TIME_TO_TRIGGER_RECLAIM_BUFFER_MS
+                        && bufferQueue.size() == 0;
     }
 
     /** Note that this method may be called by the netty thread. */
     private void recycleBuffer(Object owner, MemorySegment buffer) {
-        bufferPool.recycle(buffer);
+        try {
+            releasedStateLock.readLock().lock();
+            if (!isReleased && numRequestedBuffers.get() <= bufferPool.getNumBuffers()) {
+                bufferQueue.add(buffer);
+            } else {
+                bufferPool.recycle(buffer);
+                numRequestedBuffers.decrementAndGet();
+            }
+        } finally {
+            releasedStateLock.readLock().unlock();
+        }
         decNumRequestedBuffer(owner);
     }
 

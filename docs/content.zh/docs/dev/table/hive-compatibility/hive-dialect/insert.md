@@ -33,7 +33,7 @@ can be specified by value expressions or result from query.
 
 ```sql
 -- Stardard syntax
-INSERT { OVERWRITE | INTO } [TABLE] tablename
+INSERT { OVERWRITE TABLE | INTO [TABLE] } tablename
  [PARTITION (partcol1[=val1], partcol2[=val2] ...) [IF NOT EXISTS]]
    { VALUES ( value [, ..] ) [, ( ... ) ] | select_statement FROM from_statement }
 ```
@@ -74,7 +74,7 @@ The dynamic partition columns must be specified last among the columns in the `S
 **Note:**
 
 In Hive, by default, users must specify at least one static partition in case of accidentally overwriting all partitions, and users can
-set the configuration `hive.exec.dynamic.partition.mode` to `nonstrict` to to allow all partitions to be dynamic.
+set the configuration `hive.exec.dynamic.partition.mode` to `nonstrict` to allow all partitions to be dynamic.
 
 But in Flink's Hive dialect, it'll always be `nonstrict` mode which means all partitions are allowed to be dynamic.
 {{< /hint >}}
@@ -86,7 +86,7 @@ But in Flink's Hive dialect, it'll always be `nonstrict` mode which means all pa
 INSERT INTO t1 VALUES ('k1', 'v1'), ('k2', 'v2');
 
 -- insert overwrite
-INSERT OVERWRITE t1 VALUES ('k1', 'v1'), ('k2', 'v2');;
+INSERT OVERWRITE TABLE t1 VALUES ('k1', 'v1'), ('k2', 'v2');;
 
 -- insert into table using select statement
 INSERT INTO TABLE t1 SELECT * FROM t2;
@@ -175,8 +175,8 @@ In such syntax, Flink will minimize the number of data scans requires. Flink can
 ```sql
 -- multiple insert into table
 FROM from_statement
-  INSERT { OVERWRITE | INTO } [TABLE] tablename1 [PARTITION (partcol1=val1, partcol2=val2 ...) [IF NOT EXISTS]] select_statement1,
-  INSERT { OVERWRITE | INTO } [TABLE] tablename2 [PARTITION ... [IF NOT EXISTS]] select_statement2
+  INSERT { OVERWRITE TABLE | INTO [TABLE] } tablename1 [PARTITION (partcol1=val1, partcol2=val2 ...) [IF NOT EXISTS]] select_statement1,
+  INSERT { OVERWRITE TABLE | INTO [TABLE] } tablename2 [PARTITION ... [IF NOT EXISTS]] select_statement2
   [, ... ]
 
 -- multiple insert into directory

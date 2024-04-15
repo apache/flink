@@ -77,6 +77,16 @@ public class BufferBuilder implements AutoCloseable {
         return new BufferConsumer(buffer.retainBuffer(), positionMarker, currentReaderPosition);
     }
 
+    /** Gets the data type of the internal buffer. */
+    public Buffer.DataType getDataType() {
+        return buffer.getDataType();
+    }
+
+    /** Sets the data type of the internal buffer. */
+    public void setDataType(Buffer.DataType dataType) {
+        buffer.setDataType(dataType);
+    }
+
     /** Same as {@link #append(ByteBuffer)} but additionally {@link #commit()} the appending. */
     public int appendAndCommit(ByteBuffer source) {
         int writtenBytes = append(source);

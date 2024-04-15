@@ -31,7 +31,7 @@ import org.apache.flink.state.api.utils.JobResultRetriever;
 import org.apache.flink.state.api.utils.ReduceSum;
 import org.apache.flink.state.api.utils.SavepointTestBase;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
@@ -76,7 +76,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                 .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
                 .reduce(new ReduceSum())
                 .uid(uid)
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         String savepointPath = takeSavepoint(env);
 
@@ -110,7 +110,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                 .evictor(new NoOpEvictor<>())
                 .reduce(new ReduceSum())
                 .uid(uid)
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         String savepointPath = takeSavepoint(env);
 
@@ -144,7 +144,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                 .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
                 .aggregate(new AggregateSum())
                 .uid(uid)
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         String savepointPath = takeSavepoint(env);
 
@@ -179,7 +179,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                 .evictor(new NoOpEvictor<>())
                 .aggregate(new AggregateSum())
                 .uid(uid)
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         String savepointPath = takeSavepoint(env);
 
@@ -214,7 +214,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                 .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
                 .process(new NoOpProcessWindowFunction())
                 .uid(uid)
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         String savepointPath = takeSavepoint(env);
 
@@ -253,7 +253,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                 .evictor(new NoOpEvictor<>())
                 .process(new NoOpProcessWindowFunction())
                 .uid(uid)
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         String savepointPath = takeSavepoint(env);
 
@@ -292,7 +292,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                 .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
                 .apply(new NoOpWindowFunction())
                 .uid(uid)
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         String savepointPath = takeSavepoint(env);
 
@@ -331,7 +331,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                 .evictor(new NoOpEvictor<>())
                 .apply(new NoOpWindowFunction())
                 .uid(uid)
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         String savepointPath = takeSavepoint(env);
 
@@ -368,7 +368,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                 .trigger(PurgingTrigger.of(CountTrigger.of(10)))
                 .reduce(new ReduceSum())
                 .uid(uid)
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         String savepointPath = takeSavepoint(env);
 

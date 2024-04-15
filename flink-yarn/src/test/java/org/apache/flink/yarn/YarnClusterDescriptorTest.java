@@ -36,9 +36,11 @@ import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
 import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
 import org.apache.flink.yarn.configuration.YarnLogConfigUtil;
 
+import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
+import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -66,7 +68,9 @@ import java.util.UUID;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.apache.flink.runtime.jobmanager.JobManagerProcessUtils.createDefaultJobManagerProcessSpec;
+import static org.apache.flink.yarn.Utils.getPathFromLocalFile;
 import static org.apache.flink.yarn.configuration.YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR;
+import static org.apache.flink.yarn.configuration.YarnConfigOptions.YARN_CONTAINER_START_COMMAND_TEMPLATE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
@@ -134,7 +138,7 @@ class YarnClusterDescriptorTest {
     void testConfigOverwrite() throws ClusterDeploymentException {
         Configuration configuration = new Configuration();
         // overwrite vcores in config
-        configuration.setInteger(YarnConfigOptions.VCORES, Integer.MAX_VALUE);
+        configuration.set(YarnConfigOptions.VCORES, Integer.MAX_VALUE);
 
         YarnClusterDescriptor clusterDescriptor = createYarnClusterDescriptor(configuration);
 
@@ -170,7 +174,9 @@ class YarnClusterDescriptorTest {
                 JobManagerProcessUtils.generateJvmParametersStr(jobManagerProcessSpec, cfg);
         final String dynamicParameters =
                 JobManagerProcessUtils.generateDynamicConfigsStr(jobManagerProcessSpec);
+        final String defaultJvmOpts = "-DdefaultJvm"; // if set
         final String jvmOpts = "-Djvm"; // if set
+        final String defaultJmJvmOpts = "-DdefaultJmJvm"; // if set
         final String jmJvmOpts = "-DjmJvm"; // if set
         final String krb5 = "-Djava.security.krb5.conf=krb5.conf";
         final String logfile =
@@ -366,7 +372,8 @@ class YarnClusterDescriptorTest {
             // YarnClusterDescriptor,
             // because we have a reference to the ClusterDescriptor's configuration which we modify
             // continuously
-            cfg.setString(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
+            cfg.set(CoreOptions.FLINK_DEFAULT_JVM_OPTIONS, defaultJvmOpts);
+            cfg.set(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
             cfg.set(
                     YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE,
                     YarnLogConfigUtil.CONFIG_FILE_LOGBACK_NAME);
@@ -381,6 +388,7 @@ class YarnClusterDescriptorTest {
                                     " ",
                                     java,
                                     jvmmem,
+                                    defaultJvmOpts,
                                     jvmOpts,
                                     YarnClusterDescriptor.IGNORE_UNRECOGNIZED_VM_OPTIONS,
                                     logfile,
@@ -403,6 +411,7 @@ class YarnClusterDescriptorTest {
                                     " ",
                                     java,
                                     jvmmem,
+                                    defaultJvmOpts,
                                     jvmOpts,
                                     YarnClusterDescriptor.IGNORE_UNRECOGNIZED_VM_OPTIONS,
                                     krb5,
@@ -415,7 +424,8 @@ class YarnClusterDescriptorTest {
             // log4j, with/out krb5, different JVM opts
             // IMPORTANT: Be aware that we are using side effects here to modify the created
             // YarnClusterDescriptor
-            cfg.setString(CoreOptions.FLINK_JM_JVM_OPTIONS, jmJvmOpts);
+            cfg.set(CoreOptions.FLINK_DEFAULT_JM_JVM_OPTIONS, defaultJmJvmOpts);
+            cfg.set(CoreOptions.FLINK_JM_JVM_OPTIONS, jmJvmOpts);
             cfg.set(
                     YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE,
                     YarnLogConfigUtil.CONFIG_FILE_LOG4J_NAME);
@@ -430,7 +440,9 @@ class YarnClusterDescriptorTest {
                                     " ",
                                     java,
                                     jvmmem,
+                                    defaultJvmOpts,
                                     jvmOpts,
+                                    defaultJmJvmOpts,
                                     jmJvmOpts,
                                     YarnClusterDescriptor.IGNORE_UNRECOGNIZED_VM_OPTIONS,
                                     logfile,
@@ -453,7 +465,9 @@ class YarnClusterDescriptorTest {
                                     " ",
                                     java,
                                     jvmmem,
+                                    defaultJvmOpts,
                                     jvmOpts,
+                                    defaultJmJvmOpts,
                                     jmJvmOpts,
                                     YarnClusterDescriptor.IGNORE_UNRECOGNIZED_VM_OPTIONS,
                                     krb5,
@@ -469,8 +483,8 @@ class YarnClusterDescriptorTest {
             cfg.set(
                     YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE,
                     YarnLogConfigUtil.CONFIG_FILE_LOGBACK_NAME);
-            cfg.setString(
-                    ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
+            cfg.set(
+                    YARN_CONTAINER_START_COMMAND_TEMPLATE,
                     "%java% 1 %jvmmem% 2 %jvmopts% 3 %logging% 4 %class% 5 %args% 6 %redirects%");
             assertThat(
                             clusterDescriptor
@@ -485,7 +499,9 @@ class YarnClusterDescriptorTest {
                                     "1",
                                     jvmmem,
                                     "2",
+                                    defaultJvmOpts,
                                     jvmOpts,
+                                    defaultJmJvmOpts,
                                     jmJvmOpts,
                                     YarnClusterDescriptor.IGNORE_UNRECOGNIZED_VM_OPTIONS,
                                     krb5,
@@ -502,8 +518,8 @@ class YarnClusterDescriptorTest {
             cfg.set(
                     YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE,
                     YarnLogConfigUtil.CONFIG_FILE_LOGBACK_NAME);
-            cfg.setString(
-                    ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
+            cfg.set(
+                    YARN_CONTAINER_START_COMMAND_TEMPLATE,
                     "%java% %logging% %jvmopts% %jvmmem% %class% %args% %redirects%");
             // IMPORTANT: Be aware that we are using side effects here to modify the created
             // YarnClusterDescriptor
@@ -519,7 +535,9 @@ class YarnClusterDescriptorTest {
                                     java,
                                     logfile,
                                     logback,
+                                    defaultJvmOpts,
                                     jvmOpts,
+                                    defaultJmJvmOpts,
                                     jmJvmOpts,
                                     YarnClusterDescriptor.IGNORE_UNRECOGNIZED_VM_OPTIONS,
                                     krb5,
@@ -543,22 +561,66 @@ class YarnClusterDescriptorTest {
                     Files.createTempDirectory(temporaryFolder, UUID.randomUUID().toString())
                             .toFile();
 
-            assertThat(descriptor.getShipFiles()).doesNotContain(libFile, libFolder);
+            assertThat(descriptor.getShipFiles())
+                    .doesNotContain(getPathFromLocalFile(libFile), getPathFromLocalFile(libFolder));
 
-            List<File> shipFiles = new ArrayList<>();
-            shipFiles.add(libFile);
-            shipFiles.add(libFolder);
+            List<Path> shipFiles = new ArrayList<>();
+            shipFiles.add(getPathFromLocalFile(libFile));
+            shipFiles.add(getPathFromLocalFile(libFolder));
 
             descriptor.addShipFiles(shipFiles);
 
-            assertThat(descriptor.getShipFiles()).contains(libFile, libFolder);
+            assertThat(descriptor.getShipFiles())
+                    .contains(getPathFromLocalFile(libFile), getPathFromLocalFile(libFolder));
 
             // only execute part of the deployment to test for shipped files
-            Set<File> effectiveShipFiles = new HashSet<>();
+            Set<Path> effectiveShipFiles = new HashSet<>();
             descriptor.addLibFoldersToShipFiles(effectiveShipFiles);
 
             assertThat(effectiveShipFiles).isEmpty();
-            assertThat(descriptor.getShipFiles()).hasSize(2).contains(libFile, libFolder);
+            assertThat(descriptor.getShipFiles())
+                    .hasSize(2)
+                    .contains(getPathFromLocalFile(libFile), getPathFromLocalFile(libFolder));
+        }
+    }
+
+    /** Tests to ship files through the {@link YarnConfigOptions#SHIP_FILES}. */
+    @Test
+    void testShipFiles() throws IOException {
+        String hdfsDir = "hdfs:///flink/hdfs_dir";
+        String hdfsFile = "hdfs:///flink/hdfs_file";
+        File libFile = Files.createTempFile(temporaryFolder, "libFile", ".jar").toFile();
+        File libFolder =
+                Files.createTempDirectory(temporaryFolder, UUID.randomUUID().toString()).toFile();
+        final org.apache.hadoop.conf.Configuration hdConf =
+                new org.apache.hadoop.conf.Configuration();
+        hdConf.set(
+                MiniDFSCluster.HDFS_MINIDFS_BASEDIR, temporaryFolder.toAbsolutePath().toString());
+        try (final MiniDFSCluster hdfsCluster = new MiniDFSCluster.Builder(hdConf).build()) {
+            final org.apache.hadoop.fs.Path hdfsRootPath =
+                    new org.apache.hadoop.fs.Path(hdfsCluster.getURI());
+            hdfsCluster.getFileSystem().mkdirs(new org.apache.hadoop.fs.Path(hdfsDir));
+            hdfsCluster.getFileSystem().createNewFile(new org.apache.hadoop.fs.Path(hdfsFile));
+
+            Configuration flinkConfiguration = new Configuration();
+            flinkConfiguration.set(
+                    YarnConfigOptions.SHIP_FILES,
+                    Arrays.asList(
+                            libFile.getAbsolutePath(),
+                            libFolder.getAbsolutePath(),
+                            hdfsDir,
+                            hdfsFile));
+            final YarnConfiguration yarnConfig = new YarnConfiguration();
+            yarnConfig.set(
+                    CommonConfigurationKeysPublic.FS_DEFAULT_NAME_KEY, hdfsRootPath.toString());
+            YarnClusterDescriptor descriptor =
+                    createYarnClusterDescriptor(flinkConfiguration, yarnConfig);
+            assertThat(descriptor.getShipFiles())
+                    .containsExactly(
+                            getPathFromLocalFile(libFile),
+                            getPathFromLocalFile(libFolder),
+                            new Path(hdfsDir),
+                            new Path(hdfsFile));
         }
     }
 
@@ -581,7 +643,7 @@ class YarnClusterDescriptorTest {
             File libFile = new File(libFolder, "libFile.jar");
             assertThat(libFile.createNewFile()).isTrue();
 
-            Set<File> effectiveShipFiles = new HashSet<>();
+            Set<Path> effectiveShipFiles = new HashSet<>();
 
             final Map<String, String> oldEnv = System.getenv();
             try {
@@ -599,8 +661,11 @@ class YarnClusterDescriptorTest {
             }
 
             // only add the ship the folder, not the contents
-            assertThat(effectiveShipFiles).doesNotContain(libFile).contains(libFolder);
-            assertThat(descriptor.getShipFiles()).doesNotContain(libFile, libFolder);
+            assertThat(effectiveShipFiles)
+                    .doesNotContain(getPathFromLocalFile(libFile))
+                    .contains(getPathFromLocalFile(libFolder));
+            assertThat(descriptor.getShipFiles())
+                    .doesNotContain(getPathFromLocalFile(libFile), getPathFromLocalFile(libFolder));
         }
     }
 
@@ -612,7 +677,7 @@ class YarnClusterDescriptorTest {
                                     temporaryFolder.toFile().getAbsolutePath(),
                                     "s0m3_p4th_th4t_sh0uld_n0t_3x1sts")
                             .toFile();
-            Set<File> effectiveShipFiles = new HashSet<>();
+            Set<Path> effectiveShipFiles = new HashSet<>();
 
             final Map<String, String> oldEnv = System.getenv();
             try {
@@ -641,7 +706,7 @@ class YarnClusterDescriptorTest {
         assertThatThrownBy(
                         () ->
                                 yarnClusterDescriptor.addShipFiles(
-                                        Collections.singletonList(p.toFile())))
+                                        Collections.singletonList(new Path(p.toString()))))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("User-shipped directories configured via :");
     }
@@ -669,6 +734,66 @@ class YarnClusterDescriptorTest {
             assertThat(effectiveShipFiles).containsExactlyInAnyOrder(usrLibFolder);
         } finally {
             CommonTestUtils.setEnv(oldEnv);
+        }
+    }
+
+    /** Tests that the {@code YarnConfigOptions.SHIP_ARCHIVES} only supports archive files. */
+    @Test
+    void testShipArchives() throws IOException {
+        final File homeFolder =
+                Files.createTempDirectory(temporaryFolder, UUID.randomUUID().toString()).toFile();
+        File dir1 = new File(homeFolder.getPath(), "dir1");
+        File file1 = new File(homeFolder.getPath(), "file1");
+        File archive1 = new File(homeFolder.getPath(), "archive1.zip");
+        File archive2 = new File(homeFolder.getPath(), "archive2.zip");
+        assertThat(dir1.mkdirs()).isTrue();
+        assertThat(file1.createNewFile()).isTrue();
+        assertThat(archive1.createNewFile()).isTrue();
+        assertThat(archive2.createNewFile()).isTrue();
+
+        Configuration flinkConfiguration = new Configuration();
+        flinkConfiguration.set(
+                YarnConfigOptions.SHIP_ARCHIVES,
+                Arrays.asList(dir1.getAbsolutePath(), archive1.getAbsolutePath()));
+        assertThrows(
+                "Directories or non-archive files are included.",
+                IllegalArgumentException.class,
+                () -> createYarnClusterDescriptor(flinkConfiguration));
+
+        flinkConfiguration.set(
+                YarnConfigOptions.SHIP_ARCHIVES,
+                Arrays.asList(file1.getAbsolutePath(), archive1.getAbsolutePath()));
+        assertThrows(
+                "Directories or non-archive files are included.",
+                IllegalArgumentException.class,
+                () -> createYarnClusterDescriptor(flinkConfiguration));
+
+        flinkConfiguration.set(
+                YarnConfigOptions.SHIP_ARCHIVES,
+                Arrays.asList(archive1.getAbsolutePath(), archive2.getAbsolutePath()));
+        createYarnClusterDescriptor(flinkConfiguration);
+
+        String archive3 = "hdfs:///flink/archive3.zip";
+        final org.apache.hadoop.conf.Configuration hdConf =
+                new org.apache.hadoop.conf.Configuration();
+        hdConf.set(
+                MiniDFSCluster.HDFS_MINIDFS_BASEDIR, temporaryFolder.toAbsolutePath().toString());
+        try (final MiniDFSCluster hdfsCluster = new MiniDFSCluster.Builder(hdConf).build()) {
+            final org.apache.hadoop.fs.Path hdfsRootPath =
+                    new org.apache.hadoop.fs.Path(hdfsCluster.getURI());
+            hdfsCluster.getFileSystem().createNewFile(new org.apache.hadoop.fs.Path(archive3));
+
+            flinkConfiguration.set(
+                    YarnConfigOptions.SHIP_ARCHIVES,
+                    Arrays.asList(archive1.getAbsolutePath(), archive3));
+            final YarnConfiguration yarnConfig = new YarnConfiguration();
+            yarnConfig.set(
+                    CommonConfigurationKeysPublic.FS_DEFAULT_NAME_KEY, hdfsRootPath.toString());
+
+            YarnClusterDescriptor descriptor =
+                    createYarnClusterDescriptor(flinkConfiguration, yarnConfig);
+            assertThat(descriptor.getShipArchives())
+                    .containsExactly(getPathFromLocalFile(archive1), new Path(archive3));
         }
     }
 
@@ -768,6 +893,13 @@ class YarnClusterDescriptorTest {
     }
 
     private YarnClusterDescriptor createYarnClusterDescriptor(Configuration configuration) {
+        YarnTestUtils.configureLogFile(configuration, temporaryFolder.toFile().getAbsolutePath());
+
+        return this.createYarnClusterDescriptor(configuration, yarnConfiguration);
+    }
+
+    private YarnClusterDescriptor createYarnClusterDescriptor(
+            Configuration configuration, YarnConfiguration yarnConfiguration) {
         YarnTestUtils.configureLogFile(configuration, temporaryFolder.toFile().getAbsolutePath());
 
         return YarnClusterDescriptorBuilder.newBuilder(yarnClient, true)

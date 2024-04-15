@@ -18,6 +18,7 @@
 package org.apache.flink.api.scala.runtime
 
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest._
@@ -25,9 +26,9 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.CaseClassSerializer
 import org.apache.flink.util.StringUtils
 
+import org.assertj.core.api.Assertions.{assertThat, fail}
 import org.joda.time.LocalDate
-import org.junit.{Assert, Test}
-import org.junit.Assert._
+import org.junit.jupiter.api.Test
 
 import java.util
 import java.util.Random
@@ -42,21 +43,24 @@ class TupleSerializerTest {
 
     val originalSerializer =
       tpe
-        .createSerializer(new ExecutionConfig)
+        .createSerializer(new SerializerConfigImpl)
         .asInstanceOf[CaseClassSerializer[((String, Int), (Int, String))]]
     val duplicateSerializer = originalSerializer.duplicate()
 
     duplicateSerializer.getFieldSerializers
 
     // the list of child serializers must be duplicated
-    assertTrue(duplicateSerializer.getFieldSerializers ne originalSerializer.getFieldSerializers)
+    assertThat(
+      duplicateSerializer.getFieldSerializers ne originalSerializer.getFieldSerializers).isTrue
 
     // each of the child serializers (which are themselves CaseClassSerializers) must be duplicated
-    assertTrue(
-      duplicateSerializer.getFieldSerializers()(0) ne originalSerializer.getFieldSerializers()(0))
+    assertThat(
+      duplicateSerializer.getFieldSerializers()(0) ne originalSerializer.getFieldSerializers()(
+        0)).isTrue
 
-    assertTrue(
-      duplicateSerializer.getFieldSerializers()(1) ne originalSerializer.getFieldSerializers()(1))
+    assertThat(
+      duplicateSerializer.getFieldSerializers()(1) ne originalSerializer.getFieldSerializers()(
+        1)).isTrue
   }
 
   @Test
@@ -259,23 +263,26 @@ class TupleSerializerTest {
     runTests(testTuples, -1)
   }
 
-  final private def runTests[T <: Product: TypeInformation](instances: Array[T], length: Int) {
+  final private def runTests[T <: Product: TypeInformation](
+      instances: Array[T],
+      length: Int): Unit = {
     try {
       // Register the custom Kryo Serializer
       val conf = new ExecutionConfig()
-      conf.registerTypeWithKryoSerializer(classOf[LocalDate], classOf[LocalDateSerializer])
+      conf.getSerializerConfig.registerTypeWithKryoSerializer(
+        classOf[LocalDate],
+        classOf[LocalDateSerializer])
 
       val tupleTypeInfo = implicitly[TypeInformation[T]].asInstanceOf[TupleTypeInfoBase[T]]
-      val serializer = tupleTypeInfo.createSerializer(conf)
+      val serializer = tupleTypeInfo.createSerializer(conf.getSerializerConfig)
       val tupleClass = tupleTypeInfo.getTypeClass
       val test = new TupleSerializerTestInstance[T](serializer, tupleClass, length, instances)
       test.testAll()
     } catch {
-      case e: Exception => {
+      case e: Exception =>
         System.err.println(e.getMessage)
         e.printStackTrace()
-        Assert.fail(e.getMessage)
-      }
+        fail(e.getMessage)
     }
   }
 }

@@ -116,13 +116,11 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
     // ------------------------------------------------------------------------
 
     /**
-     * Returns a list of {@link SlotInfoWithUtilization} objects about all slots that are currently
-     * available in the slot pool.
+     * Returns all free slot tracker.
      *
-     * @return a list of {@link SlotInfoWithUtilization} objects about all slots that are currently
-     *     available in the slot pool.
+     * @return all free slot tracker
      */
-    Collection<SlotInfoWithUtilization> getAvailableSlotsInformation();
+    FreeSlotInfoTracker getFreeSlotInfoTracker();
 
     /**
      * Returns a list of {@link SlotInfo} objects about all slots that are currently allocated in

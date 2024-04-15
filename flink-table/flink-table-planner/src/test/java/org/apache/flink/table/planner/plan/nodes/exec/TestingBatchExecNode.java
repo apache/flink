@@ -22,6 +22,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.plan.fusion.OpFusionCodegenSpecGenerator;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
@@ -123,7 +124,8 @@ public class TestingBatchExecNode implements BatchExecNode<RowData> {
     }
 
     @Override
-    public OpFusionCodegenSpecGenerator translateToFusionCodegenSpec(Planner planner) {
+    public OpFusionCodegenSpecGenerator translateToFusionCodegenSpec(
+            Planner planner, CodeGeneratorContext parentCtx) {
         throw new UnsupportedOperationException();
     }
 }
