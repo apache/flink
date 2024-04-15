@@ -5,7 +5,7 @@
 	<parent>
 		<artifactId>flink-external-resources</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>${revision}${changelist}</version>
+		<version>1.18-SNAPSHOT</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
