@@ -73,10 +73,7 @@ class MemorySizeTest {
     @Test
     void testInvalid() {
         assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(
-                        () -> {
-                            new MemorySize(-1);
-                        });
+                .isThrownBy(() -> new MemorySize(-1));
     }
 
     @Test
@@ -140,11 +137,11 @@ class MemorySizeTest {
 
     @Test
     void testUpperCase() {
-        assertThat(MemorySize.parse("1 B").getBytes()).isEqualTo(1L);
-        assertThat(MemorySize.parse("1 K").getKibiBytes()).isEqualTo(1L);
-        assertThat(MemorySize.parse("1 M").getMebiBytes()).isEqualTo(1L);
-        assertThat(MemorySize.parse("1 G").getGibiBytes()).isEqualTo(1L);
-        assertThat(MemorySize.parse("1 T").getTebiBytes()).isEqualTo(1L);
+        assertThat(MemorySize.parse("1 B").getBytes()).isOne();
+        assertThat(MemorySize.parse("1 K").getKibiBytes()).isOne();
+        assertThat(MemorySize.parse("1 M").getMebiBytes()).isOne();
+        assertThat(MemorySize.parse("1 G").getGibiBytes()).isOne();
+        assertThat(MemorySize.parse("1 T").getTebiBytes()).isOne();
     }
 
     @Test
@@ -187,19 +184,13 @@ class MemorySizeTest {
     @Test
     void testParseNumberOverflow() {
         assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(
-                        () -> {
-                            MemorySize.parseBytes("100000000000000000000000000000000 bytes");
-                        });
+                .isThrownBy(() -> MemorySize.parseBytes("100000000000000000000000000000000 bytes"));
     }
 
     @Test
     void testParseNumberTimeUnitOverflow() {
         assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(
-                        () -> {
-                            MemorySize.parseBytes("100000000000000 tb");
-                        });
+                .isThrownBy(() -> MemorySize.parseBytes("100000000000000 tb"));
     }
 
     @Test

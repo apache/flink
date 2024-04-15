@@ -27,11 +27,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.URI;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the configuration of the default file system scheme. */
 public class FilesystemSchemeConfigTest {
@@ -39,7 +38,7 @@ public class FilesystemSchemeConfigTest {
     @TempDir public File tempFolder;
 
     @AfterEach
-    void clearFsSettings() throws IOException {
+    void clearFsSettings() {
         FileSystem.initialize(new Configuration());
     }
 
@@ -76,12 +75,9 @@ public class FilesystemSchemeConfigTest {
         URI justPath = new URI(File.createTempFile("junit", null, tempFolder).toURI().getPath());
         assertThat(justPath.getScheme()).isNull();
 
-        try {
-            FileSystem.get(justPath);
-            fail("should have failed with an exception");
-        } catch (UnsupportedFileSystemSchemeException e) {
-            assertThat(e.getMessage()).contains("otherFS");
-        }
+        assertThatThrownBy(() -> FileSystem.get(justPath))
+                .isInstanceOf(UnsupportedFileSystemSchemeException.class)
+                .hasMessageContaining("otherFS");
     }
 
     @Test
