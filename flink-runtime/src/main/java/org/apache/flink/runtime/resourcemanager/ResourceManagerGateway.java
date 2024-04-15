@@ -103,6 +103,7 @@ public interface ResourceManagerGateway
     /**
      * Sends the given {@link SlotReport} to the ResourceManager.
      *
+     * @param taskManagerResourceId The resource ID of the sending TaskManager
      * @param taskManagerRegistrationId id identifying the sending TaskManager
      * @param slotReport which is sent to the ResourceManager
      * @param timeout for the operation
