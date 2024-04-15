@@ -22,6 +22,10 @@ import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.state.v2.ValueState;
 import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
+import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
+import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
+import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -57,7 +61,7 @@ class AsyncExecutionControllerTest {
 
     @BeforeEach
     void setup() {
-        aec = new AsyncExecutionController<>(new SyncMailboxExecutor(), new TestStateExecutor());
+        aec = new AsyncExecutionController<>(new SyncMailboxExecutor(), createStateExecutor());
         underlyingState = new TestUnderlyingState();
         valueState = new TestValueState(aec, underlyingState);
         output = new AtomicInteger();
@@ -296,6 +300,12 @@ class AsyncExecutionControllerTest {
         }
     }
 
+    private StateExecutor createStateExecutor() {
+        TestAsyncStateBackend testAsyncStateBackend = new TestAsyncStateBackend();
+        assertThat(testAsyncStateBackend.supportsAsyncKeyedStateBackend()).isTrue();
+        return testAsyncStateBackend.createAsyncKeyedStateBackend(null).createStateExecutor();
+    }
+
     /** Simulate the underlying state that is actually used to execute the request. */
     static class TestUnderlyingState {
 
@@ -340,6 +350,46 @@ class AsyncExecutionControllerTest {
         public StateFuture<Void> asyncUpdate(Integer value) {
             return asyncExecutionController.handleRequest(
                     this, StateRequestType.VALUE_UPDATE, value);
+        }
+    }
+
+    /**
+     * A brief implementation of {@link StateBackend} which illustrates the interaction between AEC
+     * and StateBackend.
+     */
+    static class TestAsyncStateBackend implements StateBackend {
+
+        @Override
+        public <K> CheckpointableKeyedStateBackend<K> createKeyedStateBackend(
+                KeyedStateBackendParameters<K> parameters) throws Exception {
+            throw new UnsupportedOperationException("Don't support createKeyedStateBackend yet");
+        }
+
+        @Override
+        public OperatorStateBackend createOperatorStateBackend(
+                OperatorStateBackendParameters parameters) throws Exception {
+            throw new UnsupportedOperationException("Don't support createOperatorStateBackend yet");
+        }
+
+        @Override
+        public boolean supportsAsyncKeyedStateBackend() {
+            return true;
+        }
+
+        @Override
+        public <K> AsyncKeyedStateBackend createAsyncKeyedStateBackend(
+                KeyedStateBackendParameters<K> parameters) {
+            return new AsyncKeyedStateBackend() {
+                @Override
+                public StateExecutor createStateExecutor() {
+                    return new TestStateExecutor();
+                }
+
+                @Override
+                public void dispose() {
+                    // do nothing
+                }
+            };
         }
     }
 
