@@ -19,10 +19,12 @@
 package org.apache.flink.api.common;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -30,14 +32,13 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
-@RunWith(Parameterized.class)
-public class ExecutionConfigFromConfigurationTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class ExecutionConfigFromConfigurationTest {
 
-    @Parameterized.Parameters(name = "{0}")
-    public static Collection<TestSpec> specs() {
+    @Parameters(name = "{0}")
+    private static Collection<TestSpec> specs() {
         return Arrays.asList(
                 TestSpec.testValue(false)
                         .whenSetFromFile("pipeline.auto-generate-uids", "false")
@@ -72,25 +73,27 @@ public class ExecutionConfigFromConfigurationTest {
                         .whenSetFromFile("pipeline.force-avro", "true")
                         .viaSetter(
                                 booleanSetter(
-                                        ExecutionConfig::enableForceAvro,
-                                        ExecutionConfig::disableForceAvro))
-                        .getterVia(ExecutionConfig::isForceAvroEnabled)
+                                        (ec) -> ec.getSerializerConfig().setForceAvro(true),
+                                        (ec) -> ec.getSerializerConfig().setForceAvro(false)))
+                        .getterVia((ec) -> ec.getSerializerConfig().isForceAvroEnabled())
                         .nonDefaultValue(true),
                 TestSpec.testValue(false)
                         .whenSetFromFile("pipeline.force-kryo", "false")
                         .viaSetter(
                                 booleanSetter(
-                                        ExecutionConfig::enableForceKryo,
-                                        ExecutionConfig::disableForceKryo))
-                        .getterVia(ExecutionConfig::isForceKryoEnabled)
+                                        (ec) -> ec.getSerializerConfig().setForceKryo(true),
+                                        (ec) -> ec.getSerializerConfig().setForceKryo(false)))
+                        .getterVia((ec) -> ec.getSerializerConfig().isForceKryoEnabled())
                         .nonDefaultValue(false),
                 TestSpec.testValue(false)
                         .whenSetFromFile("pipeline.generic-types", "false")
                         .viaSetter(
                                 booleanSetter(
-                                        ExecutionConfig::enableGenericTypes,
-                                        ExecutionConfig::disableGenericTypes))
-                        .getterVia(execConfig -> !execConfig.hasGenericTypesDisabled())
+                                        (ec) -> ec.getSerializerConfig().setGenericTypes(true),
+                                        (ec) -> ec.getSerializerConfig().setGenericTypes(false)))
+                        .getterVia(
+                                execConfig ->
+                                        !execConfig.getSerializerConfig().hasGenericTypesDisabled())
                         .nonDefaultValue(false),
                 TestSpec.testValue(getTestGlobalJobParameters())
                         .whenSetFromFile(
@@ -138,10 +141,10 @@ public class ExecutionConfigFromConfigurationTest {
                         .nonDefaultValue(21L));
     }
 
-    @Parameterized.Parameter public TestSpec spec;
+    @Parameter private TestSpec spec;
 
-    @Test
-    public void testLoadingFromConfiguration() {
+    @TestTemplate
+    void testLoadingFromConfiguration() {
         ExecutionConfig configFromSetters = new ExecutionConfig();
         ExecutionConfig configFromFile = new ExecutionConfig();
 
@@ -153,8 +156,8 @@ public class ExecutionConfigFromConfigurationTest {
         spec.assertEqual(configFromFile, configFromSetters);
     }
 
-    @Test
-    public void testNotOverridingIfNotSet() {
+    @TestTemplate
+    void testNotOverridingIfNotSet() {
         ExecutionConfig executionConfig = new ExecutionConfig();
 
         spec.setNonDefaultValue(executionConfig);
@@ -225,11 +228,11 @@ public class ExecutionConfigFromConfigurationTest {
         }
 
         public void assertEqual(ExecutionConfig configFromFile, ExecutionConfig configFromSetters) {
-            assertThat(getter.apply(configFromFile), equalTo(getter.apply(configFromSetters)));
+            assertThat(getter.apply(configFromSetters)).isEqualTo(getter.apply(configFromFile));
         }
 
         public void assertEqualNonDefault(ExecutionConfig configFromFile) {
-            assertThat(getter.apply(configFromFile), equalTo(nonDefaultValue));
+            assertThat(getter.apply(configFromFile)).isEqualTo(nonDefaultValue);
         }
 
         @Override

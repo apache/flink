@@ -25,8 +25,8 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -152,6 +152,13 @@ public class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment 
     }
 
     @Override
+    public StreamExecutionEnvironment enableCheckpointing(
+            long interval, org.apache.flink.streaming.api.CheckpointingMode mode) {
+        throw new UnsupportedOperationException(
+                "This is a dummy StreamExecutionEnvironment, enableCheckpointing method is unsupported.");
+    }
+
+    @Override
     public StreamExecutionEnvironment enableCheckpointing(long interval, CheckpointingMode mode) {
         throw new UnsupportedOperationException(
                 "This is a dummy StreamExecutionEnvironment, enableCheckpointing method is unsupported.");
@@ -159,7 +166,7 @@ public class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment 
 
     @Override
     public StreamExecutionEnvironment enableCheckpointing(
-            long interval, CheckpointingMode mode, boolean force) {
+            long interval, org.apache.flink.streaming.api.CheckpointingMode mode, boolean force) {
         throw new UnsupportedOperationException(
                 "This is a dummy StreamExecutionEnvironment, enableCheckpointing method is unsupported.");
     }
@@ -181,8 +188,13 @@ public class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment 
     }
 
     @Override
-    public CheckpointingMode getCheckpointingMode() {
+    public org.apache.flink.streaming.api.CheckpointingMode getCheckpointingMode() {
         return realExecEnv.getCheckpointingMode();
+    }
+
+    @Override
+    public CheckpointingMode getCheckpointingConsistencyMode() {
+        return realExecEnv.getCheckpointingConsistencyMode();
     }
 
     @Override

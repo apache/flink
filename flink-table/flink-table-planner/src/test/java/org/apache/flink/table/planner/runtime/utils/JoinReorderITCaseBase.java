@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.runtime.utils;
 
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
@@ -30,10 +31,11 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -49,9 +51,17 @@ import java.util.Map;
  * org.apache.calcite.rel.rules.LoptOptimizeJoinRule} together by changing the factor
  * isBushyJoinReorder.
  */
-public abstract class JoinReorderITCaseBase extends TestLogger {
+public abstract class JoinReorderITCaseBase {
 
     private static final int DEFAULT_PARALLELISM = 4;
+
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
+                            .build());
 
     protected TableEnvironment tEnv;
     private Catalog catalog;

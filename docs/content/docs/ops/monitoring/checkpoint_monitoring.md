@@ -35,7 +35,7 @@ Flink's web interface provides a tab to monitor the checkpoints of jobs. These s
 
 ### Overview Tab
 
-The overview tabs lists the following statistics. Note that these statistics don't survive a JobManager loss and are reset to if your JobManager fails over.
+The overview tabs lists the following statistics. Note that these statistics don't survive a JobManager loss and are reset if your JobManager fails over.
 
 - **Checkpoint Counts**
 	- Triggered: The total number of checkpoints that have been triggered since the job started.
@@ -93,7 +93,7 @@ The summary computes a simple min/average/maximum statistics over all completed 
 
 {{< img src="/fig/checkpoint_monitoring-summary.png" width="700px" alt="Checkpoint Monitoring: Summary" >}}
 
-Note that these statistics don't survive a JobManager loss and are reset to if your JobManager fails over.
+Note that these statistics don't survive a JobManager loss and are reset if your JobManager fails over.
 
 ### Configuration Tab
 

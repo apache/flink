@@ -20,15 +20,15 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.util.TestUtils;
 
@@ -43,7 +43,9 @@ import org.junit.jupiter.api.Test;
 import java.io.File;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.yarn.configuration.YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -66,7 +68,7 @@ class YARNFileReplicationITCase extends YarnTestBase {
     @Test
     void testPerJobModeWithCustomizedFileReplication() throws Exception {
         final Configuration configuration = getDefaultConfiguration();
-        configuration.setInteger(YarnConfigOptions.FILE_REPLICATION, 4);
+        configuration.set(YarnConfigOptions.FILE_REPLICATION, 4);
 
         runTest(() -> deployPerJob(configuration, getTestingJobGraph()));
     }
@@ -81,7 +83,10 @@ class YARNFileReplicationITCase extends YarnTestBase {
                 createYarnClusterDescriptor(configuration)) {
 
             yarnClusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
-            yarnClusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
+            yarnClusterDescriptor.addShipFiles(
+                    Arrays.stream(Objects.requireNonNull(flinkLibFolder.listFiles()))
+                            .map(file -> new Path(file.toURI()))
+                            .collect(Collectors.toList()));
 
             final int masterMemory =
                     yarnClusterDescriptor
@@ -138,7 +143,7 @@ class YARNFileReplicationITCase extends YarnTestBase {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(2);
 
-        env.addSource(new NoDataSource()).shuffle().addSink(new DiscardingSink<>());
+        env.addSource(new NoDataSource()).shuffle().sinkTo(new DiscardingSink<>());
 
         return env.getStreamGraph().getJobGraph();
     }
@@ -147,7 +152,7 @@ class YARNFileReplicationITCase extends YarnTestBase {
         final Configuration configuration = new Configuration();
         configuration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(768));
         configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
-        configuration.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(30));
+        configuration.set(RpcOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(30));
         configuration.set(CLASSPATH_INCLUDE_USER_JAR, YarnConfigOptions.UserJarInclusion.DISABLED);
 
         return configuration;
@@ -169,8 +174,7 @@ class YARNFileReplicationITCase extends YarnTestBase {
 
         FileStatus fsStatus = fs.getFileStatus(uberJarHDFSPath);
 
-        final int flinkFileReplication =
-                configuration.getInteger(YarnConfigOptions.FILE_REPLICATION);
+        final int flinkFileReplication = configuration.get(YarnConfigOptions.FILE_REPLICATION);
         final int replication =
                 YARN_CONFIGURATION.getInt(
                         DFSConfigKeys.DFS_REPLICATION_KEY, DFSConfigKeys.DFS_REPLICATION_DEFAULT);

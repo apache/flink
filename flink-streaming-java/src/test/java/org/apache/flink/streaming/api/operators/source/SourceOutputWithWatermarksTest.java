@@ -27,15 +27,12 @@ import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link SourceOutputWithWatermarks}. */
-public class SourceOutputWithWatermarksTest {
+class SourceOutputWithWatermarksTest {
 
     /**
      * Creates a new SourceOutputWithWatermarks that emits records to the given DataOutput and
@@ -58,7 +55,7 @@ public class SourceOutputWithWatermarksTest {
     }
 
     @Test
-    public void testNoTimestampValue() {
+    void testNoTimestampValue() {
         final CollectingDataOutput<Integer> dataOutput = new CollectingDataOutput<>();
         final SourceOutputWithWatermarks<Integer> out =
                 createWithSameOutputs(
@@ -67,12 +64,13 @@ public class SourceOutputWithWatermarksTest {
         out.collect(17);
 
         final Object event = dataOutput.events.get(0);
-        assertThat(event, instanceOf(StreamRecord.class));
-        assertEquals(TimestampAssigner.NO_TIMESTAMP, ((StreamRecord<?>) event).getTimestamp());
+        assertThat(event).isInstanceOf(StreamRecord.class);
+        assertThat(((StreamRecord<?>) event).getTimestamp())
+                .isEqualTo(TimestampAssigner.NO_TIMESTAMP);
     }
 
     @Test
-    public void eventsAreBeforeWatermarks() {
+    void eventsAreBeforeWatermarks() {
         final CollectingDataOutput<Integer> dataOutput = new CollectingDataOutput<>();
         final SourceOutputWithWatermarks<Integer> out =
                 createWithSameOutputs(
@@ -82,11 +80,10 @@ public class SourceOutputWithWatermarksTest {
 
         out.collect(42, 12345L);
 
-        assertThat(
-                dataOutput.events,
-                contains(
+        assertThat(dataOutput.events)
+                .contains(
                         new StreamRecord<>(42, 12345L),
-                        new org.apache.flink.streaming.api.watermark.Watermark(12345L)));
+                        new org.apache.flink.streaming.api.watermark.Watermark(12345L));
     }
 
     // ------------------------------------------------------------------------

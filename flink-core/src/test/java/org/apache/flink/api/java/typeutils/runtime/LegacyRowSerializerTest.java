@@ -17,7 +17,7 @@
  */
 package org.apache.flink.api.java.typeutils.runtime;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.SerializerTestInstance;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -47,7 +47,8 @@ class LegacyRowSerializerTest {
         row2.setField(0, 2);
         row2.setField(1, null);
 
-        TypeSerializer<Row> serializer = typeInfo.createLegacySerializer(new ExecutionConfig());
+        TypeSerializer<Row> serializer =
+                typeInfo.createLegacySerializer(new SerializerConfigImpl());
         RowSerializerTestInstance instance = new RowSerializerTestInstance(serializer, row1, row2);
         instance.testAll();
     }
@@ -84,7 +85,8 @@ class LegacyRowSerializerTest {
         row.setField(11, null);
         row.setField(12, "Test");
 
-        TypeSerializer<Row> serializer = typeInfo.createLegacySerializer(new ExecutionConfig());
+        TypeSerializer<Row> serializer =
+                typeInfo.createLegacySerializer(new SerializerConfigImpl());
         RowSerializerTestInstance testInstance = new RowSerializerTestInstance(serializer, row);
         testInstance.testAll();
     }
@@ -127,7 +129,8 @@ class LegacyRowSerializerTest {
                     createRow(1, 1.0, "b", new Tuple3<>(2, true, (short) 3), testPojo3)
                 };
 
-        TypeSerializer<Row> serializer = typeInfo.createLegacySerializer(new ExecutionConfig());
+        TypeSerializer<Row> serializer =
+                typeInfo.createLegacySerializer(new SerializerConfigImpl());
         RowSerializerTestInstance testInstance = new RowSerializerTestInstance(serializer, data);
         testInstance.testAll();
     }

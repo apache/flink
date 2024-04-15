@@ -20,19 +20,18 @@ package org.apache.flink.runtime.rest.messages.job.metrics;
 
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Collections;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.not;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link MetricCollectionResponseBody}. */
-public class MetricCollectionResponseBodyTest
+@ExtendWith(NoOpTestExtension.class)
+class MetricCollectionResponseBodyTest
         extends RestResponseMarshallingTestBase<MetricCollectionResponseBody> {
 
     private static final String TEST_METRIC_NAME = "metric1";
@@ -54,22 +53,22 @@ public class MetricCollectionResponseBodyTest
     protected void assertOriginalEqualsToUnmarshalled(
             MetricCollectionResponseBody expected, MetricCollectionResponseBody actual) {
 
-        assertThat(actual.getMetrics(), hasSize(1));
+        assertThat(actual.getMetrics()).hasSize(1);
 
         final Metric metric = actual.getMetrics().iterator().next();
-        assertThat(metric.getId(), equalTo(TEST_METRIC_NAME));
-        assertThat(metric.getValue(), equalTo(TEST_METRIC_VALUE));
+        assertThat(metric.getId()).isEqualTo(TEST_METRIC_NAME);
+        assertThat(metric.getValue()).isEqualTo(TEST_METRIC_VALUE);
     }
 
     @Test
-    public void testNullValueNotSerialized() throws Exception {
+    void testNullValueNotSerialized() throws Exception {
         final String json =
                 RestMapperUtils.getStrictObjectMapper()
                         .writeValueAsString(
                                 new MetricCollectionResponseBody(
                                         Collections.singleton(new Metric(TEST_METRIC_NAME))));
 
-        assertThat(json, not(containsString("\"value\"")));
-        assertThat(json, not(containsString("\"metrics\"")));
+        assertThat(json).doesNotContain("\"value\"");
+        assertThat(json).doesNotContain("\"metrics\"");
     }
 }

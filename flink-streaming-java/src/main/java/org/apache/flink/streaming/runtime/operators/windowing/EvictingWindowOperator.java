@@ -43,6 +43,7 @@ import org.apache.flink.shaded.guava31.com.google.common.collect.FluentIterable;
 import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
 
 import java.util.Collection;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -407,10 +408,10 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
         // work around to fix FLINK-4369, remove the evicted elements from the windowState.
         // this is inefficient, but there is no other way to remove elements from ListState, which
         // is an AppendingState.
-        windowState.clear();
-        for (TimestampedValue<IN> record : recordsWithTimestamp) {
-            windowState.add(record.getStreamRecord());
-        }
+        windowState.update(
+                recordsWithTimestamp.stream()
+                        .map(TimestampedValue::getStreamRecord)
+                        .collect(Collectors.toList()));
     }
 
     private void clearAllState(

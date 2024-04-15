@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.StringUtils;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Abstract class for catalogs. */
+@Internal
 public abstract class AbstractCatalog implements Catalog {
     private final String catalogName;
     private final String defaultDatabase;

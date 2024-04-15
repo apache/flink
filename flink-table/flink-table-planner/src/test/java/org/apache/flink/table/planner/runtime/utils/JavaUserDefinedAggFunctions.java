@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.runtime.utils;
 
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
@@ -96,7 +95,10 @@ public class JavaUserDefinedAggFunctions {
         }
 
         // overloaded accumulate method
-        public void accumulate(WeightedAvgAccum accumulator, long iValue, int iWeight) {
+        public void accumulate(
+                WeightedAvgAccum accumulator,
+                @DataTypeHint("BIGINT") long iValue,
+                @DataTypeHint("INT") int iWeight) {
             accumulator.sum += iValue * iWeight;
             accumulator.count += iWeight;
         }
@@ -198,7 +200,7 @@ public class JavaUserDefinedAggFunctions {
         @Override
         public CountDistinctAccum createAccumulator() {
             CountDistinctAccum accum = new CountDistinctAccum();
-            accum.map = new MapView<>(Types.STRING, Types.INT);
+            accum.map = new MapView<>();
             accum.count = 0L;
             return accum;
         }

@@ -77,6 +77,9 @@ env.from("MyTable").select(call("SubstringFunction", $("myField"), 5, 12));
 // call registered function in SQL
 env.sqlQuery("SELECT SubstringFunction(myField, 5, 12) FROM MyTable");
 
+// call registered function in SQL using named parameters
+env.sqlQuery("SELECT SubstringFunction(param1 => myField, param2 => 5, param3 => 12) FROM MyTable");
+
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -226,6 +229,20 @@ env.from("MyTable").select(call(classOf[MyConcatFunction], $"a", $"b", $"c"));
 ```
 {{< /tab >}}
 {{< /tabs >}}
+
+{{< hint info >}}
+`TableEnvironment` provides two overload methods to create temporary system function with an `UserDefinedFunction`:
+
+- *createTemporarySystemFunction(
+  String name, Class<? extends UserDefinedFunction> functionClass)*
+- *createTemporarySystemFunction(String name, UserDefinedFunction functionInstance)*
+
+It is recommended to use `functionClass` over `functionInstance` as far as user-defined functions provide no args constructor, 
+because Flink as the framework underneath can add more logic to control the process of creating new instance.
+Current built-in standard logic in `TableEnvironmentImpl` will validate the class and methods in the class 
+based on different subclass types of `UserDefinedFunction`, e.g. `ScalaFunction`, `TableFunction`. 
+More logic or optimization could be added in the framework in the future with no need to change any users' existing code. 
+{{< /hint >}}
 
 {{< top >}}
 
@@ -595,6 +612,140 @@ public static class LiteralFunction extends ScalarFunction {
 
 For more examples of custom type inference, see also the `flink-examples-table` module with
 {{< gh_link file="/flink-examples/flink-examples-table/src/main/java/org/apache/flink/table/examples/java/functions/AdvancedFunctionsExample.java" name="advanced function implementation" >}}.
+
+### Named Parameters
+
+When calling a function, you can use parameter names to specify the values of the parameters. Named parameters allow passing both the parameter name and value to a function, avoiding confusion caused by incorrect parameter order and improving code readability and maintainability. In addition, named parameters can also omit optional parameters, which are filled with `null` by default.
+We can use the `@ArgumentHint` annotation to specify the name, type, and whether a parameter is required or not.
+
+**`@ArgumentHint`**
+
+The following 3 examples demonstrate how to use `@ArgumentHint` in different scopes. More information can be found in the documentation of the annotation class.
+
+1. Using `@ArgumentHint` annotation on the parameters of the `eval` method of the function.
+
+{{< tabs "20405d05-739c-4038-a885-3bde5f7998e8" >}}
+{{< tab "Java" >}}
+```java
+import com.sun.tracing.dtrace.ArgsAttributes;
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.functions.ScalarFunction;
+
+public static class NamedParameterClass extends ScalarFunction {
+
+    // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
+    public String eval(@ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")) String s1,
+                       @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INT")) Integer s2) {
+        return s1 + ", " + s2;
+    }
+}
+
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.functions.ScalarFunction;
+
+class NamedParameterClass extends ScalarFunction {
+
+  // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
+  def eval(@ArgumentHint(name = "param1", isOptional = false, `type` = @DataTypeHint("STRING")) s1: String,
+          @ArgumentHint(name = "param2", isOptional = true, `type` = @DataTypeHint("INTEGER")) s2: Integer) = {
+    s1 + ", " + s2
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+2. Using `@ArgumentHint` annotation on the `eval` method of the function.
+
+{{< tabs "dbecd8a8-6285-4bc8-94e0-e79f6ca7f7c3" >}}
+{{< tab "Java" >}}
+```java
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.functions.ScalarFunction;
+
+public static class NamedParameterClass extends ScalarFunction {
+    
+  // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
+  @FunctionHint(
+          argument = {@ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")),
+                  @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INTEGER"))}
+  )
+  public String eval(String s1, Integer s2) {
+    return s1 + ", " + s2;
+  }
+}
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.functions.ScalarFunction;
+
+class NamedParameterClass extends ScalarFunction {
+
+  // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
+  @FunctionHint(
+    argument = Array(new ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")),
+                  new ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER")))
+  )
+  def eval(s1: String, s2: Int): String = {
+    s1 + ", " + s2
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+3. Using `@ArgumentHint` annotation on the class of the function.
+
+{{< tabs "924dd007-3827-44ce-83c6-017dea78b9c4" >}}
+{{< tab "Java" >}}
+```java
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.functions.ScalarFunction;
+
+// Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
+@FunctionHint(
+        argument = {@ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")),
+                @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INTEGER"))}
+)
+public static class NamedParameterClass extends ScalarFunction {
+    
+  public String eval(String s1, Integer s2) {
+    return s1 + ", " + s2;
+  }
+}
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.functions.ScalarFunction;
+
+// Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
+@FunctionHint(
+  argument = Array(new ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")),
+    new ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER")))
+)
+class NamedParameterClass extends ScalarFunction {
+
+  def eval(s1: String, s2: Int): String = {
+    s1 + ", " + s2
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+
+{{< hint info >}}
+* `@ArgumentHint` annotation already contains `@DataTypeHint` annotation, so it cannot be used together with `@DataTypeHint` in `@FunctionHint`. When applied to function parameters, `@ArgumentHint` cannot be used with `@DataTypeHint` at the same time, and it is recommended to use `@ArgumentHint`.
+* Named parameters only take effect when the corresponding class does not contain overloaded functions and variable parameter functions, otherwise using named parameters will cause an error.
+{{< /hint >}}
 
 ### Determinism
 
@@ -1764,9 +1915,9 @@ def emitUpdateWithRetract(accumulator: ACC, out: RetractableCollector[T]): Unit
 The following example shows how to use the `emitUpdateWithRetract(...)` method to emit only incremental
 updates. In order to do so, the accumulator keeps both the old and new top 2 values.
 
-If the N of Top N is big, it might be inefficient to keep both the old and new values. One way to
-solve this case is to store only the input record in the accumulator in `accumulate` method and then perform
-a calculation in `emitUpdateWithRetract`.
+{{< hint info >}}
+Note: Do not update accumulator within `emitUpdateWithRetract` because after `function#emitUpdateWithRetract` is invoked, `GroupTableAggFunction` will not re-invoke `function#getAccumulators` to update the latest accumulator to state.
+{{< /hint >}}
 
 {{< tabs "043e94c6-05b5-4800-9e5f-7d11235f3a11" >}}
 {{< tab "Java" >}}
@@ -1795,6 +1946,8 @@ public static class Top2WithRetract
   }
 
   public void accumulate(Top2WithRetractAccumulator acc, Integer v) {
+    acc.oldFirst = acc.first;
+    acc.oldSecond = acc.second;
     if (v > acc.first) {
       acc.second = acc.first;
       acc.first = v;
@@ -1812,7 +1965,6 @@ public static class Top2WithRetract
           out.retract(Tuple2.of(acc.oldFirst, 1));
       }
       out.collect(Tuple2.of(acc.first, 1));
-      acc.oldFirst = acc.first;
     }
     if (!acc.second.equals(acc.oldSecond)) {
       // if there is an update, retract the old value then emit a new value
@@ -1820,7 +1972,6 @@ public static class Top2WithRetract
           out.retract(Tuple2.of(acc.oldSecond, 2));
       }
       out.collect(Tuple2.of(acc.second, 2));
-      acc.oldSecond = acc.second;
     }
   }
 }
@@ -1852,6 +2003,8 @@ class Top2WithRetract
   }
 
   def accumulate(acc: Top2WithRetractAccumulator, value: Integer): Unit = {
+    acc.oldFirst = acc.first
+    acc.oldSecond = acc.second
     if (value > acc.first) {
       acc.second = acc.first
       acc.first = value
@@ -1870,7 +2023,6 @@ class Top2WithRetract
           out.retract(Tuple2.of(acc.oldFirst, 1))
       }
       out.collect(Tuple2.of(acc.first, 1))
-      acc.oldFirst = acc.first
     }
     if (!acc.second.equals(acc.oldSecond)) {
       // if there is an update, retract the old value then emit a new value
@@ -1878,7 +2030,6 @@ class Top2WithRetract
           out.retract(Tuple2.of(acc.oldSecond, 2))
       }
       out.collect(Tuple2.of(acc.second, 2))
-      acc.oldSecond = acc.second
     }
   }
 }

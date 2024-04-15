@@ -53,6 +53,9 @@ public class HsSubpartitionConsumerMemoryDataManager implements HsDataView {
 
     private final HsMemoryDataManagerOperation memoryDataManagerOperation;
 
+    @GuardedBy("consumerLock")
+    private int backlog = 0;
+
     public HsSubpartitionConsumerMemoryDataManager(
             Lock resultPartitionLock,
             Lock consumerLock,
@@ -69,12 +72,16 @@ public class HsSubpartitionConsumerMemoryDataManager implements HsDataView {
     @GuardedBy("consumerLock")
     // this method only called from subpartitionMemoryDataManager with write lock.
     public void addInitialBuffers(Deque<HsBufferContext> buffers) {
+        for (HsBufferContext bufferContext : buffers) {
+            tryIncreaseBacklog(bufferContext.getBuffer());
+        }
         unConsumedBuffers.addAll(buffers);
     }
 
     @GuardedBy("consumerLock")
     // this method only called from subpartitionMemoryDataManager with write lock.
     public boolean addBuffer(HsBufferContext bufferContext) {
+        tryIncreaseBacklog(bufferContext.getBuffer());
         unConsumedBuffers.add(bufferContext);
         trimHeadingReleasedBuffers();
         return unConsumedBuffers.size() <= 1;
@@ -104,6 +111,7 @@ public class HsSubpartitionConsumerMemoryDataManager implements HsDataView {
 
                             HsBufferContext bufferContext =
                                     checkNotNull(unConsumedBuffers.pollFirst());
+                            tryDecreaseBacklog(bufferContext.getBuffer());
                             bufferContext.consumed(consumerId);
                             Buffer.DataType nextDataType =
                                     peekNextToConsumeDataTypeInternal(toConsumeIndex + 1);
@@ -157,12 +165,12 @@ public class HsSubpartitionConsumerMemoryDataManager implements HsDataView {
     }
 
     @SuppressWarnings("FieldAccessNotGuarded")
-    // Un-synchronized get unConsumedBuffers size to provide memory data backlog,this will make the
+    // Un-synchronized get the backlog to provide memory data backlog, this will make the
     // result greater than or equal to the actual backlog, but obtaining an accurate backlog will
     // bring too much extra overhead.
     @Override
     public int getBacklog() {
-        return unConsumedBuffers.size();
+        return backlog;
     }
 
     @Override
@@ -173,7 +181,21 @@ public class HsSubpartitionConsumerMemoryDataManager implements HsDataView {
     @GuardedBy("consumerLock")
     private void trimHeadingReleasedBuffers() {
         while (!unConsumedBuffers.isEmpty() && unConsumedBuffers.peekFirst().isReleased()) {
-            unConsumedBuffers.removeFirst();
+            tryDecreaseBacklog(unConsumedBuffers.removeFirst().getBuffer());
+        }
+    }
+
+    @GuardedBy("consumerLock")
+    private void tryIncreaseBacklog(Buffer buffer) {
+        if (buffer.isBuffer()) {
+            ++backlog;
+        }
+    }
+
+    @GuardedBy("consumerLock")
+    private void tryDecreaseBacklog(Buffer buffer) {
+        if (buffer.isBuffer()) {
+            --backlog;
         }
     }
 

@@ -248,7 +248,24 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
     @Nonnull
     @Override
     public String readUTF() throws IOException {
-        int utflen = readUnsignedShort();
+        return readString(readUnsignedShort());
+    }
+
+    /**
+     * Similar to {@link #readUTF()}. The size is stored in the manner of the {@link #readInt()}
+     * method, the character conversion is the same.
+     *
+     * @return a Unicode string.
+     * @throws EOFException – if this stream reaches the end before reading all the bytes.
+     * @throws IOException – if an I/O error occurs.
+     * @throws UTFDataFormatException – if the bytes do not represent a valid modified UTF-8
+     *     encoding of a string.
+     */
+    public String readLongUTF() throws IOException {
+        return readString(readInt());
+    }
+
+    private String readString(int utflen) throws IOException {
         byte[] bytearr = new byte[utflen];
         char[] chararr = new char[utflen];
 

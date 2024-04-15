@@ -55,11 +55,11 @@ class KubernetesEntrypointUtils {
                 GlobalConfiguration.loadConfiguration(configDir, dynamicParameters);
 
         if (KubernetesUtils.isHostNetwork(configuration)) {
-            configuration.setString(RestOptions.BIND_PORT, "0");
-            configuration.setInteger(JobManagerOptions.PORT, 0);
-            configuration.setString(BlobServerOptions.PORT, "0");
-            configuration.setString(HighAvailabilityOptions.HA_JOB_MANAGER_PORT_RANGE, "0");
-            configuration.setString(TaskManagerOptions.RPC_PORT, "0");
+            configuration.set(RestOptions.BIND_PORT, "0");
+            configuration.set(JobManagerOptions.PORT, 0);
+            configuration.set(BlobServerOptions.PORT, "0");
+            configuration.set(HighAvailabilityOptions.HA_JOB_MANAGER_PORT_RANGE, "0");
+            configuration.set(TaskManagerOptions.RPC_PORT, "0");
         }
 
         if (HighAvailabilityMode.isHighAvailabilityModeActivated(configuration)) {
@@ -68,8 +68,8 @@ class KubernetesEntrypointUtils {
                     ipAddress != null,
                     "JobManager ip address environment variable %s not set",
                     Constants.ENV_FLINK_POD_IP_ADDRESS);
-            configuration.setString(JobManagerOptions.ADDRESS, ipAddress);
-            configuration.setString(RestOptions.ADDRESS, ipAddress);
+            configuration.set(JobManagerOptions.ADDRESS, ipAddress);
+            configuration.set(RestOptions.ADDRESS, ipAddress);
         }
 
         return configuration;

@@ -20,36 +20,31 @@ package org.apache.flink.runtime.rest.messages.job.metrics;
 
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link JobVertexMetricsHeaders}. */
-public class JobVertexMetricsHeadersTest extends TestLogger {
+class JobVertexMetricsHeadersTest {
 
     private final JobVertexMetricsHeaders jobVertexMetricsHeaders =
             JobVertexMetricsHeaders.getInstance();
 
     @Test
-    public void testUrl() {
-        assertThat(
-                jobVertexMetricsHeaders.getTargetRestEndpointURL(),
-                equalTo(
+    void testUrl() {
+        assertThat(jobVertexMetricsHeaders.getTargetRestEndpointURL())
+                .isEqualTo(
                         "/jobs/:"
                                 + JobIDPathParameter.KEY
                                 + "/vertices/:"
                                 + JobVertexIdPathParameter.KEY
-                                + "/metrics"));
+                                + "/metrics");
     }
 
     @Test
-    public void testMessageParameters() {
-        assertThat(
-                jobVertexMetricsHeaders.getUnresolvedMessageParameters(),
-                instanceOf(JobVertexMetricsMessageParameters.class));
+    void testMessageParameters() {
+        assertThat(jobVertexMetricsHeaders.getUnresolvedMessageParameters())
+                .isInstanceOf(JobVertexMetricsMessageParameters.class);
     }
 }

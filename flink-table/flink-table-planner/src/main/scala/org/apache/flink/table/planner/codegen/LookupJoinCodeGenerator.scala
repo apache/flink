@@ -39,7 +39,7 @@ import org.apache.flink.table.planner.plan.utils.RexLiteralUtil
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.collector.{ListenableCollector, TableFunctionResultFuture}
 import org.apache.flink.table.runtime.collector.ListenableCollector.CollectListener
-import org.apache.flink.table.runtime.generated.{GeneratedCollector, GeneratedFunction, GeneratedResultFuture}
+import org.apache.flink.table.runtime.generated.{GeneratedCollector, GeneratedFilterCondition, GeneratedFunction, GeneratedResultFuture}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.extraction.ExtractionUtils.extractSimpleGeneric
 import org.apache.flink.table.types.inference.{TypeInference, TypeStrategies, TypeTransformations}
@@ -308,7 +308,7 @@ object LookupJoinCodeGenerator {
     val rightResultExpr =
       exprGenerator.generateConverterResultExpression(rightRowType, classOf[GenericRowData])
 
-    val joinedRowTerm = CodeGenUtils.newName("joinedRow")
+    val joinedRowTerm = CodeGenUtils.newName(ctx, "joinedRow")
     ctx.addReusableOutputRecord(resultRowType, classOf[JoinedRowData], joinedRowTerm)
 
     val header = if (retainHeader) {
@@ -366,7 +366,7 @@ object LookupJoinCodeGenerator {
       collectedTerm: String = DEFAULT_INPUT2_TERM)
       : GeneratedCollector[ListenableCollector[RowData]] = {
 
-    val funcName = newName(name)
+    val funcName = newName(ctx, name)
     val input1TypeClass = boxedTypeTermForType(inputType)
     val input2TypeClass = boxedTypeTermForType(collectedType)
 
@@ -440,14 +440,13 @@ object LookupJoinCodeGenerator {
       collectedType: RowType,
       condition: Option[RexNode]): GeneratedResultFuture[TableFunctionResultFuture[RowData]] = {
 
-    val funcName = newName(name)
+    val ctx = new CodeGeneratorContext(tableConfig, classLoader)
+    val funcName = newName(ctx, name)
     val input1TypeClass = boxedTypeTermForType(leftInputType)
     val input2TypeClass = boxedTypeTermForType(collectedType)
     val input1Term = DEFAULT_INPUT1_TERM
     val input2Term = DEFAULT_INPUT2_TERM
     val outTerm = "resultCollection"
-
-    val ctx = new CodeGeneratorContext(tableConfig, classLoader)
 
     val body = if (condition.isEmpty) {
       "getResultFuture().complete(records);"
@@ -532,5 +531,32 @@ object LookupJoinCodeGenerator {
       tableConfig,
       classLoader
     )
+  }
+
+  /**
+   * Generates pre-filter condition for lookup join which can be applied before access the dimension
+   * table.
+   */
+  def generatePreFilterCondition(
+      tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
+      preFilterCondition: RexNode,
+      leftType: LogicalType): GeneratedFilterCondition = {
+    val ctx = new CodeGeneratorContext(tableConfig, classLoader)
+    // should consider null fields
+    val exprGenerator =
+      new ExprCodeGenerator(ctx, false).bindInput(leftType, CodeGenUtils.DEFAULT_INPUT_TERM)
+
+    val bodyCode = if (preFilterCondition == null) {
+      "return true;"
+    } else {
+      val condition = exprGenerator.generateExpression(preFilterCondition)
+      s"""
+         |${condition.code}
+         |return ${condition.resultTerm};
+         |""".stripMargin
+    }
+
+    FunctionCodeGenerator.generateFilterCondition(ctx, "PreFilterCondition", bodyCode)
   }
 }

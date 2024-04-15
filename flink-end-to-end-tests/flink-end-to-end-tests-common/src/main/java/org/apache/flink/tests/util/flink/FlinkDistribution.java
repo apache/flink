@@ -20,6 +20,7 @@ package org.apache.flink.tests.util.flink;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.test.util.FileUtils;
@@ -417,12 +418,9 @@ public final class FlinkDistribution {
         mergedConfig.addAll(defaultConfig);
         mergedConfig.addAll(config);
 
-        final List<String> configurationLines =
-                mergedConfig.toMap().entrySet().stream()
-                        .map(entry -> entry.getKey() + ": " + entry.getValue())
-                        .collect(Collectors.toList());
-
-        Files.write(conf.resolve("flink-conf.yaml"), configurationLines);
+        Files.write(
+                conf.resolve(GlobalConfiguration.FLINK_CONF_FILENAME),
+                ConfigurationUtils.convertConfigToWritableLines(mergedConfig, false));
     }
 
     public void setTaskExecutorHosts(Collection<String> taskExecutorHosts) throws IOException {

@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.runtime.operators.aggregate;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
@@ -51,6 +51,8 @@ public class GroupTableAggFunction extends KeyedProcessFunction<RowData, RowData
     /** Whether this operator will generate UPDATE_BEFORE messages. */
     private final boolean generateUpdateBefore;
 
+    private final boolean incrementalUpdate;
+
     /** State idle retention time which unit is MILLISECONDS. */
     private final long stateRetentionTime;
 
@@ -69,6 +71,7 @@ public class GroupTableAggFunction extends KeyedProcessFunction<RowData, RowData
      *     contain COUNT(*), i.e. doesn't contain retraction messages. We make sure there is a
      *     COUNT(*) if input stream contains retraction.
      * @param generateUpdateBefore Whether this operator will generate UPDATE_BEFORE messages.
+     * @param incrementalUpdate Whether to update acc result incrementally.
      * @param stateRetentionTime state idle retention time which unit is MILLISECONDS.
      */
     public GroupTableAggFunction(
@@ -76,17 +79,19 @@ public class GroupTableAggFunction extends KeyedProcessFunction<RowData, RowData
             LogicalType[] accTypes,
             int indexOfCountStar,
             boolean generateUpdateBefore,
+            boolean incrementalUpdate,
             long stateRetentionTime) {
         this.genAggsHandler = genAggsHandler;
         this.accTypes = accTypes;
         this.recordCounter = RecordCounter.of(indexOfCountStar);
         this.generateUpdateBefore = generateUpdateBefore;
+        this.incrementalUpdate = incrementalUpdate;
         this.stateRetentionTime = stateRetentionTime;
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         // instantiate function
         StateTtlConfig ttlConfig = createTtlConfig(stateRetentionTime);
         function = genAggsHandler.newInstance(getRuntimeContext().getUserCodeClassLoader());
@@ -117,7 +122,9 @@ public class GroupTableAggFunction extends KeyedProcessFunction<RowData, RowData
         // set accumulators to handler first
         function.setAccumulators(accumulators);
 
-        if (!firstRow && generateUpdateBefore) {
+        // when incrementalUpdate is required, there is no need to retract
+        // previous sent data which is not changed
+        if (!firstRow && !incrementalUpdate && generateUpdateBefore) {
             function.emitValue(out, currentKey, true);
         }
 

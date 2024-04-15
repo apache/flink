@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
-import org.apache.flink.table.runtime.operators.window.slicing.SliceUnsharedAssigner;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceUnsharedAssigner;
 
 import java.time.ZoneId;
 
@@ -30,7 +30,7 @@ import java.time.ZoneId;
  * An window aggregate processor implementation which works for {@link SliceUnsharedAssigner}, e.g.
  * tumbling windows.
  */
-public final class SliceUnsharedWindowAggProcessor extends AbstractWindowAggProcessor {
+public final class SliceUnsharedWindowAggProcessor extends AbstractSliceWindowAggProcessor {
     private static final long serialVersionUID = 1L;
 
     public SliceUnsharedWindowAggProcessor(
@@ -38,17 +38,28 @@ public final class SliceUnsharedWindowAggProcessor extends AbstractWindowAggProc
             WindowBuffer.Factory windowBufferFactory,
             SliceUnsharedAssigner sliceAssigner,
             TypeSerializer<RowData> accSerializer,
+            int indexOfCountStar,
             ZoneId shiftTimeZone) {
-        super(genAggsHandler, windowBufferFactory, sliceAssigner, accSerializer, shiftTimeZone);
+        super(
+                genAggsHandler,
+                windowBufferFactory,
+                sliceAssigner,
+                accSerializer,
+                indexOfCountStar,
+                shiftTimeZone);
     }
 
     @Override
-    public void fireWindow(Long windowEnd) throws Exception {
+    public void fireWindow(long timerTimestamp, Long windowEnd) throws Exception {
         RowData acc = windowState.value(windowEnd);
         if (acc == null) {
             acc = aggregator.createAccumulators();
         }
         aggregator.setAccumulators(windowEnd, acc);
+        // the triggered window is an empty window, we shouldn't emit it
+        if (emptySupplier.get()) {
+            return;
+        }
         RowData aggResult = aggregator.getValue(windowEnd);
         collect(aggResult);
     }

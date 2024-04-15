@@ -20,13 +20,13 @@ package org.apache.flink.connector.base.source.reader;
 
 import org.apache.flink.api.common.accumulators.ListAccumulator;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.mocks.MockBaseSource;
 import org.apache.flink.connector.base.source.reader.mocks.MockSplitEnumerator;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -104,7 +104,7 @@ public class CoordinatedSourceITCase extends AbstractTestBase {
         stream.addSink(
                 new RichSinkFunction<Integer>() {
                     @Override
-                    public void open(Configuration parameters) throws Exception {
+                    public void open(OpenContext openContext) throws Exception {
                         getRuntimeContext()
                                 .addAccumulator("result", new ListAccumulator<Integer>());
                     }

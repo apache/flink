@@ -29,12 +29,9 @@ import org.apache.flink.runtime.leaderelection.LeaderInformationRegister;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
-import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_KEY;
 import static org.apache.flink.kubernetes.utils.Constants.LEADER_ADDRESS_KEY;
 import static org.apache.flink.kubernetes.utils.Constants.LEADER_SESSION_ID_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -255,21 +252,15 @@ class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestB
     }
 
     @Test
-    void testHighAvailabilityLabelsCorrectlySet() throws Exception {
+    void testToStringContainingConfigMap() throws Exception {
         new Context() {
             {
                 runTest(
-                        () -> {
-                            leaderCallbackGrantLeadership();
-
-                            final Map<String, String> leaderLabels =
-                                    getLeaderConfigMap().getLabels();
-                            assertThat(leaderLabels).hasSize(3);
-                            assertThat(leaderLabels)
-                                    .containsEntry(
-                                            LABEL_CONFIGMAP_TYPE_KEY,
-                                            LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY);
-                        });
+                        () ->
+                                assertThat(leaderElectionDriver.toString())
+                                        .as(
+                                                "toString() should contain the ConfigMap name for a human-readable representation of the driver instance.")
+                                        .contains(LEADER_CONFIGMAP_NAME));
             }
         };
     }

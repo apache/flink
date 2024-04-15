@@ -50,6 +50,7 @@ import java.util.HashSet;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
+import java.util.stream.StreamSupport;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -127,9 +128,9 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
                 new CachingSupplier<>(
                         () ->
                                 new CheckpointStatsTracker(
-                                        configuration.getInteger(
-                                                WebOptions.CHECKPOINTS_HISTORY_SIZE),
-                                        jobManagerJobMetricGroup));
+                                        configuration.get(WebOptions.CHECKPOINTS_HISTORY_SIZE),
+                                        jobManagerJobMetricGroup,
+                                        jobManagerJobMetricGroup.jobId()));
         this.isDynamicGraph = isDynamicGraph;
         this.executionJobVertexFactory = checkNotNull(executionJobVertexFactory);
         this.nonFinishedHybridPartitionShouldBeUnknown = nonFinishedHybridPartitionShouldBeUnknown;
@@ -159,6 +160,15 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
                     }
                 };
 
+        int totalNumberOfSubTasks =
+                StreamSupport.stream(jobGraph.getVertices().spliterator(), false)
+                        .mapToInt(
+                                jobVertex ->
+                                        vertexParallelismStore
+                                                .getParallelismInfo(jobVertex.getID())
+                                                .getParallelism())
+                        .sum();
+
         final ExecutionGraph newExecutionGraph =
                 DefaultExecutionGraphBuilder.buildGraph(
                         jobGraph,
@@ -180,11 +190,17 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
                         initializationTimestamp,
                         vertexAttemptNumberStore,
                         vertexParallelismStore,
-                        checkpointStatsTrackerFactory,
+                        // We are caching CheckpointStatsTracker, but we also need to update it with
+                        // new parallelism info
+                        () ->
+                                checkpointStatsTrackerFactory
+                                        .get()
+                                        .updateTotalNumberOfSubtasks(totalNumberOfSubTasks),
                         isDynamicGraph,
                         executionJobVertexFactory,
                         markPartitionFinishedStrategy,
-                        nonFinishedHybridPartitionShouldBeUnknown);
+                        nonFinishedHybridPartitionShouldBeUnknown,
+                        jobManagerJobMetricGroup);
 
         final CheckpointCoordinator checkpointCoordinator =
                 newExecutionGraph.getCheckpointCoordinator();

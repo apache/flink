@@ -105,7 +105,9 @@ public class LegacySinkTransformationTranslator<IN>
 
         if (transformation.getStateKeySelector() != null) {
             TypeSerializer<?> keySerializer =
-                    transformation.getStateKeyType().createSerializer(executionConfig);
+                    transformation
+                            .getStateKeyType()
+                            .createSerializer(executionConfig.getSerializerConfig());
             streamGraph.setOneInputStateKey(
                     transformationId, transformation.getStateKeySelector(), keySerializer);
         }

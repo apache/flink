@@ -19,29 +19,27 @@ package org.apache.flink.streaming.runtime.partitioner;
 
 import org.apache.flink.api.java.tuple.Tuple;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link RebalancePartitioner}. */
-public class RebalancePartitionerTest extends StreamPartitionerTest {
+class RebalancePartitionerTest extends StreamPartitionerTest {
 
     @Override
-    public StreamPartitioner<Tuple> createPartitioner() {
+    StreamPartitioner<Tuple> createPartitioner() {
         StreamPartitioner<Tuple> partitioner = new RebalancePartitioner<>();
-        assertFalse(partitioner.isBroadcast());
+        assertThat(partitioner.isBroadcast()).isFalse();
         return partitioner;
     }
 
     @Test
-    public void testSelectChannelsInterval() {
+    void testSelectChannelsInterval() {
         final int numberOfChannels = 3;
         streamPartitioner.setup(numberOfChannels);
 
         int initialChannel = streamPartitioner.selectChannel(serializationDelegate);
-        assertTrue(0 <= initialChannel);
-        assertTrue(numberOfChannels > initialChannel);
+        assertThat(initialChannel).isGreaterThanOrEqualTo(0).isLessThan(numberOfChannels);
 
         for (int i = 1; i <= 3; i++) {
             assertSelectedChannel((initialChannel + i) % numberOfChannels);

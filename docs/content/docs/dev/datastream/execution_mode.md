@@ -352,7 +352,6 @@ Unsupported in BATCH mode:
 
 * [Checkpointing]({{< ref "docs/concepts/stateful-stream-processing" >}}#checkpointing) 
   and any operations that depend on checkpointing do not work.
-* [Iterations]({{< ref "docs/dev/datastream/operators/overview" >}}#iterate)
 
 Custom operators should be implemented with care, otherwise they might behave
 improperly. See also additional explanations below for more details.

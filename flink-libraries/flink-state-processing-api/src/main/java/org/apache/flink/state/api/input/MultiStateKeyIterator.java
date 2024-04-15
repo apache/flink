@@ -31,6 +31,8 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.stream.Stream;
 
 /**
  * An iterator for reading all keys in a state backend across multiple partitioned states.
@@ -46,7 +48,10 @@ public final class MultiStateKeyIterator<K> implements CloseableIterator<K> {
 
     private final KeyedStateBackend<K> backend;
 
-    private final Iterator<K> internal;
+    /** Avoids using Stream#flatMap due to a known flaw, see FLINK-26585 for more details. */
+    private final Iterator<? extends StateDescriptor<?, ?>> outerIter;
+
+    private Iterator<K> innerIter;
 
     private final CloseableRegistry registry;
 
@@ -54,39 +59,43 @@ public final class MultiStateKeyIterator<K> implements CloseableIterator<K> {
 
     public MultiStateKeyIterator(
             List<? extends StateDescriptor<?, ?>> descriptors, KeyedStateBackend<K> backend) {
+
         this.descriptors = Preconditions.checkNotNull(descriptors);
         this.backend = Preconditions.checkNotNull(backend);
 
+        outerIter = this.descriptors.iterator();
+        innerIter = null;
+
         this.registry = new CloseableRegistry();
-        this.internal =
-                descriptors.stream()
-                        .map(
-                                descriptor ->
-                                        backend.getKeys(
-                                                descriptor.getName(), VoidNamespace.INSTANCE))
-                        .peek(
-                                stream -> {
-                                    try {
-                                        registry.registerCloseable(stream::close);
-                                    } catch (IOException e) {
-                                        throw new RuntimeException(
-                                                "Failed to read keys from configured StateBackend",
-                                                e);
-                                    }
-                                })
-                        .flatMap(stream -> stream)
-                        .iterator();
     }
 
     @Override
     public boolean hasNext() {
-        return internal.hasNext();
+        while (innerIter == null || !innerIter.hasNext()) {
+            if (!outerIter.hasNext()) {
+                return false;
+            }
+
+            StateDescriptor<?, ?> descriptor = outerIter.next();
+            Stream<K> stream = backend.getKeys(descriptor.getName(), VoidNamespace.INSTANCE);
+            innerIter = stream.iterator();
+            try {
+                registry.registerCloseable(stream::close);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to read keys from configured StateBackend", e);
+            }
+        }
+        return true;
     }
 
     @Override
     public K next() {
-        currentKey = internal.next();
-        return currentKey;
+        if (!this.hasNext()) {
+            throw new NoSuchElementException();
+        } else {
+            currentKey = this.innerIter.next();
+            return currentKey;
+        }
     }
 
     /** Removes the current key from <b>ALL</b> known states in the state backend. */

@@ -33,7 +33,7 @@ public class CompressibleFSDataOutputStream extends FSDataOutputStream {
     private final OutputStream compressingDelegate;
 
     public CompressibleFSDataOutputStream(
-            CheckpointStateOutputStream delegate, StreamCompressionDecorator compressionDecorator)
+            FSDataOutputStream delegate, StreamCompressionDecorator compressionDecorator)
             throws IOException {
         this.delegate = delegate;
         this.compressingDelegate = compressionDecorator.decorateWithCompression(delegate);
@@ -41,6 +41,10 @@ public class CompressibleFSDataOutputStream extends FSDataOutputStream {
 
     @Override
     public long getPos() throws IOException {
+        // Underlying compression involves buffering, so the only way to report correct position is
+        // to flush the underlying stream. This lowers the effectivity of compression, but there is
+        // no other way, since the position is often used as a split point.
+        flush();
         return delegate.getPos();
     }
 

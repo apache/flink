@@ -66,16 +66,14 @@ public class MemoryLogger extends Thread {
             Logger logger,
             Configuration configuration,
             CompletableFuture<Void> taskManagerTerminationFuture) {
-        if (!logger.isInfoEnabled()
-                || !configuration.getBoolean(TaskManagerOptions.DEBUG_MEMORY_LOG)) {
+        if (!logger.isInfoEnabled() || !configuration.get(TaskManagerOptions.DEBUG_MEMORY_LOG)) {
             return;
         }
         logger.info("Starting periodic memory usage logger");
 
         new MemoryLogger(
                         logger,
-                        configuration.getLong(
-                                TaskManagerOptions.DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS),
+                        configuration.get(TaskManagerOptions.DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS),
                         taskManagerTerminationFuture)
                 .start();
     }

@@ -24,14 +24,16 @@ import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder
 import org.apache.flink.table.planner.plan.optimize.program.FlinkChangelogModeInferenceProgram
 import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, TableTestBase}
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
+
+import java.time.Duration
 
 /** Tests for [[FlinkChangelogModeInferenceProgram]]. */
 class ChangelogModeInferenceTest extends TableTestBase {
 
   private val util = streamTestUtil()
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     util.addTable("""
                     |CREATE TABLE MyTable (
@@ -152,7 +154,7 @@ class ChangelogModeInferenceTest extends TableTestBase {
   @Test
   def testTwoLevelGroupByLocalGlobalOn(): Unit = {
     util.enableMiniBatch()
-    util.tableEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    util.tableEnv.getConfig.setIdleStateRetention(Duration.ofHours(1))
     util.tableEnv.getConfig.set(
       OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
       AggregatePhaseStrategy.TWO_PHASE.toString)

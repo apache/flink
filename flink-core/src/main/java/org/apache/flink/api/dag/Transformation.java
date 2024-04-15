@@ -19,6 +19,7 @@
 package org.apache.flink.api.dag;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -32,6 +33,7 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -41,7 +43,6 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@code Transformation} represents the operation that creates a DataStream. Every DataStream has
@@ -159,6 +160,13 @@ public abstract class Transformation<T> {
      * will be shared by all the declaring transformations within a slot according to this weight.
      */
     private final Map<ManagedMemoryUseCase, Integer> managedMemoryOperatorScopeUseCaseWeights =
+            new EnumMap<>(ManagedMemoryUseCase.class);
+
+    /**
+     * This map is a cache that stores transitive predecessors and used in {@code
+     * getTransitivePredecessors()}.
+     */
+    private final Map<Transformation<T>, List<Transformation<?>>> predecessorsCache =
             new HashMap<>();
 
     /** Slot scope use cases that this transformation needs managed memory for. */
@@ -230,6 +238,12 @@ public abstract class Transformation<T> {
         return name;
     }
 
+    /** Returns the predecessorsCache of this {@code Transformation}. */
+    @VisibleForTesting
+    Map<Transformation<T>, List<Transformation<?>>> getPredecessorsCache() {
+        return predecessorsCache;
+    }
+
     /** Changes the description of this {@code Transformation}. */
     public void setDescription(String description) {
         this.description = Preconditions.checkNotNull(description);
@@ -292,8 +306,8 @@ public abstract class Transformation<T> {
      */
     public void setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
         OperatorValidationUtils.validateMinAndPreferredResources(minResources, preferredResources);
-        this.minResources = checkNotNull(minResources);
-        this.preferredResources = checkNotNull(preferredResources);
+        this.minResources = minResources;
+        this.preferredResources = preferredResources;
     }
 
     /**
@@ -578,7 +592,19 @@ public abstract class Transformation<T> {
      *
      * @return The list of transitive predecessors.
      */
-    public abstract List<Transformation<?>> getTransitivePredecessors();
+    protected abstract List<Transformation<?>> getTransitivePredecessorsInternal();
+
+    /**
+     * Returns all transitive predecessor {@code Transformation}s of this {@code Transformation}.
+     * This is, for example, used when determining whether a feedback edge of an iteration actually
+     * has the iteration head as a predecessor. This method is just a wrapper on top of {@code
+     * getTransitivePredecessorsInternal} method with public access. It uses caching internally.
+     *
+     * @return The list of transitive predecessors.
+     */
+    public final List<Transformation<?>> getTransitivePredecessors() {
+        return predecessorsCache.computeIfAbsent(this, key -> getTransitivePredecessorsInternal());
+    }
 
     /**
      * Returns the {@link Transformation transformations} that are the immediate predecessors of the

@@ -49,7 +49,7 @@ Apache Flink 对流处理和批处理采取统一的处理方式，这意味着�
 
 ## 配置批执行模式
 
-执行模式可以通过 `execute.runtime-mode` 设置来配置。有三种可选的值：
+执行模式可以通过 `execution.runtime-mode` 设置来配置。有三种可选的值：
 
  - `STREAMING`: 经典 DataStream 执行模式（默认)
  - `BATCH`: 在 DataStream API 上进行批量式执行
@@ -206,7 +206,6 @@ Checkpointing 用于故障恢复的特点之一是，在发生故障时，Flink 
 `批`模式下不支持的:
 
 * [Checkpointing]({{< ref "docs/concepts/stateful-stream-processing" >}}#checkpointing) 和任何依赖于 checkpointing 的操作都不支持。
-* [迭代（Iterations）]({{< ref "docs/dev/datastream/operators/overview" >}}#iterate)
 
 自定义算子应谨慎执行，否则可能会有不恰当的行为。更多细节请参见下面的补充说明。
 

@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.NoOpBufferAvailablityListener;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView.AvailabilityWithBacklog;
 
 import org.junit.jupiter.api.Test;
@@ -76,7 +77,7 @@ class HsSubpartitionViewTest {
     void testDeadLock(@TempDir Path dataFilePath) throws Exception {
         final int bufferSize = 16;
         NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, bufferSize);
-        BufferPool bufferPool = networkBufferPool.createBufferPool(10, 10);
+        BufferPool bufferPool = networkBufferPool.createBufferPool(10, 10, 10);
         HsSubpartitionConsumer subpartitionView = createSubpartitionView();
 
         CompletableFuture<Void> acquireWriteLock = new CompletableFuture<>();
@@ -240,7 +241,8 @@ class HsSubpartitionViewTest {
     void testNotifyDataAvailableNeedNotify() {
         CompletableFuture<Void> notifyAvailableFuture = new CompletableFuture<>();
         HsSubpartitionConsumer subpartitionView =
-                createSubpartitionView(() -> notifyAvailableFuture.complete(null));
+                createSubpartitionView(
+                        (ResultSubpartitionView view) -> notifyAvailableFuture.complete(null));
 
         TestingHsDataView memoryDataView =
                 TestingHsDataView.builder()
@@ -260,7 +262,8 @@ class HsSubpartitionViewTest {
     void testNotifyDataAvailableNotNeedNotify() {
         CompletableFuture<Void> notifyAvailableFuture = new CompletableFuture<>();
         HsSubpartitionConsumer subpartitionView =
-                createSubpartitionView(() -> notifyAvailableFuture.complete(null));
+                createSubpartitionView(
+                        (ResultSubpartitionView view) -> notifyAvailableFuture.complete(null));
 
         TestingHsDataView memoryDataView =
                 TestingHsDataView.builder()
@@ -281,13 +284,14 @@ class HsSubpartitionViewTest {
     void testGetZeroBacklogNeedNotify() {
         CompletableFuture<Void> notifyAvailableFuture = new CompletableFuture<>();
         HsSubpartitionConsumer subpartitionView =
-                createSubpartitionView(() -> notifyAvailableFuture.complete(null));
+                createSubpartitionView(
+                        (ResultSubpartitionView view) -> notifyAvailableFuture.complete(null));
         subpartitionView.setMemoryDataView(TestingHsDataView.NO_OP);
         subpartitionView.setDiskDataView(
                 TestingHsDataView.builder().setGetBacklogSupplier(() -> 0).build());
 
         AvailabilityWithBacklog availabilityAndBacklog =
-                subpartitionView.getAvailabilityAndBacklog(0);
+                subpartitionView.getAvailabilityAndBacklog(false);
         assertThat(availabilityAndBacklog.getBacklog()).isZero();
 
         assertThat(notifyAvailableFuture).isNotCompleted();
@@ -304,7 +308,7 @@ class HsSubpartitionViewTest {
         subpartitionView.setDiskDataView(
                 TestingHsDataView.builder().setGetBacklogSupplier(() -> backlog).build());
         AvailabilityWithBacklog availabilityAndBacklog =
-                subpartitionView.getAvailabilityAndBacklog(1);
+                subpartitionView.getAvailabilityAndBacklog(true);
         assertThat(availabilityAndBacklog.getBacklog()).isEqualTo(backlog);
         // positive credit always available.
         assertThat(availabilityAndBacklog.isAvailable()).isTrue();
@@ -329,7 +333,7 @@ class HsSubpartitionViewTest {
         subpartitionView.getNextBuffer();
 
         AvailabilityWithBacklog availabilityAndBacklog =
-                subpartitionView.getAvailabilityAndBacklog(0);
+                subpartitionView.getAvailabilityAndBacklog(false);
         assertThat(availabilityAndBacklog.getBacklog()).isEqualTo(backlog);
         // if credit is non-positive, only event can be available.
         assertThat(availabilityAndBacklog.isAvailable()).isFalse();
@@ -354,7 +358,7 @@ class HsSubpartitionViewTest {
         subpartitionView.getNextBuffer();
 
         AvailabilityWithBacklog availabilityAndBacklog =
-                subpartitionView.getAvailabilityAndBacklog(0);
+                subpartitionView.getAvailabilityAndBacklog(false);
         assertThat(availabilityAndBacklog.getBacklog()).isEqualTo(backlog);
         // if credit is non-positive, only event can be available.
         assertThat(availabilityAndBacklog.isAvailable()).isTrue();

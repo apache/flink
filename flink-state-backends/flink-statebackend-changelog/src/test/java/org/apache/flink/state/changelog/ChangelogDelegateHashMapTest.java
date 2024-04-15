@@ -22,7 +22,7 @@ import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.StateBackendOptions;
+import org.apache.flink.configuration.StateLatencyTrackOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
@@ -31,20 +31,21 @@ import org.apache.flink.runtime.state.HashMapStateBackendTest;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.file.Path;
 
 /** Tests for {@link ChangelogStateBackend} delegating {@link HashMapStateBackendTest}. */
 public class ChangelogDelegateHashMapTest extends HashMapStateBackendTest {
 
-    @Rule public final TemporaryFolder temp = new TemporaryFolder();
+    @TempDir private Path temp;
 
     protected TestTaskStateManager getTestTaskStateManager() throws IOException {
-        return ChangelogStateBackendTestUtils.createTaskStateManager(temp.newFolder());
+        return ChangelogStateBackendTestUtils.createTaskStateManager(TempDirUtils.newFolder(temp));
     }
 
     @Override
@@ -78,7 +79,7 @@ public class ChangelogDelegateHashMapTest extends HashMapStateBackendTest {
         return new ChangelogStateBackend(super.getStateBackend());
     }
 
-    @Test
+    @TestTemplate
     public void testMaterializedRestore() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
 
@@ -86,12 +87,12 @@ public class ChangelogDelegateHashMapTest extends HashMapStateBackendTest {
                 getStateBackend(), StateTtlConfig.DISABLED, env, streamFactory);
     }
 
-    @Test
+    @TestTemplate
     public void testMaterializedRestoreWithWrappedState() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
 
         Configuration configuration = new Configuration();
-        configuration.set(StateBackendOptions.LATENCY_TRACK_ENABLED, true);
+        configuration.set(StateLatencyTrackOptions.LATENCY_TRACK_ENABLED, true);
         StateBackend stateBackend =
                 getStateBackend()
                         .configure(configuration, Thread.currentThread().getContextClassLoader());
@@ -102,7 +103,7 @@ public class ChangelogDelegateHashMapTest extends HashMapStateBackendTest {
                 streamFactory);
     }
 
-    @Test
+    @TestTemplate
     public void testMaterializedRestorePriorityQueue() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
 

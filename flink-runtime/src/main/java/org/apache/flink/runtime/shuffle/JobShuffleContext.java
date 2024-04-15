@@ -39,4 +39,10 @@ public interface JobShuffleContext {
      */
     CompletableFuture<?> stopTrackingAndReleasePartitions(
             Collection<ResultPartitionID> partitionIds);
+
+    /**
+     * Retrieves a collection containing descriptions and metrics of existing result partitions from
+     * all TaskManagers.
+     */
+    CompletableFuture<Collection<PartitionWithMetrics>> getAllPartitionWithMetricsOnTaskManagers();
 }

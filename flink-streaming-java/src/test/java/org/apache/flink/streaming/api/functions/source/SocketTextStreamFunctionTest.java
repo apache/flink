@@ -22,25 +22,24 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.util.NetUtils;
 
 import org.apache.commons.io.IOUtils;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.EOFException;
 import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for the {@link org.apache.flink.streaming.api.functions.source.SocketTextStreamFunction}.
  */
-public class SocketTextStreamFunctionTest {
+class SocketTextStreamFunctionTest {
 
     private static final String LOCALHOST = "127.0.0.1";
 
     @Test
-    public void testSocketSourceSimpleOutput() throws Exception {
+    void testSocketSourceSimpleOutput() throws Exception {
         ServerSocket server = new ServerSocket(0);
         Socket channel = null;
 
@@ -74,7 +73,7 @@ public class SocketTextStreamFunctionTest {
     }
 
     @Test
-    public void testExitNoRetries() throws Exception {
+    void testExitNoRetries() throws Exception {
         ServerSocket server = new ServerSocket(0);
         Socket channel = null;
 
@@ -91,7 +90,7 @@ public class SocketTextStreamFunctionTest {
             try {
                 runner.waitUntilDone();
             } catch (Exception e) {
-                assertTrue(e.getCause() instanceof EOFException);
+                assertThat(e).hasCauseInstanceOf(EOFException.class);
             }
         } finally {
             if (channel != null) {
@@ -102,7 +101,7 @@ public class SocketTextStreamFunctionTest {
     }
 
     @Test
-    public void testSocketSourceOutputWithRetries() throws Exception {
+    void testSocketSourceOutputWithRetries() throws Exception {
         ServerSocket server = new ServerSocket(0);
         Socket channel = null;
 
@@ -146,7 +145,7 @@ public class SocketTextStreamFunctionTest {
     }
 
     @Test
-    public void testSocketSourceOutputInfiniteRetries() throws Exception {
+    void testSocketSourceOutputInfiniteRetries() throws Exception {
         ServerSocket server = new ServerSocket(0);
         Socket channel = null;
 
@@ -190,7 +189,7 @@ public class SocketTextStreamFunctionTest {
     }
 
     @Test
-    public void testSocketSourceOutputAcrossRetries() throws Exception {
+    void testSocketSourceOutputAcrossRetries() throws Exception {
         ServerSocket server = new ServerSocket(0);
         Socket channel = null;
 
@@ -273,7 +272,7 @@ public class SocketTextStreamFunctionTest {
                                 }
 
                                 if (expectedData != null && expectedData.length > pos) {
-                                    assertEquals(expectedData[pos], element);
+                                    assertThat(element).isEqualTo(expectedData[pos]);
                                 }
                             }
 

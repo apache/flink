@@ -18,11 +18,14 @@
 
 package org.apache.flink.table.catalog.stats;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
 /** Column statistics value of boolean type. */
+@PublicEvolving
 public class CatalogColumnStatisticsDataBoolean extends CatalogColumnStatisticsDataBase {
     /** number of "true" values. */
     private final Long trueCount;

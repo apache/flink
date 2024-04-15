@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.runtime.harness
 
-import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
@@ -26,6 +25,7 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.data.{RowData, TimestampData}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import org.apache.flink.table.planner.runtime.harness.WindowAggregateHarnessTest.{CUMULATE, HOP, TUMBLE}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.runtime.utils.TestData
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer
@@ -33,12 +33,12 @@ import org.apache.flink.table.runtime.util.RowDataHarnessAssertor
 import org.apache.flink.table.runtime.util.StreamRecordUtils.binaryRecord
 import org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills
 import org.apache.flink.table.types.logical.LogicalType
-import org.apache.flink.types.Row
-import org.apache.flink.types.RowKind.INSERT
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
+import org.apache.flink.types.{Row, RowKind}
+import org.apache.flink.types.RowKind.{DELETE, INSERT, UPDATE_AFTER, UPDATE_BEFORE}
 
-import org.junit.{Before, Test}
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.time.{LocalDateTime, ZoneId}
 import java.util.{Collection => JCollection}
@@ -51,17 +51,18 @@ import scala.collection.JavaConversions._
  * [[WindowAggregateITCase]] because the result is non-deterministic, therefore we use harness to
  * test them.
  */
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneId)
   extends HarnessTestBase(backend) {
 
   private val UTC_ZONE_ID = ZoneId.of("UTC")
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
-    val dataId = TestValuesTableFactory.registerData(TestData.windowDataWithTimestamp)
     tEnv.getConfig.setLocalTimeZone(shiftTimeZone)
+
+    val insertOnlyDataId = TestValuesTableFactory.registerData(TestData.windowDataWithTimestamp)
     tEnv.executeSql(s"""
                        |CREATE TABLE T1 (
                        | `ts` STRING,
@@ -74,7 +75,26 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
                        | proctime AS PROCTIME()
                        |) WITH (
                        | 'connector' = 'values',
-                       | 'data-id' = '$dataId'
+                       | 'data-id' = '$insertOnlyDataId'
+                       |)
+                       |""".stripMargin)
+
+    val changelogDataId =
+      TestValuesTableFactory.registerData(TestData.windowChangelogDataWithTimestamp)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE T1_CDC (
+                       | `ts` STRING,
+                       | `int` INT,
+                       | `double` DOUBLE,
+                       | `float` FLOAT,
+                       | `bigdec` DECIMAL(10, 2),
+                       | `string` STRING,
+                       | `name` STRING,
+                       | proctime AS PROCTIME()
+                       |) WITH (
+                       | 'connector' = 'values',
+                       | 'data-id' = '$changelogDataId',
+                       | 'changelog-mode' = 'I,UA,UB,D'
                        |)
                        |""".stripMargin)
   }
@@ -83,16 +103,16 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
    * The produced result should be the same with
    * [[WindowAggregateITCase.testEventTimeTumbleWindow()]].
    */
-  @Test
+  @TestTemplate
   def testProcessingTimeTumbleWindow(): Unit = {
-    val (testHarness, outputTypes) = createProcessingTimeTumbleWindowOperator
+    val (testHarness, outputTypes) = createProcessingTimeWindowOperator(TUMBLE, isCDCSource = false)
     val assertor = new RowDataHarnessAssertor(outputTypes)
 
     testHarness.open()
-    ingestData(testHarness)
+    ingestData(testHarness, isCDCSource = false)
     val expected = new ConcurrentLinkedQueue[Object]()
     expected.add(
-      record(
+      insertRecord(
         "a",
         4L,
         5.0d,
@@ -100,7 +120,7 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
         localMills("1970-01-01T00:00:00"),
         localMills("1970-01-01T00:00:05")))
     expected.add(
-      record(
+      insertRecord(
         "a",
         1L,
         null,
@@ -108,7 +128,7 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
         localMills("1970-01-01T00:00:05"),
         localMills("1970-01-01T00:00:10")))
     expected.add(
-      record(
+      insertRecord(
         "b",
         2L,
         6.0d,
@@ -116,7 +136,7 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
         localMills("1970-01-01T00:00:05"),
         localMills("1970-01-01T00:00:10")))
     expected.add(
-      record(
+      insertRecord(
         "b",
         1L,
         4.0d,
@@ -124,7 +144,7 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
         localMills("1970-01-01T00:00:15"),
         localMills("1970-01-01T00:00:20")))
     expected.add(
-      record(
+      insertRecord(
         "b",
         1L,
         3.0d,
@@ -132,172 +152,13 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
         localMills("1970-01-01T00:00:30"),
         localMills("1970-01-01T00:00:35")))
     expected.add(
-      record(
+      insertRecord(
         null,
         1L,
         7.0d,
         0L,
         localMills("1970-01-01T00:00:30"),
         localMills("1970-01-01T00:00:35")))
-
-    assertor.assertOutputEqualsSorted("result mismatch", expected, testHarness.getOutput)
-
-    testHarness.close()
-  }
-
-  private def createProcessingTimeTumbleWindowOperator()
-      : (KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData], Array[LogicalType]) = {
-    val sql =
-      """
-        |SELECT
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  MAX(`double`),
-        |  COUNT(DISTINCT `string`)
-        |FROM TABLE(
-        |   TUMBLE(TABLE T1, DESCRIPTOR(proctime), INTERVAL '5' SECOND))
-        |GROUP BY `name`, window_start, window_end
-      """.stripMargin
-    val t1 = tEnv.sqlQuery(sql)
-    val testHarness = createHarnessTester(t1.toAppendStream[Row], "WindowAggregate")
-    // window aggregate put window properties at the end of aggs
-    val outputTypes =
-      Array(
-        DataTypes.STRING().getLogicalType,
-        DataTypes.BIGINT().getLogicalType,
-        DataTypes.DOUBLE().getLogicalType,
-        DataTypes.BIGINT().getLogicalType,
-        DataTypes.TIMESTAMP_LTZ(3).getLogicalType,
-        DataTypes.TIMESTAMP_LTZ(3).getLogicalType
-      )
-    (testHarness, outputTypes)
-  }
-
-  /**
-   * The produced result should be the same with [[WindowAggregateITCase.testEventTimeHopWindow()]].
-   */
-  @Test
-  def testProcessingTimeHopWindow(): Unit = {
-    val sql =
-      """
-        |SELECT
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  MAX(`double`),
-        |  COUNT(DISTINCT `string`)
-        |FROM TABLE(
-        |   HOP(TABLE T1, DESCRIPTOR(proctime), INTERVAL '5' SECOND, INTERVAL '10' SECOND))
-        |GROUP BY `name`, window_start, window_end
-      """.stripMargin
-    val t1 = tEnv.sqlQuery(sql)
-    val testHarness = createHarnessTester(t1.toAppendStream[Row], "WindowAggregate")
-    // window aggregate put window properties at the end of aggs
-    val assertor = new RowDataHarnessAssertor(
-      Array(
-        DataTypes.STRING().getLogicalType,
-        DataTypes.BIGINT().getLogicalType,
-        DataTypes.DOUBLE().getLogicalType,
-        DataTypes.BIGINT().getLogicalType,
-        DataTypes.TIMESTAMP_LTZ(3).getLogicalType,
-        DataTypes.TIMESTAMP_LTZ(3).getLogicalType
-      ))
-
-    testHarness.open()
-    ingestData(testHarness)
-
-    val expected = new ConcurrentLinkedQueue[Object]()
-    expected.add(
-      record(
-        "a",
-        4L,
-        5.0d,
-        2L,
-        localMills("1969-12-31T23:59:55"),
-        localMills("1970-01-01T00:00:05")))
-    expected.add(
-      record(
-        "a",
-        5L,
-        5.0d,
-        3L,
-        localMills("1970-01-01T00:00:00"),
-        localMills("1970-01-01T00:00:10")))
-    expected.add(
-      record(
-        "a",
-        1L,
-        null,
-        1L,
-        localMills("1970-01-01T00:00:05"),
-        localMills("1970-01-01T00:00:15")))
-    expected.add(
-      record(
-        "b",
-        2L,
-        6.0d,
-        2L,
-        localMills("1970-01-01T00:00:00"),
-        localMills("1970-01-01T00:00:10")))
-    expected.add(
-      record(
-        "b",
-        2L,
-        6.0d,
-        2L,
-        localMills("1970-01-01T00:00:05"),
-        localMills("1970-01-01T00:00:15")))
-    expected.add(
-      record(
-        "b",
-        1L,
-        4.0d,
-        1L,
-        localMills("1970-01-01T00:00:10"),
-        localMills("1970-01-01T00:00:20")))
-    expected.add(
-      record(
-        "b",
-        1L,
-        4.0d,
-        1L,
-        localMills("1970-01-01T00:00:15"),
-        localMills("1970-01-01T00:00:25")))
-    expected.add(
-      record(
-        "b",
-        1L,
-        3.0d,
-        1L,
-        localMills("1970-01-01T00:00:25"),
-        localMills("1970-01-01T00:00:35")))
-    expected.add(
-      record(
-        "b",
-        1L,
-        3.0d,
-        1L,
-        localMills("1970-01-01T00:00:30"),
-        localMills("1970-01-01T00:00:40")))
-    expected.add(
-      record(
-        null,
-        1L,
-        7.0d,
-        0L,
-        localMills("1970-01-01T00:00:25"),
-        localMills("1970-01-01T00:00:35")))
-    expected.add(
-      record(
-        null,
-        1L,
-        7.0d,
-        0L,
-        localMills("1970-01-01T00:00:30"),
-        localMills("1970-01-01T00:00:40")))
 
     assertor.assertOutputEqualsSorted("result mismatch", expected, testHarness.getOutput)
 
@@ -306,94 +167,117 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
 
   /**
    * The produced result should be the same with
-   * [[WindowAggregateITCase.testEventTimeCumulateWindow()]].
+   * [[WindowAggregateITCase.testEventTimeTumbleWindowWithCDCSource()]].
    */
-  @Test
-  def testProcessingTimeCumulateWindow(): Unit = {
-    val sql =
-      """
-        |SELECT
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  MAX(`double`),
-        |  COUNT(DISTINCT `string`)
-        |FROM TABLE(
-        |   CUMULATE(
-        |     TABLE T1,
-        |     DESCRIPTOR(proctime),
-        |     INTERVAL '5' SECOND,
-        |     INTERVAL '15' SECOND))
-        |GROUP BY `name`, window_start, window_end
-      """.stripMargin
-    val t1 = tEnv.sqlQuery(sql)
-    val testHarness = createHarnessTester(t1.toAppendStream[Row], "WindowAggregate")
-    // window aggregate put window properties at the end of aggs
-    val assertor = new RowDataHarnessAssertor(
-      Array(
-        DataTypes.STRING().getLogicalType,
-        DataTypes.BIGINT().getLogicalType,
-        DataTypes.DOUBLE().getLogicalType,
-        DataTypes.BIGINT().getLogicalType,
-        DataTypes.TIMESTAMP_LTZ(3).getLogicalType,
-        DataTypes.TIMESTAMP_LTZ(3).getLogicalType
-      ))
+  @TestTemplate
+  def testProcessingTimeTumbleWindowWithCDCSource(): Unit = {
+    val (testHarness, outputTypes) = createProcessingTimeWindowOperator(TUMBLE, isCDCSource = true)
+    val assertor = new RowDataHarnessAssertor(outputTypes)
 
     testHarness.open()
-    ingestData(testHarness)
-
+    ingestData(testHarness, true)
     val expected = new ConcurrentLinkedQueue[Object]()
     expected.add(
-      record(
+      insertRecord(
         "a",
-        4L,
-        5.0d,
+        3L,
+        22.0d,
         2L,
         localMills("1970-01-01T00:00:00"),
         localMills("1970-01-01T00:00:05")))
     expected.add(
-      record(
+      insertRecord(
         "a",
-        5L,
-        5.0d,
-        3L,
-        localMills("1970-01-01T00:00:00"),
+        1L,
+        null,
+        1L,
+        localMills("1970-01-01T00:00:05"),
         localMills("1970-01-01T00:00:10")))
     expected.add(
-      record(
-        "a",
-        5L,
-        5.0d,
-        3L,
-        localMills("1970-01-01T00:00:00"),
-        localMills("1970-01-01T00:00:15")))
-    expected.add(
-      record(
+      insertRecord(
         "b",
         2L,
         6.0d,
         2L,
-        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:05"),
         localMills("1970-01-01T00:00:10")))
     expected.add(
-      record(
-        "b",
-        2L,
-        6.0d,
-        2L,
-        localMills("1970-01-01T00:00:00"),
-        localMills("1970-01-01T00:00:15")))
-    expected.add(
-      record(
+      insertRecord(
         "b",
         1L,
         4.0d,
         1L,
         localMills("1970-01-01T00:00:15"),
         localMills("1970-01-01T00:00:20")))
+
+    assertor.assertOutputEqualsSorted("result mismatch", expected, testHarness.getOutput)
+
+    testHarness.close()
+  }
+
+  /**
+   * The produced result will be the a little different with
+   * [[WindowAggregateITCase.testEventTimeHopWindow()]] because of missing late data.
+   */
+  @TestTemplate
+  def testProcessingTimeHopWindow(): Unit = {
+    val (testHarness, outputTypes) = createProcessingTimeWindowOperator(HOP, isCDCSource = false)
+    val assertor = new RowDataHarnessAssertor(outputTypes)
+
+    testHarness.open()
+    ingestData(testHarness, isCDCSource = false)
+
+    val expected = new ConcurrentLinkedQueue[Object]()
     expected.add(
-      record(
+      insertRecord(
+        "a",
+        4L,
+        5.0d,
+        2L,
+        localMills("1969-12-31T23:59:55"),
+        localMills("1970-01-01T00:00:05")))
+    expected.add(
+      insertRecord(
+        "a",
+        5L,
+        5.0d,
+        3L,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:10")))
+    expected.add(
+      insertRecord(
+        "a",
+        1L,
+        null,
+        1L,
+        localMills("1970-01-01T00:00:05"),
+        localMills("1970-01-01T00:00:15")))
+    expected.add(
+      insertRecord(
+        "b",
+        2L,
+        6.0d,
+        2L,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:10")))
+    expected.add(
+      insertRecord(
+        "b",
+        2L,
+        6.0d,
+        2L,
+        localMills("1970-01-01T00:00:05"),
+        localMills("1970-01-01T00:00:15")))
+    expected.add(
+      insertRecord(
+        "b",
+        1L,
+        4.0d,
+        1L,
+        localMills("1970-01-01T00:00:10"),
+        localMills("1970-01-01T00:00:20")))
+    expected.add(
+      insertRecord(
         "b",
         1L,
         4.0d,
@@ -401,7 +285,190 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
         localMills("1970-01-01T00:00:15"),
         localMills("1970-01-01T00:00:25")))
     expected.add(
-      record(
+      insertRecord(
+        "b",
+        1L,
+        3.0d,
+        1L,
+        localMills("1970-01-01T00:00:25"),
+        localMills("1970-01-01T00:00:35")))
+    expected.add(
+      insertRecord(
+        "b",
+        1L,
+        3.0d,
+        1L,
+        localMills("1970-01-01T00:00:30"),
+        localMills("1970-01-01T00:00:40")))
+    expected.add(
+      insertRecord(
+        null,
+        1L,
+        7.0d,
+        0L,
+        localMills("1970-01-01T00:00:25"),
+        localMills("1970-01-01T00:00:35")))
+    expected.add(
+      insertRecord(
+        null,
+        1L,
+        7.0d,
+        0L,
+        localMills("1970-01-01T00:00:30"),
+        localMills("1970-01-01T00:00:40")))
+
+    assertor.assertOutputEqualsSorted("result mismatch", expected, testHarness.getOutput)
+
+    testHarness.close()
+  }
+
+  /**
+   * The produced result will be the a little different with
+   * [[WindowAggregateITCase.testEventTimeHopWindowWithCDCSource()]] because of missing late data.
+   */
+  @TestTemplate
+  def testProcessingTimeHopWindowWithCDCSource(): Unit = {
+    val (testHarness, outputTypes) = createProcessingTimeWindowOperator(HOP, isCDCSource = true)
+    val assertor = new RowDataHarnessAssertor(outputTypes)
+
+    testHarness.open()
+    ingestData(testHarness, isCDCSource = true)
+
+    val expected = new ConcurrentLinkedQueue[Object]()
+    expected.add(
+      insertRecord(
+        "a",
+        3L,
+        22.0d,
+        2L,
+        localMills("1969-12-31T23:59:55"),
+        localMills("1970-01-01T00:00:05")))
+    expected.add(
+      insertRecord(
+        "a",
+        4L,
+        22.0d,
+        3L,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:10")))
+    expected.add(
+      insertRecord(
+        "a",
+        1L,
+        null,
+        1L,
+        localMills("1970-01-01T00:00:05"),
+        localMills("1970-01-01T00:00:15")))
+    expected.add(
+      insertRecord(
+        "b",
+        2L,
+        6.0d,
+        2L,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:10")))
+    expected.add(
+      insertRecord(
+        "b",
+        2L,
+        6.0d,
+        2L,
+        localMills("1970-01-01T00:00:05"),
+        localMills("1970-01-01T00:00:15")))
+    expected.add(
+      insertRecord(
+        "b",
+        1L,
+        4.0d,
+        1L,
+        localMills("1970-01-01T00:00:10"),
+        localMills("1970-01-01T00:00:20")))
+    expected.add(
+      insertRecord(
+        "b",
+        1L,
+        4.0d,
+        1L,
+        localMills("1970-01-01T00:00:15"),
+        localMills("1970-01-01T00:00:25")))
+
+    assertor.assertOutputEqualsSorted("result mismatch", expected, testHarness.getOutput)
+
+    testHarness.close()
+  }
+
+  /**
+   * The produced result will be the a little different with
+   * [[WindowAggregateITCase.testEventTimeCumulateWindow()]] because of missing late data.
+   */
+  @TestTemplate
+  def testProcessingTimeCumulateWindow(): Unit = {
+    val (testHarness, outputTypes) =
+      createProcessingTimeWindowOperator(CUMULATE, isCDCSource = false)
+    val assertor = new RowDataHarnessAssertor(outputTypes)
+
+    testHarness.open()
+    ingestData(testHarness, isCDCSource = false)
+
+    val expected = new ConcurrentLinkedQueue[Object]()
+    expected.add(
+      insertRecord(
+        "a",
+        4L,
+        5.0d,
+        2L,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:05")))
+    expected.add(
+      insertRecord(
+        "a",
+        5L,
+        5.0d,
+        3L,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:10")))
+    expected.add(
+      insertRecord(
+        "a",
+        5L,
+        5.0d,
+        3L,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:15")))
+    expected.add(
+      insertRecord(
+        "b",
+        2L,
+        6.0d,
+        2L,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:10")))
+    expected.add(
+      insertRecord(
+        "b",
+        2L,
+        6.0d,
+        2L,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:15")))
+    expected.add(
+      insertRecord(
+        "b",
+        1L,
+        4.0d,
+        1L,
+        localMills("1970-01-01T00:00:15"),
+        localMills("1970-01-01T00:00:20")))
+    expected.add(
+      insertRecord(
+        "b",
+        1L,
+        4.0d,
+        1L,
+        localMills("1970-01-01T00:00:15"),
+        localMills("1970-01-01T00:00:25")))
+    expected.add(
+      insertRecord(
         "b",
         1L,
         4.0d,
@@ -409,7 +476,7 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
         localMills("1970-01-01T00:00:15"),
         localMills("1970-01-01T00:00:30")))
     expected.add(
-      record(
+      insertRecord(
         "b",
         1L,
         3.0d,
@@ -417,7 +484,7 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
         localMills("1970-01-01T00:00:30"),
         localMills("1970-01-01T00:00:35")))
     expected.add(
-      record(
+      insertRecord(
         "b",
         1L,
         3.0d,
@@ -425,7 +492,7 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
         localMills("1970-01-01T00:00:30"),
         localMills("1970-01-01T00:00:40")))
     expected.add(
-      record(
+      insertRecord(
         "b",
         1L,
         3.0d,
@@ -433,7 +500,7 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
         localMills("1970-01-01T00:00:30"),
         localMills("1970-01-01T00:00:45")))
     expected.add(
-      record(
+      insertRecord(
         null,
         1L,
         7.0d,
@@ -441,7 +508,7 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
         localMills("1970-01-01T00:00:30"),
         localMills("1970-01-01T00:00:35")))
     expected.add(
-      record(
+      insertRecord(
         null,
         1L,
         7.0d,
@@ -449,7 +516,7 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
         localMills("1970-01-01T00:00:30"),
         localMills("1970-01-01T00:00:40")))
     expected.add(
-      record(
+      insertRecord(
         null,
         1L,
         7.0d,
@@ -462,16 +529,101 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
     testHarness.close()
   }
 
-  @Test
+  /**
+   * The produced result will be the a little different with
+   * [[WindowAggregateITCase.testEventTimeCumulateWindowWithCDCSource()]] because of missing late
+   * data.
+   */
+  @TestTemplate
+  def testProcessingTimeCumulateWindowWithCDCSource(): Unit = {
+    val (testHarness, outputTypes) =
+      createProcessingTimeWindowOperator(CUMULATE, isCDCSource = true)
+    val assertor = new RowDataHarnessAssertor(outputTypes)
+
+    testHarness.open()
+    ingestData(testHarness, isCDCSource = true)
+
+    val expected = new ConcurrentLinkedQueue[Object]()
+    expected.add(
+      insertRecord(
+        "a",
+        3L,
+        22.0d,
+        2L,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:05")))
+    expected.add(
+      insertRecord(
+        "a",
+        4L,
+        22.0d,
+        3L,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:10")))
+    expected.add(
+      insertRecord(
+        "a",
+        4L,
+        22.0d,
+        3L,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:15")))
+    expected.add(
+      insertRecord(
+        "b",
+        2L,
+        6.0d,
+        2L,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:10")))
+    expected.add(
+      insertRecord(
+        "b",
+        2L,
+        6.0d,
+        2L,
+        localMills("1970-01-01T00:00:00"),
+        localMills("1970-01-01T00:00:15")))
+    expected.add(
+      insertRecord(
+        "b",
+        1L,
+        4.0d,
+        1L,
+        localMills("1970-01-01T00:00:15"),
+        localMills("1970-01-01T00:00:20")))
+    expected.add(
+      insertRecord(
+        "b",
+        1L,
+        4.0d,
+        1L,
+        localMills("1970-01-01T00:00:15"),
+        localMills("1970-01-01T00:00:25")))
+    expected.add(
+      insertRecord(
+        "b",
+        1L,
+        4.0d,
+        1L,
+        localMills("1970-01-01T00:00:15"),
+        localMills("1970-01-01T00:00:30")))
+
+    assertor.assertOutputEqualsSorted("result mismatch", expected, testHarness.getOutput)
+
+    testHarness.close()
+  }
+
+  @TestTemplate
   def testCloseWithoutOpen(): Unit = {
-    val (testHarness, outputTypes) = createProcessingTimeTumbleWindowOperator
+    val (testHarness, outputTypes) = createProcessingTimeWindowOperator(TUMBLE, isCDCSource = false)
     testHarness.setup(new RowDataSerializer(outputTypes: _*))
     // simulate a failover after a failed task open, expect no exception happens
     testHarness.close()
   }
 
   /** Processing time window doesn't support two-phase, so add a single two-phase test. */
-  @Test
+  @TestTemplate
   def testTwoPhaseWindowAggregateCloseWithoutOpen(): Unit = {
     val timestampDataId = TestValuesTableFactory.registerData(TestData.windowDataWithTimestamp)
     tEnv.executeSql(s"""
@@ -509,7 +661,7 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
         |GROUP BY `name`, window_start, window_end
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
-    val stream: DataStream[Row] = t1.toAppendStream[Row]
+    val stream: DataStream[Row] = t1.toDataStream
 
     val testHarness = createHarnessTesterForNoState(stream, "LocalWindowAggregate")
     // window aggregate put window properties at the end of aggs
@@ -533,46 +685,141 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
     testHarness1.close()
   }
 
-  /**
-   * Ingests testing data, the input schema is [name, double, string, proctime]. We follow the test
-   * data in [[TestData.windowDataWithTimestamp]] to have the same produced result. The only
-   * difference is we don't ingest the late data in this test, so they should produce same result.
-   */
-  private def ingestData(
-      testHarness: KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData]): Unit = {
-    // input schema: [name, double, string, proctime]
-    testHarness.setProcessingTime(1000L)
-    testHarness.processElement(record("a", 1d, "Hi", null))
-    testHarness.setProcessingTime(2000L)
-    testHarness.processElement(record("a", 2d, "Comment#1", null))
-    testHarness.setProcessingTime(3000L)
-    testHarness.processElement(record("a", 2d, "Comment#1", null))
-    testHarness.setProcessingTime(4000L)
-    testHarness.processElement(record("a", 5d, null, null))
+  private def createProcessingTimeWindowOperator(testWindow: String, isCDCSource: Boolean)
+      : (KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData], Array[LogicalType]) = {
+    val windowDDL = testWindow match {
+      case WindowAggregateHarnessTest.TUMBLE =>
+        s"""
+           |TUMBLE(
+           |      TABLE ${if (isCDCSource) "T1_CDC" else "T1"},
+           |      DESCRIPTOR(proctime),
+           |      INTERVAL '5' SECOND)
+           |""".stripMargin
+      case WindowAggregateHarnessTest.HOP =>
+        s"""
+           |HOP(
+           |      TABLE ${if (isCDCSource) "T1_CDC" else "T1"},
+           |      DESCRIPTOR(proctime),
+           |      INTERVAL '5' SECOND,
+           |      INTERVAL '10' SECOND)
+           |""".stripMargin
+      case WindowAggregateHarnessTest.CUMULATE =>
+        s"""
+           |CUMULATE(
+           |      TABLE ${if (isCDCSource) "T1_CDC" else "T1"},
+           |      DESCRIPTOR(proctime),
+           |      INTERVAL '5' SECOND,
+           |      INTERVAL '15' SECOND)
+           |""".stripMargin
+    }
 
-    testHarness.setProcessingTime(6000L)
-    testHarness.processElement(record("b", 6d, "Hi", null))
-    testHarness.setProcessingTime(7000L)
-    testHarness.processElement(record("b", 3d, "Hello", null))
-    testHarness.setProcessingTime(8000L)
-    testHarness.processElement(record("a", null, "Comment#2", null))
-
-    testHarness.setProcessingTime(16000L)
-    testHarness.processElement(record("b", 4d, "Hi", null))
-    testHarness.setProcessingTime(32000L)
-    testHarness.processElement(record(null, 7d, null, null))
-    testHarness.setProcessingTime(34000L)
-    testHarness.processElement(record("b", 3d, "Comment#3", null))
-    testHarness.setProcessingTime(50000L)
+    val sql =
+      s"""
+         |SELECT
+         |  `name`,
+         |  window_start,
+         |  window_end,
+         |  COUNT(*),
+         |  MAX(`double`),
+         |  COUNT(DISTINCT `string`)
+         |FROM TABLE($windowDDL)
+         |GROUP BY `name`, window_start, window_end
+      """.stripMargin
+    val table = tEnv.sqlQuery(sql)
+    val testHarness = createHarnessTester(table.toDataStream, "WindowAggregate")
+    // window aggregate put window properties at the end of aggs
+    val outputTypes =
+      Array(
+        DataTypes.STRING().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.DOUBLE().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.TIMESTAMP_LTZ(3).getLogicalType,
+        DataTypes.TIMESTAMP_LTZ(3).getLogicalType
+      )
+    (testHarness, outputTypes)
   }
 
-  private def record(args: Any*): StreamRecord[RowData] = {
+  /**
+   * Ingests testing data, the input schema is [name, double, string, proctime]. We follow the test
+   * data in [[TestData.windowDataWithTimestamp]] or [[TestData.windowChangelogDataWithTimestamp]]
+   * to have the same produced result. The only difference is we don't ingest the late data in this
+   * test, so they will produce same result with TUMBLE Window, but produce different result with
+   * HOP Window, CUMULATE Window.
+   */
+  private def ingestData(
+      testHarness: KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData],
+      isCDCSource: Boolean): Unit = {
+    // input schema: [name, double, string, proctime]
+    if (isCDCSource) {
+      testHarness.setProcessingTime(1000L)
+      testHarness.processElement(changelogRecord(INSERT, "a", 1d, "Hi", null))
+      testHarness.setProcessingTime(2000L)
+      testHarness.processElement(changelogRecord(INSERT, "a", 2d, "Comment#1", null))
+      testHarness.setProcessingTime(3000L)
+      testHarness.processElement(changelogRecord(DELETE, "a", 1d, "Hi", null))
+      testHarness.processElement(changelogRecord(INSERT, "a", 2d, "Comment#1", null))
+      testHarness.setProcessingTime(4000L)
+      testHarness.processElement(changelogRecord(INSERT, "a", 5d, null, null))
+      testHarness.processElement(changelogRecord(UPDATE_BEFORE, "a", 2d, "Comment#1", null))
+      testHarness.processElement(changelogRecord(UPDATE_AFTER, "a", 22d, "Comment#22", null))
+
+      testHarness.setProcessingTime(6000L)
+      testHarness.processElement(changelogRecord(INSERT, "b", 6d, "Hi", null))
+      testHarness.setProcessingTime(7000L)
+      testHarness.processElement(changelogRecord(INSERT, "b", 3d, "Hello", null))
+      testHarness.setProcessingTime(8000L)
+      testHarness.processElement(changelogRecord(INSERT, "a", null, "Comment#2", null))
+
+      testHarness.setProcessingTime(16000L)
+      testHarness.processElement(changelogRecord(INSERT, "b", 4d, "Hi", null))
+      testHarness.setProcessingTime(38000L)
+      testHarness.processElement(changelogRecord(INSERT, "b", 8d, "Comment#4", null))
+      testHarness.setProcessingTime(39000L)
+      testHarness.processElement(changelogRecord(DELETE, "b", 8d, "Comment#4", null))
+    } else {
+      testHarness.setProcessingTime(1000L)
+      testHarness.processElement(insertRecord("a", 1d, "Hi", null))
+      testHarness.setProcessingTime(2000L)
+      testHarness.processElement(insertRecord("a", 2d, "Comment#1", null))
+      testHarness.setProcessingTime(3000L)
+      testHarness.processElement(insertRecord("a", 2d, "Comment#1", null))
+      testHarness.setProcessingTime(4000L)
+      testHarness.processElement(insertRecord("a", 5d, null, null))
+
+      testHarness.setProcessingTime(6000L)
+      testHarness.processElement(insertRecord("b", 6d, "Hi", null))
+      testHarness.setProcessingTime(7000L)
+      testHarness.processElement(insertRecord("b", 3d, "Hello", null))
+      testHarness.setProcessingTime(8000L)
+      testHarness.processElement(insertRecord("a", null, "Comment#2", null))
+
+      testHarness.setProcessingTime(16000L)
+      testHarness.processElement(insertRecord("b", 4d, "Hi", null))
+      testHarness.setProcessingTime(32000L)
+      testHarness.processElement(insertRecord(null, 7d, null, null))
+      testHarness.setProcessingTime(34000L)
+      testHarness.processElement(insertRecord("b", 3d, "Comment#3", null))
+      testHarness.setProcessingTime(50000L)
+    }
+  }
+
+  private def insertRecord(args: Any*): StreamRecord[RowData] = {
     val objs = args.map {
       case l: Long => Long.box(l)
       case d: Double => Double.box(d)
       case arg @ _ => arg.asInstanceOf[Object]
     }.toArray
     binaryRecord(INSERT, objs: _*)
+  }
+
+  private def changelogRecord(rowKind: RowKind, args: Any*): StreamRecord[RowData] = {
+    val objs = args.map {
+      case l: Long => Long.box(l)
+      case d: Double => Double.box(d)
+      case arg @ _ => arg.asInstanceOf[Object]
+    }.toArray
+    binaryRecord(rowKind, objs: _*)
   }
 
   private def localMills(dateTime: String): TimestampData = {
@@ -584,7 +831,7 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
 
 object WindowAggregateHarnessTest {
 
-  @Parameterized.Parameters(name = "StateBackend={0}, TimeZone={1}")
+  @Parameters(name = "StateBackend={0}, TimeZone={1}")
   def parameters(): JCollection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
       Array(HEAP_BACKEND, ZoneId.of("UTC")),
@@ -593,4 +840,8 @@ object WindowAggregateHarnessTest {
       Array(ROCKSDB_BACKEND, ZoneId.of("Asia/Shanghai"))
     )
   }
+
+  val TUMBLE: String = "TUMBLE"
+  val HOP: String = "HOP"
+  val CUMULATE: String = "CUMULATE"
 }

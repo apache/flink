@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.serialization.SerializationSchema.InitializationContext;
@@ -25,12 +24,13 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
+import org.apache.flink.api.connector.sink2.CommittingSinkWriter;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.Sink.InitContext;
 import org.apache.flink.api.connector.sink2.SinkWriter;
-import org.apache.flink.api.connector.sink2.StatefulSink;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink.PrecommittingSinkWriter;
+import org.apache.flink.api.connector.sink2.SupportsCommitter;
+import org.apache.flink.api.connector.sink2.SupportsWriterState;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
@@ -113,18 +113,17 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
         this.processingTimeService = checkNotNull(processingTimeService);
         this.mailboxExecutor = checkNotNull(mailboxExecutor);
         this.context = new Context<>();
-        this.emitDownstream = sink instanceof TwoPhaseCommittingSink;
+        this.emitDownstream = sink instanceof SupportsCommitter;
 
-        if (sink instanceof StatefulSink) {
+        if (sink instanceof SupportsWriterState) {
             writerStateHandler =
-                    new StatefulSinkWriterStateHandler<>((StatefulSink<InputT, ?>) sink);
+                    new StatefulSinkWriterStateHandler<>((SupportsWriterState<InputT, ?>) sink);
         } else {
             writerStateHandler = new StatelessSinkWriterStateHandler<>(sink);
         }
 
-        if (sink instanceof TwoPhaseCommittingSink) {
-            committableSerializer =
-                    ((TwoPhaseCommittingSink<InputT, CommT>) sink).getCommittableSerializer();
+        if (sink instanceof SupportsCommitter) {
+            committableSerializer = ((SupportsCommitter<CommT>) sink).getCommittableSerializer();
         } else {
             committableSerializer = null;
         }
@@ -133,9 +132,7 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
     @Override
     public void initializeState(StateInitializationContext context) throws Exception {
         super.initializeState(context);
-        OptionalLong checkpointId = context.getRestoredCheckpointId();
-        InitContext initContext =
-                createInitContext(checkpointId.isPresent() ? checkpointId.getAsLong() : null);
+        WriterInitContext initContext = createInitContext(context.getRestoredCheckpointId());
         if (context.isRestored()) {
             if (committableSerializer != null) {
                 final ListState<List<CommT>> legacyCommitterState =
@@ -144,6 +141,8 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
                                         .getListState(STREAMING_COMMITTER_RAW_STATES_DESC),
                                 new SinkV1WriterCommittableSerializer<>(committableSerializer));
                 legacyCommitterState.get().forEach(legacyCommittables::addAll);
+                // FLINK-33437: clear legacy state
+                legacyCommitterState.clear();
             }
         }
         sinkWriter = writerStateHandler.createWriter(initContext, context);
@@ -190,16 +189,17 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
         if (!emitDownstream) {
             // To support SinkV1 topologies with only a writer we have to call prepareCommit
             // although no committables are forwarded
-            if (sinkWriter instanceof PrecommittingSinkWriter) {
-                ((PrecommittingSinkWriter<?, ?>) sinkWriter).prepareCommit();
+            if (sinkWriter instanceof CommittingSinkWriter) {
+                ((CommittingSinkWriter<?, ?>) sinkWriter).prepareCommit();
             }
             return;
         }
         Collection<CommT> committables =
-                ((PrecommittingSinkWriter<?, CommT>) sinkWriter).prepareCommit();
+                ((CommittingSinkWriter<?, CommT>) sinkWriter).prepareCommit();
         StreamingRuntimeContext runtimeContext = getRuntimeContext();
-        final int indexOfThisSubtask = runtimeContext.getIndexOfThisSubtask();
-        final int numberOfParallelSubtasks = runtimeContext.getNumberOfParallelSubtasks();
+        final int indexOfThisSubtask = runtimeContext.getTaskInfo().getIndexOfThisSubtask();
+        final int numberOfParallelSubtasks =
+                runtimeContext.getTaskInfo().getNumberOfParallelSubtasks();
 
         // Emit only committable summary if there are legacy committables
         if (!legacyCommittables.isEmpty()) {
@@ -241,7 +241,7 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
         }
     }
 
-    private Sink.InitContext createInitContext(@Nullable Long restoredCheckpointId) {
+    private WriterInitContext createInitContext(OptionalLong restoredCheckpointId) {
         return new InitContextImpl(
                 getRuntimeContext(),
                 processingTimeService,
@@ -270,7 +270,7 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
         }
     }
 
-    private static class InitContextImpl implements Sink.InitContext {
+    private static class InitContextImpl extends InitContextBase implements WriterInitContext {
 
         private final ProcessingTimeService processingTimeService;
 
@@ -280,22 +280,17 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
 
         private final StreamConfig operatorConfig;
 
-        @Nullable private final Long restoredCheckpointId;
-
-        private final StreamingRuntimeContext runtimeContext;
-
         public InitContextImpl(
                 StreamingRuntimeContext runtimeContext,
                 ProcessingTimeService processingTimeService,
                 MailboxExecutor mailboxExecutor,
                 SinkWriterMetricGroup metricGroup,
                 StreamConfig operatorConfig,
-                @Nullable Long restoredCheckpointId) {
-            this.runtimeContext = checkNotNull(runtimeContext);
+                OptionalLong restoredCheckpointId) {
+            super(runtimeContext, restoredCheckpointId);
             this.mailboxExecutor = checkNotNull(mailboxExecutor);
             this.processingTimeService = checkNotNull(processingTimeService);
             this.metricGroup = checkNotNull(metricGroup);
-            this.restoredCheckpointId = restoredCheckpointId;
             this.operatorConfig = checkNotNull(operatorConfig);
         }
 
@@ -304,26 +299,17 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
             return new UserCodeClassLoader() {
                 @Override
                 public ClassLoader asClassLoader() {
-                    return runtimeContext.getUserCodeClassLoader();
+                    return getRuntimeContext().getUserCodeClassLoader();
                 }
 
                 @Override
                 public void registerReleaseHookIfAbsent(
                         String releaseHookName, Runnable releaseHook) {
-                    runtimeContext.registerUserCodeClassLoaderReleaseHookIfAbsent(
-                            releaseHookName, releaseHook);
+                    getRuntimeContext()
+                            .registerUserCodeClassLoaderReleaseHookIfAbsent(
+                                    releaseHookName, releaseHook);
                 }
             };
-        }
-
-        @Override
-        public int getNumberOfParallelSubtasks() {
-            return runtimeContext.getNumberOfParallelSubtasks();
-        }
-
-        @Override
-        public int getAttemptNumber() {
-            return runtimeContext.getAttemptNumber();
         }
 
         @Override
@@ -338,20 +324,8 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
         }
 
         @Override
-        public int getSubtaskId() {
-            return runtimeContext.getIndexOfThisSubtask();
-        }
-
-        @Override
         public SinkWriterMetricGroup metricGroup() {
             return metricGroup;
-        }
-
-        @Override
-        public OptionalLong getRestoredCheckpointId() {
-            return restoredCheckpointId == null
-                    ? OptionalLong.empty()
-                    : OptionalLong.of(restoredCheckpointId);
         }
 
         @Override
@@ -362,19 +336,14 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
 
         @Override
         public boolean isObjectReuseEnabled() {
-            return runtimeContext.getExecutionConfig().isObjectReuseEnabled();
+            return getRuntimeContext().isObjectReuseEnabled();
         }
 
         @Override
         public <IN> TypeSerializer<IN> createInputSerializer() {
             return operatorConfig
-                    .<IN>getTypeSerializerIn(0, runtimeContext.getUserCodeClassLoader())
+                    .<IN>getTypeSerializerIn(0, getRuntimeContext().getUserCodeClassLoader())
                     .duplicate();
-        }
-
-        @Override
-        public JobID getJobId() {
-            return runtimeContext.getJobId();
         }
     }
 }

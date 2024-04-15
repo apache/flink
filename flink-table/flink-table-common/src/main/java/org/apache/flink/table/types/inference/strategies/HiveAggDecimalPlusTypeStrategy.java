@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.types.inference.strategies;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.TypeStrategy;
@@ -40,6 +41,7 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDa
  * the precision according to the two input arguments, but for hive we just keep the precision as
  * input type because of the input type precision is the same.
  */
+@Internal
 public class HiveAggDecimalPlusTypeStrategy implements TypeStrategy {
 
     private static final String ERROR_MSG =

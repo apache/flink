@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.api;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
@@ -28,7 +29,7 @@ import org.apache.flink.state.api.utils.JobResultRetriever;
 import org.apache.flink.state.api.utils.SavepointTestBase;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
@@ -66,7 +67,7 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
                 .keyBy(id -> id.key)
                 .process(new KeyedStatefulOperator())
                 .uid(uid)
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         String savepointPath = takeSavepoint(env);
 
@@ -86,7 +87,7 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
         private transient ValueState<Integer> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             state = getRuntimeContext().getState(valueState);
         }
 
@@ -105,8 +106,14 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
         private transient ValueState<Integer> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             state = getRuntimeContext().getState(valueState);
+        }
+
+        @Override
+        public void open(Configuration parameters) {
+            throw new UnsupportedOperationException(
+                    "This method is deprecated and shouldn't be invoked. Please use open(OpenContext) instead.");
         }
 
         @Override

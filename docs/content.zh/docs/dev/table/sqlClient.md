@@ -65,6 +65,26 @@ SQL Client 脚本也位于 Flink 的 bin 目录中。用户可以通过启动嵌
 ./bin/sql-client.sh gateway --endpoint <gateway address>
 ```
 
+The `<gateway address>` can be provided in two formats: as a `host:port` combination or as a full URL.
+
+If you need to pass custom HTTP headers, you can do so by setting the FLINK_REST_CLIENT_HEADERS environment variable. For example:
+
+```bash
+export FLINK_REST_CLIENT_HEADERS="Cookie:myauthcookie=foobar;othercookie=baz"
+./bin/sql-client.sh gateway --endpoint https://your-sql-gateway.endpoint.com/authenticated/sql
+```
+For multiple headers, separate them with a newline:
+
+```bash
+export FLINK_REST_CLIENT_HEADERS=$(cat << EOF
+Cookie:myauthcookie=foobar
+Cache-Control: no-cache
+EOF)
+```
+
+By default, the SQL Client will use the truststore configured using the `security.ssl.rest.truststore` and `security.ssl.rest.truststore-password` properties in the [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}) on the SQL client side. If these properties aren't explicitly configured, the client will use the default certificate stores provided by the JDK.
+
+
 <span class="label label-danger">Note</span> SQL 客户端目前只支持和 REST API 版本大于 v1 的 [REST Endpoint]({{< ref "docs/dev/table/sql-gateway/rest" >}}#rest-api) 通信。
 
 参阅 [SQL Client startup options](#sql-client-startup-options) 了解更多启动命令。
@@ -301,7 +321,7 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
                                                 --pyExecutable
                                                 /usr/local/bin/python3). The
                                                 python UDF worker depends on
-                                                Python 3.7+, Apache Beam
+                                                Python 3.8+, Apache Beam
                                                 (version == 2.43.0), Pip
                                                 (version >= 20.3) and SetupTools
                                                 (version >= 37.0.0). Please
@@ -653,7 +673,7 @@ SET 'yarn.application.queue' = 'root';
 SET 'parallelism.default' = '100';
 
 -- restore from the specific savepoint path
-SET 'execution.savepoint.path' = '/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab';
+SET 'execution.state-recovery.path' = '/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab';
 
 INSERT INTO pageviews_enriched
 SELECT *
@@ -707,7 +727,7 @@ Flink SQL> CREATE TABLE pageviews (
 >   'properties.bootstrap.servers' = '...',
 >   'format' = 'avro'
 > );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> CREATE TABLE pageview (
 >   page_id BIGINT,
@@ -717,7 +737,7 @@ Flink SQL> CREATE TABLE pageview (
 >   'url' = 'jdbc:mysql://localhost:3306/mydatabase',
 >   'table-name' = 'pageview'
 > );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> CREATE TABLE uniqueview (
 >   page_id BIGINT,
@@ -727,7 +747,7 @@ Flink SQL> CREATE TABLE uniqueview (
 >   'url' = 'jdbc:mysql://localhost:3306/mydatabase',
 >   'table-name' = 'uniqueview'
 > );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> EXECUTE STATEMENT SET
 > BEGIN
@@ -842,7 +862,7 @@ Flink SQL> INSERT INTO MyTableSink SELECT * FROM MyTableSource;
 Flink supports to start the job with specified savepoint. In SQL Client, it's allowed to use `SET` command to specify the path of the savepoint.
 
 ```sql
-Flink SQL> SET 'execution.savepoint.path' = '/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab';
+Flink SQL> SET 'execution.state-recovery.path' = '/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab';
 [INFO] Session property has been set.
 
 -- all the following DML statements will be restroed from the specified savepoint path
@@ -854,7 +874,7 @@ When the path to savepoint is specified, Flink will try to restore the state fro
 Because the specified savepoint path will affect all the following DML statements, you can use `RESET` command to reset this config option, i.e. disable restoring from savepoint.
 
 ```sql
-Flink SQL> RESET execution.savepoint.path;
+Flink SQL> RESET execution.state-recovery.path;
 [INFO] Session property has been reset.
 ```
 
@@ -916,7 +936,7 @@ For more details about stopping jobs, please refer to [Job Statements]({{< ref "
 
 SQL Client can highlight SQL syntax with several color schemes.
 With `sql-client.display.color-schema` it could be set a color scheme.
-Available color schemes: `chester`, `dracula`, `solarized`, `vs2010`, `obsidian`, `geshi`, `default` (no highlighting).
+Available color schemes: `chester`, `dracula`, `solarized`, `vs2010`, `obsidian`, `geshi`, `dark`, `light`, `default` (no highlighting).
 In case of wrong name the fallback is to `default`.
 
 | Color schema \ Style | Keyword      | Default | Comment        | Hint         | Quoted  | SQL Identifier |
@@ -929,5 +949,6 @@ In case of wrong name the fallback is to `default`.
 | `Light`              | Bold red     | Black   | Italic bright  | Bold bright  | Green   | Cyan           |
 | `Obsidian`           | Bold green   | White   | Italic bright  | Bold bright  | Red     | Magenta        |
 | `VS2010`             | Bold blue    | White   | Italic green   | Bold green   | Red     | Magenta        |
+| `Solarized`          | Bold yellow  | Blue    | Italic bright  | Bold bright  | Green   | Red            |
 
 {{< top >}}

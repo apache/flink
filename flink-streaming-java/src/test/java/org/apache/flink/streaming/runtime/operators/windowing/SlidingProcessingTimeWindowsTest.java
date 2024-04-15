@@ -19,32 +19,24 @@
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.apache.flink.streaming.util.StreamRecordMatchers.timeWindow;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /** Tests for {@link SlidingProcessingTimeWindows}. */
-public class SlidingProcessingTimeWindowsTest extends TestLogger {
+class SlidingProcessingTimeWindowsTest {
 
     @Test
-    public void testWindowAssignment() {
+    void testWindowAssignment() {
         WindowAssigner.WindowAssignerContext mockContext =
                 mock(WindowAssigner.WindowAssignerContext.class);
 
@@ -52,38 +44,35 @@ public class SlidingProcessingTimeWindowsTest extends TestLogger {
                 SlidingProcessingTimeWindows.of(Time.milliseconds(5000), Time.milliseconds(1000));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(0L);
-        assertThat(
-                assigner.assignWindows("String", Long.MIN_VALUE, mockContext),
-                containsInAnyOrder(
-                        timeWindow(-4000, 1000),
-                        timeWindow(-3000, 2000),
-                        timeWindow(-2000, 3000),
-                        timeWindow(-1000, 4000),
-                        timeWindow(0, 5000)));
+        assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
+                .containsExactlyInAnyOrder(
+                        new TimeWindow(-4000, 1000),
+                        new TimeWindow(-3000, 2000),
+                        new TimeWindow(-2000, 3000),
+                        new TimeWindow(-1000, 4000),
+                        new TimeWindow(0, 5000));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(4999L);
-        assertThat(
-                assigner.assignWindows("String", Long.MIN_VALUE, mockContext),
-                containsInAnyOrder(
-                        timeWindow(0, 5000),
-                        timeWindow(1000, 6000),
-                        timeWindow(2000, 7000),
-                        timeWindow(3000, 8000),
-                        timeWindow(4000, 9000)));
+        assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
+                .containsExactlyInAnyOrder(
+                        new TimeWindow(0, 5000),
+                        new TimeWindow(1000, 6000),
+                        new TimeWindow(2000, 7000),
+                        new TimeWindow(3000, 8000),
+                        new TimeWindow(4000, 9000));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(5000L);
-        assertThat(
-                assigner.assignWindows("String", Long.MIN_VALUE, mockContext),
-                containsInAnyOrder(
-                        timeWindow(1000, 6000),
-                        timeWindow(2000, 7000),
-                        timeWindow(3000, 8000),
-                        timeWindow(4000, 9000),
-                        timeWindow(5000, 10000)));
+        assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
+                .containsExactlyInAnyOrder(
+                        new TimeWindow(1000, 6000),
+                        new TimeWindow(2000, 7000),
+                        new TimeWindow(3000, 8000),
+                        new TimeWindow(4000, 9000),
+                        new TimeWindow(5000, 10000));
     }
 
     @Test
-    public void testWindowAssignmentWithOffset() {
+    void testWindowAssignmentWithOffset() {
         WindowAssigner.WindowAssignerContext mockContext =
                 mock(WindowAssigner.WindowAssignerContext.class);
 
@@ -92,38 +81,35 @@ public class SlidingProcessingTimeWindowsTest extends TestLogger {
                         Time.milliseconds(5000), Time.milliseconds(1000), Time.milliseconds(100));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(100L);
-        assertThat(
-                assigner.assignWindows("String", Long.MIN_VALUE, mockContext),
-                containsInAnyOrder(
-                        timeWindow(-3900, 1100),
-                        timeWindow(-2900, 2100),
-                        timeWindow(-1900, 3100),
-                        timeWindow(-900, 4100),
-                        timeWindow(100, 5100)));
+        assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
+                .containsExactlyInAnyOrder(
+                        new TimeWindow(-3900, 1100),
+                        new TimeWindow(-2900, 2100),
+                        new TimeWindow(-1900, 3100),
+                        new TimeWindow(-900, 4100),
+                        new TimeWindow(100, 5100));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(5099L);
-        assertThat(
-                assigner.assignWindows("String", Long.MIN_VALUE, mockContext),
-                containsInAnyOrder(
-                        timeWindow(100, 5100),
-                        timeWindow(1100, 6100),
-                        timeWindow(2100, 7100),
-                        timeWindow(3100, 8100),
-                        timeWindow(4100, 9100)));
+        assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
+                .containsExactlyInAnyOrder(
+                        new TimeWindow(100, 5100),
+                        new TimeWindow(1100, 6100),
+                        new TimeWindow(2100, 7100),
+                        new TimeWindow(3100, 8100),
+                        new TimeWindow(4100, 9100));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(5100L);
-        assertThat(
-                assigner.assignWindows("String", Long.MIN_VALUE, mockContext),
-                containsInAnyOrder(
-                        timeWindow(1100, 6100),
-                        timeWindow(2100, 7100),
-                        timeWindow(3100, 8100),
-                        timeWindow(4100, 9100),
-                        timeWindow(5100, 10100)));
+        assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
+                .containsExactlyInAnyOrder(
+                        new TimeWindow(1100, 6100),
+                        new TimeWindow(2100, 7100),
+                        new TimeWindow(3100, 8100),
+                        new TimeWindow(4100, 9100),
+                        new TimeWindow(5100, 10100));
     }
 
     @Test
-    public void testWindowAssignmentWithNegativeOffset() {
+    void testWindowAssignmentWithNegativeOffset() {
         WindowAssigner.WindowAssignerContext mockContext =
                 mock(WindowAssigner.WindowAssignerContext.class);
 
@@ -132,38 +118,35 @@ public class SlidingProcessingTimeWindowsTest extends TestLogger {
                         Time.milliseconds(5000), Time.milliseconds(1000), Time.milliseconds(-100));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(0L);
-        assertThat(
-                assigner.assignWindows("String", Long.MIN_VALUE, mockContext),
-                containsInAnyOrder(
-                        timeWindow(-4100, 900),
-                        timeWindow(-3100, 1900),
-                        timeWindow(-2100, 2900),
-                        timeWindow(-1100, 3900),
-                        timeWindow(-100, 4900)));
+        assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
+                .containsExactlyInAnyOrder(
+                        new TimeWindow(-4100, 900),
+                        new TimeWindow(-3100, 1900),
+                        new TimeWindow(-2100, 2900),
+                        new TimeWindow(-1100, 3900),
+                        new TimeWindow(-100, 4900));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(4899L);
-        assertThat(
-                assigner.assignWindows("String", Long.MIN_VALUE, mockContext),
-                containsInAnyOrder(
-                        timeWindow(-100, 4900),
-                        timeWindow(900, 5900),
-                        timeWindow(1900, 6900),
-                        timeWindow(2900, 7900),
-                        timeWindow(3900, 8900)));
+        assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
+                .containsExactlyInAnyOrder(
+                        new TimeWindow(-100, 4900),
+                        new TimeWindow(900, 5900),
+                        new TimeWindow(1900, 6900),
+                        new TimeWindow(2900, 7900),
+                        new TimeWindow(3900, 8900));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(4900L);
-        assertThat(
-                assigner.assignWindows("String", Long.MIN_VALUE, mockContext),
-                containsInAnyOrder(
-                        timeWindow(900, 5900),
-                        timeWindow(1900, 6900),
-                        timeWindow(2900, 7900),
-                        timeWindow(3900, 8900),
-                        timeWindow(4900, 9900)));
+        assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
+                .containsExactlyInAnyOrder(
+                        new TimeWindow(900, 5900),
+                        new TimeWindow(1900, 6900),
+                        new TimeWindow(2900, 7900),
+                        new TimeWindow(3900, 8900),
+                        new TimeWindow(4900, 9900));
     }
 
     @Test
-    public void testTimeUnits() {
+    void testTimeUnits() {
         // sanity check with one other time unit
 
         WindowAssigner.WindowAssignerContext mockContext =
@@ -174,84 +157,74 @@ public class SlidingProcessingTimeWindowsTest extends TestLogger {
                         Time.seconds(5), Time.seconds(1), Time.milliseconds(500));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(100L);
-        assertThat(
-                assigner.assignWindows("String", Long.MIN_VALUE, mockContext),
-                containsInAnyOrder(
-                        timeWindow(-4500, 500),
-                        timeWindow(-3500, 1500),
-                        timeWindow(-2500, 2500),
-                        timeWindow(-1500, 3500),
-                        timeWindow(-500, 4500)));
+        assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
+                .containsExactlyInAnyOrder(
+                        new TimeWindow(-4500, 500),
+                        new TimeWindow(-3500, 1500),
+                        new TimeWindow(-2500, 2500),
+                        new TimeWindow(-1500, 3500),
+                        new TimeWindow(-500, 4500));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(5499L);
-        assertThat(
-                assigner.assignWindows("String", Long.MIN_VALUE, mockContext),
-                containsInAnyOrder(
-                        timeWindow(500, 5500),
-                        timeWindow(1500, 6500),
-                        timeWindow(2500, 7500),
-                        timeWindow(3500, 8500),
-                        timeWindow(4500, 9500)));
+        assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
+                .containsExactlyInAnyOrder(
+                        new TimeWindow(500, 5500),
+                        new TimeWindow(1500, 6500),
+                        new TimeWindow(2500, 7500),
+                        new TimeWindow(3500, 8500),
+                        new TimeWindow(4500, 9500));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(5100L);
-        assertThat(
-                assigner.assignWindows("String", Long.MIN_VALUE, mockContext),
-                containsInAnyOrder(
-                        timeWindow(500, 5500),
-                        timeWindow(1500, 6500),
-                        timeWindow(2500, 7500),
-                        timeWindow(3500, 8500),
-                        timeWindow(4500, 9500)));
+        assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
+                .containsExactlyInAnyOrder(
+                        new TimeWindow(500, 5500),
+                        new TimeWindow(1500, 6500),
+                        new TimeWindow(2500, 7500),
+                        new TimeWindow(3500, 8500),
+                        new TimeWindow(4500, 9500));
     }
 
     @Test
-    public void testInvalidParameters() {
-        try {
-            SlidingProcessingTimeWindows.of(Time.seconds(-2), Time.seconds(1));
-            fail("should fail");
-        } catch (IllegalArgumentException e) {
-            assertThat(e.toString(), containsString("abs(offset) < slide and size > 0"));
-        }
+    void testInvalidParameters() {
 
-        try {
-            SlidingProcessingTimeWindows.of(Time.seconds(2), Time.seconds(-1));
-            fail("should fail");
-        } catch (IllegalArgumentException e) {
-            assertThat(e.toString(), containsString("abs(offset) < slide and size > 0"));
-        }
+        assertThatThrownBy(() -> SlidingProcessingTimeWindows.of(Time.seconds(-2), Time.seconds(1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("abs(offset) < slide and size > 0");
 
-        try {
-            SlidingProcessingTimeWindows.of(Time.seconds(-20), Time.seconds(10), Time.seconds(-1));
-            fail("should fail");
-        } catch (IllegalArgumentException e) {
-            assertThat(e.toString(), containsString("abs(offset) < slide and size > 0"));
-        }
+        assertThatThrownBy(() -> SlidingProcessingTimeWindows.of(Time.seconds(2), Time.seconds(-1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("abs(offset) < slide and size > 0");
 
-        try {
-            SlidingProcessingTimeWindows.of(Time.seconds(20), Time.seconds(10), Time.seconds(-11));
-            fail("should fail");
-        } catch (IllegalArgumentException e) {
-            assertThat(e.toString(), containsString("abs(offset) < slide and size > 0"));
-        }
+        assertThatThrownBy(
+                        () ->
+                                SlidingProcessingTimeWindows.of(
+                                        Time.seconds(-20), Time.seconds(10), Time.seconds(-1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("abs(offset) < slide and size > 0");
 
-        try {
-            SlidingProcessingTimeWindows.of(Time.seconds(20), Time.seconds(10), Time.seconds(11));
-            fail("should fail");
-        } catch (IllegalArgumentException e) {
-            assertThat(e.toString(), containsString("abs(offset) < slide and size > 0"));
-        }
+        assertThatThrownBy(
+                        () ->
+                                SlidingProcessingTimeWindows.of(
+                                        Time.seconds(20), Time.seconds(10), Time.seconds(-11)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("abs(offset) < slide and size > 0");
+
+        assertThatThrownBy(
+                        () ->
+                                SlidingProcessingTimeWindows.of(
+                                        Time.seconds(20), Time.seconds(10), Time.seconds(11)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("abs(offset) < slide and size > 0");
     }
 
     @Test
-    public void testProperties() {
+    void testProperties() {
         SlidingProcessingTimeWindows assigner =
                 SlidingProcessingTimeWindows.of(Time.seconds(5), Time.milliseconds(100));
 
-        assertFalse(assigner.isEventTime());
-        assertEquals(
-                new TimeWindow.Serializer(), assigner.getWindowSerializer(new ExecutionConfig()));
-        assertThat(
-                assigner.getDefaultTrigger(mock(StreamExecutionEnvironment.class)),
-                instanceOf(ProcessingTimeTrigger.class));
+        assertThat(assigner.isEventTime()).isFalse();
+        assertThat(assigner.getWindowSerializer(new ExecutionConfig()))
+                .isEqualTo(new TimeWindow.Serializer());
+        assertThat(assigner.getDefaultTrigger()).isInstanceOf(ProcessingTimeTrigger.class);
     }
 }

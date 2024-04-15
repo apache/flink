@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -42,7 +42,7 @@ class SubclassFromInterfaceSerializerTest
     @Override
     protected TypeSerializer<TestUserInterface> createSerializer() {
         // only register one of the two child classes
-        ExecutionConfig conf = new ExecutionConfig();
+        SerializerConfigImpl conf = new SerializerConfigImpl();
         conf.registerPojoType(TestUserClass2.class);
         TypeSerializer<TestUserInterface> serializer = type.createSerializer(conf);
         assert (serializer instanceof KryoSerializer);

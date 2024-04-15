@@ -90,7 +90,7 @@
             <td><h5>kubernetes.flink.conf.dir</h5></td>
             <td style="word-wrap: break-word;">"/opt/flink/conf"</td>
             <td>String</td>
-            <td>The flink conf directory that will be mounted in pod. The flink-conf.yaml, log4j.properties, logback.xml in this path will be overwritten from config map.</td>
+            <td>The flink conf directory that will be mounted in pod. The config.yaml, log4j.properties, logback.xml in this path will be overwritten from config map.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.flink.log.dir</h5></td>
@@ -109,6 +109,12 @@
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>Whether to enable HostNetwork mode. The HostNetwork allows the pod could use the node network namespace instead of the individual pod network namespace. Please note that the JobManager service account should have the permission to update Kubernetes service.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.internal-service.annotations</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Map</td>
+            <td>The user-specified annotations that are set to the internal Service. The value should be in the form of a1:v1,a2:v2</td>
         </tr>
         <tr>
             <td><h5>kubernetes.jobmanager.annotations</h5></td>
@@ -285,10 +291,22 @@
             <td>The user-specified tolerations to be set to the TaskManager pod. The value should be in the form of key:key1,operator:Equal,value:value1,effect:NoSchedule;key:key2,operator:Exists,effect:NoExecute,tolerationSeconds:6000</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.transactional-operation.initial-retry-delay</h5></td>
+            <td style="word-wrap: break-word;">50 ms</td>
+            <td>Duration</td>
+            <td>Defines the initial duration of Kubernetes transactional operation retries after fail</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.transactional-operation.max-retries</h5></td>
-            <td style="word-wrap: break-word;">5</td>
+            <td style="word-wrap: break-word;">15</td>
             <td>Integer</td>
             <td>Defines the number of Kubernetes transactional operation retries before the client gives up. For example, <code class="highlighter-rouge">FlinkKubeClient#checkAndUpdateConfigMap</code>.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.transactional-operation.max-retry-delay</h5></td>
+            <td style="word-wrap: break-word;">1 min</td>
+            <td>Duration</td>
+            <td>Defines the max duration of Kubernetes transactional operation retries after fail</td>
         </tr>
     </tbody>
 </table>

@@ -18,6 +18,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.ConfigOption;
@@ -33,6 +34,7 @@ import static org.apache.flink.contrib.streaming.state.PredefinedOptions.SPINNIN
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM;
 
 /** Configuration options for the RocksDB backend. */
+@PublicEvolving
 public class RocksDBOptions {
 
     /** The local directory (on the TaskManager) where RocksDB puts its files. */
@@ -61,6 +63,19 @@ public class RocksDBOptions {
                             .defaultValue(ROCKSDB)
                             .withDescription(
                                     "This determines the factory for timer service state implementation.");
+
+    /** The cache size per key-group for ROCKSDB timer service factory implementation. */
+    @Documentation.Section(Documentation.Sections.STATE_BACKEND_ROCKSDB)
+    public static final ConfigOption<Integer> ROCKSDB_TIMER_SERVICE_FACTORY_CACHE_SIZE =
+            ConfigOptions.key("state.backend.rocksdb.timer-service.cache-size")
+                    .intType()
+                    .defaultValue(128)
+                    .withDescription(
+                            String.format(
+                                    "The cache size per keyGroup of rocksdb timer service factory. This option only has an effect "
+                                            + "when '%s' is configured to '%s'. Increasing this value can improve the performance "
+                                            + "of rocksdb timer service, but consumes more heap memory at the same time.",
+                                    TIMER_SERVICE_FACTORY.key(), ROCKSDB.name()));
 
     /**
      * The number of threads used to transfer (download and upload) files in RocksDBStateBackend.
@@ -132,7 +147,7 @@ public class RocksDBOptions {
                                             + "This option only takes effect if neither '%s' nor '%s' are not configured. If none is configured "
                                             + "then each RocksDB column family state has its own memory caches (as controlled by the column "
                                             + "family options). "
-                                            + "The relevant options for the shared resources (e.g. write-buffer-ratio) can be set on the same level (flink-conf.yaml)."
+                                            + "The relevant options for the shared resources (e.g. write-buffer-ratio) can be set on the same level (config.yaml)."
                                             + "Note, that this feature breaks resource isolation between the slots",
                                     USE_MANAGED_MEMORY.key(), FIX_PER_SLOT_MEMORY_SIZE.key()));
 

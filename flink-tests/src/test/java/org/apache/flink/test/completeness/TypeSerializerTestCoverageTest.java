@@ -65,6 +65,7 @@ import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferEdge;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferNode;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferNodeSerializer;
 import org.apache.flink.core.io.SimpleVersionedSerializerTypeSerializerProxy;
+import org.apache.flink.formats.avro.typeutils.AvroSerializer;
 import org.apache.flink.runtime.state.ArrayListSerializer;
 import org.apache.flink.runtime.state.heap.TestDuplicateSerializer;
 import org.apache.flink.runtime.state.ttl.TtlStateFactory;
@@ -195,7 +196,8 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         RowDataSerializer.class.getName(),
                         DecimalDataSerializer.class.getName(),
                         SharedBufferNode.SharedBufferNodeSerializer.class.getName(),
-                        NFA.NFASerializer.class.getName());
+                        NFA.NFASerializer.class.getName(),
+                        AvroSerializer.class.getName());
 
         //  type serializer whitelist for TypeSerializerUpgradeTestBase test coverage
         final List<String> typeSerializerUpgradeTestBaseWhitelist =
@@ -258,7 +260,11 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         RowDataSerializer.class.getName(),
                         DecimalDataSerializer.class.getName(),
                         SharedBufferNode.SharedBufferNodeSerializer.class.getName(),
-                        NFA.NFASerializer.class.getName());
+                        NFA.NFASerializer.class.getName(),
+                        AvroSerializer.class.getName(),
+                        // KeyAndValueSerializer shouldn't be used to serialize data to state and
+                        // doesn't need to ensure upgrade compatibility.
+                        "org.apache.flink.streaming.api.operators.sortpartition.KeyAndValueSerializer");
 
         // check if a test exists for each type serializer
         for (Class<? extends TypeSerializer> typeSerializer : typeSerializers) {

@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
@@ -28,7 +30,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
@@ -42,7 +43,6 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 
@@ -65,7 +65,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Tests for failure of checkpoint coordinator. */
-class CheckpointCoordinatorFailureTest extends TestLogger {
+class CheckpointCoordinatorFailureTest {
 
     @RegisterExtension
     static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
@@ -171,7 +171,6 @@ class CheckpointCoordinatorFailureTest extends TestLogger {
         assertThat(pendingCheckpoint.isDisposed()).isTrue();
 
         // make sure that the subtask state has been discarded after we could not complete it.
-        verify(operatorSubtaskState).discardState();
         verify(operatorSubtaskState.getManagedOperatorState().iterator().next()).discardState();
         verify(operatorSubtaskState.getRawOperatorState().iterator().next()).discardState();
         verify(operatorSubtaskState.getManagedKeyedState().iterator().next()).discardState();
@@ -214,7 +213,8 @@ class CheckpointCoordinatorFailureTest extends TestLogger {
                 new FailingCompletedCheckpointStore(failure);
 
         CheckpointStatsTracker statsTracker =
-                new CheckpointStatsTracker(Integer.MAX_VALUE, new UnregisteredMetricsGroup());
+                new CheckpointStatsTracker(
+                        Integer.MAX_VALUE, new UnregisteredMetricsGroup(), new JobID());
         final AtomicInteger cleanupCallCount = new AtomicInteger(0);
         final CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()

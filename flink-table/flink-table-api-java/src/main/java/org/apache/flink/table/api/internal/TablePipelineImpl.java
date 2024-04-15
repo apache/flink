@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api.internal;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.ExplainFormat;
@@ -33,6 +34,7 @@ import java.util.Optional;
 import static java.util.Collections.singletonList;
 
 /** Implementation of {@link TablePipeline}. */
+@Internal
 class TablePipelineImpl implements TablePipeline {
 
     private final TableEnvironmentInternal tableEnvironment;

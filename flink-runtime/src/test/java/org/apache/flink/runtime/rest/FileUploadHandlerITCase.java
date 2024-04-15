@@ -25,6 +25,7 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.function.BiConsumerWithException;
 
@@ -42,10 +43,12 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.io.StringWriter;
 import java.lang.reflect.Field;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -120,6 +123,15 @@ class FileUploadHandlerITCase {
             String headerUrl, MultipartUploadExtension.TestRequestBody json) throws IOException {
         MultipartBody.Builder builder = new MultipartBody.Builder();
         builder = addJsonPart(builder, json, FileUploadHandler.HTTP_ATTRIBUTE_REQUEST);
+        return finalizeRequest(builder, headerUrl);
+    }
+
+    private Request buildMixedRequest(
+            String headerUrl, MultipartUploadExtension.TestRequestBody json, File file)
+            throws IOException {
+        MultipartBody.Builder builder = new MultipartBody.Builder();
+        builder = addJsonPart(builder, json, FileUploadHandler.HTTP_ATTRIBUTE_REQUEST);
+        builder = addFilePart(builder, file, file.getName());
         return finalizeRequest(builder, headerUrl);
     }
 
@@ -219,6 +231,50 @@ class FileUploadHandlerITCase {
                 buildMixedRequest(
                         mixedHandler.getMessageHeaders().getTargetRestEndpointURL(), json);
         try (Response response = client.newCall(mixedRequest).execute()) {
+            assertThat(response.code())
+                    .isEqualTo(mixedHandler.getMessageHeaders().getResponseStatusCode().code());
+            assertThat(mixedHandler.lastReceivedRequest).isEqualTo(json);
+        }
+
+        verifyNoFileIsRegisteredToDeleteOnExitHook();
+    }
+
+    /**
+     * This test checks for a specific multipart request chunk layout using a magic number.
+     *
+     * <p>These things are very susceptible to interference from other requests or parts of the
+     * payload; for example if the JSON payload increases by a single byte it can already break the
+     * number. Do not reuse the client.
+     *
+     * <p>To find the magic number you can define a static counter, and loop the test in the IDE
+     * (without forking!) while incrementing the counter on each run.
+     */
+    @Test
+    void testMixedMultipartEndOfDataDecoderExceptionHandling(@TempDir Path tmp) throws Exception {
+        OkHttpClient client = createOkHttpClientWithNoTimeouts();
+
+        MultipartUploadExtension.MultipartMixedHandler mixedHandler =
+                multipartUpdateExtensionWrapper.getCustomExtension().getMixedHandler();
+
+        MultipartUploadExtension.TestRequestBody json =
+                new MultipartUploadExtension.TestRequestBody();
+
+        File file = TempDirUtils.newFile(tmp);
+        try (RandomAccessFile rw = new RandomAccessFile(file, "rw")) {
+            // magic value that reliably reproduced EndOfDataDecoderException in hasNext()
+            rw.setLength(1424);
+        }
+        multipartUpdateExtensionWrapper
+                .getCustomExtension()
+                .setFileUploadVerifier(
+                        (handlerRequest, restfulGateway) ->
+                                MultipartUploadExtension.assertUploadedFilesEqual(
+                                        handlerRequest, Collections.singleton(file)));
+
+        Request singleFileMixedRequest =
+                buildMixedRequest(
+                        mixedHandler.getMessageHeaders().getTargetRestEndpointURL(), json, file);
+        try (Response response = client.newCall(singleFileMixedRequest).execute()) {
             assertThat(response.code())
                     .isEqualTo(mixedHandler.getMessageHeaders().getResponseStatusCode().code());
             assertThat(mixedHandler.lastReceivedRequest).isEqualTo(json);

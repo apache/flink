@@ -23,14 +23,15 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.RuntimePairComparatorFactory;
 import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.TestTemplate;
 
-public class RightOuterJoinTaskExternalITCase extends AbstractOuterJoinTaskExternalITCase {
+import static org.assertj.core.api.Assertions.assertThat;
+
+class RightOuterJoinTaskExternalITCase extends AbstractOuterJoinTaskExternalITCase {
 
     private final double hash_frac;
 
-    public RightOuterJoinTaskExternalITCase(ExecutionConfig config) {
+    RightOuterJoinTaskExternalITCase(ExecutionConfig config) {
         super(config);
         hash_frac = (double) HASH_MEM / this.getMemoryManager().getMemorySize();
     }
@@ -53,8 +54,8 @@ public class RightOuterJoinTaskExternalITCase extends AbstractOuterJoinTaskExter
         return DriverStrategy.RIGHT_OUTER_MERGE;
     }
 
-    @Test
-    public void testExternalHashRightOuterJoinTask() throws Exception {
+    @TestTemplate
+    void testExternalHashRightOuterJoinTask() throws Exception {
 
         final int keyCnt1 = 32768;
         final int valCnt1 = 8;
@@ -87,6 +88,8 @@ public class RightOuterJoinTaskExternalITCase extends AbstractOuterJoinTaskExter
                 this.comparator2.duplicate());
         testDriver(testTask, MockJoinStub.class);
 
-        Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
+        assertThat(this.output.getNumberOfRecords())
+                .withFailMessage("Wrong result set size.")
+                .isEqualTo(expCnt);
     }
 }

@@ -115,7 +115,7 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
             FunctionWithException<Environment, ? extends StreamTask<OUT, ?>, Exception> taskFactory,
             TypeInformation<OUT> outputType) {
         this.taskFactory = checkNotNull(taskFactory);
-        outputSerializer = outputType.createSerializer(executionConfig);
+        outputSerializer = outputType.createSerializer(executionConfig.getSerializerConfig());
         streamConfig.setTimeCharacteristic(TimeCharacteristic.EventTime);
     }
 
@@ -170,7 +170,8 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
         streamConfig.setStatePartitioner(inputs.size(), keySelector);
         inputs.add(
                 new NetworkInputConfig(
-                        inputType.createSerializer(executionConfig), inputChannelsPerGate.size()));
+                        inputType.createSerializer(executionConfig.getSerializerConfig()),
+                        inputChannelsPerGate.size()));
         inputChannelsPerGate.add(inputChannels);
         return this;
     }
@@ -186,7 +187,9 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
             SourceOperatorFactory<SourceType> sourceOperatorFactory,
             TypeInformation<SourceType> sourceType) {
         return addSourceInput(
-                operatorId, sourceOperatorFactory, sourceType.createSerializer(executionConfig));
+                operatorId,
+                sourceOperatorFactory,
+                sourceType.createSerializer(executionConfig.getSerializerConfig()));
     }
 
     public <SourceType> StreamTaskMailboxTestHarnessBuilder<OUT> addSourceInput(
@@ -451,7 +454,8 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
     }
 
     public StreamTaskMailboxTestHarnessBuilder<OUT> setKeyType(TypeInformation<?> keyType) {
-        streamConfig.setStateKeySerializer(keyType.createSerializer(executionConfig));
+        streamConfig.setStateKeySerializer(
+                keyType.createSerializer(executionConfig.getSerializerConfig()));
         return this;
     }
 

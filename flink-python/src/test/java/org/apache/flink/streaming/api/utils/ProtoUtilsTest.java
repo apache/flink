@@ -25,6 +25,7 @@ import org.apache.flink.python.util.ProtoUtils;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -117,5 +118,7 @@ class ProtoUtilsTest {
         assertThat(rocksdbCompactFilterCleanupStrategy).isNotNull();
         assertThat(rocksdbCompactFilterCleanupStrategy.getQueryTimeAfterNumEntries())
                 .isEqualTo(1000);
+        assertThat(rocksdbCompactFilterCleanupStrategy.getPeriodicCompactionTime())
+                .isEqualTo(Duration.ofDays(30));
     }
 }

@@ -178,13 +178,13 @@ public class SegmentPartitionFileWriter implements PartitionFileWriter {
     private void writeSegmentFinishFile(
             TieredStoragePartitionId partitionId, int subpartitionId, int segmentId) {
         try {
-            SegmentPartitionFile.writeSegmentFinishFile(
-                    basePath, partitionId, subpartitionId, segmentId);
             WritableByteChannel channel = subpartitionChannels[subpartitionId];
             if (channel != null) {
                 channel.close();
                 subpartitionChannels[subpartitionId] = null;
             }
+            SegmentPartitionFile.writeSegmentFinishFile(
+                    basePath, partitionId, subpartitionId, segmentId);
         } catch (IOException exception) {
             ExceptionUtils.rethrow(exception);
         }

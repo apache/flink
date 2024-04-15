@@ -53,7 +53,7 @@ import java.util.stream.Collectors;
 public class MultipleInputTestBase {
 
     protected Transformation<RowData> createSource(StreamExecutionEnvironment env, String... data) {
-        return env.fromCollection(
+        return env.fromData(
                         Arrays.stream(data)
                                 .map(StringData::fromString)
                                 .map(GenericRowData::of)

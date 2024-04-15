@@ -17,7 +17,7 @@
  */
 package org.apache.flink.streaming.api.scala.async
 
-import org.apache.flink.api.common.functions.RuntimeContext
+import org.apache.flink.api.common.functions.{OpenContext, RuntimeContext}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.async.{ResultFuture => JResultFuture, RichAsyncFunction => JRichAsyncFunction}
 
@@ -27,7 +27,14 @@ import org.apache.flink.streaming.api.functions.async.{ResultFuture => JResultFu
  * The Scala and Java RichAsyncFunctions differ in their type of "ResultFuture"
  *   - Scala RichAsyncFunction: [[org.apache.flink.streaming.api.scala.async.ResultFuture]]
  *   - Java RichAsyncFunction: [[org.apache.flink.streaming.api.functions.async.ResultFuture]]
+ * @deprecated
+ *   All Flink Scala APIs are deprecated and will be removed in a future Flink major version. You
+ *   can still build your application in Scala, but you should move to the Java version of either
+ *   the DataStream and/or Table API.
+ * @see
+ *   <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
  */
+@deprecated(org.apache.flink.api.scala.FLIP_265_WARNING, since = "1.18.0")
 final class ScalaRichAsyncFunctionWrapper[IN, OUT](func: RichAsyncFunction[IN, OUT])
   extends JRichAsyncFunction[IN, OUT] {
 
@@ -39,8 +46,8 @@ final class ScalaRichAsyncFunctionWrapper[IN, OUT](func: RichAsyncFunction[IN, O
     func.timeout(input, new JavaResultFutureWrapper[OUT](resultFuture))
   }
 
-  override def open(parameters: Configuration): Unit = {
-    func.open(parameters)
+  override def open(openContext: OpenContext): Unit = {
+    func.open(openContext)
   }
 
   override def close(): Unit = {

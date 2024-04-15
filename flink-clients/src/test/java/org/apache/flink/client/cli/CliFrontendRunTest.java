@@ -24,7 +24,7 @@ import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import org.apache.commons.cli.CommandLine;
@@ -147,17 +147,17 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 
     @Test
     void testClaimRestoreModeParsingLongOption() throws Exception {
-        testRestoreMode("--restoreMode", "claim", RestoreMode.CLAIM);
+        testRestoreMode("--claimMode", "claim", RestoreMode.CLAIM);
     }
 
     @Test
     void testLegacyRestoreModeParsingLongOption() throws Exception {
-        testRestoreMode("--restoreMode", "legacy", RestoreMode.LEGACY);
+        testRestoreMode("--claimMode", "legacy", RestoreMode.LEGACY);
     }
 
     @Test
     void testNoClaimRestoreModeParsingLongOption() throws Exception {
-        testRestoreMode("--restoreMode", "no_claim", RestoreMode.NO_CLAIM);
+        testRestoreMode("--claimMode", "no_claim", RestoreMode.NO_CLAIM);
     }
 
     private void testRestoreMode(String flag, String arg, RestoreMode expectedMode)

@@ -55,12 +55,15 @@ public class TableResultImpl implements TableResultInternal {
     private final ResultProvider resultProvider;
     private final PrintStyle printStyle;
 
+    private final CachedPlan cachedPlan;
+
     private TableResultImpl(
             @Nullable JobClient jobClient,
             ResolvedSchema resolvedSchema,
             ResultKind resultKind,
             ResultProvider resultProvider,
-            PrintStyle printStyle) {
+            PrintStyle printStyle,
+            CachedPlan cachedPlan) {
         this.jobClient = jobClient;
         this.resolvedSchema =
                 Preconditions.checkNotNull(resolvedSchema, "resolvedSchema should not be null");
@@ -68,6 +71,7 @@ public class TableResultImpl implements TableResultInternal {
         Preconditions.checkNotNull(resultProvider, "result provider should not be null");
         this.resultProvider = resultProvider;
         this.printStyle = Preconditions.checkNotNull(printStyle, "printStyle should not be null");
+        this.cachedPlan = cachedPlan;
     }
 
     @Override
@@ -147,6 +151,12 @@ public class TableResultImpl implements TableResultInternal {
         return resultProvider.getRowDataStringConverter();
     }
 
+    @Nullable
+    @Override
+    public CachedPlan getCachedPlan() {
+        return cachedPlan;
+    }
+
     @Override
     public void print() {
         Iterator<RowData> it = resultProvider.toInternalIterator();
@@ -158,12 +168,14 @@ public class TableResultImpl implements TableResultInternal {
     }
 
     /** Builder for creating a {@link TableResultImpl}. */
+    @Internal
     public static class Builder {
         private JobClient jobClient = null;
         private ResolvedSchema resolvedSchema = null;
         private ResultKind resultKind = null;
         private ResultProvider resultProvider = null;
         private PrintStyle printStyle = null;
+        private CachedPlan cachedPlan = null;
 
         private Builder() {}
 
@@ -223,13 +235,23 @@ public class TableResultImpl implements TableResultInternal {
             return this;
         }
 
+        /**
+         * Specifies cached plan which associates the submitted Flink job.
+         *
+         * @param cachedPlan a {@link CachedPlan} for the submitted Flink job.
+         */
+        public Builder setCachedPlan(CachedPlan cachedPlan) {
+            this.cachedPlan = cachedPlan;
+            return this;
+        }
+
         /** Returns a {@link TableResult} instance. */
         public TableResultInternal build() {
             if (printStyle == null) {
                 printStyle = PrintStyle.rawContent(resultProvider.getRowDataStringConverter());
             }
             return new TableResultImpl(
-                    jobClient, resolvedSchema, resultKind, resultProvider, printStyle);
+                    jobClient, resolvedSchema, resultKind, resultProvider, printStyle, cachedPlan);
         }
     }
 }

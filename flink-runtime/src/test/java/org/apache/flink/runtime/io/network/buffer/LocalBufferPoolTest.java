@@ -65,7 +65,7 @@ class LocalBufferPoolTest {
     private BufferPool localBufferPool;
 
     @RegisterExtension
-    public static final TestExecutorExtension<ExecutorService> EXECUTOR_RESOURCE =
+    private static final TestExecutorExtension<ExecutorService> EXECUTOR_EXTENSION =
             new TestExecutorExtension<>(Executors::newCachedThreadPool);
 
     @BeforeEach
@@ -73,7 +73,7 @@ class LocalBufferPoolTest {
         networkBufferPool = new NetworkBufferPool(numBuffers, memorySegmentSize);
         localBufferPool = new LocalBufferPool(networkBufferPool, 1);
 
-        assertThat(localBufferPool.getNumberOfAvailableMemorySegments()).isEqualTo(1);
+        assertThat(localBufferPool.getNumberOfAvailableMemorySegments()).isOne();
     }
 
     @AfterEach
@@ -82,9 +82,8 @@ class LocalBufferPoolTest {
             localBufferPool.lazyDestroy();
         }
 
-        String msg = "Did not return all buffers to memory segment pool after test.";
         assertThat(networkBufferPool.getNumberOfAvailableMemorySegments())
-                .withFailMessage(msg)
+                .withFailMessage("Did not return all buffers to memory segment pool after test.")
                 .isEqualTo(numBuffers);
         // no other local buffer pools used than the one above, but call just in case
         networkBufferPool.destroyAllBufferPools();
@@ -92,11 +91,26 @@ class LocalBufferPoolTest {
     }
 
     @Test
+    void testCreateIllegalBufferPool() {
+        NetworkBufferPool networkBufferPool =
+                new NetworkBufferPool(2, memorySegmentSize, Duration.ofSeconds(2));
+
+        assertThatThrownBy(() -> new LocalBufferPool(networkBufferPool, 0, 2, 3, 2, 2, 2))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThatThrownBy(() -> new LocalBufferPool(networkBufferPool, 1, 2, 3, 2, 2, 2))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThatThrownBy(() -> new LocalBufferPool(networkBufferPool, 4, 2, 3, 2, 2, 2))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void testReserveSegments() throws Exception {
         NetworkBufferPool networkBufferPool =
                 new NetworkBufferPool(2, memorySegmentSize, Duration.ofSeconds(2));
         try {
-            BufferPool bufferPool1 = networkBufferPool.createBufferPool(1, 2);
+            BufferPool bufferPool1 = networkBufferPool.createBufferPool(1, 1, 2);
             assertThatThrownBy(() -> bufferPool1.reserveSegments(2))
                     .isInstanceOf(IllegalArgumentException.class);
 
@@ -106,7 +120,7 @@ class LocalBufferPoolTest {
             buffers.add(bufferPool1.requestBuffer());
             assertThat(buffers).hasSize(2);
 
-            BufferPool bufferPool2 = networkBufferPool.createBufferPool(1, 10);
+            BufferPool bufferPool2 = networkBufferPool.createBufferPool(1, 1, 10);
             assertThatThrownBy(() -> bufferPool2.reserveSegments(1))
                     .isInstanceOf(IOException.class);
             assertThat(bufferPool2.isAvailable()).isFalse();
@@ -115,8 +129,8 @@ class LocalBufferPoolTest {
             bufferPool1.lazyDestroy();
             bufferPool2.lazyDestroy();
 
-            BufferPool bufferPool3 = networkBufferPool.createBufferPool(2, 10);
-            assertThat(bufferPool3.getNumberOfAvailableMemorySegments()).isEqualTo(1);
+            BufferPool bufferPool3 = networkBufferPool.createBufferPool(2, 2, 10);
+            assertThat(bufferPool3.getNumberOfAvailableMemorySegments()).isOne();
             bufferPool3.reserveSegments(2);
             assertThat(bufferPool3.getNumberOfAvailableMemorySegments()).isEqualTo(2);
 
@@ -129,13 +143,14 @@ class LocalBufferPoolTest {
     }
 
     @Test
-    @Timeout(10) // timeout can indicate a potential deadlock
+    @Timeout(value = 10) // timeout can indicate a potential deadlock
     void testReserveSegmentsAndCancel() throws Exception {
         int totalSegments = 4;
         int segmentsToReserve = 2;
 
         NetworkBufferPool globalPool = new NetworkBufferPool(totalSegments, memorySegmentSize);
-        BufferPool localPool1 = globalPool.createBufferPool(segmentsToReserve, totalSegments);
+        BufferPool localPool1 =
+                globalPool.createBufferPool(segmentsToReserve, segmentsToReserve, totalSegments);
         List<MemorySegment> segments = new ArrayList<>();
 
         try {
@@ -143,7 +158,9 @@ class LocalBufferPoolTest {
                 segments.add(localPool1.requestMemorySegmentBlocking());
             }
 
-            BufferPool localPool2 = globalPool.createBufferPool(segmentsToReserve, totalSegments);
+            BufferPool localPool2 =
+                    globalPool.createBufferPool(
+                            segmentsToReserve, segmentsToReserve, totalSegments);
             // the segment reserve thread will be blocked for no buffer is available
             Thread reserveThread =
                     new Thread(
@@ -289,6 +306,7 @@ class LocalBufferPoolTest {
                 new LocalBufferPool(
                         networkBufferPool,
                         requiredMemorySegments,
+                        requiredMemorySegments,
                         maxMemorySegments,
                         0,
                         Integer.MAX_VALUE,
@@ -375,6 +393,7 @@ class LocalBufferPoolTest {
                 new LocalBufferPool(
                         networkBufferPool,
                         requiredMemorySegments,
+                        requiredMemorySegments,
                         maxMemorySegments,
                         0,
                         Integer.MAX_VALUE,
@@ -429,14 +448,14 @@ class LocalBufferPoolTest {
     private void testRequestBuffersOnRecycle(boolean supportOverdraftBuffer) throws Exception {
         BufferPool bufferPool1 =
                 networkBufferPool.createBufferPool(
-                        512, 2048, 0, Integer.MAX_VALUE, supportOverdraftBuffer ? 5 : 0);
+                        512, 512, 2048, 0, Integer.MAX_VALUE, supportOverdraftBuffer ? 5 : 0);
         List<MemorySegment> segments = new ArrayList<>();
         for (int i = 0; i < 1023; i++) {
             segments.add(bufferPool1.requestMemorySegmentBlocking());
         }
         BufferPool bufferPool2 =
                 networkBufferPool.createBufferPool(
-                        512, 512, 0, Integer.MAX_VALUE, supportOverdraftBuffer ? 5 : 0);
+                        512, 512, 512, 0, Integer.MAX_VALUE, supportOverdraftBuffer ? 5 : 0);
         List<MemorySegment> segments2 = new ArrayList<>();
         CheckedThread checkedThread =
                 new CheckedThread() {
@@ -587,7 +606,7 @@ class LocalBufferPoolTest {
         Future<Boolean>[] taskResults = new Future[numConcurrentTasks];
         for (int i = 0; i < numConcurrentTasks; i++) {
             taskResults[i] =
-                    EXECUTOR_RESOURCE
+                    EXECUTOR_EXTENSION
                             .getExecutor()
                             .submit(
                                     new BufferRequesterTask(
@@ -661,7 +680,7 @@ class LocalBufferPoolTest {
     @Test
     void testMaxBuffersPerChannelAndAvailability() throws Exception {
         localBufferPool.lazyDestroy();
-        localBufferPool = new LocalBufferPool(networkBufferPool, 1, Integer.MAX_VALUE, 3, 2, 0);
+        localBufferPool = new LocalBufferPool(networkBufferPool, 1, 1, Integer.MAX_VALUE, 3, 2, 0);
         localBufferPool.setNumBuffers(10);
 
         assertThat(localBufferPool.getAvailableFuture()).isDone();
@@ -801,6 +820,7 @@ class LocalBufferPoolTest {
                 new LocalBufferPool(
                         networkBufferPool,
                         1,
+                        1,
                         Integer.MAX_VALUE,
                         numberOfChannels,
                         maxBuffersPerChannel,
@@ -855,7 +875,7 @@ class LocalBufferPoolTest {
         bufferPool.lazyDestroy();
     }
 
-    private void assertRequestedBufferAndIsAvailable(
+    private static void assertRequestedBufferAndIsAvailable(
             LocalBufferPool bufferPool,
             int numberOfRequestedOverdraftBuffer,
             int numberOfRequestedBuffer,
@@ -920,7 +940,7 @@ class LocalBufferPoolTest {
         }
 
         @Override
-        public Boolean call() throws Exception {
+        public Boolean call() {
             try {
                 for (int i = 0; i < numBuffersToRequest; i++) {
                     Buffer buffer = checkNotNull(bufferProvider.requestBuffer());

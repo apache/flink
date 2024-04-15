@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations.command;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.operations.Operation;
 
 import javax.annotation.Nullable;
@@ -30,6 +31,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Operation to represent SET command. If {@link #getKey()} and {@link #getValue()} are empty, it
  * means show all the configurations. Otherwise, set value to the configuration key.
  */
+@Internal
 public class SetOperation implements Operation {
 
     @Nullable private final String key;

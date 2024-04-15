@@ -21,10 +21,14 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
+import org.apache.flink.core.testutils.ScheduledTask;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
@@ -38,7 +42,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
@@ -50,16 +53,18 @@ import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
+import org.apache.flink.runtime.state.DiscardRecordedStateObject;
+import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
+import org.apache.flink.runtime.state.PhysicalStateHandleID;
 import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryImpl;
-import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestingStreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
@@ -75,7 +80,7 @@ import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
@@ -119,7 +124,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
+import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED;
@@ -136,7 +143,6 @@ import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -147,7 +153,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Tests for the checkpoint coordinator. */
-class CheckpointCoordinatorTest extends TestLogger {
+class CheckpointCoordinatorTest {
 
     @RegisterExtension
     static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
@@ -200,7 +206,7 @@ class CheckpointCoordinatorTest extends TestLogger {
         testReportStatsAfterFailure(
                 1L,
                 (coordinator, execution, metrics) -> {
-                    coordinator.reportStats(1L, execution.getAttemptId(), metrics);
+                    coordinator.reportCheckpointMetrics(1L, execution.getAttemptId(), metrics);
                     return null;
                 });
     }
@@ -245,7 +251,8 @@ class CheckpointCoordinatorTest extends TestLogger {
         ExecutionVertex lateReportVertex =
                 executionGraph.getJobVertex(lateReportVertexID).getTaskVertices()[0];
         CheckpointStatsTracker statsTracker =
-                new CheckpointStatsTracker(Integer.MAX_VALUE, new UnregisteredMetricsGroup());
+                new CheckpointStatsTracker(
+                        Integer.MAX_VALUE, new UnregisteredMetricsGroup(), new JobID());
         CheckpointCoordinator coordinator =
                 new CheckpointCoordinatorBuilder()
                         .setTimer(manuallyTriggeredScheduledExecutor)
@@ -495,7 +502,8 @@ class CheckpointCoordinatorTest extends TestLogger {
         jobVertex2.getTaskVertices()[1].getCurrentExecutionAttempt().markFinished();
 
         CheckpointStatsTracker statsTracker =
-                new CheckpointStatsTracker(Integer.MAX_VALUE, new UnregisteredMetricsGroup());
+                new CheckpointStatsTracker(
+                        Integer.MAX_VALUE, new UnregisteredMetricsGroup(), new JobID());
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
                         .setTimer(manuallyTriggeredScheduledExecutor)
@@ -737,7 +745,8 @@ class CheckpointCoordinatorTest extends TestLogger {
         // given: Checkpoint coordinator which fails on initializeCheckpointLocation.
         TestFailJobCallback failureCallback = new TestFailJobCallback();
         CheckpointStatsTracker statsTracker =
-                new CheckpointStatsTracker(Integer.MAX_VALUE, new UnregisteredMetricsGroup());
+                new CheckpointStatsTracker(
+                        Integer.MAX_VALUE, new UnregisteredMetricsGroup(), new JobID());
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
                         .setCheckpointStatsTracker(statsTracker)
@@ -1516,9 +1525,12 @@ class CheckpointCoordinatorTest extends TestLogger {
         TaskStateSnapshot taskOperatorSubtaskStates12 = spy(new TaskStateSnapshot());
         TaskStateSnapshot taskOperatorSubtaskStates13 = spy(new TaskStateSnapshot());
 
-        OperatorSubtaskState subtaskState11 = mock(OperatorSubtaskState.class);
-        OperatorSubtaskState subtaskState12 = mock(OperatorSubtaskState.class);
-        OperatorSubtaskState subtaskState13 = mock(OperatorSubtaskState.class);
+        OperatorSubtaskStateMock subtaskState11mock = new OperatorSubtaskStateMock();
+        OperatorSubtaskStateMock subtaskState12mock = new OperatorSubtaskStateMock();
+        OperatorSubtaskStateMock subtaskState13mock = new OperatorSubtaskStateMock();
+        OperatorSubtaskState subtaskState11 = subtaskState11mock.getSubtaskState();
+        OperatorSubtaskState subtaskState12 = subtaskState12mock.getSubtaskState();
+        OperatorSubtaskState subtaskState13 = subtaskState13mock.getSubtaskState();
         taskOperatorSubtaskStates11.putSubtaskStateByOperatorID(opID1, subtaskState11);
         taskOperatorSubtaskStates12.putSubtaskStateByOperatorID(opID2, subtaskState12);
         taskOperatorSubtaskStates13.putSubtaskStateByOperatorID(opID3, subtaskState13);
@@ -1557,9 +1569,12 @@ class CheckpointCoordinatorTest extends TestLogger {
         TaskStateSnapshot taskOperatorSubtaskStates22 = spy(new TaskStateSnapshot());
         TaskStateSnapshot taskOperatorSubtaskStates23 = spy(new TaskStateSnapshot());
 
-        OperatorSubtaskState subtaskState21 = mock(OperatorSubtaskState.class);
-        OperatorSubtaskState subtaskState22 = mock(OperatorSubtaskState.class);
-        OperatorSubtaskState subtaskState23 = mock(OperatorSubtaskState.class);
+        OperatorSubtaskStateMock subtaskState21mock = new OperatorSubtaskStateMock();
+        OperatorSubtaskStateMock subtaskState22mock = new OperatorSubtaskStateMock();
+        OperatorSubtaskStateMock subtaskState23mock = new OperatorSubtaskStateMock();
+        OperatorSubtaskState subtaskState21 = subtaskState21mock.getSubtaskState();
+        OperatorSubtaskState subtaskState22 = subtaskState22mock.getSubtaskState();
+        OperatorSubtaskState subtaskState23 = subtaskState23mock.getSubtaskState();
 
         taskOperatorSubtaskStates21.putSubtaskStateByOperatorID(opID1, subtaskState21);
         taskOperatorSubtaskStates22.putSubtaskStateByOperatorID(opID2, subtaskState22);
@@ -1621,13 +1636,13 @@ class CheckpointCoordinatorTest extends TestLogger {
         assertThat(checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints()).isOne();
 
         // validate that all received subtask states in the first checkpoint have been discarded
-        verify(subtaskState11, times(1)).discardState();
-        verify(subtaskState12, times(1)).discardState();
+        subtaskState11mock.verifyDiscard();
+        subtaskState12mock.verifyDiscard();
 
         // validate that all subtask states in the second checkpoint are not discarded
-        verify(subtaskState21, never()).discardState();
-        verify(subtaskState22, never()).discardState();
-        verify(subtaskState23, never()).discardState();
+        subtaskState21mock.verifyNotDiscard();
+        subtaskState22mock.verifyNotDiscard();
+        subtaskState23mock.verifyNotDiscard();
 
         // validate the committed checkpoints
         List<CompletedCheckpoint> scs = checkpointCoordinator.getSuccessfulCheckpoints();
@@ -1652,15 +1667,15 @@ class CheckpointCoordinatorTest extends TestLogger {
                         new CheckpointMetrics(),
                         taskOperatorSubtaskStates13),
                 TASK_MANAGER_LOCATION_INFO);
-        verify(subtaskState13, times(1)).discardState();
+        subtaskState13mock.verifyDiscard();
 
         checkpointCoordinator.shutdown();
         completedCheckpointStore.shutdown(JobStatus.FINISHED, new CheckpointsCleaner());
 
         // validate that the states in the second checkpoint have been discarded
-        verify(subtaskState21, times(1)).discardState();
-        verify(subtaskState22, times(1)).discardState();
-        verify(subtaskState23, times(1)).discardState();
+        subtaskState21mock.verifyDiscard();
+        subtaskState22mock.verifyDiscard();
+        subtaskState23mock.verifyDiscard();
     }
 
     @Test
@@ -1704,7 +1719,8 @@ class CheckpointCoordinatorTest extends TestLogger {
         OperatorID opID1 = vertex1.getJobVertex().getOperatorIDs().get(0).getGeneratedOperatorID();
 
         TaskStateSnapshot taskOperatorSubtaskStates1 = spy(new TaskStateSnapshot());
-        OperatorSubtaskState subtaskState1 = mock(OperatorSubtaskState.class);
+        OperatorSubtaskStateMock operatorSubtaskStateMock = new OperatorSubtaskStateMock();
+        OperatorSubtaskState subtaskState1 = operatorSubtaskStateMock.getSubtaskState();
         taskOperatorSubtaskStates1.putSubtaskStateByOperatorID(opID1, subtaskState1);
 
         checkpointCoordinator.receiveAcknowledgeMessage(
@@ -1723,9 +1739,7 @@ class CheckpointCoordinatorTest extends TestLogger {
                 .isTrue();
         assertThat(checkpointCoordinator.getNumberOfPendingCheckpoints()).isZero();
         assertThat(checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints()).isZero();
-
-        // validate that the received states have been discarded
-        verify(subtaskState1, times(1)).discardState();
+        operatorSubtaskStateMock.verifyDiscard();
 
         // no confirm message must have been sent
         for (ExecutionVertex vertex : Arrays.asList(vertex1, vertex2)) {
@@ -1848,7 +1862,8 @@ class CheckpointCoordinatorTest extends TestLogger {
                 vertex1.getJobVertex().getOperatorIDs().get(0).getGeneratedOperatorID();
 
         TaskStateSnapshot taskOperatorSubtaskStatesTrigger = spy(new TaskStateSnapshot());
-        OperatorSubtaskState subtaskStateTrigger = mock(OperatorSubtaskState.class);
+        OperatorSubtaskStateMock subtaskStateMock = new OperatorSubtaskStateMock();
+        OperatorSubtaskState subtaskStateTrigger = subtaskStateMock.getSubtaskState();
         taskOperatorSubtaskStatesTrigger.putSubtaskStateByOperatorID(
                 opIDtrigger, subtaskStateTrigger);
 
@@ -1863,7 +1878,7 @@ class CheckpointCoordinatorTest extends TestLogger {
                 TASK_MANAGER_LOCATION_INFO);
 
         // verify that the subtask state has not been discarded
-        verify(subtaskStateTrigger, never()).discardState();
+        subtaskStateMock.verifyNotDiscard();
 
         TaskStateSnapshot unknownSubtaskState = mock(TaskStateSnapshot.class);
 
@@ -1910,7 +1925,7 @@ class CheckpointCoordinatorTest extends TestLogger {
         verify(triggerSubtaskState, never()).discardState();
 
         // let the checkpoint fail at the first ack vertex
-        reset(subtaskStateTrigger);
+        subtaskStateMock.reset();
         checkpointCoordinator.receiveDeclineMessage(
                 new DeclineCheckpoint(
                         graph.getJobID(),
@@ -1922,7 +1937,7 @@ class CheckpointCoordinatorTest extends TestLogger {
         assertThat(pendingCheckpoint.isDisposed()).isTrue();
 
         // check that we've cleaned up the already acknowledged state
-        verify(subtaskStateTrigger, times(1)).discardState();
+        subtaskStateMock.verifyDiscard();
 
         TaskStateSnapshot ackSubtaskState = mock(TaskStateSnapshot.class);
 
@@ -2005,7 +2020,8 @@ class CheckpointCoordinatorTest extends TestLogger {
         ExecutionAttemptID attemptID1 = vertex1.getCurrentExecutionAttempt().getAttemptId();
         ExecutionAttemptID attemptID2 = vertex2.getCurrentExecutionAttempt().getAttemptId();
         CheckpointStatsTracker statsTracker =
-                new CheckpointStatsTracker(Integer.MAX_VALUE, new UnregisteredMetricsGroup());
+                new CheckpointStatsTracker(
+                        Integer.MAX_VALUE, new UnregisteredMetricsGroup(), new JobID());
         // set up the coordinator and validate the initial state
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
@@ -2304,7 +2320,8 @@ class CheckpointCoordinatorTest extends TestLogger {
             checkpointCoordinator.startCheckpointScheduler();
 
             for (int i = 0; i < maxConcurrentAttempts; i++) {
-                manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+                manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                        CheckpointCoordinator.ScheduledTrigger.class);
                 manuallyTriggeredScheduledExecutor.triggerAll();
             }
 
@@ -2317,18 +2334,35 @@ class CheckpointCoordinatorTest extends TestLogger {
                     new AcknowledgeCheckpoint(graph.getJobID(), attemptID1, 1L),
                     TASK_MANAGER_LOCATION_INFO);
 
-            final Collection<ScheduledFuture<?>> periodicScheduledTasks =
-                    manuallyTriggeredScheduledExecutor.getActivePeriodicScheduledTask();
-            assertThat(periodicScheduledTasks.size()).isOne();
+            Predicate<ScheduledFuture<?>> checkpointTriggerPredicate =
+                    scheduledFuture -> {
+                        ScheduledTask<?> scheduledTask = (ScheduledTask<?>) scheduledFuture;
+                        return scheduledTask.getCallable()
+                                        instanceof
+                                        ManuallyTriggeredScheduledExecutorService.RunnableCaller
+                                && ((ManuallyTriggeredScheduledExecutorService.RunnableCaller<?>)
+                                                scheduledTask.getCallable())
+                                        .command
+                                        .getClass()
+                                        .equals(CheckpointCoordinator.ScheduledTrigger.class);
+                    };
 
-            manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+            final long numCheckpointTriggerTasks =
+                    manuallyTriggeredScheduledExecutor.getActiveNonPeriodicScheduledTask().stream()
+                            .filter(checkpointTriggerPredicate)
+                            .count();
+            assertThat(numCheckpointTriggerTasks).isOne();
+
+            manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                    CheckpointCoordinator.ScheduledTrigger.class);
             manuallyTriggeredScheduledExecutor.triggerAll();
 
             assertThat(gateway.getTriggeredCheckpoints(attemptID1))
                     .hasSize(maxConcurrentAttempts + 1);
 
             // no further checkpoints should happen
-            manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+            manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                    CheckpointCoordinator.ScheduledTrigger.class);
             manuallyTriggeredScheduledExecutor.triggerAll();
 
             assertThat(gateway.getTriggeredCheckpoints(attemptID1))
@@ -2372,7 +2406,8 @@ class CheckpointCoordinatorTest extends TestLogger {
         checkpointCoordinator.startCheckpointScheduler();
 
         do {
-            manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+            manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                    CheckpointCoordinator.ScheduledTrigger.class);
             manuallyTriggeredScheduledExecutor.triggerAll();
         } while (checkpointCoordinator.getNumberOfPendingCheckpoints() < maxConcurrentAttempts);
 
@@ -2391,7 +2426,8 @@ class CheckpointCoordinatorTest extends TestLogger {
 
         // after a while, there should be the new checkpoints
         do {
-            manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+            manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                    CheckpointCoordinator.ScheduledTrigger.class);
             manuallyTriggeredScheduledExecutor.triggerAll();
         } while (checkpointCoordinator.getNumberOfPendingCheckpoints() < maxConcurrentAttempts);
 
@@ -2410,7 +2446,8 @@ class CheckpointCoordinatorTest extends TestLogger {
                 setupCheckpointCoordinatorWithInactiveTasks(new MemoryStateBackend());
 
         // the coordinator should start checkpointing now
-        manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+        manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                CheckpointCoordinator.ScheduledTrigger.class);
         manuallyTriggeredScheduledExecutor.triggerAll();
 
         assertThat(checkpointCoordinator.getNumberOfPendingCheckpoints()).isGreaterThan(0);
@@ -2448,7 +2485,8 @@ class CheckpointCoordinatorTest extends TestLogger {
 
         checkpointCoordinator.startCheckpointScheduler();
 
-        manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+        manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                CheckpointCoordinator.ScheduledTrigger.class);
         manuallyTriggeredScheduledExecutor.triggerAll();
         // no checkpoint should have started so far
         assertThat(checkpointCoordinator.getNumberOfPendingCheckpoints()).isZero();
@@ -2457,7 +2495,8 @@ class CheckpointCoordinatorTest extends TestLogger {
         vertex1.getCurrentExecutionAttempt().transitionState(ExecutionState.RUNNING);
 
         // the coordinator should start checkpointing now
-        manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+        manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                CheckpointCoordinator.ScheduledTrigger.class);
         manuallyTriggeredScheduledExecutor.triggerAll();
 
         return checkpointCoordinator;
@@ -2832,7 +2871,8 @@ class CheckpointCoordinatorTest extends TestLogger {
         StandaloneCompletedCheckpointStore store = new StandaloneCompletedCheckpointStore(1);
 
         // set up the coordinator and validate the initial state
-        CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);
+        CheckpointStatsTracker tracker =
+                new CheckpointStatsTracker(10, new UnregisteredMetricsGroup(), new JobID());
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
                         .setCompletedCheckpointStore(store)
@@ -2843,7 +2883,7 @@ class CheckpointCoordinatorTest extends TestLogger {
         store.addCheckpointAndSubsumeOldestOne(
                 new CompletedCheckpoint(
                         new JobID(),
-                        0,
+                        42,
                         0,
                         0,
                         Collections.<OperatorID, OperatorState>emptyMap(),
@@ -2860,7 +2900,8 @@ class CheckpointCoordinatorTest extends TestLogger {
                                 Collections.emptySet(), true))
                 .isTrue();
 
-        verify(tracker, times(1)).reportRestoredCheckpoint(any(RestoredCheckpointStats.class));
+        assertThat(tracker.createSnapshot().getLatestRestoredCheckpoint().getCheckpointId())
+                .isEqualTo(42);
     }
 
     @Test
@@ -2909,11 +2950,11 @@ class CheckpointCoordinatorTest extends TestLogger {
 
             int sharedHandleCount = 0;
 
-            List<Map<StateHandleID, StreamStateHandle>> sharedHandlesByCheckpoint =
+            List<List<HandleAndLocalPath>> sharedHandlesByCheckpoint =
                     new ArrayList<>(numCheckpoints);
 
             for (int i = 0; i < numCheckpoints; ++i) {
-                sharedHandlesByCheckpoint.add(new HashMap<>(2));
+                sharedHandlesByCheckpoint.add(new ArrayList<>(2));
             }
 
             int cp = 0;
@@ -2931,24 +2972,28 @@ class CheckpointCoordinatorTest extends TestLogger {
 
                             sharedHandlesByCheckpoint
                                     .get(cp)
-                                    .putAll(incrementalKeyedStateHandle.getSharedState());
+                                    .addAll(incrementalKeyedStateHandle.getSharedState());
 
-                            for (StreamStateHandle streamStateHandle :
-                                    incrementalKeyedStateHandle.getSharedState().values()) {
+                            for (HandleAndLocalPath handleAndLocalPath :
+                                    incrementalKeyedStateHandle.getSharedState()) {
+                                StreamStateHandle streamStateHandle =
+                                        handleAndLocalPath.getHandle();
                                 assertThat(
                                                 streamStateHandle
                                                         instanceof PlaceholderStreamStateHandle)
                                         .isFalse();
-                                verify(streamStateHandle, never()).discardState();
+                                DiscardRecordedStateObject.verifyDiscard(
+                                        streamStateHandle, TernaryBoolean.FALSE);
                                 ++sharedHandleCount;
                             }
 
-                            for (StreamStateHandle streamStateHandle :
-                                    incrementalKeyedStateHandle.getPrivateState().values()) {
-                                verify(streamStateHandle, never()).discardState();
+                            for (HandleAndLocalPath handleAndLocalPath :
+                                    incrementalKeyedStateHandle.getPrivateState()) {
+                                DiscardRecordedStateObject.verifyDiscard(
+                                        handleAndLocalPath.getHandle(), TernaryBoolean.FALSE);
                             }
 
-                            verify(incrementalKeyedStateHandle.getMetaStateHandle(), never())
+                            verify(incrementalKeyedStateHandle.getMetaDataStateHandle(), never())
                                     .discardState();
                         }
 
@@ -2965,11 +3010,11 @@ class CheckpointCoordinatorTest extends TestLogger {
             store.removeOldestCheckpoint();
 
             // we expect no shared state was discarded because the state of CP0 is still referenced
-            // by
-            // CP1
-            for (Map<StateHandleID, StreamStateHandle> cpList : sharedHandlesByCheckpoint) {
-                for (StreamStateHandle streamStateHandle : cpList.values()) {
-                    verify(streamStateHandle, never()).discardState();
+            // by CP1
+            for (List<HandleAndLocalPath> cpList : sharedHandlesByCheckpoint) {
+                for (HandleAndLocalPath handleAndLocalPath : cpList) {
+                    DiscardRecordedStateObject.verifyDiscard(
+                            handleAndLocalPath.getHandle(), TernaryBoolean.FALSE);
                 }
             }
 
@@ -3028,14 +3073,19 @@ class CheckpointCoordinatorTest extends TestLogger {
             // references the state from CP1, so we expect they are not discarded.
             verifyDiscard(
                     sharedHandlesByCheckpoint,
-                    cpId -> restoreMode == RestoreMode.CLAIM && cpId == 0 ? times(1) : never());
+                    cpId ->
+                            restoreMode == RestoreMode.CLAIM && cpId == 0
+                                    ? TernaryBoolean.TRUE
+                                    : TernaryBoolean.FALSE);
 
             // discard CP2
             secondStore.removeOldestCheckpoint();
 
             // still expect shared state not to be discarded because it may be used in later
             // checkpoints
-            verifyDiscard(sharedHandlesByCheckpoint, cpId -> cpId == 1 ? never() : atLeast(0));
+            verifyDiscard(
+                    sharedHandlesByCheckpoint,
+                    cpId -> cpId == 1 ? TernaryBoolean.FALSE : TernaryBoolean.UNDEFINED);
         }
     }
 
@@ -3104,7 +3154,7 @@ class CheckpointCoordinatorTest extends TestLogger {
                     .isEqualTo(expectedRootCauseMessage);
         }
 
-        assertThat(invocationCounterAndException.f0.intValue()).isEqualTo(1L);
+        assertThat(invocationCounterAndException.f0.intValue()).isOne();
         assertThat(
                         invocationCounterAndException.f1 instanceof CheckpointException
                                 && invocationCounterAndException
@@ -3140,7 +3190,8 @@ class CheckpointCoordinatorTest extends TestLogger {
         TestFailJobCallback failureCallback = new TestFailJobCallback();
 
         CheckpointStatsTracker statsTracker =
-                new CheckpointStatsTracker(Integer.MAX_VALUE, new UnregisteredMetricsGroup());
+                new CheckpointStatsTracker(
+                        Integer.MAX_VALUE, new UnregisteredMetricsGroup(), new JobID());
 
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
@@ -3190,7 +3241,8 @@ class CheckpointCoordinatorTest extends TestLogger {
         TestFailJobCallback failureCallback = new TestFailJobCallback();
 
         CheckpointStatsTracker statsTracker =
-                new CheckpointStatsTracker(Integer.MAX_VALUE, new UnregisteredMetricsGroup());
+                new CheckpointStatsTracker(
+                        Integer.MAX_VALUE, new UnregisteredMetricsGroup(), new JobID());
 
         final String exceptionMsg = "Test store exception.";
         try (SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl()) {
@@ -3572,7 +3624,7 @@ class CheckpointCoordinatorTest extends TestLogger {
                                     public CheckpointStorageAccess createCheckpointStorage(
                                             JobID jobId) throws IOException {
                                         return new MemoryBackendCheckpointStorageAccess(
-                                                jobId, null, null, 100) {
+                                                jobId, null, null, true, 100) {
                                             @Override
                                             public CheckpointStorageLocation
                                                     initializeLocationForCheckpoint(
@@ -4036,26 +4088,30 @@ class CheckpointCoordinatorTest extends TestLogger {
 
             KeyGroupRange keyGroupRange = keyGroupPartitions1.get(index);
 
-            Map<StateHandleID, StreamStateHandle> privateState = new HashMap<>();
-            privateState.put(
-                    new StateHandleID("private-1"),
-                    spy(new ByteStreamStateHandle("private-1", new byte[] {'p'})));
+            List<HandleAndLocalPath> privateState = new ArrayList<>();
+            privateState.add(
+                    HandleAndLocalPath.of(
+                            new TestingStreamStateHandle("private-1", new byte[] {'p'}),
+                            "private-1"));
 
-            Map<StateHandleID, StreamStateHandle> sharedState = new HashMap<>();
+            List<HandleAndLocalPath> sharedState = new ArrayList<>();
 
             // let all but the first CP overlap by one shared state.
             if (cpSequenceNumber > 0) {
-                sharedState.put(
-                        new StateHandleID("shared-" + (cpSequenceNumber - 1)),
-                        spy(new PlaceholderStreamStateHandle(1L)));
+                sharedState.add(
+                        HandleAndLocalPath.of(
+                                new TestingStreamStateHandle(
+                                        "shared-" + (cpSequenceNumber - 1) + "-" + keyGroupRange,
+                                        new byte[] {'s'}),
+                                "shared-" + (cpSequenceNumber - 1)));
             }
 
-            sharedState.put(
-                    new StateHandleID("shared-" + cpSequenceNumber),
-                    spy(
-                            new ByteStreamStateHandle(
+            sharedState.add(
+                    HandleAndLocalPath.of(
+                            new TestingStreamStateHandle(
                                     "shared-" + cpSequenceNumber + "-" + keyGroupRange,
-                                    new byte[] {'s'})));
+                                    new byte[] {'s'}),
+                            "shared-" + cpSequenceNumber));
 
             IncrementalRemoteKeyedStateHandle managedState =
                     spy(
@@ -4105,7 +4161,7 @@ class CheckpointCoordinatorTest extends TestLogger {
     private static class IOExceptionCheckpointStorage extends JobManagerCheckpointStorage {
         @Override
         public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
-            return new MemoryBackendCheckpointStorageAccess(jobId, null, null, 100) {
+            return new MemoryBackendCheckpointStorageAccess(jobId, null, null, true, 100) {
                 @Override
                 public CheckpointStorageLocation initializeLocationForCheckpoint(long checkpointId)
                         throws IOException {
@@ -4191,15 +4247,14 @@ class CheckpointCoordinatorTest extends TestLogger {
     }
 
     private static void verifyDiscard(
-            List<Map<StateHandleID, StreamStateHandle>> sharedHandlesByCheckpoint1,
-            Function<Integer, VerificationMode> checkpointVerify)
-            throws Exception {
-        for (Map<StateHandleID, StreamStateHandle> cpList : sharedHandlesByCheckpoint1) {
-            for (Map.Entry<StateHandleID, StreamStateHandle> entry : cpList.entrySet()) {
-                String key = entry.getKey().getKeyString();
+            List<List<HandleAndLocalPath>> sharedHandles,
+            Function<Integer, TernaryBoolean> checkpointVerify) {
+        for (List<HandleAndLocalPath> cpList : sharedHandles) {
+            for (HandleAndLocalPath handleAndLocalPath : cpList) {
+                String key = handleAndLocalPath.getLocalPath();
                 int checkpointID = Integer.parseInt(String.valueOf(key.charAt(key.length() - 1)));
-                VerificationMode verificationMode = checkpointVerify.apply(checkpointID);
-                verify(entry.getValue(), verificationMode).discardState();
+                DiscardRecordedStateObject.verifyDiscard(
+                        handleAndLocalPath.getHandle(), checkpointVerify.apply(checkpointID));
             }
         }
     }
@@ -4234,10 +4289,13 @@ class CheckpointCoordinatorTest extends TestLogger {
             TestingStreamStateHandle privateState,
             TestingStreamStateHandle sharedState)
             throws CheckpointException {
-        Map<StateHandleID, StreamStateHandle> sharedStateMap =
-                new HashMap<>(singletonMap(new StateHandleID("shared-state-key"), sharedState));
-        Map<StateHandleID, StreamStateHandle> privateStateMap =
-                new HashMap<>(singletonMap(new StateHandleID("private-state-key"), privateState));
+        List<HandleAndLocalPath> sharedStateList =
+                new ArrayList<>(
+                        singletonList(HandleAndLocalPath.of(sharedState, "shared-state-key")));
+        List<HandleAndLocalPath> privateStateList =
+                new ArrayList<>(
+                        singletonList(HandleAndLocalPath.of(privateState, "private-state-key")));
+
         ExecutionJobVertex jobVertex = graph.getJobVertex(ackVertexID);
         OperatorID operatorID = jobVertex.getOperatorIDs().get(0).getGeneratedOperatorID();
         coordinator.receiveAcknowledgeMessage(
@@ -4255,10 +4313,94 @@ class CheckpointCoordinatorTest extends TestLogger {
                                                                 UUID.randomUUID(),
                                                                 KeyGroupRange.of(0, 9),
                                                                 checkpointId,
-                                                                sharedStateMap,
-                                                                privateStateMap,
+                                                                sharedStateList,
+                                                                privateStateList,
                                                                 metaState))
                                                 .build()))),
                 "test");
+    }
+
+    static class OperatorSubtaskStateMock {
+        OperatorSubtaskState subtaskState;
+        TestingOperatorStateHandle managedOpHandle;
+        TestingOperatorStateHandle rawOpHandle;
+
+        OperatorSubtaskStateMock() {
+            this.managedOpHandle = new TestingOperatorStateHandle();
+            this.rawOpHandle = new TestingOperatorStateHandle();
+            this.subtaskState =
+                    OperatorSubtaskState.builder()
+                            .setManagedOperatorState(managedOpHandle)
+                            .setRawOperatorState(rawOpHandle)
+                            .build();
+        }
+
+        public OperatorSubtaskState getSubtaskState() {
+            return this.subtaskState;
+        }
+
+        public void reset() {
+            managedOpHandle.reset();
+            rawOpHandle.reset();
+        }
+
+        public void verifyDiscard() {
+            assert (managedOpHandle.isDiscarded() && rawOpHandle.discarded);
+        }
+
+        public void verifyNotDiscard() {
+            assert (!managedOpHandle.isDiscarded() && !rawOpHandle.isDiscarded());
+        }
+
+        private static class TestingOperatorStateHandle implements OperatorStateHandle {
+
+            private static final long serialVersionUID = 983594934287613083L;
+
+            boolean discarded;
+
+            @Override
+            public Map<String, StateMetaInfo> getStateNameToPartitionOffsets() {
+                return Collections.emptyMap();
+            }
+
+            @Override
+            public FSDataInputStream openInputStream() throws IOException {
+                throw new IOException("Cannot open input streams in testing implementation.");
+            }
+
+            @Override
+            public PhysicalStateHandleID getStreamStateHandleID() {
+                throw new RuntimeException("Cannot return ID in testing implementation.");
+            }
+
+            @Override
+            public Optional<byte[]> asBytesIfInMemory() {
+                return Optional.empty();
+            }
+
+            @Override
+            public StreamStateHandle getDelegateStateHandle() {
+                return null;
+            }
+
+            @Override
+            public void discardState() throws Exception {
+                assertThat(discarded).isFalse();
+                discarded = true;
+            }
+
+            @Override
+            public long getStateSize() {
+                return 0L;
+            }
+
+            public void reset() {
+                discarded = false;
+            }
+
+            public boolean isDiscarded() {
+                return discarded;
+            }
+        }
     }
 }

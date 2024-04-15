@@ -80,11 +80,11 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
         BlobStoreService blobStoreService = null;
 
         Configuration config = new Configuration();
-        config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-        config.setString(
+        config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+        config.set(
                 HighAvailabilityOptions.HA_STORAGE_PATH,
                 temporaryFolder.newFolder().getAbsolutePath());
-        config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 3_600L);
+        config.set(BlobServerOptions.CLEANUP_INTERVAL, 3_600L);
 
         final ExecutorService executorService = Executors.newSingleThreadExecutor();
         try {
@@ -182,8 +182,8 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
             server[1].globalCleanupAsync(jobId, executorService).join();
 
             // Verify everything is clean below recoveryDir/<cluster_id>
-            final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
-            String haBlobStorePath = config.getString(HighAvailabilityOptions.HA_STORAGE_PATH);
+            final String clusterId = config.get(HighAvailabilityOptions.HA_CLUSTER_ID);
+            String haBlobStorePath = config.get(HighAvailabilityOptions.HA_STORAGE_PATH);
             File haBlobStoreDir = new File(haBlobStorePath, clusterId);
             File[] recoveryFiles = haBlobStoreDir.listFiles();
             assertNotNull("HA storage directory does not exist", recoveryFiles);
@@ -210,7 +210,8 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
             }
 
             if (blobStoreService != null) {
-                blobStoreService.closeAndCleanupAllData();
+                blobStoreService.cleanupAllData();
+                blobStoreService.close();
             }
         }
     }

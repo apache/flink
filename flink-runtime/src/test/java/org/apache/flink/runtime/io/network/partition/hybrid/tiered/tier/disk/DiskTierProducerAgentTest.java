@@ -76,7 +76,7 @@ public class DiskTierProducerAgentTest {
                         partitionFile,
                         new TestingPartitionFileWriter.Builder().build(),
                         new TieredStorageResourceRegistry())) {
-            assertThat(diskTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0)).isTrue();
+            assertThat(diskTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0, 0)).isTrue();
         }
     }
 
@@ -90,7 +90,7 @@ public class DiskTierProducerAgentTest {
                         tempFolder.toString(),
                         new TestingPartitionFileWriter.Builder().build(),
                         new TieredStorageResourceRegistry())) {
-            assertThat(diskTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0)).isFalse();
+            assertThat(diskTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0, 0)).isFalse();
         }
     }
 
@@ -104,12 +104,13 @@ public class DiskTierProducerAgentTest {
                         tempFolder.toString(),
                         new TestingPartitionFileWriter.Builder().build(),
                         new TieredStorageResourceRegistry())) {
-            diskTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0);
+            diskTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0, 0);
             assertThat(
                             diskTierProducerAgent.tryWrite(
                                     SUBPARTITION_ID,
                                     BufferBuilderTestUtils.buildSomeBuffer(),
-                                    this))
+                                    this,
+                                    0))
                     .isTrue();
         }
     }
@@ -124,18 +125,20 @@ public class DiskTierProducerAgentTest {
                         tempFolder.toString(),
                         new TestingPartitionFileWriter.Builder().build(),
                         new TieredStorageResourceRegistry())) {
-            diskTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0);
+            diskTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0, 0);
             assertThat(
                             diskTierProducerAgent.tryWrite(
                                     SUBPARTITION_ID,
                                     BufferBuilderTestUtils.buildSomeBuffer(),
-                                    this))
+                                    this,
+                                    0))
                     .isTrue();
             assertThat(
                             diskTierProducerAgent.tryWrite(
                                     SUBPARTITION_ID,
                                     BufferBuilderTestUtils.buildSomeBuffer(BUFFER_SIZE_BYTES),
-                                    this))
+                                    this,
+                                    0))
                     .isFalse();
         }
     }
@@ -150,19 +153,21 @@ public class DiskTierProducerAgentTest {
                         tempFolder.toString(),
                         new TestingPartitionFileWriter.Builder().build(),
                         new TieredStorageResourceRegistry())) {
-            diskTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0);
+            diskTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0, 0);
             assertThatThrownBy(
                             () ->
                                     diskTierProducerAgent.tryWrite(
                                             new TieredStorageSubpartitionId(1),
                                             BufferBuilderTestUtils.buildSomeBuffer(),
-                                            this))
+                                            this,
+                                            0))
                     .isInstanceOf(ArrayIndexOutOfBoundsException.class);
             assertThat(
                             diskTierProducerAgent.tryWrite(
                                     SUBPARTITION_ID,
                                     BufferBuilderTestUtils.buildSomeBuffer(),
-                                    this))
+                                    this,
+                                    0))
                     .isTrue();
         }
     }
@@ -212,6 +217,7 @@ public class DiskTierProducerAgentTest {
                 NUM_SUBPARTITIONS,
                 numBytesPerSegment,
                 BUFFER_SIZE_BYTES,
+                BUFFER_SIZE_BYTES,
                 dataFilePath,
                 minReservedDiskSpaceFraction,
                 isBroadcastOnly,
@@ -223,7 +229,6 @@ public class DiskTierProducerAgentTest {
                 new BatchShuffleReadBufferPool(1, 1),
                 new ManuallyTriggeredScheduledExecutorService(),
                 0,
-                Duration.ofMinutes(5),
-                0);
+                Duration.ofMinutes(5));
     }
 }

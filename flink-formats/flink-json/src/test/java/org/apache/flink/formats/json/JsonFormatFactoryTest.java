@@ -151,8 +151,8 @@ class JsonFormatFactoryTest {
     }
 
     private void testSchemaDeserializationSchema(Map<String, String> options) {
-        final JsonRowDataDeserializationSchema expectedDeser =
-                new JsonRowDataDeserializationSchema(
+        final JsonParserRowDataDeserializationSchema expectedDeser =
+                new JsonParserRowDataDeserializationSchema(
                         PHYSICAL_TYPE,
                         InternalTypeInfo.of(PHYSICAL_TYPE),
                         false,
@@ -176,6 +176,7 @@ class JsonFormatFactoryTest {
                         TimestampFormat.ISO_8601,
                         JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
+                        true,
                         true);
 
         SerializationSchema<RowData> actualSer =
@@ -227,6 +228,7 @@ class JsonFormatFactoryTest {
         options.put("json.map-null-key.mode", "LITERAL");
         options.put("json.map-null-key.literal", "null");
         options.put("json.encode.decimal-as-plain-number", "true");
+        options.put("json.encode.ignore-null-fields", "true");
         return options;
     }
 }

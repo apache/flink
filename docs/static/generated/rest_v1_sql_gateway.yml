@@ -6,7 +6,7 @@ info:
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
-  version: v1/1.18-SNAPSHOT
+  version: v1/1.20-SNAPSHOT
 paths:
   /api_versions:
     get:

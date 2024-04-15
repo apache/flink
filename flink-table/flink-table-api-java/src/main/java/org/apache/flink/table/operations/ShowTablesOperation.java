@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.Catalog;
@@ -29,6 +30,7 @@ import static org.apache.flink.table.api.internal.TableResultUtils.buildStringAr
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Operation to describe a SHOW TABLES statement. */
+@Internal
 public class ShowTablesOperation implements ShowOperation {
 
     private final String catalogName;

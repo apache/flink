@@ -19,6 +19,7 @@
 package org.apache.flink.state.api;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
@@ -27,7 +28,6 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -37,7 +37,7 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.AbstractID;
@@ -95,7 +95,7 @@ public abstract class DataSetSavepointReaderITTestBase extends AbstractTestBase 
         data.connect(data.broadcast(broadcast))
                 .process(statefulOperator)
                 .uid(UID)
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         JobGraph jobGraph = streamEnv.getStreamGraph().getJobGraph();
 
@@ -277,7 +277,7 @@ public abstract class DataSetSavepointReaderITTestBase extends AbstractTestBase 
         }
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             elements = new ArrayList<>();
         }
 
@@ -294,13 +294,9 @@ public abstract class DataSetSavepointReaderITTestBase extends AbstractTestBase 
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            listState.clear();
+            listState.update(elements);
 
-            listState.addAll(elements);
-
-            unionState.clear();
-
-            unionState.addAll(elements);
+            unionState.update(elements);
         }
 
         @Override

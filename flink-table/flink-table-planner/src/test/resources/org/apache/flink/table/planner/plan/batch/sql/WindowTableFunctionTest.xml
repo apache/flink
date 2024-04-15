@@ -35,7 +35,7 @@ LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[SUM($3)])
 +- LogicalProject(window_start=[$0], window_end=[$1], b=[$3], cnt=[$4])
    +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()])
       +- LogicalProject(window_start=[$5], window_end=[$6], a=[$0], b=[$1])
-         +- LogicalTableFunctionScan(invocation=[TUMBLE($4, DESCRIPTOR($4), 3000:INTERVAL SECOND)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
+         +- LogicalTableFunctionScan(invocation=[TUMBLE(DESCRIPTOR($4), 3000:INTERVAL SECOND)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
             +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
@@ -67,7 +67,7 @@ FROM TABLE(
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4], window_start=[$5], window_end=[$6], window_time=[$7])
-+- LogicalTableFunctionScan(invocation=[CUMULATE($4, DESCRIPTOR($4), 600000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
++- LogicalTableFunctionScan(invocation=[CUMULATE(DESCRIPTOR($4), 600000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
    +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
@@ -89,7 +89,7 @@ FROM TABLE(HOP(TABLE MyTable1, DESCRIPTOR(ts), INTERVAL '1' HOUR, INTERVAL '2' H
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4], window_start=[$5], window_end=[$6], window_time=[$7])
-+- LogicalTableFunctionScan(invocation=[HOP($4, DESCRIPTOR($4), 3600000:INTERVAL HOUR, 7200000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
++- LogicalTableFunctionScan(invocation=[HOP(DESCRIPTOR($4), 3600000:INTERVAL HOUR, 7200000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
    +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
@@ -111,7 +111,7 @@ FROM TABLE(TUMBLE(TABLE MyTable1, DESCRIPTOR(ts), INTERVAL '15' MINUTE))
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4], window_start=[$5], window_end=[$6], window_time=[$7])
-+- LogicalTableFunctionScan(invocation=[TUMBLE($4, DESCRIPTOR($4), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
++- LogicalTableFunctionScan(invocation=[TUMBLE(DESCRIPTOR($4), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
    +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
@@ -137,7 +137,7 @@ GROUP BY window_start, window_end, a
 LogicalProject(EXPR$0=[$3])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[MAX($3)])
    +- LogicalProject(window_start=[$5], window_end=[$6], a=[$0], c=[$2])
-      +- LogicalTableFunctionScan(invocation=[TUMBLE($4, DESCRIPTOR($4), 3000:INTERVAL SECOND)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
+      +- LogicalTableFunctionScan(invocation=[TUMBLE(DESCRIPTOR($4), 3000:INTERVAL SECOND)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
          +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
@@ -175,7 +175,7 @@ GROUP BY window_start, window_end, a
       <![CDATA[
 LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[MAX($3)])
 +- LogicalProject(window_start=[$5], window_end=[$6], a=[$0], c=[$2])
-   +- LogicalTableFunctionScan(invocation=[TUMBLE($4, DESCRIPTOR($4), 3000:INTERVAL SECOND)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
+   +- LogicalTableFunctionScan(invocation=[TUMBLE(DESCRIPTOR($4), 3000:INTERVAL SECOND)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
       +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
@@ -216,11 +216,11 @@ ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.b
 LogicalProject(ts=[$0], a=[$1], b=[$2], c=[$3], window_start=[$4], window_end=[$5], window_time=[$6], a0=[$7], b0=[$8], c0=[$9], d=[$10], ts0=[$11], window_start0=[$12], window_end0=[$13], window_time0=[$14])
 +- LogicalJoin(condition=[AND(=($4, $12), =($5, $13), =($1, $8))], joinType=[inner])
    :- LogicalProject(ts=[$0], a=[$1], b=[$2], c=[$3], window_start=[$4], window_end=[$5], window_time=[$6])
-   :  +- LogicalTableFunctionScan(invocation=[TUMBLE($3, DESCRIPTOR($0), 900000:INTERVAL MINUTE)], rowType=[RecordType(TIMESTAMP(3) ts, BIGINT a, INTEGER b, VARCHAR(2147483647) c, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
+   :  +- LogicalTableFunctionScan(invocation=[TUMBLE(DESCRIPTOR($0), 900000:INTERVAL MINUTE)], rowType=[RecordType(TIMESTAMP(3) ts, BIGINT a, INTEGER b, VARCHAR(2147483647) c, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
    :     +- LogicalProject(ts=[$0], a=[$1], b=[$2], c=[$3])
    :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(ts, a, b, c)]]])
    +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4], window_start=[$5], window_end=[$6], window_time=[$7])
-      +- LogicalTableFunctionScan(invocation=[TUMBLE($4, DESCRIPTOR($4), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
+      +- LogicalTableFunctionScan(invocation=[TUMBLE(DESCRIPTOR($4), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
          +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
@@ -254,7 +254,7 @@ WHERE rownum <= 3
 LogicalProject(ts=[$0], a=[$1], b=[$2], c=[$3], window_start=[$4], window_end=[$5], window_time=[$6], rownum=[$7])
 +- LogicalFilter(condition=[<=($7, 3)])
    +- LogicalProject(ts=[$0], a=[$1], b=[$2], c=[$3], window_start=[$4], window_end=[$5], window_time=[$6], rownum=[RANK() OVER (PARTITION BY $1, $4, $5 ORDER BY $2 NULLS FIRST)])
-      +- LogicalTableFunctionScan(invocation=[TUMBLE($3, DESCRIPTOR($0), 900000:INTERVAL MINUTE)], rowType=[RecordType(TIMESTAMP(3) ts, BIGINT a, INTEGER b, VARCHAR(2147483647) c, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
+      +- LogicalTableFunctionScan(invocation=[TUMBLE(DESCRIPTOR($0), 900000:INTERVAL MINUTE)], rowType=[RecordType(TIMESTAMP(3) ts, BIGINT a, INTEGER b, VARCHAR(2147483647) c, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
          +- LogicalProject(ts=[$0], a=[$1], b=[$2], c=[$3])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(ts, a, b, c)]]])
 ]]>

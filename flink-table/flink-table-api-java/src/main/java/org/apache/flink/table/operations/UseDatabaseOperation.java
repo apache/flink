@@ -18,10 +18,12 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
 
 /** Operation to describe a USE [catalogName.]dataBaseName statement. */
+@Internal
 public class UseDatabaseOperation implements UseOperation {
 
     private final String catalogName;

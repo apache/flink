@@ -53,7 +53,15 @@ import org.apache.flink.util.Collector
  *     .apply(new MyJoinFunction())
  * }
  * }}}
+ *
+ * @deprecated
+ *   All Flink Scala APIs are deprecated and will be removed in a future Flink major version. You
+ *   can still build your application in Scala, but you should move to the Java version of either
+ *   the DataStream and/or Table API.
+ * @see
+ *   <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
  */
+@deprecated(org.apache.flink.api.scala.FLIP_265_WARNING, since = "1.18.0")
 @Public
 class JoinedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
 

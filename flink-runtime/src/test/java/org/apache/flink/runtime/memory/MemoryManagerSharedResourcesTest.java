@@ -18,22 +18,18 @@
 
 package org.apache.flink.runtime.memory;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
  * Tests for the shared resource acquisition and initialization through the {@link MemoryManager}.
  */
-public class MemoryManagerSharedResourcesTest {
+class MemoryManagerSharedResourcesTest {
 
     @Test
-    public void getSameTypeGetsSameHandle() throws Exception {
+    void getSameTypeGetsSameHandle() throws Exception {
         final MemoryManager memoryManager = createMemoryManager();
 
         final OpaqueMemoryResource<TestResource> resource1 =
@@ -43,12 +39,12 @@ public class MemoryManagerSharedResourcesTest {
                 memoryManager.getSharedMemoryResourceForManagedMemory(
                         "type", TestResource::new, 0.1);
 
-        assertNotSame(resource1, resource2);
-        assertSame(resource1.getResourceHandle(), resource2.getResourceHandle());
+        assertThat(resource2).isNotSameAs(resource1);
+        assertThat(resource2.getResourceHandle()).isSameAs(resource1.getResourceHandle());
     }
 
     @Test
-    public void getDifferentTypeGetsDifferentResources() throws Exception {
+    void getDifferentTypeGetsDifferentResources() throws Exception {
         final MemoryManager memoryManager = createMemoryManager();
 
         final OpaqueMemoryResource<TestResource> resource1 =
@@ -58,12 +54,12 @@ public class MemoryManagerSharedResourcesTest {
                 memoryManager.getSharedMemoryResourceForManagedMemory(
                         "type2", TestResource::new, 0.1);
 
-        assertNotSame(resource1, resource2);
-        assertNotSame(resource1.getResourceHandle(), resource2.getResourceHandle());
+        assertThat(resource2).isNotSameAs(resource1);
+        assertThat(resource2.getResourceHandle()).isNotSameAs(resource1.getResourceHandle());
     }
 
     @Test
-    public void testAllocatesFractionOfTotalMemory() throws Exception {
+    void testAllocatesFractionOfTotalMemory() throws Exception {
         final MemoryManager memoryManager = createMemoryManager();
         final double fraction = 0.2;
 
@@ -71,59 +67,58 @@ public class MemoryManagerSharedResourcesTest {
                 memoryManager.getSharedMemoryResourceForManagedMemory(
                         "type", TestResource::new, fraction);
 
-        assertEquals((long) (0.2 * memoryManager.getMemorySize()), resource.getSize());
+        assertThat(resource.getSize()).isEqualTo((long) (0.2 * memoryManager.getMemorySize()));
     }
 
     @Test
-    public void getAllocateNewReservesMemory() throws Exception {
+    void getAllocateNewReservesMemory() throws Exception {
         final MemoryManager memoryManager = createMemoryManager();
 
         memoryManager.getSharedMemoryResourceForManagedMemory("type", TestResource::new, 0.5);
 
-        assertEquals(memoryManager.getMemorySize() / 2, memoryManager.availableMemory());
+        assertThat(memoryManager.availableMemory()).isEqualTo(memoryManager.getMemorySize() / 2);
     }
 
     @Test
-    public void getExistingDoesNotAllocateAdditionalMemory() throws Exception {
+    void getExistingDoesNotAllocateAdditionalMemory() throws Exception {
         final MemoryManager memoryManager = createMemoryManager();
         memoryManager.getSharedMemoryResourceForManagedMemory("type", TestResource::new, 0.8);
         final long freeMemory = memoryManager.availableMemory();
 
         memoryManager.getSharedMemoryResourceForManagedMemory("type", TestResource::new, 0.8);
 
-        assertEquals(freeMemory, memoryManager.availableMemory());
+        assertThat(memoryManager.availableMemory()).isEqualTo(freeMemory);
     }
 
     @Test
-    public void testFailReservation() throws Exception {
+    void testFailReservation() throws Exception {
         final MemoryManager memoryManager = createMemoryManager();
         memoryManager.getSharedMemoryResourceForManagedMemory("type", TestResource::new, 0.8);
 
-        try {
-            memoryManager.getSharedMemoryResourceForManagedMemory("type2", TestResource::new, 0.8);
-            fail("exception expected");
-        } catch (MemoryAllocationException e) {
-            // expected
-        }
+        assertThatExceptionOfType(MemoryAllocationException.class)
+                .isThrownBy(
+                        () ->
+                                memoryManager.getSharedMemoryResourceForManagedMemory(
+                                        "type2", TestResource::new, 0.8));
     }
 
     @Test
-    public void testPartialReleaseDoesNotReleaseMemory() throws Exception {
+    void testPartialReleaseDoesNotReleaseMemory() throws Exception {
         final MemoryManager memoryManager = createMemoryManager();
         final OpaqueMemoryResource<TestResource> resource1 =
                 memoryManager.getSharedMemoryResourceForManagedMemory(
                         "type", TestResource::new, 0.1);
         memoryManager.getSharedMemoryResourceForManagedMemory("type", TestResource::new, 0.1);
-        assertFalse(memoryManager.verifyEmpty());
+        assertThat(memoryManager.verifyEmpty()).isFalse();
 
         resource1.close();
 
-        assertFalse(resource1.getResourceHandle().closed);
-        assertFalse(memoryManager.verifyEmpty());
+        assertThat(resource1.getResourceHandle().closed).isFalse();
+        assertThat(memoryManager.verifyEmpty()).isFalse();
     }
 
     @Test
-    public void testLastReleaseReleasesMemory() throws Exception {
+    void testLastReleaseReleasesMemory() throws Exception {
         final MemoryManager memoryManager = createMemoryManager();
         final OpaqueMemoryResource<TestResource> resource1 =
                 memoryManager.getSharedMemoryResourceForManagedMemory(
@@ -131,17 +126,17 @@ public class MemoryManagerSharedResourcesTest {
         final OpaqueMemoryResource<TestResource> resource2 =
                 memoryManager.getSharedMemoryResourceForManagedMemory(
                         "type", TestResource::new, 0.1);
-        assertFalse(memoryManager.verifyEmpty());
+        assertThat(memoryManager.verifyEmpty()).isFalse();
 
         resource1.close();
         resource2.close();
 
-        assertTrue(resource1.getResourceHandle().closed);
-        assertTrue(memoryManager.verifyEmpty());
+        assertThat(resource1.getResourceHandle().closed).isTrue();
+        assertThat(memoryManager.verifyEmpty()).isTrue();
     }
 
     @Test
-    public void testPartialReleaseDoesNotDisposeResource() throws Exception {
+    void testPartialReleaseDoesNotDisposeResource() throws Exception {
         final MemoryManager memoryManager = createMemoryManager();
         final OpaqueMemoryResource<TestResource> resource1 =
                 memoryManager.getSharedMemoryResourceForManagedMemory(
@@ -150,12 +145,12 @@ public class MemoryManagerSharedResourcesTest {
 
         resource1.close();
 
-        assertFalse(resource1.getResourceHandle().closed);
-        assertFalse(memoryManager.verifyEmpty());
+        assertThat(resource1.getResourceHandle().closed).isFalse();
+        assertThat(memoryManager.verifyEmpty()).isFalse();
     }
 
     @Test
-    public void testLastReleaseDisposesResource() throws Exception {
+    void testLastReleaseDisposesResource() throws Exception {
         final MemoryManager memoryManager = createMemoryManager();
         final OpaqueMemoryResource<TestResource> resource1 =
                 memoryManager.getSharedMemoryResourceForManagedMemory(
@@ -167,23 +162,23 @@ public class MemoryManagerSharedResourcesTest {
         resource1.close();
         resource2.close();
 
-        assertTrue(resource1.getResourceHandle().closed);
-        assertTrue(resource2.getResourceHandle().closed);
-        assertTrue(memoryManager.verifyEmpty());
+        assertThat(resource1.getResourceHandle().closed).isTrue();
+        assertThat(resource2.getResourceHandle().closed).isTrue();
+        assertThat(memoryManager.verifyEmpty()).isTrue();
     }
 
     @Test
-    public void getAllocateExternalResource() throws Exception {
+    void getAllocateExternalResource() throws Exception {
         final MemoryManager memoryManager = createMemoryManager();
         final OpaqueMemoryResource<TestResource> resource =
                 memoryManager.getExternalSharedMemoryResource(
                         "external-type", TestResource::new, 1337);
 
-        assertEquals(1337, resource.getSize());
+        assertThat(resource.getSize()).isEqualTo(1337);
     }
 
     @Test
-    public void getExistingExternalResource() throws Exception {
+    void getExistingExternalResource() throws Exception {
         final MemoryManager memoryManager = createMemoryManager();
         final OpaqueMemoryResource<TestResource> resource1 =
                 memoryManager.getExternalSharedMemoryResource(
@@ -193,12 +188,12 @@ public class MemoryManagerSharedResourcesTest {
                 memoryManager.getExternalSharedMemoryResource(
                         "external-type", TestResource::new, 1337);
 
-        assertNotSame(resource1, resource2);
-        assertSame(resource1.getResourceHandle(), resource2.getResourceHandle());
+        assertThat(resource2).isNotSameAs(resource1);
+        assertThat(resource2.getResourceHandle()).isSameAs(resource1.getResourceHandle());
     }
 
     @Test
-    public void getDifferentExternalResources() throws Exception {
+    void getDifferentExternalResources() throws Exception {
         final MemoryManager memoryManager = createMemoryManager();
         final OpaqueMemoryResource<TestResource> resource1 =
                 memoryManager.getExternalSharedMemoryResource(
@@ -208,12 +203,12 @@ public class MemoryManagerSharedResourcesTest {
                 memoryManager.getExternalSharedMemoryResource(
                         "external-type-2", TestResource::new, 1337);
 
-        assertNotSame(resource1, resource2);
-        assertNotSame(resource1.getResourceHandle(), resource2.getResourceHandle());
+        assertThat(resource2).isNotSameAs(resource1);
+        assertThat(resource2.getResourceHandle()).isNotSameAs(resource1.getResourceHandle());
     }
 
     @Test
-    public void testReleaseDisposesExternalResource() throws Exception {
+    void testReleaseDisposesExternalResource() throws Exception {
         final MemoryManager memoryManager = createMemoryManager();
         final OpaqueMemoryResource<TestResource> resource =
                 memoryManager.getExternalSharedMemoryResource(
@@ -221,25 +216,23 @@ public class MemoryManagerSharedResourcesTest {
 
         resource.close();
 
-        assertTrue(resource.getResourceHandle().closed);
+        assertThat(resource.getResourceHandle().closed).isTrue();
     }
 
     @Test
-    public void testAllocateResourceInitializeFail() {
+    void testAllocateResourceInitializeFail() {
         final MemoryManager memoryManager = createMemoryManager();
 
-        try {
-            memoryManager.getSharedMemoryResourceForManagedMemory(
-                    "type",
-                    (ignore) -> {
-                        throw new RuntimeException("initialization fail");
-                    },
-                    0.1);
-            fail("expect to fail");
-        } catch (Throwable t) {
-            // expected
-        }
-        assertTrue(memoryManager.verifyEmpty());
+        assertThatExceptionOfType(Throwable.class)
+                .isThrownBy(
+                        () ->
+                                memoryManager.getSharedMemoryResourceForManagedMemory(
+                                        "type",
+                                        (ignore) -> {
+                                            throw new RuntimeException("initialization fail");
+                                        },
+                                        0.1));
+        assertThat(memoryManager.verifyEmpty()).isTrue();
     }
     // ------------------------------------------------------------------------
     //  Utils
@@ -250,8 +243,8 @@ public class MemoryManagerSharedResourcesTest {
         final MemoryManager mm = MemoryManagerBuilder.newBuilder().setMemorySize(size).build();
 
         // this is to guard test assumptions
-        assertEquals(size, mm.getMemorySize());
-        assertEquals(size, mm.availableMemory());
+        assertThat(mm.getMemorySize()).isEqualTo(size);
+        assertThat(mm.availableMemory()).isEqualTo(size);
 
         return mm;
     }

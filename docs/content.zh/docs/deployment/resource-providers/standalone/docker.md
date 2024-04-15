@@ -121,7 +121,7 @@ The *job artifacts* are included into the class path of Flink's JVM process with
 * all other necessary dependencies or resources, not included into Flink.
 
 To deploy a cluster for a single job with Docker, you need to
-* make *job artifacts* available locally in all containers under `/opt/flink/usrlib`,
+* make *job artifacts* available locally in all containers under `/opt/flink/usrlib`, or pass a list of jars via the `--jars` argument
 * start a JobManager container in the *Application cluster* mode
 * start the required number of TaskManager containers.
 
@@ -156,7 +156,6 @@ To make the **job artifacts available** locally in the container, you can
 
 * **or extend the Flink image** by writing a custom `Dockerfile`, build it and use it for starting the JobManager and TaskManagers:
 
-
     ```dockerfile
     FROM flink
     ADD /host/path/to/job/artifacts/1 /opt/flink/usrlib/artifacts/1
@@ -175,17 +174,39 @@ To make the **job artifacts available** locally in the container, you can
     $ docker run flink_with_job_artifacts taskmanager
     ```
 
+* **or pass jar path by `jars` argument**  when you start the JobManager:
+
+    ```sh
+    $ FLINK_PROPERTIES="jobmanager.rpc.address: jobmanager"
+    $ docker network create flink-network
+
+    $ docker run \
+        --env FLINK_PROPERTIES="${FLINK_PROPERTIES}" \
+        --env ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-{{< version >}}.jar \
+        --name=jobmanager \
+        --network flink-network \
+        flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}} standalone-job \
+        --job-classname com.job.ClassName \
+        --jars s3://my-bucket/my-flink-job.jar,s3://my-bucket/my-flink-udf.jar \
+        [--job-id <job id>] \
+        [--fromSavepoint /path/to/savepoint [--allowNonRestoredState]] \
+        [job arguments]
+    ```
+
 The `standalone-job` argument starts a JobManager container in the Application Mode.
 
 #### JobManager additional command line arguments
 
 You can provide the following additional command line arguments to the cluster entrypoint:
 
-* `--job-classname <job class name>`: Class name of the job to run.
+* `--job-classname <job class name>` (optional): Class name of the job to run.
 
   By default, Flink scans its class path for a JAR with a Main-Class or program-class manifest entry and chooses it as the job class.
   Use this command line argument to manually set the job class.
+
+  {{< hint warning >}}
   This argument is required in case that no or more than one JAR with such a manifest entry is available on the class path.
+  {{< /hint >}}
 
 * `--job-id <job id>` (optional): Manually set a Flink job ID for the job (default: 00000000000000000000000000000000)
 
@@ -197,7 +218,12 @@ You can provide the following additional command line arguments to the cluster e
 
 * `--allowNonRestoredState` (optional): Skip broken savepoint state
 
-  Additionally you can specify this argument to allow that savepoint state is skipped which cannot be restored.
+  Additionally, you can specify this argument to allow that savepoint state is skipped which cannot be restored.
+
+* `--jars` (optional): the paths of the job jar and any additional artifact(s) separated by commas 
+
+  You can specify this argument to point the job artifacts stored in [flink filesystem]({{< ref "docs/deployment/filesystems/overview" >}}) or download via HTTP(S).
+  Flink will fetch these during the job deployment. (e.g. `--jars s3://my-bucket/my-flink-job.jar`, `--jars s3://my-bucket/my-flink-job.jar,s3://my-bucket/my-flink-udf.jar` ).
 
 If the main function of the user job main class accepts arguments, you can also pass them at the end of the `docker run` command.
 
@@ -302,7 +328,7 @@ services:
     image: flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}}
     ports:
       - "8081:8081"
-    command: standalone-job --job-classname com.job.ClassName [--job-id <job id>] [--fromSavepoint /path/to/savepoint [--allowNonRestoredState]] [job arguments]
+    command: standalone-job --job-classname com.job.ClassName [--jars /path/to/artifact1,/path/to/artifact2] [--job-id <job id>] [--fromSavepoint /path/to/savepoint] [--allowNonRestoredState] [job arguments]
     volumes:
       - /host/path/to/job/artifacts:/opt/flink/usrlib
     environment:
@@ -465,7 +491,7 @@ $ docker run flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /
     -D blob.server.port=6124
 ```
 
-Options set via dynamic properties overwrite the options from `flink-conf.yaml`.
+Options set via dynamic properties overwrite the options from [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}).
 
 ### Via Environment Variables
 
@@ -482,11 +508,11 @@ $ docker run --env FLINK_PROPERTIES=${FLINK_PROPERTIES} flink:{{< stable >}}{{< 
 The [`jobmanager.rpc.address`]({{< ref "docs/deployment/config" >}}#jobmanager-rpc-address) option must be configured, others are optional to set.
 
 The environment variable `FLINK_PROPERTIES` should contain a list of Flink cluster configuration options separated by new line,
-the same way as in the `flink-conf.yaml`. `FLINK_PROPERTIES` takes precedence over configurations in `flink-conf.yaml`.
+the same way as in the [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}). `FLINK_PROPERTIES` takes precedence over configurations in [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}).
 
-### Via flink-conf.yaml
+### Via Flink configuration file
 
-The configuration files (`flink-conf.yaml`, logging, hosts etc) are located in the `/opt/flink/conf` directory in the Flink image.
+The configuration files ([Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}), logging, hosts etc) are located in the `/opt/flink/conf` directory in the Flink image.
 To provide a custom location for the Flink configuration files, you can
 
 * **either mount a volume** with the custom configuration files to this path `/opt/flink/conf` when you run the Flink image:
@@ -502,13 +528,13 @@ To provide a custom location for the Flink configuration files, you can
 
     ```dockerfile
     FROM flink
-    ADD /host/path/to/flink-conf.yaml /opt/flink/conf/flink-conf.yaml
+    ADD /host/path/to/config.yaml /opt/flink/conf/config.yaml
     ADD /host/path/to/log4j.properties /opt/flink/conf/log4j.properties
     ```
 
 {{< hint info >}}
 The mounted volume must contain all necessary configuration files.
-The `flink-conf.yaml` file must have write permission so that the Docker entry point script can modify it in certain cases.
+The [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}) must have write permission so that the Docker entry point script can modify it in certain cases.
 {{< /hint >}}
 
 ### Using Filesystem Plugins
@@ -574,7 +600,7 @@ You can customize the Flink image in several ways:
 
     $ echo "
     # enable an optional library
-    ln -fs /opt/flink/opt/flink-queryable-state-runtime-*.jar /opt/flink/lib/
+    ln -fs /opt/flink/opt/flink-sql-gateway-*.jar /opt/flink/lib/
     # enable a custom library
     ln -fs /mnt/custom_lib.jar /opt/flink/lib/
 
@@ -604,10 +630,10 @@ You can customize the Flink image in several ways:
 
     RUN set -ex; apt-get update; apt-get -y install python
 
-    ADD /host/path/to/flink-conf.yaml /container/local/path/to/custom/conf/flink-conf.yaml
+    ADD /host/path/to/config.yaml /container/local/path/to/custom/conf/config.yaml
     ADD /host/path/to/log4j.properties /container/local/path/to/custom/conf/log4j.properties
 
-    RUN ln -fs /opt/flink/opt/flink-queryable-state-runtime-*.jar /opt/flink/lib/.
+    RUN ln -fs /opt/flink/opt/flink-sql-gateway-*.jar /opt/flink/lib/.
 
     RUN mkdir -p /opt/flink/plugins/flink-s3-fs-hadoop
     RUN ln -fs /opt/flink/opt/flink-s3-fs-hadoop-*.jar /opt/flink/plugins/flink-s3-fs-hadoop/.

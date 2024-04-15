@@ -21,31 +21,35 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit._
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.Test
 
 class SortValidationTest extends TableTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testFetchBeforeOffset(): Unit = {
     val util = batchTestUtil()
     val ds = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
-    ds.orderBy('a.asc).fetch(5).offset(10)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => ds.orderBy('a.asc).fetch(5).offset(10))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testOffsetBeforeOffset(): Unit = {
     val util = batchTestUtil()
     val ds = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
-    ds.orderBy('a.asc).offset(10).offset(5)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => ds.orderBy('a.asc).offset(10).offset(5))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testNegativeFetch(): Unit = {
     val util = batchTestUtil()
     val ds = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
-    ds.orderBy('a.asc).offset(-1)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => ds.orderBy('a.asc).offset(-1))
   }
 }

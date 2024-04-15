@@ -24,6 +24,7 @@ import org.apache.flink.client.program.TestingClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -33,6 +34,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
@@ -140,6 +143,33 @@ class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
         MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
         testFrontend.stop(parameters);
         stopWithSavepointLatch.await();
+    }
+
+    @Test
+    void testStopWithDetachedSavepoint() throws Exception {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(buffer));
+
+        JobID jid = new JobID();
+
+        String[] parameters = {"-detached", jid.toString()};
+        OneShotLatch stopWithSavepointLatch = new OneShotLatch();
+        TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
+        String savepointTriggerId = new TriggerId().toString();
+        clusterClient.setStopWithDetachedSavepointFunction(
+                (jobID, advanceToEndOfEventTime, savepointDirectory, formatType) -> {
+                    assertThat(jobID).isEqualTo(jid);
+                    assertThat(advanceToEndOfEventTime).isFalse();
+                    assertThat(savepointDirectory).isNull();
+                    stopWithSavepointLatch.trigger();
+                    return CompletableFuture.completedFuture(savepointTriggerId);
+                });
+        MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
+        testFrontend.stop(parameters);
+
+        stopWithSavepointLatch.await();
+        // the savepoint trigger id will output to the stdout in detached mode.
+        assertThat(buffer.toString()).contains(savepointTriggerId);
     }
 
     @Test

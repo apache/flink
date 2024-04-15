@@ -18,24 +18,18 @@
 
 package org.apache.flink.runtime.misc;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Registration;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.io.InputStreamReader;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Tests that the set of Kryo registrations is the same across compatible Flink versions.
@@ -44,7 +38,7 @@ import static org.junit.Assert.fail;
  * Kryo serializer itself sits, because when runtime is present in the classpath, Chill is used to
  * instantiate Kryo and adds the proper set of registrations.
  */
-public class KryoSerializerRegistrationsTest {
+class KryoSerializerRegistrationsTest {
 
     /**
      * Tests that the registered classes in Kryo did not change.
@@ -53,8 +47,8 @@ public class KryoSerializerRegistrationsTest {
      * change in the serializers can break savepoint backwards compatibility between Flink versions.
      */
     @Test
-    public void testDefaultKryoRegisteredClassesDidNotChange() throws Exception {
-        final Kryo kryo = new KryoSerializer<>(Integer.class, new ExecutionConfig()).getKryo();
+    void testDefaultKryoRegisteredClassesDidNotChange() throws Exception {
+        final Kryo kryo = new KryoSerializer<>(Integer.class, new SerializerConfigImpl()).getKryo();
 
         try (BufferedReader reader =
                 new BufferedReader(
@@ -78,10 +72,9 @@ public class KryoSerializerRegistrationsTest {
                     // only available if flink-avro is present. There is a special version of
                     // this test in AvroKryoSerializerRegistrationsTest that verifies correct
                     // registration of Avro types if present
-                    assertThat(
-                            registration.getType().getName(),
-                            is(
-                                    "org.apache.flink.api.java.typeutils.runtime.kryo.Serializers$DummyAvroRegisteredClass"));
+                    assertThat(registration.getType().getName())
+                            .isEqualTo(
+                                    "org.apache.flink.api.java.typeutils.runtime.kryo.Serializers$DummyAvroRegisteredClass");
                 } else if (!registeredClass.equals(registration.getType().getName())) {
                     fail(
                             String.format(
@@ -89,43 +82,6 @@ public class KryoSerializerRegistrationsTest {
                                     tag, registeredClass, registration.getType().getName()));
                 }
             }
-        }
-    }
-
-    /**
-     * Creates a Kryo serializer and writes the default registrations out to a comma separated file
-     * with one entry per line:
-     *
-     * <pre>
-     * id,class
-     * </pre>
-     *
-     * <p>The produced file is used to check that the registered IDs don't change in future Flink
-     * versions.
-     *
-     * <p>This method is not used in the tests, but documents how the test file has been created and
-     * can be used to re-create it if needed.
-     *
-     * @param filePath File path to write registrations to
-     */
-    private void writeDefaultKryoRegistrations(String filePath) throws IOException {
-        final File file = new File(filePath);
-        if (file.exists()) {
-            assertTrue(file.delete());
-        }
-
-        final Kryo kryo = new KryoSerializer<>(Integer.class, new ExecutionConfig()).getKryo();
-        final int nextId = kryo.getNextRegistrationId();
-
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
-            for (int i = 0; i < nextId; i++) {
-                Registration registration = kryo.getRegistration(i);
-                String str = registration.getId() + "," + registration.getType().getName();
-                writer.write(str, 0, str.length());
-                writer.newLine();
-            }
-
-            System.out.println("Created file with registrations at " + file.getAbsolutePath());
         }
     }
 }

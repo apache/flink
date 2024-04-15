@@ -25,7 +25,6 @@ import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.junit.jupiter.api.{BeforeEach, Test}
 
 import scala.collection.JavaConverters._
-import scala.collection.Seq
 
 class PruneAggregateCallITCase extends BatchTestBase {
 

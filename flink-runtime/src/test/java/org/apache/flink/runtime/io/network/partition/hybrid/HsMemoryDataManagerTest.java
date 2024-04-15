@@ -222,7 +222,8 @@ class HsMemoryDataManagerTest {
         CompletableFuture<Void> triggerGlobalDecision = new CompletableFuture<>();
 
         NetworkBufferPool networkBufferPool = new NetworkBufferPool(maxBuffers, bufferSize);
-        BufferPool bufferPool = networkBufferPool.createBufferPool(requiredBuffers, maxBuffers);
+        BufferPool bufferPool =
+                networkBufferPool.createBufferPool(requiredBuffers, requiredBuffers, maxBuffers);
         assertThat(bufferPool.getNumBuffers()).isEqualTo(maxBuffers);
 
         HsSpillingStrategy spillingStrategy =
@@ -237,7 +238,8 @@ class HsMemoryDataManagerTest {
                         .build();
 
         createMemoryDataManager(spillingStrategy, bufferPool);
-        networkBufferPool.createBufferPool(maxBuffers - requiredBuffers, maxBuffers);
+        networkBufferPool.createBufferPool(
+                maxBuffers - requiredBuffers, maxBuffers - requiredBuffers, maxBuffers);
         assertThat(bufferPool.getNumBuffers()).isEqualTo(requiredBuffers);
 
         assertThatFuture(triggerGlobalDecision).eventuallySucceeds();
@@ -253,7 +255,7 @@ class HsMemoryDataManagerTest {
     private HsMemoryDataManager createMemoryDataManager(
             HsSpillingStrategy spillStrategy, HsFileDataIndex fileDataIndex) throws Exception {
         NetworkBufferPool networkBufferPool = new NetworkBufferPool(NUM_BUFFERS, bufferSize);
-        BufferPool bufferPool = networkBufferPool.createBufferPool(poolSize, poolSize);
+        BufferPool bufferPool = networkBufferPool.createBufferPool(poolSize, poolSize, poolSize);
         return createMemoryDataManager(bufferPool, spillStrategy, fileDataIndex);
     }
 

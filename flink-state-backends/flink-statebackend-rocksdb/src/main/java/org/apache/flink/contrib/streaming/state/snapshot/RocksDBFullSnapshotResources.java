@@ -90,7 +90,7 @@ public class RocksDBFullSnapshotResources<K> implements FullSnapshotResources<K>
         this.keySerializer = keySerializer;
         this.streamCompressionDecorator = streamCompressionDecorator;
 
-        // we need to to this in the constructor, i.e. in the synchronous part of the snapshot
+        // we need to do this in the constructor, i.e. in the synchronous part of the snapshot
         // TODO: better yet, we can do it outside the constructor
         this.metaData = fillMetaData(metaDataCopy);
     }

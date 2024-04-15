@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.execution;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.execution.JobStatusHook;
 import org.apache.flink.table.catalog.StagedTable;
@@ -27,6 +28,7 @@ import org.apache.flink.table.catalog.StagedTable;
  * OR] REPLACE TABLE AS SELECT) statement. It'll call the corresponding interfaces of the inner
  * {@link StagedTable} on job status changes.
  */
+@Internal
 public class StagingSinkJobStatusHook implements JobStatusHook {
 
     private final StagedTable stagedTable;

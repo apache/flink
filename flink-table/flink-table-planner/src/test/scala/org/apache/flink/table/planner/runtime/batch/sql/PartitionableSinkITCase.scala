@@ -17,10 +17,11 @@
  */
 package org.apache.flink.table.planner.runtime.batch.sql
 
+import org.apache.flink.api.common.functions.OpenContext
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.configuration.{BatchExecutionOptions, Configuration}
+import org.apache.flink.configuration.BatchExecutionOptions
 import org.apache.flink.connector.file.table.FileSystemConnectorOptions
 import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
@@ -239,8 +240,8 @@ object PartitionableSinkITCase {
   class UnsafeMemorySinkFunction(outputType: TypeInformation[Row]) extends RichSinkFunction[Row] {
     private var resultSet: JLinkedList[String] = _
 
-    override def open(param: Configuration): Unit = {
-      val taskId = getRuntimeContext.getIndexOfThisSubtask
+    override def open(openContext: OpenContext): Unit = {
+      val taskId = getRuntimeContext.getTaskInfo.getIndexOfThisSubtask
       resultSet = RESULT_QUEUE.get(taskId)
     }
 

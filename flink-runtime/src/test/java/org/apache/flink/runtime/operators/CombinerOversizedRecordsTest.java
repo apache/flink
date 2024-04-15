@@ -36,19 +36,20 @@ import org.apache.flink.runtime.operators.testutils.UnionIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Test;
+import org.junit.jupiter.api.TestTemplate;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Random;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Test that checks how the combiner handles very large records that are too large to be written
  * into a fresh sort buffer.
  */
-public class CombinerOversizedRecordsTest
+class CombinerOversizedRecordsTest
         extends UnaryOperatorTestBase<
                 GroupCombineFunction<
                         Tuple3<Integer, Integer, String>, Tuple3<Integer, Double, String>>,
@@ -84,13 +85,13 @@ public class CombinerOversizedRecordsTest
 
     // ------------------------------------------------------------------------
 
-    public CombinerOversizedRecordsTest(ExecutionConfig config) {
+    CombinerOversizedRecordsTest(ExecutionConfig config) {
         super(config, COMBINE_MEM, 0);
         combine_frac = (double) COMBINE_MEM / getMemoryManager().getMemorySize();
     }
 
-    @Test
-    public void testOversizedRecordCombineTask() {
+    @TestTemplate
+    void testOversizedRecordCombineTask() {
         try {
             final int keyCnt = 100;
             final int valCnt = 20;
@@ -151,8 +152,8 @@ public class CombinerOversizedRecordsTest
 
             testDriver(testTask, TestCombiner.class);
 
-            assertEquals(3, testTask.getOversizedRecordCount());
-            assertTrue(keyCnt + 3 == outList.size() || 2 * keyCnt + 3 == outList.size());
+            assertThat(testTask.getOversizedRecordCount()).isEqualTo(3);
+            assertThat(keyCnt + 3 == outList.size() || 2 * keyCnt + 3 == outList.size()).isTrue();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

@@ -21,7 +21,12 @@ package org.apache.flink.table.connector;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.CatalogLock;
 
-/** Source and sink implement this interface if they require {@link CatalogLock}. */
+/**
+ * Source and sink implement this interface if they require {@link CatalogLock}.
+ *
+ * @deprecated This interface will be removed soon. Please see FLIP-346 for more details.
+ */
+@Deprecated
 @Internal
 public interface RequireCatalogLock {
 

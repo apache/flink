@@ -24,9 +24,10 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
-import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.core.execution.CheckpointingMode;
 
 import java.time.Duration;
 
@@ -40,11 +41,25 @@ import static org.apache.flink.configuration.description.LinkElement.link;
  */
 @PublicEvolving
 public class ExecutionCheckpointingOptions {
-    public static final ConfigOption<CheckpointingMode> CHECKPOINTING_MODE =
-            ConfigOptions.key("execution.checkpointing.mode")
-                    .enumType(CheckpointingMode.class)
-                    .defaultValue(CheckpointingMode.EXACTLY_ONCE)
-                    .withDescription("The checkpointing mode (exactly-once vs. at-least-once).");
+
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecatd.")
+    public static final ConfigOption<org.apache.flink.streaming.api.CheckpointingMode>
+            CHECKPOINTING_MODE =
+                    ConfigOptions.key("execution.checkpointing.mode")
+                            .enumType(org.apache.flink.streaming.api.CheckpointingMode.class)
+                            .defaultValue(
+                                    org.apache.flink.streaming.api.CheckpointingMode.EXACTLY_ONCE)
+                            .withDescription(
+                                    "The checkpointing mode (exactly-once vs. at-least-once).");
+
+    public static final ConfigOption<org.apache.flink.core.execution.CheckpointingMode>
+            CHECKPOINTING_CONSISTENCY_MODE =
+                    ConfigOptions.key("execution.checkpointing.mode")
+                            .enumType(CheckpointingMode.class)
+                            .defaultValue(CheckpointingMode.EXACTLY_ONCE)
+                            .withDescription(
+                                    "The checkpointing mode (exactly-once vs. at-least-once).");
 
     public static final ConfigOption<Duration> CHECKPOINTING_TIMEOUT =
             ConfigOptions.key("execution.checkpointing.timeout")
@@ -85,7 +100,7 @@ public class ExecutionCheckpointingOptions {
     public static final ConfigOption<Integer> TOLERABLE_FAILURE_NUMBER =
             ConfigOptions.key("execution.checkpointing.tolerable-failed-checkpoints")
                     .intType()
-                    .noDefaultValue()
+                    .defaultValue(0)
                     .withDescription(
                             "The tolerable checkpoint consecutive failure number. If set to 0, that means "
                                     + "we do not tolerance any checkpoint failure. This only applies to the following failure reasons: IOException on the "
@@ -126,6 +141,29 @@ public class ExecutionCheckpointingOptions {
                                                                     .key()))
                                             .build());
 
+    public static final ConfigOption<Duration> CHECKPOINTING_INTERVAL_DURING_BACKLOG =
+            ConfigOptions.key("execution.checkpointing.interval-during-backlog")
+                    .durationType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "If it is not null and any source reports isProcessingBacklog=true, "
+                                                    + "it is the interval in which checkpoints are periodically scheduled.")
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "Checkpoint triggering may be delayed by the settings %s and %s.",
+                                            TextElement.code(MAX_CONCURRENT_CHECKPOINTS.key()),
+                                            TextElement.code(MIN_PAUSE_BETWEEN_CHECKPOINTS.key()))
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "Note: if it is not null, the value must either be 0, "
+                                                    + "which means the checkpoint is disabled during backlog, "
+                                                    + "or be larger than or equal to execution.checkpointing.interval.")
+                                    .build());
+
     public static final ConfigOption<Duration> CHECKPOINTING_INTERVAL =
             ConfigOptions.key("execution.checkpointing.interval")
                     .durationType()
@@ -138,9 +176,11 @@ public class ExecutionCheckpointingOptions {
                                     .linebreak()
                                     .text(
                                             "This setting defines the base interval. Checkpoint triggering may be delayed by the settings "
-                                                    + "%s and %s",
+                                                    + "%s, %s and %s",
                                             TextElement.code(MAX_CONCURRENT_CHECKPOINTS.key()),
-                                            TextElement.code(MIN_PAUSE_BETWEEN_CHECKPOINTS.key()))
+                                            TextElement.code(MIN_PAUSE_BETWEEN_CHECKPOINTS.key()),
+                                            TextElement.code(
+                                                    CHECKPOINTING_INTERVAL_DURING_BACKLOG.key()))
                                     .build());
 
     public static final ConfigOption<Boolean> ENABLE_UNALIGNED =
@@ -163,7 +203,7 @@ public class ExecutionCheckpointingOptions {
                                     .linebreak()
                                     .text(
                                             "Unaligned checkpoints can only be enabled if %s is %s and if %s is 1",
-                                            TextElement.code(CHECKPOINTING_MODE.key()),
+                                            TextElement.code(CHECKPOINTING_CONSISTENCY_MODE.key()),
                                             TextElement.code(
                                                     CheckpointingMode.EXACTLY_ONCE.toString()),
                                             TextElement.code(MAX_CONCURRENT_CHECKPOINTS.key()))
@@ -225,6 +265,10 @@ public class ExecutionCheckpointingOptions {
                                             "Forces unaligned checkpoints, particularly allowing them for iterative jobs.")
                                     .build());
 
+    /**
+     * @deprecated Use {@link StateRecoveryOptions#CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA} instead.
+     */
+    @Deprecated @Documentation.ExcludeFromDocumentation
     public static final ConfigOption<Long> CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA =
             ConfigOptions.key("execution.checkpointing.recover-without-channel-state.checkpoint-id")
                     .longType()
@@ -273,8 +317,10 @@ public class ExecutionCheckpointingOptions {
      * Access to this option is officially only supported via {@link
      * CheckpointConfig#enableApproximateLocalRecovery(boolean)}, but there is no good reason behind
      * this.
+     *
+     * @deprecated Use {@link StateRecoveryOptions#APPROXIMATE_LOCAL_RECOVERY} instead.
      */
-    @Internal @Documentation.ExcludeFromDocumentation
+    @Internal @Deprecated @Documentation.ExcludeFromDocumentation
     public static final ConfigOption<Boolean> APPROXIMATE_LOCAL_RECOVERY =
             key("execution.checkpointing.approximate-local-recovery")
                     .booleanType()

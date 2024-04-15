@@ -18,13 +18,12 @@
 
 package org.apache.flink.runtime.rpc;
 
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
@@ -35,14 +34,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * This test validates that the RPC service gives a good message when it cannot connect to an
  * RpcEndpoint.
  */
-public class RpcConnectionTest extends TestLogger {
+class RpcConnectionTest {
 
     @Test
-    public void testConnectFailure() throws Exception {
+    void testConnectFailure() throws Exception {
         // we start the RPC service with a very long timeout to ensure that the test
         // can only pass if the connection problem is not recognized merely via a timeout
         Configuration configuration = new Configuration();
-        configuration.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(10000000));
+        configuration.set(RpcOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(10000000));
 
         try (RpcSystem rpcSystem = RpcSystem.load()) {
             final RpcService rpcService =

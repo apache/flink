@@ -36,7 +36,7 @@ import java.util.Map;
 import java.util.concurrent.Executor;
 
 /** Tests for the {@link AggregatingTaskManagersMetricsHandler}. */
-public class AggregatingTaskManagersMetricsHandlerTest
+class AggregatingTaskManagersMetricsHandlerTest
         extends AggregatingMetricsHandlerTestBase<
                 AggregatingTaskManagersMetricsHandler, AggregateTaskManagerMetricsParameters> {
 

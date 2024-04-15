@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-filesystems</artifactId>
-		<version>1.18-SNAPSHOT</version>
+		<version>1.20-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-s3-fs-presto</artifactId>
@@ -45,6 +45,14 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
+		<!-- ArchUnit test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		
 		<!-- S3 base (bundled) -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>

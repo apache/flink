@@ -19,6 +19,7 @@ package org.apache.flink.connector.base.sink.writer;
 
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.connector.base.sink.writer.config.AsyncSinkWriterConfiguration;
 import org.apache.flink.connector.base.sink.writer.strategy.AIMDScalingStrategy;
 import org.apache.flink.connector.base.sink.writer.strategy.CongestionControlRateLimitingStrategy;
@@ -112,16 +113,20 @@ public class AsyncSinkWriterTest {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
                         .context(sinkInitContext)
-                        .maxBatchSize(4)
-                        .delay(100)
+                        .maxBatchSize(2)
+                        .delay(50)
                         .build();
-        for (int i = 0; i < 4; i++) {
-            sink.write(String.valueOf(i));
-        }
+        sink.write(String.valueOf(1));
+        // introduce artificial delay, shouldn't be calculated in send time
+        Thread.sleep(50);
+        long sendStartTimestamp = System.currentTimeMillis();
         sink.flush(true);
+        long sendCompleteTimestamp = System.currentTimeMillis();
+
         assertThat(sinkInitContext.getCurrentSendTimeGauge().get().getValue())
-                .isGreaterThanOrEqualTo(99);
-        assertThat(sinkInitContext.getCurrentSendTimeGauge().get().getValue()).isLessThan(120);
+                .isGreaterThanOrEqualTo(50);
+        assertThat(sinkInitContext.getCurrentSendTimeGauge().get().getValue())
+                .isLessThanOrEqualTo(sendCompleteTimestamp - sendStartTimestamp);
     }
 
     @Test
@@ -1198,6 +1203,11 @@ public class AsyncSinkWriterTest {
             return this;
         }
 
+        private AsyncSinkWriterImplBuilder context(WriterInitContext context) {
+            this.context = new Sink.InitContextWrapper(context);
+            return this;
+        }
+
         private AsyncSinkWriterImplBuilder maxBatchSize(int maxBatchSize) {
             this.maxBatchSize = maxBatchSize;
             return this;
@@ -1279,6 +1289,20 @@ public class AsyncSinkWriterTest {
         private final CountDownLatch blockedThreadLatch;
         private final CountDownLatch delayedStartLatch;
         private final boolean blockForLimitedTime;
+
+        public AsyncSinkReleaseAndBlockWriterImpl(
+                WriterInitContext context,
+                int maxInFlightRequests,
+                CountDownLatch blockedThreadLatch,
+                CountDownLatch delayedStartLatch,
+                boolean blockForLimitedTime) {
+            this(
+                    new Sink.InitContextWrapper(context),
+                    maxInFlightRequests,
+                    blockedThreadLatch,
+                    delayedStartLatch,
+                    blockForLimitedTime);
+        }
 
         public AsyncSinkReleaseAndBlockWriterImpl(
                 Sink.InitContext context,

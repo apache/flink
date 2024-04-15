@@ -281,7 +281,7 @@ public abstract class InternalPriorityQueueTestBase {
 
         // test empty iterator
         try (CloseableIterator<TestElement> iterator = priorityQueue.iterator()) {
-            assertThat(iterator.hasNext()).isFalse();
+            assertThat(iterator).isExhausted();
             assertThatThrownBy(iterator::next).isInstanceOf(NoSuchElementException.class);
         }
 
@@ -529,13 +529,13 @@ public abstract class InternalPriorityQueueTestBase {
 
             @Override
             public TypeSerializerSchemaCompatibility<TestElement> resolveSchemaCompatibility(
-                    TypeSerializer<TestElement> newSerializer) {
-                if (!(newSerializer instanceof TestElementSerializer)) {
+                    TypeSerializerSnapshot<TestElement> oldSerializerSnapshot) {
+                if (!(oldSerializerSnapshot instanceof Snapshot)) {
                     return TypeSerializerSchemaCompatibility.incompatible();
                 }
 
-                TestElementSerializer testElementSerializer = (TestElementSerializer) newSerializer;
-                return (revision <= testElementSerializer.getRevision())
+                Snapshot snapshot = (Snapshot) oldSerializerSnapshot;
+                return (snapshot.getRevision() <= revision)
                         ? TypeSerializerSchemaCompatibility.compatibleAsIs()
                         : TypeSerializerSchemaCompatibility.incompatible();
             }

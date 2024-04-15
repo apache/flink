@@ -27,6 +27,8 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
@@ -36,8 +38,11 @@ import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.RocksDB;
 
+import javax.annotation.Nonnull;
+
 import java.io.File;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 
 /** Test utils for the RocksDB state backend. */
@@ -49,13 +54,34 @@ public final class RocksDBTestUtils {
         return builderForTestDefaults(
                 instanceBasePath,
                 keySerializer,
-                EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP);
+                2,
+                new KeyGroupRange(0, 1),
+                Collections.emptyList());
     }
 
     public static <K> RocksDBKeyedStateBackendBuilder<K> builderForTestDefaults(
             File instanceBasePath,
             TypeSerializer<K> keySerializer,
-            EmbeddedRocksDBStateBackend.PriorityQueueStateType queueStateType) {
+            int numKeyGroups,
+            KeyGroupRange keyGroupRange,
+            @Nonnull Collection<KeyedStateHandle> stateHandles) {
+
+        return builderForTestDefaults(
+                instanceBasePath,
+                keySerializer,
+                EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP,
+                numKeyGroups,
+                keyGroupRange,
+                stateHandles);
+    }
+
+    public static <K> RocksDBKeyedStateBackendBuilder<K> builderForTestDefaults(
+            File instanceBasePath,
+            TypeSerializer<K> keySerializer,
+            EmbeddedRocksDBStateBackend.PriorityQueueStateType queueStateType,
+            int numKeyGroups,
+            KeyGroupRange keyGroupRange,
+            @Nonnull Collection<KeyedStateHandle> stateHandles) {
 
         final RocksDBResourceContainer optionsContainer = new RocksDBResourceContainer();
 
@@ -67,15 +93,16 @@ public final class RocksDBTestUtils {
                 stateName -> optionsContainer.getColumnOptions(),
                 new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()),
                 keySerializer,
-                2,
-                new KeyGroupRange(0, 1),
+                numKeyGroups,
+                keyGroupRange,
                 new ExecutionConfig(),
                 TestLocalRecoveryConfig.disabled(),
-                queueStateType,
+                RocksDBPriorityQueueConfig.buildWithPriorityQueueType(queueStateType),
                 TtlTimeProvider.DEFAULT,
                 LatencyTrackingStateConfig.disabled(),
                 new UnregisteredMetricsGroup(),
-                Collections.emptyList(),
+                (key, value) -> {},
+                stateHandles,
                 UncompressedStreamCompressionDecorator.INSTANCE,
                 new CloseableRegistry());
     }
@@ -101,7 +128,8 @@ public final class RocksDBTestUtils {
                 new KeyGroupRange(0, 1),
                 new ExecutionConfig(),
                 TestLocalRecoveryConfig.disabled(),
-                EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP,
+                RocksDBPriorityQueueConfig.buildWithPriorityQueueType(
+                        EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP),
                 TtlTimeProvider.DEFAULT,
                 LatencyTrackingStateConfig.disabled(),
                 new UnregisteredMetricsGroup(),
@@ -120,16 +148,19 @@ public final class RocksDBTestUtils {
 
         return (RocksDBKeyedStateBackend<K>)
                 rocksDbBackend.createKeyedStateBackend(
-                        env,
-                        env.getJobID(),
-                        "test_op",
-                        keySerializer,
-                        1,
-                        new KeyGroupRange(0, 0),
-                        env.getTaskKvStateRegistry(),
-                        TtlTimeProvider.DEFAULT,
-                        new UnregisteredMetricsGroup(),
-                        Collections.emptyList(),
-                        new CloseableRegistry());
+                        new KeyedStateBackendParametersImpl<>(
+                                env,
+                                env.getJobID(),
+                                "test_op",
+                                keySerializer,
+                                1,
+                                new KeyGroupRange(0, 0),
+                                env.getTaskKvStateRegistry(),
+                                TtlTimeProvider.DEFAULT,
+                                new UnregisteredMetricsGroup(),
+                                (name, value) -> {},
+                                Collections.emptyList(),
+                                new CloseableRegistry(),
+                                1.0));
     }
 }

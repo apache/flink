@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.MemorySize;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -107,5 +108,17 @@ public interface ShuffleMaster<T extends ShuffleDescriptor> extends AutoCloseabl
     default MemorySize computeShuffleMemorySizeForTask(
             TaskInputsOutputsDescriptor taskInputsOutputsDescriptor) {
         return MemorySize.ZERO;
+    }
+
+    /**
+     * Get all partitions and their metrics, the metrics include sizes of sub-partitions in a result
+     * partition.
+     *
+     * @param jobId ID of the target job
+     * @return All partitions belong to the target job and their metrics
+     */
+    default CompletableFuture<Collection<PartitionWithMetrics>> getAllPartitionWithMetrics(
+            JobID jobId) {
+        return CompletableFuture.completedFuture(Collections.emptyList());
     }
 }

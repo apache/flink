@@ -25,6 +25,7 @@ import org.apache.parquet.Preconditions;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.page.PageReader;
 import org.apache.parquet.io.api.Binary;
+import org.apache.parquet.schema.LogicalTypeAnnotation;
 import org.apache.parquet.schema.PrimitiveType;
 
 import java.io.IOException;
@@ -34,9 +35,9 @@ import java.sql.Timestamp;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Timestamp {@link ColumnReader}. We only support INT96 bytes now, julianDay(4) + nanosOfDay(8).
- * See https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#timestamp
- * TIMESTAMP_MILLIS and TIMESTAMP_MICROS are the deprecated ConvertedType.
+ * Timestamp {@link ColumnReader}. We support INT96 and INT64 now, julianDay(4) + nanosOfDay(8). See
+ * https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#timestamp TIMESTAMP_MILLIS
+ * and TIMESTAMP_MICROS are the deprecated ConvertedType.
  */
 public class TimestampColumnReader extends AbstractColumnReader<WritableTimestampVector> {
 
@@ -44,15 +45,40 @@ public class TimestampColumnReader extends AbstractColumnReader<WritableTimestam
     public static final long MILLIS_IN_DAY = TimeUnit.DAYS.toMillis(1);
     public static final long NANOS_PER_MILLISECOND = TimeUnit.MILLISECONDS.toNanos(1);
     public static final long NANOS_PER_SECOND = TimeUnit.SECONDS.toNanos(1);
+    public static final long MICROS_PER_MILLISECOND = TimeUnit.MILLISECONDS.toMicros(1);
+    public static final long NANOS_PER_MICROSECONDS = TimeUnit.MICROSECONDS.toNanos(1);
+    public static final long MILLIS_PER_SECOND = TimeUnit.SECONDS.toMillis(1);
+    public static final long MICROS_PER_SECOND = TimeUnit.SECONDS.toMicros(1);
 
     private final boolean utcTimestamp;
+    private final PrimitiveType.PrimitiveTypeName actualName;
+    private final LogicalTypeAnnotation.TimeUnit timeUnit;
 
     public TimestampColumnReader(
             boolean utcTimestamp, ColumnDescriptor descriptor, PageReader pageReader)
             throws IOException {
         super(descriptor, pageReader);
         this.utcTimestamp = utcTimestamp;
-        checkTypeName(PrimitiveType.PrimitiveTypeName.INT96);
+        actualName = descriptor.getPrimitiveType().getPrimitiveTypeName();
+        checkTypeName();
+        if (actualName == PrimitiveType.PrimitiveTypeName.INT64) {
+            timeUnit =
+                    ((LogicalTypeAnnotation.TimestampLogicalTypeAnnotation)
+                                    descriptor.getPrimitiveType().getLogicalTypeAnnotation())
+                            .getUnit();
+        } else {
+            timeUnit = null;
+        }
+    }
+
+    private void checkTypeName() {
+        Preconditions.checkArgument(
+                actualName == PrimitiveType.PrimitiveTypeName.INT96
+                        || actualName == PrimitiveType.PrimitiveTypeName.INT64,
+                "Expected type name: %s or %s, actual type name: %s",
+                PrimitiveType.PrimitiveTypeName.INT64,
+                actualName == PrimitiveType.PrimitiveTypeName.INT96,
+                actualName);
     }
 
     @Override
@@ -64,10 +90,16 @@ public class TimestampColumnReader extends AbstractColumnReader<WritableTimestam
     protected void readBatch(int rowId, int num, WritableTimestampVector column) {
         for (int i = 0; i < num; i++) {
             if (runLenDecoder.readInteger() == maxDefLevel) {
-                ByteBuffer buffer = readDataBuffer(12);
-                column.setTimestamp(
-                        rowId + i,
-                        int96ToTimestamp(utcTimestamp, buffer.getLong(), buffer.getInt()));
+                if (actualName == PrimitiveType.PrimitiveTypeName.INT64) {
+                    ByteBuffer buffer = readDataBuffer(8);
+                    column.setTimestamp(
+                            rowId + i, int64ToTimestamp(utcTimestamp, buffer.getLong(), timeUnit));
+                } else {
+                    ByteBuffer buffer = readDataBuffer(12);
+                    column.setTimestamp(
+                            rowId + i,
+                            int96ToTimestamp(utcTimestamp, buffer.getLong(), buffer.getInt()));
+                }
             } else {
                 column.setNullAt(rowId + i);
             }
@@ -79,11 +111,27 @@ public class TimestampColumnReader extends AbstractColumnReader<WritableTimestam
             int rowId, int num, WritableTimestampVector column, WritableIntVector dictionaryIds) {
         for (int i = rowId; i < rowId + num; ++i) {
             if (!column.isNullAt(i)) {
-                column.setTimestamp(
-                        i,
-                        decodeInt96ToTimestamp(utcTimestamp, dictionary, dictionaryIds.getInt(i)));
+                if (actualName == PrimitiveType.PrimitiveTypeName.INT64) {
+                    column.setTimestamp(
+                            i,
+                            decodeInt64ToTimestamp(
+                                    utcTimestamp, dictionary, dictionaryIds.getInt(i), timeUnit));
+                } else {
+                    column.setTimestamp(
+                            i,
+                            decodeInt96ToTimestamp(
+                                    utcTimestamp, dictionary, dictionaryIds.getInt(i)));
+                }
             }
         }
+    }
+
+    public static TimestampData decodeInt64ToTimestamp(
+            boolean utcTimestamp,
+            org.apache.parquet.column.Dictionary dictionary,
+            int id,
+            LogicalTypeAnnotation.TimeUnit timeUnit) {
+        return int64ToTimestamp(utcTimestamp, dictionary.decodeToLong(id), timeUnit);
     }
 
     public static TimestampData decodeInt96ToTimestamp(
@@ -107,6 +155,37 @@ public class TimestampColumnReader extends AbstractColumnReader<WritableTimestam
             timestamp.setNanos((int) (nanosOfDay % NANOS_PER_SECOND));
             return TimestampData.fromTimestamp(timestamp);
         }
+    }
+
+    public static TimestampData int64ToTimestamp(
+            boolean utcTimestamp, long value, LogicalTypeAnnotation.TimeUnit timeUnit) {
+        final long nanosOfMillisecond;
+        final long milliseconds;
+
+        switch (timeUnit) {
+            case MILLIS:
+                milliseconds = value;
+                nanosOfMillisecond = value % MILLIS_PER_SECOND * NANOS_PER_MILLISECOND;
+                break;
+            case MICROS:
+                milliseconds = value / MICROS_PER_MILLISECOND;
+                nanosOfMillisecond = (value % MICROS_PER_SECOND) * NANOS_PER_MICROSECONDS;
+                break;
+            case NANOS:
+                milliseconds = value / NANOS_PER_MILLISECOND;
+                nanosOfMillisecond = value % NANOS_PER_SECOND;
+                break;
+            default:
+                throw new IllegalArgumentException("Invalid time unit: " + timeUnit);
+        }
+
+        if (utcTimestamp) {
+            return TimestampData.fromEpochMillis(
+                    milliseconds, (int) (nanosOfMillisecond % NANOS_PER_MILLISECOND));
+        }
+        Timestamp timestamp = new Timestamp(milliseconds);
+        timestamp.setNanos((int) nanosOfMillisecond);
+        return TimestampData.fromTimestamp(timestamp);
     }
 
     private static long julianDayToMillis(int julianDay) {

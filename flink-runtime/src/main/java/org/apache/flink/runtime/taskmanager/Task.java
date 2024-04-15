@@ -21,7 +21,10 @@ package org.apache.flink.runtime.taskmanager;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.JobInfoImpl;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
@@ -84,6 +87,8 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.MdcUtils;
+import org.apache.flink.util.MdcUtils.MdcCloseable;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TaskManagerExceptionUtils;
@@ -166,7 +171,10 @@ public class Task
     /** ID which identifies the slot in which the task is supposed to run. */
     private final AllocationID allocationId;
 
-    /** TaskInfo object for this task. */
+    /** The meta information of current job. */
+    private final JobInfo jobInfo;
+
+    /** The meta information of current task. */
     private final TaskInfo taskInfo;
 
     /** The name of the task, including subtask indexes. */
@@ -333,9 +341,9 @@ public class Task
 
         Preconditions.checkNotNull(jobInformation);
         Preconditions.checkNotNull(taskInformation);
-
+        this.jobInfo = new JobInfoImpl(jobInformation.getJobId(), jobInformation.getJobName());
         this.taskInfo =
-                new TaskInfo(
+                new TaskInfoImpl(
                         taskInformation.getTaskName(),
                         taskInformation.getMaxNumberOfSubtasks(),
                         executionAttemptID.getSubtaskIndex(),
@@ -356,10 +364,8 @@ public class Task
         this.serializedExecutionConfig = jobInformation.getSerializedExecutionConfig();
 
         Configuration tmConfig = taskManagerConfig.getConfiguration();
-        this.taskCancellationInterval =
-                tmConfig.getLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL);
-        this.taskCancellationTimeout =
-                tmConfig.getLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT);
+        this.taskCancellationInterval = tmConfig.get(TaskManagerOptions.TASK_CANCELLATION_INTERVAL);
+        this.taskCancellationTimeout = tmConfig.get(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT);
 
         this.memoryManager = Preconditions.checkNotNull(memManager);
         this.sharedResources = Preconditions.checkNotNull(sharedResources);
@@ -558,7 +564,7 @@ public class Task
     /** The core work method that bootstraps the task and executes its code. */
     @Override
     public void run() {
-        try {
+        try (MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobId))) {
             doRun();
         } finally {
             terminationFuture.complete(executionState);
@@ -692,6 +698,7 @@ public class Task
                             vertexId,
                             executionId,
                             executionConfig,
+                            jobInfo,
                             taskInfo,
                             jobConfiguration,
                             taskConfiguration,
@@ -1137,8 +1144,10 @@ public class Task
      * <p>This method never blocks.
      */
     public void cancelExecution() {
-        LOG.info("Attempting to cancel task {} ({}).", taskNameWithSubtask, executionId);
-        cancelOrFailAndCancelInvokable(ExecutionState.CANCELING, null);
+        try (MdcUtils.MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobId))) {
+            LOG.info("Attempting to cancel task {} ({}).", taskNameWithSubtask, executionId);
+            cancelOrFailAndCancelInvokable(ExecutionState.CANCELING, null);
+        }
     }
 
     /**
@@ -1152,8 +1161,13 @@ public class Task
      */
     @Override
     public void failExternally(Throwable cause) {
-        LOG.info("Attempting to fail task externally {} ({}).", taskNameWithSubtask, executionId);
-        cancelOrFailAndCancelInvokable(ExecutionState.FAILED, cause);
+        try (MdcUtils.MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobId))) {
+            LOG.info(
+                    "Attempting to fail task externally {} ({}).",
+                    taskNameWithSubtask,
+                    executionId);
+            cancelOrFailAndCancelInvokable(ExecutionState.FAILED, cause);
+        }
     }
 
     private void cancelOrFailAndCancelInvokable(ExecutionState targetState, Throwable cause) {
@@ -1239,7 +1253,8 @@ public class Task
                                         invokable,
                                         executingThread,
                                         taskNameWithSubtask,
-                                        taskCancellationInterval);
+                                        taskCancellationInterval,
+                                        jobId);
 
                         Thread interruptingThread =
                                 new Thread(
@@ -1261,7 +1276,8 @@ public class Task
                                             taskInfo,
                                             executingThread,
                                             taskManagerActions,
-                                            taskCancellationTimeout);
+                                            taskCancellationTimeout,
+                                            jobId);
 
                             Thread watchDogThread =
                                     new Thread(
@@ -1656,7 +1672,7 @@ public class Task
 
         @Override
         public void run() {
-            try {
+            try (MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobId))) {
                 // the user-defined cancel method may throw errors.
                 // we need do continue despite that
                 try {
@@ -1703,23 +1719,27 @@ public class Task
         /** The interval in which we interrupt. */
         private final long interruptIntervalMillis;
 
+        private final JobID jobID;
+
         TaskInterrupter(
                 Logger log,
                 TaskInvokable task,
                 Thread executorThread,
                 String taskName,
-                long interruptIntervalMillis) {
+                long interruptIntervalMillis,
+                JobID jobID) {
 
             this.log = log;
             this.task = task;
             this.executorThread = executorThread;
             this.taskName = taskName;
             this.interruptIntervalMillis = interruptIntervalMillis;
+            this.jobID = jobID;
         }
 
         @Override
         public void run() {
-            try {
+            try (MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobID))) {
                 // we initially wait for one interval
                 // in most cases, the threads go away immediately (by the cancellation thread)
                 // and we need not actually do anything
@@ -1760,11 +1780,14 @@ public class Task
 
         private final TaskInfo taskInfo;
 
+        private final JobID jobID;
+
         TaskCancelerWatchDog(
                 TaskInfo taskInfo,
                 Thread executorThread,
                 TaskManagerActions taskManager,
-                long timeoutMillis) {
+                long timeoutMillis,
+                JobID jobID) {
 
             checkArgument(timeoutMillis > 0);
 
@@ -1772,11 +1795,12 @@ public class Task
             this.executorThread = executorThread;
             this.taskManager = taskManager;
             this.timeoutMillis = timeoutMillis;
+            this.jobID = jobID;
         }
 
         @Override
         public void run() {
-            try {
+            try (MdcCloseable ign = MdcUtils.withContext(MdcUtils.asContextData(jobID))) {
                 Deadline timeout = Deadline.fromNow(Duration.ofMillis(timeoutMillis));
                 while (executorThread.isAlive() && timeout.hasTimeLeft()) {
                     try {

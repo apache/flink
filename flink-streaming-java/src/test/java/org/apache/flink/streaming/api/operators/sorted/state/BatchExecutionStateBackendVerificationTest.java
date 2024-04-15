@@ -24,37 +24,36 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests that verify an exception is thrown in methods that are not supported in the BATCH runtime
  * mode.
  */
-public class BatchExecutionStateBackendVerificationTest extends TestLogger {
+class BatchExecutionStateBackendVerificationTest {
 
     private static final LongSerializer LONG_SERIALIZER = new LongSerializer();
 
-    @Rule public ExpectedException expectedException = ExpectedException.none();
-
     @Test
-    public void verifySnapshotNotSupported() {
-        expectedException.expect(UnsupportedOperationException.class);
-        expectedException.expectMessage("Snapshotting is not supported in BATCH runtime mode.");
-
+    void verifySnapshotNotSupported() {
         BatchExecutionKeyedStateBackend<Long> stateBackend =
                 new BatchExecutionKeyedStateBackend<>(
                         LONG_SERIALIZER, new KeyGroupRange(0, 9), new ExecutionConfig());
 
         long checkpointId = 0L;
         CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(10);
-        stateBackend.snapshot(
-                checkpointId,
-                0L,
-                streamFactory,
-                CheckpointOptions.forCheckpointWithDefaultLocation());
+
+        assertThatThrownBy(
+                        () ->
+                                stateBackend.snapshot(
+                                        checkpointId,
+                                        0L,
+                                        streamFactory,
+                                        CheckpointOptions.forCheckpointWithDefaultLocation()))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining("Snapshotting is not supported in BATCH runtime mode.");
     }
 }

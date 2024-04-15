@@ -84,6 +84,20 @@ Format Options
       <td>Boolean</td>
       <td>Use UTC timezone or local timezone to the conversion between epoch time and LocalDateTime. Hive 0.x/1.x/2.x use local timezone. But Hive 3.x use UTC timezone.</td>
     </tr>
+    <tr>
+      <td><h5>timestamp.time.unit</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">micros</td>
+      <td>String</td>
+      <td>Store parquet int64/LogicalTypes timestamps in this time unit, value is nanos/micros/millis.</td>
+    </tr>
+    <tr>
+      <td><h5>write.int64.timestamp</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Write parquet timestamp as int64/LogicalTypes instead of int96/OriginalTypes. Note: Timestamp will be time zone agnostic (NEVER converted to a different time zone).</td>
+    </tr>
     </tbody>
 </table>
 
@@ -93,9 +107,10 @@ For example, you can configure `parquet.compression=GZIP` to enable gzip compres
 Data Type Mapping
 ----------------
 
-Currently, Parquet format type mapping is compatible with Apache Hive, but different with Apache Spark:
+Currently, Parquet format type mapping is compatible with Apache Hive, but by default not with Apache Spark:
 
 - Timestamp: mapping timestamp type to int96 whatever the precision is.
+- Spark compatibility requires int64 via config option `write.int64.timestamp` (see above).
 - Decimal: mapping decimal type to fixed length byte array according to the precision.
 
 The following table lists the type mapping from Flink type to Parquet type.
@@ -171,7 +186,7 @@ The following table lists the type mapping from Flink type to Parquet type.
     </tr>
     <tr>
       <td>TIMESTAMP</td>
-      <td>INT96</td>
+      <td>INT96 (or INT64)</td>
       <td></td>
     </tr>
     <tr>

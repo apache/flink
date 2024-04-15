@@ -19,6 +19,8 @@
 package org.apache.flink.state.api.input;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
@@ -43,6 +45,7 @@ import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedValue;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,6 +79,8 @@ public class KeyedStateInputFormat<K, N, OUT>
 
     private final StateReaderOperator<?, K, N, OUT> operator;
 
+    private final SerializedValue<ExecutionConfig> serializedExecutionConfig;
+
     private transient CloseableRegistry registry;
 
     private transient BufferingCollector<OUT> out;
@@ -93,10 +98,13 @@ public class KeyedStateInputFormat<K, N, OUT>
             OperatorState operatorState,
             @Nullable StateBackend stateBackend,
             Configuration configuration,
-            StateReaderOperator<?, K, N, OUT> operator) {
+            StateReaderOperator<?, K, N, OUT> operator,
+            ExecutionConfig executionConfig)
+            throws IOException {
         Preconditions.checkNotNull(operatorState, "The operator state cannot be null");
         Preconditions.checkNotNull(configuration, "The configuration cannot be null");
         Preconditions.checkNotNull(operator, "The operator cannot be null");
+        Preconditions.checkNotNull(executionConfig, "The executionConfig cannot be null");
 
         this.operatorState = operatorState;
         this.stateBackend = stateBackend;
@@ -105,6 +113,7 @@ public class KeyedStateInputFormat<K, N, OUT>
         // when executing pipelines with multiple input formats
         this.configuration = new Configuration(configuration);
         this.operator = operator;
+        this.serializedExecutionConfig = new SerializedValue<>(executionConfig);
     }
 
     @Override
@@ -144,38 +153,40 @@ public class KeyedStateInputFormat<K, N, OUT>
     public void open(KeyGroupRangeInputSplit split) throws IOException {
         registry = new CloseableRegistry();
 
+        RuntimeContext runtimeContext = getRuntimeContext();
+        ExecutionConfig executionConfig;
+        try {
+            executionConfig =
+                    serializedExecutionConfig.deserializeValue(
+                            runtimeContext.getUserCodeClassLoader());
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException("Could not deserialize ExecutionConfig.", e);
+        }
         final StreamOperatorStateContext context =
                 new StreamOperatorContextBuilder(
-                                getRuntimeContext(),
+                                runtimeContext,
                                 configuration,
                                 operatorState,
                                 split,
                                 registry,
-                                stateBackend)
+                                stateBackend,
+                                executionConfig)
                         .withMaxParallelism(split.getNumKeyGroups())
-                        .withKey(
-                                operator,
-                                operator.getKeyType()
-                                        .createSerializer(getRuntimeContext().getExecutionConfig()))
+                        .withKey(operator, runtimeContext.createSerializer(operator.getKeyType()))
                         .build(LOG);
 
         AbstractKeyedStateBackend<K> keyedStateBackend =
                 (AbstractKeyedStateBackend<K>) context.keyedStateBackend();
 
         final DefaultKeyedStateStore keyedStateStore =
-                new DefaultKeyedStateStore(
-                        keyedStateBackend, getRuntimeContext().getExecutionConfig());
-        SavepointRuntimeContext ctx =
-                new SavepointRuntimeContext(getRuntimeContext(), keyedStateStore);
+                new DefaultKeyedStateStore(keyedStateBackend, runtimeContext::createSerializer);
+        SavepointRuntimeContext ctx = new SavepointRuntimeContext(runtimeContext, keyedStateStore);
 
         InternalTimeServiceManager<K> timeServiceManager =
                 (InternalTimeServiceManager<K>) context.internalTimerServiceManager();
         try {
             operator.setup(
-                    getRuntimeContext().getExecutionConfig(),
-                    keyedStateBackend,
-                    timeServiceManager,
-                    ctx);
+                    runtimeContext::createSerializer, keyedStateBackend, timeServiceManager, ctx);
             operator.open();
             keysAndNamespaces = operator.getKeysAndNamespaces(ctx);
         } catch (Exception e) {

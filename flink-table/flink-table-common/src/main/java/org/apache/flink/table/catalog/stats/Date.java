@@ -18,9 +18,12 @@
 
 package org.apache.flink.table.catalog.stats;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.util.Objects;
 
 /** Class representing a date value in statistics. */
+@PublicEvolving
 public class Date {
     private final long daysSinceEpoch;
 

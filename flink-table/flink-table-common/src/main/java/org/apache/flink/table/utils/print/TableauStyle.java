@@ -132,7 +132,7 @@ public final class TableauStyle implements PrintStyle {
                 rows.add(row);
                 content.add(rowFieldsToString(row));
             }
-            this.columnWidths = columnWidthsByContent(columnNames, content, maxColumnWidth);
+            inferColumnWidth(content);
             it = rows.iterator();
         }
 
@@ -157,6 +157,13 @@ public final class TableauStyle implements PrintStyle {
         final String rowTerm = numRows > 1 ? "rows" : "row";
         printWriter.println(numRows + " " + rowTerm + " in set");
         printWriter.flush();
+    }
+
+    public void inferColumnWidth(List<String[]> rowData) {
+        if (columnWidths != null) {
+            throw new IllegalStateException("Column widths have already been initialized.");
+        }
+        columnWidths = columnWidthsByContent(columnNames, rowData, maxColumnWidth);
     }
 
     public String[] rowFieldsToString(RowData row) {

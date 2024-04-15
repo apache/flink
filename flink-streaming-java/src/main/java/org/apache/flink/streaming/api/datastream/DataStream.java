@@ -51,6 +51,7 @@ import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
@@ -525,8 +526,17 @@ public class DataStream<T> {
      * in the set time, the stream terminates.
      *
      * @return The iterative data stream created.
+     * @deprecated This method is deprecated since Flink 1.19. The only known use case of this
+     *     Iteration API comes from Flink ML, which already has its own implementation of iteration
+     *     and no longer uses this API. If there's any use cases other than Flink ML that needs
+     *     iteration support, please reach out to dev@flink.apache.org and we can consider making
+     *     the Flink ML iteration implementation a separate common library.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-357%3A+Deprecate+Iteration+API+of+DataStream">
+     *     FLIP-357: Deprecate Iteration API of DataStream </a>
+     * @see <a href="https://nightlies.apache.org/flink/flink-ml-docs-stable/">Flink ML </a>
      */
-    @PublicEvolving
+    @Deprecated
     public IterativeStream<T> iterate() {
         return new IterativeStream<>(this, 0);
     }
@@ -553,8 +563,17 @@ public class DataStream<T> {
      *
      * @param maxWaitTimeMillis Number of milliseconds to wait between inputs before shutting down
      * @return The iterative data stream created.
+     * @deprecated This method is deprecated since Flink 1.19. The only known use case of this
+     *     Iteration API comes from Flink ML, which already has its own implementation of iteration
+     *     and no longer uses this API. If there's any use cases other than Flink ML that needs
+     *     iteration support, please reach out to dev@flink.apache.org and we can consider making
+     *     the Flink ML iteration implementation a separate common library.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-357%3A+Deprecate+Iteration+API+of+DataStream">
+     *     FLIP-357: Deprecate Iteration API of DataStream </a>
+     * @see <a href="https://nightlies.apache.org/flink/flink-ml-docs-stable/">Flink ML </a>
      */
-    @PublicEvolving
+    @Deprecated
     public IterativeStream<T> iterate(long maxWaitTimeMillis) {
         return new IterativeStream<>(this, maxWaitTimeMillis);
     }
@@ -1414,25 +1433,42 @@ public class DataStream<T> {
     @Experimental
     public void collectAsync(Collector<T> collector) {
         TypeSerializer<T> serializer =
-                getType().createSerializer(getExecutionEnvironment().getConfig());
+                getType()
+                        .createSerializer(
+                                getExecutionEnvironment().getConfig().getSerializerConfig());
         String accumulatorName = "dataStreamCollect_" + UUID.randomUUID().toString();
 
         StreamExecutionEnvironment env = getExecutionEnvironment();
         CollectSinkOperatorFactory<T> factory =
                 new CollectSinkOperatorFactory<>(serializer, accumulatorName);
         CollectSinkOperator<T> operator = (CollectSinkOperator<T>) factory.getOperator();
+        long resultFetchTimeout =
+                env.getConfiguration().get(RpcOptions.ASK_TIMEOUT_DURATION).toMillis();
         CollectResultIterator<T> iterator =
                 new CollectResultIterator<>(
                         operator.getOperatorIdFuture(),
                         serializer,
                         accumulatorName,
-                        env.getCheckpointConfig());
+                        env.getCheckpointConfig(),
+                        resultFetchTimeout);
         CollectStreamSink<T> sink = new CollectStreamSink<>(this, factory);
         sink.name("Data stream collect sink");
         env.addOperator(sink.getTransformation());
 
         env.registerCollectIterator(iterator);
         collector.setIterator(iterator);
+    }
+
+    /**
+     * Collect records from each partition into a separate full window. The window emission will be
+     * triggered at the end of inputs. For this non-keyed data stream(each record has no key), a
+     * partition contains all records of a subtask.
+     *
+     * @return The full windowed data stream on partition.
+     */
+    @PublicEvolving
+    public PartitionWindowedStream<T> fullWindowPartition() {
+        return new NonKeyedPartitionWindowedStream<>(environment, this);
     }
 
     /**

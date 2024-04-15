@@ -19,7 +19,16 @@ package org.apache.flink.streaming.api.scala.function.util
 
 import org.apache.flink.api.common.functions.ReduceFunction
 
-/** A wrapper function that exposes a Scala Function2 as a [[ReduceFunction]]. */
+/**
+ * A wrapper function that exposes a Scala Function2 as a [[ReduceFunction]]. * @deprecated All
+ * Flink Scala APIs are deprecated and will be removed in a future Flink major version. You can
+ * still build your application in Scala, but you should move to the Java version of either the
+ * DataStream and/or Table API.
+ *
+ * @see
+ *   <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
+ */
+@deprecated(org.apache.flink.api.scala.FLIP_265_WARNING, since = "1.18.0")
 final class ScalaReduceFunction[T](private[this] val function: (T, T) => T)
   extends ReduceFunction[T] {
 

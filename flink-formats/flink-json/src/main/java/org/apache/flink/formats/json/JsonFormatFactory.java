@@ -44,7 +44,9 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.apache.flink.formats.json.JsonFormatOptions.DECODE_JSON_PARSER_ENABLED;
 import static org.apache.flink.formats.json.JsonFormatOptions.ENCODE_DECIMAL_AS_PLAIN_NUMBER;
+import static org.apache.flink.formats.json.JsonFormatOptions.ENCODE_IGNORE_NULL_FIELDS;
 import static org.apache.flink.formats.json.JsonFormatOptions.FAIL_ON_MISSING_FIELD;
 import static org.apache.flink.formats.json.JsonFormatOptions.IGNORE_PARSE_ERRORS;
 import static org.apache.flink.formats.json.JsonFormatOptions.MAP_NULL_KEY_LITERAL;
@@ -68,6 +70,7 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
 
         final boolean failOnMissingField = formatOptions.get(FAIL_ON_MISSING_FIELD);
         final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
+        final boolean jsonParserEnabled = formatOptions.get(DECODE_JSON_PARSER_ENABLED);
         TimestampFormat timestampOption = JsonFormatOptionsUtil.getTimestampFormat(formatOptions);
 
         return new ProjectableDecodingFormat<DeserializationSchema<RowData>>() {
@@ -81,19 +84,55 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
                 final RowType rowType = (RowType) producedDataType.getLogicalType();
                 final TypeInformation<RowData> rowDataTypeInfo =
                         context.createTypeInformation(producedDataType);
-                return new JsonRowDataDeserializationSchema(
-                        rowType,
-                        rowDataTypeInfo,
-                        failOnMissingField,
-                        ignoreParseErrors,
-                        timestampOption);
+                if (jsonParserEnabled) {
+                    return new JsonParserRowDataDeserializationSchema(
+                            rowType,
+                            rowDataTypeInfo,
+                            failOnMissingField,
+                            ignoreParseErrors,
+                            timestampOption,
+                            toProjectedNames(
+                                    (RowType) physicalDataType.getLogicalType(), projections));
+                } else {
+                    return new JsonRowDataDeserializationSchema(
+                            rowType,
+                            rowDataTypeInfo,
+                            failOnMissingField,
+                            ignoreParseErrors,
+                            timestampOption);
+                }
             }
 
             @Override
             public ChangelogMode getChangelogMode() {
                 return ChangelogMode.insertOnly();
             }
+
+            @Override
+            public boolean supportsNestedProjection() {
+                return jsonParserEnabled;
+            }
         };
+    }
+
+    private String[][] toProjectedNames(RowType type, int[][] projectedFields) {
+        String[][] projectedNames = new String[projectedFields.length][];
+        for (int i = 0; i < projectedNames.length; i++) {
+            int[] fieldIndices = projectedFields[i];
+            String[] fieldNames = new String[fieldIndices.length];
+            projectedNames[i] = fieldNames;
+
+            // convert fieldIndices to fieldNames
+            RowType currentType = type;
+            for (int j = 0; j < fieldIndices.length; j++) {
+                int index = fieldIndices[j];
+                fieldNames[j] = currentType.getFieldNames().get(index);
+                if (j != fieldIndices.length - 1) {
+                    currentType = (RowType) currentType.getTypeAt(index);
+                }
+            }
+        }
+        return projectedNames;
     }
 
     @Override
@@ -109,6 +148,7 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
 
         final boolean encodeDecimalAsPlainNumber =
                 formatOptions.get(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
+        final boolean ignoreNullFields = formatOptions.get(ENCODE_IGNORE_NULL_FIELDS);
 
         return new EncodingFormat<SerializationSchema<RowData>>() {
             @Override
@@ -120,7 +160,8 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
                         timestampOption,
                         mapNullKeyMode,
                         mapNullKeyLiteral,
-                        encodeDecimalAsPlainNumber);
+                        encodeDecimalAsPlainNumber,
+                        ignoreNullFields);
             }
 
             @Override
@@ -149,6 +190,7 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
         options.add(MAP_NULL_KEY_MODE);
         options.add(MAP_NULL_KEY_LITERAL);
         options.add(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
+        options.add(ENCODE_IGNORE_NULL_FIELDS);
         return options;
     }
 
@@ -159,6 +201,7 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
         options.add(MAP_NULL_KEY_MODE);
         options.add(MAP_NULL_KEY_LITERAL);
         options.add(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
+        options.add(ENCODE_IGNORE_NULL_FIELDS);
         return options;
     }
 }

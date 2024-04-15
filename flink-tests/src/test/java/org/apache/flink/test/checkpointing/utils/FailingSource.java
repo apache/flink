@@ -18,10 +18,10 @@
 
 package org.apache.flink.test.checkpointing.utils;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 
@@ -77,9 +77,9 @@ public class FailingSource extends RichSourceFunction<Tuple2<Long, IntType>>
     }
 
     @Override
-    public void open(Configuration parameters) {
+    public void open(OpenContext openContext) {
         // non-parallel source
-        assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
+        assertEquals(1, getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks());
     }
 
     @Override
@@ -89,8 +89,8 @@ public class FailingSource extends RichSourceFunction<Tuple2<Long, IntType>>
         // detect if this task is "the chosen one" and should fail (via subtaskidx), if it did not
         // fail before (via attempt)
         final boolean failThisTask =
-                runtimeContext.getAttemptNumber() == 0
-                        && runtimeContext.getIndexOfThisSubtask() == 0;
+                runtimeContext.getTaskInfo().getAttemptNumber() == 0
+                        && runtimeContext.getTaskInfo().getIndexOfThisSubtask() == 0;
 
         // we loop longer than we have elements, to permit delayed checkpoints
         // to still cause a failure

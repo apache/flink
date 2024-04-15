@@ -34,7 +34,7 @@ public class ExclusiveBuffersUsageGauge extends AbstractBuffersUsageGauge {
     @Override
     public int calculateUsedBuffers(SingleInputGate inputGate) {
         int usedBuffers = 0;
-        for (InputChannel ic : inputGate.getInputChannels().values()) {
+        for (InputChannel ic : inputGate.inputChannels()) {
             if (ic instanceof RemoteInputChannel) {
                 usedBuffers += ((RemoteInputChannel) ic).unsynchronizedGetExclusiveBuffersUsed();
             }
@@ -45,9 +45,9 @@ public class ExclusiveBuffersUsageGauge extends AbstractBuffersUsageGauge {
     @Override
     public int calculateTotalBuffers(SingleInputGate inputGate) {
         int totalExclusiveBuffers = 0;
-        for (InputChannel ic : inputGate.getInputChannels().values()) {
+        for (InputChannel ic : inputGate.inputChannels()) {
             if (ic instanceof RemoteInputChannel) {
-                totalExclusiveBuffers += ((RemoteInputChannel) ic).getInitialCredit();
+                totalExclusiveBuffers += ((RemoteInputChannel) ic).getNumExclusiveBuffers();
             }
         }
         return totalExclusiveBuffers;

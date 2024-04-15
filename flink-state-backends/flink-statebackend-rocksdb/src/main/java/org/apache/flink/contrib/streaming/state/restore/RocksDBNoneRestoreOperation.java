@@ -66,6 +66,7 @@ public class RocksDBNoneRestoreOperation<K> implements RocksDBRestoreOperation {
                 this.rocksHandle.getNativeMetricMonitor(),
                 -1,
                 null,
+                null,
                 null);
     }
 

@@ -36,29 +36,28 @@ import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link MultiInputSortingDataInput}. */
-public class MultiInputSortingDataInputsTest {
+class MultiInputSortingDataInputsTest {
 
     @Test
-    public void passThroughThenSortedInput() throws Exception {
+    void passThroughThenSortedInput() throws Exception {
         twoInputOrderTest(1, 0);
     }
 
     @Test
-    public void sortedThenPassThroughInput() throws Exception {
+    void sortedThenPassThroughInput() throws Exception {
         twoInputOrderTest(0, 1);
     }
 
     @SuppressWarnings("unchecked")
-    public void twoInputOrderTest(int preferredIndex, int sortedIndex) throws Exception {
+    void twoInputOrderTest(int preferredIndex, int sortedIndex) throws Exception {
         CollectingDataOutput<Object> collectingDataOutput = new CollectingDataOutput<>();
 
         List<StreamElement> sortedInputElements =
@@ -130,26 +129,25 @@ public class MultiInputSortingDataInputsTest {
             }
         }
 
-        assertThat(
-                collectingDataOutput.events,
-                equalTo(
-                        Arrays.asList(
-                                new StreamRecord<>(99, 3),
-                                new StreamRecord<>(99, 1),
-                                new Watermark(99L), // max watermark from the preferred input
-                                new StreamRecord<>(1, 1),
-                                new StreamRecord<>(1, 2),
-                                new StreamRecord<>(1, 3),
-                                new StreamRecord<>(2, 1),
-                                new StreamRecord<>(2, 2),
-                                new StreamRecord<>(2, 3),
-                                Watermark.MAX_WATERMARK // max watermark from the sorted input
-                                )));
+        assertThat(collectingDataOutput.events)
+                .containsExactly(
+                        new StreamRecord<>(99, 3),
+                        new StreamRecord<>(99, 1),
+                        // max watermark from the preferred input
+                        new Watermark(99L),
+                        new StreamRecord<>(1, 1),
+                        new StreamRecord<>(1, 2),
+                        new StreamRecord<>(1, 3),
+                        new StreamRecord<>(2, 1),
+                        new StreamRecord<>(2, 2),
+                        new StreamRecord<>(2, 3),
+                        // max watermark from the sorted input
+                        Watermark.MAX_WATERMARK);
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    public void simpleFixedLengthKeySorting() throws Exception {
+    void simpleFixedLengthKeySorting() throws Exception {
         CollectingDataOutput<Object> collectingDataOutput = new CollectingDataOutput<>();
         List<StreamElement> elements =
                 Arrays.asList(
@@ -204,30 +202,29 @@ public class MultiInputSortingDataInputsTest {
             }
         }
 
-        assertThat(
-                collectingDataOutput.events,
-                equalTo(
-                        Arrays.asList(
-                                new StreamRecord<>(1, 1),
-                                new StreamRecord<>(1, 1),
-                                new StreamRecord<>(1, 2),
-                                new StreamRecord<>(1, 2),
-                                new StreamRecord<>(1, 3),
-                                new StreamRecord<>(1, 3),
-                                new StreamRecord<>(2, 1),
-                                new StreamRecord<>(2, 1),
-                                new StreamRecord<>(2, 2),
-                                new StreamRecord<>(2, 2),
-                                new StreamRecord<>(2, 3),
-                                Watermark.MAX_WATERMARK, // max watermark from one of the inputs
-                                new StreamRecord<>(2, 3),
-                                Watermark.MAX_WATERMARK // max watermark from the other input
-                                )));
+        assertThat(collectingDataOutput.events)
+                .containsExactly(
+                        new StreamRecord<>(1, 1),
+                        new StreamRecord<>(1, 1),
+                        new StreamRecord<>(1, 2),
+                        new StreamRecord<>(1, 2),
+                        new StreamRecord<>(1, 3),
+                        new StreamRecord<>(1, 3),
+                        new StreamRecord<>(2, 1),
+                        new StreamRecord<>(2, 1),
+                        new StreamRecord<>(2, 2),
+                        new StreamRecord<>(2, 2),
+                        new StreamRecord<>(2, 3),
+                        // max watermark from one of the inputs
+                        Watermark.MAX_WATERMARK,
+                        new StreamRecord<>(2, 3),
+                        // max watermark from the other input
+                        Watermark.MAX_WATERMARK);
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    public void watermarkPropagation() throws Exception {
+    void watermarkPropagation() throws Exception {
         CollectingDataOutput<Object> collectingDataOutput = new CollectingDataOutput<>();
         List<StreamElement> elements1 =
                 Arrays.asList(
@@ -285,17 +282,16 @@ public class MultiInputSortingDataInputsTest {
             }
         }
 
-        assertThat(
-                collectingDataOutput.events,
-                equalTo(
-                        Arrays.asList(
-                                new StreamRecord<>(0, 3),
-                                new StreamRecord<>(1, 3),
-                                new Watermark(3), // watermark from the second input
-                                new StreamRecord<>(2, 3),
-                                new StreamRecord<>(3, 3),
-                                new Watermark(7) // watermark from the first input
-                                )));
+        assertThat(collectingDataOutput.events)
+                .containsExactly(
+                        new StreamRecord<>(0, 3),
+                        new StreamRecord<>(1, 3),
+                        // watermark from the second input
+                        new Watermark(3),
+                        new StreamRecord<>(2, 3),
+                        new StreamRecord<>(3, 3),
+                        // watermark from the first input
+                        new Watermark(7));
     }
 
     private static class DummyOperatorChain implements BoundedMultiInput {

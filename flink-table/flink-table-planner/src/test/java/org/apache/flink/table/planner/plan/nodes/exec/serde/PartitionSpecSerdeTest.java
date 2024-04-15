@@ -24,17 +24,17 @@ import org.apache.flink.util.jackson.JacksonMapperFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test PartitionSpec json ser/de. */
-public class PartitionSpecSerdeTest {
+class PartitionSpecSerdeTest {
 
     private static final ObjectMapper OBJECT_MAPPER = JacksonMapperFactory.createObjectMapper();
 
     @Test
-    public void testPartitionSpec() throws JsonProcessingException {
+    void testPartitionSpec() throws JsonProcessingException {
         PartitionSpec spec = new PartitionSpec(new int[] {1, 2, 3});
         assertThat(
                         OBJECT_MAPPER.readValue(
@@ -43,7 +43,7 @@ public class PartitionSpecSerdeTest {
     }
 
     @Test
-    public void testAllInOne() throws JsonProcessingException {
+    void testAllInOne() throws JsonProcessingException {
         assertThat(
                         OBJECT_MAPPER.readValue(
                                 OBJECT_MAPPER.writeValueAsString(PartitionSpec.ALL_IN_ONE),

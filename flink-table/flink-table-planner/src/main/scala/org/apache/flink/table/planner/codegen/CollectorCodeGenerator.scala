@@ -59,7 +59,7 @@ object CollectorCodeGenerator {
       collectedTerm: String = CodeGenUtils.DEFAULT_INPUT2_TERM)
       : GeneratedCollector[TableFunctionCollector[_]] = {
 
-    val funcName = newName(name)
+    val funcName = newName(ctx, name)
     val input1TypeClass = boxedTypeTermForType(inputType)
     val input2TypeClass = boxedTypeTermForType(collectedType)
 
@@ -128,7 +128,7 @@ object CollectorCodeGenerator {
       inputConversion: (String) => String,
       bodyCode: String): GeneratedCollector[WrappingCollector[_]] = {
 
-    val funcName = newName(name)
+    val funcName = newName(ctx, name)
     val inputTypeTerm = boxedTypeTermForType(inputType)
 
     val funcCode =

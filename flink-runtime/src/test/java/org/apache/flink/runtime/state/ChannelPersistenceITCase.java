@@ -40,6 +40,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
@@ -51,7 +52,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.util.function.SupplierWithException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -71,29 +72,27 @@ import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN;
 import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.RECOVERY_COMPLETION;
 import static org.apache.flink.util.CloseableIterator.ofElements;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** ChannelPersistenceITCase. */
-public class ChannelPersistenceITCase {
+class ChannelPersistenceITCase {
     private static final Random RANDOM = new Random(System.currentTimeMillis());
     private static final JobID JOB_ID = new JobID();
     private static final JobVertexID JOB_VERTEX_ID = new JobVertexID();
     private static final int SUBTASK_INDEX = 0;
 
     @Test
-    public void testUpstreamBlocksAfterRecoveringState() throws Exception {
+    void testUpstreamBlocksAfterRecoveringState() throws Exception {
         upstreamBlocksAfterRecoveringState(ResultPartitionType.PIPELINED);
     }
 
     @Test
-    public void testNotBlocksAfterRecoveringStateForApproximateLocalRecovery() throws Exception {
+    void testNotBlocksAfterRecoveringStateForApproximateLocalRecovery() throws Exception {
         upstreamBlocksAfterRecoveringState(ResultPartitionType.PIPELINED_APPROXIMATE);
     }
 
     @Test
-    public void testReadWritten() throws Exception {
+    void testReadWritten() throws Exception {
         byte[] inputChannelInfoData = randomBytes(1024);
         byte[] resultSubpartitionInfoData = randomBytes(1024);
         byte[] resultSubpartitionInfoFutureData = randomBytes(1024);
@@ -118,8 +117,8 @@ public class ChannelPersistenceITCase {
             int numChannels = 1;
             InputGate gate = buildGate(networkBufferPool, numChannels);
             reader.readInputData(new InputGate[] {gate});
-            assertArrayEquals(
-                    inputChannelInfoData, collectBytes(gate::pollNext, BufferOrEvent::getBuffer));
+            assertThat(collectBytes(gate::pollNext, BufferOrEvent::getBuffer))
+                    .isEqualTo(inputChannelInfoData);
 
             int subpartitions = 2;
             BufferWritingResultPartition resultPartition =
@@ -130,19 +129,21 @@ public class ChannelPersistenceITCase {
                             subpartitions);
             reader.readOutputData(new BufferWritingResultPartition[] {resultPartition}, false);
             ResultSubpartitionView view =
-                    resultPartition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
-            assertArrayEquals(
-                    resultSubpartitionInfoData,
-                    collectBytes(
-                            () -> Optional.ofNullable(view.getNextBuffer()),
-                            BufferAndBacklog::buffer));
+                    resultPartition.createSubpartitionView(
+                            new ResultSubpartitionIndexSet(0), new NoOpBufferAvailablityListener());
+            assertThat(
+                            collectBytes(
+                                    () -> Optional.ofNullable(view.getNextBuffer()),
+                                    BufferAndBacklog::buffer))
+                    .isEqualTo(resultSubpartitionInfoData);
             ResultSubpartitionView futureView =
-                    resultPartition.createSubpartitionView(1, new NoOpBufferAvailablityListener());
-            assertArrayEquals(
-                    resultSubpartitionInfoFutureData,
-                    collectBytes(
-                            () -> Optional.ofNullable(futureView.getNextBuffer()),
-                            BufferAndBacklog::buffer));
+                    resultPartition.createSubpartitionView(
+                            new ResultSubpartitionIndexSet(1), new NoOpBufferAvailablityListener());
+            assertThat(
+                            collectBytes(
+                                    () -> Optional.ofNullable(futureView.getNextBuffer()),
+                                    BufferAndBacklog::buffer))
+                    .isEqualTo(resultSubpartitionInfoFutureData);
         } finally {
             networkBufferPool.destroy();
         }
@@ -158,13 +159,15 @@ public class ChannelPersistenceITCase {
                     .readOutputData(new BufferWritingResultPartition[] {resultPartition}, true);
             resultPartition.emitRecord(ByteBuffer.wrap(dataAfterRecovery), 0);
             ResultSubpartitionView view =
-                    resultPartition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
+                    resultPartition.createSubpartitionView(
+                            new ResultSubpartitionIndexSet(0), new NoOpBufferAvailablityListener());
             if (type != ResultPartitionType.PIPELINED_APPROXIMATE) {
-                assertEquals(RECOVERY_COMPLETION, view.getNextBuffer().buffer().getDataType());
-                assertNull(view.getNextBuffer());
+                assertThat(view.getNextBuffer().buffer().getDataType())
+                        .isEqualTo(RECOVERY_COMPLETION);
+                assertThat(view.getNextBuffer()).isNull();
                 view.resumeConsumption();
             }
-            assertArrayEquals(dataAfterRecovery, collectBytes(view.getNextBuffer().buffer()));
+            assertThat(collectBytes(view.getNextBuffer().buffer())).isEqualTo(dataAfterRecovery);
         } finally {
             networkBufferPool.destroy();
         }
@@ -185,6 +188,7 @@ public class ChannelPersistenceITCase {
                                 () ->
                                         networkBufferPool.createBufferPool(
                                                 numberOfSubpartitions,
+                                                numberOfSubpartitions,
                                                 Integer.MAX_VALUE,
                                                 numberOfSubpartitions,
                                                 Integer.MAX_VALUE,
@@ -201,7 +205,7 @@ public class ChannelPersistenceITCase {
                         .setChannelFactory(InputChannelBuilder::buildRemoteRecoveredChannel)
                         .setBufferPoolFactory(
                                 networkBufferPool.createBufferPool(
-                                        numberOfChannels, Integer.MAX_VALUE))
+                                        numberOfChannels, numberOfChannels, Integer.MAX_VALUE))
                         .setSegmentProvider(networkBufferPool)
                         .setNumberOfChannels(numberOfChannels)
                         .build();

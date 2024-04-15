@@ -44,6 +44,7 @@ import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -57,7 +58,11 @@ import java.util.Objects;
  * <p><b>NOTE:</b> This source has a parallelism of 1.
  *
  * @param <T> The type of elements returned by this function.
+ * @deprecated This class is based on the {@link
+ *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+ *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
+@Deprecated
 @PublicEvolving
 public class FromElementsFunction<T>
         implements SourceFunction<T>, CheckpointedFunction, OutputTypeConfigurable<T> {
@@ -147,7 +152,8 @@ public class FromElementsFunction<T>
                 elements != null,
                 "The output type should've been specified before shipping the graph to the cluster");
         checkIterable(elements, outTypeInfo.getTypeClass());
-        TypeSerializer<T> newSerializer = outTypeInfo.createSerializer(executionConfig);
+        TypeSerializer<T> newSerializer =
+                outTypeInfo.createSerializer(executionConfig.getSerializerConfig());
         if (Objects.equals(serializer, newSerializer)) {
             return;
         }
@@ -267,8 +273,7 @@ public class FromElementsFunction<T>
                 this.checkpointedState != null,
                 "The " + getClass().getSimpleName() + " has not been properly initialized.");
 
-        this.checkpointedState.clear();
-        this.checkpointedState.add(this.numElementsEmitted);
+        this.checkpointedState.update(Collections.singletonList(this.numElementsEmitted));
     }
 
     // ------------------------------------------------------------------------

@@ -400,6 +400,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                             jobVertex.getName(),
                             parallelismInfo.getParallelism(),
                             parallelismInfo.getMaxParallelism(),
+                            jobVertex.getSlotSharingGroup(),
                             ResourceProfile.fromResourceSpec(
                                     jobVertex.getMinResources(), MemorySize.ZERO),
                             new StringifiedAccumulatorResult[0]);

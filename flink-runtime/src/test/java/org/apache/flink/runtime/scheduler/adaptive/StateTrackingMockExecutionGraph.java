@@ -47,12 +47,13 @@ import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.JobVertexInputInfo;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
-import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
+import org.apache.flink.runtime.executiongraph.failover.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
 import org.apache.flink.runtime.scheduler.exceptionhistory.TestingAccessExecution;
@@ -286,6 +287,12 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
         throw new UnsupportedOperationException();
     }
 
+    @Nullable
+    @Override
+    public CheckpointStatsTracker getCheckpointStatsTracker() {
+        throw new UnsupportedOperationException();
+    }
+
     @Override
     public KvStateLocationRegistry getKvStateLocationRegistry() {
         throw new UnsupportedOperationException();
@@ -327,7 +334,9 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
     }
 
     @Override
-    public void attachJobGraph(List<JobVertex> topologicallySorted) throws JobException {
+    public void attachJobGraph(
+            List<JobVertex> topologicallySorted, JobManagerJobMetricGroup jobManagerJobMetricGroup)
+            throws JobException {
         throw new UnsupportedOperationException();
     }
 

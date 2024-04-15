@@ -23,6 +23,7 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.SimpleTimerService;
 import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
@@ -35,6 +36,10 @@ abstract class BaseTemporalSortOperator extends AbstractStreamOperator<RowData>
 
     protected transient TimerService timerService;
     protected transient TimestampedCollector<RowData> collector;
+
+    BaseTemporalSortOperator() {
+        setChainingStrategy(ChainingStrategy.ALWAYS);
+    }
 
     @Override
     public void open() throws Exception {

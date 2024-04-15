@@ -20,7 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryFactory;
@@ -61,7 +61,7 @@ public class StandaloneCompletedCheckpointStore extends AbstractCompleteCheckpoi
                 maxNumberOfCheckpointsToRetain,
                 SharedStateRegistry.DEFAULT_FACTORY,
                 Executors.directExecutor(),
-                /* Using the default restore mode in tests to detect any breaking changes early. */
+                /* Using the default mode in tests to detect any breaking changes early. */
                 RestoreMode.DEFAULT);
     }
 

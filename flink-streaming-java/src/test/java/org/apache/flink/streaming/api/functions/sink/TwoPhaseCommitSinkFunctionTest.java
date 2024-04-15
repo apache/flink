@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.functions.sink;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
@@ -25,15 +25,14 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.ContentDump;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.testutils.logging.TestLoggerResource;
+import org.apache.flink.testutils.logging.LoggerAuditingExtension;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.event.Level;
 
-import java.io.IOException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -45,14 +44,11 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.hasItem;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link TwoPhaseCommitSinkFunction}. */
-public class TwoPhaseCommitSinkFunctionTest {
+class TwoPhaseCommitSinkFunctionTest {
 
     private ContentDumpSinkFunction sinkFunction;
 
@@ -66,12 +62,12 @@ public class TwoPhaseCommitSinkFunctionTest {
 
     private SettableClock clock;
 
-    @Rule
-    public final TestLoggerResource testLoggerResource =
-            new TestLoggerResource(TwoPhaseCommitSinkFunction.class, Level.WARN);
+    @RegisterExtension
+    private LoggerAuditingExtension testLoggerResource =
+            new LoggerAuditingExtension(TwoPhaseCommitSinkFunction.class, Level.WARN);
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() throws Exception {
         targetDirectory = new ContentDump();
         tmpDirectory = new ContentDump();
         clock = new SettableClock();
@@ -79,8 +75,8 @@ public class TwoPhaseCommitSinkFunctionTest {
         setUpTestHarness();
     }
 
-    @After
-    public void tearDown() throws Exception {
+    @AfterEach
+    void tearDown() throws Exception {
         closeTestHarness();
     }
 
@@ -101,7 +97,7 @@ public class TwoPhaseCommitSinkFunctionTest {
      * completes first. See FLINK-10377 and FLINK-14979 for more details.
      */
     @Test
-    public void testSubsumedNotificationOfPreviousCheckpoint() throws Exception {
+    void testSubsumedNotificationOfPreviousCheckpoint() throws Exception {
         harness.open();
         harness.processElement("42", 0);
         harness.snapshot(0, 1);
@@ -113,11 +109,11 @@ public class TwoPhaseCommitSinkFunctionTest {
         harness.notifyOfCompletedCheckpoint(1);
 
         assertExactlyOnce(Arrays.asList("42", "43", "44"));
-        assertEquals(1, tmpDirectory.listFiles().size()); // one for currentTransaction
+        assertThat(tmpDirectory.listFiles()).hasSize(1); // one for currentTransaction
     }
 
     @Test
-    public void testNoTransactionAfterSinkFunctionFinish() throws Exception {
+    void testNoTransactionAfterSinkFunctionFinish() throws Exception {
         harness.open();
         harness.processElement("42", 0);
         harness.snapshot(0, 1);
@@ -134,23 +130,18 @@ public class TwoPhaseCommitSinkFunctionTest {
         // make sure the previous empty transaction will not be pre-committed
         harness.snapshot(3, 6);
 
-        try {
-            harness.processElement("45", 7);
-            fail(
-                    "TwoPhaseCommitSinkFunctionTest should not process any more input data after finish!");
-        } catch (NullPointerException e) {
-            // expected and do nothing here
-        }
+        assertThatThrownBy(() -> harness.processElement("45", 7))
+                .isInstanceOf(NullPointerException.class);
 
         // Checkpoint2 has not complete
         assertExactlyOnce(Arrays.asList("42", "43"));
 
         // transaction for checkpoint2
-        assertEquals(1, tmpDirectory.listFiles().size());
+        assertThat(tmpDirectory.listFiles()).hasSize(1);
     }
 
     @Test
-    public void testRecoverFromStateAfterFinished() throws Exception {
+    void testRecoverFromStateAfterFinished() throws Exception {
         harness.open();
         harness.processElement("42", 0);
         sinkFunction.finish();
@@ -162,11 +153,11 @@ public class TwoPhaseCommitSinkFunctionTest {
 
         harness.initializeState(operatorSubtaskState);
         harness.open();
-        assertEquals(0, sinkFunction.abortedTransactions.size());
+        assertThat(sinkFunction.abortedTransactions).isEmpty();
     }
 
     @Test
-    public void testNotifyOfCompletedCheckpoint() throws Exception {
+    void testNotifyOfCompletedCheckpoint() throws Exception {
         harness.open();
         harness.processElement("42", 0);
         harness.snapshot(0, 1);
@@ -177,15 +168,12 @@ public class TwoPhaseCommitSinkFunctionTest {
         harness.notifyOfCompletedCheckpoint(1);
 
         assertExactlyOnce(Arrays.asList("42", "43"));
-        assertEquals(
-                2,
-                tmpDirectory
-                        .listFiles()
-                        .size()); // one for checkpointId 2 and second for the currentTransaction
+        // one for checkpointId 2 and second for the currentTransaction
+        assertThat(tmpDirectory.listFiles()).hasSize(2);
     }
 
     @Test
-    public void testFailBeforeNotify() throws Exception {
+    void testFailBeforeNotify() throws Exception {
         harness.open();
         harness.processElement("42", 0);
         harness.snapshot(0, 1);
@@ -193,16 +181,14 @@ public class TwoPhaseCommitSinkFunctionTest {
         OperatorSubtaskState snapshot = harness.snapshot(1, 3);
 
         tmpDirectory.setWritable(false);
-        try {
-            harness.processElement("44", 4);
-            harness.snapshot(2, 5);
-            fail("something should fail");
-        } catch (Exception ex) {
-            if (!(ex.getCause() instanceof ContentDump.NotWritableException)) {
-                throw ex;
-            }
-            // ignore
-        }
+
+        assertThatThrownBy(
+                        () -> {
+                            harness.processElement("44", 4);
+                            harness.snapshot(2, 5);
+                        })
+                .hasCauseInstanceOf(ContentDump.NotWritableException.class);
+
         closeTestHarness();
 
         tmpDirectory.setWritable(true);
@@ -213,11 +199,11 @@ public class TwoPhaseCommitSinkFunctionTest {
         assertExactlyOnce(Arrays.asList("42", "43"));
         closeTestHarness();
 
-        assertEquals(0, tmpDirectory.listFiles().size());
+        assertThat(tmpDirectory.listFiles()).isEmpty();
     }
 
     @Test
-    public void testIgnoreCommitExceptionDuringRecovery() throws Exception {
+    void testIgnoreCommitExceptionDuringRecovery() throws Exception {
         clock.setEpochMilli(0);
 
         harness.open();
@@ -235,12 +221,9 @@ public class TwoPhaseCommitSinkFunctionTest {
         sinkFunction.setTransactionTimeout(transactionTimeout);
         sinkFunction.ignoreFailuresAfterTransactionTimeout();
 
-        try {
-            harness.initializeState(snapshot);
-            fail("Expected exception not thrown");
-        } catch (RuntimeException e) {
-            assertEquals("Expected exception", e.getMessage());
-        }
+        assertThatThrownBy(() -> harness.initializeState(snapshot))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("Expected exception");
 
         clock.setEpochMilli(transactionTimeout + 1);
         harness.initializeState(snapshot);
@@ -249,7 +232,7 @@ public class TwoPhaseCommitSinkFunctionTest {
     }
 
     @Test
-    public void testLogTimeoutAlmostReachedWarningDuringCommit() throws Exception {
+    void testLogTimeoutAlmostReachedWarningDuringCommit() throws Exception {
         clock.setEpochMilli(0);
 
         final long transactionTimeout = 1000;
@@ -263,16 +246,15 @@ public class TwoPhaseCommitSinkFunctionTest {
         clock.setEpochMilli(elapsedTime);
         harness.notifyOfCompletedCheckpoint(1);
 
-        assertThat(
-                testLoggerResource.getMessages(),
-                hasItem(
-                        containsString(
-                                "has been open for 502 ms. "
-                                        + "This is close to or even exceeding the transaction timeout of 1000 ms.")));
+        assertThat(testLoggerResource.getMessages())
+                .anyMatch(
+                        item ->
+                                item.contains(
+                                        "has been open for 502 ms. This is close to or even exceeding the transaction timeout of 1000 ms."));
     }
 
     @Test
-    public void testLogTimeoutAlmostReachedWarningDuringRecovery() throws Exception {
+    void testLogTimeoutAlmostReachedWarningDuringRecovery() throws Exception {
         clock.setEpochMilli(0);
 
         final long transactionTimeout = 1000;
@@ -296,22 +278,21 @@ public class TwoPhaseCommitSinkFunctionTest {
 
         closeTestHarness();
 
-        assertThat(
-                testLoggerResource.getMessages(),
-                hasItem(
-                        containsString(
-                                "has been open for 502 ms. "
-                                        + "This is close to or even exceeding the transaction timeout of 1000 ms.")));
+        assertThat(testLoggerResource.getMessages())
+                .anyMatch(
+                        item ->
+                                item.contains(
+                                        "has been open for 502 ms. This is close to or even exceeding the transaction timeout of 1000 ms."));
     }
 
-    private void assertExactlyOnce(List<String> expectedValues) throws IOException {
+    private void assertExactlyOnce(List<String> expectedValues) {
         ArrayList<String> actualValues = new ArrayList<>();
         for (String name : targetDirectory.listFiles()) {
             actualValues.addAll(targetDirectory.read(name));
         }
         Collections.sort(actualValues);
         Collections.sort(expectedValues);
-        assertEquals(expectedValues, actualValues);
+        assertThat(actualValues).isEqualTo(expectedValues);
     }
 
     private class ContentDumpSinkFunction
@@ -372,7 +353,7 @@ public class TwoPhaseCommitSinkFunctionTest {
     private static class ContentTransactionSerializer extends KryoSerializer<ContentTransaction> {
 
         public ContentTransactionSerializer() {
-            super(ContentTransaction.class, new ExecutionConfig());
+            super(ContentTransaction.class, new SerializerConfigImpl());
         }
 
         @Override

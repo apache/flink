@@ -448,7 +448,7 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 
         @Override
         public Tuple2<Integer, Integer> map(Long value) throws Exception {
-            return new Tuple2<>(this.getRuntimeContext().getIndexOfThisSubtask(), 1);
+            return new Tuple2<>(this.getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(), 1);
         }
     }
 

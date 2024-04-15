@@ -23,10 +23,10 @@ import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.api.{TableConfig, TableException, ValidationException}
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.JDouble
-import org.apache.flink.table.planner.hint.JoinStrategy
+import org.apache.flink.table.planner.hint.{FlinkHints, JoinStrategy}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalLocalHashAggregate
-import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, OperatorType}
+import org.apache.flink.table.planner.plan.utils.{JoinUtil, OperatorType}
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
 
@@ -85,16 +85,6 @@ trait BatchPhysicalJoinRuleBase {
       false
     } else {
       ndvOfGroupKey / inputRows < ratioConf
-    }
-  }
-
-  private[flink] def binaryRowRelNodeSize(relNode: RelNode): JDouble = {
-    val mq = relNode.getCluster.getMetadataQuery
-    val rowCount = mq.getRowCount(relNode)
-    if (rowCount == null) {
-      null
-    } else {
-      rowCount * FlinkRelMdUtil.binaryRowAverageSize(relNode)
     }
   }
 
@@ -193,7 +183,7 @@ trait BatchPhysicalJoinRuleBase {
       // BROADCAST use first arg as the broadcast side
       val isLeftToBroadcastInHint =
         getFirstArgInJoinHint(join, JoinStrategy.BROADCAST.getJoinHintName)
-          .equals(JoinStrategy.LEFT_INPUT)
+          .equals(FlinkHints.LEFT_INPUT)
 
       join.getJoinType match {
         // if left join, must broadcast right side
@@ -208,8 +198,8 @@ trait BatchPhysicalJoinRuleBase {
           (false, false)
       }
     } else {
-      val leftSize = binaryRowRelNodeSize(join.getLeft)
-      val rightSize = binaryRowRelNodeSize(join.getRight)
+      val leftSize = JoinUtil.binaryRowRelNodeSize(join.getLeft)
+      val rightSize = JoinUtil.binaryRowRelNodeSize(join.getRight)
 
       // if it is not with hint, just check size of left and right side by statistic and config
       // if leftSize or rightSize is unknown, cannot use broadcast
@@ -250,15 +240,15 @@ trait BatchPhysicalJoinRuleBase {
 
     if (withShuffleHashHint) {
       val isLeftToBuild = getFirstArgInJoinHint(join, JoinStrategy.SHUFFLE_HASH.getJoinHintName)
-        .equals(JoinStrategy.LEFT_INPUT)
+        .equals(FlinkHints.LEFT_INPUT)
       (true, isLeftToBuild)
     } else {
-      val leftSize = binaryRowRelNodeSize(join.getLeft)
-      val rightSize = binaryRowRelNodeSize(join.getRight)
+      val leftSize = JoinUtil.binaryRowRelNodeSize(join.getLeft)
+      val rightSize = JoinUtil.binaryRowRelNodeSize(join.getRight)
       val leftIsBuild = if (leftSize == null || rightSize == null || leftSize == rightSize) {
         // use left to build hash table if leftSize or rightSize is unknown or equal size.
         // choose right to build if join is SEMI/ANTI.
-        !join.getJoinType.projectsRight
+        join.getJoinType.projectsRight
       } else {
         leftSize < rightSize
       }
@@ -287,14 +277,14 @@ trait BatchPhysicalJoinRuleBase {
 
     val isLeftToBuild = if (withNestLoopHint) {
       getFirstArgInJoinHint(join, JoinStrategy.NEST_LOOP.getJoinHintName)
-        .equals(JoinStrategy.LEFT_INPUT)
+        .equals(FlinkHints.LEFT_INPUT)
     } else {
       join.getJoinType match {
         case JoinRelType.LEFT => false
         case JoinRelType.RIGHT => true
         case JoinRelType.INNER | JoinRelType.FULL =>
-          val leftSize = binaryRowRelNodeSize(join.getLeft)
-          val rightSize = binaryRowRelNodeSize(join.getRight)
+          val leftSize = JoinUtil.binaryRowRelNodeSize(join.getLeft)
+          val rightSize = JoinUtil.binaryRowRelNodeSize(join.getRight)
           // use left as build size if leftSize or rightSize is unknown.
           if (leftSize == null || rightSize == null) {
             true

@@ -129,8 +129,8 @@ class BatchExecutionFileSinkITCase extends FileSinkITBase {
         @Override
         public Integer map(Integer value) {
             if (triggerFailover
-                    && getRuntimeContext().getIndexOfThisSubtask() == 0
-                    && getRuntimeContext().getAttemptNumber() == 0
+                    && getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 0
+                    && getRuntimeContext().getTaskInfo().getAttemptNumber() == 0
                     && value >= FAILOVER_RATIO * maxNumber) {
                 throw new RuntimeException("Designated Failure");
             }

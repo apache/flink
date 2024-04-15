@@ -33,7 +33,7 @@ import java.util.List;
 import static org.apache.flink.table.data.StringData.fromString;
 
 /** Test for {@link LagAggFunction}. */
-public class LagAggFunctionTest
+class LagAggFunctionTest
         extends AggFunctionTestBase<StringData, StringData, LagAggFunction.LagAcc<StringData>> {
 
     @Override

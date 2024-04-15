@@ -19,11 +19,11 @@
 package org.apache.flink.state.benchmark;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
@@ -121,8 +121,8 @@ public class RescalingBenchmarkTest extends TestLogger {
         private ValueState<Integer> randomState;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             randomState =
                     this.getRuntimeContext()
                             .getState(new ValueStateDescriptor<>("RandomState", Integer.class));

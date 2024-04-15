@@ -40,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** IT Case for [CREATE OR] REPLACE TABLE AS SELECT statement. */
-public class RTASITCase extends StreamingTestBase {
+class RTASITCase extends StreamingTestBase {
 
     @BeforeEach
     @Override
@@ -66,7 +66,7 @@ public class RTASITCase extends StreamingTestBase {
                 .await();
 
         // verify written rows
-        assertThat(TestValuesTableFactory.getResults("target").toString())
+        assertThat(TestValuesTableFactory.getResultsAsStrings("target").toString())
                 .isEqualTo("[+I[1, 1, Hi], +I[2, 2, Hello], +I[3, 2, Hello world]]");
 
         // verify the table after replacing
@@ -97,7 +97,7 @@ public class RTASITCase extends StreamingTestBase {
                 .await();
 
         // verify written rows
-        assertThat(TestValuesTableFactory.getResults("target").toString())
+        assertThat(TestValuesTableFactory.getResultsAsStrings("target").toString())
                 .isEqualTo("[+I[1, Hi], +I[2, Hello], +I[3, Hello world]]");
 
         // verify the table after replacing
@@ -117,7 +117,7 @@ public class RTASITCase extends StreamingTestBase {
                 .await();
 
         // verify written rows
-        assertThat(TestValuesTableFactory.getResults("not_exist_target").toString())
+        assertThat(TestValuesTableFactory.getResultsAsStrings("not_exist_target").toString())
                 .isEqualTo("[+I[1, Hi], +I[2, Hello], +I[3, Hello world]]");
 
         // verify the table after replacing

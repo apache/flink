@@ -49,18 +49,18 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
 /** Tests for {@link TieredStorageProducerClient}. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class TieredStorageProducerClientTest {
+class TieredStorageProducerClientTest {
 
     private static final int NUM_TOTAL_BUFFERS = 1000;
 
     private static final int NETWORK_BUFFER_SIZE = 1024;
 
-    @Parameter public boolean isBroadcast;
+    @Parameter private boolean isBroadcast;
 
     private NetworkBufferPool globalPool;
 
     @Parameters(name = "isBroadcast={0}")
-    public static Collection<Boolean> parameters() {
+    private static Collection<Boolean> parameters() {
         return Arrays.asList(false, true);
     }
 

@@ -23,26 +23,25 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test that check the hidden API to set co location constraints on the stream transformations. */
-public class StreamGraphCoLocationConstraintTest {
+class StreamGraphCoLocationConstraintTest {
 
     @Test
-    public void testSettingCoLocationConstraint() throws Exception {
+    void testSettingCoLocationConstraint() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(7);
 
         // set up the test program
-        DataStream<Long> source = env.generateSequence(1L, 10_000_000);
+        DataStream<Long> source = env.fromSequence(1L, 10_000_000);
         source.getTransformation().setCoLocationGroupKey("group1");
 
         DataStream<Long> step1 = source.keyBy(v -> v).map(v -> v);
@@ -51,29 +50,31 @@ public class StreamGraphCoLocationConstraintTest {
         DataStream<Long> step2 = step1.keyBy(v -> v).map(v -> v);
         step2.getTransformation().setCoLocationGroupKey("group1");
 
-        DataStreamSink<Long> result = step2.keyBy(v -> v).addSink(new DiscardingSink<>());
+        DataStreamSink<Long> result = step2.keyBy(v -> v).sinkTo(new DiscardingSink<>());
         result.getTransformation().setCoLocationGroupKey("group2");
 
         // get the graph
         final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
-        assertEquals(4, jobGraph.getNumberOfVertices());
+        assertThat(jobGraph.getNumberOfVertices()).isEqualTo(4);
 
         List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
         for (JobVertex vertex : vertices) {
-            assertNotNull(vertex.getCoLocationGroup());
+            assertThat(vertex.getCoLocationGroup()).isNotNull();
         }
 
-        assertEquals(vertices.get(0).getCoLocationGroup(), vertices.get(2).getCoLocationGroup());
-        assertEquals(vertices.get(1).getCoLocationGroup(), vertices.get(3).getCoLocationGroup());
+        assertThat(vertices.get(0).getCoLocationGroup())
+                .isEqualTo(vertices.get(2).getCoLocationGroup());
+        assertThat(vertices.get(1).getCoLocationGroup())
+                .isEqualTo(vertices.get(3).getCoLocationGroup());
     }
 
     @Test
-    public void testCoLocateDifferenSharingGroups() throws Exception {
+    void testCoLocateDifferenSharingGroups() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(7);
 
         // set up the test program
-        DataStream<Long> source = env.generateSequence(1L, 10_000_000);
+        DataStream<Long> source = env.fromSequence(1L, 10_000_000);
         source.getTransformation().setSlotSharingGroup("ssg1");
         source.getTransformation().setCoLocationGroupKey("co1");
 
@@ -85,15 +86,12 @@ public class StreamGraphCoLocationConstraintTest {
         step2.getTransformation().setSlotSharingGroup("ssg3");
         step2.getTransformation().setCoLocationGroupKey("co1");
 
-        DataStreamSink<Long> result = step2.keyBy(v -> v).addSink(new DiscardingSink<>());
+        DataStreamSink<Long> result = step2.keyBy(v -> v).sinkTo(new DiscardingSink<>());
         result.getTransformation().setSlotSharingGroup("ssg4");
         result.getTransformation().setCoLocationGroupKey("co2");
 
         // get the graph
-        try {
-            env.getStreamGraph().getJobGraph();
-            fail("exception expected");
-        } catch (IllegalStateException ignored) {
-        }
+        assertThatThrownBy(() -> env.getStreamGraph().getJobGraph())
+                .isInstanceOf(IllegalStateException.class);
     }
 }

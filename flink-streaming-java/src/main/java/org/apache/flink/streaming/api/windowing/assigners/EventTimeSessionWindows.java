@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -40,9 +41,10 @@ import java.util.Collections;
  * DataStream<Tuple2<String, Integer>> in = ...;
  * KeyedStream<String, Tuple2<String, Integer>> keyed = in.keyBy(...);
  * WindowedStream<Tuple2<String, Integer>, String, TimeWindows> windowed =
- *   keyed.window(EventTimeSessionWindows.withGap(Time.minutes(1)));
+ *   keyed.window(EventTimeSessionWindows.withGap(Duration.ofMinutes(1)));
  * }</pre>
  */
+@PublicEvolving
 public class EventTimeSessionWindows extends MergingWindowAssigner<Object, TimeWindow> {
     private static final long serialVersionUID = 1L;
 
@@ -65,6 +67,12 @@ public class EventTimeSessionWindows extends MergingWindowAssigner<Object, TimeW
 
     @Override
     public Trigger<Object, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
+        throw new UnsupportedOperationException(
+                "This method is deprecated and shouldn't be invoked. Please use getDefaultTrigger() instead.");
+    }
+
+    @Override
+    public Trigger<Object, TimeWindow> getDefaultTrigger() {
         return EventTimeTrigger.create();
     }
 
@@ -79,9 +87,22 @@ public class EventTimeSessionWindows extends MergingWindowAssigner<Object, TimeW
      *
      * @param size The session timeout, i.e. the time gap between sessions
      * @return The policy.
+     * @deprecated Use {@link #withGap(Duration)}
      */
+    @Deprecated
     public static EventTimeSessionWindows withGap(Time size) {
-        return new EventTimeSessionWindows(size.toMilliseconds());
+        return withGap(size.toDuration());
+    }
+
+    /**
+     * Creates a new {@code SessionWindows} {@link WindowAssigner} that assigns elements to sessions
+     * based on the element timestamp.
+     *
+     * @param size The session timeout, i.e. the time gap between sessions
+     * @return The policy.
+     */
+    public static EventTimeSessionWindows withGap(Duration size) {
+        return new EventTimeSessionWindows(size.toMillis());
     }
 
     /**

@@ -20,6 +20,7 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -30,11 +31,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.StateChangelogOptions;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
@@ -43,7 +44,7 @@ import org.apache.flink.runtime.state.SavepointKeyedStateHandle;
 import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.logging.LoggerAuditingExtension;
 import org.apache.flink.util.TestLogger;
@@ -87,17 +88,13 @@ public class SavepointFormatITCase extends TestLogger {
             new LoggerAuditingExtension(SavepointFormatITCase.class, Level.INFO);
 
     private static List<Arguments> parameters() {
-        // iterate through all valid combinations of backends, isIncremental, isChangelogEnabled
+        // iterate through all combinations of backends, isIncremental, isChangelogEnabled
         List<Arguments> result = new LinkedList<>();
         for (BiFunction<Boolean, Boolean, StateBackendConfig> builder :
                 StateBackendConfig.builders) {
             for (boolean incremental : new boolean[] {true, false}) {
                 for (boolean changelog : new boolean[] {true, false}) {
                     for (SavepointFormatType formatType : SavepointFormatType.values()) {
-                        if (changelog && formatType == SavepointFormatType.NATIVE) {
-                            // not supported
-                            continue;
-                        }
                         result.add(Arguments.of(formatType, builder.apply(incremental, changelog)));
                     }
                 }
@@ -145,7 +142,7 @@ public class SavepointFormatITCase extends TestLogger {
 
         public Configuration getConfiguration() {
             Configuration stateBackendConfig = new Configuration();
-            stateBackendConfig.setString(StateBackendOptions.STATE_BACKEND, getConfigName());
+            stateBackendConfig.set(StateBackendOptions.STATE_BACKEND, getConfigName());
             stateBackendConfig.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, incremental);
             stateBackendConfig.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, changelogEnabled);
             return stateBackendConfig;
@@ -340,7 +337,7 @@ public class SavepointFormatITCase extends TestLogger {
         env.fromSequence(Long.MIN_VALUE, Long.MAX_VALUE)
                 .keyBy(i -> i % 1000)
                 .map(new StatefulCounter())
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         return env.getStreamGraph().getJobGraph();
     }
@@ -349,7 +346,7 @@ public class SavepointFormatITCase extends TestLogger {
         private ValueState<Long> counter;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             counter =
                     getRuntimeContext()
                             .getState(

@@ -22,7 +22,7 @@ import org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral
 import org.apache.flink.table.planner.expressions.utils.MapTypeTestBase
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.{localDate, localDateTime, localTime => gLocalTime}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.time.{LocalDateTime => JLocalTimestamp}
 

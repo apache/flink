@@ -42,9 +42,9 @@ class ExecutionHistoryTest {
         history.add(createArchivedExecution(createExecutionAttemptId(executionVertexId, 2)));
 
         assertThat(history.getHistoricalExecutions()).hasSize(2);
-        assertThat(history.getHistoricalExecution(0).isPresent()).isFalse();
-        assertThat(history.getHistoricalExecution(1).isPresent()).isTrue();
-        assertThat(history.getHistoricalExecution(2).isPresent()).isTrue();
+        assertThat(history.getHistoricalExecution(0)).isNotPresent();
+        assertThat(history.getHistoricalExecution(1)).isPresent();
+        assertThat(history.getHistoricalExecution(2)).isPresent();
     }
 
     @Test

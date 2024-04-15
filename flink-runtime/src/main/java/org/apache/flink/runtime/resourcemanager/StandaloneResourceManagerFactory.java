@@ -20,10 +20,10 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.runtime.blocklist.BlocklistUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -89,7 +89,7 @@ public final class StandaloneResourceManagerFactory extends ResourceManagerFacto
                 fatalErrorHandler,
                 resourceManagerMetricGroup,
                 standaloneClusterStartupPeriodTime,
-                Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION)),
+                Time.fromDuration(configuration.get(RpcOptions.ASK_TIMEOUT_DURATION)),
                 ioExecutor);
     }
 
@@ -98,7 +98,7 @@ public final class StandaloneResourceManagerFactory extends ResourceManagerFacto
             createResourceManagerRuntimeServicesConfiguration(Configuration configuration)
                     throws ConfigurationException {
         return ResourceManagerRuntimeServicesConfiguration.fromConfiguration(
-                getConfigurationWithoutMaxSlotNumberIfSet(configuration),
+                getConfigurationWithoutResourceLimitationIfSet(configuration),
                 ArbitraryWorkerResourceSpecFactory.INSTANCE);
     }
 
@@ -109,17 +109,51 @@ public final class StandaloneResourceManagerFactory extends ResourceManagerFacto
      * @return the configuration for standalone ResourceManager
      */
     @VisibleForTesting
-    public static Configuration getConfigurationWithoutMaxSlotNumberIfSet(
+    public static Configuration getConfigurationWithoutResourceLimitationIfSet(
             Configuration configuration) {
         final Configuration copiedConfig = new Configuration(configuration);
-        // The max slot limit should not take effect for standalone cluster, we overwrite the
-        // configure in case user
-        // sets this value by mistake.
-        if (copiedConfig.removeConfig(ResourceManagerOptions.MAX_SLOT_NUM)) {
+        removeResourceLimitationConfig(copiedConfig);
+
+        return copiedConfig;
+    }
+
+    private static void removeResourceLimitationConfig(Configuration configuration) {
+        // The slot/cpu/memory limit should not take effect for standalone cluster, we overwrite the
+        // configure in case user sets this value by mistake.
+        if (configuration.removeConfig(ResourceManagerOptions.MIN_SLOT_NUM)) {
+            LOG.warn(
+                    "Config option {} will be ignored in standalone mode.",
+                    ResourceManagerOptions.MIN_SLOT_NUM.key());
+        }
+
+        if (configuration.removeConfig(ResourceManagerOptions.MIN_TOTAL_CPU)) {
+            LOG.warn(
+                    "Config option {} will be ignored in standalone mode.",
+                    ResourceManagerOptions.MIN_TOTAL_CPU.key());
+        }
+
+        if (configuration.removeConfig(ResourceManagerOptions.MIN_TOTAL_MEM)) {
+            LOG.warn(
+                    "Config option {} will be ignored in standalone mode.",
+                    ResourceManagerOptions.MIN_TOTAL_MEM.key());
+        }
+
+        if (configuration.removeConfig(ResourceManagerOptions.MAX_SLOT_NUM)) {
             LOG.warn(
                     "Config option {} will be ignored in standalone mode.",
                     ResourceManagerOptions.MAX_SLOT_NUM.key());
         }
-        return copiedConfig;
+
+        if (configuration.removeConfig(ResourceManagerOptions.MAX_TOTAL_CPU)) {
+            LOG.warn(
+                    "Config option {} will be ignored in standalone mode.",
+                    ResourceManagerOptions.MAX_TOTAL_CPU.key());
+        }
+
+        if (configuration.removeConfig(ResourceManagerOptions.MAX_TOTAL_MEM)) {
+            LOG.warn(
+                    "Config option {} will be ignored in standalone mode.",
+                    ResourceManagerOptions.MAX_TOTAL_MEM.key());
+        }
     }
 }

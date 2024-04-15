@@ -99,13 +99,13 @@ public class MultipartUploadExtension implements CustomExtension {
     public void before(ExtensionContext context) throws Exception {
         Path tmpDirectory = tmpDirectorySupplier.get();
         Configuration config = new Configuration();
-        config.setString(RestOptions.BIND_PORT, "0");
-        config.setString(RestOptions.ADDRESS, "localhost");
+        config.set(RestOptions.BIND_PORT, "0");
+        config.set(RestOptions.ADDRESS, "localhost");
         // set this to a lower value on purpose to test that files larger than the content limit are
         // still accepted
-        config.setInteger(RestOptions.SERVER_MAX_CONTENT_LENGTH, 1024 * 1024);
+        config.set(RestOptions.SERVER_MAX_CONTENT_LENGTH, 1024 * 1024);
         configuredUploadDir = TempDirUtils.newFolder(tmpDirectory).toPath();
-        config.setString(WebOptions.UPLOAD_DIR, configuredUploadDir.toString());
+        config.set(WebOptions.UPLOAD_DIR, configuredUploadDir.toString());
 
         RestfulGateway mockRestfulGateway = new TestingRestfulGateway();
 
@@ -138,34 +138,33 @@ public class MultipartUploadExtension implements CustomExtension {
                 (request, restfulGateway) -> {
                     // the default verifier checks for identiy (i.e. same name and content) of all
                     // uploaded files
-                    List<Path> expectedFiles =
-                            getFilesToUpload().stream()
-                                    .map(File::toPath)
-                                    .collect(Collectors.toList());
-                    List<Path> uploadedFiles =
-                            request.getUploadedFiles().stream()
-                                    .map(File::toPath)
-                                    .collect(Collectors.toList());
-
-                    assertThat(uploadedFiles).hasSameSizeAs(expectedFiles);
-
-                    List<Path> expectedList = new ArrayList<>(expectedFiles);
-                    List<Path> actualList = new ArrayList<>(uploadedFiles);
-                    expectedList.sort(Comparator.comparing(Path::toString));
-                    actualList.sort(Comparator.comparing(Path::toString));
-
-                    for (int x = 0; x < expectedList.size(); x++) {
-                        Path expected = expectedList.get(x);
-                        Path actual = actualList.get(x);
-
-                        assertThat(actual.getFileName())
-                                .hasToString(expected.getFileName().toString());
-
-                        byte[] originalContent = Files.readAllBytes(expected);
-                        byte[] receivedContent = Files.readAllBytes(actual);
-                        assertThat(receivedContent).isEqualTo(originalContent);
-                    }
+                    assertUploadedFilesEqual(request, getFilesToUpload());
                 });
+    }
+
+    public static void assertUploadedFilesEqual(HandlerRequest<?> request, Collection<File> files)
+            throws IOException {
+        List<Path> expectedFiles = files.stream().map(File::toPath).collect(Collectors.toList());
+        List<Path> uploadedFiles =
+                request.getUploadedFiles().stream().map(File::toPath).collect(Collectors.toList());
+
+        assertThat(uploadedFiles).hasSameSizeAs(expectedFiles);
+
+        List<Path> expectedList = new ArrayList<>(expectedFiles);
+        List<Path> actualList = new ArrayList<>(uploadedFiles);
+        expectedList.sort(Comparator.comparing(Path::toString));
+        actualList.sort(Comparator.comparing(Path::toString));
+
+        for (int x = 0; x < expectedList.size(); x++) {
+            Path expected = expectedList.get(x);
+            Path actual = actualList.get(x);
+
+            assertThat(actual.getFileName()).hasToString(expected.getFileName().toString());
+
+            byte[] originalContent = Files.readAllBytes(expected);
+            byte[] receivedContent = Files.readAllBytes(actual);
+            assertThat(receivedContent).isEqualTo(originalContent);
+        }
     }
 
     public void setFileUploadVerifier(

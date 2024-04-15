@@ -117,8 +117,7 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                 CommonPythonUtil.extractPythonConfiguration(
                         planner.getExecEnv(), config, planner.getFlinkContext().getClassLoader());
         int groupBufferLimitSize =
-                pythonConfig.getInteger(
-                        ExecutionConfigOptions.TABLE_EXEC_WINDOW_AGG_BUFFER_SIZE_LIMIT);
+                pythonConfig.get(ExecutionConfigOptions.TABLE_EXEC_WINDOW_AGG_BUFFER_SIZE_LIMIT);
 
         OneInputTransformation<RowData, RowData> transform =
                 createPythonOneInputTransformation(

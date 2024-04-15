@@ -27,7 +27,9 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.util.ArrayDeque;
+import java.util.Random;
 
 /** Tests for the combination of {@link DataOutputSerializer} and {@link DataInputDeserializer}. */
 public class DataInputOutputSerializerTest {
@@ -118,5 +120,35 @@ public class DataInputOutputSerializerTest {
         }
 
         reference.clear();
+    }
+
+    @Test
+    public void testLongUTFWriteRead() throws IOException {
+        byte[] array = new byte[1000];
+        new Random(1).nextBytes(array);
+        String expected = new String(array, Charset.forName("UTF-8"));
+
+        DataOutputSerializer serializer = new DataOutputSerializer(1);
+        serializer.writeLongUTF(expected);
+        DataInputDeserializer deserializer =
+                new DataInputDeserializer(serializer.getSharedBuffer());
+
+        String actual = deserializer.readLongUTF();
+        Assert.assertEquals(expected, actual);
+    }
+
+    @Test
+    public void testUTFWriteRead() throws IOException {
+        byte[] array = new byte[1000];
+        new Random(1).nextBytes(array);
+        String expected = new String(array, Charset.forName("UTF-8"));
+
+        DataOutputSerializer serializer = new DataOutputSerializer(1);
+        serializer.writeUTF(expected);
+        DataInputDeserializer deserializer =
+                new DataInputDeserializer(serializer.getSharedBuffer());
+
+        String actual = deserializer.readUTF();
+        Assert.assertEquals(expected, actual);
     }
 }

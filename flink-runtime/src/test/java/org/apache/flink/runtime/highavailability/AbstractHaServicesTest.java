@@ -66,13 +66,13 @@ class AbstractHaServicesTest {
                         () -> closeOperations.offer(CloseOperations.HA_CLEANUP),
                         ignored -> {});
 
-        haServices.closeAndCleanupAllData();
+        haServices.closeWithOptionalClean(true);
 
         assertThat(closeOperations)
                 .contains(
                         CloseOperations.HA_CLEANUP,
                         CloseOperations.HA_CLOSE,
-                        CloseOperations.BLOB_CLEANUP_AND_CLOSE);
+                        CloseOperations.BLOB_CLEANUP);
     }
 
     /**
@@ -97,7 +97,8 @@ class AbstractHaServicesTest {
                         },
                         ignored -> {});
 
-        assertThatThrownBy(haServices::closeAndCleanupAllData).isInstanceOf(FlinkException.class);
+        assertThatThrownBy(() -> haServices.closeWithOptionalClean(true))
+                .isInstanceOf(FlinkException.class);
         assertThat(closeOperations).contains(CloseOperations.HA_CLOSE, CloseOperations.BLOB_CLOSE);
     }
 
@@ -127,7 +128,7 @@ class AbstractHaServicesTest {
     private enum CloseOperations {
         HA_CLEANUP,
         HA_CLOSE,
-        BLOB_CLEANUP_AND_CLOSE,
+        BLOB_CLEANUP,
         BLOB_CLOSE,
     }
 
@@ -140,8 +141,8 @@ class AbstractHaServicesTest {
         }
 
         @Override
-        public void closeAndCleanupAllData() {
-            closeOperations.offer(CloseOperations.BLOB_CLEANUP_AND_CLOSE);
+        public void cleanupAllData() {
+            closeOperations.offer(CloseOperations.BLOB_CLEANUP);
         }
 
         @Override

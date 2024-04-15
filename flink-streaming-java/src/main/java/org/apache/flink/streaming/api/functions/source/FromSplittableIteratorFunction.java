@@ -25,7 +25,12 @@ import java.util.Iterator;
 
 /**
  * A {@link SourceFunction} that reads elements from an {@link SplittableIterator} and emits them.
+ *
+ * @deprecated This class is based on the {@link
+ *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+ *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
+@Deprecated
 @PublicEvolving
 public class FromSplittableIteratorFunction<T> extends RichParallelSourceFunction<T> {
 
@@ -41,10 +46,26 @@ public class FromSplittableIteratorFunction<T> extends RichParallelSourceFunctio
         this.fullIterator = iterator;
     }
 
+    /**
+     * Initialization method for the {@link FromSplittableIteratorFunction}.
+     *
+     * @param parameters The configuration containing the parameters attached to the contract.
+     * @throws Exception if an error happens.
+     * @deprecated This method is deprecated since Flink 1.19. The users are recommended to
+     *     implement {@code open(OpenContext openContext)} and override {@code open(Configuration
+     *     parameters)} with an empty body instead. 1. If you implement {@code open(OpenContext
+     *     openContext)}, the {@code open(OpenContext openContext)} will be invoked and the {@code
+     *     open(Configuration parameters)} won't be invoked. 2. If you don't implement {@code
+     *     open(OpenContext openContext)}, the {@code open(Configuration parameters)} will be
+     *     invoked in the default implementation of the {@code open(OpenContext openContext)}.
+     * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=263425231">
+     *     FLIP-344: Remove parameter in RichFunction#open </a>
+     */
+    @Deprecated
     @Override
     public void open(Configuration parameters) throws Exception {
-        int numberOfSubTasks = getRuntimeContext().getNumberOfParallelSubtasks();
-        int indexofThisSubTask = getRuntimeContext().getIndexOfThisSubtask();
+        int numberOfSubTasks = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
+        int indexofThisSubTask = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
         iterator = fullIterator.split(numberOfSubTasks)[indexofThisSubTask];
         isRunning = true;
     }

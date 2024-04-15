@@ -93,6 +93,21 @@ public class BlobUtilsTest {
     }
 
     @Test
+    public void shouldProperlyConstructTemporaryObjectNameWithEntropy() {
+        Configuration flinkConfig = new Configuration();
+        flinkConfig.set(GSFileSystemOptions.ENABLE_FILESINK_ENTROPY, Boolean.TRUE);
+
+        GSBlobIdentifier identifier = new GSBlobIdentifier("foo", "bar");
+        UUID temporaryObjectId = UUID.fromString("f09c43e5-ea49-4537-a406-0586f8f09d47");
+
+        String partialName =
+                BlobUtils.getTemporaryObjectNameWithEntropy(identifier, temporaryObjectId);
+        assertEquals(
+                "f09c43e5-ea49-4537-a406-0586f8f09d47.inprogress/foo/bar/f09c43e5-ea49-4537-a406-0586f8f09d47",
+                partialName);
+    }
+
+    @Test
     public void shouldProperlyConstructTemporaryBlobIdentifierWithDefaultBucket() {
         Configuration flinkConfig = new Configuration();
         GSFileSystemOptions options = new GSFileSystemOptions(flinkConfig);

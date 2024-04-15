@@ -6,7 +6,7 @@ info:
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
-  version: v1/1.18-SNAPSHOT
+  version: v1/1.20-SNAPSHOT
 paths:
   /cluster:
     delete:
@@ -491,8 +491,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/CheckpointingStatistics'
     post:
-      description: Triggers a checkpoint. This async operation would return a 'triggerid'
-        for further query identifier.
+      description: Triggers a checkpoint. The 'checkpointType' parameter does not
+        support 'INCREMENTAL' option for now. See FLINK-33723. This async operation
+        would return a 'triggerid' for further query identifier.
       operationId: triggerCheckpoint
       parameters:
       - name: jobid
@@ -1819,6 +1820,10 @@ components:
           format: int64
       discriminator:
         propertyName: className
+        mapping:
+          completed: '#/components/schemas/CompletedCheckpointStatistics'
+          failed: '#/components/schemas/FailedCheckpointStatistics'
+          in_progress: '#/components/schemas/PendingCheckpointStatistics'
     CheckpointStatisticsSummary:
       type: object
       properties:
@@ -2018,6 +2023,8 @@ components:
     ExceptionInfo:
       type: object
       properties:
+        endpoint:
+          type: string
         exceptionName:
           type: string
         failureLabels:
@@ -2054,6 +2061,8 @@ components:
     ExecutionExceptionInfo:
       type: object
       properties:
+        endpoint:
+          type: string
         exception:
           type: string
         location:
@@ -2246,6 +2255,8 @@ components:
       properties:
         allowNonRestoredState:
           type: boolean
+        claimMode:
+          $ref: '#/components/schemas/RestoreMode'
         entryClass:
           type: string
         flinkConfiguration:
@@ -2589,6 +2600,8 @@ components:
         end-time:
           type: integer
           format: int64
+        endpoint:
+          type: string
         host:
           type: string
         metrics:
@@ -2778,6 +2791,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ExceptionInfo'
+        endpoint:
+          type: string
         exceptionName:
           type: string
         failureLabels:
@@ -2888,6 +2903,8 @@ components:
         attempt:
           type: integer
           format: int32
+        endpoint:
+          type: string
         host:
           type: string
         subtask:
@@ -2935,6 +2952,9 @@ components:
           type: string
       discriminator:
         propertyName: className
+        mapping:
+          completed: '#/components/schemas/CompletedSubtaskCheckpointStatistics'
+          pending: '#/components/schemas/PendingSubtaskCheckpointStatistics'
     SubtaskExecutionAttemptAccumulatorsInfo:
       type: object
       properties:
@@ -2962,6 +2982,8 @@ components:
         end-time:
           type: integer
           format: int64
+        endpoint:
+          type: string
         host:
           type: string
         metrics:
@@ -2991,6 +3013,8 @@ components:
         duration:
           type: integer
           format: int64
+        endpoint:
+          type: string
         host:
           type: string
         subtask:

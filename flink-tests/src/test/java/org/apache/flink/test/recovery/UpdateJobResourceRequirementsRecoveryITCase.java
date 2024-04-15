@@ -47,6 +47,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.file.Path;
 import java.time.Duration;
 
+import static org.apache.flink.configuration.RestartStrategyOptions.RestartStrategyType.FIXED_DELAY;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 
 /** Tests for recovering of rescaled jobs. */
@@ -73,7 +74,7 @@ class UpdateJobResourceRequirementsRecoveryITCase {
 
         // We need to have a restart strategy set, to prevent the job from failing during the first
         // cluster shutdown when TM disconnects.
-        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, FIXED_DELAY.getMainValue());
         configuration.set(
                 RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
         configuration.set(

@@ -94,9 +94,7 @@ public class StateChangelogStorageLoader {
             LocalRecoveryConfig localRecoveryConfig)
             throws IOException {
         final String identifier =
-                configuration
-                        .getString(StateChangelogOptions.STATE_CHANGE_LOG_STORAGE)
-                        .toLowerCase();
+                configuration.get(StateChangelogOptions.STATE_CHANGE_LOG_STORAGE).toLowerCase();
 
         StateChangelogStorageFactory factory = STATE_CHANGELOG_STORAGE_FACTORIES.get(identifier);
         if (factory == null) {

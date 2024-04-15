@@ -167,6 +167,16 @@ the savepoint should be taken. By default the savepoint will be taken in canonic
 $ bin/flink savepoint --type [native/canonical] :jobId [:targetDirectory]
 ```
 
+When using the above command to trigger a savepoint, the client needs to wait for the savepoint 
+to be completed. Therefore, the client may time out when the state size of the task is large.
+In this case, you can trigger the savepoint in detached mode.
+
+```shell
+$ bin/flink savepoint :jobId [:targetDirectory] -detached
+```
+When using this command, the client returns immediately after getting the trigger id of 
+the savepoint. You can monitor the status of the savepoint through the REST API [rest api]({{< ref "docs/ops/rest_api" >}}/#jobs-jobid-checkpoints-triggerid).
+
 #### Trigger a Savepoint with YARN
 
 ```shell
@@ -186,6 +196,8 @@ you can specify a target file system directory to store the savepoint in. The di
 accessible by the JobManager(s) and TaskManager(s). You can also pass a type in which the savepoint
 should be taken. By default the savepoint will be taken in canonical format.
 
+If you want to trigger the savepoint in detached mode, add option `-detached` to the command.
+
 ### Resuming from Savepoints
 
 ```shell
@@ -196,24 +208,30 @@ This submits a job and specifies a savepoint to resume from. You may give a path
 
 #### Allowing Non-Restored State
 
-By default, the resume operation will try to map all state of the savepoint back to the program you are restoring with. If you dropped an operator, you can allow to skip state that cannot be mapped to the new program via `--allowNonRestoredState` (short: `-n`) option:
+By default, the resume operation will try to map all state of the savepoint back to the program you are restoring with. If you dropped an operator, you can allow to skip state that cannot be mapped to the new program via `--allowNonRestoredState` (short: `-n`) option.
 
-#### Restore mode
+{{< hint warning  >}}
+Improper usage of this feature could result in significant issues with the correctness of the application. It is crucial to verify that any remaining states can be accurately mapped to the appropriate operators.
+It is worth noting that operator UIDs are reassigned based on topological order by default, which may lead to incorrect associations between states and operators, thus consequently states are not correctly restored as wished.
+To prevent such mismatches, it is advisable to explicitly [assign UIDs] ({{< ref "docs/ops/production_ready" >}}/#set-uuids-for-all-operators) to all operators in a DataStream job. 
+{{< /hint >}}
 
-The `Restore Mode` determines who takes ownership of the files  that make up a Savepoint or [externalized checkpoints]({{< ref "docs/ops/state/checkpoints" >}}/#resuming-from-a-retained-checkpoint) after restoring it.
+#### Claim mode
+
+The `Claim Mode` determines who takes ownership of the files that make up a Savepoint or [externalized checkpoints]({{< ref "docs/ops/state/checkpoints" >}}/#resuming-from-a-retained-checkpoint) after restoring it.
 Both savepoints and externalized checkpoints behave similarly in this context. 
-Here, they are just called "snapshots" unless explicitely noted otherwise.
+Here, they are just called "snapshots" unless explicitly noted otherwise.
 
-As mentioned, the restore mode determines who takes over ownership of the files of the snapshots that we are restoring from. 
+As mentioned, the claim mode determines who takes over ownership of the files of the snapshots that we are restoring from. 
 Snapshots can be owned either by a user or Flink itself. 
 If a snapshot is owned by a user,  Flink will not delete its files, moreover, Flink can not depend on the existence of the files from such a snapshot, as it might be deleted outside of Flink's control. 
 
-Each restore mode serves a specific purposes. 
+Each claim mode serves a specific purposes. 
 Still, we believe the default *NO_CLAIM* mode is a good tradeoff in most situations, as it provides clear ownership with a small price for the first checkpoint after the restore.
 
-You can pass the restore mode as:
+You can pass the claim mode as:
 ```shell
-$ bin/flink run -s :savepointPath -restoreMode :mode -n [:runArgs]
+$ bin/flink run -s :savepointPath -claimMode :mode -n [:runArgs]
 ```
 
 **NO_CLAIM (default)**
@@ -231,7 +249,7 @@ Consequently, once a checkpoint succeeds you can manually delete the original sn
 this earlier, because without any completed checkpoints Flink will - upon failure - try to recover from the initial snapshot.
 
 <div style="text-align: center">
-  {{< img src="/fig/restore-mode-no_claim.svg" alt="NO_CLAIM restore mode" width="70%" >}}
+  {{< img src="/fig/restore-mode-no_claim.svg" alt="NO_CLAIM claim mode" width="70%" >}}
 </div>
 
 **CLAIM**
@@ -244,7 +262,7 @@ a [configured number]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing
 of checkpoints.
 
 <div style="text-align: center">
-  {{< img src="/fig/restore-mode-claim.svg" alt="CLAIM restore mode" width="70%" >}}
+  {{< img src="/fig/restore-mode-claim.svg" alt="CLAIM mode" width="70%" >}}
 </div>
 
 {{< hint info >}}
@@ -259,7 +277,7 @@ Please note that, when restored in CLAIM mode, subsequent checkpoints might reus
 might delay the deletion the savepoints directory.
 {{< /hint >}}
 
-**LEGACY**
+**LEGACY (deprecated)**
 
 The legacy mode is how Flink worked until 1.15. In this mode Flink will never delete the initial
 checkpoint. At the same time, it is not clear if a user can ever delete it as well. The problem here,
@@ -267,8 +285,13 @@ is that Flink might immediately build an incremental checkpoint on top of the re
 subsequent checkpoints depend on the restored checkpoint. Overall, the ownership is not well-defined.
 
 <div style="text-align: center">
-  {{< img src="/fig/restore-mode-legacy.svg" alt="LEGACY restore mode" width="70%" >}}
+  {{< img src="/fig/restore-mode-legacy.svg" alt="LEGACY claim mode" width="70%" >}}
 </div>
+
+{{< hint warning >}}
+**Attention:** The LEGACY mode is deprecated and will be removed in Flink 2.0. Please use CLAIM or
+NO_CLAIM mode instead.
+{{< /hint >}}
 
 
 ### Disposing Savepoints
@@ -286,7 +309,7 @@ Note that it is possible to also manually delete a savepoint via regular file sy
 You can configure a default savepoint target directory via the `state.savepoints.dir` key or `StreamExecutionEnvironment`. When triggering savepoints, this directory will be used to store the savepoint. You can overwrite the default by specifying a custom target directory with the trigger commands (see the [`:targetDirectory` argument](#trigger-a-savepoint)).
 
 {{< tabs "config" >}}
-{{< tab "flink-conf.yaml" >}}
+{{< tab "config.yaml" >}}
 ```yaml
 # Default savepoint target directory
 state.savepoints.dir: hdfs:///flink/savepoints

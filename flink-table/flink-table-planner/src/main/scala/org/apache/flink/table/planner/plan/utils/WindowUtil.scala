@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.{DataTypes, TableConfig, TableException, ValidationException}
 import org.apache.flink.table.planner.JBigDecimal
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexSetSemanticsTableCall}
 import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, SqlWindowTableFunction}
 import org.apache.flink.table.planner.plan.`trait`.RelWindowProperties
 import org.apache.flink.table.planner.plan.logical._
@@ -36,7 +36,7 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.canBeTimeAtt
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, SingleRel}
-import org.apache.calcite.rel.core.{Aggregate, AggregateCall, Calc}
+import org.apache.calcite.rel.core._
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeFamily
 import org.apache.calcite.sql.SqlKind
@@ -174,7 +174,7 @@ object WindowUtil {
   }
 
   def validateTimeFieldWithTimeAttribute(windowCall: RexCall, inputRowType: RelDataType): Unit = {
-    val timeIndex = getTimeAttributeIndex(windowCall.operands(1))
+    val timeIndex = getTimeAttributeIndex(windowCall.operands(0))
     val fieldType = inputRowType.getFieldList.get(timeIndex).getType
     if (!FlinkTypeFactory.isTimeIndicatorType(fieldType)) {
       throw new ValidationException(
@@ -188,14 +188,15 @@ object WindowUtil {
    */
   def convertToWindowingStrategy(
       windowCall: RexCall,
-      inputRowType: RelDataType): TimeAttributeWindowingStrategy = {
+      scanInput: RelNode): TimeAttributeWindowingStrategy = {
     if (!isWindowTableFunctionCall(windowCall)) {
       throw new IllegalArgumentException(
         s"RexCall $windowCall is not a window table-valued " +
           "function, can't convert it into WindowingStrategy")
     }
 
-    val timeIndex = getTimeAttributeIndex(windowCall.operands(1))
+    val timeIndex = getTimeAttributeIndex(windowCall.operands(0))
+    val inputRowType = scanInput.getRowType
     val fieldType = inputRowType.getFieldList.get(timeIndex).getType
     val timeAttributeType = FlinkTypeFactory.toLogicalType(fieldType)
     if (!canBeTimeAttributeType(timeAttributeType)) {
@@ -207,33 +208,49 @@ object WindowUtil {
     val windowFunction = windowCall.getOperator.asInstanceOf[SqlWindowTableFunction]
     val windowSpec = windowFunction match {
       case FlinkSqlOperatorTable.TUMBLE =>
-        val offset: Duration = if (windowCall.operands.size() == 4) {
+        val offset: Duration = if (windowCall.operands.size() == 3) {
+          Duration.ofMillis(getOperandAsLong(windowCall.operands(2)))
+        } else {
+          null
+        }
+        val interval = getOperandAsLong(windowCall.operands(1))
+        new TumblingWindowSpec(Duration.ofMillis(interval), offset)
+
+      case FlinkSqlOperatorTable.HOP =>
+        val offset = if (windowCall.operands.size() == 4) {
           Duration.ofMillis(getOperandAsLong(windowCall.operands(3)))
         } else {
           null
         }
-        val interval = getOperandAsLong(windowCall.operands(2))
-        new TumblingWindowSpec(Duration.ofMillis(interval), offset)
-
-      case FlinkSqlOperatorTable.HOP =>
-        val offset = if (windowCall.operands.size() == 5) {
-          Duration.ofMillis(getOperandAsLong(windowCall.operands(4)))
-        } else {
-          null
-        }
-        val slide = getOperandAsLong(windowCall.operands(2))
-        val size = getOperandAsLong(windowCall.operands(3))
+        val slide = getOperandAsLong(windowCall.operands(1))
+        val size = getOperandAsLong(windowCall.operands(2))
         new HoppingWindowSpec(Duration.ofMillis(size), Duration.ofMillis(slide), offset)
 
       case FlinkSqlOperatorTable.CUMULATE =>
-        val offset = if (windowCall.operands.size() == 5) {
-          Duration.ofMillis(getOperandAsLong(windowCall.operands(4)))
+        val offset = if (windowCall.operands.size() == 4) {
+          Duration.ofMillis(getOperandAsLong(windowCall.operands(3)))
         } else {
           null
         }
-        val step = getOperandAsLong(windowCall.operands(2))
-        val maxSize = getOperandAsLong(windowCall.operands(3))
+        val step = getOperandAsLong(windowCall.operands(1))
+        val maxSize = getOperandAsLong(windowCall.operands(2))
         new CumulativeWindowSpec(Duration.ofMillis(maxSize), Duration.ofMillis(step), offset)
+      case FlinkSqlOperatorTable.SESSION =>
+        windowCall match {
+          // with syntax partition key
+          case setSemanticsTableCall: RexSetSemanticsTableCall =>
+            if (!setSemanticsTableCall.getOrderKeys.isEmpty) {
+              throw new ValidationException("Session window TVF doesn't support order by clause.")
+            }
+            val gap = getOperandAsLong(windowCall.operands(1))
+            new SessionWindowSpec(
+              Duration.ofMillis(gap),
+              windowCall.asInstanceOf[RexSetSemanticsTableCall].getPartitionKeys)
+          // without syntax partition key
+          case _ =>
+            val gap = getOperandAsLong(windowCall.operands(1))
+            new SessionWindowSpec(Duration.ofMillis(gap), new Array[Int](0))
+        }
     }
 
     new TimeAttributeWindowingStrategy(windowSpec, timeAttributeType, timeIndex)
@@ -317,11 +334,17 @@ object WindowUtil {
   /**
    * For rowtime window, return true if the given aggregate grouping contains window start and end.
    * For proctime window, we should also check if it exists a neighbour windowTableFunctionCall.
+   *
+   * If the window is a session window, we should also check if the partition keys are the same as
+   * the group keys. See more at [[WindowUtil.validGroupKeyPartitionKey()]].
    */
   def isValidWindowAggregate(agg: FlinkLogicalAggregate): Boolean = {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(agg.getCluster.getMetadataQuery)
     val windowProperties = fmq.getRelWindowProperties(agg.getInput)
     val grouping = agg.getGroupSet
+    if (!validGroupKeyPartitionKey(grouping, windowProperties)) {
+      return false
+    }
     if (WindowUtil.groupingContainsWindowStartEnd(grouping, windowProperties)) {
       windowProperties.isRowtime || existNeighbourWindowTableFunc(agg.getInput)
     } else {
@@ -391,5 +414,55 @@ object WindowUtil {
       case _: Util.FoundOne => return true
     }
     false
+  }
+
+  /**
+   * This method only checks the window like session window that contains partition keys. The
+   * partition keys in session window should be the same as the group keys in aggregate. If they are
+   * different, the downstream will not be able to use window-related optimizations, and the window
+   * table function scan will always be an isolated node.
+   *
+   * Take a SQL following as an example.
+   *
+   * {{{
+   *   Source Table `my_table` SCHEMA: a int, b int, c int, proctime as PROCTIME()
+   *   SQL: SELECT count(c) FROM
+   *          TABLE(SESSION(
+   *              TABLE my_table PARTITION BY (a, b),
+   *              DESCRIPTOR(proctime),
+   *              INTERVAL '5' MINUTE))
+   *        GROUP BY a, window_start, window_end
+   * }}}
+   *
+   * The plan is like:
+   * {{{
+   *  FlinkLogicalAggregate(group=[{0, 1, 2}], EXPR$0=[COUNT($3)])
+   *    FlinkLogicalCalc(select=[b, window_start, window_end, c])
+   *      FlinkLogicalTableFunctionScan(invocation=[SESSION(PARTITION BY($0, $1),
+   *      DESCRIPTOR($3), 300000:INTERVAL MINUTE)]])
+   *        FlinkLogicalCalc(select=[a, b, c, PROCTIME() AS proctime])
+   *          FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, my_table]],
+   *          fields=[a, b, c])
+   * }}}
+   *
+   * In this case, the group keys in Aggregate are different with the partition keys in Session
+   * Window in TableFunctionScan. The Aggregate node should not be converted into WindowAggregate
+   * finally, because the data from source has been split, resolved and aggregated in different
+   * subtasks in FlinkLogicalTableSourceScan with different partition keys.
+   */
+  private def validGroupKeyPartitionKey(
+      grouping: ImmutableBitSet,
+      windowProp: RelWindowProperties): Boolean = {
+    if (windowProp == null) {
+      return false
+    }
+    val (_, _, _, newGrouping) =
+      WindowUtil.groupingExcludeWindowStartEndTimeColumns(grouping, windowProp)
+    windowProp.getWindowSpec match {
+      case session: SessionWindowSpec =>
+        val partitionKeys = session.getPartitionKeyIndices.toSet
+        partitionKeys.equals(newGrouping.toSet)
+      case _ => true
+    }
   }
 }

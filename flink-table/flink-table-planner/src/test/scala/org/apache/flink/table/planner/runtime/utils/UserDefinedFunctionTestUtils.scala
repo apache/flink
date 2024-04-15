@@ -24,10 +24,13 @@ import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.annotation.{DataTypeHint, InputGroup}
+import org.apache.flink.table.annotation.{DataTypeHint, FunctionHint, InputGroup}
+import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.data.{RowData, StringData}
 import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, ScalarFunction}
 import org.apache.flink.table.planner.{JInt, JLong}
+import org.apache.flink.table.types.inference.{CallContext, InputTypeStrategies, TypeInference, TypeStrategies}
 import org.apache.flink.types.Row
 
 import com.google.common.base.Charsets
@@ -38,7 +41,7 @@ import java.lang.{Iterable => JIterable}
 import java.sql.{Date, Timestamp}
 import java.time.{Instant, LocalDate, LocalDateTime, LocalTime}
 import java.util
-import java.util.TimeZone
+import java.util.{Optional, TimeZone}
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.annotation.varargs
@@ -128,6 +131,15 @@ object UserDefinedFunctionTestUtils {
     override def createAccumulator(): Tuple1[Long] = Tuple1.of(0L)
 
     override def getValue(acc: Tuple1[Long]): Long = acc.f0
+
+    override def getTypeInference(typeFactory: DataTypeFactory): TypeInference = {
+      TypeInference.newBuilder
+        .typedArguments(DataTypes.BIGINT(), DataTypes.BIGINT())
+        .accumulatorTypeStrategy(TypeStrategies.explicit(
+          DataTypes.STRUCTURED(classOf[Tuple1[Long]], DataTypes.FIELD("f0", DataTypes.BIGINT()))))
+        .outputTypeStrategy(TypeStrategies.explicit(DataTypes.BIGINT()))
+        .build
+    }
   }
 
   class CountNullNonNull extends AggregateFunction[String, Tuple2[JLong, JLong]] {
@@ -166,6 +178,16 @@ object UserDefinedFunctionTestUtils {
     override def createAccumulator(): Tuple1[Long] = Tuple1.of(0L)
 
     override def getValue(acc: Tuple1[Long]): Long = acc.f0
+
+    override def getTypeInference(typeFactory: DataTypeFactory): TypeInference = {
+      TypeInference.newBuilder
+        .typedArguments(DataTypes.STRING(), DataTypes.STRING())
+        .accumulatorTypeStrategy(TypeStrategies.explicit(
+          DataTypes.STRUCTURED(classOf[Tuple1[Long]], DataTypes.FIELD("f0", DataTypes.BIGINT()))))
+        .outputTypeStrategy(TypeStrategies.explicit(DataTypes.BIGINT()))
+        .build
+    }
+
   }
 
   // ------------------------------------------------------------------------------------
@@ -199,6 +221,9 @@ object UserDefinedFunctionTestUtils {
 
   @SerialVersionUID(1L)
   object BinaryStringFunction extends ScalarFunction {
+    @FunctionHint(
+      input = Array(new DataTypeHint(value = "STRING", bridgedTo = classOf[StringData])),
+      output = new DataTypeHint(value = "STRING", bridgedTo = classOf[StringData]))
     def eval(s: StringData): StringData = s
   }
 
@@ -229,7 +254,7 @@ object UserDefinedFunctionTestUtils {
 
   @SerialVersionUID(1L)
   object LocalTimeFunction extends ScalarFunction {
-    def eval(t: LocalTime): String = t.toString
+    def eval(@DataTypeHint("TIME(0)") t: LocalTime): String = t.toString
   }
 
   @SerialVersionUID(1L)
@@ -242,14 +267,15 @@ object UserDefinedFunctionTestUtils {
   // Understand type: Row wrapped as TypeInfoWrappedDataType.
   @SerialVersionUID(1L)
   object RowFunc extends ScalarFunction {
+    @DataTypeHint("ROW<s STRING>")
     def eval(s: String): Row = Row.of(s)
-
-    override def getResultType(signature: Array[Class[_]]) =
-      new RowTypeInfo(Types.STRING)
   }
 
   @SerialVersionUID(1L)
   object RowToStrFunc extends ScalarFunction {
+    @FunctionHint(
+      input = Array(new DataTypeHint(value = "ROW<s STRING>", bridgedTo = classOf[RowData])),
+      output = new DataTypeHint("STRING"))
     def eval(s: RowData): String = s.getString(0).toString
   }
 
@@ -275,21 +301,35 @@ object UserDefinedFunctionTestUtils {
   object MyPojoFunc extends ScalarFunction {
     def eval(s: MyPojo): Int = s.f2
 
-    override def getParameterTypes(signature: Array[Class[_]]): Array[TypeInformation[_]] =
-      Array(MyToPojoFunc.getResultType(signature))
+    override def getTypeInference(typeFactory: DataTypeFactory): TypeInference = {
+      TypeInference.newBuilder
+        .typedArguments(
+          DataTypes.STRUCTURED(
+            classOf[MyPojo],
+            DataTypes.FIELD("f1", DataTypes.INT()),
+            DataTypes.FIELD("f2", DataTypes.INT())))
+        .outputTypeStrategy((call: CallContext) => Optional.of(DataTypes.INT().notNull()))
+        .build
+    }
   }
 
   @SerialVersionUID(1L)
   object MyToPojoFunc extends ScalarFunction {
-    def eval(s: Int): MyPojo = new MyPojo(s, s)
 
-    override def getResultType(signature: Array[Class[_]]): PojoTypeInfo[MyPojo] = {
-      val cls = classOf[MyPojo]
-      new PojoTypeInfo[MyPojo](
-        classOf[MyPojo],
-        util.Arrays.asList(
-          new PojoField(cls.getDeclaredField("f1"), Types.INT),
-          new PojoField(cls.getDeclaredField("f2"), Types.INT)))
+    def eval(s: Int) = new MyPojo(s, s)
+
+    override def getTypeInference(typeFactory: DataTypeFactory): TypeInference = {
+      TypeInference.newBuilder
+        .inputTypeStrategy(
+          InputTypeStrategies.sequence(
+            InputTypeStrategies.or(InputTypeStrategies.explicit(DataTypes.INT))))
+        .outputTypeStrategy(
+          TypeStrategies.explicit(
+            DataTypes.STRUCTURED(
+              classOf[MyPojo],
+              DataTypes.FIELD("f1", DataTypes.INT()),
+              DataTypes.FIELD("f2", DataTypes.INT()))))
+        .build
     }
   }
 
@@ -326,6 +366,11 @@ object UserDefinedFunctionTestUtils {
       TestAddWithOpen.aliveCounter.incrementAndGet()
     }
 
+    @FunctionHint(
+      input = Array(
+        new DataTypeHint(value = "BIGINT", bridgedTo = classOf[JLong]),
+        new DataTypeHint(value = "BIGINT", bridgedTo = classOf[JLong])),
+      output = new DataTypeHint(value = "BIGINT", bridgedTo = classOf[JLong]))
     def eval(a: Long, b: Long): Long = {
       if (!isOpened) {
         throw new IllegalStateException("Open method is not called.")
@@ -350,6 +395,12 @@ object UserDefinedFunctionTestUtils {
 
   @SerialVersionUID(1L)
   object TestMod extends ScalarFunction {
+    @FunctionHint(
+      input = Array(
+        new DataTypeHint(value = "BIGINT", bridgedTo = classOf[JLong]),
+        new DataTypeHint(value = "INT", bridgedTo = classOf[JInt])
+      ),
+      output = new DataTypeHint(value = "BIGINT", bridgedTo = classOf[JLong]))
     def eval(src: Long, mod: Int): Long = {
       src % mod
     }
@@ -371,6 +422,10 @@ object UserDefinedFunctionTestUtils {
 
   @SerialVersionUID(1L)
   object MyNegative extends ScalarFunction {
+    @FunctionHint(
+      input = Array(new DataTypeHint("DECIMAL(19, 18)")),
+      output =
+        new DataTypeHint(value = "DECIMAL(19, 18)", bridgedTo = classOf[java.math.BigDecimal]))
     def eval(d: java.math.BigDecimal): java.lang.Object = d.negate()
 
     override def getResultType(signature: Array[Class[_]]): TypeInformation[_] = Types.JAVA_BIG_DEC

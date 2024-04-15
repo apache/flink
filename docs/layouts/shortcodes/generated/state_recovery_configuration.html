@@ -1,0 +1,42 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>execution.state-recovery.claim-mode</h5></td>
+            <td style="word-wrap: break-word;">NO_CLAIM</td>
+            <td><p>Enum</p></td>
+            <td>Describes the mode how Flink should restore from the given savepoint or retained checkpoint.<br /><br />Possible values:<ul><li>"CLAIM": Flink will take ownership of the given snapshot. It will clean the snapshot once it is subsumed by newer ones.</li><li>"NO_CLAIM": Flink will not claim ownership of the snapshot files. However it will make sure it does not depend on any artefacts from the restored snapshot. In order to do that, Flink will take the first checkpoint as a full one, which means it might reupload/duplicate files that are part of the restored checkpoint.</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>execution.state-recovery.from-local</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>This option configures local recovery for the state backend, which indicates whether to recovery from local snapshot.By default, local recovery is deactivated. Local recovery currently only covers keyed state backends (including both the EmbeddedRocksDBStateBackend and the HashMapStateBackend)."</td>
+        </tr>
+        <tr>
+            <td><h5>execution.state-recovery.ignore-unclaimed-state</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Allow to skip savepoint state that cannot be restored. Allow this if you removed an operator from your pipeline after the savepoint was triggered.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.state-recovery.path</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Path to a savepoint to restore the job from (for example hdfs:///flink/savepoint-1537).</td>
+        </tr>
+        <tr>
+            <td><h5>execution.state-recovery.without-channel-state.checkpoint-id</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>Long</td>
+            <td>Checkpoint id for which in-flight data should be ignored in case of the recovery from this checkpoint.<br /><br />It is better to keep this value empty until there is explicit needs to restore from the specific checkpoint without in-flight data.<br /></td>
+        </tr>
+    </tbody>
+</table>

@@ -118,6 +118,21 @@ public class FlinkDatabaseMetaData extends BaseDatabaseMetaData {
     }
 
     @Override
+    public boolean supportsStoredFunctionsUsingCallSyntax() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean autoCommitFailureClosesAllResultSets() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean generatedKeyAlwaysReturned() throws SQLException {
+        return false;
+    }
+
+    @Override
     public ResultSet getTables(
             String catalog, String schemaPattern, String tableNamePattern, String[] types)
             throws SQLException {
@@ -148,6 +163,31 @@ public class FlinkDatabaseMetaData extends BaseDatabaseMetaData {
     }
 
     @Override
+    public boolean supportsSavepoints() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsNamedParameters() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsMultipleOpenResults() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsGetGeneratedKeys() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsResultSetHoldability(int holdability) throws SQLException {
+        return false;
+    }
+
+    @Override
     public boolean allProceduresAreCallable() throws SQLException {
         return false;
     }
@@ -165,6 +205,27 @@ public class FlinkDatabaseMetaData extends BaseDatabaseMetaData {
     @Override
     public boolean isReadOnly() throws SQLException {
         return true;
+    }
+
+    @Override
+    public boolean nullsAreSortedHigh() throws SQLException {
+        return false;
+    }
+
+    /** In flink null value will be used as low value for sort. */
+    @Override
+    public boolean nullsAreSortedLow() throws SQLException {
+        return true;
+    }
+
+    @Override
+    public boolean nullsAreSortedAtStart() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean nullsAreSortedAtEnd() throws SQLException {
+        return false;
     }
 
     @Override
@@ -203,6 +264,61 @@ public class FlinkDatabaseMetaData extends BaseDatabaseMetaData {
     }
 
     @Override
+    public boolean supportsResultSetConcurrency(int type, int concurrency) throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean ownUpdatesAreVisible(int type) throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean ownDeletesAreVisible(int type) throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean ownInsertsAreVisible(int type) throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean othersUpdatesAreVisible(int type) throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean othersDeletesAreVisible(int type) throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean othersInsertsAreVisible(int type) throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean updatesAreDetected(int type) throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean deletesAreDetected(int type) throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean insertsAreDetected(int type) throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsBatchUpdates() throws SQLException {
+        return false;
+    }
+
+    @Override
     public int getDatabaseMajorVersion() throws SQLException {
         return DriverInfo.DRIVER_VERSION_MAJOR;
     }
@@ -223,6 +339,16 @@ public class FlinkDatabaseMetaData extends BaseDatabaseMetaData {
     }
 
     @Override
+    public boolean locatorsUpdateCopy() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsStatementPooling() throws SQLException {
+        return false;
+    }
+
+    @Override
     public boolean usesLocalFiles() throws SQLException {
         return false;
     }
@@ -230,6 +356,50 @@ public class FlinkDatabaseMetaData extends BaseDatabaseMetaData {
     @Override
     public boolean usesLocalFilePerTable() throws SQLException {
         return false;
+    }
+
+    /** Flink sql is mixed case as sensitive. */
+    @Override
+    public boolean supportsMixedCaseIdentifiers() throws SQLException {
+        return true;
+    }
+
+    @Override
+    public boolean storesUpperCaseIdentifiers() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean storesLowerCaseIdentifiers() throws SQLException {
+        return false;
+    }
+
+    /** Flink sql is mixed case as sensitive. */
+    @Override
+    public boolean storesMixedCaseIdentifiers() throws SQLException {
+        return true;
+    }
+
+    /** Flink sql is mixed case as sensitive. */
+    @Override
+    public boolean supportsMixedCaseQuotedIdentifiers() throws SQLException {
+        return true;
+    }
+
+    @Override
+    public boolean storesUpperCaseQuotedIdentifiers() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean storesLowerCaseQuotedIdentifiers() throws SQLException {
+        return false;
+    }
+
+    /** Flink sql is mixed case as sensitive. */
+    @Override
+    public boolean storesMixedCaseQuotedIdentifiers() throws SQLException {
+        return true;
     }
 
     @Override
@@ -255,6 +425,22 @@ public class FlinkDatabaseMetaData extends BaseDatabaseMetaData {
     @Override
     public boolean supportsColumnAliasing() throws SQLException {
         return true;
+    }
+
+    /** Null value plus non-null in flink will be null result. */
+    @Override
+    public boolean nullPlusNonNullIsNull() throws SQLException {
+        return true;
+    }
+
+    @Override
+    public boolean supportsConvert() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsConvert(int fromType, int toType) throws SQLException {
+        return false;
     }
 
     @Override
@@ -298,8 +484,53 @@ public class FlinkDatabaseMetaData extends BaseDatabaseMetaData {
     }
 
     @Override
+    public boolean supportsMultipleResultSets() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsMultipleTransactions() throws SQLException {
+        return false;
+    }
+
+    @Override
     public boolean supportsNonNullableColumns() throws SQLException {
         return true;
+    }
+
+    @Override
+    public boolean supportsMinimumSQLGrammar() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsCoreSQLGrammar() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsExtendedSQLGrammar() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsANSI92EntryLevelSQL() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsANSI92IntermediateSQL() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsANSI92FullSQL() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsIntegrityEnhancementFacility() throws SQLException {
+        return false;
     }
 
     @Override
@@ -327,9 +558,20 @@ public class FlinkDatabaseMetaData extends BaseDatabaseMetaData {
         return "catalog";
     }
 
+    /** Catalog name appears at the start of full name. */
+    @Override
+    public boolean isCatalogAtStart() throws SQLException {
+        return true;
+    }
+
     @Override
     public boolean supportsSchemasInDataManipulation() throws SQLException {
         return true;
+    }
+
+    @Override
+    public boolean supportsSchemasInProcedureCalls() throws SQLException {
+        return false;
     }
 
     @Override
@@ -338,13 +580,58 @@ public class FlinkDatabaseMetaData extends BaseDatabaseMetaData {
     }
 
     @Override
+    public boolean supportsSchemasInIndexDefinitions() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsSchemasInPrivilegeDefinitions() throws SQLException {
+        return false;
+    }
+
+    @Override
     public boolean supportsCatalogsInDataManipulation() throws SQLException {
         return true;
     }
 
     @Override
+    public boolean supportsCatalogsInProcedureCalls() throws SQLException {
+        return false;
+    }
+
+    @Override
     public boolean supportsCatalogsInTableDefinitions() throws SQLException {
         return true;
+    }
+
+    @Override
+    public boolean supportsCatalogsInIndexDefinitions() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsCatalogsInPrivilegeDefinitions() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsPositionedDelete() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsPositionedUpdate() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsSelectForUpdate() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsStoredProcedures() throws SQLException {
+        return false;
     }
 
     @Override
@@ -380,5 +667,65 @@ public class FlinkDatabaseMetaData extends BaseDatabaseMetaData {
     @Override
     public boolean supportsUnionAll() throws SQLException {
         return true;
+    }
+
+    @Override
+    public boolean supportsOpenCursorsAcrossCommit() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsOpenCursorsAcrossRollback() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsOpenStatementsAcrossCommit() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsOpenStatementsAcrossRollback() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean doesMaxRowSizeIncludeBlobs() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsTransactions() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsTransactionIsolationLevel(int level) throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsDataDefinitionAndDataManipulationTransactions() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean supportsDataManipulationTransactionsOnly() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean dataDefinitionCausesTransactionCommit() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean dataDefinitionIgnoredInTransactions() throws SQLException {
+        return false;
+    }
+
+    @Override
+    public boolean isWrapperFor(Class<?> iface) throws SQLException {
+        return false;
     }
 }

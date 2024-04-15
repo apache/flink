@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.lang.{Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong}
 import java.sql.Timestamp

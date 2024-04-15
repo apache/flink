@@ -75,7 +75,7 @@ public class StreamNode {
     private KeySelector<?, ?>[] statePartitioners = new KeySelector[0];
     private TypeSerializer<?> stateKeySerializer;
 
-    private StreamOperatorFactory<?> operatorFactory;
+    private @Nullable StreamOperatorFactory<?> operatorFactory;
     private TypeSerializer<?>[] typeSerializersIn = new TypeSerializer[0];
     private TypeSerializer<?> typeSerializerOut;
 
@@ -103,14 +103,14 @@ public class StreamNode {
             Integer id,
             @Nullable String slotSharingGroup,
             @Nullable String coLocationGroup,
-            StreamOperator<?> operator,
+            @Nullable StreamOperator<?> operator,
             String operatorName,
             Class<? extends TaskInvokable> jobVertexClass) {
         this(
                 id,
                 slotSharingGroup,
                 coLocationGroup,
-                SimpleOperatorFactory.of(operator),
+                operator == null ? null : SimpleOperatorFactory.of(operator),
                 operatorName,
                 jobVertexClass);
     }
@@ -119,7 +119,7 @@ public class StreamNode {
             Integer id,
             @Nullable String slotSharingGroup,
             @Nullable String coLocationGroup,
-            StreamOperatorFactory<?> operatorFactory,
+            @Nullable StreamOperatorFactory<?> operatorFactory,
             String operatorName,
             Class<? extends TaskInvokable> jobVertexClass) {
         this.id = id;
@@ -259,10 +259,11 @@ public class StreamNode {
 
     @VisibleForTesting
     public StreamOperator<?> getOperator() {
+        assert operatorFactory != null && operatorFactory instanceof SimpleOperatorFactory;
         return (StreamOperator<?>) ((SimpleOperatorFactory) operatorFactory).getOperator();
     }
 
-    public StreamOperatorFactory<?> getOperatorFactory() {
+    public @Nullable StreamOperatorFactory<?> getOperatorFactory() {
         return operatorFactory;
     }
 
@@ -393,7 +394,7 @@ public class StreamNode {
 
     public Optional<OperatorCoordinator.Provider> getCoordinatorProvider(
             String operatorName, OperatorID operatorID) {
-        if (operatorFactory instanceof CoordinatedOperatorFactory) {
+        if (operatorFactory != null && operatorFactory instanceof CoordinatedOperatorFactory) {
             return Optional.of(
                     ((CoordinatedOperatorFactory) operatorFactory)
                             .getCoordinatorProvider(operatorName, operatorID));
@@ -441,5 +442,12 @@ public class StreamNode {
     public void setSupportsConcurrentExecutionAttempts(
             boolean supportsConcurrentExecutionAttempts) {
         this.supportsConcurrentExecutionAttempts = supportsConcurrentExecutionAttempts;
+    }
+
+    public boolean isOutputOnlyAfterEndOfStream() {
+        if (operatorFactory == null) {
+            return false;
+        }
+        return operatorFactory.getOperatorAttributes().isOutputOnlyAfterEndOfStream();
     }
 }

@@ -22,106 +22,106 @@ import org.apache.flink.table.planner.expressions.utils.Func1$;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Test base for testing rule which pushes filter into table source. */
-public abstract class PushFilterIntoTableSourceScanRuleTestBase extends TableTestBase {
+abstract class PushFilterIntoTableSourceScanRuleTestBase extends TableTestBase {
 
     protected TableTestUtil util;
 
     @Test
-    public void testCanPushDown() {
+    void testCanPushDown() {
         util.verifyRelPlan("SELECT * FROM MyTable WHERE amount > 2");
     }
 
     @Test
-    public void testCanPushDownWithCastConstant() {
+    void testCanPushDownWithCastConstant() {
         util.verifyRelPlan("SELECT * FROM MyTable WHERE amount > cast(1.1 as int)");
     }
 
     @Test
-    public void testCanPushDownWithVirtualColumn() {
+    void testCanPushDownWithVirtualColumn() {
         util.verifyRelPlan("SELECT * FROM VirtualTable WHERE amount > 2");
     }
 
     @Test
-    public void testCannotPushDown() {
+    void testCannotPushDown() {
         // TestFilterableTableSource only accept predicates with `amount`
         util.verifyRelPlan("SELECT * FROM MyTable WHERE price > 10");
     }
 
     @Test
-    public void testCannotPushDownWithCastConstant() {
+    void testCannotPushDownWithCastConstant() {
         // TestFilterableTableSource only accept predicates with `amount`
         util.verifyRelPlan("SELECT * FROM MyTable WHERE price > cast(10.1 as int)");
     }
 
     @Test
-    public void testCannotPushDownWithVirtualColumn() {
+    void testCannotPushDownWithVirtualColumn() {
         // TestFilterableTableSource only accept predicates with `amount`
         util.verifyRelPlan("SELECT * FROM VirtualTable WHERE price > 10");
     }
 
     @Test
-    public void testPartialPushDown() {
+    void testPartialPushDown() {
         util.verifyRelPlan("SELECT * FROM MyTable WHERE amount > 2 AND price > 10");
     }
 
     @Test
-    public void testPartialPushDownWithVirtualColumn() {
+    void testPartialPushDownWithVirtualColumn() {
         util.verifyRelPlan("SELECT * FROM VirtualTable WHERE amount > 2 AND price > 10");
     }
 
     @Test
-    public void testFullyPushDown() {
+    void testFullyPushDown() {
         util.verifyRelPlan("SELECT * FROM MyTable WHERE amount > 2 AND amount < 10");
     }
 
     @Test
-    public void testFullyPushDownWithVirtualColumn() {
+    void testFullyPushDownWithVirtualColumn() {
         util.verifyRelPlan("SELECT * FROM VirtualTable WHERE amount > 2 AND amount < 10");
     }
 
     @Test
-    public void testPartialPushDown2() {
+    void testPartialPushDown2() {
         util.verifyRelPlan("SELECT * FROM MyTable WHERE amount > 2 OR price > 10");
     }
 
     @Test
-    public void testPartialPushDown2WithVirtualColumn() {
+    void testPartialPushDown2WithVirtualColumn() {
         util.verifyRelPlan("SELECT * FROM VirtualTable WHERE amount > 2 OR price > 10");
     }
 
     @Test
-    public void testCannotPushDown3() {
+    void testCannotPushDown3() {
         util.verifyRelPlan("SELECT * FROM MyTable WHERE amount > 2 OR amount < 10");
     }
 
     @Test
-    public void testCannotPushDown3WithVirtualColumn() {
+    void testCannotPushDown3WithVirtualColumn() {
         util.verifyRelPlan("SELECT * FROM VirtualTable WHERE amount > 2 OR amount < 10");
     }
 
     @Test
-    public void testUnconvertedExpression() {
+    void testUnconvertedExpression() {
         util.verifyRelPlan(
                 "SELECT * FROM MyTable WHERE\n"
                         + "    amount > 2 AND id < 100 AND CAST(amount AS BIGINT) > 10");
     }
 
     @Test
-    public void testWithUdf() {
-        util.addFunction("myUdf", Func1$.MODULE$);
+    void testWithUdf() {
+        util.addTemporarySystemFunction("myUdf", Func1$.MODULE$);
         util.verifyRelPlan("SELECT * FROM MyTable WHERE amount > 2 AND myUdf(amount) < 32");
     }
 
     @Test
-    public void testLowerUpperPushdown() {
+    void testLowerUpperPushdown() {
         util.verifyRelPlan("SELECT * FROM MTable WHERE LOWER(a) = 'foo' AND UPPER(b) = 'bar'");
     }
 
     @Test
-    public void testWithInterval() {
+    void testWithInterval() {
         util.verifyRelPlan(
                 "SELECT * FROM MTable\n"
                         + "WHERE TIMESTAMPADD(HOUR, 5, a) >= b\n"
@@ -130,7 +130,7 @@ public abstract class PushFilterIntoTableSourceScanRuleTestBase extends TableTes
     }
 
     @Test
-    public void testCannotPushDownIn() {
+    void testCannotPushDownIn() {
         // this test is to avoid filter push down rules throwing exceptions
         // when dealing with IN expressions, this is because Filter in calcite
         // requires its condition to be "flat"
@@ -138,7 +138,7 @@ public abstract class PushFilterIntoTableSourceScanRuleTestBase extends TableTes
     }
 
     @Test
-    public void testWithNullLiteral() {
+    void testWithNullLiteral() {
         util.verifyRelPlan(
                 "WITH MyView AS (SELECT CASE\n"
                         + "  WHEN amount > 0 THEN name\n"

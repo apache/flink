@@ -31,23 +31,32 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.metrics.DescriptiveStatisticsHistogram;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.TimerGauge;
+import org.apache.flink.util.clock.Clock;
+import org.apache.flink.util.clock.SystemClock;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.runtime.metrics.MetricNames.INITIALIZATION_TIME;
+
 /**
  * Metric group that contains shareable pre-defined IO-related metrics. The metrics registration is
  * forwarded to the parent task metric group.
  */
 public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
+    private static final long INVALID_TIMESTAMP = -1L;
+
+    private final Clock clock;
 
     private final Counter numBytesIn;
     private final Counter numBytesOut;
     private final SumCounter numRecordsIn;
     private final SumCounter numRecordsOut;
     private final Counter numBuffersOut;
+    private final Counter numFiredTimers;
+    private final MeterView numFiredTimersRate;
     private final Counter numMailsProcessed;
 
     private final Meter numBytesInRate;
@@ -69,17 +78,23 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
     private final Meter mailboxThroughput;
     private final Histogram mailboxLatency;
     private final SizeGauge mailboxSize;
+    private final Counter initializationDuration;
 
     private volatile boolean busyTimeEnabled;
 
     private long taskStartTime;
+    private long taskInitializeTime;
 
     private final Map<IntermediateResultPartitionID, ResultPartitionBytesCounter>
             resultPartitionBytes = new HashMap<>();
 
     public TaskIOMetricGroup(TaskMetricGroup parent) {
-        super(parent);
+        this(parent, SystemClock.getInstance());
+    }
 
+    public TaskIOMetricGroup(TaskMetricGroup parent, Clock clock) {
+        super(parent);
+        this.clock = clock;
         this.numBytesIn = counter(MetricNames.IO_NUM_BYTES_IN);
         this.numBytesOut = counter(MetricNames.IO_NUM_BYTES_OUT);
         this.numBytesInRate = meter(MetricNames.IO_NUM_BYTES_IN_RATE, new MeterView(numBytesIn));
@@ -96,11 +111,11 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
         this.numBuffersOutRate =
                 meter(MetricNames.IO_NUM_BUFFERS_OUT_RATE, new MeterView(numBuffersOut));
 
-        this.idleTimePerSecond = gauge(MetricNames.TASK_IDLE_TIME, new TimerGauge());
+        this.idleTimePerSecond = gauge(MetricNames.TASK_IDLE_TIME, new TimerGauge(clock));
         this.softBackPressuredTimePerSecond =
-                gauge(MetricNames.TASK_SOFT_BACK_PRESSURED_TIME, new TimerGauge());
+                gauge(MetricNames.TASK_SOFT_BACK_PRESSURED_TIME, new TimerGauge(clock));
         this.hardBackPressuredTimePerSecond =
-                gauge(MetricNames.TASK_HARD_BACK_PRESSURED_TIME, new TimerGauge());
+                gauge(MetricNames.TASK_HARD_BACK_PRESSURED_TIME, new TimerGauge(clock));
         this.backPressuredTimePerSecond =
                 gauge(MetricNames.TASK_BACK_PRESSURED_TIME, this::getBackPressuredTimeMsPerSecond);
 
@@ -116,7 +131,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
         this.busyTimePerSecond = gauge(MetricNames.TASK_BUSY_TIME, this::getBusyTimePerSecond);
 
         this.changelogBusyTimeMsPerSecond =
-                gauge(MetricNames.CHANGELOG_BUSY_TIME, new TimerGauge());
+                gauge(MetricNames.CHANGELOG_BUSY_TIME, new TimerGauge(clock));
 
         this.accumulatedBusyTime =
                 gauge(MetricNames.ACC_TASK_BUSY_TIME, this::getAccumulatedBusyTime);
@@ -127,12 +142,39 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
         this.accumulatedIdleTime =
                 gauge(MetricNames.ACC_TASK_IDLE_TIME, idleTimePerSecond::getAccumulatedCount);
 
+        this.numFiredTimers = counter(MetricNames.NUM_FIRED_TIMERS, new SimpleCounter());
+        this.numFiredTimersRate =
+                meter(MetricNames.NUM_FIRED_TIMERS_RATE, new MeterView(numFiredTimers));
+
         this.numMailsProcessed = new SimpleCounter();
         this.mailboxThroughput =
                 meter(MetricNames.MAILBOX_THROUGHPUT, new MeterView(numMailsProcessed));
         this.mailboxLatency =
                 histogram(MetricNames.MAILBOX_LATENCY, new DescriptiveStatisticsHistogram(60));
         this.mailboxSize = gauge(MetricNames.MAILBOX_SIZE, new SizeGauge());
+        this.initializationDuration =
+                counter(
+                        INITIALIZATION_TIME,
+                        new Counter() {
+                            @Override
+                            public void inc() {}
+
+                            @Override
+                            public void inc(long n) {}
+
+                            @Override
+                            public void dec() {}
+
+                            @Override
+                            public void dec(long n) {}
+
+                            @Override
+                            public long getCount() {
+                                return getTaskInitializationDuration();
+                            }
+                        });
+        this.taskStartTime = INVALID_TIMESTAMP;
+        this.taskInitializeTime = INVALID_TIMESTAMP;
     }
 
     public IOMetrics createSnapshot() {
@@ -171,6 +213,10 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
         return numBuffersOut;
     }
 
+    public Counter getNumFiredTimers() {
+        return numFiredTimers;
+    }
+
     public Counter getNumMailsProcessedCounter() {
         return numMailsProcessed;
     }
@@ -202,7 +248,29 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
     }
 
     public void markTaskStart() {
-        this.taskStartTime = System.currentTimeMillis();
+        this.taskStartTime = clock.absoluteTimeMillis();
+    }
+
+    public void markTaskInitializationStarted() {
+        if (taskInitializeTime == INVALID_TIMESTAMP) {
+            this.taskInitializeTime = clock.absoluteTimeMillis();
+        }
+    }
+
+    /**
+     * Returns the duration of time required for a task's restoring/initialization, which reaches
+     * its maximum when the task begins running and remains constant throughout the task's running.
+     * Return 0 when the task is not in initialization/running status.
+     */
+    @VisibleForTesting
+    public long getTaskInitializationDuration() {
+        if (taskInitializeTime == INVALID_TIMESTAMP) {
+            return 0L;
+        } else if (taskStartTime == INVALID_TIMESTAMP) {
+            return clock.absoluteTimeMillis() - taskInitializeTime;
+        } else {
+            return taskStartTime - taskInitializeTime;
+        }
     }
 
     public void setEnableBusyTime(boolean enabled) {
@@ -217,14 +285,19 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 
     @VisibleForTesting
     double getAccumulatedBusyTime() {
-        return busyTimeEnabled
-                ? Math.max(
-                        System.currentTimeMillis()
-                                - taskStartTime
-                                - idleTimePerSecond.getAccumulatedCount()
-                                - getAccumulatedBackPressuredTimeMs(),
-                        0)
-                : Double.NaN;
+        if (!busyTimeEnabled) {
+            return Double.NaN;
+        }
+        if (taskStartTime == INVALID_TIMESTAMP) {
+            return Double.NaN;
+        } else {
+            return Math.max(
+                    clock.absoluteTimeMillis()
+                            - taskStartTime
+                            - idleTimePerSecond.getAccumulatedCount()
+                            - getAccumulatedBackPressuredTimeMs(),
+                    0);
+        }
     }
 
     public Meter getMailboxThroughput() {

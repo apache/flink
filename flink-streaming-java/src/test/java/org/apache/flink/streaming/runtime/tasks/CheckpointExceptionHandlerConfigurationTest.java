@@ -21,52 +21,51 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureManager;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test that the configuration mechanism for how tasks react on checkpoint errors works correctly.
  */
-public class CheckpointExceptionHandlerConfigurationTest extends TestLogger {
+class CheckpointExceptionHandlerConfigurationTest {
 
     @Test
-    public void testCheckpointConfigDefault() {
+    void testCheckpointConfigDefault() {
         StreamExecutionEnvironment streamExecutionEnvironment =
                 StreamExecutionEnvironment.getExecutionEnvironment();
         CheckpointConfig checkpointConfig = streamExecutionEnvironment.getCheckpointConfig();
-        Assert.assertTrue(checkpointConfig.isFailOnCheckpointingErrors());
-        Assert.assertEquals(0, checkpointConfig.getTolerableCheckpointFailureNumber());
+        assertThat(checkpointConfig.isFailOnCheckpointingErrors()).isTrue();
+        assertThat(checkpointConfig.getTolerableCheckpointFailureNumber()).isZero();
     }
 
     @Test
-    public void testSetCheckpointConfig() {
+    void testSetCheckpointConfig() {
         StreamExecutionEnvironment streamExecutionEnvironment =
                 StreamExecutionEnvironment.getExecutionEnvironment();
         CheckpointConfig checkpointConfig = streamExecutionEnvironment.getCheckpointConfig();
 
         // use deprecated API to set not fail on checkpoint errors
         checkpointConfig.setFailOnCheckpointingErrors(false);
-        Assert.assertFalse(checkpointConfig.isFailOnCheckpointingErrors());
-        Assert.assertEquals(
-                CheckpointFailureManager.UNLIMITED_TOLERABLE_FAILURE_NUMBER,
-                checkpointConfig.getTolerableCheckpointFailureNumber());
+        assertThat(checkpointConfig.isFailOnCheckpointingErrors()).isFalse();
+        assertThat(checkpointConfig.getTolerableCheckpointFailureNumber())
+                .isEqualTo(CheckpointFailureManager.UNLIMITED_TOLERABLE_FAILURE_NUMBER);
 
         // use new API to set tolerable declined checkpoint number
         checkpointConfig.setTolerableCheckpointFailureNumber(5);
-        Assert.assertEquals(5, checkpointConfig.getTolerableCheckpointFailureNumber());
+        assertThat(checkpointConfig.getTolerableCheckpointFailureNumber()).isEqualTo(5);
 
         // after we configure the tolerable declined checkpoint number, deprecated API would not
         // take effect
         checkpointConfig.setFailOnCheckpointingErrors(true);
-        Assert.assertEquals(5, checkpointConfig.getTolerableCheckpointFailureNumber());
+        assertThat(checkpointConfig.getTolerableCheckpointFailureNumber()).isEqualTo(5);
     }
 
     @Test
-    public void testPropagationFailFromCheckpointConfig() {
+    void testPropagationFailFromCheckpointConfig() {
         try {
             doTestPropagationFromCheckpointConfig(true);
         } catch (IllegalArgumentException ignored) {
@@ -75,7 +74,7 @@ public class CheckpointExceptionHandlerConfigurationTest extends TestLogger {
     }
 
     @Test
-    public void testPropagationDeclineFromCheckpointConfig() {
+    void testPropagationDeclineFromCheckpointConfig() {
         doTestPropagationFromCheckpointConfig(false);
     }
 
@@ -97,6 +96,6 @@ public class CheckpointExceptionHandlerConfigurationTest extends TestLogger {
                             @Override
                             public void cancel() {}
                         })
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
     }
 }

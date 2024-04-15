@@ -24,10 +24,14 @@ import java.io.File;
 public class TestLocalRecoveryConfig {
 
     public static LocalRecoveryConfig disabled() {
-        return new LocalRecoveryConfig(null);
+        return LocalRecoveryConfig.BACKUP_AND_RECOVERY_DISABLED;
     }
 
-    public static class TestDummyLocalDirectoryProvider implements LocalRecoveryDirectoryProvider {
+    public static LocalRecoveryConfig enabledForTest() {
+        return LocalRecoveryConfig.backupAndRecoveryEnabled(new TestDummyLocalDirectoryProvider());
+    }
+
+    public static class TestDummyLocalDirectoryProvider implements LocalSnapshotDirectoryProvider {
 
         private TestDummyLocalDirectoryProvider() {}
 

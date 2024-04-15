@@ -131,7 +131,13 @@ public class RocksDBStateOptionTest {
             PriorityQueue<TimerHeapInternalTimer<Integer, VoidNamespace>> expectedPriorityQueue =
                     new PriorityQueue<>((o1, o2) -> (int) (o1.getTimestamp() - o2.getTimestamp()));
             // ensure we insert timers more than cache capacity.
-            int queueSize = RocksDBPriorityQueueSetFactory.DEFAULT_CACHES_SIZE + 42;
+            assertTrue(
+                    keyedStateBackend.getPriorityQueueFactory()
+                            instanceof RocksDBPriorityQueueSetFactory);
+            int queueSize =
+                    ((RocksDBPriorityQueueSetFactory) keyedStateBackend.getPriorityQueueFactory())
+                                    .getCacheSize()
+                            + 42;
             List<Integer> timeStamps =
                     IntStream.range(0, queueSize).boxed().collect(Collectors.toList());
             Collections.shuffle(timeStamps);

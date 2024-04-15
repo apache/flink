@@ -27,6 +27,7 @@ import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser;
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
@@ -34,6 +35,7 @@ import org.apache.flink.util.UserCodeClassLoader;
 
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -49,8 +51,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import static org.apache.flink.runtime.blob.BlobServerCleanupTest.checkFileCountForJob;
-import static org.apache.flink.runtime.blob.BlobServerCleanupTest.checkFilesExist;
+import static org.apache.flink.runtime.blob.TestingBlobHelpers.checkFileCountForJob;
+import static org.apache.flink.runtime.blob.TestingBlobHelpers.checkFilesExist;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.Assert.assertEquals;
@@ -92,7 +94,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
         try {
             Configuration config = new Configuration();
-            config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
+            config.set(BlobServerOptions.CLEANUP_INTERVAL, 1L);
 
             server = new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
             server.start();
@@ -225,7 +227,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
         try {
             Configuration config = new Configuration();
-            config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
+            config.set(BlobServerOptions.CLEANUP_INTERVAL, 1L);
 
             server = new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
             server.start();
@@ -323,6 +325,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
     }
 
     @Test
+    @Category(FailsInGHAContainerWithRootUser.class)
     public void testRegisterAndDownload() throws IOException {
         assumeTrue(!OperatingSystem.isWindows()); // setWritable doesn't work on Windows.
 
@@ -334,7 +337,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
         try {
             // create the blob transfer services
             Configuration config = new Configuration();
-            config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1_000_000L);
+            config.set(BlobServerOptions.CLEANUP_INTERVAL, 1_000_000L);
 
             server = new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
             server.start();

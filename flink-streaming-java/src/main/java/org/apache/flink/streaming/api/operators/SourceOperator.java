@@ -41,6 +41,7 @@ import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEventHandler;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
+import org.apache.flink.runtime.source.event.IsProcessingBacklogEvent;
 import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
 import org.apache.flink.runtime.source.event.ReportedWatermarkEvent;
@@ -56,6 +57,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.MultipleFuturesAvailabilityHelper;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributesBuilder;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -252,7 +254,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             return;
         }
 
-        final int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
+        final int subtaskIndex = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
 
         final SourceReaderContext context =
                 new SourceReaderContext() {
@@ -307,7 +309,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
                     @Override
                     public int currentParallelism() {
-                        return getRuntimeContext().getNumberOfParallelSubtasks();
+                        return getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
                     }
                 };
 
@@ -475,7 +477,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                                 .getEnvironment()
                                 .getTaskManagerInfo()
                                 .getConfiguration()
-                                .getLong(MetricOptions.LATENCY_INTERVAL);
+                                .get(MetricOptions.LATENCY_INTERVAL);
         if (latencyTrackingInterval > 0) {
             latencyMarkerEmitter =
                     new LatencyMarkerEmitter<>(
@@ -483,7 +485,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                             output::emitLatencyMarker,
                             latencyTrackingInterval,
                             getOperatorID(),
-                            getRuntimeContext().getIndexOfThisSubtask());
+                            getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
         }
     }
 
@@ -569,6 +571,14 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             sourceReader.handleSourceEvents(((SourceEventWrapper) event).getSourceEvent());
         } else if (event instanceof NoMoreSplitsEvent) {
             sourceReader.notifyNoMoreSplits();
+        } else if (event instanceof IsProcessingBacklogEvent) {
+            if (eventTimeLogic != null) {
+                eventTimeLogic.emitImmediateWatermark(System.currentTimeMillis());
+            }
+            output.emitRecordAttributes(
+                    new RecordAttributesBuilder(Collections.emptyList())
+                            .setBacklog(((IsProcessingBacklogEvent) event).isProcessingBacklog())
+                            .build());
         } else {
             throw new IllegalStateException("Received unexpected operator event " + event);
         }
@@ -690,7 +700,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private void registerReader() {
         operatorEventGateway.sendEventToCoordinator(
                 new ReaderRegistrationEvent(
-                        getRuntimeContext().getIndexOfThisSubtask(), localHostname));
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(), localHostname));
     }
 
     // --------------- methods for unit tests ------------

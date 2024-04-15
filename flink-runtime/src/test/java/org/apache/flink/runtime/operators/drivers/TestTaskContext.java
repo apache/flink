@@ -63,7 +63,7 @@ public class TestTaskContext<S, T> implements TaskContext<S, T> {
 
     private MemoryManager memoryManager;
 
-    private ExecutionConfig executionConfig = new ExecutionConfig();
+    private final ExecutionConfig executionConfig = new ExecutionConfig();
 
     private TaskManagerRuntimeInfo taskManageInfo;
 
@@ -96,7 +96,7 @@ public class TestTaskContext<S, T> implements TaskContext<S, T> {
     public <X> void setInput1(MutableObjectIterator<X> input, TypeSerializer<X> serializer) {
         this.input1 = input;
         this.serializer1 =
-                new RuntimeSerializerFactory<X>(
+                new RuntimeSerializerFactory<>(
                         serializer, (Class<X>) serializer.createInstance().getClass());
     }
 
@@ -104,7 +104,7 @@ public class TestTaskContext<S, T> implements TaskContext<S, T> {
     public <X> void setInput2(MutableObjectIterator<X> input, TypeSerializer<X> serializer) {
         this.input2 = input;
         this.serializer2 =
-                new RuntimeSerializerFactory<X>(
+                new RuntimeSerializerFactory<>(
                         serializer, (Class<X>) serializer.createInstance().getClass());
     }
 
@@ -130,10 +130,6 @@ public class TestTaskContext<S, T> implements TaskContext<S, T> {
 
     public void setDriverStrategy(DriverStrategy strategy) {
         this.config.setDriverStrategy(strategy);
-    }
-
-    public void setMutableObjectMode(boolean mutableObjectMode) {
-        this.config.setMutableObjectMode(mutableObjectMode);
     }
 
     // --------------------------------------------------------------------------------------------

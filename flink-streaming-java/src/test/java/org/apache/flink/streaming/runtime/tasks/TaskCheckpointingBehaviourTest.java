@@ -32,6 +32,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -88,24 +89,20 @@ import org.apache.flink.streaming.api.operators.StreamFilter;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.concurrent.RunnableFuture;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 /**
@@ -113,12 +110,12 @@ import static org.mockito.Mockito.mock;
  * checks correct working of different policies how tasks deal with checkpoint failures (fail task,
  * decline checkpoint and continue).
  */
-public class TaskCheckpointingBehaviourTest extends TestLogger {
+class TaskCheckpointingBehaviourTest {
 
     private static final OneShotLatch IN_CHECKPOINT_LATCH = new OneShotLatch();
 
     @Test
-    public void testDeclineOnCheckpointErrorInSyncPart() throws Exception {
+    void testDeclineOnCheckpointErrorInSyncPart() throws Exception {
         TestDeclinedCheckpointResponder checkpointResponder = new TestDeclinedCheckpointResponder();
         Task task =
                 createTask(
@@ -129,7 +126,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
     }
 
     @Test
-    public void testDeclineOnCheckpointErrorInAsyncPart() throws Exception {
+    void testDeclineOnCheckpointErrorInAsyncPart() throws Exception {
         TestDeclinedCheckpointResponder checkpointResponder = new TestDeclinedCheckpointResponder();
         Task task =
                 createTask(
@@ -140,7 +137,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
     }
 
     @Test
-    public void testBlockingNonInterruptibleCheckpoint() throws Exception {
+    void testBlockingNonInterruptibleCheckpoint() throws Exception {
 
         StateBackend lockingStateBackend = new BackendForTestStream(LockingOutputStream::new);
 
@@ -157,8 +154,8 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
         task.cancelExecution();
         task.getExecutingThread().join();
 
-        assertEquals(ExecutionState.CANCELED, task.getExecutionState());
-        assertNull(task.getFailureCause());
+        assertThat(task.getExecutionState()).isEqualTo(ExecutionState.CANCELED);
+        assertThat(task.getFailureCause()).isNull();
     }
 
     private void runTaskExpectCheckpointDeclined(
@@ -168,7 +165,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 
         checkpointResponder.declinedLatch.await();
 
-        Assert.assertEquals(ExecutionState.RUNNING, task.getExecutionState());
+        assertThat(task.getExecutionState()).isEqualTo(ExecutionState.RUNNING);
 
         task.cancelExecution();
         task.getExecutingThread().join();
@@ -177,7 +174,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
     private void runTaskExpectFailure(Task task) throws Exception {
         task.startTaskThread();
         task.getExecutingThread().join();
-        Assert.assertEquals(ExecutionState.FAILED, task.getExecutionState());
+        assertThat(task.getExecutionState()).isEqualTo(ExecutionState.FAILED);
     }
 
     // ------------------------------------------------------------------------
@@ -284,6 +281,10 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
             declinedLatch.trigger();
         }
 
+        @Override
+        public void reportInitializationMetrics(
+                JobID jobId, SubTaskInitializationMetrics initializationMetrics) {}
+
         public OneShotLatch getDeclinedLatch() {
             return declinedLatch;
         }
@@ -299,17 +300,13 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 
         @Override
         public OperatorStateBackend createOperatorStateBackend(
-                Environment env,
-                String operatorIdentifier,
-                @Nonnull Collection<OperatorStateHandle> stateHandles,
-                CloseableRegistry cancelStreamRegistry)
-                throws Exception {
+                OperatorStateBackendParameters parameters) throws Exception {
             return new DefaultOperatorStateBackendBuilder(
-                    env.getUserCodeClassLoader().asClassLoader(),
-                    env.getExecutionConfig(),
+                    parameters.getEnv().getUserCodeClassLoader().asClassLoader(),
+                    parameters.getEnv().getExecutionConfig(),
                     true,
-                    stateHandles,
-                    cancelStreamRegistry) {
+                    parameters.getStateHandles(),
+                    parameters.getCancelStreamRegistry()) {
                 @Override
                 @SuppressWarnings("unchecked")
                 public DefaultOperatorStateBackend build() {
@@ -350,17 +347,13 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 
         @Override
         public OperatorStateBackend createOperatorStateBackend(
-                Environment env,
-                String operatorIdentifier,
-                @Nonnull Collection<OperatorStateHandle> stateHandles,
-                CloseableRegistry cancelStreamRegistry)
-                throws Exception {
+                OperatorStateBackendParameters parameters) throws Exception {
             return new DefaultOperatorStateBackendBuilder(
-                    env.getUserCodeClassLoader().asClassLoader(),
-                    env.getExecutionConfig(),
+                    parameters.getEnv().getUserCodeClassLoader().asClassLoader(),
+                    parameters.getEnv().getExecutionConfig(),
                     true,
-                    stateHandles,
-                    cancelStreamRegistry) {
+                    parameters.getStateHandles(),
+                    parameters.getCancelStreamRegistry()) {
                 @Override
                 public DefaultOperatorStateBackend build() {
                     CloseableRegistry registryForStateBackend = new CloseableRegistry();

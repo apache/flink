@@ -43,8 +43,10 @@ public class IntermediateResultPartition {
 
     private final EdgeManager edgeManager;
 
-    /** Number of subpartitions. Initialized lazily and will not change once set. */
-    private int numberOfSubpartitions = NUM_SUBPARTITIONS_UNKNOWN;
+    /** Number of subpartitions for dynamic graph. */
+    private final int numberOfSubpartitionsForDynamicGraph;
+
+    private boolean isNumberOfPartitionConsumersUndefined = false;
 
     /** Whether this partition has produced all data. */
     private boolean dataAllProduced = false;
@@ -64,6 +66,17 @@ public class IntermediateResultPartition {
         this.producer = producer;
         this.partitionId = new IntermediateResultPartitionID(totalResult.getId(), partitionNumber);
         this.edgeManager = edgeManager;
+
+        if (!producer.getExecutionGraphAccessor().isDynamic()) {
+            this.numberOfSubpartitionsForDynamicGraph = NUM_SUBPARTITIONS_UNKNOWN;
+        } else {
+            this.numberOfSubpartitionsForDynamicGraph =
+                    computeNumberOfSubpartitionsForDynamicGraph();
+            checkState(
+                    numberOfSubpartitionsForDynamicGraph > 0,
+                    "Number of subpartitions is an unexpected value: "
+                            + numberOfSubpartitionsForDynamicGraph);
+        }
     }
 
     public void markPartitionGroupReleasable(ConsumedPartitionGroup partitionGroup) {
@@ -113,18 +126,12 @@ public class IntermediateResultPartition {
         return getEdgeManager().getConsumedPartitionGroupsById(partitionId);
     }
 
-    public int getNumberOfSubpartitions() {
-        if (numberOfSubpartitions == NUM_SUBPARTITIONS_UNKNOWN) {
-            numberOfSubpartitions = computeNumberOfSubpartitions();
-            checkState(
-                    numberOfSubpartitions > 0,
-                    "Number of subpartitions is an unexpected value: " + numberOfSubpartitions);
-        }
-
-        return numberOfSubpartitions;
+    public boolean isNumberOfPartitionConsumersUndefined() {
+        getNumberOfSubpartitions();
+        return isNumberOfPartitionConsumersUndefined;
     }
 
-    private int computeNumberOfSubpartitions() {
+    public int getNumberOfSubpartitions() {
         if (!getProducer().getExecutionGraphAccessor().isDynamic()) {
             List<ConsumerVertexGroup> consumerVertexGroups = getConsumerVertexGroups();
             checkState(!consumerVertexGroups.isEmpty());
@@ -134,17 +141,22 @@ public class IntermediateResultPartition {
             // for non-dynamic graph.
             return consumerVertexGroups.get(0).size();
         } else {
-            if (totalResult.isBroadcast()) {
-                // for dynamic graph and broadcast result, we only produced one subpartition,
-                // and all the downstream vertices should consume this subpartition.
-                return 1;
-            } else {
-                return computeNumberOfMaxPossiblePartitionConsumers();
-            }
+            return numberOfSubpartitionsForDynamicGraph;
+        }
+    }
+
+    private int computeNumberOfSubpartitionsForDynamicGraph() {
+        if (totalResult.isBroadcast()) {
+            // for dynamic graph and broadcast result, we only produced one subpartition,
+            // and all the downstream vertices should consume this subpartition.
+            return 1;
+        } else {
+            return computeNumberOfMaxPossiblePartitionConsumers();
         }
     }
 
     private int computeNumberOfMaxPossiblePartitionConsumers() {
+        isNumberOfPartitionConsumersUndefined = true;
         final DistributionPattern distributionPattern =
                 getIntermediateResult().getConsumingDistributionPattern();
 

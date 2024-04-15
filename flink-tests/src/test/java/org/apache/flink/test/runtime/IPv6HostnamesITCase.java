@@ -67,14 +67,14 @@ public class IPv6HostnamesITCase extends TestLogger {
         final Inet6Address ipv6address = getLocalIPv6Address();
         if (ipv6address == null) {
             throw new AssumptionViolatedException(
-                    "--- Cannot find a non-loopback local IPv6 address that Akka/Netty can bind to; skipping IPv6HostnamesITCase");
+                    "--- Cannot find a non-loopback local IPv6 address that Pekko/Netty can bind to; skipping IPv6HostnamesITCase");
         }
         final String addressString = ipv6address.getHostAddress();
         log.info("Test will use IPv6 address " + addressString + " for connection tests");
 
         Configuration config = new Configuration();
-        config.setString(JobManagerOptions.ADDRESS, addressString);
-        config.setString(TaskManagerOptions.HOST, addressString);
+        config.set(JobManagerOptions.ADDRESS, addressString);
+        config.set(TaskManagerOptions.HOST, addressString);
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("16m"));
         return config;
     }
@@ -143,8 +143,8 @@ public class IPv6HostnamesITCase extends TestLogger {
                             sock.bind(socketAddress);
                             sock.close();
 
-                            // test whether Akka's netty can bind to the address
-                            log.info("Testing whether Akka can use " + addr);
+                            // test whether Pekko's netty can bind to the address
+                            log.info("Testing whether Pekko can use " + addr);
                             final RpcService rpcService =
                                     RpcSystem.load()
                                             // this port is only used for advertising (==no port

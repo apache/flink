@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotSerializationUtil;
@@ -52,7 +52,7 @@ public class KryoSerializerCompatibilityTest {
     @Test
     public void testMigrationStrategyWithDifferentKryoType() throws Exception {
         KryoSerializer<TestClassA> kryoSerializerForA =
-                new KryoSerializer<>(TestClassA.class, new ExecutionConfig());
+                new KryoSerializer<>(TestClassA.class, new SerializerConfigImpl());
 
         // snapshot configuration and serialize to bytes
         TypeSerializerSnapshot kryoSerializerConfigSnapshot =
@@ -65,7 +65,7 @@ public class KryoSerializerCompatibilityTest {
         }
 
         KryoSerializer<TestClassB> kryoSerializerForB =
-                new KryoSerializer<>(TestClassB.class, new ExecutionConfig());
+                new KryoSerializer<>(TestClassB.class, new SerializerConfigImpl());
 
         // read configuration again from bytes
         try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
@@ -77,7 +77,9 @@ public class KryoSerializerCompatibilityTest {
 
         @SuppressWarnings("unchecked")
         TypeSerializerSchemaCompatibility<TestClassB> compatResult =
-                kryoSerializerConfigSnapshot.resolveSchemaCompatibility(kryoSerializerForB);
+                kryoSerializerForB
+                        .snapshotConfiguration()
+                        .resolveSchemaCompatibility(kryoSerializerConfigSnapshot);
         assertTrue(compatResult.isIncompatible());
     }
 
@@ -128,9 +130,9 @@ public class KryoSerializerCompatibilityTest {
         */
 
         {
-            ExecutionConfig executionConfig = new ExecutionConfig();
+            SerializerConfigImpl serializerConfigImpl = new SerializerConfigImpl();
             KryoSerializer<FakeAvroClass> kryoSerializer =
-                    new KryoSerializer<>(FakeAvroClass.class, executionConfig);
+                    new KryoSerializer<>(FakeAvroClass.class, serializerConfigImpl);
 
             try (FileInputStream f =
                             new FileInputStream(
@@ -181,9 +183,9 @@ public class KryoSerializerCompatibilityTest {
         */
 
         {
-            ExecutionConfig executionConfig = new ExecutionConfig();
+            SerializerConfigImpl serializerConfigImpl = new SerializerConfigImpl();
             KryoSerializer<FakeClass> kryoSerializer =
-                    new KryoSerializer<>(FakeClass.class, executionConfig);
+                    new KryoSerializer<>(FakeClass.class, serializerConfigImpl);
 
             try (FileInputStream f =
                             new FileInputStream(
@@ -206,12 +208,12 @@ public class KryoSerializerCompatibilityTest {
     @Test
     public void testMigrationStrategyForDifferentRegistrationOrder() throws Exception {
 
-        ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.registerKryoType(TestClassA.class);
-        executionConfig.registerKryoType(TestClassB.class);
+        SerializerConfigImpl serializerConfigImpl = new SerializerConfigImpl();
+        serializerConfigImpl.registerKryoType(TestClassA.class);
+        serializerConfigImpl.registerKryoType(TestClassB.class);
 
         KryoSerializer<TestClass> kryoSerializer =
-                new KryoSerializer<>(TestClass.class, executionConfig);
+                new KryoSerializer<>(TestClass.class, serializerConfigImpl);
 
         // get original registration ids
         int testClassId = kryoSerializer.getKryo().getRegistration(TestClass.class).getId();
@@ -229,11 +231,11 @@ public class KryoSerializerCompatibilityTest {
         }
 
         // use new config and instantiate new KryoSerializer
-        executionConfig = new ExecutionConfig();
-        executionConfig.registerKryoType(TestClassB.class); // test with B registered before A
-        executionConfig.registerKryoType(TestClassA.class);
+        serializerConfigImpl = new SerializerConfigImpl();
+        serializerConfigImpl.registerKryoType(TestClassB.class); // test with B registered before A
+        serializerConfigImpl.registerKryoType(TestClassA.class);
 
-        kryoSerializer = new KryoSerializer<>(TestClass.class, executionConfig);
+        kryoSerializer = new KryoSerializer<>(TestClass.class, serializerConfigImpl);
 
         // read configuration from bytes
         try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
@@ -246,7 +248,9 @@ public class KryoSerializerCompatibilityTest {
         // reconfigure - check reconfiguration result and that registration id remains the same
         @SuppressWarnings("unchecked")
         TypeSerializerSchemaCompatibility<TestClass> compatResult =
-                kryoSerializerConfigSnapshot.resolveSchemaCompatibility(kryoSerializer);
+                kryoSerializer
+                        .snapshotConfiguration()
+                        .resolveSchemaCompatibility(kryoSerializerConfigSnapshot);
         assertTrue(compatResult.isCompatibleWithReconfiguredSerializer());
 
         kryoSerializer = (KryoSerializer<TestClass>) compatResult.getReconfiguredSerializer();

@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.checkpointing;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
@@ -239,8 +240,8 @@ public class ApproximateLocalRecoveryDownstreamITCase extends TestLogger {
         }
 
         @Override
-        public void open(Configuration parameters) {
-            failer = getRuntimeContext().getIndexOfThisSubtask() == 0;
+        public void open(OpenContext openContext) {
+            failer = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 0;
         }
 
         @Override

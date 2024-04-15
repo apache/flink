@@ -346,7 +346,8 @@ public class DynamicPartitionPruningUtils {
                         scan.getTraitSet(),
                         scan.getHints(),
                         tableSourceTable,
-                        dynamicFilteringDataCollector);
+                        dynamicFilteringDataCollector,
+                        acceptedFieldIndices);
             } else if (rel instanceof Exchange || rel instanceof Filter) {
                 return rel.copy(
                         rel.getTraitSet(),

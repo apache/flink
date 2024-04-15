@@ -61,10 +61,10 @@ public class RemoteEnvironmentConfigUtils {
     public static void setJobManagerAddressToConfig(
             final String host, final int port, final Configuration configuration) {
         final InetSocketAddress address = new InetSocketAddress(host, port);
-        configuration.setString(JobManagerOptions.ADDRESS, address.getHostString());
-        configuration.setInteger(JobManagerOptions.PORT, address.getPort());
-        configuration.setString(RestOptions.ADDRESS, address.getHostString());
-        configuration.setInteger(RestOptions.PORT, address.getPort());
+        configuration.set(JobManagerOptions.ADDRESS, address.getHostString());
+        configuration.set(JobManagerOptions.PORT, address.getPort());
+        configuration.set(RestOptions.ADDRESS, address.getHostString());
+        configuration.set(RestOptions.PORT, address.getPort());
     }
 
     public static void setJarURLsToConfig(final String[] jars, final Configuration configuration) {

@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -26,95 +26,76 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link StreamTaskTestHarness}. */
-public class StreamTaskTestHarnessTest {
+class StreamTaskTestHarnessTest {
 
     @Test
-    public void testMultipleSetupsThrowsException() {
-        StreamTaskTestHarness<String> harness;
+    void testMultipleSetupsThrowsException() {
 
-        harness =
+        StreamTaskTestHarness<String> harness =
                 new StreamTaskTestHarness<>(
                         OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO);
         harness.setupOutputForSingletonOperatorChain();
 
-        try {
-            harness.setupOutputForSingletonOperatorChain();
-            Assert.fail();
-        } catch (IllegalStateException expected) {
-            // expected
-        }
-        try {
-            harness.setupOperatorChain(new OperatorID(), new TestOperator());
-            Assert.fail();
-        } catch (IllegalStateException expected) {
-            // expected
-        }
-        try {
-            harness.setupOperatorChain(new OperatorID(), new TwoInputTestOperator());
-            Assert.fail();
-        } catch (IllegalStateException expected) {
-            // expected
-        }
+        assertThatThrownBy(harness::setupOutputForSingletonOperatorChain)
+                .isInstanceOf(IllegalStateException.class);
 
-        harness =
+        assertThatThrownBy(() -> harness.setupOperatorChain(new OperatorID(), new TestOperator()))
+                .isInstanceOf(IllegalStateException.class);
+
+        assertThatThrownBy(
+                        () ->
+                                harness.setupOperatorChain(
+                                        new OperatorID(), new TwoInputTestOperator()))
+                .isInstanceOf(IllegalStateException.class);
+
+        StreamTaskTestHarness<String> harness1 =
                 new StreamTaskTestHarness<>(
                         OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO);
-        harness.setupOperatorChain(new OperatorID(), new TestOperator())
+        harness1.setupOperatorChain(new OperatorID(), new TestOperator())
                 .chain(
                         new OperatorID(),
                         new TestOperator(),
-                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()));
+                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
+                                new SerializerConfigImpl()));
 
-        try {
-            harness.setupOutputForSingletonOperatorChain();
-            Assert.fail();
-        } catch (IllegalStateException expected) {
-            // expected
-        }
-        try {
-            harness.setupOperatorChain(new OperatorID(), new TestOperator());
-            Assert.fail();
-        } catch (IllegalStateException expected) {
-            // expected
-        }
-        try {
-            harness.setupOperatorChain(new OperatorID(), new TwoInputTestOperator());
-            Assert.fail();
-        } catch (IllegalStateException expected) {
-            // expected
-        }
+        assertThatThrownBy(harness1::setupOutputForSingletonOperatorChain)
+                .isInstanceOf(IllegalStateException.class);
 
-        harness =
+        assertThatThrownBy(() -> harness1.setupOperatorChain(new OperatorID(), new TestOperator()))
+                .isInstanceOf(IllegalStateException.class);
+
+        assertThatThrownBy(
+                        () ->
+                                harness1.setupOperatorChain(
+                                        new OperatorID(), new TwoInputTestOperator()))
+                .isInstanceOf(IllegalStateException.class);
+
+        StreamTaskTestHarness<String> harness2 =
                 new StreamTaskTestHarness<>(
                         TwoInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO);
-        harness.setupOperatorChain(new OperatorID(), new TwoInputTestOperator())
+        harness2.setupOperatorChain(new OperatorID(), new TwoInputTestOperator())
                 .chain(
                         new OperatorID(),
                         new TestOperator(),
-                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()));
+                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(
+                                new SerializerConfigImpl()));
 
-        try {
-            harness.setupOutputForSingletonOperatorChain();
-            Assert.fail();
-        } catch (IllegalStateException expected) {
-            // expected
-        }
-        try {
-            harness.setupOperatorChain(new OperatorID(), new TestOperator());
-            Assert.fail();
-        } catch (IllegalStateException expected) {
-            // expected
-        }
-        try {
-            harness.setupOperatorChain(new OperatorID(), new TwoInputTestOperator());
-            Assert.fail();
-        } catch (IllegalStateException expected) {
-            // expected
-        }
+        assertThatThrownBy(harness2::setupOutputForSingletonOperatorChain)
+                .isInstanceOf(IllegalStateException.class);
+
+        assertThatThrownBy(() -> harness2.setupOperatorChain(new OperatorID(), new TestOperator()))
+                .isInstanceOf(IllegalStateException.class);
+
+        assertThatThrownBy(
+                        () ->
+                                harness2.setupOperatorChain(
+                                        new OperatorID(), new TwoInputTestOperator()))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     private static class TestOperator extends AbstractStreamOperator<String>

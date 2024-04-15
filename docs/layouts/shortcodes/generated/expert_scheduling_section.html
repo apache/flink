@@ -9,12 +9,6 @@
     </thead>
     <tbody>
         <tr>
-            <td><h5>cluster.evenly-spread-out-slots</h5></td>
-            <td style="word-wrap: break-word;">false</td>
-            <td>Boolean</td>
-            <td>Enable the slot spread out allocation strategy. This strategy tries to spread out the slots evenly across all available <code class="highlighter-rouge">TaskExecutors</code>.</td>
-        </tr>
-        <tr>
             <td><h5>execution.batch.adaptive.auto-parallelism.avg-data-volume-per-task</h5></td>
             <td style="word-wrap: break-word;">16 mb</td>
             <td>MemorySize</td>
@@ -22,9 +16,9 @@
         </tr>
         <tr>
             <td><h5>execution.batch.adaptive.auto-parallelism.default-source-parallelism</h5></td>
-            <td style="word-wrap: break-word;">1</td>
+            <td style="word-wrap: break-word;">(none)</td>
             <td>Integer</td>
-            <td>The default parallelism of source vertices if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code></td>
+            <td>The default parallelism of source vertices or the upper bound of source parallelism to set adaptively if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code>. Note that <code class="highlighter-rouge">execution.batch.adaptive.auto-parallelism.max-parallelism</code> will be used if this configuration is not configured. If <code class="highlighter-rouge">execution.batch.adaptive.auto-parallelism.max-parallelism</code> is not set either, then the default parallelism set via <code class="highlighter-rouge">parallelism.default</code> will be used instead.</td>
         </tr>
         <tr>
             <td><h5>execution.batch.adaptive.auto-parallelism.enabled</h5></td>
@@ -43,6 +37,24 @@
             <td style="word-wrap: break-word;">1</td>
             <td>Integer</td>
             <td>The lower bound of allowed parallelism to set adaptively if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code></td>
+        </tr>
+        <tr>
+            <td><h5>execution.batch.job-recovery.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>A flag to enable or disable the job recovery. If enabled, batch jobs can resume with previously generated intermediate results after job master restarts due to failures, thereby preserving the progress.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.batch.job-recovery.previous-worker.recovery.timeout</h5></td>
+            <td style="word-wrap: break-word;">30 s</td>
+            <td>Duration</td>
+            <td>The timeout for a new job master to wait for the previous worker to reconnect.A reconnected worker will transmit the details of its produced intermediate results to the new job master, enabling the job master to reuse these results.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.batch.job-recovery.snapshot.min-pause</h5></td>
+            <td style="word-wrap: break-word;">3 min</td>
+            <td>Duration</td>
+            <td>The minimal pause between snapshots taken by operator coordinator or other components. It is used to avoid performance degradation due to excessive snapshot frequency.</td>
         </tr>
         <tr>
             <td><h5>execution.batch.speculative.block-slow-node-duration</h5></td>
@@ -69,6 +81,18 @@
             <td>Whether to convert all PIPELINE edges to BLOCKING when apply fine-grained resource management in batch jobs.</td>
         </tr>
         <tr>
+            <td><h5>job-event.store.write-buffer.flush-interval</h5></td>
+            <td style="word-wrap: break-word;">1 s</td>
+            <td>Duration</td>
+            <td>The flush interval of JobEventStore write buffers. Buffer contents will be flushed to external file system regularly with regard to this value.</td>
+        </tr>
+        <tr>
+            <td><h5>job-event.store.write-buffer.size</h5></td>
+            <td style="word-wrap: break-word;">1 mb</td>
+            <td>MemorySize</td>
+            <td>The size of the write buffer of JobEventStore. The content will be flushed to external file system once the buffer is full</td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.adaptive-scheduler.min-parallelism-increase</h5></td>
             <td style="word-wrap: break-word;">1</td>
             <td>Integer</td>
@@ -87,6 +111,18 @@
             <td>The maximum time the JobManager will wait to acquire all required resources after a job submission or restart. Once elapsed it will try to run the job with a lower parallelism, or fail if the minimum amount of resources could not be acquired.<br />Increasing this value will make the cluster more resilient against temporary resources shortages (e.g., there is more time for a failed TaskManager to be restarted).<br />Setting a negative duration will disable the resource timeout: The JobManager will wait indefinitely for resources to appear.<br />If <code class="highlighter-rouge">scheduler-mode</code> is configured to <code class="highlighter-rouge">REACTIVE</code>, this configuration value will default to a negative value to disable the resource timeout.</td>
         </tr>
         <tr>
+            <td><h5>jobmanager.adaptive-scheduler.scaling-interval.max</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Duration</td>
+            <td>Determines the maximum interval time after which a scaling operation is forced even if the <code class="highlighter-rouge">jobmanager.adaptive-scheduler.min-parallelism-increase</code> aren't met. The scaling operation will be ignored when the resource hasn't changed. This option is disabled by default.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.adaptive-scheduler.scaling-interval.min</h5></td>
+            <td style="word-wrap: break-word;">30 s</td>
+            <td>Duration</td>
+            <td>Determines the minimum time between scaling operations.</td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.partition.hybrid.partition-data-consume-constraint</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td><p>Enum</p></td>
@@ -96,7 +132,7 @@
             <td><h5>jobmanager.scheduler</h5></td>
             <td style="word-wrap: break-word;">Default</td>
             <td><p>Enum</p></td>
-            <td>Determines which scheduler implementation is used to schedule tasks. Accepted values are:<ul><li>'Default': Default scheduler</li><li>'Adaptive': Adaptive scheduler. More details can be found <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/deployment/elastic_scaling#adaptive-scheduler">here</a>.</li><li>'AdaptiveBatch': Adaptive batch scheduler. More details can be found <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/deployment/elastic_scaling#adaptive-batch-scheduler">here</a>.</li></ul><br /><br />Possible values:<ul><li>"Default"</li><li>"Adaptive"</li><li>"AdaptiveBatch"</li></ul></td>
+            <td>Determines which scheduler implementation is used to schedule tasks. If this option is not explicitly set, batch jobs will use the 'AdaptiveBatch' scheduler as the default, while streaming jobs will default to the 'Default' scheduler. <br /><br />Possible values:<ul><li>"Default": Default scheduler</li><li>"Adaptive": Adaptive scheduler. More details can be found <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/deployment/elastic_scaling#adaptive-scheduler">here</a>.</li><li>"AdaptiveBatch": Adaptive batch scheduler. More details can be found <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/deployment/elastic_scaling#adaptive-batch-scheduler">here</a>.</li></ul></td>
         </tr>
         <tr>
             <td><h5>scheduler-mode</h5></td>
@@ -129,10 +165,28 @@
             <td>Maximum memory size the Flink cluster allocates for slots. Resources for JobManager and TaskManager framework are excluded. If not configured, it will be derived from 'slotmanager.number-of-slots.max'.</td>
         </tr>
         <tr>
+            <td><h5>slotmanager.min-total-resource.cpu</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Double</td>
+            <td>Minimum cpu cores the Flink cluster allocates for slots. Resources for JobManager and TaskManager framework are excluded. If not configured, it will be derived from 'slotmanager.number-of-slots.min'.</td>
+        </tr>
+        <tr>
+            <td><h5>slotmanager.min-total-resource.memory</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>MemorySize</td>
+            <td>Minimum memory size the Flink cluster allocates for slots. Resources for JobManager and TaskManager framework are excluded. If not configured, it will be derived from 'slotmanager.number-of-slots.min'.</td>
+        </tr>
+        <tr>
             <td><h5>slotmanager.number-of-slots.max</h5></td>
             <td style="word-wrap: break-word;">infinite</td>
             <td>Integer</td>
             <td>Defines the maximum number of slots that the Flink cluster allocates. This configuration option is meant for limiting the resource consumption for batch workloads. It is not recommended to configure this option for streaming workloads, which may fail if there are not enough slots. Note that this configuration option does not take effect for standalone clusters, where how many slots are allocated is not controlled by Flink.</td>
+        </tr>
+        <tr>
+            <td><h5>slotmanager.number-of-slots.min</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Integer</td>
+            <td>Defines the minimum number of slots that the Flink cluster allocates. This configuration option is meant for cluster to initialize certain workers in best efforts when starting. This can be used to speed up a job startup process. Note that this configuration option does not take effect for standalone clusters, where how many slots are allocated is not controlled by Flink.</td>
         </tr>
         <tr>
             <td><h5>slow-task-detector.check-interval</h5></td>
@@ -157,6 +211,12 @@
             <td style="word-wrap: break-word;">0.75</td>
             <td>Double</td>
             <td>The finished execution ratio threshold to calculate the slow tasks detection baseline. Given that the parallelism is N and the ratio is R, define T as the median of the first N*R finished tasks' execution time. The baseline will be T*M, where M is the multiplier of the baseline. Note that the execution time will be weighted with the task's input bytes to ensure the accuracy of the detection if data skew occurs.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.load-balance.mode</h5></td>
+            <td style="word-wrap: break-word;">NONE</td>
+            <td><p>Enum</p></td>
+            <td>Mode for the load-balance allocation strategy across all available <code class="highlighter-rouge">TaskManagers</code>.<ul><li>The <code class="highlighter-rouge">SLOTS</code> mode tries to spread out the slots evenly across all available <code class="highlighter-rouge">TaskManagers</code>.</li><li>The <code class="highlighter-rouge">NONE</code> mode is the default mode without any specified strategy.</li></ul><br /><br />Possible values:<ul><li>"NONE"</li><li>"SLOTS"</li></ul></td>
         </tr>
     </tbody>
 </table>

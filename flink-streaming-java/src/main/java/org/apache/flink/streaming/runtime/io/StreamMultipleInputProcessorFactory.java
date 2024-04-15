@@ -44,6 +44,7 @@ import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
@@ -113,8 +114,7 @@ public class StreamMultipleInputProcessorFactory {
                                 networkInput.getTypeSerializer(),
                                 ioManager,
                                 new StatusWatermarkValve(
-                                        checkpointedInputGates[networkInput.getInputGateIndex()]
-                                                .getNumberOfInputChannels()),
+                                        checkpointedInputGates[networkInput.getInputGateIndex()]),
                                 i,
                                 inflightDataRescalingDescriptor,
                                 gatePartitioners,
@@ -178,6 +178,7 @@ public class StreamMultipleInputProcessorFactory {
                             executionConfig.isObjectReuseEnabled(),
                             streamConfig.getManagedMemoryFractionOperatorUseCaseOfSlot(
                                     ManagedMemoryUseCase.OPERATOR,
+                                    jobConfig,
                                     taskManagerConfig,
                                     userClassloader),
                             taskManagerConfig,
@@ -288,6 +289,11 @@ public class StreamMultipleInputProcessorFactory {
         @Override
         public void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception {
             input.processLatencyMarker(latencyMarker);
+        }
+
+        @Override
+        public void emitRecordAttributes(RecordAttributes recordAttributes) throws Exception {
+            input.processRecordAttributes(recordAttributes);
         }
     }
 

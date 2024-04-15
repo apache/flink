@@ -18,19 +18,17 @@
 
 package org.apache.flink.runtime.memory;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.function.LongConsumer;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link SharedResources} class. */
-public class SharedResourcesTest {
+class SharedResourcesTest {
 
     @Test
-    public void testAllocatedResourcesInMap() throws Exception {
+    void testAllocatedResourcesInMap() throws Exception {
         final SharedResources resources = new SharedResources();
 
         final TestResource tr =
@@ -39,12 +37,12 @@ public class SharedResourcesTest {
                                 "theType", new Object(), TestResource::new, 100)
                         .resourceHandle();
 
-        assertEquals(1, resources.getNumResources());
-        assertFalse(tr.closed);
+        assertThat(resources.getNumResources()).isOne();
+        assertThat(tr.closed).isFalse();
     }
 
     @Test
-    public void testIntermediateReleaseDoesNotRemoveFromMap() throws Exception {
+    void testIntermediateReleaseDoesNotRemoveFromMap() throws Exception {
         final SharedResources resources = new SharedResources();
         final String type = "theType";
         final Object leaseHolder1 = new Object();
@@ -55,11 +53,11 @@ public class SharedResourcesTest {
 
         resources.release(type, leaseHolder1);
 
-        assertEquals(1, resources.getNumResources());
+        assertThat(resources.getNumResources()).isOne();
     }
 
     @Test
-    public void testReleaseIsIdempotent() throws Exception {
+    void testReleaseIsIdempotent() throws Exception {
         final SharedResources resources = new SharedResources();
         final String type = "theType";
         final Object leaseHolder1 = new Object();
@@ -71,11 +69,11 @@ public class SharedResourcesTest {
         resources.release(type, leaseHolder2);
         resources.release(type, leaseHolder2);
 
-        assertEquals(1, resources.getNumResources());
+        assertThat(resources.getNumResources()).isOne();
     }
 
     @Test
-    public void testLastReleaseRemovesFromMap() throws Exception {
+    void testLastReleaseRemovesFromMap() throws Exception {
         final SharedResources resources = new SharedResources();
         final String type = "theType";
         final Object leaseHolder = new Object();
@@ -83,11 +81,11 @@ public class SharedResourcesTest {
 
         resources.release(type, leaseHolder);
 
-        assertEquals(0, resources.getNumResources());
+        assertThat(resources.getNumResources()).isZero();
     }
 
     @Test
-    public void testLastReleaseDisposesResource() throws Exception {
+    void testLastReleaseDisposesResource() throws Exception {
         final SharedResources resources = new SharedResources();
         final String type = "theType";
         final Object leaseHolder = new Object();
@@ -99,11 +97,11 @@ public class SharedResourcesTest {
 
         resources.release(type, leaseHolder);
 
-        assertTrue(tr.closed);
+        assertThat(tr.closed).isTrue();
     }
 
     @Test
-    public void testLastReleaseCallsReleaseHook() throws Exception {
+    void testLastReleaseCallsReleaseHook() throws Exception {
         final String type = "theType";
         final long size = 100;
         final SharedResources resources = new SharedResources();
@@ -113,16 +111,16 @@ public class SharedResourcesTest {
         resources.getOrAllocateSharedResource(type, leaseHolder, TestResource::new, size);
         resources.release(type, leaseHolder, hook);
 
-        assertTrue(hook.wasCalled);
+        assertThat(hook.wasCalled).isTrue();
     }
 
     @Test
-    public void testReleaseNoneExistingLease() throws Exception {
+    void testReleaseNoneExistingLease() throws Exception {
         final SharedResources resources = new SharedResources();
 
         resources.release("theType", new Object());
 
-        assertEquals(0, resources.getNumResources());
+        assertThat(resources.getNumResources()).isZero();
     }
 
     // ------------------------------------------------------------------------
@@ -157,7 +155,7 @@ public class SharedResourcesTest {
         @Override
         public void accept(long value) {
             wasCalled = true;
-            assertEquals(expectedValue, value);
+            assertThat(value).isEqualTo(expectedValue);
         }
     }
 }

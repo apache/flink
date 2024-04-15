@@ -23,7 +23,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.planner.utils.{CountMinMax, TableTestBase}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class AggregateTest extends TableTestBase {
 
@@ -123,7 +123,7 @@ class AggregateTest extends TableTestBase {
 
     val resultTable = table
       .groupBy('b)
-      .select('b, 'a.cast(BasicTypeInfo.DOUBLE_TYPE_INFO).avg)
+      .select('b, 'a.cast(DataTypes.DOUBLE()).avg)
 
     util.verifyExecPlan(resultTable)
   }

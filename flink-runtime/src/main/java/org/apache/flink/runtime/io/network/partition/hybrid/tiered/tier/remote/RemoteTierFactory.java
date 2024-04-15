@@ -71,8 +71,7 @@ public class RemoteTierFactory implements TierFactory {
             BatchShuffleReadBufferPool bufferPool,
             ScheduledExecutorService ioExecutor,
             int maxRequestedBuffers,
-            Duration bufferRequestTimeout,
-            int maxBufferReadAhead) {
+            Duration bufferRequestTimeout) {
         PartitionFileWriter partitionFileWriter =
                 SegmentPartitionFile.createPartitionFileWriter(remoteStoragePath, numSubpartitions);
         return new RemoteTierProducerAgent(
@@ -94,6 +93,9 @@ public class RemoteTierFactory implements TierFactory {
                 SegmentPartitionFile.createPartitionFileReader(remoteStoragePath);
         RemoteStorageScanner remoteStorageScanner = new RemoteStorageScanner(remoteStoragePath);
         return new RemoteTierConsumerAgent(
-                remoteStorageScanner, partitionFileReader, bufferSizeBytes);
+                tieredStorageConsumerSpecs,
+                remoteStorageScanner,
+                partitionFileReader,
+                bufferSizeBytes);
     }
 }

@@ -247,8 +247,8 @@ public class CompactorOperator
         // A summary must be sent before all results during this checkpoint
         CommittableSummary<FileSinkCommittable> summary =
                 new CommittableSummary<>(
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getNumberOfParallelSubtasks(),
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks(),
                         checkpointId,
                         compacted.size(),
                         compacted.size(),
@@ -257,7 +257,9 @@ public class CompactorOperator
         for (FileSinkCommittable c : compacted) {
             CommittableWithLineage<FileSinkCommittable> comm =
                     new CommittableWithLineage<>(
-                            c, checkpointId, getRuntimeContext().getIndexOfThisSubtask());
+                            c,
+                            checkpointId,
+                            getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
             output.collect(new StreamRecord<>(comm));
         }
     }

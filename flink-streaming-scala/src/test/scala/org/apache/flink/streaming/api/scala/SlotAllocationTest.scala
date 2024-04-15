@@ -41,7 +41,7 @@ class SlotAllocationTest {
     }
 
     env
-      .generateSequence(1, 10)
+      .fromSequence(1, 10)
       .filter(dummyFilter)
       .slotSharingGroup("isolated")
       .filter(dummyFilter)
@@ -56,7 +56,7 @@ class SlotAllocationTest {
 
     // verify that a second pipeline does not inherit the groups from the first pipeline
     env
-      .generateSequence(1, 10)
+      .fromSequence(1, 10)
       .filter(dummyFilter)
       .slotSharingGroup("isolated-2")
       .filter(dummyFilter)

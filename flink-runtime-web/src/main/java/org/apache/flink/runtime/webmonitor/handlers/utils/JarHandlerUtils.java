@@ -46,6 +46,7 @@ import org.slf4j.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -182,15 +183,20 @@ public class JarHandlerUtils {
             }
 
             try {
-                return PackagedProgram.newBuilder()
-                        .setJarFile(jarFile.toFile())
-                        .setEntryPointClassName(entryClass)
-                        .setConfiguration(configuration)
-                        .setArguments(programArgs.toArray(new String[0]))
-                        .build();
+                return initPackagedProgramBuilder(configuration).build();
             } catch (final ProgramInvocationException e) {
                 throw new CompletionException(e);
             }
+        }
+
+        @VisibleForTesting
+        PackagedProgram.Builder initPackagedProgramBuilder(Configuration configuration) {
+            return PackagedProgram.newBuilder()
+                    .setJarFile(jarFile.toFile())
+                    .setEntryPointClassName(entryClass)
+                    .setConfiguration(configuration)
+                    .setUserClassPaths(getClasspaths(configuration))
+                    .setArguments(programArgs.toArray(new String[0]));
         }
 
         @VisibleForTesting
@@ -211,6 +217,21 @@ public class JarHandlerUtils {
         @VisibleForTesting
         JobID getJobId() {
             return jobId;
+        }
+    }
+
+    private static List<URL> getClasspaths(Configuration configuration) {
+        try {
+            return ConfigUtils.decodeListFromConfig(
+                    configuration, PipelineOptions.CLASSPATHS, URL::new);
+        } catch (MalformedURLException e) {
+            throw new CompletionException(
+                    new RestHandlerException(
+                            String.format(
+                                    "Failed to extract '%s' as URLs. Provided value: %s",
+                                    PipelineOptions.CLASSPATHS.key(),
+                                    configuration.get(PipelineOptions.CLASSPATHS)),
+                            HttpResponseStatus.BAD_REQUEST));
         }
     }
 

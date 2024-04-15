@@ -19,9 +19,9 @@
 package org.apache.flink.connector.print.table;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.util.PrintSinkOutputWriter;
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -174,10 +174,12 @@ public class PrintTableSinkFactory implements DynamicTableSinkFactory {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             StreamingRuntimeContext context = (StreamingRuntimeContext) getRuntimeContext();
-            writer.open(context.getIndexOfThisSubtask(), context.getNumberOfParallelSubtasks());
+            writer.open(
+                    context.getTaskInfo().getIndexOfThisSubtask(),
+                    context.getTaskInfo().getNumberOfParallelSubtasks());
         }
 
         @Override

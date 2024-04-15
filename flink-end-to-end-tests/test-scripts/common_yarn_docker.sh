@@ -99,7 +99,7 @@ function start_hadoop_cluster() {
 function build_image() {
     echo "Pre-downloading Hadoop tarball"
     local cache_path
-    cache_path=$(get_artifact "http://archive.apache.org/dist/hadoop/common/hadoop-2.10.2/hadoop-2.10.2.tar.gz")
+    cache_path=$(get_artifact "https://archive.apache.org/dist/hadoop/common/hadoop-2.10.2/hadoop-2.10.2.tar.gz")
     ln "${cache_path}" "${END_TO_END_DIR}/test-scripts/docker-hadoop-secure-cluster/hadoop/hadoop.tar.gz"
 
     echo "Building Hadoop Docker container"
@@ -131,10 +131,10 @@ security.kerberos.login.principal: hadoop-user
 slot.request.timeout: 120000
 END
 )
-    docker exec master bash -c "echo \"${FLINK_CONFIG}\" > /home/hadoop-user/${FLINK_DIRNAME}/conf/flink-conf.yaml"
+    docker exec master bash -c "echo \"${FLINK_CONFIG}\" > /home/hadoop-user/${FLINK_DIRNAME}/conf/config.yaml"
 
     echo "Flink config:"
-    docker exec master bash -c "cat /home/hadoop-user/${FLINK_DIRNAME}/conf/flink-conf.yaml"
+    docker exec master bash -c "cat /home/hadoop-user/${FLINK_DIRNAME}/conf/config.yaml"
 }
 
 function debug_copy_and_show_logs {

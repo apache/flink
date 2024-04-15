@@ -23,6 +23,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
@@ -66,6 +67,7 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
 
     @VisibleForTesting static final String EVENT_TIMER_PREFIX = TIMER_STATE_PREFIX + "/event_";
 
+    private final TaskIOMetricGroup taskIOMetricGroup;
     private final KeyGroupRange localKeyGroupRange;
     private final KeyContext keyContext;
     private final PriorityQueueSetFactory priorityQueueSetFactory;
@@ -75,12 +77,13 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
     private final Map<String, InternalTimerServiceImpl<K, ?>> timerServices;
 
     private InternalTimeServiceManagerImpl(
+            TaskIOMetricGroup taskIOMetricGroup,
             KeyGroupRange localKeyGroupRange,
             KeyContext keyContext,
             PriorityQueueSetFactory priorityQueueSetFactory,
             ProcessingTimeService processingTimeService,
             StreamTaskCancellationContext cancellationContext) {
-
+        this.taskIOMetricGroup = taskIOMetricGroup;
         this.localKeyGroupRange = Preconditions.checkNotNull(localKeyGroupRange);
         this.priorityQueueSetFactory = Preconditions.checkNotNull(priorityQueueSetFactory);
         this.keyContext = Preconditions.checkNotNull(keyContext);
@@ -96,6 +99,7 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
      * <p><b>IMPORTANT:</b> Keep in sync with {@link InternalTimeServiceManager.Provider}.
      */
     public static <K> InternalTimeServiceManagerImpl<K> create(
+            TaskIOMetricGroup taskIOMetricGroup,
             CheckpointableKeyedStateBackend<K> keyedStateBackend,
             ClassLoader userClassloader,
             KeyContext keyContext,
@@ -107,6 +111,7 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
 
         final InternalTimeServiceManagerImpl<K> timeServiceManager =
                 new InternalTimeServiceManagerImpl<>(
+                        taskIOMetricGroup,
                         keyGroupRange,
                         keyContext,
                         keyedStateBackend,
@@ -160,6 +165,7 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
 
             timerService =
                     new InternalTimerServiceImpl<>(
+                            taskIOMetricGroup,
                             localKeyGroupRange,
                             keyContext,
                             processingTimeService,

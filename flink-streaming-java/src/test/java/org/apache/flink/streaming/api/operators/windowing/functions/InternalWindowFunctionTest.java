@@ -20,10 +20,11 @@ package org.apache.flink.streaming.api.operators.windowing.functions;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.AggregateFunction;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichAllWindowFunction;
@@ -45,7 +46,7 @@ import org.apache.flink.streaming.util.functions.StreamingFunctionUtils;
 import org.apache.flink.util.Collector;
 
 import org.hamcrest.collection.IsIterableContainingInOrder;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -68,11 +69,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.hamcrest.MockitoHamcrest.argThat;
 
 /** Tests for {@link InternalWindowFunction}. */
-public class InternalWindowFunctionTest {
+class InternalWindowFunctionTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testInternalIterableAllWindowFunction() throws Exception {
+    void testInternalIterableAllWindowFunction() throws Exception {
 
         AllWindowFunctionMock mock = mock(AllWindowFunctionMock.class);
         InternalIterableAllWindowFunction<Long, String, TimeWindow> windowFunction =
@@ -87,10 +88,10 @@ public class InternalWindowFunctionTest {
         verify(mock).setOutputType(stringType, execConf);
 
         // check open
-        Configuration config = new Configuration();
+        OpenContext openContext = DefaultOpenContext.INSTANCE;
 
-        windowFunction.open(config);
-        verify(mock).open(config);
+        windowFunction.open(openContext);
+        verify(mock).open(openContext);
 
         // check setRuntimeContext
         RuntimeContext rCtx = mock(RuntimeContext.class);
@@ -116,7 +117,7 @@ public class InternalWindowFunctionTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testInternalIterableProcessAllWindowFunction() throws Exception {
+    void testInternalIterableProcessAllWindowFunction() throws Exception {
 
         ProcessAllWindowFunctionMock mock = mock(ProcessAllWindowFunctionMock.class);
         InternalIterableProcessAllWindowFunction<Long, String, TimeWindow> windowFunction =
@@ -131,10 +132,10 @@ public class InternalWindowFunctionTest {
         verify(mock).setOutputType(stringType, execConf);
 
         // check open
-        Configuration config = new Configuration();
+        OpenContext openContext = DefaultOpenContext.INSTANCE;
 
-        windowFunction.open(config);
-        verify(mock).open(config);
+        windowFunction.open(openContext);
+        verify(mock).open(openContext);
 
         // check setRuntimeContext
         RuntimeContext rCtx = mock(RuntimeContext.class);
@@ -159,7 +160,7 @@ public class InternalWindowFunctionTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testInternalIterableWindowFunction() throws Exception {
+    void testInternalIterableWindowFunction() throws Exception {
 
         WindowFunctionMock mock = mock(WindowFunctionMock.class);
         InternalIterableWindowFunction<Long, String, Long, TimeWindow> windowFunction =
@@ -174,10 +175,10 @@ public class InternalWindowFunctionTest {
         verify(mock).setOutputType(stringType, execConf);
 
         // check open
-        Configuration config = new Configuration();
+        OpenContext openContext = DefaultOpenContext.INSTANCE;
 
-        windowFunction.open(config);
-        verify(mock).open(config);
+        windowFunction.open(openContext);
+        verify(mock).open(openContext);
 
         // check setRuntimeContext
         RuntimeContext rCtx = mock(RuntimeContext.class);
@@ -202,7 +203,7 @@ public class InternalWindowFunctionTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testInternalIterableProcessWindowFunction() throws Exception {
+    void testInternalIterableProcessWindowFunction() throws Exception {
 
         ProcessWindowFunctionMock mock = mock(ProcessWindowFunctionMock.class);
         InternalIterableProcessWindowFunction<Long, String, Long, TimeWindow> windowFunction =
@@ -217,10 +218,10 @@ public class InternalWindowFunctionTest {
         verify(mock).setOutputType(stringType, execConf);
 
         // check open
-        Configuration config = new Configuration();
+        OpenContext openContext = DefaultOpenContext.INSTANCE;
 
-        windowFunction.open(config);
-        verify(mock).open(config);
+        windowFunction.open(openContext);
+        verify(mock).open(openContext);
 
         // check setRuntimeContext
         RuntimeContext rCtx = mock(RuntimeContext.class);
@@ -266,7 +267,7 @@ public class InternalWindowFunctionTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testInternalSingleValueWindowFunction() throws Exception {
+    void testInternalSingleValueWindowFunction() throws Exception {
 
         WindowFunctionMock mock = mock(WindowFunctionMock.class);
         InternalSingleValueWindowFunction<Long, String, Long, TimeWindow> windowFunction =
@@ -282,10 +283,10 @@ public class InternalWindowFunctionTest {
         verify(mock).setOutputType(stringType, execConf);
 
         // check open
-        Configuration config = new Configuration();
+        OpenContext openContext = DefaultOpenContext.INSTANCE;
 
-        windowFunction.open(config);
-        verify(mock).open(config);
+        windowFunction.open(openContext);
+        verify(mock).open(openContext);
 
         // check setRuntimeContext
         RuntimeContext rCtx = mock(RuntimeContext.class);
@@ -314,7 +315,7 @@ public class InternalWindowFunctionTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testInternalSingleValueAllWindowFunction() throws Exception {
+    void testInternalSingleValueAllWindowFunction() throws Exception {
 
         AllWindowFunctionMock mock = mock(AllWindowFunctionMock.class);
         InternalSingleValueAllWindowFunction<Long, String, TimeWindow> windowFunction =
@@ -330,10 +331,10 @@ public class InternalWindowFunctionTest {
         verify(mock).setOutputType(stringType, execConf);
 
         // check open
-        Configuration config = new Configuration();
+        OpenContext openContext = DefaultOpenContext.INSTANCE;
 
-        windowFunction.open(config);
-        verify(mock).open(config);
+        windowFunction.open(openContext);
+        verify(mock).open(openContext);
 
         // check setRuntimeContext
         RuntimeContext rCtx = mock(RuntimeContext.class);
@@ -361,7 +362,7 @@ public class InternalWindowFunctionTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testInternalSingleValueProcessAllWindowFunction() throws Exception {
+    void testInternalSingleValueProcessAllWindowFunction() throws Exception {
 
         ProcessAllWindowFunctionMock mock = mock(ProcessAllWindowFunctionMock.class);
         InternalSingleValueProcessAllWindowFunction<Long, String, TimeWindow> windowFunction =
@@ -377,10 +378,10 @@ public class InternalWindowFunctionTest {
         verify(mock).setOutputType(stringType, execConf);
 
         // check open
-        Configuration config = new Configuration();
+        OpenContext openContext = DefaultOpenContext.INSTANCE;
 
-        windowFunction.open(config);
-        verify(mock).open(config);
+        windowFunction.open(openContext);
+        verify(mock).open(openContext);
 
         // check setRuntimeContext
         RuntimeContext rCtx = mock(RuntimeContext.class);
@@ -408,7 +409,7 @@ public class InternalWindowFunctionTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testInternalSingleValueProcessWindowFunction() throws Exception {
+    void testInternalSingleValueProcessWindowFunction() throws Exception {
 
         ProcessWindowFunctionMock mock = mock(ProcessWindowFunctionMock.class);
         InternalSingleValueProcessWindowFunction<Long, String, Long, TimeWindow> windowFunction =
@@ -423,10 +424,10 @@ public class InternalWindowFunctionTest {
         verify(mock).setOutputType(stringType, execConf);
 
         // check open
-        Configuration config = new Configuration();
+        OpenContext openContext = DefaultOpenContext.INSTANCE;
 
-        windowFunction.open(config);
-        verify(mock).open(config);
+        windowFunction.open(openContext);
+        verify(mock).open(openContext);
 
         // check setRuntimeContext
         RuntimeContext rCtx = mock(RuntimeContext.class);
@@ -475,7 +476,7 @@ public class InternalWindowFunctionTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testInternalAggregateProcessWindowFunction() throws Exception {
+    void testInternalAggregateProcessWindowFunction() throws Exception {
 
         AggregateProcessWindowFunctionMock mock = mock(AggregateProcessWindowFunctionMock.class);
 
@@ -523,10 +524,10 @@ public class InternalWindowFunctionTest {
         verify(mock).setOutputType(stringType, execConf);
 
         // check open
-        Configuration config = new Configuration();
+        OpenContext openContext = DefaultOpenContext.INSTANCE;
 
-        windowFunction.open(config);
-        verify(mock).open(config);
+        windowFunction.open(openContext);
+        verify(mock).open(openContext);
 
         // check setRuntimeContext
         RuntimeContext rCtx = mock(RuntimeContext.class);
@@ -584,7 +585,7 @@ public class InternalWindowFunctionTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testInternalAggregateProcessAllWindowFunction() throws Exception {
+    void testInternalAggregateProcessAllWindowFunction() throws Exception {
 
         AggregateProcessAllWindowFunctionMock mock =
                 mock(AggregateProcessAllWindowFunctionMock.class);
@@ -633,10 +634,10 @@ public class InternalWindowFunctionTest {
         verify(mock).setOutputType(stringType, execConf);
 
         // check open
-        Configuration config = new Configuration();
+        OpenContext openContext = DefaultOpenContext.INSTANCE;
 
-        windowFunction.open(config);
-        verify(mock).open(config);
+        windowFunction.open(openContext);
+        verify(mock).open(openContext);
 
         // check setRuntimeContext
         RuntimeContext rCtx = mock(RuntimeContext.class);

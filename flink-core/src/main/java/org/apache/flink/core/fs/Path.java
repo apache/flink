@@ -28,6 +28,8 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.StringUtils;
 
+import javax.annotation.Nullable;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
@@ -40,6 +42,9 @@ import java.util.regex.Pattern;
  * separator. A path string is absolute if it begins with a slash.
  *
  * <p>Tailing slashes are removed from the path.
+ *
+ * <p>Note: Path will no longer implement {@link IOReadableWritable} in future versions. Please use
+ * {@code serializeToDataOutputView} and {@code deserializeFromDataInputView} instead.
  */
 @Public
 public class Path implements IOReadableWritable, Serializable {
@@ -57,6 +62,9 @@ public class Path implements IOReadableWritable, Serializable {
 
     /** A pre-compiled regex/state-machine to match the windows drive pattern. */
     private static final Pattern WINDOWS_ROOT_DIR_REGEX = Pattern.compile("/\\p{Alpha}+:/");
+
+    /** A pre-compiled regex to identify duplicate consecutive slashes. */
+    private static final Pattern DUPLICATE_CONSECUTIVE_SLASHES = Pattern.compile("/{2,}");
 
     /** The internal representation of the path, a hierarchical URI. */
     private URI uri;
@@ -240,7 +248,9 @@ public class Path implements IOReadableWritable, Serializable {
     private String normalizePath(String path) {
         // remove consecutive slashes & backslashes
         path = path.replace("\\", "/");
-        path = path.replaceAll("/+", "/");
+        if (path.contains("//")) {
+            path = DUPLICATE_CONSECUTIVE_SLASHES.matcher(path).replaceAll("/");
+        }
 
         // remove tailing separator
         if (path.endsWith(SEPARATOR)
@@ -443,40 +453,43 @@ public class Path implements IOReadableWritable, Serializable {
     //  Legacy Serialization
     // ------------------------------------------------------------------------
 
+    /**
+     * Read uri from {@link DataInputView}.
+     *
+     * @param in the input view to read the uri.
+     * @throws IOException if an error happened.
+     * @deprecated the method is deprecated since Flink 1.19 because Path will no longer implement
+     *     {@link IOReadableWritable} in future versions. Please use {@code
+     *     deserializeFromDataInputView} instead.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-347%3A+Remove+IOReadableWritable
+     *     +serialization+in+Path"> FLIP-347: Remove IOReadableWritable serialization in Path </a>
+     */
+    @Deprecated
     @Override
     public void read(DataInputView in) throws IOException {
-        final boolean isNotNull = in.readBoolean();
-        if (isNotNull) {
-            final String scheme = StringUtils.readNullableString(in);
-            final String userInfo = StringUtils.readNullableString(in);
-            final String host = StringUtils.readNullableString(in);
-            final int port = in.readInt();
-            final String path = StringUtils.readNullableString(in);
-            final String query = StringUtils.readNullableString(in);
-            final String fragment = StringUtils.readNullableString(in);
-
-            try {
-                uri = new URI(scheme, userInfo, host, port, path, query, fragment);
-            } catch (URISyntaxException e) {
-                throw new IOException("Error reconstructing URI", e);
-            }
+        Path path = deserializeFromDataInputView(in);
+        if (path != null) {
+            uri = path.toUri();
         }
     }
 
+    /**
+     * Write uri to {@link DataOutputView}.
+     *
+     * @param out the output view to be written the uri.
+     * @throws IOException if an error happened.
+     * @deprecated the method is deprecated since Flink 1.19 because Path will no longer implement
+     *     {@link IOReadableWritable} in future versions. Please use {@code
+     *     serializeToDataOutputView} instead.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-347%3A+Remove+IOReadableWritable
+     *     +serialization+in+Path"> FLIP-347: Remove IOReadableWritable serialization in Path </a>
+     */
+    @Deprecated
     @Override
     public void write(DataOutputView out) throws IOException {
-        if (uri == null) {
-            out.writeBoolean(false);
-        } else {
-            out.writeBoolean(true);
-            StringUtils.writeNullableString(uri.getScheme(), out);
-            StringUtils.writeNullableString(uri.getUserInfo(), out);
-            StringUtils.writeNullableString(uri.getHost(), out);
-            out.writeInt(uri.getPort());
-            StringUtils.writeNullableString(uri.getPath(), out);
-            StringUtils.writeNullableString(uri.getQuery(), out);
-            StringUtils.writeNullableString(uri.getFragment(), out);
-        }
+        serializeToDataOutputView(this, out);
     }
 
     // ------------------------------------------------------------------------
@@ -525,5 +538,57 @@ public class Path implements IOReadableWritable, Serializable {
      */
     public static Path fromLocalFile(File file) {
         return new Path(file.toURI());
+    }
+
+    /**
+     * Deserialize the Path from {@link DataInputView}.
+     *
+     * @param in the data input view.
+     * @return the path
+     * @throws IOException if an error happened.
+     */
+    @Nullable
+    public static Path deserializeFromDataInputView(DataInputView in) throws IOException {
+        final boolean isNotNull = in.readBoolean();
+        Path result = null;
+        if (isNotNull) {
+            final String scheme = StringUtils.readNullableString(in);
+            final String userInfo = StringUtils.readNullableString(in);
+            final String host = StringUtils.readNullableString(in);
+            final int port = in.readInt();
+            final String path = StringUtils.readNullableString(in);
+            final String query = StringUtils.readNullableString(in);
+            final String fragment = StringUtils.readNullableString(in);
+
+            try {
+                result = new Path(new URI(scheme, userInfo, host, port, path, query, fragment));
+            } catch (URISyntaxException e) {
+                throw new IOException("Error reconstructing URI", e);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Serialize the path to {@link DataInputView}.
+     *
+     * @param path the file path.
+     * @param out the data out put view.
+     * @throws IOException if an error happened.
+     */
+    public static void serializeToDataOutputView(Path path, DataOutputView out) throws IOException {
+        URI uri = path.toUri();
+        if (uri == null) {
+            out.writeBoolean(false);
+        } else {
+            out.writeBoolean(true);
+            StringUtils.writeNullableString(uri.getScheme(), out);
+            StringUtils.writeNullableString(uri.getUserInfo(), out);
+            StringUtils.writeNullableString(uri.getHost(), out);
+            out.writeInt(uri.getPort());
+            StringUtils.writeNullableString(uri.getPath(), out);
+            StringUtils.writeNullableString(uri.getQuery(), out);
+            StringUtils.writeNullableString(uri.getFragment(), out);
+        }
     }
 }

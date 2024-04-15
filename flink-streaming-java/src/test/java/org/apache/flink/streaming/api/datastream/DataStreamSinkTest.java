@@ -20,26 +20,35 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
-import org.apache.flink.streaming.runtime.operators.sink.TestSink;
+import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Unit test for {@link DataStreamSink}. */
-public class DataStreamSinkTest {
+class DataStreamSinkTest {
 
     @Test
-    public void testGettingTransformationWithNewSinkAPI() {
+    void testGettingTransformationWithNewSinkAPI() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final Transformation<?> transformation =
-                env.fromElements(1, 2).sinkTo(TestSink.newBuilder().build()).getTransformation();
-        assertTrue(transformation instanceof SinkTransformation);
+                env.fromData(1, 2)
+                        .sinkTo(TestSinkV2.<Integer>newBuilder().build())
+                        .getTransformation();
+        assertThat(transformation).isInstanceOf(SinkTransformation.class);
     }
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void throwExceptionWhenSetUidWithNewSinkAPI() {
+    @Test
+    void throwExceptionWhenSetUidWithNewSinkAPI() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.fromElements(1, 2).sinkTo(TestSink.newBuilder().build()).setUidHash("Test");
+
+        assertThatThrownBy(
+                        () ->
+                                env.fromData(1, 2)
+                                        .sinkTo(TestSinkV2.<Integer>newBuilder().build())
+                                        .setUidHash("Test"))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 }

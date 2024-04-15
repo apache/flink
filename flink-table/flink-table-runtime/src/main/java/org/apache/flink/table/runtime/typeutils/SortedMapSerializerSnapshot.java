@@ -100,12 +100,13 @@ public class SortedMapSerializerSnapshot<K, V> implements TypeSerializerSnapshot
 
     @Override
     public TypeSerializerSchemaCompatibility<SortedMap<K, V>> resolveSchemaCompatibility(
-            TypeSerializer<SortedMap<K, V>> newSerializer) {
-        if (!(newSerializer instanceof SortedMapSerializer)) {
+            TypeSerializerSnapshot<SortedMap<K, V>> oldSerializerSnapshot) {
+        if (!(oldSerializerSnapshot instanceof SortedMapSerializerSnapshot)) {
             return TypeSerializerSchemaCompatibility.incompatible();
         }
-        SortedMapSerializer newSortedMapSerializer = (SortedMapSerializer) newSerializer;
-        if (!comparator.equals(newSortedMapSerializer.getComparator())) {
+        SortedMapSerializerSnapshot<K, V> oldSortedMapSerializerSnapshot =
+                (SortedMapSerializerSnapshot<K, V>) oldSerializerSnapshot;
+        if (!comparator.equals(oldSortedMapSerializerSnapshot.comparator)) {
             return TypeSerializerSchemaCompatibility.incompatible();
         } else {
             return TypeSerializerSchemaCompatibility.compatibleAsIs();

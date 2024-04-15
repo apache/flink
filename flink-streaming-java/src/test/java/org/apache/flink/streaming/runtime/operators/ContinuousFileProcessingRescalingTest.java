@@ -36,8 +36,7 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.SteppingMailboxProcessor
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Preconditions;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
@@ -50,16 +49,17 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness.repackageState;
 import static org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness.repartitionOperatorState;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test processing files during rescaling. */
-public class ContinuousFileProcessingRescalingTest {
+class ContinuousFileProcessingRescalingTest {
 
     private final int maxParallelism = 10;
     private final int sizeOfSplit = 20;
 
     /** Simulates the scenario of scaling down from 2 to 1 instances. */
     @Test
-    public void testReaderScalingDown() throws Exception {
+    void testReaderScalingDown() throws Exception {
         HarnessWithFormat[] beforeRescale = {};
         try {
             beforeRescale = buildAndStart(5, 15);
@@ -76,7 +76,7 @@ public class ContinuousFileProcessingRescalingTest {
                     i.awaitEverythingProcessed();
                 }
 
-                Assert.assertEquals(collectOutput(beforeRescale), collectOutput(afterRescale));
+                assertThat(collectOutput(afterRescale)).isEqualTo(collectOutput(beforeRescale));
             }
         } finally {
             for (HarnessWithFormat harness : beforeRescale) {
@@ -87,7 +87,7 @@ public class ContinuousFileProcessingRescalingTest {
 
     /** Simulates the scenario of scaling up from 1 to 2 instances. */
     @Test
-    public void testReaderScalingUp() throws Exception {
+    void testReaderScalingUp() throws Exception {
         try (HarnessWithFormat beforeRescale = buildAndStart(1, 0, 5, null, buildSplits(2))) {
             OperatorSubtaskState snapshot = beforeRescale.getHarness().snapshot(0, 0);
             try (HarnessWithFormat afterRescale0 =
@@ -110,8 +110,8 @@ public class ContinuousFileProcessingRescalingTest {
                     harness.awaitEverythingProcessed();
                 }
 
-                Assert.assertEquals(
-                        collectOutput(beforeRescale), collectOutput(afterRescale0, afterRescale1));
+                assertThat(collectOutput(afterRescale0, afterRescale1))
+                        .isEqualTo(collectOutput(beforeRescale));
             }
         }
     }

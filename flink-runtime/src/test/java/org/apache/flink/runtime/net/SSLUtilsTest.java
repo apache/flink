@@ -109,7 +109,7 @@ public class SSLUtilsTest {
     @MethodSource("parameters")
     void testRESTClientSSLDisabled(String sslProvider) {
         Configuration clientConfig = createRestSslConfigWithTrustStore(sslProvider);
-        clientConfig.setBoolean(SecurityOptions.SSL_REST_ENABLED, false);
+        clientConfig.set(SecurityOptions.SSL_REST_ENABLED, false);
 
         assertThatThrownBy(() -> SSLUtils.createRestClientSSLEngineFactory(clientConfig))
                 .isInstanceOf(IllegalConfigurationException.class);
@@ -119,8 +119,8 @@ public class SSLUtilsTest {
     @Test
     void testRESTClientSSLMissingTrustStore() {
         Configuration config = new Configuration();
-        config.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
-        config.setString(SecurityOptions.SSL_REST_TRUSTSTORE_PASSWORD, "some password");
+        config.set(SecurityOptions.SSL_REST_ENABLED, true);
+        config.set(SecurityOptions.SSL_REST_TRUSTSTORE_PASSWORD, "some password");
 
         assertThatThrownBy(() -> SSLUtils.createRestClientSSLEngineFactory(config))
                 .isInstanceOf(IllegalConfigurationException.class);
@@ -130,8 +130,8 @@ public class SSLUtilsTest {
     @Test
     void testRESTClientSSLMissingPassword() {
         Configuration config = new Configuration();
-        config.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
-        config.setString(SecurityOptions.SSL_REST_TRUSTSTORE, TRUST_STORE_PATH);
+        config.set(SecurityOptions.SSL_REST_ENABLED, true);
+        config.set(SecurityOptions.SSL_REST_TRUSTSTORE, TRUST_STORE_PATH);
 
         assertThatThrownBy(() -> SSLUtils.createRestClientSSLEngineFactory(config))
                 .isInstanceOf(IllegalConfigurationException.class);
@@ -142,7 +142,7 @@ public class SSLUtilsTest {
     @MethodSource("parameters")
     void testRESTClientSSLWrongPassword(String sslProvider) {
         Configuration clientConfig = createRestSslConfigWithTrustStore(sslProvider);
-        clientConfig.setString(SecurityOptions.SSL_REST_TRUSTSTORE_PASSWORD, "badpassword");
+        clientConfig.set(SecurityOptions.SSL_REST_TRUSTSTORE_PASSWORD, "badpassword");
 
         assertThatThrownBy(() -> SSLUtils.createRestClientSSLEngineFactory(clientConfig))
                 .isInstanceOf(Exception.class);
@@ -150,10 +150,10 @@ public class SSLUtilsTest {
 
     @ParameterizedTest
     @MethodSource("parameters")
-    public void testRESTSSLConfigCipherAlgorithms(String sslProvider) throws Exception {
+    void testRESTSSLConfigCipherAlgorithms(String sslProvider) throws Exception {
         String testSSLAlgorithms = "test_algorithm1,test_algorithm2";
         Configuration config = createRestSslConfigWithTrustStore(sslProvider);
-        config.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
+        config.set(SecurityOptions.SSL_REST_ENABLED, true);
         config.setString(SecurityOptions.SSL_ALGORITHMS.key(), testSSLAlgorithms);
         JdkSslContext nettySSLContext =
                 (JdkSslContext)
@@ -180,7 +180,7 @@ public class SSLUtilsTest {
     @MethodSource("parameters")
     void testRESTServerSSLDisabled(String sslProvider) {
         Configuration serverConfig = createRestSslConfigWithKeyStore(sslProvider);
-        serverConfig.setBoolean(SecurityOptions.SSL_REST_ENABLED, false);
+        serverConfig.set(SecurityOptions.SSL_REST_ENABLED, false);
 
         assertThatThrownBy(() -> SSLUtils.createRestServerSSLEngineFactory(serverConfig))
                 .isInstanceOf(IllegalConfigurationException.class);
@@ -191,7 +191,7 @@ public class SSLUtilsTest {
     @MethodSource("parameters")
     void testRESTServerSSLBadKeystorePassword(String sslProvider) {
         Configuration serverConfig = createRestSslConfigWithKeyStore(sslProvider);
-        serverConfig.setString(SecurityOptions.SSL_REST_KEYSTORE_PASSWORD, "badpassword");
+        serverConfig.set(SecurityOptions.SSL_REST_KEYSTORE_PASSWORD, "badpassword");
 
         assertThatThrownBy(() -> SSLUtils.createRestServerSSLEngineFactory(serverConfig))
                 .isInstanceOf(Exception.class);
@@ -202,7 +202,7 @@ public class SSLUtilsTest {
     @MethodSource("parameters")
     void testRESTServerSSLBadKeyPassword(String sslProvider) {
         Configuration serverConfig = createRestSslConfigWithKeyStore(sslProvider);
-        serverConfig.setString(SecurityOptions.SSL_REST_KEY_PASSWORD, "badpassword");
+        serverConfig.set(SecurityOptions.SSL_REST_KEY_PASSWORD, "badpassword");
 
         assertThatThrownBy(() -> SSLUtils.createRestServerSSLEngineFactory(serverConfig))
                 .isInstanceOf(Exception.class);
@@ -222,7 +222,7 @@ public class SSLUtilsTest {
     @MethodSource("parameters")
     void testInternalSSLWithSSLPinning(String sslProvider) throws Exception {
         final Configuration config = createInternalSslConfigWithKeyAndTrustStores(sslProvider);
-        config.setString(
+        config.set(
                 SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT,
                 getCertificateFingerprint(config, "flink.test"));
 
@@ -234,7 +234,7 @@ public class SSLUtilsTest {
     @MethodSource("parameters")
     void testInternalSSLDisables(String sslProvider) {
         final Configuration config = createInternalSslConfigWithKeyAndTrustStores(sslProvider);
-        config.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, false);
+        config.set(SecurityOptions.SSL_INTERNAL_ENABLED, false);
 
         assertThatThrownBy(() -> SSLUtils.createInternalServerSSLEngineFactory(config))
                 .isInstanceOf(Exception.class);
@@ -271,7 +271,7 @@ public class SSLUtilsTest {
     @MethodSource("parameters")
     void testInternalSSLWrongKeystorePassword(String sslProvider) {
         final Configuration config = createInternalSslConfigWithKeyAndTrustStores(sslProvider);
-        config.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD, "badpw");
+        config.set(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD, "badpw");
 
         assertThatThrownBy(() -> SSLUtils.createInternalServerSSLEngineFactory(config))
                 .isInstanceOf(Exception.class);
@@ -284,7 +284,7 @@ public class SSLUtilsTest {
     @MethodSource("parameters")
     void testInternalSSLWrongTruststorePassword(String sslProvider) {
         final Configuration config = createInternalSslConfigWithKeyAndTrustStores(sslProvider);
-        config.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD, "badpw");
+        config.set(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD, "badpw");
 
         assertThatThrownBy(() -> SSLUtils.createInternalServerSSLEngineFactory(config))
                 .isInstanceOf(Exception.class);
@@ -297,7 +297,7 @@ public class SSLUtilsTest {
     @MethodSource("parameters")
     void testInternalSSLWrongKeyPassword(String sslProvider) {
         final Configuration config = createInternalSslConfigWithKeyAndTrustStores(sslProvider);
-        config.setString(SecurityOptions.SSL_INTERNAL_KEY_PASSWORD, "badpw");
+        config.set(SecurityOptions.SSL_INTERNAL_KEY_PASSWORD, "badpw");
 
         assertThatThrownBy(() -> SSLUtils.createInternalServerSSLEngineFactory(config))
                 .isInstanceOf(Exception.class);
@@ -315,8 +315,8 @@ public class SSLUtilsTest {
         Configuration serverConfig = createInternalSslConfigWithKeyAndTrustStores(sslProvider);
 
         // set custom protocol and cipher suites
-        serverConfig.setString(SecurityOptions.SSL_PROTOCOL, "TLSv1.1");
-        serverConfig.setString(
+        serverConfig.set(SecurityOptions.SSL_PROTOCOL, "TLSv1.1");
+        serverConfig.set(
                 SecurityOptions.SSL_ALGORITHMS,
                 "TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_128_CBC_SHA256");
 
@@ -359,8 +359,8 @@ public class SSLUtilsTest {
         }
 
         // set custom protocol and cipher suites
-        serverConfig.setString(SecurityOptions.SSL_PROTOCOL, "TLSv1");
-        serverConfig.setString(SecurityOptions.SSL_ALGORITHMS, String.join(",", sslAlgorithms));
+        serverConfig.set(SecurityOptions.SSL_PROTOCOL, "TLSv1");
+        serverConfig.set(SecurityOptions.SSL_ALGORITHMS, String.join(",", sslAlgorithms));
 
         final SSLHandlerFactory serverSSLHandlerFactory =
                 SSLUtils.createInternalServerSSLEngineFactory(serverConfig);
@@ -380,7 +380,7 @@ public class SSLUtilsTest {
         final Configuration config = createInternalSslConfigWithKeyAndTrustStores(sslProvider);
         final String fingerprint = getCertificateFingerprint(config, "flink.test");
 
-        config.setString(
+        config.set(
                 SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT,
                 fingerprint.substring(0, fingerprint.length() - 3));
 
@@ -392,7 +392,7 @@ public class SSLUtilsTest {
 
     private Configuration createRestSslConfigWithKeyStore(String sslProvider) {
         final Configuration config = new Configuration();
-        config.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
+        config.set(SecurityOptions.SSL_REST_ENABLED, true);
         addSslProviderConfig(config, sslProvider);
         addRestKeyStoreConfig(config);
         return config;
@@ -400,7 +400,7 @@ public class SSLUtilsTest {
 
     private Configuration createRestSslConfigWithTrustStore(String sslProvider) {
         final Configuration config = new Configuration();
-        config.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
+        config.set(SecurityOptions.SSL_REST_ENABLED, true);
         addSslProviderConfig(config, sslProvider);
         addRestTrustStoreConfig(config);
         return config;
@@ -408,7 +408,7 @@ public class SSLUtilsTest {
 
     public static Configuration createRestSslConfigWithKeyAndTrustStores(String sslProvider) {
         final Configuration config = new Configuration();
-        config.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
+        config.set(SecurityOptions.SSL_REST_ENABLED, true);
         addSslProviderConfig(config, sslProvider);
         addRestKeyStoreConfig(config);
         addRestTrustStoreConfig(config);
@@ -417,7 +417,7 @@ public class SSLUtilsTest {
 
     private Configuration createInternalSslConfigWithKeyStore(String sslProvider) {
         final Configuration config = new Configuration();
-        config.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
+        config.set(SecurityOptions.SSL_INTERNAL_ENABLED, true);
         addSslProviderConfig(config, sslProvider);
         addInternalKeyStoreConfig(config);
         return config;
@@ -425,7 +425,7 @@ public class SSLUtilsTest {
 
     private Configuration createInternalSslConfigWithTrustStore(String sslProvider) {
         final Configuration config = new Configuration();
-        config.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
+        config.set(SecurityOptions.SSL_INTERNAL_ENABLED, true);
         addSslProviderConfig(config, sslProvider);
         addInternalTrustStoreConfig(config);
         return config;
@@ -433,7 +433,7 @@ public class SSLUtilsTest {
 
     public static Configuration createInternalSslConfigWithKeyAndTrustStores(String sslProvider) {
         final Configuration config = new Configuration();
-        config.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
+        config.set(SecurityOptions.SSL_INTERNAL_ENABLED, true);
         addSslProviderConfig(config, sslProvider);
         addInternalKeyStoreConfig(config);
         addInternalTrustStoreConfig(config);
@@ -445,11 +445,10 @@ public class SSLUtilsTest {
         KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
         try (InputStream keyStoreFile =
                 Files.newInputStream(
-                        new File(config.getString(SecurityOptions.SSL_INTERNAL_KEYSTORE))
-                                .toPath())) {
+                        new File(config.get(SecurityOptions.SSL_INTERNAL_KEYSTORE)).toPath())) {
             keyStore.load(
                     keyStoreFile,
-                    config.getString(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD).toCharArray());
+                    config.get(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD).toCharArray());
         }
         return getSha1Fingerprint(keyStore.getCertificate(certificateAlias));
     }
@@ -459,10 +458,10 @@ public class SSLUtilsTest {
         KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
         try (InputStream keyStoreFile =
                 Files.newInputStream(
-                        new File(config.getString(SecurityOptions.SSL_REST_KEYSTORE)).toPath())) {
+                        new File(config.get(SecurityOptions.SSL_REST_KEYSTORE)).toPath())) {
             keyStore.load(
                     keyStoreFile,
-                    config.getString(SecurityOptions.SSL_REST_KEYSTORE_PASSWORD).toCharArray());
+                    config.get(SecurityOptions.SSL_REST_KEYSTORE_PASSWORD).toCharArray());
         }
         return getSha1Fingerprint(keyStore.getCertificate(certificateAlias));
     }
@@ -472,33 +471,33 @@ public class SSLUtilsTest {
             OpenSsl.ensureAvailability();
 
             // Flink's default algorithm set is not available for openSSL - choose a different one:
-            config.setString(
+            config.set(
                     SecurityOptions.SSL_ALGORITHMS,
                     "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
         }
-        config.setString(SecurityOptions.SSL_PROVIDER, sslProvider);
+        config.set(SecurityOptions.SSL_PROVIDER, sslProvider);
     }
 
     private static void addRestKeyStoreConfig(Configuration config) {
-        config.setString(SecurityOptions.SSL_REST_KEYSTORE, KEY_STORE_PATH);
-        config.setString(SecurityOptions.SSL_REST_KEYSTORE_PASSWORD, KEY_STORE_PASSWORD);
-        config.setString(SecurityOptions.SSL_REST_KEY_PASSWORD, KEY_PASSWORD);
+        config.set(SecurityOptions.SSL_REST_KEYSTORE, KEY_STORE_PATH);
+        config.set(SecurityOptions.SSL_REST_KEYSTORE_PASSWORD, KEY_STORE_PASSWORD);
+        config.set(SecurityOptions.SSL_REST_KEY_PASSWORD, KEY_PASSWORD);
     }
 
     private static void addRestTrustStoreConfig(Configuration config) {
-        config.setString(SecurityOptions.SSL_REST_TRUSTSTORE, TRUST_STORE_PATH);
-        config.setString(SecurityOptions.SSL_REST_TRUSTSTORE_PASSWORD, TRUST_STORE_PASSWORD);
+        config.set(SecurityOptions.SSL_REST_TRUSTSTORE, TRUST_STORE_PATH);
+        config.set(SecurityOptions.SSL_REST_TRUSTSTORE_PASSWORD, TRUST_STORE_PASSWORD);
     }
 
     private static void addInternalKeyStoreConfig(Configuration config) {
-        config.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE, KEY_STORE_PATH);
-        config.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD, KEY_STORE_PASSWORD);
-        config.setString(SecurityOptions.SSL_INTERNAL_KEY_PASSWORD, KEY_PASSWORD);
+        config.set(SecurityOptions.SSL_INTERNAL_KEYSTORE, KEY_STORE_PATH);
+        config.set(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD, KEY_STORE_PASSWORD);
+        config.set(SecurityOptions.SSL_INTERNAL_KEY_PASSWORD, KEY_PASSWORD);
     }
 
     private static void addInternalTrustStoreConfig(Configuration config) {
-        config.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE, TRUST_STORE_PATH);
-        config.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD, TRUST_STORE_PASSWORD);
+        config.set(SecurityOptions.SSL_INTERNAL_TRUSTSTORE, TRUST_STORE_PATH);
+        config.set(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD, TRUST_STORE_PASSWORD);
     }
 
     private static String getSha1Fingerprint(Certificate cert) {

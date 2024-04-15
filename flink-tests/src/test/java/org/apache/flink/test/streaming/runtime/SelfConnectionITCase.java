@@ -46,7 +46,7 @@ public class SelfConnectionITCase extends AbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
-        DataStream<Integer> src = env.fromElements(1, 3, 5);
+        DataStream<Integer> src = env.fromData(1, 3, 5);
 
         DataStream<String> stringMap = src.map(value -> "x " + value);
 
@@ -91,7 +91,7 @@ public class SelfConnectionITCase extends AbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(3);
 
-        DataStream<Integer> src = env.fromElements(1, 3, 5).disableChaining();
+        DataStream<Integer> src = env.fromData(1, 3, 5).disableChaining();
 
         DataStream<String> stringMap =
                 src.flatMap(

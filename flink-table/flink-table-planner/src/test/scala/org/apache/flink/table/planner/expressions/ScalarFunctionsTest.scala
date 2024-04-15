@@ -21,7 +21,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.{Expression, TimeIntervalUnit, TimePointUnit}
 import org.apache.flink.table.planner.expressions.utils.ScalarTypesTestBase
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class ScalarFunctionsTest extends ScalarTypesTestBase {
 
@@ -2614,8 +2614,12 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   def testIf(): Unit = {
     // test IF(BOOL, INT, BIGINT), will do implicit type coercion.
     testSqlApi("IF(f7 > 5, f14, f4)", "44")
+
     // test input with null
     testSqlApi("IF(f7 < 5, cast(null as int), f4)", "NULL")
+
+    // test IF(BOOLEAN, INT, INT NOT NULL)
+    testSqlApi("IF(f7 < 5, cast(null as int), 0)", "NULL")
 
     // f0 is a STRING, cast(f0 as double) should never be ran
     testSqlApi("IF(1 = 1, f6, cast(f0 as double))", "4.6")
@@ -2659,6 +2663,47 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     //    testSqlApi(
     //      "IF(f7 < 5, f18, f52)",
     //      "1996-11-10 06:55:44.333")
+  }
+
+  @Test
+  def testRandAndIf(): Unit = {
+    // test RAND
+    testSqlApi("IF(1 = 1, RAND(), cast(1.0 as double))")
+
+    // test RAND(INT) and IF(BOOLEAN, DOUBLE, DOUBLE NOT NULL)
+    testSqlApi("IF(1 = 1, RAND(f7), cast(1.0 as double))", "0.731057369148862")
+
+    // test RAND(NULL) and IF(BOOLEAN, NULL, DOUBLE NOT NULL)
+    testSqlApi("IF(1 = 1, RAND(cast(null as int)), cast(1.0 as double))", "NULL")
+
+    // test RAND(INT NOT NULL) and IF(BOOLEAN, DOUBLE NOT NULL, DOUBLE NOT NULL)
+    testSqlApi("IF(1 = 1, RAND(1), cast(1.0 as double))", "0.7308781907032909")
+
+    // test RAND_INTEGER
+
+    // test RAND_INTEGER(INT) and IF(BOOLEAN, INT, INT NOT NULL)
+    testSqlApi("IF(1 = 1, RAND_INTEGER(f7), 1)")
+
+    // test RAND_INTEGER(INT NOT NULL) and IF(BOOLEAN, INT NOT NULL, INT NOT NULL)
+    testSqlApi("IF(1 = 1, RAND_INTEGER(10), 1)")
+
+    // test RAND_INTEGER(NULL) and IF(BOOLEAN, NULL, INT NOT NULL)
+    testSqlApi("IF(1 = 1, RAND_INTEGER(cast(null as int)), 1)")
+
+    // test RAND_INTEGER(INT, INT NOT NULL) and IF(BOOLEAN, INT, INT NOT NULL)
+    testSqlApi("IF(1 = 1, RAND_INTEGER(f7, 10), 1)", "4")
+
+    // test RAND_INTEGER(INT NOT NULL, INT) and IF(BOOLEAN, INT, INT NOT NULL)
+    testSqlApi("IF(1 = 1, RAND_INTEGER(3, f7), 1)", "2")
+
+    // test RAND_INTEGER(NULL, INT NOT NULL) and IF(BOOLEAN, NULL, INT NOT NULL)
+    testSqlApi("IF(1 = 1, RAND_INTEGER(cast(null as int), 10), 1)", "NULL")
+
+    // test RAND_INTEGER(INT NOT NULL, INT) and IF(BOOLEAN, NULL, INT NOT NULL)
+    testSqlApi("IF(1 = 1, RAND_INTEGER(3, cast(null as int)), 1)", "NULL")
+
+    // test RAND_INTEGER(INT NOT NULL, INT NOT NULL) and IF(BOOLEAN, INT NOT NULL, INT NOT NULL)
+    testSqlApi("IF(1 = 1, RAND_INTEGER(3, 99), 1)", "50")
   }
 
   @Test

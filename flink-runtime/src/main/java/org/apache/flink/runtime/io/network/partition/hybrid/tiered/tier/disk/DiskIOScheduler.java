@@ -23,6 +23,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.CompositeBuffer;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.PartitionFileReader;
@@ -35,6 +36,7 @@ import org.apache.flink.util.FatalExitExceptionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
@@ -46,6 +48,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -79,12 +82,6 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
     private final BatchShuffleReadBufferPool bufferPool;
 
     /**
-     * The maximum number of buffers that can be allocated and still not recycled for a
-     * subpartition, which ensures that each subpartition can be consumed evenly.
-     */
-    private final int maxBufferReadAhead;
-
-    /**
      * The maximum number of buffers that can be allocated and still not recycled by a single {@link
      * DiskIOScheduler} for all subpartitions. This ensures that different {@link DiskIOScheduler}s
      * in the TaskManager can evenly use the buffer pool.
@@ -98,10 +95,11 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
     private final Duration bufferRequestTimeout;
 
     /**
-     * Retrieve the segment id if the buffer index represents the first buffer. The first integer is
-     * the id of subpartition, and the second integer is buffer index and the value is segment id.
+     * Get the segment id if the buffer index represents the first buffer in a segment. The first
+     * integer is the id of subpartition, and the second integer is buffer index and the value is
+     * segment id.
      */
-    private final BiFunction<Integer, Integer, Integer> firstBufferIndexInSegmentRetriever;
+    private final BiFunction<Integer, Integer, Integer> segmentIdGetter;
 
     private final PartitionFileReader partitionFileReader;
 
@@ -124,16 +122,14 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
             ScheduledExecutorService ioExecutor,
             int maxRequestedBuffers,
             Duration bufferRequestTimeout,
-            int maxBufferReadAhead,
-            BiFunction<Integer, Integer, Integer> firstBufferIndexInSegmentRetriever,
+            BiFunction<Integer, Integer, Integer> segmentIdGetter,
             PartitionFileReader partitionFileReader) {
         this.partitionId = partitionId;
         this.bufferPool = checkNotNull(bufferPool);
         this.ioExecutor = checkNotNull(ioExecutor);
         this.maxRequestedBuffers = maxRequestedBuffers;
         this.bufferRequestTimeout = checkNotNull(bufferRequestTimeout);
-        this.maxBufferReadAhead = maxBufferReadAhead;
-        this.firstBufferIndexInSegmentRetriever = firstBufferIndexInSegmentRetriever;
+        this.segmentIdGetter = segmentIdGetter;
         this.partitionFileReader = partitionFileReader;
         bufferPool.registerRequester(this);
     }
@@ -146,7 +142,11 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
             isRunning = false;
         }
         if (numBuffersRead == 0) {
-            ioExecutor.schedule(this::triggerScheduling, 5, TimeUnit.MILLISECONDS);
+            try {
+                ioExecutor.schedule(this::triggerScheduling, 5, TimeUnit.MILLISECONDS);
+            } catch (RejectedExecutionException e) {
+                ignoreRejectedExecutionOnShutdown(e);
+            }
         } else {
             triggerScheduling();
         }
@@ -188,9 +188,7 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
                 return;
             }
             isReleased = true;
-            failScheduledReaders(
-                    new ArrayList<>(allScheduledReaders.values()),
-                    new RuntimeException("Disk readers are released unexpectedly."));
+            allScheduledReaders.clear();
             partitionFileReader.release();
             bufferPool.unregisterRequester(this);
         }
@@ -208,9 +206,9 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
         Queue<MemorySegment> buffers;
         try {
             buffers = allocateBuffers();
-        } catch (Exception exception) {
-            failScheduledReaders(scheduledReaders, exception);
-            LOG.error("Failed to request buffers for data reading.", exception);
+        } catch (Exception e) {
+            notifyDownstreamSubpartitionFailed(
+                    scheduledReaders, e, "Failed to request buffers for data reading.");
             return 0;
         }
 
@@ -225,9 +223,11 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
             }
             try {
                 scheduledReader.loadDiskDataToBuffers(buffers, this);
-            } catch (Exception throwable) {
-                failScheduledReaders(Collections.singletonList(scheduledReader), throwable);
-                LOG.debug("Failed to read shuffle data.", throwable);
+            } catch (IOException e) {
+                notifyDownstreamSubpartitionFailed(
+                        Collections.singletonList(scheduledReader),
+                        e,
+                        "Failed to read shuffle data.");
             }
         }
         int numBuffersRead = numBuffersAllocated - buffers.size();
@@ -236,18 +236,23 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
     }
 
     private List<ScheduledSubpartitionReader> sortScheduledReaders() {
+        List<ScheduledSubpartitionReader> scheduledReaders;
         synchronized (lock) {
             if (isReleased) {
                 return new ArrayList<>();
             }
-            List<ScheduledSubpartitionReader> scheduledReaders = new ArrayList<>();
-            for (ScheduledSubpartitionReader reader : allScheduledReaders.values()) {
-                reader.prepareForScheduling();
-                scheduledReaders.add(reader);
-            }
-            Collections.sort(scheduledReaders);
-            return scheduledReaders;
+            scheduledReaders = new ArrayList<>(allScheduledReaders.values());
         }
+        for (ScheduledSubpartitionReader reader : scheduledReaders) {
+            try {
+                reader.prepareForScheduling();
+            } catch (IOException e) {
+                notifyDownstreamSubpartitionFailed(
+                        Collections.singletonList(reader), e, "Failed to prepare for scheduling.");
+            }
+        }
+        Collections.sort(scheduledReaders);
+        return scheduledReaders;
     }
 
     private Queue<MemorySegment> allocateBuffers() throws Exception {
@@ -271,26 +276,32 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
                         TaskManagerOptions.NETWORK_BATCH_SHUFFLE_READ_MEMORY.key()));
     }
 
-    private void failScheduledReaders(
-            List<ScheduledSubpartitionReader> scheduledReaders, Throwable failureCause) {
+    /**
+     * Send an error response to the downstream to notify the specific subpartition has been failed.
+     * The {@link ScheduledSubpartitionReader} responsible for the failed subpartition will also be
+     * removed from the {@link DiskIOScheduler}.
+     *
+     * @param scheduledReaders the readers of the failed subpartitions.
+     * @param failureCause the failure cause in the error response.
+     * @param errorLog the log printed in the {@link DiskIOScheduler}.
+     */
+    private void notifyDownstreamSubpartitionFailed(
+            List<ScheduledSubpartitionReader> scheduledReaders,
+            Throwable failureCause,
+            String errorLog) {
         for (ScheduledSubpartitionReader scheduledReader : scheduledReaders) {
             synchronized (lock) {
                 allScheduledReaders.remove(scheduledReader.getId());
             }
             scheduledReader.failReader(failureCause);
         }
+        LOG.error(errorLog);
     }
 
     private void releaseBuffers(Queue<MemorySegment> buffers) {
         if (!buffers.isEmpty()) {
-            try {
-                bufferPool.recycle(buffers);
-                buffers.clear();
-            } catch (Throwable throwable) {
-                // this should never happen so just trigger fatal error
-                FatalExitExceptionHandler.INSTANCE.uncaughtException(
-                        Thread.currentThread(), throwable);
-            }
+            bufferPool.recycle(buffers);
+            buffers.clear();
         }
     }
 
@@ -302,24 +313,34 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
                             <= maxRequestedBuffers
                     && numRequestedBuffers < bufferPool.getAverageBuffersPerRequester()) {
                 isRunning = true;
-                ioExecutor.execute(
-                        () -> {
-                            try {
-                                run();
-                            } catch (Throwable throwable) {
-                                LOG.error("Failed to read data.", throwable);
-                                // handle un-expected exception as unhandledExceptionHandler is not
-                                // worked for ScheduledExecutorService.
-                                FatalExitExceptionHandler.INSTANCE.uncaughtException(
-                                        Thread.currentThread(), throwable);
-                            }
-                        });
+                try {
+                    ioExecutor.execute(
+                            () -> {
+                                try {
+                                    run();
+                                } catch (Throwable t) {
+                                    LOG.error("Failed to read data.", t);
+                                    // handle un-expected exception as unhandledExceptionHandler is
+                                    // not worked for ScheduledExecutorService.
+                                    FatalExitExceptionHandler.INSTANCE.uncaughtException(
+                                            Thread.currentThread(), t);
+                                }
+                            });
+                } catch (RejectedExecutionException e) {
+                    ignoreRejectedExecutionOnShutdown(e);
+                }
             }
         }
     }
 
     private long getBufferRequestTimeoutTime() {
         return bufferPool.getLastBufferOperationTimestamp() + bufferRequestTimeout.toMillis();
+    }
+
+    private void ignoreRejectedExecutionOnShutdown(RejectedExecutionException e) {
+        LOG.warn(
+                "Attempt to submit a task to the shut down batch read thread pool should be ignored. No more tasks should be accepted.",
+                e);
     }
 
     /**
@@ -340,6 +361,8 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
 
         private boolean isFailed;
 
+        @Nullable private PartitionFileReader.ReadProgress readProgress;
+
         private ScheduledSubpartitionReader(
                 TieredStorageSubpartitionId subpartitionId,
                 NettyConnectionWriter nettyConnectionWriter) {
@@ -356,34 +379,46 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
                                 + subpartitionId
                                 + " has already been failed.");
             }
-            while (!buffers.isEmpty()
-                    && nettyConnectionWriter.numQueuedBuffers() < maxBufferReadAhead
-                    && nextSegmentId >= 0) {
-                MemorySegment memorySegment = buffers.poll();
-                Buffer buffer;
-                try {
-                    if ((buffer =
-                                    partitionFileReader.readBuffer(
-                                            partitionId,
-                                            subpartitionId,
-                                            nextSegmentId,
-                                            nextBufferIndex,
-                                            memorySegment,
-                                            recycler))
-                            == null) {
+
+            CompositeBuffer partialBuffer = null;
+            boolean shouldContinueRead = true;
+            try {
+                while (!buffers.isEmpty() && shouldContinueRead && nextSegmentId >= 0) {
+                    MemorySegment memorySegment = buffers.poll();
+                    PartitionFileReader.ReadBufferResult readBufferResult;
+                    try {
+                        readBufferResult =
+                                partitionFileReader.readBuffer(
+                                        partitionId,
+                                        subpartitionId,
+                                        nextSegmentId,
+                                        nextBufferIndex,
+                                        memorySegment,
+                                        recycler,
+                                        readProgress,
+                                        partialBuffer);
+                        if (readBufferResult == null) {
+                            buffers.add(memorySegment);
+                            break;
+                        }
+                    } catch (IOException exception) {
+                        buffers.add(memorySegment);
+                        throw exception;
+                    }
+
+                    List<Buffer> readBuffers = readBufferResult.getReadBuffers();
+                    shouldContinueRead = readBufferResult.continuousReadSuggested();
+                    readProgress = readBufferResult.getReadProgress();
+                    if (readBuffers.isEmpty()) {
                         buffers.add(memorySegment);
                         break;
                     }
-                } catch (Throwable throwable) {
-                    buffers.add(memorySegment);
-                    throw throwable;
+
+                    partialBuffer = writeFullBuffersAndGetPartialBuffer(readBuffers);
                 }
-                writeToNettyConnectionWriter(
-                        NettyPayload.newBuffer(
-                                buffer, nextBufferIndex++, subpartitionId.getSubpartitionId()));
-                if (buffer.getDataType() == Buffer.DataType.END_OF_SEGMENT) {
-                    nextSegmentId = -1;
-                    updateSegmentId();
+            } finally {
+                if (partialBuffer != null) {
+                    partialBuffer.recycleBuffer();
                 }
             }
         }
@@ -394,7 +429,7 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
             return Long.compare(getPriority(), reader.getPriority());
         }
 
-        private void prepareForScheduling() {
+        private void prepareForScheduling() throws IOException {
             if (nextSegmentId < 0) {
                 updateSegmentId();
             }
@@ -402,12 +437,45 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
                     nextSegmentId < 0
                             ? Long.MAX_VALUE
                             : partitionFileReader.getPriority(
-                                    partitionId, subpartitionId, nextSegmentId, nextBufferIndex);
+                                    partitionId,
+                                    subpartitionId,
+                                    nextSegmentId,
+                                    nextBufferIndex,
+                                    readProgress);
+        }
+
+        private CompositeBuffer writeFullBuffersAndGetPartialBuffer(List<Buffer> readBuffers) {
+            CompositeBuffer partialBuffer = null;
+            for (int i = 0; i < readBuffers.size(); i++) {
+                Buffer readBuffer = readBuffers.get(i);
+                if (i == readBuffers.size() - 1 && isPartialBuffer(readBuffer)) {
+                    partialBuffer = (CompositeBuffer) readBuffer;
+                    continue;
+                }
+                writeNettyBufferAndUpdateSegmentId(readBuffer);
+            }
+            return partialBuffer;
+        }
+
+        private boolean isPartialBuffer(Buffer readBuffer) {
+            return readBuffer instanceof CompositeBuffer
+                    && ((CompositeBuffer) readBuffer).missingLength() > 0;
+        }
+
+        private void writeNettyBufferAndUpdateSegmentId(Buffer readBuffer) {
+            writeToNettyConnectionWriter(
+                    NettyPayload.newBuffer(
+                            readBuffer, nextBufferIndex++, subpartitionId.getSubpartitionId()));
+            if (readBuffer.getDataType() == Buffer.DataType.END_OF_SEGMENT) {
+                nextSegmentId = -1;
+                updateSegmentId();
+            }
         }
 
         private void writeToNettyConnectionWriter(NettyPayload nettyPayload) {
-            nettyConnectionWriter.writeBuffer(nettyPayload);
-            if (nettyConnectionWriter.numQueuedBuffers() <= 1) {
+            nettyConnectionWriter.writeNettyPayload(nettyPayload);
+            if (nettyConnectionWriter.numQueuedPayloads() <= 1
+                    || nettyConnectionWriter.numQueuedBufferPayloads() <= 1) {
                 notifyAvailable();
             }
         }
@@ -431,8 +499,7 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
 
         private void updateSegmentId() {
             Integer segmentId =
-                    firstBufferIndexInSegmentRetriever.apply(
-                            subpartitionId.getSubpartitionId(), nextBufferIndex);
+                    segmentIdGetter.apply(subpartitionId.getSubpartitionId(), nextBufferIndex);
             if (segmentId != null) {
                 nextSegmentId = segmentId;
                 writeToNettyConnectionWriter(NettyPayload.newSegment(segmentId));

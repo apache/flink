@@ -40,6 +40,7 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 import java.io.PrintStream;
+import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -123,7 +124,14 @@ public enum FileSinkProgram {
         }
     }
 
-    /** Data-generating source function. */
+    /**
+     * Data-generating source function.
+     *
+     * @deprecated This class is based on the {@link
+     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+     *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
+     */
+    @Deprecated
     public static final class Generator
             implements SourceFunction<Tuple2<Integer, Integer>>, CheckpointedFunction {
 
@@ -182,8 +190,7 @@ public enum FileSinkProgram {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            state.clear();
-            state.add(numRecordsEmitted);
+            state.update(Collections.singletonList(numRecordsEmitted));
         }
     }
 }

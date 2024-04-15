@@ -20,6 +20,7 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -29,7 +30,6 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -38,17 +38,16 @@ import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
-import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.Collector;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.stream.Stream;
 
 import static org.apache.flink.api.common.eventtime.WatermarkStrategy.noWatermarks;
@@ -104,7 +103,6 @@ import static org.hamcrest.Matchers.equalTo;
  * </ul>
  */
 @RunWith(Parameterized.class)
-@Category(FailsWithAdaptiveScheduler.class) // FLINK-21689
 public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
     enum Topology implements DagCreator {
         PIPELINE {
@@ -353,7 +351,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
 
         @Override
         protected State createState() {
-            return new State(getRuntimeContext().getNumberOfParallelSubtasks());
+            return new State(getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks());
         }
 
         @Override
@@ -374,8 +372,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                             "Out of order records current={} and last={} @ {} subtask ({} attempt)",
                             value,
                             lastRecord,
-                            getRuntimeContext().getIndexOfThisSubtask(),
-                            getRuntimeContext().getAttemptNumber());
+                            getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                            getRuntimeContext().getTaskInfo().getAttemptNumber());
                     firstOutOfOrder = false;
                 }
             } else if (value == lastRecord) {
@@ -384,8 +382,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                     LOG.info(
                             "Duplicate record {} @ {} subtask ({} attempt)",
                             value,
-                            getRuntimeContext().getIndexOfThisSubtask(),
-                            getRuntimeContext().getAttemptNumber());
+                            getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                            getRuntimeContext().getTaskInfo().getAttemptNumber());
                     firstDuplicate = false;
                 }
             } else if (lastRecord != -1) {
@@ -398,8 +396,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                                 value,
                                 expectedValue,
                                 lastRecord,
-                                getRuntimeContext().getIndexOfThisSubtask(),
-                                getRuntimeContext().getAttemptNumber());
+                                getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                                getRuntimeContext().getTaskInfo().getAttemptNumber());
                         firstLostValue = false;
                     }
                 }
@@ -424,8 +422,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
         ValueState<Long> state;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             state =
                     getRuntimeContext()
                             .getState(
@@ -457,7 +455,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                 throws Exception {
             int source = sourceValue.f0;
             long value = withoutHeader(sourceValue.f1);
-            int partition = (int) (value % getRuntimeContext().getNumberOfParallelSubtasks());
+            int partition =
+                    (int) (value % getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks());
             state.lastValues[source][partition] = value;
             for (int index = 0; index < numSources; index++) {
                 if (state.lastValues[index][partition] < value) {
@@ -469,8 +468,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            stateList.clear();
-            stateList.add(state);
+            stateList.update(Collections.singletonList(state));
         }
 
         @Override
@@ -482,7 +480,10 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                     getOnlyElement(
                             stateList.get(),
                             new State(
-                                    numSources, getRuntimeContext().getNumberOfParallelSubtasks()));
+                                    numSources,
+                                    getRuntimeContext()
+                                            .getTaskInfo()
+                                            .getNumberOfParallelSubtasks()));
         }
 
         private static class State {

@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
@@ -196,6 +197,11 @@ public class NonBufferOverWindowOperatorTest {
 
         @Override
         public void emitLatencyMarker(LatencyMarker latencyMarker) {
+            throw new RuntimeException();
+        }
+
+        @Override
+        public void emitRecordAttributes(RecordAttributes recordAttributes) {
             throw new RuntimeException();
         }
 

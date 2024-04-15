@@ -38,12 +38,26 @@ public class DirectoryStateHandle implements StateObject {
     /** The path that describes the directory, as a string, to be serializable. */
     private final String directoryString;
 
+    /** (Optional) Size of the directory, used for metrics. Can be 0 if unknown or empty. */
+    private final long directorySize;
+
     /** Transient path cache, to avoid re-parsing the string. */
     private transient Path directory;
 
-    public DirectoryStateHandle(@Nonnull Path directory) {
+    public DirectoryStateHandle(@Nonnull Path directory, long directorySize) {
         this.directory = directory;
         this.directoryString = directory.toString();
+        this.directorySize = directorySize;
+    }
+
+    public static DirectoryStateHandle forPathWithSize(@Nonnull Path directory) {
+        long size;
+        try {
+            size = FileUtils.getDirectoryFilesSize(directory);
+        } catch (IOException e) {
+            size = 0L;
+        }
+        return new DirectoryStateHandle(directory, size);
     }
 
     @Override
@@ -54,9 +68,12 @@ public class DirectoryStateHandle implements StateObject {
 
     @Override
     public long getStateSize() {
-        // For now, we will not report any size, but in the future this could (if needed) return the
-        // total dir size.
-        return 0L; // unknown
+        return directorySize;
+    }
+
+    @Override
+    public void collectSizeStats(StateObjectSizeStatsCollector collector) {
+        collector.add(StateObjectLocation.LOCAL_DISK, directorySize);
     }
 
     @Nonnull
@@ -92,6 +109,12 @@ public class DirectoryStateHandle implements StateObject {
 
     @Override
     public String toString() {
-        return "DirectoryStateHandle{" + "directory=" + directoryString + '}';
+        return "DirectoryStateHandle{"
+                + "directory='"
+                + directoryString
+                + '\''
+                + ", directorySize="
+                + directorySize
+                + '}';
     }
 }

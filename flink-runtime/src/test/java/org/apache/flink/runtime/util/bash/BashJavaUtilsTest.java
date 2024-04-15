@@ -22,26 +22,24 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link BashJavaUtils}. */
-public class BashJavaUtilsTest extends TestLogger {
+class BashJavaUtilsTest {
     @Test
-    public void testJmLegacyHeapOptionSetsNewJvmHeap() {
+    void testJmLegacyHeapOptionSetsNewJvmHeap() {
         Configuration configuration = new Configuration();
         MemorySize heapSize = MemorySize.ofMebiBytes(10);
         configuration.set(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY, heapSize);
         String jvmArgsLine = BashJavaUtils.getJmResourceParams(configuration).get(0);
         Map<String, String> jvmArgs = ConfigurationUtils.parseJvmArgString(jvmArgsLine);
         String heapSizeStr = Long.toString(heapSize.getBytes());
-        assertThat(jvmArgs.get("-Xmx"), is(heapSizeStr));
-        assertThat(jvmArgs.get("-Xms"), is(heapSizeStr));
+        assertThat(jvmArgs.get("-Xmx")).isEqualTo(heapSizeStr);
+        assertThat(jvmArgs.get("-Xms")).isEqualTo(heapSizeStr);
     }
 }

@@ -51,9 +51,9 @@ class SqlGatewayTest {
         originalEnv = System.getenv();
 
         // prepare yaml
-        File confYaml = new File(tempFolder, "flink-conf.yaml");
+        File confYaml = new File(tempFolder, "config.yaml");
         if (!confYaml.createNewFile()) {
-            throw new IOException("Can't create testing flink-conf.yaml file.");
+            throw new IOException("Can't create testing config.yaml file.");
         }
         // adjust the test environment for the purposes of this test
         Map<String, String> map = new HashMap<>(System.getenv());
@@ -91,7 +91,7 @@ class SqlGatewayTest {
         String id = UUID.randomUUID().toString();
         String[] args =
                 new String[] {
-                    "-Dsql-gateway.endpoint.type=mocked",
+                    "-Dsql-gateway.endpoint.type=[mocked]",
                     "-Dsql-gateway.endpoint.mocked.id=" + id,
                     "-Dsql-gateway.endpoint.mocked.host=localhost",
                     "-Dsql-gateway.endpoint.mocked.port=9999"

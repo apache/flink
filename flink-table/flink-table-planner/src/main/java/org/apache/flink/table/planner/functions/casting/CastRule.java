@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.utils.CastExecutor;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import java.time.ZoneId;
@@ -67,7 +68,8 @@ public interface CastRule<IN, OUT> {
                 boolean isPrinting,
                 boolean legacyBehaviour,
                 ZoneId zoneId,
-                ClassLoader classLoader) {
+                ClassLoader classLoader,
+                CodeGeneratorContext codeGeneratorContext) {
             return new Context() {
                 @Override
                 public boolean isPrinting() {
@@ -88,7 +90,14 @@ public interface CastRule<IN, OUT> {
                 public ClassLoader getClassLoader() {
                     return classLoader;
                 }
+
+                @Override
+                public CodeGeneratorContext getCodeGeneratorContext() {
+                    return codeGeneratorContext;
+                }
             };
         }
+
+        CodeGeneratorContext getCodeGeneratorContext();
     }
 }

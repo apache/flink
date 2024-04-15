@@ -24,8 +24,9 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.ChangelogTaskLocalStateStore;
-import org.apache.flink.runtime.state.LocalRecoveryDirectoryProvider;
+import org.apache.flink.runtime.state.LocalSnapshotDirectoryProvider;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.changelog.LocalChangelogRegistry;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 
 import org.slf4j.Logger;
@@ -51,14 +52,13 @@ import static org.apache.flink.runtime.state.ChangelogTaskLocalStateStore.getLoc
  *       <li>Store the meta of files into {@link ChangelogTaskLocalStateStore} by
  *           AsyncCheckpointRunnable#reportCompletedSnapshotStates().
  *       <li>Pass control of the file to {@link LocalChangelogRegistry#register} when
- *           ChangelogKeyedStateBackend#notifyCheckpointComplete() , files of the previous
- *           checkpoint will be deleted by {@link LocalChangelogRegistry#discardUpToCheckpoint} at
- *           the same time.
+ *           FsStateChangelogWriter#persist , files of the previous checkpoint will be deleted by
+ *           {@link LocalChangelogRegistry#discardUpToCheckpoint} when the checkpoint is confirmed.
  *       <li>When ChangelogTruncateHelper#materialized() or
  *           ChangelogTruncateHelper#checkpointSubsumed() is called, {@link
- *           TaskChangelogRegistry#notUsed} is responsible for deleting local files.
- *       <li>When one checkpoint is aborted, the dstl files of this checkpoint will be deleted by
- *           {@link LocalChangelogRegistry#prune} in {@link FsStateChangelogWriter#reset}.
+ *           TaskChangelogRegistry#release} is responsible for deleting local files.
+ *       <li>When one checkpoint is aborted, all accumulated local dstl files will be deleted at
+ *           once.
  *     </ol>
  */
 public class DuplicatingStateChangeFsUploader extends AbstractStateChangeFsUploader {
@@ -68,7 +68,7 @@ public class DuplicatingStateChangeFsUploader extends AbstractStateChangeFsUploa
 
     private final Path basePath;
     private final FileSystem fileSystem;
-    private final LocalRecoveryDirectoryProvider localRecoveryDirectoryProvider;
+    private final LocalSnapshotDirectoryProvider localSnapshotDirectoryProvider;
     private final JobID jobID;
 
     public DuplicatingStateChangeFsUploader(
@@ -79,12 +79,12 @@ public class DuplicatingStateChangeFsUploader extends AbstractStateChangeFsUploa
             int bufferSize,
             ChangelogStorageMetricGroup metrics,
             TaskChangelogRegistry changelogRegistry,
-            LocalRecoveryDirectoryProvider localRecoveryDirectoryProvider) {
+            LocalSnapshotDirectoryProvider localSnapshotDirectoryProvider) {
         super(compression, bufferSize, metrics, changelogRegistry, FileStateHandle::new);
         this.basePath =
                 new Path(basePath, String.format("%s/%s", jobID.toHexString(), PATH_SUB_DIR));
         this.fileSystem = fileSystem;
-        this.localRecoveryDirectoryProvider = localRecoveryDirectoryProvider;
+        this.localSnapshotDirectoryProvider = localSnapshotDirectoryProvider;
         this.jobID = jobID;
     }
 
@@ -96,7 +96,7 @@ public class DuplicatingStateChangeFsUploader extends AbstractStateChangeFsUploa
         FSDataOutputStream primaryStream = fileSystem.create(path, WriteMode.NO_OVERWRITE);
         Path localPath =
                 new Path(
-                        getLocalTaskOwnedDirectory(localRecoveryDirectoryProvider, jobID),
+                        getLocalTaskOwnedDirectory(localSnapshotDirectoryProvider, jobID),
                         fileName);
         FSDataOutputStream secondaryStream =
                 localPath.getFileSystem().create(localPath, WriteMode.NO_OVERWRITE);

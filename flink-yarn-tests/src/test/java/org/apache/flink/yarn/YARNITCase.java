@@ -21,16 +21,16 @@ package org.apache.flink.yarn;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.testjob.YarnTestArchiveJob;
 import org.apache.flink.yarn.testjob.YarnTestCacheJob;
@@ -204,7 +204,7 @@ class YARNITCase extends YarnTestBase {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(2);
 
-        env.addSource(new NoDataSource()).shuffle().addSink(new DiscardingSink<>());
+        env.addSource(new NoDataSource()).shuffle().sinkTo(new DiscardingSink<>());
 
         return env.getStreamGraph().getJobGraph();
     }
@@ -214,7 +214,7 @@ class YARNITCase extends YarnTestBase {
         Configuration configuration = new Configuration();
         configuration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(768));
         configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
-        configuration.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(30));
+        configuration.set(RpcOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(30));
         configuration.set(CLASSPATH_INCLUDE_USER_JAR, userJarInclusion);
 
         return configuration;

@@ -25,6 +25,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /** Represents a pending task manager in the {@link SlotManager}. */
 public class PendingTaskManager {
@@ -82,8 +83,11 @@ public class PendingTaskManager {
     }
 
     public void clearPendingAllocationsOfJob(JobID jobId) {
-        ResourceCounter resourceCounter = pendingSlotAllocationRecords.remove(jobId);
-        unusedResource = unusedResource.merge(resourceCounter.getTotalResource());
+        Optional.ofNullable(pendingSlotAllocationRecords.remove(jobId))
+                .ifPresent(
+                        resourceCounter ->
+                                unusedResource =
+                                        unusedResource.merge(resourceCounter.getTotalResource()));
     }
 
     private ResourceProfile calculateUnusedResourceProfile() {

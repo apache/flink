@@ -33,6 +33,8 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.concurrent.NotThreadSafe;
+
 import java.io.Closeable;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
@@ -51,14 +53,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class PeriodicMaterializationManager implements Closeable {
 
     /** {@link MaterializationRunnable} provider and consumer, i.e. state backend. */
+    @NotThreadSafe
     public interface MaterializationTarget {
 
         /**
          * Initialize state materialization so that materialized data can be persisted durably and
          * included into the checkpoint.
-         *
-         * <p>This method is not thread safe. It should be called either under a lock or through
-         * task mailbox executor.
          *
          * @return a tuple of - future snapshot result from the underlying state backend - a {@link
          *     SequenceNumber} identifying the latest change in the changelog
@@ -66,14 +66,17 @@ public class PeriodicMaterializationManager implements Closeable {
         Optional<MaterializationRunnable> initMaterialization() throws Exception;
 
         /**
-         * This method is not thread safe. It should be called either under a lock or through task
-         * mailbox executor.
+         * Implementations should not trigger materialization until the previous one has been
+         * confirmed or failed.
          */
         void handleMaterializationResult(
                 SnapshotResult<KeyedStateHandle> materializedSnapshot,
                 long materializationID,
                 SequenceNumber upTo)
                 throws Exception;
+
+        void handleMaterializationFailureOrCancellation(
+                long materializationID, SequenceNumber upTo, Throwable cause);
 
         MaterializationTarget NO_OP =
                 new MaterializationTarget() {
@@ -87,6 +90,10 @@ public class PeriodicMaterializationManager implements Closeable {
                             SnapshotResult<KeyedStateHandle> materializedSnapshot,
                             long materializationID,
                             SequenceNumber upTo) {}
+
+                    @Override
+                    public void handleMaterializationFailureOrCancellation(
+                            long materializationID, SequenceNumber upTo, Throwable cause) {}
                 };
     }
 
@@ -104,6 +111,8 @@ public class PeriodicMaterializationManager implements Closeable {
     private final AsyncExceptionHandler asyncExceptionHandler;
 
     private final String subtaskName;
+
+    private final boolean isPeriodicMaterializeEnabled;
 
     private final long periodicMaterializeDelay;
 
@@ -129,6 +138,7 @@ public class PeriodicMaterializationManager implements Closeable {
             AsyncExceptionHandler asyncExceptionHandler,
             MaterializationTarget target,
             ChangelogMaterializationMetricGroup metricGroup,
+            boolean isPeriodicMaterializeEnabled,
             long periodicMaterializeDelay,
             int allowedNumberOfFailures,
             String operatorSubtaskId) {
@@ -139,6 +149,7 @@ public class PeriodicMaterializationManager implements Closeable {
                 asyncExceptionHandler,
                 target,
                 metricGroup,
+                isPeriodicMaterializeEnabled,
                 periodicMaterializeDelay,
                 allowedNumberOfFailures,
                 operatorSubtaskId,
@@ -154,6 +165,7 @@ public class PeriodicMaterializationManager implements Closeable {
             AsyncExceptionHandler asyncExceptionHandler,
             MaterializationTarget target,
             ChangelogMaterializationMetricGroup metricGroup,
+            boolean isPeriodicMaterializeEnabled,
             long periodicMaterializeDelay,
             int allowedNumberOfFailures,
             String operatorSubtaskId,
@@ -165,6 +177,7 @@ public class PeriodicMaterializationManager implements Closeable {
         this.metrics = metricGroup;
         this.target = checkNotNull(target);
 
+        this.isPeriodicMaterializeEnabled = isPeriodicMaterializeEnabled;
         this.periodicMaterializeDelay = periodicMaterializeDelay;
         this.allowedNumberOfFailures = allowedNumberOfFailures;
         this.numberOfConsecutiveFailures = new AtomicInteger(0);
@@ -177,14 +190,17 @@ public class PeriodicMaterializationManager implements Closeable {
     }
 
     public void start() {
-        // disable periodic materialization when periodicMaterializeDelay is negative
-        if (!started && periodicMaterializeDelay >= 0) {
+        if (isPeriodicMaterializeEnabled) {
+            if (!started) {
 
-            started = true;
+                started = true;
 
-            LOG.info("Task {} starts periodic materialization", subtaskName);
+                LOG.info("Task {} starts periodic materialization", subtaskName);
 
-            scheduleNextMaterialization(initialDelay);
+                scheduleNextMaterialization(initialDelay);
+            }
+        } else {
+            LOG.info("Task {} disable periodic materialization", subtaskName);
         }
     }
 
@@ -260,7 +276,7 @@ public class PeriodicMaterializationManager implements Closeable {
                                                 metrics.reportFailedMaterialization();
                                             }
                                         },
-                                        "Task {} update materializedSnapshot up to changelog sequence number: {}",
+                                        "Task %s update materializedSnapshot up to changelog sequence number: %s.",
                                         subtaskName,
                                         upTo);
 
@@ -268,9 +284,11 @@ public class PeriodicMaterializationManager implements Closeable {
                             } else if (throwable instanceof CancellationException) {
                                 // can happen e.g. due to task cancellation
                                 LOG.info("materialization cancelled", throwable);
+                                notifyFailureOrCancellation(materializationID, upTo, throwable);
                                 scheduleNextMaterialization();
                             } else {
                                 // if failed
+                                notifyFailureOrCancellation(materializationID, upTo, throwable);
                                 metrics.reportFailedMaterialization();
                                 int retryTime = numberOfConsecutiveFailures.incrementAndGet();
 
@@ -293,6 +311,18 @@ public class PeriodicMaterializationManager implements Closeable {
                                 }
                             }
                         });
+    }
+
+    private void notifyFailureOrCancellation(
+            long materializationId, SequenceNumber upTo, Throwable cause) {
+        mailboxExecutor.execute(
+                () ->
+                        target.handleMaterializationFailureOrCancellation(
+                                materializationId, upTo, cause),
+                "Task %s materialization: %d, upTo: %s, failed or canceled.",
+                subtaskName,
+                materializationId,
+                upTo);
     }
 
     private CompletableFuture<SnapshotResult<KeyedStateHandle>> uploadSnapshot(
@@ -385,7 +415,7 @@ public class PeriodicMaterializationManager implements Closeable {
             return materializationRunnable;
         }
 
-        SequenceNumber getMaterializedTo() {
+        public SequenceNumber getMaterializedTo() {
             return materializedTo;
         }
 

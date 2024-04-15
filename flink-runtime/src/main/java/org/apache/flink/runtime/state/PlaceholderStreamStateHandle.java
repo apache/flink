@@ -33,9 +33,11 @@ public class PlaceholderStreamStateHandle implements StreamStateHandle {
 
     private static final long serialVersionUID = 1L;
 
+    private final PhysicalStateHandleID physicalID;
     private final long stateSize;
 
-    public PlaceholderStreamStateHandle(long stateSize) {
+    public PlaceholderStreamStateHandle(PhysicalStateHandleID physicalID, long stateSize) {
+        this.physicalID = physicalID;
         this.stateSize = stateSize;
     }
 
@@ -53,8 +55,7 @@ public class PlaceholderStreamStateHandle implements StreamStateHandle {
 
     @Override
     public PhysicalStateHandleID getStreamStateHandleID() {
-        throw new UnsupportedOperationException(
-                "This is only a placeholder to be replaced by a real StreamStateHandle in the checkpoint coordinator.");
+        return physicalID;
     }
 
     @Override

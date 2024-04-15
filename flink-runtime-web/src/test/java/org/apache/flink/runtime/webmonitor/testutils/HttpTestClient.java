@@ -122,7 +122,7 @@ public class HttpTestClient implements AutoCloseable {
     }
 
     /**
-     * Sends a request to to the server.
+     * Sends a request to the server.
      *
      * <pre>
      * HttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/overview");

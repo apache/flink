@@ -25,6 +25,7 @@ import org.apache.flink.runtime.dispatcher.cleanup.GloballyCleanableResource;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.io.IOException;
@@ -212,19 +213,42 @@ public interface HighAvailabilityServices
     void close() throws Exception;
 
     /**
-     * Closes the high availability services (releasing all resources) and deletes all data stored
-     * by these services in external stores.
+     * Deletes all data stored by high availability services in external stores.
      *
-     * <p>After this method was called, the any job or session that was managed by these high
+     * <p>After this method was called, any job or session that was managed by these high
      * availability services will be unrecoverable.
      *
      * <p>If an exception occurs during cleanup, this method will attempt to continue the cleanup
      * and report exceptions only after all cleanup steps have been attempted.
      *
-     * @throws Exception Thrown, if an exception occurred while closing these services or cleaning
-     *     up data stored by them.
+     * @throws Exception if an error occurred while cleaning up data stored by them.
      */
-    void closeAndCleanupAllData() throws Exception;
+    void cleanupAllData() throws Exception;
+
+    /**
+     * Calls {@link #cleanupAllData()} (if {@code true} is passed as a parameter) before calling
+     * {@link #close()} on this instance. Any error that appeared during the cleanup will be
+     * propagated after calling {@code close()}.
+     */
+    default void closeWithOptionalClean(boolean cleanupData) throws Exception {
+        Throwable exception = null;
+        if (cleanupData) {
+            try {
+                cleanupAllData();
+            } catch (Throwable t) {
+                exception = ExceptionUtils.firstOrSuppressed(t, exception);
+            }
+        }
+        try {
+            close();
+        } catch (Throwable t) {
+            exception = ExceptionUtils.firstOrSuppressed(t, exception);
+        }
+
+        if (exception != null) {
+            ExceptionUtils.rethrowException(exception);
+        }
+    }
 
     @Override
     default CompletableFuture<Void> globalCleanupAsync(JobID jobId, Executor executor) {

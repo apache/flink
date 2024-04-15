@@ -44,14 +44,17 @@ import java.util.List;
 public interface ListState<T> extends MergingState<T, Iterable<T>> {
 
     /**
-     * Updates the operator state accessible by {@link #get()} by updating existing values to to the
+     * Updates the operator state accessible by {@link #get()} by updating existing values to the
      * given list of values. The next time {@link #get()} is called (for the same state partition)
      * the returned state will represent the updated list.
      *
-     * <p>If null or an empty list is passed in, the state value will be null.
+     * <p>If an empty list is passed in, the state value will be null.
+     *
+     * <p>Null value passed in or any null value in list is not allowed.
      *
      * @param values The new values for the state.
-     * @throws Exception The method may forward exception thrown internally (by I/O or functions).
+     * @throws Exception The method may forward exception thrown internally (by I/O or functions, or
+     *     sanity check for null value).
      */
     void update(List<T> values) throws Exception;
 
@@ -60,10 +63,13 @@ public interface ListState<T> extends MergingState<T, Iterable<T>> {
      * existing list of values. The next time {@link #get()} is called (for the same state
      * partition) the returned state will represent the updated list.
      *
-     * <p>If null or an empty list is passed in, the state value remains unchanged.
+     * <p>If an empty list is passed in, the state value remains unchanged.
+     *
+     * <p>Null value passed in or any null value in list is not allowed.
      *
      * @param values The new values to be added to the state.
-     * @throws Exception The method may forward exception thrown internally (by I/O or functions).
+     * @throws Exception The method may forward exception thrown internally (by I/O or functions, or
+     *     sanity check for null value).
      */
     void addAll(List<T> values) throws Exception;
 }

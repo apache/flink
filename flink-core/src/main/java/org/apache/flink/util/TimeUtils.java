@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -139,7 +138,19 @@ public class TimeUtils {
     public static String formatWithHighestUnit(Duration duration) {
         long nanos = duration.toNanos();
 
-        List<TimeUnit> orderedUnits =
+        TimeUnit highestIntegerUnit = getHighestIntegerUnit(nanos);
+        return String.format(
+                "%d %s",
+                nanos / highestIntegerUnit.unit.getDuration().toNanos(),
+                highestIntegerUnit.getLabels().get(0));
+    }
+
+    private static TimeUnit getHighestIntegerUnit(long nanos) {
+        if (nanos == 0) {
+            return TimeUnit.MILLISECONDS;
+        }
+
+        final List<TimeUnit> orderedUnits =
                 Arrays.asList(
                         TimeUnit.NANOSECONDS,
                         TimeUnit.MICROSECONDS,
@@ -149,29 +160,15 @@ public class TimeUtils {
                         TimeUnit.HOURS,
                         TimeUnit.DAYS);
 
-        TimeUnit highestIntegerUnit =
-                IntStream.range(0, orderedUnits.size())
-                        .sequential()
-                        .filter(
-                                idx ->
-                                        nanos % orderedUnits.get(idx).unit.getDuration().toNanos()
-                                                != 0)
-                        .boxed()
-                        .findFirst()
-                        .map(
-                                idx -> {
-                                    if (idx == 0) {
-                                        return orderedUnits.get(0);
-                                    } else {
-                                        return orderedUnits.get(idx - 1);
-                                    }
-                                })
-                        .orElse(TimeUnit.MILLISECONDS);
+        TimeUnit highestIntegerUnit = null;
+        for (TimeUnit timeUnit : orderedUnits) {
+            if (nanos % timeUnit.unit.getDuration().toNanos() != 0) {
+                break;
+            }
+            highestIntegerUnit = timeUnit;
+        }
 
-        return String.format(
-                "%d %s",
-                nanos / highestIntegerUnit.unit.getDuration().toNanos(),
-                highestIntegerUnit.getLabels().get(0));
+        return checkNotNull(highestIntegerUnit, "Should find a highestIntegerUnit.");
     }
 
     /** Enum which defines time unit, mostly used to parse value from configuration file. */
@@ -238,7 +235,9 @@ public class TimeUtils {
      *
      * @param time time to transform into duration
      * @return duration equal to the given time
+     * @deprecated Use {@link Duration} APIs
      */
+    @Deprecated
     public static Duration toDuration(Time time) {
         return Duration.of(time.getSize(), toChronoUnit(time.getUnit()));
     }

@@ -208,7 +208,10 @@ column_list:
 **COLUMN LIST**
 
 Given a table T(a INT, b INT, c INT), Flink supports INSERT INTO T(c, b) SELECT x, y FROM S. The expectation is
-that 'x' is written to column 'c' and 'y' is written to column 'b' and 'a' is set to NULL (assuming column 'a' is nullable). 
+that 'x' is written to column 'c' and 'y' is written to column 'b' and 'a' is set to NULL (assuming column 'a' is nullable).<br />
+For connector developers who want to avoid overwriting non-target columns with null values when processing partial column updates,
+you can get the information about the target columns specified by the user's insert statement from {{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/DynamicTableSink.java" name="DynamicTableSink$Context.getTargetColumns()" >}}
+and decide how to process the partial updates.
 
 ### Examples
 

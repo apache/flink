@@ -40,7 +40,6 @@ jobs:
         inputs:
           script: |
             source ./tools/ci/maven-utils.sh
-            setup_maven
             run_mvn -version
             export MVN="run_mvn"
 
@@ -93,7 +92,6 @@ jobs:
         inputs:
           script: |
             source ./tools/ci/maven-utils.sh
-            setup_maven
             run_mvn -version
 
             cd tools

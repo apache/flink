@@ -20,8 +20,8 @@ package org.apache.flink.state.changelog;
 
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.State;
+import org.apache.flink.runtime.state.InternalKeyContext;
 import org.apache.flink.runtime.state.changelog.StateChange;
-import org.apache.flink.runtime.state.heap.InternalKeyContext;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.state.changelog.restore.ChangelogApplierFactory;

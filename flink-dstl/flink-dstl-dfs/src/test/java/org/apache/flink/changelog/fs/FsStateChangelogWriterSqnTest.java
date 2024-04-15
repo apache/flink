@@ -153,6 +153,6 @@ public class FsStateChangelogWriterSqnTest {
     }
 
     private static void persistAll(FsStateChangelogWriter writer) throws IOException {
-        writer.persist(writer.initialSequenceNumber());
+        writer.persist(writer.initialSequenceNumber(), 1L);
     }
 }

@@ -21,7 +21,13 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
-import { MetricMap, JobMetric, Watermarks, MetricMapWithTimestamp } from '@flink-runtime-web/interfaces';
+import {
+  MetricMap,
+  MetricMapWithAllAggregates,
+  JobMetric,
+  Watermarks,
+  MetricMapWithTimestamp
+} from '@flink-runtime-web/interfaces';
 
 import { ConfigService } from './config.service';
 
@@ -71,43 +77,71 @@ export class MetricsService {
       );
   }
 
-  /** Get aggregated metric data from all subtasks of the given vertexId. */
+  /** Get aggregated metric data from all subtasks of the given vertexId. Example output:
+  { "numRecordsIn": { "min": 0.0, "max": 10.0, "sum": 15.0, "avg": 5.0, "skew": 66.0 } } */
+  public loadMetricsWithAllAggregates(
+    jobId: string,
+    vertexId: string,
+    listOfMetricName: string[]
+  ): Observable<MetricMapWithAllAggregates> {
+    const metricName = listOfMetricName.join(',');
+    return this.httpClient
+      .get<Array<{ id: string; min: number; max: number; avg: number; sum: number; skew: number }>>(
+        `${this.configService.BASE_URL}/jobs/${jobId}/vertices/${vertexId}/subtasks/metrics`,
+        { params: { get: metricName } }
+      )
+      .pipe(
+        map(arr => {
+          const result: MetricMapWithAllAggregates = {};
+          arr.forEach(item => {
+            result[item.id] = { min: NaN, max: NaN, avg: NaN, sum: NaN, skew: NaN };
+            result[item.id].min = +item.min;
+            result[item.id].max = +item.max;
+            result[item.id].avg = +item.avg;
+            result[item.id].sum = +item.sum;
+            result[item.id].skew = +item.skew;
+          });
+          return result;
+        })
+      );
+  }
+
+  /** Get metric data from all subtasks of the given vertexId, aggregated by a given aggregation type
+  Default aggregation type: max */
   public loadAggregatedMetrics(
     jobId: string,
     vertexId: string,
     listOfMetricName: string[],
     aggregate: string = 'max'
   ): Observable<MetricMap> {
-    const metricName = listOfMetricName.join(',');
-    return this.httpClient
-      .get<Array<{ id: string; min: number; max: number; avg: number; sum: number }>>(
-        `${this.configService.BASE_URL}/jobs/${jobId}/vertices/${vertexId}/subtasks/metrics`,
-        { params: { get: metricName } }
-      )
-      .pipe(
-        map(arr => {
-          const result: MetricMap = {};
-          arr.forEach(item => {
-            switch (aggregate) {
-              case 'min':
-                result[item.id] = +item.min;
-                break;
-              case 'max':
-                result[item.id] = +item.max;
-                break;
-              case 'avg':
-                result[item.id] = +item.avg;
-                break;
-              case 'sum':
-                result[item.id] = +item.sum;
-                break;
-              default:
-                throw new Error(`Unsupported aggregate: ${aggregate}`);
-            }
-          });
-          return result;
-        })
-      );
+    const result: MetricMap = {};
+    return this.loadMetricsWithAllAggregates(jobId, vertexId, listOfMetricName).pipe(
+      map((metricMapWithAllAggregates: MetricMapWithAllAggregates) => {
+        for (const metricName in metricMapWithAllAggregates) {
+          const value = metricMapWithAllAggregates[metricName];
+          switch (aggregate) {
+            case 'min':
+              result[metricName] = +value.min;
+              break;
+            case 'max':
+              result[metricName] = +value.max;
+              break;
+            case 'avg':
+              result[metricName] = +value.avg;
+              break;
+            case 'sum':
+              result[metricName] = +value.sum;
+              break;
+            case 'skew':
+              result[metricName] = +value.skew;
+              break;
+            default:
+              throw new Error(`Unsupported aggregate: ${aggregate}`);
+          }
+        }
+        return result;
+      })
+    );
   }
 
   public loadWatermarks(jobId: string, vertexId: string): Observable<Watermarks> {

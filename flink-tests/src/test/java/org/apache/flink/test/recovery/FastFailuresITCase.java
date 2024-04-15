@@ -19,9 +19,9 @@
 package org.apache.flink.test.recovery;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
@@ -54,7 +54,7 @@ public class FastFailuresITCase extends AbstractTestBase {
                         new RichSourceFunction<Tuple2<Integer, Integer>>() {
 
                             @Override
-                            public void open(Configuration parameters) {
+                            public void open(OpenContext openContext) {
                                 if (FAILURES_SO_FAR.incrementAndGet() <= NUM_FAILURES) {
                                     throw new RuntimeException("fail");
                                 }

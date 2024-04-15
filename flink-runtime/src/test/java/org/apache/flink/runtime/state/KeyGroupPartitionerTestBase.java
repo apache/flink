@@ -22,11 +22,8 @@ import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.CollectionUtil;
-import org.apache.flink.util.TestLogger;
 
-import org.hamcrest.Matchers;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
@@ -46,11 +43,10 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Abstract test base for implementations of {@link KeyGroupPartitioner}. */
-public abstract class KeyGroupPartitionerTestBase<T> extends TestLogger {
+public abstract class KeyGroupPartitionerTestBase<T> {
 
     private static final DataOutputView DUMMY_OUT_VIEW =
             new DataOutputViewStreamWrapper(new ByteArrayOutputStreamWithPos(0));
@@ -68,7 +64,7 @@ public abstract class KeyGroupPartitionerTestBase<T> extends TestLogger {
     }
 
     @Test
-    public void testPartitionByKeyGroup() throws IOException {
+    void testPartitionByKeyGroup() throws IOException {
 
         final Random random = new Random(0x42);
         testPartitionByKeyGroupForSize(0, random);
@@ -82,7 +78,7 @@ public abstract class KeyGroupPartitionerTestBase<T> extends TestLogger {
         final Set<T> allElementsIdentitySet = Collections.newSetFromMap(new IdentityHashMap<>());
         final T[] data = generateTestInput(random, testSize, allElementsIdentitySet);
 
-        Assert.assertEquals(testSize, allElementsIdentitySet.size());
+        assertThat(allElementsIdentitySet).hasSize(testSize);
 
         // Test with 5 key-groups.
         final KeyGroupRange range = new KeyGroupRange(0, 4);
@@ -106,7 +102,7 @@ public abstract class KeyGroupPartitionerTestBase<T> extends TestLogger {
     }
 
     @Test
-    public void testPartitionByKeyGroupWithIterator() throws IOException {
+    void testPartitionByKeyGroupWithIterator() throws IOException {
 
         final Random random = new Random(0x42);
         testPartitionByKeyGroupForSizeWithIterator(0, random);
@@ -142,12 +138,9 @@ public abstract class KeyGroupPartitionerTestBase<T> extends TestLogger {
 
         for (int keyGroup = 0; keyGroup < numberOfKeyGroups; ++keyGroup) {
             Iterator<T> iterator = result.iterator(keyGroup);
-            assertThat(
-                    CollectionUtil.iteratorToList(iterator),
-                    containsInAnyOrder(
-                            partitionedData.getOrDefault(keyGroup, Collections.emptyList()).stream()
-                                    .map(Matchers::equalTo)
-                                    .collect(Collectors.toList())));
+            assertThat(CollectionUtil.iteratorToList(iterator))
+                    .containsExactlyElementsOf(
+                            partitionedData.getOrDefault(keyGroup, Collections.emptyList()));
         }
     }
 
@@ -171,7 +164,7 @@ public abstract class KeyGroupPartitionerTestBase<T> extends TestLogger {
             element = elementGenerator.apply(random);
         }
 
-        Assert.assertEquals(numElementsToGenerate, allElementsIdentitySet.size());
+        assertThat(allElementsIdentitySet).hasSize(numElementsToGenerate);
         return partitioningIn;
     }
 
@@ -222,16 +215,16 @@ public abstract class KeyGroupPartitionerTestBase<T> extends TestLogger {
 
         @Override
         public void writeElement(@Nonnull T element, @Nonnull DataOutputView dov) {
-            Assert.assertTrue(allElementsSet.remove(element));
-            Assert.assertEquals(
-                    currentKeyGroup,
-                    KeyGroupRangeAssignment.assignToKeyGroup(
-                            keyExtractorFunction.extractKeyFromElement(element),
-                            numberOfKeyGroups));
+            assertThat(allElementsSet.remove(element)).isTrue();
+            assertThat(
+                            KeyGroupRangeAssignment.assignToKeyGroup(
+                                    keyExtractorFunction.extractKeyFromElement(element),
+                                    numberOfKeyGroups))
+                    .isEqualTo(currentKeyGroup);
         }
 
         void validateAllElementsSeen() {
-            Assert.assertTrue(allElementsSet.isEmpty());
+            assertThat(allElementsSet).isEmpty();
         }
 
         void setCurrentKeyGroup(int currentKeyGroup) {

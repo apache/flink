@@ -30,10 +30,12 @@ import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorageAccess;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.annotation.Nullable;
 
@@ -43,11 +45,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Random;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Test base for file-system-based checkoint storage, such as the {@link
@@ -55,28 +54,28 @@ import static org.junit.Assert.fail;
  */
 public abstract class AbstractFileCheckpointStorageAccessTestBase {
 
-    @Rule public final TemporaryFolder tmp = new TemporaryFolder();
+    @TempDir protected java.nio.file.Path tmp;
 
     // ------------------------------------------------------------------------
     //  factories for the actual state storage to be tested
     // ------------------------------------------------------------------------
 
-    protected abstract CheckpointStorageAccess createCheckpointStorage(Path checkpointDir)
-            throws Exception;
+    protected abstract CheckpointStorageAccess createCheckpointStorage(
+            Path checkpointDir, boolean createCheckpointSubdir) throws Exception;
 
     protected abstract CheckpointStorageAccess createCheckpointStorageWithSavepointDir(
-            Path checkpointDir, Path savepointDir) throws Exception;
+            Path checkpointDir, Path savepointDir, boolean createCheckpointSubdir) throws Exception;
 
     // ------------------------------------------------------------------------
     //  pointers
     // ------------------------------------------------------------------------
 
     @Test
-    public void testPointerPathResolution() throws Exception {
+    void testPointerPathResolution() throws Exception {
         final FileSystem fs = FileSystem.getLocalFileSystem();
         final Path metadataFile =
                 new Path(
-                        Path.fromLocalFile(tmp.newFolder()),
+                        Path.fromLocalFile(TempDirUtils.newFolder(tmp)),
                         AbstractFsCheckpointStorageAccess.METADATA_FILE_NAME);
 
         final String basePointer = metadataFile.getParent().toString();
@@ -86,7 +85,7 @@ public abstract class AbstractFileCheckpointStorageAccessTestBase {
         final String pointer3 = metadataFile.getParent().toString() + '/';
 
         // create the storage for some random checkpoint directory
-        final CheckpointStorageAccess storage = createCheckpointStorage(randomTempPath());
+        final CheckpointStorageAccess storage = createCheckpointStorage(randomTempPath(), true);
 
         final byte[] data = new byte[23686];
         new Random().nextBytes(data);
@@ -98,17 +97,17 @@ public abstract class AbstractFileCheckpointStorageAccessTestBase {
         CompletedCheckpointStorageLocation completed2 = storage.resolveCheckpoint(pointer2);
         CompletedCheckpointStorageLocation completed3 = storage.resolveCheckpoint(pointer3);
 
-        assertEquals(basePointer, completed1.getExternalPointer());
-        assertEquals(basePointer, completed2.getExternalPointer());
-        assertEquals(basePointer, completed3.getExternalPointer());
+        assertThat(completed1.getExternalPointer()).isEqualTo(basePointer);
+        assertThat(completed2.getExternalPointer()).isEqualTo(basePointer);
+        assertThat(completed3.getExternalPointer()).isEqualTo(basePointer);
 
         StreamStateHandle handle1 = completed1.getMetadataHandle();
         StreamStateHandle handle2 = completed2.getMetadataHandle();
         StreamStateHandle handle3 = completed3.getMetadataHandle();
 
-        assertNotNull(handle1);
-        assertNotNull(handle2);
-        assertNotNull(handle3);
+        assertThat(handle1).isNotNull();
+        assertThat(handle2).isNotNull();
+        assertThat(handle3).isNotNull();
 
         validateContents(handle1, data);
         validateContents(handle2, data);
@@ -116,57 +115,72 @@ public abstract class AbstractFileCheckpointStorageAccessTestBase {
     }
 
     @Test
-    public void testFailingPointerPathResolution() throws Exception {
+    void testFailingPointerPathResolution() throws Exception {
         // create the storage for some random checkpoint directory
-        final CheckpointStorageAccess storage = createCheckpointStorage(randomTempPath());
+        final CheckpointStorageAccess storage = createCheckpointStorage(randomTempPath(), true);
 
         // null value
-        try {
-            storage.resolveCheckpoint(null);
-            fail("expected exception");
-        } catch (NullPointerException ignored) {
-        }
+        assertThatThrownBy(() -> storage.resolveCheckpoint(null))
+                .isInstanceOf(NullPointerException.class);
 
         // empty string
-        try {
-            storage.resolveCheckpoint("");
-            fail("expected exception");
-        } catch (IllegalArgumentException ignored) {
-        }
+        assertThatThrownBy(() -> storage.resolveCheckpoint(""))
+                .isInstanceOf(IllegalArgumentException.class);
 
         // not a file path at all
-        try {
-            storage.resolveCheckpoint("this-is_not/a#filepath.at.all");
-            fail("expected exception");
-        } catch (IOException ignored) {
-        }
+        assertThatThrownBy(() -> storage.resolveCheckpoint("this-is_not/a#filepath.at.all"))
+                .isInstanceOf(IOException.class);
 
         // non-existing file
-        try {
-            storage.resolveCheckpoint(tmp.newFile().toURI().toString() + "_not_existing");
-            fail("expected exception");
-        } catch (IOException ignored) {
-        }
+        assertThatThrownBy(
+                        () ->
+                                storage.resolveCheckpoint(
+                                        TempDirUtils.newFile(tmp).toURI().toString()
+                                                + "_not_existing"))
+                .isInstanceOf(IOException.class);
     }
 
     // ------------------------------------------------------------------------
     //  checkpoints
     // ------------------------------------------------------------------------
 
+    @ParameterizedTest(name = "create checkpoint job-id sub-directory: {0}")
+    @ValueSource(booleans = {true, false})
+    public void testCreateCheckpointSubDirs(boolean createCheckpointSubDir) throws Exception {
+        final FileSystem fs = FileSystem.getLocalFileSystem();
+        final Path checkpointDir = Path.fromLocalFile(TempDirUtils.newFolder(tmp));
+        final CheckpointStorageAccess checkpointStorage =
+                createCheckpointStorage(checkpointDir, createCheckpointSubDir);
+        checkpointStorage.initializeBaseLocationsForCheckpoint();
+        checkpointStorage.initializeLocationForCheckpoint(42L);
+        FileStatus[] fileStatuses = fs.listStatus(checkpointDir);
+        if (createCheckpointSubDir) {
+            for (FileStatus fileStatus : fileStatuses) {
+                // as the job-id sub-dir existed and could at least get chk-42 sub-folder.
+                assertThat(fs.listStatus(fileStatus.getPath()).length > 0).isTrue();
+            }
+        } else {
+            for (FileStatus fileStatus : fileStatuses) {
+                // as the job-id sub-dir is not existed and no more sub-folders.
+                assertThat(fs.listStatus(fileStatus.getPath()).length).isEqualTo(0);
+            }
+        }
+    }
+
     /**
      * Validates that multiple checkpoints from different jobs with the same checkpoint ID do not
      * interfere with each other.
      */
     @Test
-    public void testPersistMultipleMetadataOnlyCheckpoints() throws Exception {
+    void testPersistMultipleMetadataOnlyCheckpoints() throws Exception {
         final FileSystem fs = FileSystem.getLocalFileSystem();
-        final Path checkpointDir = new Path(tmp.newFolder().toURI());
+        final Path checkpointDir = new Path(TempDirUtils.newFolder(tmp).toURI());
 
         final long checkpointId = 177;
 
-        final CheckpointStorageAccess storage1 = createCheckpointStorage(checkpointDir);
+        final CheckpointStorageAccess storage1 = createCheckpointStorage(checkpointDir, true);
         storage1.initializeBaseLocationsForCheckpoint();
-        final CheckpointStorageAccess storage2 = createCheckpointStorage(checkpointDir);
+        final CheckpointStorageAccess storage2 = createCheckpointStorage(checkpointDir, true);
         storage2.initializeBaseLocationsForCheckpoint();
 
         final CheckpointStorageLocation loc1 =
@@ -195,18 +209,26 @@ public abstract class AbstractFileCheckpointStorageAccessTestBase {
 
         // one directory per storage
         FileStatus[] files = fs.listStatus(checkpointDir);
-        assertEquals(2, files.length);
+        assertThat(files).hasSize(2);
 
         // in each per-storage directory, one for the checkpoint
         FileStatus[] job1Files = fs.listStatus(files[0].getPath());
         FileStatus[] job2Files = fs.listStatus(files[1].getPath());
-        assertTrue(job1Files.length >= 1);
-        assertTrue(job2Files.length >= 1);
+        assertThat(job1Files).hasSizeGreaterThanOrEqualTo(1);
+        assertThat(job2Files).hasSizeGreaterThanOrEqualTo(1);
 
-        assertTrue(
-                fs.exists(new Path(result1, AbstractFsCheckpointStorageAccess.METADATA_FILE_NAME)));
-        assertTrue(
-                fs.exists(new Path(result2, AbstractFsCheckpointStorageAccess.METADATA_FILE_NAME)));
+        assertThat(
+                        fs.exists(
+                                new Path(
+                                        result1,
+                                        AbstractFsCheckpointStorageAccess.METADATA_FILE_NAME)))
+                .isTrue();
+        assertThat(
+                        fs.exists(
+                                new Path(
+                                        result2,
+                                        AbstractFsCheckpointStorageAccess.METADATA_FILE_NAME)))
+                .isTrue();
 
         // check that both storages can resolve each others contents
         validateContents(storage1.resolveCheckpoint(result1).getMetadataHandle(), data1);
@@ -216,11 +238,11 @@ public abstract class AbstractFileCheckpointStorageAccessTestBase {
     }
 
     @Test
-    public void writeToAlreadyExistingCheckpointFails() throws Exception {
+    void writeToAlreadyExistingCheckpointFails() throws Exception {
         final byte[] data = {8, 8, 4, 5, 2, 6, 3};
         final long checkpointId = 177;
 
-        final CheckpointStorageAccess storage = createCheckpointStorage(randomTempPath());
+        final CheckpointStorageAccess storage = createCheckpointStorage(randomTempPath(), true);
         storage.initializeBaseLocationsForCheckpoint();
         final CheckpointStorageLocation loc = storage.initializeLocationForCheckpoint(checkpointId);
 
@@ -232,11 +254,7 @@ public abstract class AbstractFileCheckpointStorageAccessTestBase {
         }
 
         // create another writer to the metadata file for the checkpoint
-        try {
-            loc.createMetadataOutputStream();
-            fail("this should fail with an exception");
-        } catch (IOException ignored) {
-        }
+        assertThatThrownBy(loc::createMetadataOutputStream).isInstanceOf(IOException.class);
     }
 
     // ------------------------------------------------------------------------
@@ -244,33 +262,30 @@ public abstract class AbstractFileCheckpointStorageAccessTestBase {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testSavepointPathConfiguredAndTarget() throws Exception {
+    void testSavepointPathConfiguredAndTarget() throws Exception {
         final Path savepointDir = randomTempPath();
         final Path customDir = randomTempPath();
         testSavepoint(savepointDir, customDir, customDir);
     }
 
     @Test
-    public void testSavepointPathConfiguredNoTarget() throws Exception {
+    void testSavepointPathConfiguredNoTarget() throws Exception {
         final Path savepointDir = randomTempPath();
         testSavepoint(savepointDir, null, savepointDir);
     }
 
     @Test
-    public void testNoSavepointPathConfiguredAndTarget() throws Exception {
-        final Path customDir = Path.fromLocalFile(tmp.newFolder());
+    void testNoSavepointPathConfiguredAndTarget() throws Exception {
+        final Path customDir = Path.fromLocalFile(TempDirUtils.newFolder(tmp));
         testSavepoint(null, customDir, customDir);
     }
 
     @Test
-    public void testNoSavepointPathConfiguredNoTarget() throws Exception {
-        final CheckpointStorageAccess storage = createCheckpointStorage(randomTempPath());
+    void testNoSavepointPathConfiguredNoTarget() throws Exception {
+        final CheckpointStorageAccess storage = createCheckpointStorage(randomTempPath(), true);
 
-        try {
-            storage.initializeLocationForSavepoint(1337, null);
-            fail("this should fail with an exception");
-        } catch (IllegalArgumentException ignored) {
-        }
+        assertThatThrownBy(() -> storage.initializeLocationForSavepoint(1337, null))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     private void testSavepoint(
@@ -279,8 +294,9 @@ public abstract class AbstractFileCheckpointStorageAccessTestBase {
 
         final CheckpointStorageAccess storage =
                 savepointDir == null
-                        ? createCheckpointStorage(randomTempPath())
-                        : createCheckpointStorageWithSavepointDir(randomTempPath(), savepointDir);
+                        ? createCheckpointStorage(randomTempPath(), true)
+                        : createCheckpointStorageWithSavepointDir(
+                                randomTempPath(), savepointDir, true);
 
         final String customLocation = customDir == null ? null : customDir.toString();
 
@@ -301,7 +317,7 @@ public abstract class AbstractFileCheckpointStorageAccessTestBase {
                 Path.fromLocalFile(
                         new File(new Path(completed.getExternalPointer()).getParent().getPath()));
 
-        assertEquals(expectedParent, normalizedWithSlash);
+        assertThat(normalizedWithSlash).isEqualTo(expectedParent);
         validateContents(completed.getMetadataHandle(), data);
 
         // validate that the correct directory was used
@@ -316,7 +332,7 @@ public abstract class AbstractFileCheckpointStorageAccessTestBase {
                         new File(fileStateHandle.getFilePath().getParent().getParent().getPath())
                                 .toURI());
 
-        assertEquals(expectedParent, usedSavepointDir);
+        assertThat(usedSavepointDir).isEqualTo(expectedParent);
     }
 
     // ------------------------------------------------------------------------
@@ -324,7 +340,7 @@ public abstract class AbstractFileCheckpointStorageAccessTestBase {
     // ------------------------------------------------------------------------
 
     public Path randomTempPath() throws IOException {
-        return Path.fromLocalFile(tmp.newFolder());
+        return Path.fromLocalFile(TempDirUtils.newFolder(tmp));
     }
 
     private static void validateContents(StreamStateHandle handle, byte[] expected)
@@ -348,6 +364,6 @@ public abstract class AbstractFileCheckpointStorageAccessTestBase {
             remaining -= read;
         }
 
-        assertArrayEquals(expected, buffer);
+        assertThat(buffer).isEqualTo(expected);
     }
 }

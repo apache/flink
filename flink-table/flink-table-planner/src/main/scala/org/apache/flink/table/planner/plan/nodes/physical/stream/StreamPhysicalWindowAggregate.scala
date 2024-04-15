@@ -64,8 +64,10 @@ class StreamPhysicalWindowAggregate(
     unwrapTypeFactory(inputRel),
     FlinkTypeFactory.toLogicalRowType(inputRel.getRowType),
     aggCalls,
+    AggregateUtil.needRetraction(this),
     windowing.getWindow,
-    isStateBackendDataViews = true)
+    isStateBackendDataViews = true
+  )
 
   override def requireWatermark: Boolean = windowing.isRowtime
 
@@ -116,6 +118,7 @@ class StreamPhysicalWindowAggregate(
       aggCalls.toArray,
       windowing,
       namedWindowProperties.toArray,
+      AggregateUtil.needRetraction(this),
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)

@@ -27,14 +27,14 @@ import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableConfigUtil
 
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.tools.RuleSets
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Test for [[PushProjectIntoLegacyTableSourceScanRule]]. */
 class PushProjectIntoLegacyTableSourceScanRuleTest extends TableTestBase {
 
   protected val util: BatchTableTestUtil = batchTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     util.buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE)
     val calciteConfig = TableConfigUtils.getCalciteConfig(util.tableEnv.getConfig)
@@ -102,7 +102,7 @@ class PushProjectIntoLegacyTableSourceScanRuleTest extends TableTestBase {
 
   @Test
   def testProjectWithUdfWithVirtualColumn(): Unit = {
-    util.tableEnv.registerFunction("my_udf", Func0)
+    util.addTemporarySystemFunction("my_udf", Func0)
     util.verifyRelPlan("SELECT a, my_udf(d) FROM VirtualTable")
   }
 

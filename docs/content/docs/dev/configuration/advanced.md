@@ -126,9 +126,6 @@ If you need some functionality from the planner, which is currently not exposed 
 ## Hadoop Dependencies
 
 **General rule:** It should not be necessary to add Hadoop dependencies directly to your application.
-The only exception is when you use existing Hadoop input/output formats with [Flink's Hadoop compatibility 
-wrappers](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/dataset/hadoop_compatibility/).
-
 If you want to use Flink with Hadoop, you need to have a Flink setup that includes the Hadoop dependencies, 
 rather than adding Hadoop as an application dependency. In other words, Hadoop must be a dependency 
 of the Flink system itself and not of the user code that contains the application. Flink will use the

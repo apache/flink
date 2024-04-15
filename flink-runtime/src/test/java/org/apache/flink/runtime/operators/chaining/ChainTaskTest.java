@@ -41,10 +41,7 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
@@ -52,9 +49,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-public class ChainTaskTest extends TaskTestBase {
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
-    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
+class ChainTaskTest extends TaskTestBase {
 
     private static final int MEMORY_MANAGER_SIZE = 1024 * 1024 * 3;
 
@@ -70,7 +68,7 @@ public class ChainTaskTest extends TaskTestBase {
     private final RecordSerializerFactory serFact = RecordSerializerFactory.get();
 
     @Test
-    public void testMapTask() {
+    void testMapTask() {
         final int keyCnt = 100;
         final int valCnt = 20;
 
@@ -120,19 +118,19 @@ public class ChainTaskTest extends TaskTestBase {
                     testTask.invoke();
                 } catch (Exception e) {
                     e.printStackTrace();
-                    Assert.fail("Invoke method caused exception.");
+                    fail("Invoke method caused exception.");
                 }
             }
 
-            Assert.assertEquals(keyCnt, this.outList.size());
+            assertThat(this.outList).hasSize(keyCnt);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testFailingMapTask() {
+    void testFailingMapTask() {
         int keyCnt = 100;
         int valCnt = 20;
 
@@ -186,16 +184,18 @@ public class ChainTaskTest extends TaskTestBase {
                     stubFailed = true;
                 }
 
-                Assert.assertTrue("Function exception was not forwarded.", stubFailed);
+                assertThat(stubFailed)
+                        .withFailMessage("Function exception was not forwarded.")
+                        .isTrue();
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testBatchTaskOutputInCloseMethod() {
+    void testBatchTaskOutputInCloseMethod() {
         final int numChainedTasks = 10;
         final int keyCnt = 100;
         final int valCnt = 10;
@@ -216,19 +216,19 @@ public class ChainTaskTest extends TaskTestBase {
             final BatchTask<FlatMapFunction<Record, Record>, Record> testTask =
                     new BatchTask<>(mockEnv);
             testTask.invoke();
-            Assert.assertEquals(keyCnt * valCnt + numChainedTasks, outList.size());
+            assertThat(outList).hasSize(keyCnt * valCnt + numChainedTasks);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testDataSourceTaskOutputInCloseMethod() throws IOException {
+    void testDataSourceTaskOutputInCloseMethod() throws IOException {
         final int numChainedTasks = 10;
         final int keyCnt = 100;
         final int valCnt = 10;
-        final File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
+        final File tempTestFile = new File(tempFolder.toFile(), UUID.randomUUID().toString());
         DataSourceTaskTest.InputFilePreparator.prepareInputFile(
                 new UniformRecordGenerator(keyCnt, valCnt, false), tempTestFile, true);
         initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
@@ -250,10 +250,10 @@ public class ChainTaskTest extends TaskTestBase {
         }
         try {
             testTask.invoke();
-            Assert.assertEquals(keyCnt * valCnt + numChainedTasks, outList.size());
+            assertThat(outList).hasSize(keyCnt * valCnt + numChainedTasks);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Invoke method caused exception.");
+            fail("Invoke method caused exception.");
         }
     }
 

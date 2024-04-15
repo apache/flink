@@ -21,13 +21,19 @@ package org.apache.flink.table.planner.operations.converters;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.utils.Expander;
+import org.apache.flink.table.types.DataType;
 
 import org.apache.calcite.rel.RelRoot;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.validate.SqlValidator;
 
+import javax.annotation.Nullable;
+
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -74,6 +80,12 @@ public interface SqlNodeConverter<S extends SqlNode> {
 
         /** Converts the given validated {@link SqlNode} into a {@link RelRoot}. */
         RelRoot toRelRoot(SqlNode sqlNode);
+
+        /** Converts the given validated {@link SqlNode} into a {@link RexNode}. */
+        RexNode toRexNode(SqlNode sqlNode, RelDataType inputRowType, @Nullable DataType outputType);
+
+        /** Reduce the given {@link RexNode}s. */
+        List<RexNode> reduceRexNodes(List<RexNode> rexNodes);
 
         /** Convert the given {@param sqlNode} into a quoted SQL string. */
         String toQuotedSqlString(SqlNode sqlNode);

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.CopyingListCollector;
@@ -217,8 +218,10 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
         Arrays.fill(inputDirections1, true);
         Arrays.fill(inputDirections2, true);
 
-        final TypeSerializer<IN1> inputSerializer1 = inputType1.createSerializer(executionConfig);
-        final TypeSerializer<IN2> inputSerializer2 = inputType2.createSerializer(executionConfig);
+        final TypeSerializer<IN1> inputSerializer1 =
+                inputType1.createSerializer(executionConfig.getSerializerConfig());
+        final TypeSerializer<IN2> inputSerializer2 =
+                inputType2.createSerializer(executionConfig.getSerializerConfig());
 
         final TypeComparator<IN1> inputComparator1 =
                 getTypeComparator(executionConfig, inputType1, inputKeys1, inputDirections1);
@@ -295,13 +298,15 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
         CoGroupFunction<IN1, IN2, OUT> function = userFunction.getUserCodeObject();
 
         FunctionUtils.setFunctionRuntimeContext(function, ctx);
-        FunctionUtils.openFunction(function, parameters);
+        FunctionUtils.openFunction(function, DefaultOpenContext.INSTANCE);
 
         List<OUT> result = new ArrayList<OUT>();
         Collector<OUT> resultCollector =
                 new CopyingListCollector<OUT>(
                         result,
-                        getOperatorInfo().getOutputType().createSerializer(executionConfig));
+                        getOperatorInfo()
+                                .getOutputType()
+                                .createSerializer(executionConfig.getSerializerConfig()));
 
         while (coGroupIterator.next()) {
             function.coGroup(

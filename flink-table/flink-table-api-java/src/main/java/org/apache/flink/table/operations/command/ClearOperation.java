@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.operations.command;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.operations.Operation;
 
 /** Operation to represent CLEAR command. */
+@Internal
 public class ClearOperation implements Operation {
     @Override
     public String asSummaryString() {

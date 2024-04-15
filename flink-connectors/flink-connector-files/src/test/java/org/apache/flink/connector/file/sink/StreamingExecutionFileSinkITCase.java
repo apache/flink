@@ -25,11 +25,11 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -149,7 +149,7 @@ class StreamingExecutionFileSinkITCase extends FileSinkITBase {
 
         @Override
         public void run(SourceContext<Integer> ctx) throws Exception {
-            if (isFailoverScenario && getRuntimeContext().getAttemptNumber() == 0) {
+            if (isFailoverScenario && getRuntimeContext().getTaskInfo().getAttemptNumber() == 0) {
                 // In the first execution, we first send a part of record...
                 sendRecordsUntil((int) (numberOfRecords * FAILOVER_RATIO * 0.5), ctx);
 
@@ -162,7 +162,7 @@ class StreamingExecutionFileSinkITCase extends FileSinkITBase {
                 sendRecordsUntil((int) (numberOfRecords * FAILOVER_RATIO), ctx);
 
                 // And then trigger the failover.
-                if (getRuntimeContext().getIndexOfThisSubtask() == 0) {
+                if (getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 0) {
                     throw new RuntimeException("Designated Exception");
                 } else {
                     while (true) {

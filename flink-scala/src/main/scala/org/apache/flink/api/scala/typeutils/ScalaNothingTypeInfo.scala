@@ -19,9 +19,19 @@ package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.annotation.{Public, PublicEvolving}
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
 
+/**
+ * @deprecated
+ *   All Flink Scala APIs are deprecated and will be removed in a future Flink major version. You
+ *   can still build your application in Scala, but you should move to the Java version of either
+ *   the DataStream and/or Table API.
+ * @see
+ *   <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
+ */
+@deprecated(org.apache.flink.api.scala.FLIP_265_WARNING, since = "1.18.0")
 @Public
 class ScalaNothingTypeInfo extends TypeInformation[Nothing] {
 
@@ -39,8 +49,12 @@ class ScalaNothingTypeInfo extends TypeInformation[Nothing] {
   override def isKeyType: Boolean = false
 
   @PublicEvolving
-  override def createSerializer(config: ExecutionConfig): TypeSerializer[Nothing] =
+  override def createSerializer(config: SerializerConfig): TypeSerializer[Nothing] =
     (new NothingSerializer).asInstanceOf[TypeSerializer[Nothing]]
+
+  @PublicEvolving
+  override def createSerializer(config: ExecutionConfig): TypeSerializer[Nothing] =
+    createSerializer(config.getSerializerConfig)
 
   override def hashCode(): Int = classOf[ScalaNothingTypeInfo].hashCode
 

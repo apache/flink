@@ -28,36 +28,32 @@ import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.hamcrest.Matchers;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link DefaultExecutionGraphCache}. */
-public class DefaultExecutionGraphCacheTest extends TestLogger {
+class DefaultExecutionGraphCacheTest {
 
     private static ExecutionGraphInfo expectedExecutionGraphInfo;
     private static final JobID expectedJobId = new JobID();
 
-    @BeforeClass
+    @BeforeAll
     public static void setup() {
         expectedExecutionGraphInfo =
                 new ExecutionGraphInfo(new ArchivedExecutionGraphBuilder().build());
@@ -65,7 +61,7 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
 
     /** Tests that we can cache AccessExecutionGraphs over multiple accesses. */
     @Test
-    public void testExecutionGraphCaching() throws Exception {
+    void testExecutionGraphCaching() throws Exception {
         final Time timeout = Time.milliseconds(100L);
         final Time timeToLive = Time.hours(1L);
 
@@ -79,20 +75,24 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
             CompletableFuture<ExecutionGraphInfo> executionGraphInfoFuture =
                     executionGraphCache.getExecutionGraphInfo(expectedJobId, restfulGateway);
 
-            assertEquals(expectedExecutionGraphInfo, executionGraphInfoFuture.get());
+            assertThatFuture(executionGraphInfoFuture)
+                    .eventuallySucceeds()
+                    .isEqualTo(expectedExecutionGraphInfo);
 
             executionGraphInfoFuture =
                     executionGraphCache.getExecutionGraphInfo(expectedJobId, restfulGateway);
 
-            assertEquals(expectedExecutionGraphInfo, executionGraphInfoFuture.get());
+            assertThatFuture(executionGraphInfoFuture)
+                    .eventuallySucceeds()
+                    .isEqualTo(expectedExecutionGraphInfo);
 
-            assertThat(restfulGateway.getNumRequestJobCalls(), Matchers.equalTo(1));
+            assertThat(restfulGateway.getNumRequestJobCalls()).isOne();
         }
     }
 
     /** Tests that an AccessExecutionGraph is invalidated after its TTL expired. */
     @Test
-    public void testExecutionGraphEntryInvalidation() throws Exception {
+    void testExecutionGraphEntryInvalidation() throws Exception {
         final Time timeout = Time.milliseconds(100L);
         final Time timeToLive = Time.milliseconds(1L);
 
@@ -107,7 +107,9 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
             CompletableFuture<ExecutionGraphInfo> executionGraphInfoFuture =
                     executionGraphCache.getExecutionGraphInfo(expectedJobId, restfulGateway);
 
-            assertEquals(expectedExecutionGraphInfo, executionGraphInfoFuture.get());
+            assertThatFuture(executionGraphInfoFuture)
+                    .eventuallySucceeds()
+                    .isEqualTo(expectedExecutionGraphInfo);
 
             // sleep for the TTL
             Thread.sleep(timeToLive.toMilliseconds() * 5L);
@@ -115,9 +117,11 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
             CompletableFuture<ExecutionGraphInfo> executionGraphInfoFuture2 =
                     executionGraphCache.getExecutionGraphInfo(expectedJobId, restfulGateway);
 
-            assertEquals(expectedExecutionGraphInfo, executionGraphInfoFuture2.get());
+            assertThatFuture(executionGraphInfoFuture2)
+                    .eventuallySucceeds()
+                    .isEqualTo(expectedExecutionGraphInfo);
 
-            assertThat(restfulGateway.getNumRequestJobCalls(), Matchers.equalTo(2));
+            assertThat(restfulGateway.getNumRequestJobCalls()).isEqualTo(2);
         }
     }
 
@@ -126,7 +130,7 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
      * a cache entry --> another cache request will trigger a new gateway request.
      */
     @Test
-    public void testImmediateCacheInvalidationAfterFailure() throws Exception {
+    void testImmediateCacheInvalidationAfterFailure() throws Exception {
         final Time timeout = Time.milliseconds(100L);
         final Time timeToLive = Time.hours(1L);
 
@@ -143,18 +147,15 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
             CompletableFuture<ExecutionGraphInfo> executionGraphFuture =
                     executionGraphCache.getExecutionGraphInfo(expectedJobId, restfulGateway);
 
-            try {
-                executionGraphFuture.get();
-
-                fail("The execution graph future should have been completed exceptionally.");
-            } catch (ExecutionException ee) {
-                assertTrue(ee.getCause() instanceof FlinkException);
-            }
+            assertThatThrownBy(() -> executionGraphFuture.get())
+                    .hasCauseInstanceOf(FlinkException.class);
 
             CompletableFuture<ExecutionGraphInfo> executionGraphFuture2 =
                     executionGraphCache.getExecutionGraphInfo(expectedJobId, restfulGateway);
 
-            assertEquals(expectedExecutionGraphInfo, executionGraphFuture2.get());
+            assertThatFuture(executionGraphFuture2)
+                    .eventuallySucceeds()
+                    .isEqualTo(expectedExecutionGraphInfo);
         }
     }
 
@@ -163,7 +164,7 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
      * DefaultExecutionGraphCache#cleanup()}.
      */
     @Test
-    public void testCacheEntryCleanup() throws Exception {
+    void testCacheEntryCleanup() throws Exception {
         final Time timeout = Time.milliseconds(100L);
         final Time timeToLive = Time.milliseconds(1L);
         final JobID expectedJobId2 = new JobID();
@@ -197,23 +198,27 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
             CompletableFuture<ExecutionGraphInfo> executionGraph2Future =
                     executionGraphCache.getExecutionGraphInfo(expectedJobId2, restfulGateway);
 
-            assertEquals(expectedExecutionGraphInfo, executionGraph1Future.get());
+            assertThatFuture(executionGraph1Future)
+                    .eventuallySucceeds()
+                    .isEqualTo(expectedExecutionGraphInfo);
 
-            assertEquals(expectedExecutionGraphInfo2, executionGraph2Future.get());
+            assertThatFuture(executionGraph2Future)
+                    .eventuallySucceeds()
+                    .isEqualTo(expectedExecutionGraphInfo2);
 
-            assertThat(requestJobCalls.get(), Matchers.equalTo(2));
+            assertThat(requestJobCalls.get()).isEqualTo(2);
 
             Thread.sleep(timeToLive.toMilliseconds());
 
             executionGraphCache.cleanup();
 
-            assertTrue(executionGraphCache.size() == 0);
+            assertThat(executionGraphCache.size()).isZero();
         }
     }
 
     /** Tests that concurrent accesses only trigger a single AccessExecutionGraph request. */
     @Test
-    public void testConcurrentAccess() throws Exception {
+    void testConcurrentAccess() throws Exception {
         final Time timeout = Time.milliseconds(100L);
         final Time timeToLive = Time.hours(1L);
 
@@ -250,10 +255,10 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
             Collection<ExecutionGraphInfo> allExecutionGraphs = allExecutionGraphFutures.get();
 
             for (ExecutionGraphInfo executionGraph : allExecutionGraphs) {
-                assertEquals(expectedExecutionGraphInfo, executionGraph);
+                assertThat(executionGraph).isEqualTo(expectedExecutionGraphInfo);
             }
 
-            assertThat(restfulGateway.getNumRequestJobCalls(), Matchers.equalTo(1));
+            assertThat(restfulGateway.getNumRequestJobCalls()).isOne();
         } finally {
             ExecutorUtils.gracefulShutdown(5000L, TimeUnit.MILLISECONDS, executor);
         }
@@ -286,7 +291,7 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
         @Override
         public CompletableFuture<ExecutionGraphInfo> requestExecutionGraphInfo(
                 JobID jobId, Time timeout) {
-            assertThat(jobId, Matchers.equalTo(expectedJobId));
+            assertThat(jobId).isEqualTo(expectedJobId);
             numRequestJobCalls.incrementAndGet();
             return super.requestExecutionGraphInfo(jobId, timeout);
         }

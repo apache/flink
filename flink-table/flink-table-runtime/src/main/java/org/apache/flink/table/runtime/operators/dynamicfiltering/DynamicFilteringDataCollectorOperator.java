@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.dynamicfiltering;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArrayComparator;
@@ -86,7 +86,7 @@ public class DynamicFilteringDataCollectorOperator extends AbstractStreamOperato
     public void open() throws Exception {
         super.open();
         this.typeInfo = InternalTypeInfo.of(dynamicFilteringFieldType);
-        this.serializer = typeInfo.createSerializer(new ExecutionConfig());
+        this.serializer = typeInfo.createSerializer(new SerializerConfigImpl());
         this.buffer = new TreeSet<>(new BytePrimitiveArrayComparator(true)::compare);
         this.currentSize = 0L;
         this.fieldGetters =

@@ -80,6 +80,9 @@ public interface TimestampsAndWatermarks<T> {
     /** Stops emitting periodic watermarks. */
     void stopPeriodicWatermarkEmits();
 
+    /** Emit a watermark immediately. */
+    void emitImmediateWatermark(long wallClockTimestamp);
+
     // ------------------------------------------------------------------------
     //  factories
     // ------------------------------------------------------------------------

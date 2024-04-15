@@ -51,7 +51,7 @@ class DataStreamTests(object):
     def setUp(self) -> None:
         super(DataStreamTests, self).setUp()
         config = get_j_env_configuration(self.env._j_stream_execution_environment)
-        config.setString("akka.ask.timeout", "20 s")
+        config.setString("pekko.ask.timeout", "20 s")
         self.test_sink = DataStreamTestSinkFunction()
 
     def tearDown(self) -> None:
@@ -1319,7 +1319,7 @@ class CommonDataStreamTests(PyFlinkTestCase):
         self.env.set_parallelism(2)
         self.env.set_runtime_mode(RuntimeExecutionMode.STREAMING)
         config = get_j_env_configuration(self.env._j_stream_execution_environment)
-        config.setString("akka.ask.timeout", "20 s")
+        config.setString("pekko.ask.timeout", "20 s")
         self.test_sink = DataStreamTestSinkFunction()
 
     def tearDown(self) -> None:

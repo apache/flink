@@ -26,7 +26,7 @@
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>1.18-SNAPSHOT</version>
+		<version>1.20-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-table-planner-loader</artifactId>
@@ -61,7 +61,7 @@
 			<!-- Prevent dependency from being accessible to modules depending on flink-table-planner -->
 			<optional>true</optional>
 			<exclusions>
-				<!-- Prevent akka and scala from being visible to other modules depending on flink-table-planner-loader -->
+				<!-- Prevent pekko and scala from being visible to other modules depending on flink-table-planner-loader -->
 				<exclusion>
 					<groupId>*</groupId>
 					<artifactId>*</artifactId>

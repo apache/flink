@@ -83,7 +83,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 
     /**
      * Environment variable name of the hostname given by YARN. In task executor we use the
-     * hostnames given by YARN consistently throughout akka
+     * hostnames given by YARN consistently throughout pekko
      */
     static final String ENV_FLINK_NODE_ID = "_FLINK_NODE_ID";
 
@@ -141,7 +141,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
         this.configuration = configuration;
 
         final int yarnHeartbeatIntervalMS =
-                flinkConfig.getInteger(YarnConfigOptions.HEARTBEAT_DELAY_SECONDS) * 1000;
+                flinkConfig.get(YarnConfigOptions.HEARTBEAT_DELAY_SECONDS) * 1000;
 
         final long yarnExpiryIntervalMS =
                 yarnConfig.getLong(
@@ -157,11 +157,10 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
         }
         yarnHeartbeatIntervalMillis = yarnHeartbeatIntervalMS;
         containerRequestHeartbeatIntervalMillis =
-                flinkConfig.getInteger(
+                flinkConfig.get(
                         YarnConfigOptions.CONTAINER_REQUEST_HEARTBEAT_INTERVAL_MILLISECONDS);
 
-        this.taskManagerNodeLabel =
-                flinkConfig.getString(YarnConfigOptions.TASK_MANAGER_NODE_LABEL);
+        this.taskManagerNodeLabel = flinkConfig.get(YarnConfigOptions.TASK_MANAGER_NODE_LABEL);
 
         this.registerApplicationMasterResponseReflector =
                 new RegisterApplicationMasterResponseReflector(log);

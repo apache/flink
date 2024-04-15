@@ -81,12 +81,32 @@ Format Options
       <td>Specify what format to use, here should be <code>'avro'</code>.</td>
     </tr>
     <tr>
+      <td><h5>avro.encoding</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td>binary</td>
+      <td>String</td>
+      <td>Serialization encoding to use. The valid enumerations are: <code>binary</code>, <code>json</code>. <a href="https://avro.apache.org/docs/current/specification/#encodings">(reference)</a><br>
+      Most applications will use the binary encoding, as it results in smaller and more efficient messages, reducing the usage of disk and network resources, and improving performance for high throughput data. <br>
+      JSON encoding results in human-readable messages which can be useful during development and debugging, and is useful for compatibility when interacting with systems that cannot process binary encoded data.</td>
+    </tr>
+    <tr>
       <td><h5>avro.codec</h5></td>
       <td>optional</td>
       <td>yes</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>For <a href="{{< ref "docs/connectors/table/filesystem" >}}">Filesystem</a> only, the compression codec for avro. Snappy compression as default. The valid enumerations are: null, deflate, snappy, bzip2, xz.</td>
+    </tr>
+    <tr>
+      <td><h5>timestamp_mapping.legacy</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td style="word-wrap: break-word;">true</td>
+      <td>Boolean</td>
+      <td>Use the legacy mapping of timestamp in avro. Before 1.19, The default behavior of Flink wrongly mapped both SQL TIMESTAMP and TIMESTAMP_LTZ type to AVRO TIMESTAMP. <br>
+      The correct behavior is Flink SQL TIMESTAMP maps Avro LOCAL TIMESTAMP and Flink SQL TIMESTAMP_LTZ maps Avro TIMESTAMP, you can obtain the correct mapping by disable using this legacy mapping. <br>
+      Use legacy behavior by default for compatibility consideration. </td>
     </tr>
     </tbody>
 </table>

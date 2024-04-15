@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.checkpointing;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ValueState;
@@ -26,11 +27,11 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBOptions;
@@ -167,8 +168,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
         }
 
         Configuration config = createClusterConfig();
-        config.setInteger(
-                NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, buffersPerChannel);
+        config.set(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, buffersPerChannel);
 
         switch (stateBackendEnum) {
             case MEM:
@@ -236,13 +236,12 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
         final File haDir = temporaryFolder.newFolder();
 
         Configuration config = new Configuration();
-        config.setString(AkkaOptions.FRAMESIZE, String.valueOf(MAX_MEM_STATE_SIZE) + "b");
+        config.set(RpcOptions.FRAMESIZE, String.valueOf(MAX_MEM_STATE_SIZE) + "b");
 
         if (zkServer != null) {
-            config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-            config.setString(
-                    HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkServer.getConnectString());
-            config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haDir.toURI().toString());
+            config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+            config.set(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkServer.getConnectString());
+            config.set(HighAvailabilityOptions.HA_STORAGE_PATH, haDir.toURI().toString());
         }
         return config;
     }
@@ -305,10 +304,12 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                                 private boolean open = false;
 
                                 @Override
-                                public void open(Configuration parameters) {
+                                public void open(OpenContext openContext) {
                                     assertEquals(
                                             PARALLELISM,
-                                            getRuntimeContext().getNumberOfParallelSubtasks());
+                                            getRuntimeContext()
+                                                    .getTaskInfo()
+                                                    .getNumberOfParallelSubtasks());
                                     open = true;
                                 }
 
@@ -396,10 +397,12 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                                 private ValueState<Integer> count;
 
                                 @Override
-                                public void open(Configuration parameters) {
+                                public void open(OpenContext openContext) {
                                     assertEquals(
                                             PARALLELISM,
-                                            getRuntimeContext().getNumberOfParallelSubtasks());
+                                            getRuntimeContext()
+                                                    .getTaskInfo()
+                                                    .getNumberOfParallelSubtasks());
                                     open = true;
                                     count =
                                             getRuntimeContext()
@@ -483,10 +486,12 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                                 private boolean open = false;
 
                                 @Override
-                                public void open(Configuration parameters) {
+                                public void open(OpenContext openContext) {
                                     assertEquals(
                                             PARALLELISM,
-                                            getRuntimeContext().getNumberOfParallelSubtasks());
+                                            getRuntimeContext()
+                                                    .getTaskInfo()
+                                                    .getNumberOfParallelSubtasks());
                                     open = true;
                                 }
 
@@ -569,10 +574,12 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                                 private boolean open = false;
 
                                 @Override
-                                public void open(Configuration parameters) {
+                                public void open(OpenContext openContext) {
                                     assertEquals(
                                             PARALLELISM,
-                                            getRuntimeContext().getNumberOfParallelSubtasks());
+                                            getRuntimeContext()
+                                                    .getTaskInfo()
+                                                    .getNumberOfParallelSubtasks());
                                     open = true;
                                 }
 
@@ -655,10 +662,12 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                                 private boolean open = false;
 
                                 @Override
-                                public void open(Configuration parameters) {
+                                public void open(OpenContext openContext) {
                                     assertEquals(
                                             PARALLELISM,
-                                            getRuntimeContext().getNumberOfParallelSubtasks());
+                                            getRuntimeContext()
+                                                    .getTaskInfo()
+                                                    .getNumberOfParallelSubtasks());
                                     open = true;
                                 }
 

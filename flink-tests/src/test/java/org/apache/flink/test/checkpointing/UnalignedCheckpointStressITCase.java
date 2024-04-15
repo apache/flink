@@ -75,6 +75,7 @@ import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
@@ -413,7 +414,8 @@ class UnalignedCheckpointStressITCase {
         public void run(SourceContext<Record> ctx) throws Exception {
             RecordGenerator generator =
                     new RecordGenerator(
-                            getRuntimeContext().getIndexOfThisSubtask() + sourceIdOffset);
+                            getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()
+                                    + sourceIdOffset);
             while (running) {
                 Record next = generator.next(nextValue);
                 synchronized (ctx.getCheckpointLock()) {
@@ -430,8 +432,7 @@ class UnalignedCheckpointStressITCase {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            nextState.clear();
-            nextState.add(nextValue);
+            nextState.update(Collections.singletonList(nextValue));
         }
 
         @Override

@@ -18,7 +18,10 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import org.junit.Test;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
@@ -26,14 +29,11 @@ import java.lang.management.ThreadMXBean;
 import java.util.Arrays;
 import java.util.Collection;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for (un)marshalling of the {@link ThreadDumpInfo}. */
-public class ThreadDumpInfoTest extends RestResponseMarshallingTestBase<ThreadDumpInfo> {
+@ExtendWith(NoOpTestExtension.class)
+class ThreadDumpInfoTest extends RestResponseMarshallingTestBase<ThreadDumpInfo> {
 
     @Override
     protected Class<ThreadDumpInfo> getTestResponseClass() {
@@ -53,12 +53,12 @@ public class ThreadDumpInfoTest extends RestResponseMarshallingTestBase<ThreadDu
     @Override
     protected void assertOriginalEqualsToUnmarshalled(
             ThreadDumpInfo expected, ThreadDumpInfo actual) {
-        assertThat(
-                actual.getThreadInfos(), containsInAnyOrder(expected.getThreadInfos().toArray()));
+        assertThat(actual.getThreadInfos())
+                .isEqualTo(Arrays.asList(expected.getThreadInfos().toArray()));
     }
 
     @Test
-    public void testComparedWithDefaultJDKImplemetation() {
+    void testComparedWithDefaultJDKImplemetation() {
         ThreadMXBean threadMxBean = ManagementFactory.getThreadMXBean();
         ThreadInfo threadInfo =
                 threadMxBean.getThreadInfo(Thread.currentThread().getId(), Integer.MAX_VALUE);
@@ -73,11 +73,11 @@ public class ThreadDumpInfoTest extends RestResponseMarshallingTestBase<ThreadDu
         String[] stringified =
                 Arrays.copyOfRange(stringifyThreadInfoLines, 1, stringifyThreadInfoLines.length);
 
-        assertArrayEquals(expected, stringified);
+        assertThat(stringified).isEqualTo(expected);
     }
 
     @Test
-    public void testStacktraceDepthLimitation() {
+    void testStacktraceDepthLimitation() {
         ThreadMXBean threadMxBean = ManagementFactory.getThreadMXBean();
         ThreadInfo threadInfo =
                 threadMxBean.getThreadInfo(Thread.currentThread().getId(), Integer.MAX_VALUE);
@@ -85,12 +85,13 @@ public class ThreadDumpInfoTest extends RestResponseMarshallingTestBase<ThreadDu
         int expectedStacktraceDepth = threadInfo.getStackTrace().length;
 
         String stringifiedInfo = ThreadDumpInfo.stringifyThreadInfo(threadInfo, Integer.MAX_VALUE);
-        assertEquals(expectedStacktraceDepth, getOutputDepth(stringifiedInfo));
+        assertThat(getOutputDepth(stringifiedInfo)).isEqualTo(expectedStacktraceDepth);
 
         String stringifiedInfoExceedMaxDepth =
                 ThreadDumpInfo.stringifyThreadInfo(threadInfo, expectedStacktraceDepth - 1);
-        assertEquals(expectedStacktraceDepth - 1, getOutputDepth(stringifiedInfoExceedMaxDepth));
-        assertTrue(stringifiedInfoExceedMaxDepth.contains("\t..."));
+        assertThat(getOutputDepth(stringifiedInfoExceedMaxDepth))
+                .isEqualTo(expectedStacktraceDepth - 1);
+        assertThat(stringifiedInfoExceedMaxDepth.contains("\t...")).isTrue();
     }
 
     private long getOutputDepth(String stringifiedInfo) {

@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
 import org.apache.flink.api.common.typeutils.base.ByteSerializer;
@@ -117,7 +117,7 @@ public final class InternalSerializers {
                 return new RawValueDataSerializer<>(
                         ((TypeInformationRawType<?>) type)
                                 .getTypeInformation()
-                                .createSerializer(new ExecutionConfig()));
+                                .createSerializer(new SerializerConfigImpl()));
             case NULL:
             case SYMBOL:
             case UNRESOLVED:

@@ -20,22 +20,24 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 
+import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /** The provider serves physical slot requests. */
 public interface PhysicalSlotProvider {
 
     /**
-     * Submit a request to allocate a physical slot.
+     * Submit requests to allocate physical slots.
      *
      * <p>The physical slot can be either allocated from the slots, which are already available for
-     * the job, or a new one can be requeted from the resource manager.
+     * the job, or a new one can be requested from the resource manager.
      *
-     * @param physicalSlotRequest slot requirements
-     * @return a future of the allocated slot
+     * @param physicalSlotRequests physicalSlotRequest slot requirements
+     * @return futures of the allocated slots
      */
-    CompletableFuture<PhysicalSlotRequest.Result> allocatePhysicalSlot(
-            PhysicalSlotRequest physicalSlotRequest);
+    Map<SlotRequestId, CompletableFuture<PhysicalSlotRequest.Result>> allocatePhysicalSlots(
+            Collection<PhysicalSlotRequest> physicalSlotRequests);
 
     /**
      * Cancels the slot request with the given {@link SlotRequestId}.

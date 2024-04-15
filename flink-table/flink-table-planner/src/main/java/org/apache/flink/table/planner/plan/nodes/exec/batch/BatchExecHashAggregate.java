@@ -27,6 +27,9 @@ import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.agg.batch.AggWithoutKeysCodeGenerator;
 import org.apache.flink.table.planner.codegen.agg.batch.HashAggCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.fusion.OpFusionCodegenSpecGenerator;
+import org.apache.flink.table.planner.plan.fusion.generator.OneInputOpFusionCodegenSpecGenerator;
+import org.apache.flink.table.planner.plan.fusion.spec.HashAggFusionCodegenSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
@@ -158,5 +161,61 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
                 inputTransform.getParallelism(),
                 managedMemory,
                 false);
+    }
+
+    @Override
+    public boolean supportFusionCodegen() {
+        return true;
+    }
+
+    @Override
+    protected OpFusionCodegenSpecGenerator translateToFusionCodegenSpecInternal(
+            PlannerBase planner, ExecNodeConfig config, CodeGeneratorContext parentCtx) {
+        OpFusionCodegenSpecGenerator input =
+                getInputEdges().get(0).translateToFusionCodegenSpec(planner, parentCtx);
+
+        final AggregateInfoList aggInfos =
+                AggregateUtil.transformToBatchAggregateInfoList(
+                        planner.getTypeFactory(),
+                        aggInputRowType,
+                        JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
+                        null, // aggCallNeedRetractions
+                        null); // orderKeyIndexes
+        long managedMemory =
+                config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY).getBytes();
+        if (grouping.length == 0) {
+            managedMemory = 0L;
+        }
+
+        OpFusionCodegenSpecGenerator hashAggSpecGenerator =
+                new OneInputOpFusionCodegenSpecGenerator(
+                        input,
+                        managedMemory,
+                        (RowType) getOutputType(),
+                        new HashAggFusionCodegenSpec(
+                                new CodeGeneratorContext(
+                                        config,
+                                        planner.getFlinkContext().getClassLoader(),
+                                        parentCtx),
+                                planner.createRelBuilder(),
+                                aggInfos,
+                                grouping,
+                                auxGrouping,
+                                isFinal,
+                                isMerge,
+                                supportAdaptiveLocalHashAgg,
+                                config.get(
+                                        ExecutionConfigOptions
+                                                .TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
+                                config.get(
+                                        ExecutionConfigOptions
+                                                .TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
+                                (int)
+                                        config.get(
+                                                        ExecutionConfigOptions
+                                                                .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                                .getBytes()));
+        input.addOutput(1, hashAggSpecGenerator);
+        return hashAggSpecGenerator;
     }
 }

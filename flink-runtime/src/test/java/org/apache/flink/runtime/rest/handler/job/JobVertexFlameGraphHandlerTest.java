@@ -30,6 +30,7 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionHistory;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
@@ -44,7 +45,6 @@ import org.apache.flink.runtime.webmonitor.stats.VertexStatsTracker;
 import org.apache.flink.runtime.webmonitor.threadinfo.VertexFlameGraph;
 import org.apache.flink.runtime.webmonitor.threadinfo.VertexThreadInfoStats;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -60,7 +60,7 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.cr
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests of {@link JobVertexFlameGraphHandler}. */
-public class JobVertexFlameGraphHandlerTest extends TestLogger {
+class JobVertexFlameGraphHandlerTest {
 
     private static final JobID JOB_ID = new JobID();
     private static final JobVertexID JOB_VERTEX_ID = new JobVertexID();
@@ -69,7 +69,7 @@ public class JobVertexFlameGraphHandlerTest extends TestLogger {
     private static JobVertexFlameGraphHandler handler;
 
     @BeforeAll
-    public static void setUp() {
+    static void setUp() {
         taskThreadInfoStatsDefaultSample =
                 new VertexThreadInfoStats(
                         8,
@@ -104,6 +104,7 @@ public class JobVertexFlameGraphHandlerTest extends TestLogger {
                         "test",
                         2,
                         2,
+                        new SlotSharingGroup(),
                         ResourceProfile.UNKNOWN,
                         new StringifiedAccumulatorResult[0]);
 
@@ -140,6 +141,7 @@ public class JobVertexFlameGraphHandlerTest extends TestLogger {
                         "test",
                         2,
                         2,
+                        new SlotSharingGroup(),
                         ResourceProfile.UNKNOWN,
                         new StringifiedAccumulatorResult[0]);
 

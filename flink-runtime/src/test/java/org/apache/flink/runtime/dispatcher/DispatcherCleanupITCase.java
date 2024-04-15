@@ -20,6 +20,7 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.CleanupOptions;
+import org.apache.flink.core.execution.RestoreMode;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.EmbeddedCompletedCheckpointStore;
@@ -34,7 +35,6 @@ import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResul
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
@@ -199,7 +199,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                 IsEmptyCollection.empty());
 
         CommonTestUtils.waitUntilCondition(
-                () -> haServices.getJobResultStore().hasJobResultEntry(jobId));
+                () -> haServices.getJobResultStore().hasJobResultEntryAsync(jobId).get());
     }
 
     @Test
@@ -208,8 +208,10 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         final JobID jobId = jobGraph.getJobID();
 
         final JobResultStore jobResultStore = new EmbeddedJobResultStore();
-        jobResultStore.createDirtyResult(
-                new JobResultEntry(TestingJobResultStore.createSuccessfulJobResult(jobId)));
+        jobResultStore
+                .createDirtyResultAsync(
+                        new JobResultEntry(TestingJobResultStore.createSuccessfulJobResult(jobId)))
+                .get();
         haServices.setJobResultStore(jobResultStore);
 
         // Instantiates JobManagerRunner
@@ -233,7 +235,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
 
         assertThat(
                 "The JobResultStore should have this job still marked as dirty.",
-                haServices.getJobResultStore().hasDirtyJobResultEntry(jobId),
+                haServices.getJobResultStore().hasDirtyJobResultEntryAsync(jobId).get(),
                 CoreMatchers.is(true));
 
         final DispatcherGateway dispatcherGateway =
@@ -248,7 +250,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         jobManagerRunnerCleanupFuture.complete(null);
 
         CommonTestUtils.waitUntilCondition(
-                () -> haServices.getJobResultStore().hasCleanJobResultEntry(jobId));
+                () -> haServices.getJobResultStore().hasCleanJobResultEntryAsync(jobId).get());
     }
 
     @Test
@@ -342,7 +344,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                 IsEmptyCollection.empty());
         assertTrue(
                 "The JobResultStore has the job listed as clean.",
-                haServices.getJobResultStore().hasJobResultEntry(jobId));
+                haServices.getJobResultStore().hasJobResultEntryAsync(jobId).get());
 
         assertThat(successfulJobGraphCleanup.get(), equalTo(jobId));
 

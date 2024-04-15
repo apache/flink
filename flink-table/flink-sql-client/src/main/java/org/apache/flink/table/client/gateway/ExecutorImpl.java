@@ -19,6 +19,8 @@
 package org.apache.flink.table.client.gateway;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.client.ClientUtils;
+import org.apache.flink.client.program.rest.UrlPrefixDecorator;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
@@ -52,7 +54,6 @@ import org.apache.flink.table.gateway.rest.header.statement.CompleteStatementHea
 import org.apache.flink.table.gateway.rest.header.statement.ExecuteStatementHeaders;
 import org.apache.flink.table.gateway.rest.header.statement.FetchResultsHeaders;
 import org.apache.flink.table.gateway.rest.header.util.GetApiVersionHeaders;
-import org.apache.flink.table.gateway.rest.header.util.UrlPrefixDecorator;
 import org.apache.flink.table.gateway.rest.message.operation.OperationMessageParameters;
 import org.apache.flink.table.gateway.rest.message.operation.OperationStatusResponseBody;
 import org.apache.flink.table.gateway.rest.message.session.CloseSessionResponseBody;
@@ -84,7 +85,6 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -178,7 +178,8 @@ public class ExecutorImpl implements Executor {
         this.gatewayUrl = gatewayUrl;
         this.rowFormat = rowFormat;
         this.customHttpHeaders =
-                readHeadersFromEnvironmentVariable(ConfigConstants.FLINK_REST_CLIENT_HEADERS);
+                ClientUtils.readHeadersFromEnvironmentVariable(
+                        ConfigConstants.FLINK_REST_CLIENT_HEADERS);
         try {
             // register required resource
             this.executorService = Executors.newCachedThreadPool();
@@ -593,26 +594,6 @@ public class ExecutorImpl implements Executor {
                     e);
             // ignore any throwable to keep the cleanup running
         }
-    }
-
-    private static Collection<HttpHeader> readHeadersFromEnvironmentVariable(String envVarName) {
-        List<HttpHeader> headers = new ArrayList<>();
-        String rawHeaders = System.getenv(envVarName);
-
-        if (rawHeaders != null) {
-            String[] lines = rawHeaders.split("\n");
-            for (String line : lines) {
-                String[] keyValue = line.split(":", 2);
-                if (keyValue.length == 2) {
-                    headers.add(new HttpHeader(keyValue[0], keyValue[1]));
-                } else {
-                    LOG.info(
-                            "Skipped a malformed header {} from FLINK_REST_CLIENT_HEADERS env variable. Expecting newline-separated headers in format header_name:header_value.",
-                            line);
-                }
-            }
-        }
-        return headers;
     }
 
     @VisibleForTesting

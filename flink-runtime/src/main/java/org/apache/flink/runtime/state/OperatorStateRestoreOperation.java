@@ -32,6 +32,7 @@ import org.apache.commons.io.IOUtils;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -168,25 +169,28 @@ public class OperatorStateRestoreOperation implements RestoreOperation<Void> {
                     }
                 }
 
-                // Restore all the states
-                for (Map.Entry<String, OperatorStateHandle.StateMetaInfo> nameToOffsets :
-                        stateHandle.getStateNameToPartitionOffsets().entrySet()) {
+                // Restore states in the order in which they were written. Operator states come
+                // before Broadcast states.
+                final List<String> toRestore = new ArrayList<>();
+                restoredOperatorMetaInfoSnapshots.forEach(
+                        stateName -> toRestore.add(stateName.getName()));
+                restoredBroadcastMetaInfoSnapshots.forEach(
+                        stateName -> toRestore.add(stateName.getName()));
 
-                    final String stateName = nameToOffsets.getKey();
+                final StreamCompressionDecorator compressionDecorator =
+                        backendSerializationProxy.isUsingStateCompression()
+                                ? SnappyStreamCompressionDecorator.INSTANCE
+                                : UncompressedStreamCompressionDecorator.INSTANCE;
 
-                    PartitionableListState<?> listStateForName =
-                            registeredOperatorStates.get(stateName);
-                    final StreamCompressionDecorator compressionDecorator =
-                            backendSerializationProxy.isUsingStateCompression()
-                                    ? SnappyStreamCompressionDecorator.INSTANCE
-                                    : UncompressedStreamCompressionDecorator.INSTANCE;
-                    // create the compressed stream for each state to have the compression header
-                    // for each
-                    try (final CompressibleFSDataInputStream compressedIn =
-                            new CompressibleFSDataInputStream(
-                                    in,
-                                    compressionDecorator)) { // closes only the outer compression
-                        // stream
+                try (final CompressibleFSDataInputStream compressedIn =
+                        new CompressibleFSDataInputStream(
+                                in,
+                                compressionDecorator)) { // closes only the outer compression stream
+                    for (String stateName : toRestore) {
+                        final OperatorStateHandle.StateMetaInfo offsets =
+                                stateHandle.getStateNameToPartitionOffsets().get(stateName);
+                        PartitionableListState<?> listStateForName =
+                                registeredOperatorStates.get(stateName);
                         if (listStateForName == null) {
                             BackendWritableBroadcastState<?, ?> broadcastStateForName =
                                     registeredBroadcastStates.get(stateName);
@@ -196,10 +200,9 @@ public class OperatorStateRestoreOperation implements RestoreOperation<Void> {
                                             + "corresponding meta info: "
                                             + stateName);
                             deserializeBroadcastStateValues(
-                                    broadcastStateForName, compressedIn, nameToOffsets.getValue());
+                                    broadcastStateForName, compressedIn, offsets);
                         } else {
-                            deserializeOperatorStateValues(
-                                    listStateForName, compressedIn, nameToOffsets.getValue());
+                            deserializeOperatorStateValues(listStateForName, compressedIn, offsets);
                         }
                     }
                 }

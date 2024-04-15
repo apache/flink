@@ -52,16 +52,22 @@ public class DynamicFilteringValuesSource
         implements Source<RowData, ValuesSourcePartitionSplit, NoOpEnumState> {
 
     private final TypeSerializer<RowData> serializer;
+    private final TerminatingLogic terminatingLogic;
+    private final Boundedness boundedness;
     private Map<Map<String, String>, byte[]> serializedElements;
     private Map<Map<String, String>, Integer> counts;
     private final List<String> dynamicFilteringFields;
 
     public DynamicFilteringValuesSource(
+            TerminatingLogic terminatingLogic,
+            Boundedness boundedness,
             Map<Map<String, String>, Collection<RowData>> elements,
             TypeSerializer<RowData> serializer,
             List<String> dynamicFilteringFields) {
         this.serializer = serializer;
         this.dynamicFilteringFields = dynamicFilteringFields;
+        this.terminatingLogic = terminatingLogic;
+        this.boundedness = boundedness;
         serializeElements(serializer, elements);
     }
 
@@ -91,7 +97,7 @@ public class DynamicFilteringValuesSource
 
     @Override
     public Boundedness getBoundedness() {
-        return Boundedness.BOUNDED;
+        return boundedness;
     }
 
     @Override
@@ -108,13 +114,15 @@ public class DynamicFilteringValuesSource
                 serializedElements.keySet().stream()
                         .map(ValuesSourcePartitionSplit::new)
                         .collect(Collectors.toList());
-        return new DynamicFilteringValuesSourceEnumerator(context, splits, dynamicFilteringFields);
+        return new DynamicFilteringValuesSourceEnumerator(
+                context, terminatingLogic, splits, dynamicFilteringFields);
     }
 
     @Override
     public SplitEnumerator<ValuesSourcePartitionSplit, NoOpEnumState> restoreEnumerator(
-            SplitEnumeratorContext<ValuesSourcePartitionSplit> context, NoOpEnumState checkpoint) {
-        throw new UnsupportedOperationException("Unsupported now.");
+            SplitEnumeratorContext<ValuesSourcePartitionSplit> context, NoOpEnumState checkpoint)
+            throws Exception {
+        return createEnumerator(context);
     }
 
     @Override

@@ -19,47 +19,33 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.TestingDefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
-import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
-import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TernaryBoolean;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.ClassRule;
-import org.junit.Test;
-
-import javax.annotation.Nonnull;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Collection;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -67,13 +53,14 @@ import static org.mockito.Mockito.when;
  * This test validates that the checkpoint settings serialize correctly in the presence of
  * user-defined objects.
  */
-public class CheckpointSettingsSerializableTest extends TestLogger {
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+class CheckpointSettingsSerializableTest {
+
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+            TestingUtils.defaultExecutorExtension();
 
     @Test
-    public void testDeserializationOfUserCodeWithUserClassLoader() throws Exception {
+    void testDeserializationOfUserCodeWithUserClassLoader() throws Exception {
         final ClassLoaderUtils.ObjectAndClassLoader<Serializable> outsideClassLoading =
                 ClassLoaderUtils.createSerializableObjectFromNewClassLoader();
         final ClassLoader classLoader = outsideClassLoading.getClassLoader();
@@ -97,8 +84,7 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
                                 0),
                         new SerializedValue<StateBackend>(new CustomStateBackend(outOfClassPath)),
                         TernaryBoolean.UNDEFINED,
-                        new SerializedValue<CheckpointStorage>(
-                                new CustomCheckpointStorage(outOfClassPath)),
+                        new SerializedValue<>(new CustomCheckpointStorage(outOfClassPath)),
                         serHooks);
 
         final JobGraph jobGraph =
@@ -114,14 +100,14 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
                 TestingDefaultExecutionGraphBuilder.newBuilder()
                         .setJobGraph(copy)
                         .setUserClassLoader(classLoader)
-                        .build(EXECUTOR_RESOURCE.getExecutor());
+                        .build(EXECUTOR_EXTENSION.getExecutor());
 
-        assertEquals(1, eg.getCheckpointCoordinator().getNumberOfRegisteredMasterHooks());
-        assertTrue(
-                jobGraph.getCheckpointingSettings()
+        assertThat(eg.getCheckpointCoordinator().getNumberOfRegisteredMasterHooks()).isOne();
+        assertThat(
+                        jobGraph.getCheckpointingSettings()
                                 .getDefaultStateBackend()
-                                .deserializeValue(classLoader)
-                        instanceof CustomStateBackend);
+                                .deserializeValue(classLoader))
+                .isInstanceOf(CustomStateBackend.class);
     }
 
     // ------------------------------------------------------------------------
@@ -158,28 +144,13 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 
         @Override
         public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-                Environment env,
-                JobID jobID,
-                String operatorIdentifier,
-                TypeSerializer<K> keySerializer,
-                int numberOfKeyGroups,
-                KeyGroupRange keyGroupRange,
-                TaskKvStateRegistry kvStateRegistry,
-                TtlTimeProvider ttlTimeProvider,
-                MetricGroup metricGroup,
-                @Nonnull Collection<KeyedStateHandle> stateHandles,
-                CloseableRegistry cancelStreamRegistry)
-                throws Exception {
+                KeyedStateBackendParameters<K> parameters) {
             throw new UnsupportedOperationException();
         }
 
         @Override
         public OperatorStateBackend createOperatorStateBackend(
-                Environment env,
-                String operatorIdentifier,
-                @Nonnull Collection<OperatorStateHandle> stateHandles,
-                CloseableRegistry cancelStreamRegistry)
-                throws Exception {
+                OperatorStateBackendParameters parameters) {
             throw new UnsupportedOperationException();
         }
     }
@@ -196,8 +167,7 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
         }
 
         @Override
-        public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer)
-                throws IOException {
+        public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer) {
             throw new UnsupportedOperationException();
         }
 

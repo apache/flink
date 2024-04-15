@@ -24,15 +24,15 @@ import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.runtime.operators.lifecycle.TestJobWithDescription;
 import org.apache.flink.runtime.operators.lifecycle.command.TestCommandDispatcher;
 import org.apache.flink.runtime.operators.lifecycle.event.TestEventQueue;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.MultipleConnectedStreams;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
 import org.apache.flink.testutils.junit.SharedObjects;
@@ -95,7 +95,7 @@ public class TestJobBuilders {
                                                     mapForward, eventQueue, commandQueue))
                                     .setUidHash(mapForward);
 
-                    forwardTransform.addSink(new DiscardingSink<>());
+                    forwardTransform.sinkTo(new DiscardingSink<>());
 
                     Map<String, Integer> operatorsNumberOfInputs = new HashMap<>();
                     operatorsNumberOfInputs.put(mapForward, 1);
@@ -222,7 +222,7 @@ public class TestJobBuilders {
                                             new TwoInputTestStreamOperator(mapTwoInput, eventQueue))
                                     .setUidHash(mapTwoInput);
 
-                    twoInputTransform.addSink(new DiscardingSink<>());
+                    twoInputTransform.sinkTo(new DiscardingSink<>());
 
                     Map<String, Integer> operatorsNumberOfInputs = new HashMap<>();
                     operatorsNumberOfInputs.put(mapForward, 1);
@@ -267,7 +267,7 @@ public class TestJobBuilders {
         env.setParallelism(4);
         env.setRestartStrategy(noRestart());
         env.enableCheckpointing(200); // shouldn't matter
-        env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+        env.getCheckpointConfig().setCheckpointingConsistencyMode(CheckpointingMode.EXACTLY_ONCE);
         env.getConfig().setAutoWatermarkInterval(50);
         envConsumer.accept(env);
         return env;

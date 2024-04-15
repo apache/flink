@@ -39,6 +39,7 @@ import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, IntermediateRelTable, TableSourceTable}
+import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.stream.sql.join.TestTemporalTable
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions
@@ -69,7 +70,7 @@ import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.util._
-import org.junit.{Before, BeforeClass}
+import org.junit.jupiter.api.{BeforeAll, BeforeEach}
 
 import java.math.BigDecimal
 import java.time.Duration
@@ -107,7 +108,7 @@ class FlinkRelMdHandlerTestBase {
   var batchPhysicalTraits: RelTraitSet = _
   var streamPhysicalTraits: RelTraitSet = _
 
-  @Before
+  @BeforeEach
   def setUp(): Unit = {
     relBuilder = plannerContext.createRelBuilder()
 
@@ -174,6 +175,13 @@ class FlinkRelMdHandlerTestBase {
     createTableSourceTable(ImmutableList.of("TableSourceTable1"), batchPhysicalTraits)
   protected lazy val tableSourceTableStreamScan: StreamPhysicalDataStreamScan =
     createTableSourceTable(ImmutableList.of("TableSourceTable1"), streamPhysicalTraits)
+
+  protected lazy val flinkLogicalIntermediateTableScan: FlinkLogicalIntermediateTableScan =
+    createIntermediateScan(streamExchangeById, flinkLogicalTraits, Set(ImmutableBitSet.of(0)))
+  protected lazy val batchPhysicalIntermediateTableScan: BatchPhysicalIntermediateTableScan =
+    createIntermediateScan(batchExchangeById, batchPhysicalTraits, Set(ImmutableBitSet.of(0)))
+  protected lazy val streamPhysicalIntermediateTableScan: StreamPhysicalIntermediateTableScan =
+    createIntermediateScan(streamExchangeById, streamPhysicalTraits, Set(ImmutableBitSet.of(0)))
 
   protected lazy val tablePartiallyProjectedKeyLogicalScan: LogicalTableScan =
     createTableSourceTable(
@@ -301,6 +309,9 @@ class FlinkRelMdHandlerTestBase {
     relBuilder.push(scan)
     relBuilder.watermark(4, watermarkRexNode).build()
   }
+
+  protected lazy val streamMiniBatchAssigner: RelNode =
+    new StreamPhysicalMiniBatchAssigner(cluster, streamPhysicalTraits, studentStreamScan)
 
   // id, name, score, age, height, sex, class, 1
   // id, null, score, age, height, sex, class, 4
@@ -3251,7 +3262,6 @@ class FlinkRelMdHandlerTestBase {
         ImmutableList.of(calcOnStudentScan),
         relBuilder.call(
           FlinkSqlOperatorTable.TUMBLE,
-          relBuilder.field(2),
           relBuilder.call(FlinkSqlOperatorTable.DESCRIPTOR, relBuilder.field(2)),
           rexBuilder.makeIntervalLiteral(
             bd(600000L),
@@ -3592,6 +3602,35 @@ class FlinkRelMdHandlerTestBase {
     scan.asInstanceOf[T]
   }
 
+  protected def createIntermediateScan[T](
+      relNode: RelNode,
+      traitSet: RelTraitSet,
+      upsertKeys: util.Set[ImmutableBitSet],
+      statistic: FlinkStatistic = FlinkStatistic.UNKNOWN): T = {
+    val intermediateTable =
+      new IntermediateRelTable(Seq(""), relNode, null, false, upsertKeys, statistic)
+
+    val conventionTrait = traitSet.getTrait(ConventionTraitDef.INSTANCE)
+    val scan = conventionTrait match {
+      case FlinkConventions.LOGICAL =>
+        new FlinkLogicalIntermediateTableScan(cluster, traitSet, intermediateTable)
+      case FlinkConventions.BATCH_PHYSICAL =>
+        new BatchPhysicalIntermediateTableScan(
+          cluster,
+          traitSet,
+          intermediateTable,
+          intermediateTable.getRowType)
+      case FlinkConventions.STREAM_PHYSICAL =>
+        new StreamPhysicalIntermediateTableScan(
+          cluster,
+          traitSet,
+          intermediateTable,
+          intermediateTable.getRowType)
+      case _ => throw new TableException(s"Unsupported convention trait: $conventionTrait")
+    }
+    scan.asInstanceOf[T]
+  }
+
   protected def createTableSourceTable[T](
       tableNames: util.List[String],
       traitSet: RelTraitSet): T = {
@@ -3694,7 +3733,7 @@ class TestRel(cluster: RelOptCluster, traits: RelTraitSet, input: RelNode)
 }
 
 object FlinkRelMdHandlerTestBase {
-  @BeforeClass
+  @BeforeAll
   def beforeAll(): Unit = {
     RelMetadataQueryBase.THREAD_PROVIDERS
       .set(JaninoRelMetadataProvider.of(FlinkDefaultRelMetadataProvider.INSTANCE))

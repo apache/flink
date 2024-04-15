@@ -35,12 +35,12 @@ class MissingTypeInfoTest extends TypeInformationTestBase<MissingTypeInfo> {
     }
 
     @Override
-    public void testSerialization() {
+    protected void testSerialization() {
         // this class is not intended to be serialized
     }
 
     @Override
-    public void testGetTotalFields() {
+    protected void testGetTotalFields() {
         // getTotalFields is not meant to be called
     }
 }

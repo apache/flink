@@ -18,18 +18,22 @@
 
 package org.apache.flink.table.types.inference.strategies;
 
+import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
+import org.apache.flink.table.types.utils.TypeConversions;
 
 import javax.annotation.Nullable;
 
@@ -195,6 +199,22 @@ final class StrategyUtils {
             default:
                 return null;
         }
+    }
+
+    static Optional<DataType> extractLegacyArrayElement(DataType arrayType) {
+        final LogicalType logicalType = arrayType.getLogicalType();
+        if (logicalType instanceof LegacyTypeInformationType) {
+            final TypeInformation<?> typeInformation =
+                    ((LegacyTypeInformationType<?>) logicalType).getTypeInformation();
+            if (typeInformation instanceof BasicArrayTypeInfo) {
+                return Optional.of(
+                        TypeConversions.fromLegacyInfoToDataType(
+                                        ((BasicArrayTypeInfo<?, ?>) typeInformation)
+                                                .getComponentInfo())
+                                .nullable());
+            }
+        }
+        return Optional.empty();
     }
 
     private StrategyUtils() {

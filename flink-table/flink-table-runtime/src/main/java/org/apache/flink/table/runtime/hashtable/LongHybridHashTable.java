@@ -33,14 +33,16 @@ import org.apache.flink.table.runtime.util.FileChannelUtil;
 import org.apache.flink.table.runtime.util.RowIterator;
 import org.apache.flink.util.MathUtils;
 
+import javax.annotation.Nullable;
+
 import java.io.EOFException;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.table.runtime.hashtable.LongHashPartition.INVALID_ADDRESS;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Special optimized hashTable with key long.
@@ -68,6 +70,7 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
     private long maxKey;
     private MemorySegment[] denseBuckets;
     private LongHashPartition densePartition;
+    private LongHashPartition currentProbePartition;
 
     public LongHybridHashTable(
             Object owner,
@@ -80,32 +83,6 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
             IOManager ioManager,
             int avgRecordLen,
             long buildRowCount) {
-        this(
-                owner,
-                compressionEnabled,
-                compressionBlockSize,
-                buildSideSerializer,
-                probeSideSerializer,
-                memManager,
-                reservedMemorySize,
-                ioManager,
-                avgRecordLen,
-                buildRowCount,
-                true);
-    }
-
-    public LongHybridHashTable(
-            Object owner,
-            boolean compressionEnabled,
-            int compressionBlockSize,
-            BinaryRowDataSerializer buildSideSerializer,
-            BinaryRowDataSerializer probeSideSerializer,
-            MemoryManager memManager,
-            long reservedMemorySize,
-            IOManager ioManager,
-            int avgRecordLen,
-            long buildRowCount,
-            boolean spillEnabled) {
         super(
                 owner,
                 compressionEnabled,
@@ -115,8 +92,7 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
                 ioManager,
                 avgRecordLen,
                 buildRowCount,
-                false,
-                spillEnabled);
+                false);
         this.buildSideSerializer = buildSideSerializer;
         this.probeSideSerializer = probeSideSerializer;
 
@@ -148,8 +124,12 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
         tryDenseMode();
     }
 
-    /** This method is only used for operator fusion codegen to get build row from hash table. */
-    public final RowIterator<BinaryRowData> get(long probeKey) throws IOException {
+    /**
+     * This method is only used for operator fusion codegen to get build row from hash table. If the
+     * build partition has spilled to disk, return null directly which requires the join operator
+     * also spill probe row to disk.
+     */
+    public final @Nullable RowIterator<BinaryRowData> get(long probeKey) throws IOException {
         if (denseMode) {
             if (probeKey >= minKey && probeKey <= maxKey) {
                 long denseBucket = probeKey - minKey;
@@ -166,15 +146,29 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
             return matchIterator;
         } else {
             final int hash = hashLong(probeKey, this.currentRecursionDepth);
-            LongHashPartition p = this.partitionsBeingBuilt.get(hash % partitionsBeingBuilt.size());
-            if (p.isInMemory()) {
-                this.matchIterator = p.get(probeKey, hash);
+            currentProbePartition =
+                    this.partitionsBeingBuilt.get(hash % partitionsBeingBuilt.size());
+            if (currentProbePartition.isInMemory()) {
+                this.matchIterator = currentProbePartition.get(probeKey, hash);
                 return matchIterator;
             } else {
-                throw new UnsupportedOperationException(
-                        "LongHashTable doesn't support spill to disk when operator fusion codegen is enabled.");
+                // If the build partition has spilled to disk, return null directly which requires
+                // the join operator also spill probe row to disk.
+                return null;
             }
         }
+    }
+
+    /**
+     * If the probe row corresponding partition has been spilled to disk, just call this method
+     * spill probe row to disk.
+     *
+     * <p>Note: This must be called only after {@link LongHybridHashTable#get} method.
+     */
+    public final void insertIntoProbeBuffer(RowData probeRecord) throws IOException {
+        checkNotNull(currentProbePartition);
+        currentProbePartition.insertIntoProbeBuffer(
+                probeSideSerializer, probeToBinary(probeRecord));
     }
 
     public boolean tryProbe(RowData record) throws IOException {
@@ -599,11 +593,6 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 
     @Override
     public int spillPartition() throws IOException {
-        if (!spillEnabled) {
-            throw new UnsupportedEncodingException(
-                    "Currently doesn't support spill to disk for grace hash join "
-                            + "when broadcast hash join strategy is chosen and operator fusion codegen is enabled simultaneously.");
-        }
         // find the largest partition
         int largestNumBlocks = 0;
         int largestPartNum = -1;

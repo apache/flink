@@ -20,7 +20,9 @@ package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
@@ -28,7 +30,6 @@ import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.Collector;
 
@@ -143,12 +144,13 @@ class GroupReduceOperatorTest implements Serializable {
                                 }
 
                                 @Override
-                                public void open(Configuration parameters) throws Exception {
+                                public void open(OpenContext openContext) throws Exception {
                                     opened.set(true);
                                     RuntimeContext ctx = getRuntimeContext();
-                                    assertThat(ctx.getIndexOfThisSubtask()).isZero();
-                                    assertThat(ctx.getNumberOfParallelSubtasks()).isOne();
-                                    assertThat(ctx.getTaskName()).isEqualTo(taskName);
+                                    assertThat(ctx.getTaskInfo().getIndexOfThisSubtask()).isZero();
+                                    assertThat(ctx.getTaskInfo().getNumberOfParallelSubtasks())
+                                            .isOne();
+                                    assertThat(ctx.getTaskInfo().getTaskName()).isEqualTo(taskName);
                                 }
 
                                 @Override
@@ -177,7 +179,7 @@ class GroupReduceOperatorTest implements Serializable {
                                     new Tuple2<>("bar", 2),
                                     new Tuple2<>("bar", 4)));
 
-            final TaskInfo taskInfo = new TaskInfo(taskName, 1, 0, 1, 0);
+            final TaskInfo taskInfo = new TaskInfoImpl(taskName, 1, 0, 1, 0);
 
             ExecutionConfig executionConfig = new ExecutionConfig();
             executionConfig.disableObjectReuse();

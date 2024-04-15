@@ -27,8 +27,8 @@ import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.Wei
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase, TableTestUtil}
 
 import org.apache.calcite.sql.validate.SqlMonotonicity.{CONSTANT, DECREASING, INCREASING, NOT_MONOTONIC}
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
 
 import java.time.Duration
 
@@ -168,7 +168,7 @@ class ModifiedMonotonicityTest extends TableTestBase {
 
   @Test
   def testMultiOperandsForCalc(): Unit = {
-    util.addFunction("func1", new Func1)
+    util.addTemporarySystemFunction("func1", new Func1)
     val sql = "SELECT func1(func1(a1, a3)) from " +
       "(SELECT last_value(a1) as a1, last_value(a3) as a3 FROM AA group by a2) "
     verifyMonotonicity(sql, new RelModifiedMonotonicity(Array(NOT_MONOTONIC)))
@@ -258,7 +258,7 @@ class ModifiedMonotonicityTest extends TableTestBase {
     val actualMono = FlinkRelMetadataQuery
       .reuseOrCreate(optimized.getCluster.getMetadataQuery)
       .getRelModifiedMonotonicity(optimized)
-    assertEquals(expect, actualMono)
+    assertThat(actualMono).isEqualTo(expect)
   }
 }
 

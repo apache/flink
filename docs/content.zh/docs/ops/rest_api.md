@@ -35,7 +35,7 @@ Flink 具有监控 API ，可用于查询正在运行的作业以及最近完成
 
 ## 概览
 
-该监控 API 由作为 `JobManager` 一部分运行的 web 服务器提供支持。默认情况下，该服务器监听 8081 端口，端口号可以通过修改 `flink-conf.yaml` 文件的 `rest.port` 进行配置。请注意，该监控 API 的 web 服务器和仪表盘的 web 服务器目前是相同的，因此在同一端口一起运行。不过，它们响应不同的 HTTP URL 。
+该监控 API 由作为 `JobManager` 一部分运行的 web 服务器提供支持。默认情况下，该服务器监听 8081 端口，端口号可以通过修改 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}})的 `rest.port` 进行配置。请注意，该监控 API 的 web 服务器和仪表盘的 web 服务器目前是相同的，因此在同一端口一起运行。不过，它们响应不同的 HTTP URL 。
 
 在多个 `JobManager` 的情况下（为了高可用），每个 JobManager 将运行自己的监控 API 实例，当 JobManager 被选举成为集群 leader 时，该实例将提供已完成和正在运行作业的相关信息。
 

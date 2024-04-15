@@ -23,15 +23,16 @@ import org.apache.flink.table.expressions.TableSymbol;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.AndArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.AnyArgumentTypeStrategy;
-import org.apache.flink.table.types.inference.strategies.ArrayComparableElementTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CommonArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CommonArrayInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CommonInputTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.CommonMapInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ComparableTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CompositeArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ConstraintArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ExplicitArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.FamilyArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.ItemAtIndexArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.LiteralArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.OrArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.OrInputTypeStrategy;
@@ -365,8 +366,15 @@ public final class InputTypeStrategies {
         return new CommonArrayInputTypeStrategy(ConstantArgumentCount.from(minCount));
     }
 
-    public static InputTypeStrategy arrayFullyComparableElementType() {
-        return new ArrayComparableElementTypeStrategy(StructuredComparison.FULL);
+    /** @see ItemAtIndexArgumentTypeStrategy */
+    public static final ArgumentTypeStrategy ITEM_AT_INDEX = new ItemAtIndexArgumentTypeStrategy();
+
+    /**
+     * An {@link InputTypeStrategy} that expects {@code minCount} arguments that have a common map
+     * type.
+     */
+    public static InputTypeStrategy commonMapType(int minCount) {
+        return new CommonMapInputTypeStrategy(ConstantArgumentCount.from(minCount));
     }
 
     // --------------------------------------------------------------------------------------------

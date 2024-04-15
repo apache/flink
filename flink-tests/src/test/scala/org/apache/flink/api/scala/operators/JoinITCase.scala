@@ -17,7 +17,7 @@
  */
 package org.apache.flink.api.scala.operators
 
-import org.apache.flink.api.common.functions.RichJoinFunction
+import org.apache.flink.api.common.functions.{OpenContext, RichJoinFunction}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.configuration.Configuration
@@ -171,7 +171,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
           (String, String, Int)] {
           private var broadcast = 41
 
-          override def open(config: Configuration) {
+          override def open(openContext: OpenContext) {
             val ints = this.getRuntimeContext.getBroadcastVariable[Int]("ints").asScala
             broadcast = ints.sum
           }

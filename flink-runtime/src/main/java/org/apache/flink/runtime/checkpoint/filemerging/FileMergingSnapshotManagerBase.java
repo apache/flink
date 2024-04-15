@@ -17,6 +17,8 @@
 
 package org.apache.flink.runtime.checkpoint.filemerging;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.EntropyInjector;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
@@ -25,6 +27,9 @@ import org.apache.flink.core.fs.OutputStreamAndPath;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.filemerging.LogicalFile.LogicalFileId;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
+import org.apache.flink.runtime.state.filemerging.DirectoryStreamStateHandle;
+import org.apache.flink.runtime.state.filemerging.SegmentFileStateHandle;
+import org.apache.flink.runtime.state.filesystem.FileMergingCheckpointStateOutputStream;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
@@ -32,10 +37,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.concurrent.GuardedBy;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
@@ -53,6 +64,12 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     /** The executor for I/O operations in this manager. */
     protected final Executor ioExecutor;
 
+    /** Guard for uploadedStates. */
+    protected final Object lock = new Object();
+
+    @GuardedBy("lock")
+    protected TreeMap<Long, Set<LogicalFile>> uploadedStates = new TreeMap<>();
+
     /** The {@link FileSystem} that this manager works on. */
     protected FileSystem fs;
 
@@ -60,6 +77,9 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     protected Path checkpointDir;
     protected Path sharedStateDir;
     protected Path taskOwnedStateDir;
+
+    /** The buffer size for writing files to the file system. */
+    protected int writeBufferSize;
 
     /**
      * The file system should only be initialized once.
@@ -74,6 +94,12 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
      */
     protected boolean shouldSyncAfterClosingLogicalFile;
 
+    /** Max size for a physical file. */
+    protected long maxPhysicalFileSize;
+
+    /** Type of physical file pool. */
+    protected PhysicalFilePool.Type filePoolType;
+
     protected PhysicalFileDeleter physicalFileDeleter = this::deletePhysicalFile;
 
     /**
@@ -83,13 +109,28 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     private final Map<SubtaskKey, Path> managedSharedStateDir = new ConcurrentHashMap<>();
 
     /**
+     * The {@link DirectoryStreamStateHandle} for shared state directories, one for each subtask.
+     */
+    private final Map<SubtaskKey, DirectoryStreamStateHandle> managedSharedStateDirHandles =
+            new ConcurrentHashMap<>();
+
+    /**
      * The private state files are merged across subtasks, there is only one directory for
      * merged-files within one TM per job.
      */
     protected Path managedExclusiveStateDir;
 
-    public FileMergingSnapshotManagerBase(String id, Executor ioExecutor) {
+    /**
+     * The {@link DirectoryStreamStateHandle} for private state directory, one for each task
+     * manager.
+     */
+    protected DirectoryStreamStateHandle managedExclusiveStateDirHandle;
+
+    public FileMergingSnapshotManagerBase(
+            String id, long maxFileSize, PhysicalFilePool.Type filePoolType, Executor ioExecutor) {
         this.id = id;
+        this.maxPhysicalFileSize = maxFileSize;
+        this.filePoolType = filePoolType;
         this.ioExecutor = ioExecutor;
     }
 
@@ -98,7 +139,8 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
             FileSystem fileSystem,
             Path checkpointBaseDir,
             Path sharedStateDir,
-            Path taskOwnedStateDir)
+            Path taskOwnedStateDir,
+            int writeBufferSize)
             throws IllegalArgumentException {
         if (fileSystemInitiated) {
             Preconditions.checkArgument(
@@ -125,6 +167,10 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
         Path managedExclusivePath = new Path(taskOwnedStateDir, id);
         createManagedDirectory(managedExclusivePath);
         this.managedExclusiveStateDir = managedExclusivePath;
+        this.managedExclusiveStateDirHandle =
+                DirectoryStreamStateHandle.forPathWithZeroSize(
+                        new File(managedExclusivePath.getPath()).toPath());
+        this.writeBufferSize = writeBufferSize;
     }
 
     @Override
@@ -134,6 +180,10 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
         if (!managedSharedStateDir.containsKey(subtaskKey)) {
             createManagedDirectory(managedPath);
             managedSharedStateDir.put(subtaskKey, managedPath);
+            managedSharedStateDirHandles.put(
+                    subtaskKey,
+                    DirectoryStreamStateHandle.forPathWithZeroSize(
+                            new File(managedPath.getPath()).toPath()));
         }
     }
 
@@ -145,15 +195,15 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
      * Create a logical file on a physical file.
      *
      * @param physicalFile the underlying physical file.
-     * @param startOffset the offset of the physical file that the logical file start from.
+     * @param startOffset the offset in the physical file that the logical file starts from.
      * @param length the length of the logical file.
      * @param subtaskKey the id of the subtask that the logical file belongs to.
      * @return the created logical file.
      */
     protected LogicalFile createLogicalFile(
             @Nonnull PhysicalFile physicalFile,
-            int startOffset,
-            int length,
+            long startOffset,
+            long length,
             @Nonnull SubtaskKey subtaskKey) {
         LogicalFileId fileID = LogicalFileId.generateRandomId();
         return new LogicalFile(fileID, physicalFile, startOffset, length, subtaskKey);
@@ -206,6 +256,71 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                 "Could not open output stream for state file merging.", latestException);
     }
 
+    @Override
+    public FileMergingCheckpointStateOutputStream createCheckpointStateOutputStream(
+            SubtaskKey subtaskKey, long checkpointId, CheckpointedStateScope scope) {
+
+        return new FileMergingCheckpointStateOutputStream(
+                writeBufferSize,
+                new FileMergingCheckpointStateOutputStream.FileMergingSnapshotManagerProxy() {
+                    PhysicalFile physicalFile;
+                    LogicalFile logicalFile;
+
+                    @Override
+                    public Tuple2<FSDataOutputStream, Path> providePhysicalFile()
+                            throws IOException {
+                        physicalFile =
+                                getOrCreatePhysicalFileForCheckpoint(
+                                        subtaskKey, checkpointId, scope);
+                        return new Tuple2<>(
+                                physicalFile.getOutputStream(), physicalFile.getFilePath());
+                    }
+
+                    @Override
+                    public SegmentFileStateHandle closeStreamAndCreateStateHandle(
+                            Path filePath, long startPos, long stateSize) throws IOException {
+                        if (physicalFile == null) {
+                            return null;
+                        } else {
+                            // deal with logical file
+                            logicalFile =
+                                    createLogicalFile(
+                                            physicalFile, startPos, stateSize, subtaskKey);
+                            logicalFile.advanceLastCheckpointId(checkpointId);
+
+                            // track the logical file
+                            synchronized (lock) {
+                                uploadedStates
+                                        .computeIfAbsent(checkpointId, key -> new HashSet<>())
+                                        .add(logicalFile);
+                            }
+
+                            // deal with physicalFile file
+                            physicalFile.incSize(stateSize);
+                            returnPhysicalFileForNextReuse(subtaskKey, checkpointId, physicalFile);
+
+                            return new SegmentFileStateHandle(
+                                    physicalFile.getFilePath(), startPos, stateSize, scope);
+                        }
+                    }
+
+                    @Override
+                    public void closeStreamExceptionally() throws IOException {
+                        if (physicalFile != null) {
+                            if (logicalFile != null) {
+                                logicalFile.discardWithCheckpointId(checkpointId);
+                            } else {
+                                // The physical file should be closed anyway. This is because the
+                                // last segmented write on this file is likely to have failed, and
+                                // we want to prevent further reusing of this file.
+                                physicalFile.close();
+                                physicalFile.deleteIfNecessary();
+                            }
+                        }
+                    }
+                });
+    }
+
     private void updateFileCreationMetrics(Path path) {
         // TODO: FLINK-32091 add io metrics
         LOG.debug("Create a new physical file {} for checkpoint file merging.", path);
@@ -222,6 +337,13 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
         // so the checkpoint directories must be not null if we reach here
         final String fileName = UUID.randomUUID().toString();
         return new Path(dirPath, fileName);
+    }
+
+    @VisibleForTesting
+    boolean isResponsibleForFile(Path filePath) {
+        Path parent = filePath.getParent();
+        return parent.equals(managedExclusiveStateDir)
+                || managedSharedStateDir.containsValue(parent);
     }
 
     /**
@@ -241,6 +363,24 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                 });
     }
 
+    /**
+     * Create physical pool by filePoolType.
+     *
+     * @return physical file pool.
+     */
+    protected final PhysicalFilePool createPhysicalPool() {
+        switch (filePoolType) {
+            case NON_BLOCKING:
+                return new NonBlockingPhysicalFilePool(
+                        maxPhysicalFileSize, this::createPhysicalFile);
+            case BLOCKING:
+                return new BlockingPhysicalFilePool(maxPhysicalFileSize, this::createPhysicalFile);
+            default:
+                throw new UnsupportedOperationException(
+                        "Unsupported type of physical file pool: " + filePoolType);
+        }
+    }
+
     // ------------------------------------------------------------------------
     //  abstract methods
     // ------------------------------------------------------------------------
@@ -248,9 +388,6 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     /**
      * Get a reused physical file or create one. This will be called in checkpoint output stream
      * creation logic.
-     *
-     * <p>TODO (FLINK-32073): Implement a CheckpointStreamFactory for file-merging that uses this
-     * method to create or reuse physical files.
      *
      * <p>Basic logic of file reusing: whenever a physical file is needed, this method is called
      * with necessary information provided for acquiring a file. The file will not be reused until
@@ -283,6 +420,72 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     protected abstract void returnPhysicalFileForNextReuse(
             SubtaskKey subtaskKey, long checkpointId, PhysicalFile physicalFile) throws IOException;
 
+    /**
+     * The callback which will be triggered when all subtasks discarded (aborted or subsumed).
+     *
+     * @param checkpointId the discarded checkpoint id.
+     * @throws IOException if anything goes wrong with file system.
+     */
+    protected abstract void discardCheckpoint(long checkpointId) throws IOException;
+
+    // ------------------------------------------------------------------------
+    //  Checkpoint Listener
+    // ------------------------------------------------------------------------
+
+    @Override
+    public void notifyCheckpointComplete(SubtaskKey subtaskKey, long checkpointId)
+            throws Exception {
+        // does nothing
+    }
+
+    @Override
+    public void notifyCheckpointAborted(SubtaskKey subtaskKey, long checkpointId) throws Exception {
+        synchronized (lock) {
+            Set<LogicalFile> logicalFilesForCurrentCp = uploadedStates.get(checkpointId);
+            if (logicalFilesForCurrentCp == null) {
+                return;
+            }
+            if (discardLogicalFiles(subtaskKey, checkpointId, logicalFilesForCurrentCp)) {
+                uploadedStates.remove(checkpointId);
+            }
+        }
+    }
+
+    @Override
+    public void notifyCheckpointSubsumed(SubtaskKey subtaskKey, long checkpointId)
+            throws Exception {
+        synchronized (lock) {
+            Iterator<Map.Entry<Long, Set<LogicalFile>>> uploadedStatesIterator =
+                    uploadedStates.headMap(checkpointId, true).entrySet().iterator();
+            while (uploadedStatesIterator.hasNext()) {
+                Map.Entry<Long, Set<LogicalFile>> entry = uploadedStatesIterator.next();
+                if (discardLogicalFiles(subtaskKey, entry.getKey(), entry.getValue())) {
+                    uploadedStatesIterator.remove();
+                }
+            }
+        }
+    }
+
+    private boolean discardLogicalFiles(
+            SubtaskKey subtaskKey, long checkpointId, Set<LogicalFile> logicalFiles)
+            throws Exception {
+        Iterator<LogicalFile> logicalFileIterator = logicalFiles.iterator();
+        while (logicalFileIterator.hasNext()) {
+            LogicalFile logicalFile = logicalFileIterator.next();
+            if (logicalFile.getSubtaskKey().equals(subtaskKey)
+                    && logicalFile.getLastUsedCheckpointID() <= checkpointId) {
+                logicalFile.discardWithCheckpointId(checkpointId);
+                logicalFileIterator.remove();
+            }
+        }
+
+        if (logicalFiles.isEmpty()) {
+            discardCheckpoint(checkpointId);
+            return true;
+        }
+        return false;
+    }
+
     // ------------------------------------------------------------------------
     //  file system
     // ------------------------------------------------------------------------
@@ -293,6 +496,16 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
             return managedSharedStateDir.get(subtaskKey);
         } else {
             return managedExclusiveStateDir;
+        }
+    }
+
+    @Override
+    public DirectoryStreamStateHandle getManagedDirStateHandle(
+            SubtaskKey subtaskKey, CheckpointedStateScope scope) {
+        if (scope.equals(CheckpointedStateScope.SHARED)) {
+            return managedSharedStateDirHandles.get(subtaskKey);
+        } else {
+            return managedExclusiveStateDirHandle;
         }
     }
 

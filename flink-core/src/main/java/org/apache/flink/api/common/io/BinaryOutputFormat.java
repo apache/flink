@@ -33,7 +33,7 @@ public abstract class BinaryOutputFormat<T> extends FileOutputFormat<T> {
     private static final long serialVersionUID = 1L;
 
     /** The config parameter which defines the fixed length of a record. */
-    public static final String BLOCK_SIZE_PARAMETER_KEY = "output.block_size";
+    @Deprecated public static final String BLOCK_SIZE_PARAMETER_KEY = "output.block_size";
 
     public static final long NATIVE_BLOCK_SIZE = Long.MIN_VALUE;
 

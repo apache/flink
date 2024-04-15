@@ -29,8 +29,12 @@ import org.apache.flink.annotation.Public;
  * whether the system draws checkpoints such that a recovery behaves as if the operators/functions
  * see each record "exactly once" ({@link #EXACTLY_ONCE}), or whether the checkpoints are drawn in a
  * simpler fashion that typically encounters some duplicates upon recovery ({@link #AT_LEAST_ONCE})
+ *
+ * @deprecated This class has been moved to {@link
+ *     org.apache.flink.core.execution.CheckpointingMode}.
  */
 @Public
+@Deprecated
 public enum CheckpointingMode {
 
     /**
@@ -73,5 +77,29 @@ public enum CheckpointingMode {
      * scenarios, where a sustained very-low latency (such as few milliseconds) is needed, and where
      * occasional duplicate messages (on recovery) do not matter.
      */
-    AT_LEAST_ONCE
+    AT_LEAST_ONCE;
+
+    public static org.apache.flink.core.execution.CheckpointingMode convertToCheckpointingMode(
+            org.apache.flink.streaming.api.CheckpointingMode semantic) {
+        switch (semantic) {
+            case EXACTLY_ONCE:
+                return org.apache.flink.core.execution.CheckpointingMode.EXACTLY_ONCE;
+            case AT_LEAST_ONCE:
+                return org.apache.flink.core.execution.CheckpointingMode.AT_LEAST_ONCE;
+            default:
+                throw new IllegalArgumentException("Unsupported semantic: " + semantic);
+        }
+    }
+
+    public static org.apache.flink.streaming.api.CheckpointingMode convertFromCheckpointingMode(
+            org.apache.flink.core.execution.CheckpointingMode semantic) {
+        switch (semantic) {
+            case EXACTLY_ONCE:
+                return org.apache.flink.streaming.api.CheckpointingMode.EXACTLY_ONCE;
+            case AT_LEAST_ONCE:
+                return org.apache.flink.streaming.api.CheckpointingMode.AT_LEAST_ONCE;
+            default:
+                throw new IllegalArgumentException("Unsupported semantic: " + semantic);
+        }
+    }
 }

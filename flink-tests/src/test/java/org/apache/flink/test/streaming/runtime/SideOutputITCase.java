@@ -231,7 +231,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(3);
 
-        DataStream<Integer> dataStream = env.fromCollection(elements);
+        DataStream<Integer> dataStream = env.fromData(elements);
 
         SingleOutputStreamOperator<Integer> passThroughtStream =
                 dataStream.process(
@@ -273,7 +273,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         env.getConfig().enableObjectReuse();
         env.setParallelism(3);
 
-        DataStream<Integer> dataStream = env.fromCollection(elements);
+        DataStream<Integer> dataStream = env.fromData(elements);
 
         SingleOutputStreamOperator<Integer> passThroughtStream =
                 dataStream.process(
@@ -316,7 +316,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         env.getConfig().enableObjectReuse();
         env.setParallelism(3);
 
-        DataStream<Integer> dataStream = env.fromCollection(elements);
+        DataStream<Integer> dataStream = env.fromData(elements);
 
         SingleOutputStreamOperator<Integer> passThroughtStream =
                 dataStream.process(
@@ -356,7 +356,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(3);
 
-        DataStream<Integer> dataStream = see.fromCollection(elements);
+        DataStream<Integer> dataStream = see.fromData(elements);
 
         SingleOutputStreamOperator<Integer> passThroughtStream =
                 dataStream.process(
@@ -390,7 +390,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(3);
 
-        DataStream<Integer> dataStream = see.fromCollection(elements);
+        DataStream<Integer> dataStream = see.fromData(elements);
 
         SingleOutputStreamOperator<Integer> passThroughtStream =
                 dataStream.process(
@@ -427,8 +427,8 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(3);
 
-        DataStream<Integer> ds1 = see.fromCollection(elements);
-        DataStream<Integer> ds2 = see.fromCollection(elements);
+        DataStream<Integer> ds1 = see.fromData(elements);
+        DataStream<Integer> ds2 = see.fromData(elements);
 
         SingleOutputStreamOperator<Integer> passThroughtStream =
                 ds1.connect(ds2)
@@ -482,8 +482,8 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(3);
 
-        DataStream<Integer> ds1 = see.fromCollection(elements);
-        DataStream<Integer> ds2 = see.fromCollection(elements);
+        DataStream<Integer> ds1 = see.fromData(elements);
+        DataStream<Integer> ds2 = see.fromData(elements);
 
         SingleOutputStreamOperator<Integer> passThroughtStream =
                 ds1.connect(ds2)
@@ -538,7 +538,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(3);
 
-        DataStream<Integer> dataStream = see.fromCollection(elements);
+        DataStream<Integer> dataStream = see.fromData(elements);
 
         SingleOutputStreamOperator<Integer> passThroughtStream =
                 dataStream
@@ -586,8 +586,8 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(3);
 
-        DataStream<Integer> ds1 = see.fromCollection(elements);
-        DataStream<Integer> ds2 = see.fromCollection(elements);
+        DataStream<Integer> ds1 = see.fromData(elements);
+        DataStream<Integer> ds2 = see.fromData(elements);
 
         SingleOutputStreamOperator<Integer> passThroughtStream =
                 ds1.keyBy(i -> i)
@@ -640,8 +640,8 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(3);
 
-        DataStream<Integer> ds1 = see.fromCollection(elements);
-        DataStream<Integer> ds2 = see.fromCollection(elements);
+        DataStream<Integer> ds1 = see.fromData(elements);
+        DataStream<Integer> ds2 = see.fromData(elements);
 
         SingleOutputStreamOperator<Integer> passThroughtStream =
                 ds1.keyBy(i -> i)
@@ -707,8 +707,8 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(3);
 
-        DataStream<Integer> ds1 = see.fromCollection(elements);
-        DataStream<Integer> ds2 = see.fromCollection(elements);
+        DataStream<Integer> ds1 = see.fromData(elements);
+        DataStream<Integer> ds2 = see.fromData(elements);
 
         SingleOutputStreamOperator<Integer> passThroughtStream =
                 ds1.keyBy(i -> i)
@@ -766,8 +766,8 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(3);
 
-        DataStream<Integer> ds1 = see.fromCollection(elements);
-        DataStream<Integer> ds2 = see.fromCollection(elements);
+        DataStream<Integer> ds1 = see.fromData(elements);
+        DataStream<Integer> ds2 = see.fromData(elements);
 
         SingleOutputStreamOperator<Integer> passThroughtStream =
                 ds1.keyBy(i -> i)
@@ -830,7 +830,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(3);
 
-        DataStream<Integer> dataStream = see.fromCollection(elements);
+        DataStream<Integer> dataStream = see.fromData(elements);
 
         dataStream
                 .process(
@@ -886,7 +886,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(1);
 
-        DataStream<Integer> dataStream = see.fromCollection(elements);
+        DataStream<Integer> dataStream = see.fromData(elements);
 
         OutputTag<Integer> lateDataTag = new OutputTag<Integer>("late") {};
 
@@ -939,7 +939,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(3);
 
-        DataStream<Integer> dataStream = see.fromCollection(elements);
+        DataStream<Integer> dataStream = see.fromData(elements);
 
         OutputTag<Integer> lateDataTag = new OutputTag<Integer>("late") {};
 
@@ -989,7 +989,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(3);
 
-        DataStream<Integer> dataStream = see.fromCollection(elements);
+        DataStream<Integer> dataStream = see.fromData(elements);
 
         OutputTag<String> sideOutputTag = new OutputTag<String>("side") {};
 
@@ -1036,7 +1036,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(1);
 
-        DataStream<Integer> dataStream = see.fromCollection(elements);
+        DataStream<Integer> dataStream = see.fromData(elements);
 
         OutputTag<String> sideOutputTag = new OutputTag<String>("side") {};
 
@@ -1088,7 +1088,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(3);
 
-        DataStream<Integer> input = env.fromElements(1, 2, 3, 4);
+        DataStream<Integer> input = env.fromData(1, 2, 3, 4);
 
         OutputTag<Integer> oddTag = new OutputTag<Integer>("odds") {};
         OutputTag<Integer> evenTag = new OutputTag<Integer>("even") {};
@@ -1122,7 +1122,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         odds.union(odds).addSink(oddsUOddsResultSink);
         evens.union(evens).addSink(evensUEvensResultSink);
 
-        odds.union(env.fromElements(2, 4)).addSink(oddsUEvensExternalResultSink);
+        odds.union(env.fromData(2, 4)).addSink(oddsUEvensExternalResultSink);
 
         env.execute();
 

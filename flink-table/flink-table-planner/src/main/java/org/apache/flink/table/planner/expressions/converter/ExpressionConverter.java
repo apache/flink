@@ -26,6 +26,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionVisitor;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.LocalReferenceExpression;
+import org.apache.flink.table.expressions.NestedFieldReferenceExpression;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.expressions.TypeLiteralExpression;
@@ -200,6 +201,17 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
         // So the output fields order will be changed too.
         // See RelBuilder.aggregate, it use ImmutableBitSet to store groupings,
         return relBuilder.field(fieldReference.getName());
+    }
+
+    @Override
+    public RexNode visit(NestedFieldReferenceExpression nestedFieldReference) {
+        String[] fieldNames = nestedFieldReference.getFieldNames();
+        RexNode fieldAccess = relBuilder.field(fieldNames[0]);
+        for (int i = 1; i < fieldNames.length; i++) {
+            fieldAccess =
+                    relBuilder.getRexBuilder().makeFieldAccess(fieldAccess, fieldNames[i], true);
+        }
+        return fieldAccess;
     }
 
     @Override

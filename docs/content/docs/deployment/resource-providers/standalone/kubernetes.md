@@ -117,10 +117,14 @@ The `args` attribute in the `jobmanager-job.yaml` has to specify the main class 
 See also [how to specify the JobManager arguments]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#jobmanager-additional-command-line-arguments) to understand
 how to pass other `args` to the Flink image in the `jobmanager-job.yaml`.
 
-The *job artifacts* should be available from the `job-artifacts-volume` in [the resource definition examples](#application-cluster-resource-definitions).
-The definition examples mount the volume as a local directory of the host assuming that you create the components in a minikube cluster.
-If you do not use a minikube cluster, you can use any other type of volume, available in your Kubernetes cluster, to supply the *job artifacts*.
-Alternatively, you can build [a custom image]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#advanced-customization) which already contains the artifacts instead.
+
+The *job artifacts* could be provided by these way：
+
+*  The *job artifacts* could be available from the `job-artifacts-volume` in [the resource definition examples](#application-cluster-resource-definitions).
+   The definition examples mount the volume as a local directory of the host assuming that you create the components in a minikube cluster.
+   If you do not use a minikube cluster, you can use any other type of volume, available in your Kubernetes cluster, to supply the *job artifacts*.
+*  You can build [a custom image]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#advanced-customization) which already contains the artifacts instead.
+*  You can pass artifacts via the [--jars]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#jobmanager-additional-command-line-arguments) option that are stored locally, on [remote DFS]({{< ref "docs/deployment/filesystems/overview" >}}), or accessible via an HTTP(S) endpoint.
 
 After creating [the common cluster components](#common-cluster-resource-definitions), use [the Application cluster specific resource definitions](#application-cluster-resource-definitions) to launch the cluster with the `kubectl` command:
 
@@ -151,7 +155,7 @@ Deployment of a Session cluster is explained in the [Getting Started](#getting-s
 
 ### Configuration
 
-All configuration options are listed on the [configuration page]({{< ref "docs/deployment/config" >}}). Configuration options can be added to the `flink-conf.yaml` section of the `flink-configuration-configmap.yaml` config map.
+All configuration options are listed on the [configuration page]({{< ref "docs/deployment/config" >}}). Configuration options can be added to the [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}) section of the `flink-configuration-configmap.yaml` config map.
 
 ### Accessing Flink in Kubernetes
 
@@ -214,7 +218,7 @@ metadata:
   labels:
     app: flink
 data:
-  flink-conf.yaml: |+
+  config.yaml: |+
   ...
     kubernetes.cluster-id: <cluster-id>
     high-availability.type: kubernetes
@@ -235,12 +239,6 @@ Refer to the [appendix](#appendix) for full configuration.
 
 Usually, it is enough to only start a single JobManager pod, because Kubernetes will restart it once the pod crashes.
 If you want to achieve faster recovery, configure the `replicas` in `jobmanager-session-deployment-ha.yaml` or `parallelism` in `jobmanager-application-ha.yaml` to a value greater than `1` to start standby JobManagers.
-
-### Enabling Queryable State
-
-You can access the queryable state of TaskManager if you create a `NodePort` service for it:
-  1. Run `kubectl create -f taskmanager-query-state-service.yaml` to create the `NodePort` service for the `taskmanager` pod. The example of `taskmanager-query-state-service.yaml` can be found in [appendix](#common-cluster-resource-definitions).
-  2. Run `kubectl get svc flink-taskmanager-query-state` to get the `<node-port>` of this service. Then you can create the [QueryableStateClient(&lt;public-node-ip&gt;, &lt;node-port&gt;]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}}#querying-state) to submit state queries.
 
 ### Using Standalone Kubernetes with Reactive Mode
 
@@ -276,13 +274,12 @@ metadata:
   labels:
     app: flink
 data:
-  flink-conf.yaml: |+
+  config.yaml: |+
     jobmanager.rpc.address: flink-jobmanager
     taskmanager.numberOfTaskSlots: 2
     blob.server.port: 6124
     jobmanager.rpc.port: 6123
     taskmanager.rpc.port: 6122
-    queryable-state.proxy.ports: 6125
     jobmanager.memory.process.size: 1600m
     taskmanager.memory.process.size: 1728m
     parallelism.default: 2
@@ -299,8 +296,8 @@ data:
     # The following lines keep the log level of common libraries/connectors on
     # log level INFO. The root logger does not override this. You have to manually
     # change the log levels here.
-    logger.akka.name = akka
-    logger.akka.level = INFO
+    logger.pekko.name = org.apache.pekko
+    logger.pekko.level = INFO
     logger.kafka.name= org.apache.kafka
     logger.kafka.level = INFO
     logger.hadoop.name = org.apache.hadoop
@@ -344,13 +341,12 @@ metadata:
   labels:
     app: flink
 data:
-  flink-conf.yaml: |+
+  config.yaml: |+
     jobmanager.rpc.address: flink-jobmanager
     taskmanager.numberOfTaskSlots: 2
     blob.server.port: 6124
     jobmanager.rpc.port: 6123
     taskmanager.rpc.port: 6122
-    queryable-state.proxy.ports: 6125
     jobmanager.memory.process.size: 1600m
     taskmanager.memory.process.size: 1728m
     parallelism.default: 2
@@ -369,8 +365,8 @@ data:
     # The following lines keep the log level of common libraries/connectors on
     # log level INFO. The root logger does not override this. You have to manually
     # change the log levels here.
-    logger.akka.name = akka
-    logger.akka.level = INFO
+    logger.pekko.name = org.apache.pekko
+    logger.pekko.level = INFO
     logger.kafka.name= org.apache.kafka
     logger.kafka.level = INFO
     logger.hadoop.name = org.apache.hadoop
@@ -441,24 +437,6 @@ spec:
     component: jobmanager
 ```
 
-`taskmanager-query-state-service.yaml`. Optional service, that exposes the TaskManager port to access the queryable state as a public Kubernetes node's port.
-```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: flink-taskmanager-query-state
-spec:
-  type: NodePort
-  ports:
-  - name: query-state
-    port: 6125
-    targetPort: 6125
-    nodePort: 30025
-  selector:
-    app: flink
-    component: taskmanager
-```
-
 ### Session cluster resource definitions
 
 `jobmanager-session-deployment-non-ha.yaml`
@@ -505,8 +483,8 @@ spec:
         configMap:
           name: flink-config
           items:
-          - key: flink-conf.yaml
-            path: flink-conf.yaml
+          - key: config.yaml
+            path: config.yaml
           - key: log4j-console.properties
             path: log4j-console.properties
 ```
@@ -563,8 +541,8 @@ spec:
         configMap:
           name: flink-config
           items:
-          - key: flink-conf.yaml
-            path: flink-conf.yaml
+          - key: config.yaml
+            path: config.yaml
           - key: log4j-console.properties
             path: log4j-console.properties
 ```
@@ -594,8 +572,6 @@ spec:
         ports:
         - containerPort: 6122
           name: rpc
-        - containerPort: 6125
-          name: query-state
         livenessProbe:
           tcpSocket:
             port: 6122
@@ -611,8 +587,8 @@ spec:
         configMap:
           name: flink-config
           items:
-          - key: flink-conf.yaml
-            path: flink-conf.yaml
+          - key: config.yaml
+            path: config.yaml
           - key: log4j-console.properties
             path: log4j-console.properties
 ```
@@ -637,7 +613,7 @@ spec:
         - name: jobmanager
           image: apache/flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}}
           env:
-          args: ["standalone-job", "--job-classname", "com.job.ClassName", <optional arguments>, <job arguments>] # optional arguments: ["--job-id", "<job id>", "--fromSavepoint", "/path/to/savepoint", "--allowNonRestoredState"]
+          args: ["standalone-job", "--job-classname", "com.job.ClassName", <optional arguments>, <job arguments>] # optional arguments: ["--job-id", "<job id>", "--jars", "/path/to/artifact1,/path/to/artifact2", "--fromSavepoint", "/path/to/savepoint", "--allowNonRestoredState"]
           ports:
             - containerPort: 6123
               name: rpc
@@ -662,8 +638,8 @@ spec:
           configMap:
             name: flink-config
             items:
-              - key: flink-conf.yaml
-                path: flink-conf.yaml
+              - key: config.yaml
+                path: config.yaml
               - key: log4j-console.properties
                 path: log4j-console.properties
         - name: job-artifacts-volume
@@ -696,7 +672,7 @@ spec:
                 apiVersion: v1
                 fieldPath: status.podIP
           # The following args overwrite the value of jobmanager.rpc.address configured in the configuration config map to POD_IP.
-          args: ["standalone-job", "--host", "$(POD_IP)", "--job-classname", "com.job.ClassName", <optional arguments>, <job arguments>] # optional arguments: ["--job-id", "<job id>", "--fromSavepoint", "/path/to/savepoint", "--allowNonRestoredState"]
+          args: ["standalone-job", "--host", "$(POD_IP)", "--job-classname", "com.job.ClassName", <optional arguments>, <job arguments>] # optional arguments: ["--job-id", "<job id>", "--jars", "/path/to/artifact1,/path/to/artifact2", "--fromSavepoint", "/path/to/savepoint", "--allowNonRestoredState"]
           ports:
             - containerPort: 6123
               name: rpc
@@ -722,8 +698,8 @@ spec:
           configMap:
             name: flink-config
             items:
-              - key: flink-conf.yaml
-                path: flink-conf.yaml
+              - key: config.yaml
+                path: config.yaml
               - key: log4j-console.properties
                 path: log4j-console.properties
         - name: job-artifacts-volume
@@ -757,8 +733,6 @@ spec:
         ports:
         - containerPort: 6122
           name: rpc
-        - containerPort: 6125
-          name: query-state
         livenessProbe:
           tcpSocket:
             port: 6122
@@ -776,8 +750,8 @@ spec:
         configMap:
           name: flink-config
           items:
-          - key: flink-conf.yaml
-            path: flink-conf.yaml
+          - key: config.yaml
+            path: config.yaml
           - key: log4j-console.properties
             path: log4j-console.properties
       - name: job-artifacts-volume
@@ -795,7 +769,7 @@ metadata:
   labels:
     app: flink
 data:
-  flink-conf.yaml: |+
+  config.yaml: |+
     jobmanager.rpc.address: flink-jobmanager
     taskmanager.numberOfTaskSlots: 2
     blob.server.port: 6124
@@ -846,8 +820,6 @@ spec:
         ports:
         - containerPort: 6122
           name: rpc
-        - containerPort: 6125
-          name: query-state
         - containerPort: 6121
           name: metrics
         livenessProbe:
@@ -865,8 +837,8 @@ spec:
         configMap:
           name: flink-config
           items:
-          - key: flink-conf.yaml
-            path: flink-conf.yaml
+          - key: config.yaml
+            path: config.yaml
           - key: log4j-console.properties
             path: log4j-console.properties
   volumeClaimTemplates:

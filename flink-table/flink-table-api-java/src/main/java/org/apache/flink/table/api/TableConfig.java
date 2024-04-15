@@ -35,11 +35,12 @@ import org.apache.flink.util.Preconditions;
 
 import java.time.Duration;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import static java.time.ZoneId.SHORT_IDS;
+import static org.apache.flink.table.api.internal.TableConfigValidation.validateTimeZone;
 
 /**
  * Configuration for the current {@link TableEnvironment} session to adjust Table & SQL API
@@ -49,7 +50,7 @@ import static java.time.ZoneId.SHORT_IDS;
  * configuration can be set in any of the following layers (in the given order):
  *
  * <ol>
- *   <li>{@code flink-conf.yaml},
+ *   <li>{@code config.yaml},
  *   <li>CLI parameters,
  *   <li>{@code StreamExecutionEnvironment} when bridging to DataStream API,
  *   <li>{@link EnvironmentSettings.Builder#withConfiguration(Configuration)} / {@link
@@ -102,7 +103,7 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
 
     // Note to implementers:
     // TableConfig is a ReadableConfig which is built once the TableEnvironment is created and
-    // contains both the configuration defined in the execution context (flink-conf.yaml + CLI
+    // contains both the configuration defined in the execution context (config.yaml + CLI
     // params), stored in rootConfiguration, but also any extra configuration defined by the user in
     // the application, which has precedence over the execution configuration.
     //
@@ -197,6 +198,15 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
         return rootConfiguration.getOptional(option);
     }
 
+    @Internal
+    @Override
+    public Map<String, String> toMap() {
+        Map<String, String> rootConfigMap = rootConfiguration.toMap();
+        Map<String, String> configMap = configuration.toMap();
+        rootConfigMap.putAll(configMap);
+        return rootConfigMap;
+    }
+
     /**
      * Gives direct access to the underlying application-specific key-value map for advanced
      * configuration.
@@ -242,11 +252,12 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
      * @see org.apache.flink.table.types.logical.LocalZonedTimestampType
      */
     public ZoneId getLocalTimeZone() {
-        String zone = configuration.getString(TableConfigOptions.LOCAL_TIME_ZONE);
+        final String zone = configuration.get(TableConfigOptions.LOCAL_TIME_ZONE);
+        if (TableConfigOptions.LOCAL_TIME_ZONE.defaultValue().equals(zone)) {
+            return ZoneId.systemDefault();
+        }
         validateTimeZone(zone);
-        return TableConfigOptions.LOCAL_TIME_ZONE.defaultValue().equals(zone)
-                ? ZoneId.systemDefault()
-                : ZoneId.of(zone);
+        return ZoneId.of(zone);
     }
 
     /**
@@ -296,22 +307,17 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
      * @see org.apache.flink.table.types.logical.LocalZonedTimestampType
      */
     public void setLocalTimeZone(ZoneId zoneId) {
-        validateTimeZone(zoneId.toString());
-        configuration.setString(TableConfigOptions.LOCAL_TIME_ZONE, zoneId.toString());
-    }
-
-    /** Validates user configured time zone. */
-    private void validateTimeZone(String zone) {
-        final String zoneId = zone.toUpperCase();
-        if (zoneId.startsWith("UTC+")
-                || zoneId.startsWith("UTC-")
-                || SHORT_IDS.containsKey(zoneId)) {
-            throw new IllegalArgumentException(
-                    String.format(
-                            "The supported Zone ID is either a full name such as 'America/Los_Angeles',"
-                                    + " or a custom timezone id such as 'GMT-08:00', but configured Zone ID is '%s'.",
-                            zone));
+        final String zone;
+        if (zoneId instanceof ZoneOffset) {
+            // Give ZoneOffset a timezone for backwards compatibility reasons.
+            // In general, advertising either TZDB ID, GMT+xx:xx, or UTC is the best we can do.
+            zone = ZoneId.ofOffset("GMT", (ZoneOffset) zoneId).toString();
+        } else {
+            zone = zoneId.toString();
         }
+        validateTimeZone(zone);
+
+        configuration.set(TableConfigOptions.LOCAL_TIME_ZONE, zone);
     }
 
     /** Returns the current configuration of Planner for Table API and SQL queries. */
@@ -336,7 +342,7 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
      * more than 8K byte code.
      */
     public Integer getMaxGeneratedCodeLength() {
-        return this.configuration.getInteger(TableConfigOptions.MAX_LENGTH_GENERATED_CODE);
+        return this.configuration.get(TableConfigOptions.MAX_LENGTH_GENERATED_CODE);
     }
 
     /**
@@ -347,7 +353,7 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
      * more than 8K byte code.
      */
     public void setMaxGeneratedCodeLength(Integer maxGeneratedCodeLength) {
-        this.configuration.setInteger(
+        this.configuration.set(
                 TableConfigOptions.MAX_LENGTH_GENERATED_CODE, maxGeneratedCodeLength);
     }
 

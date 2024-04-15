@@ -76,8 +76,9 @@ abstract class WindowCodeGenerator(
   protected lazy val functionIdentifiers: Map[AggregateFunction[_, _], String] =
     AggCodeGenHelper.getFunctionIdentifiers(aggInfos)
 
+  private lazy val aggBufferPrefix = "window"
   protected lazy val aggBufferNames: Array[Array[String]] =
-    AggCodeGenHelper.getAggBufferNames(auxGrouping, aggInfos)
+    AggCodeGenHelper.getAggBufferNames(aggBufferPrefix, auxGrouping, aggInfos)
 
   protected lazy val aggBufferTypes: Array[Array[LogicalType]] =
     AggCodeGenHelper.getAggBufferTypes(inputRowType, auxGrouping, aggInfos)
@@ -159,7 +160,7 @@ abstract class WindowCodeGenerator(
          |    ${generateCollect(outputWinAggResExpr.resultTerm)}
          |  }
          |}""".stripMargin
-    val functionName = CodeGenUtils.newName("triggerWindowProcess")
+    val functionName = newName(ctx, "triggerWindowProcess")
     val functionCode =
       s"""
          |private void $functionName() throws java.lang.Exception {
@@ -205,6 +206,7 @@ abstract class WindowCodeGenerator(
       auxGrouping,
       aggInfos,
       argsMapping,
+      aggBufferPrefix,
       aggBufferNames,
       aggBufferTypes)
     val initAggBufferCode = genInitFlatAggregateBuffer(
@@ -227,13 +229,15 @@ abstract class WindowCodeGenerator(
       aggInfos,
       functionIdentifiers,
       argsMapping,
+      aggBufferPrefix,
       aggBufferNames,
       aggBufferTypes,
-      aggBufferExprs)
+      aggBufferExprs
+    )
 
     // --------------------------------------------------------------------------------------------
     // gen code to set group window aggregate output
-    val valueRow = CodeGenUtils.newName("valueRow")
+    val valueRow = newName(ctx, "valueRow")
     val resultCodegen = new ExprCodeGenerator(ctx, false)
     val setValueResult = if (isFinal) {
       AggCodeGenHelper.genSortAggOutputExpr(
@@ -246,6 +250,7 @@ abstract class WindowCodeGenerator(
         aggInfos,
         functionIdentifiers,
         argsMapping,
+        aggBufferPrefix,
         aggBufferNames,
         aggBufferTypes,
         aggBufferExprs,
@@ -272,7 +277,7 @@ abstract class WindowCodeGenerator(
     val resultExpr = currentKey match {
       case Some(key) =>
         // generate agg result
-        val windowAggResultTerm = CodeGenUtils.newName("windowAggResult")
+        val windowAggResultTerm = newName(ctx, "windowAggResult")
         ctx.addReusableOutputRecord(outputType, classOf[JoinedRowData], windowAggResultTerm)
         val output =
           s"""
@@ -307,7 +312,7 @@ abstract class WindowCodeGenerator(
       groupKey: Option[String],
       outputType: RowType): (String, String) = {
     // gen code to do aggregate by window or pane
-    val windowElemTerm = CodeGenUtils.newName("winElement")
+    val windowElemTerm = newName(ctx, "winElement")
     val (initAggBuffCode, doAggCode, outputWinAggResExpr) = genSortWindowAggCodes(
       enablePreAcc = enablePreAcc,
       ctx,
@@ -410,10 +415,10 @@ abstract class WindowCodeGenerator(
     val assignedTsExpr = genAssignTimestampExpr(ctx, inputTerm, inputType)
 
     // gen code to do aggregate by assigned ts
-    val lastTimestampTerm = CodeGenUtils.newName("lastTimestamp")
+    val lastTimestampTerm = newName(ctx, "lastTimestamp")
     ctx.addReusableMember(s"transient long $lastTimestampTerm = -1;")
-    val preAccResult = CodeGenUtils.newName("prepareWinElement")
-    val preAccResultWriter = CodeGenUtils.newName("prepareWinElementWriter")
+    val preAccResult = newName(ctx, "prepareWinElement")
+    val preAccResultWriter = newName(ctx, "prepareWinElementWriter")
     ctx.addReusableOutputRecord(
       windowElementType,
       classOf[BinaryRowData],
@@ -421,7 +426,7 @@ abstract class WindowCodeGenerator(
       Some(preAccResultWriter))
 
     val timeWindowType = classOf[TimeWindow].getName
-    val currentWindow = newName("currentWindow")
+    val currentWindow = newName(ctx, "currentWindow")
     ctx.addReusableMember(s"transient $timeWindowType $currentWindow = null;")
 
     // output or merge pre accumulate results by window
@@ -443,6 +448,7 @@ abstract class WindowCodeGenerator(
           auxGrouping,
           aggInfos,
           argsMapping,
+          aggBufferPrefix,
           aggBufferNames,
           aggBufferTypes)
         val initAggBufferCode = genInitFlatAggregateBuffer(
@@ -465,9 +471,11 @@ abstract class WindowCodeGenerator(
           aggInfos,
           functionIdentifiers,
           argsMapping,
+          aggBufferPrefix,
           aggBufferNames,
           aggBufferTypes,
-          aggBufferExprs)
+          aggBufferExprs
+        )
 
         // project pre accumulated results into a binary row to fit to WindowsGrouping
         val exprCodegen = new ExprCodeGenerator(ctx, false)
@@ -559,7 +567,7 @@ abstract class WindowCodeGenerator(
       preAccCode
     }
 
-    val processFuncName = CodeGenUtils.newName("preAccumulate")
+    val processFuncName = newName(ctx, "preAccumulate")
     val inputTypeTerm = boxedTypeTermForType(inputType)
     ctx.addReusableMember(
       s"""
@@ -573,7 +581,7 @@ abstract class WindowCodeGenerator(
          |}
          """.stripMargin)
 
-    val endProcessFuncName = CodeGenUtils.newName("endPreAccumulate")
+    val endProcessFuncName = newName(ctx, "endPreAccumulate")
     val setLastPaneAggResultCode =
       s"""
          | // merge paned agg results or output directly
@@ -617,9 +625,9 @@ abstract class WindowCodeGenerator(
       }
 
       // reusable row to set window property fields
-      val propTerm = CodeGenUtils.newName("windowProp")
+      val propTerm = newName(ctx, "windowProp")
       ctx.addReusableOutputRecord(propOutputType, classOf[GenericRowData], propTerm)
-      val windowAggResultWithPropTerm = CodeGenUtils.newName("windowAggResultWithProperty")
+      val windowAggResultWithPropTerm = newName(ctx, "windowAggResultWithProperty")
       ctx.addReusableOutputRecord(outputType, classOf[JoinedRowData], windowAggResultWithPropTerm)
 
       // set window start, end property according to window type

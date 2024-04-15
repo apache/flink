@@ -20,6 +20,8 @@ package org.apache.flink.api.common.time;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
 import java.time.Duration;
 import java.util.Objects;
@@ -30,13 +32,18 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * The definition of a time interval. Similar to a simpler version of {@link java.time.Duration}.
  *
- * <p>Note: This class will fully replace org.apache.flink.streaming.api.windowing.time.Time in
- * Flink 2.0
+ * @deprecated Use {@link Duration}
  */
+@Deprecated
 @PublicEvolving
 public final class Time implements Serializable {
 
     private static final long serialVersionUID = -350254188460915999L;
+
+    @Nullable
+    public static Duration toDuration(@Nullable Time time) {
+        return time != null ? time.toDuration() : null;
+    }
 
     /** The time unit for this policy's time interval. */
     private final TimeUnit unit;
@@ -72,6 +79,10 @@ public final class Time implements Serializable {
         return size;
     }
 
+    public Duration toDuration() {
+        return Duration.ofMillis(this.toMilliseconds());
+    }
+
     /**
      * Converts the time interval to milliseconds.
      *
@@ -79,6 +90,15 @@ public final class Time implements Serializable {
      */
     public long toMilliseconds() {
         return unit.toMillis(size);
+    }
+
+    /**
+     * Converts the time interval to seconds.
+     *
+     * @return The time interval in seconds.
+     */
+    public long toSeconds() {
+        return unit.toSeconds(size);
     }
 
     @Override

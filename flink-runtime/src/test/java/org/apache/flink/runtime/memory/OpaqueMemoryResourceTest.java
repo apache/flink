@@ -20,15 +20,15 @@ package org.apache.flink.runtime.memory;
 
 import org.apache.flink.util.function.ThrowingRunnable;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link OpaqueMemoryResource}. */
-public class OpaqueMemoryResourceTest {
+class OpaqueMemoryResourceTest {
 
     @Test
-    public void testCloseIsIdempotent() throws Exception {
+    void testCloseIsIdempotent() throws Exception {
         final CountingCloseable disposer = new CountingCloseable();
         final OpaqueMemoryResource<Object> resource =
                 new OpaqueMemoryResource<>(new Object(), 10, disposer);
@@ -36,7 +36,7 @@ public class OpaqueMemoryResourceTest {
         resource.close();
         resource.close();
 
-        assertEquals(1, disposer.count);
+        assertThat(disposer.count).isOne();
     }
 
     private static final class CountingCloseable implements ThrowingRunnable<Exception> {
@@ -44,7 +44,7 @@ public class OpaqueMemoryResourceTest {
         int count = 0;
 
         @Override
-        public void run() throws Exception {
+        public void run() {
             count++;
         }
     }

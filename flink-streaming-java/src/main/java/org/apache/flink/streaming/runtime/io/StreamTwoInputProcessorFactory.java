@@ -40,6 +40,7 @@ import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.StreamTask.CanEmitBatchOfRecordsChecker;
@@ -88,8 +89,7 @@ public class StreamTwoInputProcessorFactory {
                         checkpointedInputGates[0],
                         typeSerializer1,
                         ioManager,
-                        new StatusWatermarkValve(
-                                checkpointedInputGates[0].getNumberOfInputChannels()),
+                        new StatusWatermarkValve(checkpointedInputGates[0]),
                         0,
                         inflightDataRescalingDescriptor,
                         gatePartitioners,
@@ -101,8 +101,7 @@ public class StreamTwoInputProcessorFactory {
                         checkpointedInputGates[1],
                         typeSerializer2,
                         ioManager,
-                        new StatusWatermarkValve(
-                                checkpointedInputGates[1].getNumberOfInputChannels()),
+                        new StatusWatermarkValve(checkpointedInputGates[1]),
                         1,
                         inflightDataRescalingDescriptor,
                         gatePartitioners,
@@ -157,6 +156,7 @@ public class StreamTwoInputProcessorFactory {
                             executionConfig.isObjectReuseEnabled(),
                             streamConfig.getManagedMemoryFractionOperatorUseCaseOfSlot(
                                     ManagedMemoryUseCase.OPERATOR,
+                                    jobConfig,
                                     taskManagerConfig,
                                     userClassloader),
                             taskManagerConfig,
@@ -287,6 +287,15 @@ public class StreamTwoInputProcessorFactory {
                 operator.processLatencyMarker1(latencyMarker);
             } else {
                 operator.processLatencyMarker2(latencyMarker);
+            }
+        }
+
+        @Override
+        public void emitRecordAttributes(RecordAttributes recordAttributes) throws Exception {
+            if (inputIndex == 0) {
+                operator.processRecordAttributes1(recordAttributes);
+            } else {
+                operator.processRecordAttributes2(recordAttributes);
             }
         }
     }

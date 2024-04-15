@@ -280,7 +280,7 @@ class EmbeddedRocksDBStateBackend(StateBackend):
         Sets the predefined options for RocksDB.
 
         If user-configured options within ``RocksDBConfigurableOptions`` is set (through
-        flink-conf.yaml) or a user-defined options factory is set (via :func:`setOptions`),
+        config.yaml) or a user-defined options factory is set (via :func:`setOptions`),
         then the options from the factory are applied on top of the here specified
         predefined options and customized options.
 
@@ -301,7 +301,7 @@ class EmbeddedRocksDBStateBackend(StateBackend):
         are :data:`PredefinedOptions.DEFAULT`.
 
         If user-configured options within ``RocksDBConfigurableOptions`` is set (through
-        flink-conf.yaml) or a user-defined options factory is set (via :func:`setOptions`),
+        config.yaml) or a user-defined options factory is set (via :func:`setOptions`),
         then the options from the factory are applied on top of the predefined and customized
         options.
 
@@ -320,7 +320,7 @@ class EmbeddedRocksDBStateBackend(StateBackend):
 
         The options created by the factory here are applied on top of the pre-defined
         options profile selected via :func:`set_predefined_options`  and user-configured
-        options from configuration set through flink-conf.yaml with keys in
+        options from configuration set through config.yaml with keys in
         ``RocksDBConfigurableOptions``.
 
         :param options_factory_class_name: The fully-qualified class name of the options
@@ -383,7 +383,7 @@ class MemoryStateBackend(StateBackend):
         >> env.set_state_backend(HashMapStateBackend())
         >> env.get_checkpoint_config().set_checkpoint_storage(JobManagerCheckpointStorage())
 
-    If you are configuring your state backend via the `flink-conf.yaml` please make the following
+    If you are configuring your state backend via the `config.yaml` please make the following
     changes.
 
     ```
@@ -535,7 +535,7 @@ class FsStateBackend(StateBackend):
         >> env.set_state_backend(HashMapStateBackend())
         >> env.get_checkpoint_config().set_checkpoint_storage("hdfs://checkpoints")
 
-    If you are configuring your state backend via the `flink-conf.yaml` please set your state
+    If you are configuring your state backend via the `config.yaml` please set your state
     backend type to `hashmap`.
 
     This state backend holds the working state in the memory (JVM heap) of the TaskManagers.
@@ -717,7 +717,7 @@ class RocksDBStateBackend(StateBackend):
         >> env.set_state_backend(EmbeddedRocksDBStateBackend())
         >> env.get_checkpoint_config().set_checkpoint_storage("hdfs://checkpoints")
 
-    If you are configuring your state backend via the `flink-conf.yaml` no changes are required.
+    If you are configuring your state backend via the `config.yaml` no changes are required.
 
     A State Backend that stores its state in ``RocksDB``. This state backend can
     store very large state that exceeds memory and spills to disk.
@@ -862,7 +862,7 @@ class RocksDBStateBackend(StateBackend):
         Sets the predefined options for RocksDB.
 
         If user-configured options within ``RocksDBConfigurableOptions`` is set (through
-        flink-conf.yaml) or a user-defined options factory is set (via :func:`setOptions`),
+        config.yaml) or a user-defined options factory is set (via :func:`setOptions`),
         then the options from the factory are applied on top of the here specified
         predefined options and customized options.
 
@@ -882,7 +882,7 @@ class RocksDBStateBackend(StateBackend):
         are :data:`PredefinedOptions.DEFAULT`.
 
         If user-configured options within ``RocksDBConfigurableOptions`` is set (through
-        flink-conf.yaml) or a user-defined options factory is set (via :func:`setOptions`),
+        config.yaml) or a user-defined options factory is set (via :func:`setOptions`),
         then the options from the factory are applied on top of the predefined and customized
         options.
 

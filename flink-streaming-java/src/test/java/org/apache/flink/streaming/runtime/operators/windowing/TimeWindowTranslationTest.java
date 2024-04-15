@@ -37,28 +37,29 @@ import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.TimeUnit;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * These tests verify that the api calls on {@link WindowedStream} that use the "time" shortcut
  * instantiate the correct window operator.
  */
-public class TimeWindowTranslationTest {
+class TimeWindowTranslationTest {
 
     /**
      * Verifies that calls to timeWindow() instantiate a regular windowOperator instead of an
      * aligned one.
      */
     @Test
-    public void testAlignedWindowDeprecation() throws Exception {
+    void testAlignedWindowDeprecation() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DummyReducer reducer = new DummyReducer();
 
@@ -74,7 +75,7 @@ public class TimeWindowTranslationTest {
                         window1.getTransformation();
         OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator1 =
                 transform1.getOperator();
-        Assert.assertTrue(operator1 instanceof WindowOperator);
+        assertThat(operator1).isInstanceOf(WindowOperator.class);
 
         DataStream<Tuple2<String, Integer>> window2 =
                 source.keyBy(0)
@@ -101,17 +102,17 @@ public class TimeWindowTranslationTest {
                         window2.getTransformation();
         OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator2 =
                 transform2.getOperator();
-        Assert.assertTrue(operator2 instanceof WindowOperator);
+        assertThat(operator2).isInstanceOf(WindowOperator.class);
     }
 
     @Test
     @SuppressWarnings("rawtypes")
-    public void testReduceEventTimeWindows() throws Exception {
+    void testReduceEventTimeWindows() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.keyBy(0)
@@ -125,21 +126,21 @@ public class TimeWindowTranslationTest {
                         window1.getTransformation();
         OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator1 =
                 transform1.getOperator();
-        Assert.assertTrue(operator1 instanceof WindowOperator);
+        assertThat(operator1).isInstanceOf(WindowOperator.class);
         WindowOperator winOperator1 = (WindowOperator) operator1;
-        Assert.assertTrue(winOperator1.getTrigger() instanceof EventTimeTrigger);
-        Assert.assertTrue(winOperator1.getWindowAssigner() instanceof SlidingEventTimeWindows);
-        Assert.assertTrue(winOperator1.getStateDescriptor() instanceof ReducingStateDescriptor);
+        assertThat(winOperator1.getTrigger()).isInstanceOf(EventTimeTrigger.class);
+        assertThat(winOperator1.getWindowAssigner()).isInstanceOf(SlidingEventTimeWindows.class);
+        assertThat(winOperator1.getStateDescriptor()).isInstanceOf(ReducingStateDescriptor.class);
     }
 
     @Test
     @SuppressWarnings("rawtypes")
-    public void testApplyEventTimeWindows() throws Exception {
+    void testApplyEventTimeWindows() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.keyBy(0)
@@ -166,11 +167,11 @@ public class TimeWindowTranslationTest {
                         window1.getTransformation();
         OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator1 =
                 transform1.getOperator();
-        Assert.assertTrue(operator1 instanceof WindowOperator);
+        assertThat(operator1).isInstanceOf(WindowOperator.class);
         WindowOperator winOperator1 = (WindowOperator) operator1;
-        Assert.assertTrue(winOperator1.getTrigger() instanceof EventTimeTrigger);
-        Assert.assertTrue(winOperator1.getWindowAssigner() instanceof TumblingEventTimeWindows);
-        Assert.assertTrue(winOperator1.getStateDescriptor() instanceof ListStateDescriptor);
+        assertThat(winOperator1.getTrigger()).isInstanceOf(EventTimeTrigger.class);
+        assertThat(winOperator1.getWindowAssigner()).isInstanceOf(TumblingEventTimeWindows.class);
+        assertThat(winOperator1.getStateDescriptor()).isInstanceOf(ListStateDescriptor.class);
     }
 
     // ------------------------------------------------------------------------

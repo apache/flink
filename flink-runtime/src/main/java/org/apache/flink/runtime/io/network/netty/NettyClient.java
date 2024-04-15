@@ -157,7 +157,8 @@ class NettyClient {
     private void initNioBootstrap() {
         // Add the server port number to the name in order to distinguish
         // multiple clients running on the same host.
-        String name = NettyConfig.CLIENT_THREAD_GROUP_NAME + " (" + config.getServerPort() + ")";
+        String name =
+                NettyConfig.CLIENT_THREAD_GROUP_NAME + " (" + config.getServerPortRange() + ")";
 
         NioEventLoopGroup nioGroup =
                 new NioEventLoopGroup(
@@ -189,7 +190,8 @@ class NettyClient {
     private void initEpollBootstrap() {
         // Add the server port number to the name in order to distinguish
         // multiple clients running on the same host.
-        String name = NettyConfig.CLIENT_THREAD_GROUP_NAME + " (" + config.getServerPort() + ")";
+        String name =
+                NettyConfig.CLIENT_THREAD_GROUP_NAME + " (" + config.getServerPortRange() + ")";
 
         EpollEventLoopGroup epollGroup =
                 new EpollEventLoopGroup(

@@ -28,7 +28,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.TestingDefaultExecutionGraphBuilder;
-import org.apache.flink.runtime.executiongraph.failover.flip1.FailureHandlingResult;
+import org.apache.flink.runtime.executiongraph.failover.FailureHandlingResult;
 import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
@@ -96,7 +96,8 @@ class FailureHandlingResultSnapshotTest {
                                 .map(ExecutionVertex::getID)
                                 .collect(Collectors.toSet()),
                         0L,
-                        false);
+                        false,
+                        true);
 
         assertThatThrownBy(
                         () ->
@@ -124,7 +125,8 @@ class FailureHandlingResultSnapshotTest {
                                 .map(ExecutionVertex::getID)
                                 .collect(Collectors.toSet()),
                         0L,
-                        false);
+                        false,
+                        true);
 
         // FailedExecution with failure labels
         assertThat(failureHandlingResult.getFailureLabels().get())
@@ -145,6 +147,7 @@ class FailureHandlingResultSnapshotTest {
         assertThat(testInstance.getRootCauseExecution()).isPresent();
         assertThat(testInstance.getRootCauseExecution().get())
                 .isSameAs(rootCauseExecutionVertex.getCurrentExecutionAttempt());
+        assertThat(testInstance.isRootCause()).isTrue();
     }
 
     @Test
@@ -170,7 +173,8 @@ class FailureHandlingResultSnapshotTest {
                                 .map(ExecutionVertex::getID)
                                 .collect(Collectors.toSet()),
                         0L,
-                        false);
+                        false,
+                        true);
 
         final FailureHandlingResultSnapshot testInstance =
                 FailureHandlingResultSnapshot.create(
@@ -183,6 +187,7 @@ class FailureHandlingResultSnapshotTest {
                 .isSameAs(rootCauseExecutionVertex.getCurrentExecutionAttempt());
         assertThat(testInstance.getConcurrentlyFailedExecution())
                 .containsExactly(otherFailedExecutionVertex.getCurrentExecutionAttempt());
+        assertThat(testInstance.isRootCause()).isTrue();
     }
 
     @Test
@@ -196,7 +201,8 @@ class FailureHandlingResultSnapshotTest {
                                         new RuntimeException("Expected exception"),
                                         System.currentTimeMillis(),
                                         FailureEnricherUtils.EMPTY_FAILURE_LABELS,
-                                        Collections.singleton(rootCauseExecution)))
+                                        Collections.singleton(rootCauseExecution),
+                                        true))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -227,6 +233,7 @@ class FailureHandlingResultSnapshotTest {
                                 .map(ExecutionVertex::getID)
                                 .collect(Collectors.toSet()),
                         0L,
+                        true,
                         true);
 
         // FailedExecution with failure labels
@@ -244,6 +251,7 @@ class FailureHandlingResultSnapshotTest {
                 .containsExactlyInAnyOrder(
                         failedExecutionVertex0.getCurrentExecutionAttempt(),
                         failedExecutionVertex1.getCurrentExecutionAttempt());
+        assertThat(testInstance.isRootCause()).isTrue();
     }
 
     private Collection<Execution> getCurrentExecutions(ExecutionVertexID executionVertexId) {

@@ -18,9 +18,18 @@ limitations under the License.
 
 package org.apache.flink.runtime.source.coordinator;
 
+import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
 
 /** A serialization util class for the {@link SourceCoordinator}. */
 public class SourceCoordinatorSerdeUtils {
@@ -52,5 +61,60 @@ public class SourceCoordinatorSerdeUtils {
         byte[] bytes = new byte[size];
         in.readFully(bytes);
         return bytes;
+    }
+
+    static <SplitT> byte[] serializeAssignments(
+            Map<Integer, LinkedHashSet<SplitT>> assignments,
+            SimpleVersionedSerializer<SplitT> splitSerializer)
+            throws IOException {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                DataOutputStream out = new DataOutputViewStreamWrapper(baos)) {
+            out.writeInt(splitSerializer.getVersion());
+
+            int numSubtasks = assignments.size();
+            out.writeInt(numSubtasks);
+            for (Map.Entry<Integer, LinkedHashSet<SplitT>> assignment : assignments.entrySet()) {
+                int subtaskId = assignment.getKey();
+                out.writeInt(subtaskId);
+
+                int numAssignedSplits = assignment.getValue().size();
+                out.writeInt(numAssignedSplits);
+                for (SplitT split : assignment.getValue()) {
+                    byte[] serializedSplit = splitSerializer.serialize(split);
+                    out.writeInt(serializedSplit.length);
+                    out.write(serializedSplit);
+                }
+            }
+            out.flush();
+            return baos.toByteArray();
+        }
+    }
+
+    static <SplitT> Map<Integer, LinkedHashSet<SplitT>> deserializeAssignments(
+            byte[] assignmentData, SimpleVersionedSerializer<SplitT> splitSerializer)
+            throws IOException {
+
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(assignmentData);
+                DataInputStream in = new DataInputViewStreamWrapper(bais)) {
+            int splitSerializerVersion = in.readInt();
+
+            int numSubtasks = in.readInt();
+            Map<Integer, LinkedHashSet<SplitT>> assignments = new HashMap<>();
+            for (int j = 0; j < numSubtasks; j++) {
+                int subtaskId = in.readInt();
+                int numAssignedSplits = in.readInt();
+                LinkedHashSet<SplitT> splits = new LinkedHashSet<>(numAssignedSplits);
+                assignments.put(subtaskId, splits);
+                for (int k = 0; k < numAssignedSplits; k++) {
+                    int serializedSplitSize = in.readInt();
+                    byte[] serializedSplit = readBytes(in, serializedSplitSize);
+                    SplitT split =
+                            splitSerializer.deserialize(splitSerializerVersion, serializedSplit);
+                    splits.add(split);
+                }
+            }
+
+            return assignments;
+        }
     }
 }

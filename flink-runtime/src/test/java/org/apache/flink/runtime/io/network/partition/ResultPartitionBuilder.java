@@ -53,7 +53,7 @@ public class ResultPartitionBuilder {
 
     private FileChannelManager channelManager = NoOpFileChannelManager.INSTANCE;
 
-    private NetworkBufferPool networkBufferPool = new NetworkBufferPool(2, 1);
+    private NetworkBufferPool networkBufferPool = new NetworkBufferPool(4, 1);
 
     private BatchShuffleReadBufferPool batchShuffleReadBufferPool =
             new BatchShuffleReadBufferPool(64 * 32 * 1024, 32 * 1024);
@@ -85,7 +85,7 @@ public class ResultPartitionBuilder {
 
     private int maxOverdraftBuffersPerGate = 5;
 
-    private int hybridShuffleSpilledIndexSegmentSize = 256;
+    private int hybridShuffleSpilledIndexRegionGroupSize = 256;
 
     private long hybridShuffleNumRetainedInMemoryRegionsMax = Long.MAX_VALUE;
 
@@ -229,9 +229,9 @@ public class ResultPartitionBuilder {
         return this;
     }
 
-    public ResultPartitionBuilder setHybridShuffleSpilledIndexSegmentSize(
-            int hybridShuffleSpilledIndexSegmentSize) {
-        this.hybridShuffleSpilledIndexSegmentSize = hybridShuffleSpilledIndexSegmentSize;
+    public ResultPartitionBuilder setHybridShuffleSpilledIndexRegionGroupSize(
+            int hybridShuffleSpilledIndexRegionGroupSize) {
+        this.hybridShuffleSpilledIndexRegionGroupSize = hybridShuffleSpilledIndexRegionGroupSize;
         return this;
     }
 
@@ -254,8 +254,9 @@ public class ResultPartitionBuilder {
                         sortShuffleMinParallelism,
                         sslEnabled,
                         maxOverdraftBuffersPerGate,
-                        hybridShuffleSpilledIndexSegmentSize,
-                        hybridShuffleNumRetainedInMemoryRegionsMax);
+                        hybridShuffleSpilledIndexRegionGroupSize,
+                        hybridShuffleNumRetainedInMemoryRegionsMax,
+                        Optional.empty());
 
         SupplierWithException<BufferPool, IOException> factory =
                 bufferPoolFactory.orElseGet(
@@ -271,6 +272,7 @@ public class ResultPartitionBuilder {
                 numberOfSubpartitions,
                 numTargetKeyGroups,
                 isBroadcast,
-                factory);
+                factory,
+                false);
     }
 }

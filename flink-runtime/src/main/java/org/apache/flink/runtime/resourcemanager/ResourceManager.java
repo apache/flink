@@ -61,6 +61,7 @@ import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceAllocator;
 import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceEventListener;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rest.messages.LogInfo;
+import org.apache.flink.runtime.rest.messages.ProfilingInfo;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -84,10 +85,13 @@ import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkExpectedException;
+import org.apache.flink.util.MdcUtils;
+import org.apache.flink.util.MdcUtils.MdcCloseable;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -433,7 +437,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                                         new FlinkException(declineMessage));
                             }
                         },
-                        getMainThreadExecutor());
+                        getMainThreadExecutor(jobId));
 
         // handle exceptions which might have occurred in one of the futures inputs of combine
         return registrationResponseFuture.handleAsync(
@@ -570,30 +574,34 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     public CompletableFuture<Acknowledge> declareRequiredResources(
             JobMasterId jobMasterId, ResourceRequirements resourceRequirements, Time timeout) {
         final JobID jobId = resourceRequirements.getJobId();
-        final JobManagerRegistration jobManagerRegistration = jobManagerRegistrations.get(jobId);
+        try (MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobId))) {
+            final JobManagerRegistration jobManagerRegistration =
+                    jobManagerRegistrations.get(jobId);
 
-        if (null != jobManagerRegistration) {
-            if (Objects.equals(jobMasterId, jobManagerRegistration.getJobMasterId())) {
-                return getReadyToServeFuture()
-                        .thenApply(
-                                acknowledge -> {
-                                    validateRunsInMainThread();
-                                    slotManager.processResourceRequirements(resourceRequirements);
-                                    return null;
-                                });
+            if (null != jobManagerRegistration) {
+                if (Objects.equals(jobMasterId, jobManagerRegistration.getJobMasterId())) {
+                    return getReadyToServeFuture()
+                            .thenApply(
+                                    acknowledge -> {
+                                        validateRunsInMainThread();
+                                        slotManager.processResourceRequirements(
+                                                resourceRequirements);
+                                        return null;
+                                    });
+                } else {
+                    return FutureUtils.completedExceptionally(
+                            new ResourceManagerException(
+                                    "The job leader's id "
+                                            + jobManagerRegistration.getJobMasterId()
+                                            + " does not match the received id "
+                                            + jobMasterId
+                                            + '.'));
+                }
             } else {
                 return FutureUtils.completedExceptionally(
                         new ResourceManagerException(
-                                "The job leader's id "
-                                        + jobManagerRegistration.getJobMasterId()
-                                        + " does not match the received id "
-                                        + jobMasterId
-                                        + '.'));
+                                "Could not find registered job manager for job " + jobId + '.'));
             }
-        } else {
-            return FutureUtils.completedExceptionally(
-                    new ResourceManagerException(
-                            "Could not find registered job manager for job " + jobId + '.'));
         }
     }
 
@@ -809,24 +817,28 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     }
 
     @Override
-    public CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByName(
-            ResourceID taskManagerId, String fileName, Time timeout) {
+    public CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByNameAndType(
+            ResourceID taskManagerId, String fileName, FileType fileType, Duration timeout) {
         log.debug(
-                "Request upload of file {} from TaskExecutor {}.",
+                "Request upload of file {} (type: {}) from TaskExecutor {}.",
                 fileName,
+                fileType,
                 taskManagerId.getStringWithMetadata());
 
         final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
 
         if (taskExecutor == null) {
             log.debug(
-                    "Request upload of file {} from unregistered TaskExecutor {}.",
+                    "Request upload of file {} (type: {}) from unregistered TaskExecutor {}.",
                     fileName,
+                    fileType,
                     taskManagerId.getStringWithMetadata());
             return FutureUtils.completedExceptionally(
                     new UnknownTaskExecutorException(taskManagerId));
         } else {
-            return taskExecutor.getTaskExecutorGateway().requestFileUploadByName(fileName, timeout);
+            return taskExecutor
+                    .getTaskExecutorGateway()
+                    .requestFileUploadByNameAndType(fileName, fileType, timeout);
         }
     }
 
@@ -884,6 +896,40 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                     new UnknownTaskExecutorException(taskManagerId));
         } else {
             return taskExecutor.getTaskExecutorGateway().requestThreadDump(timeout);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Collection<ProfilingInfo>> requestTaskManagerProfilingList(
+            ResourceID taskManagerId, Duration timeout) {
+        final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
+        if (taskExecutor == null) {
+            log.debug(
+                    "Requested profiling list from unregistered TaskExecutor {}.",
+                    taskManagerId.getStringWithMetadata());
+            return FutureUtils.completedExceptionally(
+                    new UnknownTaskExecutorException(taskManagerId));
+        } else {
+            return taskExecutor.getTaskExecutorGateway().requestProfilingList(timeout);
+        }
+    }
+
+    @Override
+    public CompletableFuture<ProfilingInfo> requestProfiling(
+            ResourceID taskManagerId,
+            int duration,
+            ProfilingInfo.ProfilingMode mode,
+            Duration timeout) {
+        final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
+
+        if (taskExecutor == null) {
+            log.debug(
+                    "Requested profiling from unregistered TaskExecutor {}.",
+                    taskManagerId.getStringWithMetadata());
+            return FutureUtils.completedExceptionally(
+                    new UnknownTaskExecutorException(taskManagerId));
+        } else {
+            return taskExecutor.getTaskExecutorGateway().requestProfiling(duration, mode, timeout);
         }
     }
 
@@ -1132,6 +1178,14 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             // TODO :: suggest failed task executor to stop itself
             slotManager.unregisterTaskManager(workerRegistration.getInstanceID(), cause);
             clusterPartitionTracker.processTaskExecutorShutdown(resourceID);
+
+            jobManagerRegistrations
+                    .values()
+                    .forEach(
+                            jobManagerRegistration ->
+                                    jobManagerRegistration
+                                            .getJobManagerGateway()
+                                            .disconnectTaskManager(resourceID, cause));
 
             workerRegistration.getTaskExecutorGateway().disconnectResourceManager(cause);
         } else {

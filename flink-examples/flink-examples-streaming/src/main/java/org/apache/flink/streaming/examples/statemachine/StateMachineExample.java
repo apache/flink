@@ -19,27 +19,32 @@
 package org.apache.flink.streaming.examples.statemachine;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.StateBackendOptions;
+import org.apache.flink.connector.datagen.source.DataGeneratorSource;
+import org.apache.flink.connector.datagen.source.GeneratorFunction;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.streaming.examples.statemachine.dfa.State;
 import org.apache.flink.streaming.examples.statemachine.event.Alert;
 import org.apache.flink.streaming.examples.statemachine.event.Event;
-import org.apache.flink.streaming.examples.statemachine.generator.EventsGeneratorSource;
+import org.apache.flink.streaming.examples.statemachine.generator.EventsGeneratorFunction;
 import org.apache.flink.streaming.examples.statemachine.kafka.EventDeSerializationSchema;
 import org.apache.flink.util.Collector;
 
@@ -62,7 +67,7 @@ public class StateMachineExample {
         // ---- print some usage help ----
 
         System.out.println(
-                "Usage with built-in data generator: StateMachineExample [--error-rate <probability-of-invalid-transition>] [--sleep <sleep-per-record-in-ms>]");
+                "Usage with built-in data generator: StateMachineExample [--error-rate <probability-of-invalid-transition>] [--sleep <sleep-per-record-in-ms> | --rps <records-per-second>]");
         System.out.println(
                 "Usage with Kafka: StateMachineExample --kafka-topic <topic> [--brokers <brokers>]");
         System.out.println("Options for both the above setups: ");
@@ -78,20 +83,27 @@ public class StateMachineExample {
         final ParameterTool params = ParameterTool.fromArgs(args);
 
         // create the environment to create streams and configure execution
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.enableCheckpointing(2000L);
+        Configuration configuration = new Configuration();
 
         final String stateBackend = params.get("backend", "memory");
         if ("hashmap".equals(stateBackend)) {
             final String checkpointDir = params.get("checkpoint-dir");
-            env.setStateBackend(new HashMapStateBackend());
-            env.getCheckpointConfig().setCheckpointStorage(checkpointDir);
+            configuration.set(StateBackendOptions.STATE_BACKEND, "hashmap");
+            configuration.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+            configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
         } else if ("rocks".equals(stateBackend)) {
             final String checkpointDir = params.get("checkpoint-dir");
             boolean incrementalCheckpoints = params.getBoolean("incremental-checkpoints", false);
-            env.setStateBackend(new EmbeddedRocksDBStateBackend(incrementalCheckpoints));
-            env.getCheckpointConfig().setCheckpointStorage(checkpointDir);
+            configuration.set(
+                    StateBackendOptions.STATE_BACKEND,
+                    "org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackendFactory");
+            configuration.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, incrementalCheckpoints);
+            configuration.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+            configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
         }
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+        env.enableCheckpointing(2000L);
 
         if (params.has("kafka-topic")) {
             // set up the Kafka reader
@@ -115,15 +127,29 @@ public class StateMachineExample {
                     env.fromSource(
                             source, WatermarkStrategy.noWatermarks(), "StateMachineExampleSource");
         } else {
-            double errorRate = params.getDouble("error-rate", 0.0);
-            int sleep = params.getInt("sleep", 1);
-
+            final double errorRate = params.getDouble("error-rate", 0.0);
+            final int sleep = params.getInt("sleep", 1);
+            final double recordsPerSecond =
+                    params.getDouble("rps", rpsFromSleep(sleep, env.getParallelism()));
             System.out.printf(
-                    "Using standalone source with error rate %f and sleep delay %s millis\n",
-                    errorRate, sleep);
+                    "Using standalone source with error rate %f and %.1f records per second\n",
+                    errorRate, recordsPerSecond);
             System.out.println();
 
-            events = env.addSource(new EventsGeneratorSource(errorRate, sleep));
+            GeneratorFunction<Long, Event> generatorFunction =
+                    new EventsGeneratorFunction(errorRate);
+            DataGeneratorSource<Event> eventGeneratorSource =
+                    new DataGeneratorSource<>(
+                            generatorFunction,
+                            Long.MAX_VALUE,
+                            RateLimiterStrategy.perSecond(recordsPerSecond),
+                            TypeInformation.of(Event.class));
+
+            events =
+                    env.fromSource(
+                            eventGeneratorSource,
+                            WatermarkStrategy.noWatermarks(),
+                            "Events Generator Source");
         }
 
         // ---- main program ----
@@ -177,7 +203,7 @@ public class StateMachineExample {
         private ValueState<State> currentState;
 
         @Override
-        public void open(Configuration conf) {
+        public void open(OpenContext openContext) {
             // get access to the state object
             currentState =
                     getRuntimeContext().getState(new ValueStateDescriptor<>("state", State.class));
@@ -207,5 +233,10 @@ public class StateMachineExample {
                 currentState.update(nextState);
             }
         }
+    }
+
+    // Used for backwards compatibility to convert legacy 'sleep' parameter to records per second.
+    private static double rpsFromSleep(int sleep, int parallelism) {
+        return (1000d / sleep) * parallelism;
     }
 }

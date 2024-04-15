@@ -41,18 +41,16 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.TimestampType;
 
-import org.junit.experimental.runners.Enclosed;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Nested;
 
 import java.util.Arrays;
 import java.util.List;
 
 /** Test case for built-in APPROX_COUNT_DISTINCT aggregate function. */
-@RunWith(Enclosed.class)
-public class BatchApproxCountDistinctAggFunctionTest {
+final class BatchApproxCountDistinctAggFunctionTest {
 
     /** Base class for the test. */
-    public abstract static class ApproxCountDistinctAggFunctionTestBase<IN>
+    abstract static class ApproxCountDistinctAggFunctionTestBase<IN>
             extends AggFunctionTestBase<IN, Long, HllBuffer> {
 
         @Override
@@ -62,7 +60,8 @@ public class BatchApproxCountDistinctAggFunctionTest {
     }
 
     /** Test for {@link ByteApproxCountDistinctAggFunction}. */
-    public static class ByteApproxCountDistinctAggFunctionTest
+    @Nested
+    final class ByteApproxCountDistinctAggFunctionTest
             extends NumberApproxCountDistinctAggFunctionTestBase<Byte> {
 
         @Override
@@ -77,7 +76,8 @@ public class BatchApproxCountDistinctAggFunctionTest {
     }
 
     /** Test for {@link ShortApproxCountDistinctAggFunction}. */
-    public static class ShortApproxCountDistinctAggFunctionTest
+    @Nested
+    final class ShortApproxCountDistinctAggFunctionTest
             extends NumberApproxCountDistinctAggFunctionTestBase<Short> {
 
         @Override
@@ -92,7 +92,8 @@ public class BatchApproxCountDistinctAggFunctionTest {
     }
 
     /** Test for {@link ShortApproxCountDistinctAggFunction}. */
-    public static class IntegerApproxCountDistinctAggFunctionTest
+    @Nested
+    final class IntegerApproxCountDistinctAggFunctionTest
             extends NumberApproxCountDistinctAggFunctionTestBase<Integer> {
 
         @Override
@@ -107,7 +108,8 @@ public class BatchApproxCountDistinctAggFunctionTest {
     }
 
     /** Test for {@link LongApproxCountDistinctAggFunction}. */
-    public static class LongApproxCountDistinctAggFunctionTest
+    @Nested
+    final class LongApproxCountDistinctAggFunctionTest
             extends NumberApproxCountDistinctAggFunctionTestBase<Long> {
 
         @Override
@@ -122,7 +124,8 @@ public class BatchApproxCountDistinctAggFunctionTest {
     }
 
     /** Test for {@link FloatApproxCountDistinctAggFunction}. */
-    public static class FloatApproxCountDistinctAggFunctionTest
+    @Nested
+    final class FloatApproxCountDistinctAggFunctionTest
             extends ApproxCountDistinctAggFunctionTestBase<Float> {
 
         @Override
@@ -148,7 +151,8 @@ public class BatchApproxCountDistinctAggFunctionTest {
     }
 
     /** Test for {@link DoubleApproxCountDistinctAggFunction}. */
-    public static class DoubleApproxCountDistinctAggFunctionTest
+    @Nested
+    final class DoubleApproxCountDistinctAggFunctionTest
             extends ApproxCountDistinctAggFunctionTestBase<Double> {
 
         @Override
@@ -174,13 +178,13 @@ public class BatchApproxCountDistinctAggFunctionTest {
     }
 
     /** Test for {@link DecimalApproxCountDistinctAggFunction}. */
-    public abstract static class DecimalApproxCountDistinctAggFunctionTestBase
+    abstract static class DecimalApproxCountDistinctAggFunctionTestBase
             extends ApproxCountDistinctAggFunctionTestBase<DecimalData> {
 
         private final int precision;
         private final int scale;
 
-        public DecimalApproxCountDistinctAggFunctionTestBase(int precision, int scale) {
+        DecimalApproxCountDistinctAggFunctionTestBase(int precision, int scale) {
             this.precision = precision;
             this.scale = scale;
         }
@@ -214,25 +218,28 @@ public class BatchApproxCountDistinctAggFunctionTest {
     }
 
     /** Test for {@link DecimalApproxCountDistinctAggFunction} for 20 precision and 6 scale. */
-    public abstract static class Decimal20ApproxCountDistinctAggFunctionTest
+    @Nested
+    final class Decimal20ApproxCountDistinctAggFunctionTest
             extends DecimalApproxCountDistinctAggFunctionTestBase {
 
-        public Decimal20ApproxCountDistinctAggFunctionTest() {
+        Decimal20ApproxCountDistinctAggFunctionTest() {
             super(20, 6);
         }
     }
 
     /** Test for {@link DecimalApproxCountDistinctAggFunction} for 12 precision and 6 scale. */
-    public abstract static class Decimal12ApproxCountDistinctAggFunctionTest
+    @Nested
+    final class Decimal12ApproxCountDistinctAggFunctionTest
             extends DecimalApproxCountDistinctAggFunctionTestBase {
 
-        public Decimal12ApproxCountDistinctAggFunctionTest() {
+        Decimal12ApproxCountDistinctAggFunctionTest() {
             super(12, 6);
         }
     }
 
     /** Test for {@link DateApproxCountDistinctAggFunction}. */
-    public static class DateApproxCountDistinctAggFunctionTest
+    @Nested
+    final class DateApproxCountDistinctAggFunctionTest
             extends NumberApproxCountDistinctAggFunctionTestBase<Integer> {
 
         @Override
@@ -247,7 +254,8 @@ public class BatchApproxCountDistinctAggFunctionTest {
     }
 
     /** Test for {@link DateApproxCountDistinctAggFunction}. */
-    public static class TimeApproxCountDistinctAggFunctionTest
+    @Nested
+    final class TimeApproxCountDistinctAggFunctionTest
             extends NumberApproxCountDistinctAggFunctionTestBase<Integer> {
 
         @Override
@@ -262,7 +270,8 @@ public class BatchApproxCountDistinctAggFunctionTest {
     }
 
     /** Test for {@link TimestampApproxCountDistinctAggFunction}. */
-    public static class TimestampApproxCountDistinctAggFunctionTest
+    @Nested
+    final class TimestampApproxCountDistinctAggFunctionTest
             extends ApproxCountDistinctAggFunctionTestBase<TimestampData> {
 
         @Override
@@ -293,7 +302,8 @@ public class BatchApproxCountDistinctAggFunctionTest {
     }
 
     /** Test for {@link TimestampLtzApproxCountDistinctAggFunction}. */
-    public static class TimestampLtzApproxCountDistinctAggFunctionTest
+    @Nested
+    final class TimestampLtzApproxCountDistinctAggFunctionTest
             extends ApproxCountDistinctAggFunctionTestBase<TimestampData> {
 
         @Override
@@ -324,7 +334,8 @@ public class BatchApproxCountDistinctAggFunctionTest {
     }
 
     /** Test for {@link TimestampLtzApproxCountDistinctAggFunction}. */
-    public static class StringApproxCountDistinctAggFunctionTest
+    @Nested
+    final class StringApproxCountDistinctAggFunctionTest
             extends ApproxCountDistinctAggFunctionTestBase<StringData> {
 
         @Override
@@ -355,7 +366,7 @@ public class BatchApproxCountDistinctAggFunctionTest {
     }
 
     /** Test base for {@link ApproxCountDistinctAggFunction} of numeric types. */
-    public abstract static class NumberApproxCountDistinctAggFunctionTestBase<T>
+    abstract static class NumberApproxCountDistinctAggFunctionTestBase<T>
             extends ApproxCountDistinctAggFunctionTestBase<T> {
 
         protected abstract T getValue(String v);

@@ -28,12 +28,10 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.ArrayListSerializer;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
+import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
-import org.apache.flink.runtime.state.StateHandleID;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
@@ -50,8 +48,8 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -72,8 +70,8 @@ class RocksIncrementalSnapshotStrategyTest {
     void testCheckpointIsIncremental() throws Exception {
 
         try (CloseableRegistry closeableRegistry = new CloseableRegistry();
-                RocksIncrementalSnapshotStrategy checkpointSnapshotStrategy =
-                        createSnapshotStrategy(closeableRegistry)) {
+                RocksIncrementalSnapshotStrategy<?> checkpointSnapshotStrategy =
+                        createSnapshotStrategy()) {
             FsCheckpointStreamFactory checkpointStreamFactory = createFsCheckpointStreamFactory();
 
             // make and notify checkpoint with id 1
@@ -91,21 +89,15 @@ class RocksIncrementalSnapshotStrategyTest {
                             checkpointStreamFactory,
                             closeableRegistry);
 
-            // If 3rd checkpoint's placeholderStateHandleCount > 0,it means 3rd checkpoint is
+            // If 3rd checkpoint's full size > checkpointed size, it means 3rd checkpoint is
             // incremental.
-            Map<StateHandleID, StreamStateHandle> sharedState3 =
-                    incrementalRemoteKeyedStateHandle3.getSharedState();
-            long placeholderStateHandleCount =
-                    sharedState3.entrySet().stream()
-                            .filter(e -> e.getValue() instanceof PlaceholderStreamStateHandle)
-                            .count();
-
-            assertThat(placeholderStateHandleCount).isGreaterThan(0);
+            assertThat(incrementalRemoteKeyedStateHandle3.getStateSize())
+                    .isGreaterThan(incrementalRemoteKeyedStateHandle3.getCheckpointedSize());
         }
     }
 
-    public RocksIncrementalSnapshotStrategy createSnapshotStrategy(
-            CloseableRegistry closeableRegistry) throws IOException, RocksDBException {
+    public RocksIncrementalSnapshotStrategy<?> createSnapshotStrategy()
+            throws IOException, RocksDBException {
 
         ColumnFamilyHandle columnFamilyHandle = rocksDBExtension.createNewColumnFamily("test");
         RocksDB rocksDB = rocksDBExtension.getRocksDB();
@@ -116,8 +108,7 @@ class RocksIncrementalSnapshotStrategyTest {
         // construct RocksIncrementalSnapshotStrategy
         long lastCompletedCheckpointId = -1L;
         ResourceGuard rocksDBResourceGuard = new ResourceGuard();
-        SortedMap<Long, Map<StateHandleID, StreamStateHandle>> materializedSstFiles =
-                new TreeMap<>();
+        SortedMap<Long, Collection<HandleAndLocalPath>> materializedSstFiles = new TreeMap<>();
         LinkedHashMap<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo> kvStateInformation =
                 new LinkedHashMap<>();
 
@@ -147,7 +138,6 @@ class RocksIncrementalSnapshotStrategyTest {
                 new KeyGroupRange(0, 1),
                 keyGroupPrefixBytes,
                 TestLocalRecoveryConfig.disabled(),
-                closeableRegistry,
                 TempDirUtils.newFolder(tmp),
                 UUID.randomUUID(),
                 materializedSstFiles,
@@ -169,7 +159,7 @@ class RocksIncrementalSnapshotStrategyTest {
 
     public IncrementalRemoteKeyedStateHandle snapshot(
             long checkpointId,
-            RocksIncrementalSnapshotStrategy checkpointSnapshotStrategy,
+            RocksIncrementalSnapshotStrategy<?> checkpointSnapshotStrategy,
             FsCheckpointStreamFactory checkpointStreamFactory,
             CloseableRegistry closeableRegistry)
             throws Exception {

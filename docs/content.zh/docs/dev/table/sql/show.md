@@ -34,17 +34,21 @@ SHOW CREATE 语句用于打印给定对象的创建 DDL 语句。当前的 SHOW 
 目前 Flink SQL 支持下列 SHOW 语句：
 - SHOW CATALOGS
 - SHOW CURRENT CATALOG
+- SHOW CREATE CATALOG
 - SHOW DATABASES
 - SHOW CURRENT DATABASE
 - SHOW TABLES
 - SHOW CREATE TABLE
 - SHOW COLUMNS
+- SHOW PARTITIONS
+- SHOW PROCEDURES
 - SHOW VIEWS
 - SHOW CREATE VIEW
 - SHOW FUNCTIONS
 - SHOW MODULES
 - SHOW FULL MODULES
 - SHOW JARS
+- SHOW JOBS
 
 
 ## 执行 SHOW 语句
@@ -98,6 +102,22 @@ tEnv.executeSql("SHOW CURRENT CATALOG").print();
 // +----------------------+
 // |      default_catalog |
 // +----------------------+
+
+// create a catalog
+tEnv.executeSql("CREATE CATALOG cat2 WITH (...)");
+
+// show create catalog
+tEnv.executeSql("SHOW CREATE CATALOG cat2").print();
+// +---------------------------------------------------------------------------------------------+
+// |                                                                                      result |
+// +---------------------------------------------------------------------------------------------+
+// | CREATE CATALOG `cat2` WITH (
+//   'default-database' = 'db',
+//   'type' = 'generic_in_memory'
+// )
+// |
+// +---------------------------------------------------------------------------------------------+
+// 1 row in set
 
 // show databases
 tEnv.executeSql("SHOW DATABASES").print();
@@ -211,6 +231,22 @@ tEnv.executeSql("SHOW CATALOGS").print()
 // | default_catalog |
 // +-----------------+
 
+// create a catalog
+tEnv.executeSql("CREATE CATALOG cat2 WITH (...)")
+
+// show create catalog
+tEnv.executeSql("SHOW CREATE CATALOG cat2").print()
+// +---------------------------------------------------------------------------------------------+
+// |                                                                                      result |
+// +---------------------------------------------------------------------------------------------+
+// | CREATE CATALOG `cat2` WITH (
+//   'default-database' = 'db',
+//   'type' = 'generic_in_memory'
+// )
+// |
+// +---------------------------------------------------------------------------------------------+
+// 1 row in set
+
 // show databases
 tEnv.executeSql("SHOW DATABASES").print()
 // +------------------+
@@ -313,6 +349,22 @@ table_env.execute_sql("SHOW CATALOGS").print()
 # | default_catalog |
 # +-----------------+
 
+# create a catalog
+table_env.execute_sql("CREATE CATALOG cat2 WITH (...)")
+
+# show create catalog
+table_env.execute_sql("SHOW CREATE CATALOG cat2").print()
+# +---------------------------------------------------------------------------------------------+
+# |                                                                                      result |
+# +---------------------------------------------------------------------------------------------+
+# | CREATE CATALOG `cat2` WITH (
+#   'default-database' = 'db',
+#   'type' = 'generic_in_memory'
+# )
+#  |
+# +---------------------------------------------------------------------------------------------+
+# 1 row in set
+
 # show databases
 table_env.execute_sql("SHOW DATABASES").print()
 # +------------------+
@@ -408,6 +460,14 @@ table_env.execute_sql("SHOW FULL MODULES").print()
 Flink SQL> SHOW CATALOGS;
 default_catalog
 
+Flink SQL> CREATE CATALOG cat2 WITH (...);
+[INFO] Execute statement succeeded.
+ 
+Flink SQL> SHOW CREATE CATALOG cat2;
+CREATE CATALOG `cat2` WITH (
+  ...
+)
+
 Flink SQL> SHOW DATABASES;
 default_database
 
@@ -501,10 +561,42 @@ SHOW CURRENT CATALOG
 
 显示当前正在使用的 catalog。
 
+## SHOW CREATE CATALOG
+
+```sql
+SHOW CREATE CATALOG catalog_name
+```
+
+展示一个现有 catalog 的创建语句。
+
+该语句的输出内容包括 catalog 的名称和相关属性，使您可以直观地了解相应 catalog 的元数据。
+
+假设 `cat2` 是按如下方式创建的：
+```sql
+create catalog cat2 WITH (
+    'type'='generic_in_memory',
+    'default-database'='db'
+);
+```
+展示 catalog 创建语句。
+```sql
+show create catalog cat2;
++---------------------------------------------------------------------------------------------+
+|                                                                                      result |
++---------------------------------------------------------------------------------------------+
+| CREATE CATALOG `cat2` WITH (
+  'default-database' = 'db',
+  'type' = 'generic_in_memory'
+)
+ |
++---------------------------------------------------------------------------------------------+
+1 row in set
+```
+
 ## SHOW DATABASES
 
 ```sql
-SHOW DATABASES
+SHOW DATABASES [ ( FROM | IN ) catalog_name] [ [NOT] (LIKE | ILIKE) <sql_like_pattern> ]
 ```
 
 展示当前 catalog 中所有的 database。
@@ -605,7 +697,7 @@ show tables;
 ## SHOW CREATE TABLE
 
 ```sql
-SHOW CREATE TABLE [catalog_name.][db_name.]table_name
+SHOW CREATE TABLE [[catalog_name.]db_name.]table_name
 ```
 
 展示创建指定表的 create 语句。
@@ -623,7 +715,7 @@ CREATE TABLE orders (
   ts TIMESTAMP(3) comment 'notice: watermark, named ''ts''.',
   ptime AS PROCTIME() comment 'notice: computed column, named ''ptime''.',
   WATERMARK FOR ts AS ts - INTERVAL '1' SECOND,
-  CONSTRAINT `PK_3599338` PRIMARY KEY (order_id) NOT ENFORCED
+  CONSTRAINT `PK_order_id` PRIMARY KEY (order_id) NOT ENFORCED
 ) WITH (
   'connector' = 'datagen'
 );
@@ -641,7 +733,7 @@ show create table orders;
   `ts` TIMESTAMP(3) COMMENT 'notice: watermark, named ''ts''.',
   `ptime` AS PROCTIME() COMMENT 'notice: computed column, named ''ptime''.',
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
-  CONSTRAINT `PK_3599338` PRIMARY KEY (`order_id`) NOT ENFORCED
+  CONSTRAINT `PK_order_id` PRIMARY KEY (`order_id`) NOT ENFORCED
 ) WITH (
   'connector' = 'datagen'
 )
@@ -798,6 +890,25 @@ show partitions table1 partition (id=1002);
 +---------+-----------------------------+
 2 rows in set
 ```
+
+## SHOW PROCEDURES
+
+```sql
+SHOW PROCEDURES [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] (LIKE | ILIKE) <sql_like_pattern> ]	
+```
+
+展示指定 catalog 和 database 下的所有 procedure。
+如果没有指定 catalog 和 database，则将使用当前 catalog 和 当前 database。另外可以用 `<sql_like_pattern>` 来过滤要返回的 procedure。
+
+**LIKE**
+根据可选的 `LIKE` 语句与 `<sql_like_pattern>` 是否模糊匹配的所有 procedure。
+
+`LIKE` 子句中 SQL 正则式的语法与 `MySQL` 方言中的语法相同。
+* `%` 匹配任意数量的字符, 也包括0数量字符, `\%` 匹配一个 `%` 字符.
+* `_` 只匹配一个字符, `\_` 匹配一个 `_` 字符.
+
+**ILIKE**
+它的行为和 LIKE 相同，只是对于大小写是不敏感的。
 
 ## SHOW VIEWS
 

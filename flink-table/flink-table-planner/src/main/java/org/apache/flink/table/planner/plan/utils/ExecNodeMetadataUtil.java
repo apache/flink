@@ -28,7 +28,7 @@ import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleExecNodeMetadata;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecAsyncCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecChangelogNormalize;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCorrelate;
@@ -78,8 +78,12 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowJoi
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowRank;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowTableFunction;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+
 import javax.annotation.Nullable;
 
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -126,6 +130,7 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecRank.class);
                     add(StreamExecSink.class);
                     add(StreamExecSortLimit.class);
+                    add(StreamExecSort.class);
                     add(StreamExecTableSourceScan.class);
                     add(StreamExecTemporalJoin.class);
                     add(StreamExecTemporalSort.class);
@@ -138,6 +143,7 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecWindowRank.class);
                     add(StreamExecWindowTableFunction.class);
                     add(StreamExecPythonCalc.class);
+                    add(StreamExecAsyncCalc.class);
                     add(StreamExecPythonCorrelate.class);
                     add(StreamExecPythonGroupAggregate.class);
                     add(StreamExecPythonGroupWindowAggregate.class);
@@ -163,7 +169,6 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecLegacySink.class);
                     add(StreamExecGroupTableAggregate.class);
                     add(StreamExecPythonGroupTableAggregate.class);
-                    add(StreamExecSort.class);
                     add(StreamExecMultipleInput.class);
                 }
             };
@@ -184,6 +189,10 @@ public final class ExecNodeMetadataUtil {
         return EXEC_NODES;
     }
 
+    public static Map<ExecNodeNameVersion, Class<? extends ExecNode<?>>> getVersionedExecNodes() {
+        return LOOKUP_MAP;
+    }
+
     public static Class<? extends ExecNode<?>> retrieveExecNode(String name, int version) {
         return LOOKUP_MAP.get(new ExecNodeNameVersion(name, version));
     }
@@ -197,7 +206,7 @@ public final class ExecNodeMetadataUtil {
         addToLookupMap(execNodeClass);
     }
 
-    private static <T extends ExecNode<?>> List<ExecNodeMetadata> extractMetadataFromAnnotation(
+    public static <T extends ExecNode<?>> List<ExecNodeMetadata> extractMetadataFromAnnotation(
             Class<T> execNodeClass) {
         List<ExecNodeMetadata> metadata = new ArrayList<>();
         ExecNodeMetadata annotation = execNodeClass.getDeclaredAnnotation(ExecNodeMetadata.class);
@@ -230,7 +239,7 @@ public final class ExecNodeMetadataUtil {
     }
 
     private static void addToLookupMap(Class<? extends ExecNode<?>> execNodeClass) {
-        if (!JsonSerdeUtil.hasJsonCreatorAnnotation(execNodeClass)) {
+        if (!hasJsonCreatorAnnotation(execNodeClass)) {
             throw new IllegalStateException(
                     String.format(
                             "ExecNode: %s does not implement @JsonCreator annotation on "
@@ -332,7 +341,7 @@ public final class ExecNodeMetadataUtil {
     }
 
     /** Helper Pojo used as a tuple for the {@link #LOOKUP_MAP}. */
-    private static final class ExecNodeNameVersion {
+    public static final class ExecNodeNameVersion {
 
         private final String name;
         private final int version;
@@ -363,5 +372,17 @@ public final class ExecNodeMetadataUtil {
         public int hashCode() {
             return Objects.hash(name, version);
         }
+    }
+
+    /** Return true if the given class's constructors have @JsonCreator annotation, else false. */
+    static boolean hasJsonCreatorAnnotation(Class<?> clazz) {
+        for (Constructor<?> constructor : clazz.getDeclaredConstructors()) {
+            for (Annotation annotation : constructor.getAnnotations()) {
+                if (annotation instanceof JsonCreator) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

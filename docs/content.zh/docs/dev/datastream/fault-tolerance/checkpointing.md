@@ -47,6 +47,9 @@ Flink 的 checkpoint 机制会和持久化存储进行交互，读写流与状�
 
 Checkpoint 其他的属性包括：
 
+  - *Checkpoint 存储*: 你可以设置检查点快照的持久化位置。默认情况下，Flink将使用JobManager的堆。建议在生产部署中改为使用持久性文件系统。
+    有关作业范围和集群范围配置的可用选项的更多详细信息，请参阅[Checkpoint 存储]({{< ref "docs/ops/state/checkpoints" >}}#Checkpoint-存储)。
+
   - *精确一次（exactly-once）对比至少一次（at-least-once）*：你可以选择向 `enableCheckpointing(long interval, CheckpointingMode mode)` 方法中传入一个模式来选择使用两种保证等级中的哪一种。
     对于大多数应用来说，精确一次是较好的选择。至少一次可能与某些延迟超低（始终只有几毫秒）的应用的关联较大。
   
@@ -70,8 +73,14 @@ Checkpoint 其他的属性包括：
     该选项不能和 "checkpoints 间的最小时间"同时使用。
     
   - *externalized checkpoints*: 你可以配置周期存储 checkpoint 到外部系统中。Externalized checkpoints 将他们的元数据写到持久化存储上并且在 job 失败的时候*不会*被自动删除。
-    这种方式下，如果你的 job 失败，你将会有一个现有的 checkpoint 去恢复。更多的细节请看 [Externalized checkpoints 的部署文档]({{< ref "docs/ops/state/checkpoints" >}}#externalized-checkpoints)。
-    
+    这种方式下，如果你的 job 失败，你将会有一个现有的 checkpoint 去恢复。更多的细节请看 [保留 checkpoints 的部署文档]({{< ref "docs/ops/state/checkpoints" >}}#保留-checkpoint)。
+
+  - *非对齐 checkpoints*: 你可以启用[非对齐 checkpoints]({{< ref "docs/ops/state/checkpointing_under_backpressure" >}}#非对齐-checkpoints)
+     以在背压时大大减少创建checkpoint的时间。这仅适用于精确一次（exactly-once）checkpoints 并且只有一个并发检查点。
+
+  - *部分任务结束的 checkpoints*： 默认情况下，即使DAG的部分已经处理完它们的所有记录，Flink也会继续执行 checkpoints。
+    请参阅[重要注意事项]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}#部分任务结束后的-checkpoint)以了解详细信息。
+
 {{< tabs "5ef78d6e-3c62-43e9-b0a8-a987df37a8da" >}}
 {{< tab "Java" >}}
 ```java
@@ -173,7 +182,7 @@ env.get_checkpoint_config().enable_unaligned_checkpoints()
 
 ### 相关的配置选项
 
-更多的属性与默认值能在 `conf/flink-conf.yaml` 中设置（完整教程请阅读 [配置]({{< ref "docs/deployment/config" >}})）。
+更多的属性与默认值能在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 中设置（完整教程请阅读 [配置]({{< ref "docs/deployment/config" >}})）。
 
 {{< generated/checkpointing_configuration >}}
 
@@ -187,7 +196,12 @@ Flink 的 [checkpointing 机制]({{< ref "docs/learn-flink/fault_tolerance" >}})
 Checkpoint 存储在哪里取决于所配置的 **State Backend**（比如 JobManager memory、 file system、 database）。
 
 默认情况下，状态是保持在 TaskManagers 的内存中，checkpoint 保存在 JobManager 的内存中。为了合适地持久化大体量状态，
-Flink 支持各种各样的途径去存储 checkpoint 状态到其他的 state backends 上。通过 `StreamExecutionEnvironment.setStateBackend(…)` 来配置所选的 state backends。
+Flink 支持各种各样的途径去存储 checkpoint 状态到其他的 state backends 上。可以通过如下代码块来配置：
+```java
+Configuration config = new Configuration();
+config.set(StateBackendOptions.STATE_BACKEND, "hashmap");
+env.configure(config);
+```
 
 阅读 [state backends]({{< ref "docs/ops/state/state_backends" >}}) 来查看在 job 范围和集群范围上可用的 state backends 与选项的更多细节。
 

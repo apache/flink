@@ -262,7 +262,6 @@ Your applications are certainly capable of using state without getting Flink inv
 * **durable**: Flink state is fault-tolerant, i.e., it is automatically checkpointed at regular intervals, and is restored upon failure
 * **vertically scalable**: Flink state can be kept in embedded RocksDB instances that scale by adding more local disk
 * **horizontally scalable**: Flink state is redistributed as your cluster grows and shrinks
-* **queryable**: Flink state can be queried externally via the [Queryable State API]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}}).
 
 In this section you will learn how to work with Flink's APIs that manage keyed state.
 

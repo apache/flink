@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.messages.json;
 
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.type.TypeReference;
@@ -27,20 +26,20 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JavaType;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link SerializedValueSerializer} and {@link SerializedValueDeserializer}. */
-public class SerializedValueSerializerTest extends TestLogger {
+class SerializedValueSerializerTest {
 
     private ObjectMapper objectMapper;
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         objectMapper = JacksonMapperFactory.createObjectMapper();
         final SimpleModule simpleModule = new SimpleModule();
         final JavaType serializedValueWildcardType =
@@ -55,7 +54,7 @@ public class SerializedValueSerializerTest extends TestLogger {
     }
 
     @Test
-    public void testSerializationDeserialization() throws Exception {
+    void testSerializationDeserialization() throws Exception {
         final String json = objectMapper.writeValueAsString(new SerializedValue<>(new TestClass()));
 
         final SerializedValue<TestClass> serializedValue =
@@ -63,8 +62,8 @@ public class SerializedValueSerializerTest extends TestLogger {
         final TestClass deserializedValue =
                 serializedValue.deserializeValue(ClassLoader.getSystemClassLoader());
 
-        assertEquals("baz", deserializedValue.foo);
-        assertEquals(1, deserializedValue.bar);
+        assertThat(deserializedValue.foo).isEqualTo("baz");
+        assertThat(deserializedValue.bar).isOne();
     }
 
     private static class TestClass implements Serializable {

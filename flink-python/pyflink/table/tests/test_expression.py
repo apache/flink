@@ -114,6 +114,7 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('varPop(a)', str(expr1.var_pop))
         self.assertEqual('varSamp(a)', str(expr1.var_samp))
         self.assertEqual('collect(a)', str(expr1.collect))
+        self.assertEqual('ARRAY_AGG(a)', str(expr1.array_agg))
         self.assertEqual("as(a, 'a', 'b', 'c')", str(expr1.alias('a', 'b', 'c')))
         self.assertEqual('cast(a, INT)', str(expr1.cast(DataTypes.INT())))
         self.assertEqual('asc(a)', str(expr1.asc))
@@ -247,10 +248,10 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
 
         from pyflink.table.expressions import UNBOUNDED_ROW, UNBOUNDED_RANGE, CURRENT_ROW, \
             CURRENT_RANGE
-        self.assertEqual('unboundedRow()', str(UNBOUNDED_ROW))
-        self.assertEqual('unboundedRange()', str(UNBOUNDED_RANGE))
-        self.assertEqual('currentRow()', str(CURRENT_ROW))
-        self.assertEqual('currentRange()', str(CURRENT_RANGE))
+        self.assertEqual('UNBOUNDED_ROW', str(UNBOUNDED_ROW))
+        self.assertEqual('UNBOUNDED_RANGE', str(UNBOUNDED_RANGE))
+        self.assertEqual('CURRENT_ROW', str(CURRENT_ROW))
+        self.assertEqual('CURRENT_RANGE', str(CURRENT_RANGE))
         self.assertEqual('currentDatabase()', str(current_database()))
 
         self.assertEqual('currentDate()', str(current_date()))

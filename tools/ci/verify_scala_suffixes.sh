@@ -37,20 +37,34 @@
 #
 # The script uses 'mvn dependency:tree -Dincludes=org.scala-lang' to list Scala
 # dependent modules.
-CI_DIR=$1
-FLINK_ROOT=$2
+
+
+usage() {
+  echo "Usage: $0"
+  echo ""
+  echo "The environment variable MVN is used to specify the Maven binaries; defaults to 'mvnw'."
+  echo "See further details in the JavaDoc of ScalaSuffixChecker."
+}
+
+while getopts 'h' o; do
+  case "${o}" in
+    h)
+      usage
+      exit 0
+      ;;
+  esac
+done
+
+MVN=${MVN:-./mvnw}
 
 echo "--- Flink Scala Dependency Analyzer ---"
 echo "Analyzing modules for Scala dependencies using 'mvn dependency:tree'."
 echo "If you haven't built the project, please do so first by running \"mvn clean install -DskipTests\""
 
-source "${CI_DIR}/maven-utils.sh"
+dependency_plugin_output=/tmp/dependency_tree_scala.txt
 
-cd "$FLINK_ROOT" || exit
-
-dependency_plugin_output=${CI_DIR}/dep.txt
-
-run_mvn dependency:tree -Dincludes=org.scala-lang,:*_2.1*:: ${MAVEN_ARGUMENTS} >> "${dependency_plugin_output}"
+# run with -T1 because our maven output parsers don't support multi-threaded builds
+$MVN dependency:tree -Dincludes=org.scala-lang,:*_2.1*:: ${MAVEN_ARGUMENTS} -T1 > "${dependency_plugin_output}"
 EXIT_CODE=$?
 
 if [ $EXIT_CODE != 0 ]; then
@@ -58,20 +72,18 @@ if [ $EXIT_CODE != 0 ]; then
     echo "=============================================================================="
     echo "Suffix Check failed. The dependency tree could not be determined. See previous output for details."
     echo "=============================================================================="
-    exit 1
+    exit $EXIT_CODE
 fi
 
-cd "${CI_DIR}/flink-ci-tools/" || exit
-
-run_mvn exec:java -Dexec.mainClass=org.apache.flink.tools.ci.suffixcheck.ScalaSuffixChecker -Dexec.args=\""${dependency_plugin_output}" "${FLINK_ROOT}"\"
+$MVN -pl tools/ci/flink-ci-tools exec:java exec:java -Dexec.mainClass=org.apache.flink.tools.ci.suffixcheck.ScalaSuffixChecker -Dexec.args="${dependency_plugin_output} $(pwd)"
 EXIT_CODE=$?
 
-if [ $EXIT_CODE == 0 ]; then
-    exit 0
+if [ $EXIT_CODE != 0 ]; then
+    echo "=============================================================================="
+    echo "Suffix Check failed. See previous output for details."
+    echo "=============================================================================="
+    exit $EXIT_CODE
 fi
 
-echo "=============================================================================="
-echo "Suffix Check failed. See previous output for details."
-echo "=============================================================================="
-exit 1
+exit 0
 

@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.api.common.state.CheckpointListener;
@@ -41,6 +42,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.checkpoint.SnapshotType;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
@@ -140,7 +142,6 @@ import org.apache.flink.util.CloseableIterable;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.TestingUncaughtExceptionHandler;
@@ -149,7 +150,6 @@ import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
@@ -214,7 +214,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Tests for {@link StreamTask}. */
-@ExtendWith(TestLoggerExtension.class)
 public class StreamTaskTest {
 
     @RegisterExtension
@@ -512,7 +511,7 @@ public class StreamTaskTest {
     @Test
     void testStateBackendLoadingAndClosing() throws Exception {
         Configuration taskManagerConfig = new Configuration();
-        taskManagerConfig.setString(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
+        taskManagerConfig.set(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
 
         StreamConfig cfg = new StreamConfig(new Configuration());
         cfg.setStateKeySerializer(mock(TypeSerializer.class));
@@ -553,7 +552,7 @@ public class StreamTaskTest {
     @Test
     void testStateBackendClosingOnFailure() throws Exception {
         Configuration taskManagerConfig = new Configuration();
-        taskManagerConfig.setString(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
+        taskManagerConfig.set(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
 
         StreamConfig cfg = new StreamConfig(new Configuration());
         cfg.setStateKeySerializer(mock(TypeSerializer.class));
@@ -697,8 +696,7 @@ public class StreamTaskTest {
                     .hasMessage(
                             "Configured state backend (OnlyIncrementalStateBackend) does not"
                                     + " support enforcing a full snapshot. If you are restoring in"
-                                    + " NO_CLAIM mode, please consider choosing either CLAIM or"
-                                    + " LEGACY restore mode.");
+                                    + " NO_CLAIM mode, please consider choosing CLAIM mode.");
         }
     }
 
@@ -820,6 +818,7 @@ public class StreamTaskTest {
                         new JobID(1L, 2L),
                         createExecutionAttemptId(),
                         mock(TaskLocalStateStoreImpl.class),
+                        null,
                         new InMemoryStateChangelogStorage(),
                         new TaskExecutorStateChangelogStoragesManager(),
                         null,
@@ -1018,6 +1017,7 @@ public class StreamTaskTest {
                         new JobID(1L, 2L),
                         createExecutionAttemptId(),
                         mock(TaskLocalStateStoreImpl.class),
+                        null,
                         new InMemoryStateChangelogStorage(),
                         new TaskExecutorStateChangelogStoragesManager(),
                         null,
@@ -1523,7 +1523,7 @@ public class StreamTaskTest {
     void testTaskAvoidHangingAfterSnapshotStateThrownException() throws Exception {
         // given: Configured SourceStreamTask with source which fails on checkpoint.
         Configuration taskManagerConfig = new Configuration();
-        taskManagerConfig.setString(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
+        taskManagerConfig.set(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
 
         StreamConfig cfg = new StreamConfig(new Configuration());
         cfg.setStateKeySerializer(mock(TypeSerializer.class));
@@ -1774,6 +1774,23 @@ public class StreamTaskTest {
             assertThat(mailboxLatencyMetric.getCount()).isGreaterThanOrEqualTo(minMeasurements);
             assertThat(maxMailboxSize).hasValueGreaterThan(0);
             assertThat(mailboxSizeMetric.getValue()).isZero();
+        }
+    }
+
+    @Test
+    void testSubTaskInitializationMetrics() throws Exception {
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .setupOutputForSingletonOperatorChain(
+                                new TestBoundedOneInputStreamOperator());
+
+        try (StreamTaskMailboxTestHarness<Integer> harness = builder.buildUnrestored()) {
+            harness.streamTask.restore();
+
+            assertThat(harness.getTaskStateManager().getReportedInitializationMetrics())
+                    .isPresent();
         }
     }
 
@@ -2290,9 +2307,10 @@ public class StreamTaskTest {
         protected void cleanUpInternal() throws Exception {}
 
         @Override
-        public StreamTaskStateInitializer createStreamTaskStateInitializer() {
+        public StreamTaskStateInitializer createStreamTaskStateInitializer(
+                SubTaskInitializationMetricsBuilder initializationMetrics) {
             final StreamTaskStateInitializer streamTaskStateManager =
-                    super.createStreamTaskStateInitializer();
+                    super.createStreamTaskStateInitializer(initializationMetrics);
             return (operatorID,
                     operatorClassName,
                     processingTimeService,
@@ -2729,7 +2747,7 @@ public class StreamTaskTest {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             running = true;
         }
 

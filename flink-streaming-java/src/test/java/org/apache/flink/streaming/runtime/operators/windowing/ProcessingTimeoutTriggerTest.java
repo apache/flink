@@ -26,35 +26,33 @@ import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ProcessingTimeoutTrigger}. */
-public class ProcessingTimeoutTriggerTest {
+class ProcessingTimeoutTriggerTest {
 
     @Test
-    public void testWindowFireWithoutResetTimer() throws Exception {
+    void testWindowFireWithoutResetTimer() throws Exception {
         TriggerTestHarness<Object, TimeWindow> testHarness =
                 new TriggerTestHarness<>(
                         ProcessingTimeoutTrigger.of(
                                 CountTrigger.of(3), Duration.ofMillis(50), false, true),
                         new TimeWindow.Serializer());
 
-        assertEquals(
-                TriggerResult.CONTINUE,
-                testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)));
-        assertEquals(
-                TriggerResult.CONTINUE,
-                testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)));
+        assertThat(testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)))
+                .isEqualTo(TriggerResult.CONTINUE);
+        assertThat(testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)))
+                .isEqualTo(TriggerResult.CONTINUE);
 
         // Should be two states, one for ProcessingTimeoutTrigger and one for CountTrigger.
-        assertEquals(2, testHarness.numStateEntries());
-        assertEquals(1, testHarness.numProcessingTimeTimers());
-        assertEquals(0, testHarness.numEventTimeTimers());
+        assertThat(testHarness.numStateEntries()).isEqualTo(2);
+        assertThat(testHarness.numProcessingTimeTimers()).isOne();
+        assertThat(testHarness.numEventTimeTimers()).isZero();
 
         // Should not fire before interval time.
         assertThrows(
@@ -62,28 +60,24 @@ public class ProcessingTimeoutTriggerTest {
                 IllegalStateException.class,
                 () -> testHarness.advanceProcessingTime(Long.MIN_VALUE + 40, new TimeWindow(0, 2)));
 
-        assertEquals(
-                TriggerResult.FIRE,
-                testHarness.advanceProcessingTime(Long.MIN_VALUE + 50, new TimeWindow(0, 2)));
+        assertThat(testHarness.advanceProcessingTime(Long.MIN_VALUE + 50, new TimeWindow(0, 2)))
+                .isEqualTo(TriggerResult.FIRE);
         // After firing states should be clear.
-        assertEquals(0, testHarness.numStateEntries());
-        assertEquals(0, testHarness.numProcessingTimeTimers());
-        assertEquals(0, testHarness.numEventTimeTimers());
+        assertThat(testHarness.numStateEntries()).isZero();
+        assertThat(testHarness.numProcessingTimeTimers()).isZero();
+        assertThat(testHarness.numEventTimeTimers()).isZero();
 
         // Check inner trigger is working as well
-        assertEquals(
-                TriggerResult.CONTINUE,
-                testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)));
-        assertEquals(
-                TriggerResult.CONTINUE,
-                testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)));
-        assertEquals(
-                TriggerResult.FIRE,
-                testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)));
+        assertThat(testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)))
+                .isEqualTo(TriggerResult.CONTINUE);
+        assertThat(testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)))
+                .isEqualTo(TriggerResult.CONTINUE);
+        assertThat(testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)))
+                .isEqualTo(TriggerResult.FIRE);
     }
 
     @Test
-    public void testWindowFireWithResetTimer() throws Exception {
+    void testWindowFireWithResetTimer() throws Exception {
         TriggerTestHarness<Object, TimeWindow> testHarness =
                 new TriggerTestHarness<>(
                         ProcessingTimeoutTrigger.of(
@@ -94,21 +88,19 @@ public class ProcessingTimeoutTriggerTest {
                 "Must have exactly one timer firing. Fired timers: []",
                 IllegalStateException.class,
                 () -> testHarness.advanceProcessingTime(0, new TimeWindow(0, 2)));
-        assertEquals(
-                TriggerResult.CONTINUE,
-                testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)));
+        assertThat(testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)))
+                .isEqualTo(TriggerResult.CONTINUE);
         assertThrows(
                 "Must have exactly one timer firing. Fired timers: []",
                 IllegalStateException.class,
                 () -> testHarness.advanceProcessingTime(10, new TimeWindow(0, 2)));
-        assertEquals(
-                TriggerResult.CONTINUE,
-                testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)));
+        assertThat(testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)))
+                .isEqualTo(TriggerResult.CONTINUE);
 
         // Should be two states, one for ProcessingTimeoutTrigger and one for CountTrigger.
-        assertEquals(2, testHarness.numStateEntries());
-        assertEquals(1, testHarness.numProcessingTimeTimers());
-        assertEquals(0, testHarness.numEventTimeTimers());
+        assertThat(testHarness.numStateEntries()).isEqualTo(2);
+        assertThat(testHarness.numProcessingTimeTimers()).isOne();
+        assertThat(testHarness.numEventTimeTimers()).isZero();
 
         // Should not fire at timestampA+interval (at 50 millis), because resetTimer is on, it
         // should fire at 60 millis.
@@ -117,58 +109,52 @@ public class ProcessingTimeoutTriggerTest {
                 IllegalStateException.class,
                 () -> testHarness.advanceProcessingTime(50, new TimeWindow(0, 2)));
 
-        assertEquals(
-                TriggerResult.FIRE, testHarness.advanceProcessingTime(60, new TimeWindow(0, 2)));
+        assertThat(testHarness.advanceProcessingTime(60, new TimeWindow(0, 2)))
+                .isEqualTo(TriggerResult.FIRE);
         // After firing states should be clear.
-        assertEquals(0, testHarness.numStateEntries());
-        assertEquals(0, testHarness.numProcessingTimeTimers());
-        assertEquals(0, testHarness.numEventTimeTimers());
+        assertThat(testHarness.numStateEntries()).isZero();
+        assertThat(testHarness.numProcessingTimeTimers()).isZero();
+        assertThat(testHarness.numEventTimeTimers()).isZero();
 
         // Check inner trigger is working as well
-        assertEquals(
-                TriggerResult.CONTINUE,
-                testHarness.processElement(new StreamRecord<>(1, 0), new TimeWindow(0, 2)));
-        assertEquals(
-                TriggerResult.CONTINUE,
-                testHarness.processElement(new StreamRecord<>(1, 10), new TimeWindow(0, 2)));
-        assertEquals(
-                TriggerResult.FIRE,
-                testHarness.processElement(new StreamRecord<>(1, 20), new TimeWindow(0, 2)));
+        assertThat(testHarness.processElement(new StreamRecord<>(1, 0), new TimeWindow(0, 2)))
+                .isEqualTo(TriggerResult.CONTINUE);
+        assertThat(testHarness.processElement(new StreamRecord<>(1, 10), new TimeWindow(0, 2)))
+                .isEqualTo(TriggerResult.CONTINUE);
+        assertThat(testHarness.processElement(new StreamRecord<>(1, 20), new TimeWindow(0, 2)))
+                .isEqualTo(TriggerResult.FIRE);
     }
 
     @Test
-    public void testWindowFireWithoutClearOnTimeout() throws Exception {
+    void testWindowFireWithoutClearOnTimeout() throws Exception {
         TriggerTestHarness<Object, TimeWindow> testHarness =
                 new TriggerTestHarness<>(
                         ProcessingTimeoutTrigger.of(
                                 CountTrigger.of(3), Duration.ofMillis(50), false, false),
                         new TimeWindow.Serializer());
 
-        assertEquals(
-                TriggerResult.CONTINUE,
-                testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)));
-        assertEquals(
-                TriggerResult.CONTINUE,
-                testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)));
+        assertThat(testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)))
+                .isEqualTo(TriggerResult.CONTINUE);
+        assertThat(testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)))
+                .isEqualTo(TriggerResult.CONTINUE);
 
         // Should be two states, one for ProcessingTimeoutTrigger and one for CountTrigger.
-        assertEquals(2, testHarness.numStateEntries());
-        assertEquals(1, testHarness.numProcessingTimeTimers());
-        assertEquals(0, testHarness.numEventTimeTimers());
+        assertThat(testHarness.numStateEntries()).isEqualTo(2);
+        assertThat(testHarness.numProcessingTimeTimers()).isOne();
+        assertThat(testHarness.numEventTimeTimers()).isZero();
 
-        assertEquals(
-                TriggerResult.FIRE,
-                testHarness.advanceProcessingTime(Long.MIN_VALUE + 50, new TimeWindow(0, 2)));
+        assertThat(testHarness.advanceProcessingTime(Long.MIN_VALUE + 50, new TimeWindow(0, 2)))
+                .isEqualTo(TriggerResult.FIRE);
 
         // After firing, the state of the inner trigger (e.g CountTrigger) should not be clear, same
         // as the state of the timestamp.
-        assertEquals(2, testHarness.numStateEntries());
-        assertEquals(0, testHarness.numProcessingTimeTimers());
-        assertEquals(0, testHarness.numEventTimeTimers());
+        assertThat(testHarness.numStateEntries()).isEqualTo(2);
+        assertThat(testHarness.numProcessingTimeTimers()).isZero();
+        assertThat(testHarness.numEventTimeTimers()).isZero();
     }
 
     @Test
-    public void testWindowPurgingWhenInnerTriggerIsPurging() throws Exception {
+    void testWindowPurgingWhenInnerTriggerIsPurging() throws Exception {
         TriggerTestHarness<Object, TimeWindow> testHarness =
                 new TriggerTestHarness<>(
                         ProcessingTimeoutTrigger.of(
@@ -178,28 +164,25 @@ public class ProcessingTimeoutTriggerTest {
                                 false),
                         new TimeWindow.Serializer());
 
-        assertEquals(
-                TriggerResult.CONTINUE,
-                testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)));
-        assertEquals(
-                TriggerResult.CONTINUE,
-                testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)));
+        assertThat(testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)))
+                .isEqualTo(TriggerResult.CONTINUE);
+        assertThat(testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)))
+                .isEqualTo(TriggerResult.CONTINUE);
 
         // Should be only one state for ProcessingTimeoutTrigger.
-        assertEquals(1, testHarness.numStateEntries());
+        assertThat(testHarness.numStateEntries()).isOne();
         // Should be two timers, one for ProcessingTimeoutTrigger timeout timer, and one for
         // ProcessingTimeTrigger maxWindow timer.
-        assertEquals(2, testHarness.numProcessingTimeTimers());
-        assertEquals(0, testHarness.numEventTimeTimers());
+        assertThat(testHarness.numProcessingTimeTimers()).isEqualTo(2);
+        assertThat(testHarness.numEventTimeTimers()).isZero();
 
-        assertEquals(
-                TriggerResult.FIRE_AND_PURGE,
-                testHarness.advanceProcessingTime(Long.MIN_VALUE + 50, new TimeWindow(0, 2)));
+        assertThat(testHarness.advanceProcessingTime(Long.MIN_VALUE + 50, new TimeWindow(0, 2)))
+                .isEqualTo(TriggerResult.FIRE_AND_PURGE);
 
         // Because shouldClearAtTimeout is false, the state of ProcessingTimeoutTrigger not cleared,
         // same as ProcessingTimeTrigger timer for maxWindowTime.
-        assertEquals(1, testHarness.numStateEntries());
-        assertEquals(1, testHarness.numProcessingTimeTimers());
-        assertEquals(0, testHarness.numEventTimeTimers());
+        assertThat(testHarness.numStateEntries()).isOne();
+        assertThat(testHarness.numProcessingTimeTimers()).isOne();
+        assertThat(testHarness.numEventTimeTimers()).isZero();
     }
 }

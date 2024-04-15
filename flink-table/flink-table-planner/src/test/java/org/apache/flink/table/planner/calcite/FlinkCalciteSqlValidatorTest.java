@@ -23,20 +23,26 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.planner.utils.PlannerMocks;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link FlinkCalciteSqlValidator}. */
-public class FlinkCalciteSqlValidatorTest {
+class FlinkCalciteSqlValidatorTest {
 
     private final PlannerMocks plannerMocks =
             PlannerMocks.create()
                     .registerTemporaryTable(
-                            "t1", Schema.newBuilder().column("a", DataTypes.INT()).build());
+                            "t1", Schema.newBuilder().column("a", DataTypes.INT()).build())
+                    .registerTemporaryTable(
+                            "t2",
+                            Schema.newBuilder()
+                                    .column("a", DataTypes.INT())
+                                    .column("b", DataTypes.INT())
+                                    .build());
 
     @Test
-    public void testUpsertInto() {
+    void testUpsertInto() {
         assertThatThrownBy(() -> plannerMocks.getParser().parse("UPSERT INTO t1 VALUES(1)"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
@@ -44,7 +50,21 @@ public class FlinkCalciteSqlValidatorTest {
     }
 
     @Test
-    public void testExplainUpsertInto() {
+    void testInsertInto1() {
+        assertThatThrownBy(() -> plannerMocks.getParser().parse("INSERT INTO t2 (a,b) VALUES(1)"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(" Number of columns must match number of query columns");
+    }
+
+    @Test
+    void testInsertInto2() {
+        assertThatThrownBy(() -> plannerMocks.getParser().parse("INSERT INTO t2 (a,b) SELECT 1"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(" Number of columns must match number of query columns");
+    }
+
+    @Test
+    void testExplainUpsertInto() {
         assertThatThrownBy(() -> plannerMocks.getParser().parse("EXPLAIN UPSERT INTO t1 VALUES(1)"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(

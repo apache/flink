@@ -33,7 +33,8 @@ import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.apache.calcite.rel.rules.CoreRules;
 import org.apache.calcite.tools.RuleSets;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -41,13 +42,13 @@ import java.util.List;
 import java.util.Map;
 
 /** Test for {@link PushPartitionIntoTableSourceScanRule}. */
-public class PushPartitionIntoTableSourceScanRuleTest
+class PushPartitionIntoTableSourceScanRuleTest
         extends PushPartitionIntoLegacyTableSourceScanRuleTest {
-    public PushPartitionIntoTableSourceScanRuleTest(
-            boolean sourceFetchPartitions, boolean useFilter) {
+    PushPartitionIntoTableSourceScanRuleTest(boolean sourceFetchPartitions, boolean useFilter) {
         super(sourceFetchPartitions, useFilter);
     }
 
+    @BeforeEach
     @Override
     public void setup() throws Exception {
         util().buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE());
@@ -147,8 +148,8 @@ public class PushPartitionIntoTableSourceScanRuleTest
         }
     }
 
-    @Test
-    public void testUnconvertedExpression() {
+    @TestTemplate
+    void testUnconvertedExpression() {
         String sql = "select * from MyTable where trim(part1) = 'A' and part2 > 1";
         util().verifyRelPlan(sql);
     }

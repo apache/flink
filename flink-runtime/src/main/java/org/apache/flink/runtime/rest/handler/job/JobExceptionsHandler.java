@@ -242,12 +242,26 @@ public class JobExceptionsHandler
                 historyEntry.getFailureLabels(),
                 historyEntry.getFailingTaskName(),
                 toString(historyEntry.getTaskManagerLocation()),
+                toString(historyEntry.getTaskManagerLocation()),
                 toTaskManagerId(historyEntry.getTaskManagerLocation()),
                 concurrentExceptions);
     }
 
     private static JobExceptionsInfoWithHistory.ExceptionInfo createExceptionInfo(
             ExceptionHistoryEntry exceptionHistoryEntry) {
+
+        if (exceptionHistoryEntry.isGlobal()) {
+            return new JobExceptionsInfoWithHistory.ExceptionInfo(
+                    exceptionHistoryEntry.getException().getOriginalErrorClassName(),
+                    exceptionHistoryEntry.getExceptionAsString(),
+                    exceptionHistoryEntry.getTimestamp(),
+                    exceptionHistoryEntry.getFailureLabels(),
+                    null,
+                    null,
+                    null,
+                    null);
+        }
+
         assertLocalExceptionInfo(exceptionHistoryEntry);
 
         return new JobExceptionsInfoWithHistory.ExceptionInfo(
@@ -256,6 +270,7 @@ public class JobExceptionsHandler
                 exceptionHistoryEntry.getTimestamp(),
                 exceptionHistoryEntry.getFailureLabels(),
                 exceptionHistoryEntry.getFailingTaskName(),
+                toString(exceptionHistoryEntry.getTaskManagerLocation()),
                 toString(exceptionHistoryEntry.getTaskManagerLocation()),
                 toTaskManagerId(exceptionHistoryEntry.getTaskManagerLocation()));
     }
@@ -270,9 +285,7 @@ public class JobExceptionsHandler
     static String toString(@Nullable TaskManagerLocation location) {
         // '(unassigned)' being the default value is added to support backward-compatibility for the
         // deprecated fields
-        return location != null
-                ? taskManagerLocationToString(location.getFQDNHostname(), location.dataPort())
-                : "(unassigned)";
+        return location != null ? location.getEndpoint() : "(unassigned)";
     }
 
     @VisibleForTesting
@@ -285,18 +298,12 @@ public class JobExceptionsHandler
     @VisibleForTesting
     @Nullable
     static String toString(@Nullable ExceptionHistoryEntry.ArchivedTaskManagerLocation location) {
-        return location != null
-                ? taskManagerLocationToString(location.getFQDNHostname(), location.getPort())
-                : null;
+        return location != null ? location.getEndpoint() : null;
     }
 
     @VisibleForTesting
     static String toTaskManagerId(
             @Nullable ExceptionHistoryEntry.ArchivedTaskManagerLocation location) {
         return location != null ? String.format("%s", location.getResourceID()) : null;
-    }
-
-    private static String taskManagerLocationToString(String fqdnHostname, int port) {
-        return String.format("%s:%d", fqdnHostname, port);
     }
 }

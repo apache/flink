@@ -71,6 +71,10 @@ public class MeterView implements Meter, View {
         this.values = new long[this.timeSpanInSeconds / UPDATE_INTERVAL_SECONDS + 1];
     }
 
+    public MeterView(Gauge<? extends Number> numberGauge) {
+        this(new GaugeWrapper(numberGauge));
+    }
+
     @Override
     public void markEvent() {
         this.counter.inc();
@@ -97,5 +101,40 @@ public class MeterView implements Meter, View {
         values[time] = counter.getCount();
         currentRate =
                 ((double) (values[time] - values[(time + 1) % values.length]) / timeSpanInSeconds);
+    }
+
+    /** Simple wrapper to expose number gauges as timers. */
+    static class GaugeWrapper implements Counter {
+
+        final Gauge<? extends Number> numberGauge;
+
+        GaugeWrapper(Gauge<? extends Number> numberGauge) {
+            this.numberGauge = numberGauge;
+        }
+
+        @Override
+        public void inc() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void inc(long n) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void dec() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void dec(long n) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long getCount() {
+            return numberGauge.getValue().longValue();
+        }
     }
 }

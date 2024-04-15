@@ -112,7 +112,7 @@ class AvroSerializerSnapshotTest {
 
         TypeSerializerSnapshot<GenericRecord> snapshot = serializer.snapshotConfiguration();
 
-        assertThat(snapshot.resolveSchemaCompatibility(serializer))
+        assertThat(serializer.snapshotConfiguration().resolveSchemaCompatibility(snapshot))
                 .is(matching(isCompatibleAsIs()));
     }
 
@@ -124,7 +124,7 @@ class AvroSerializerSnapshotTest {
         AvroSerializerSnapshot<GenericRecord> restored =
                 roundTrip(serializer.snapshotConfiguration());
 
-        assertThat(restored.resolveSchemaCompatibility(serializer))
+        assertThat(serializer.snapshotConfiguration().resolveSchemaCompatibility(restored))
                 .is(matching(isCompatibleAsIs()));
     }
 
@@ -135,7 +135,7 @@ class AvroSerializerSnapshotTest {
 
         AvroSerializerSnapshot<User> restored = roundTrip(serializer.snapshotConfiguration());
 
-        assertThat(restored.resolveSchemaCompatibility(serializer))
+        assertThat(serializer.snapshotConfiguration().resolveSchemaCompatibility(restored))
                 .is(matching(isCompatibleAsIs()));
     }
 
@@ -145,7 +145,7 @@ class AvroSerializerSnapshotTest {
 
         AvroSerializerSnapshot<Pojo> restored = roundTrip(serializer.snapshotConfiguration());
 
-        assertThat(restored.resolveSchemaCompatibility(serializer))
+        assertThat(serializer.snapshotConfiguration().resolveSchemaCompatibility(restored))
                 .is(matching(isCompatibleAsIs()));
     }
 
@@ -169,7 +169,7 @@ class AvroSerializerSnapshotTest {
         AvroSerializerSnapshot<GenericRecord> restored =
                 roundTrip(serializer.snapshotConfiguration());
 
-        assertThat(restored.resolveSchemaCompatibility(serializer))
+        assertThat(serializer.snapshotConfiguration().resolveSchemaCompatibility(restored))
                 .is(matching(isCompatibleAsIs()));
     }
 
@@ -205,7 +205,10 @@ class AvroSerializerSnapshotTest {
         TypeSerializerSnapshot<GenericRecord> originalSnapshot =
                 originalSerializer.snapshotConfiguration();
 
-        assertThat(originalSnapshot.resolveSchemaCompatibility(newSerializer))
+        assertThat(
+                        newSerializer
+                                .snapshotConfiguration()
+                                .resolveSchemaCompatibility(originalSnapshot))
                 .is(matching(isCompatibleAfterMigration()));
     }
 
@@ -219,7 +222,10 @@ class AvroSerializerSnapshotTest {
         TypeSerializerSnapshot<GenericRecord> originalSnapshot =
                 originalSerializer.snapshotConfiguration();
 
-        assertThat(originalSnapshot.resolveSchemaCompatibility(newSerializer))
+        assertThat(
+                        newSerializer
+                                .snapshotConfiguration()
+                                .resolveSchemaCompatibility(originalSnapshot))
                 .is(matching(isIncompatible()));
     }
 
@@ -235,7 +241,10 @@ class AvroSerializerSnapshotTest {
         AvroSerializer<Object> specificSerializer = new AvroSerializer(User.class);
         specificSerializer.snapshotConfiguration();
 
-        assertThat(genericSnapshot.resolveSchemaCompatibility(specificSerializer))
+        assertThat(
+                        specificSerializer
+                                .snapshotConfiguration()
+                                .resolveSchemaCompatibility(genericSnapshot))
                 .is(matching(isCompatibleAsIs()));
     }
 
@@ -253,7 +262,10 @@ class AvroSerializerSnapshotTest {
                     TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
                             in, AvroSerializer.class.getClassLoader());
 
-            assertThat(restored.resolveSchemaCompatibility(currentSerializer))
+            assertThat(
+                            currentSerializer
+                                    .snapshotConfiguration()
+                                    .resolveSchemaCompatibility(restored))
                     .is(matching(isCompatibleAsIs()));
         }
     }

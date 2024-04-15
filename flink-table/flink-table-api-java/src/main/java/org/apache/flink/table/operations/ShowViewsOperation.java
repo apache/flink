@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.internal.TableResultInternal;
 
 import static org.apache.flink.table.api.internal.TableResultUtils.buildStringArrayResult;
 
 /** Operation to describe a SHOW VIEWS statement. */
+@Internal
 public class ShowViewsOperation implements ShowOperation {
 
     @Override

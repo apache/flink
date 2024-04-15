@@ -46,4 +46,7 @@ public interface ParserResource {
 
     @Resources.BaseMessage("WITH DRAIN could only be used after WITH SAVEPOINT.")
     Resources.ExInst<ParseException> withDrainOnlyUsedWithSavepoint();
+
+    @Resources.BaseMessage("Bucket count must be a positive integer.")
+    Resources.ExInst<ParseException> bucketCountMustBePositiveInteger();
 }

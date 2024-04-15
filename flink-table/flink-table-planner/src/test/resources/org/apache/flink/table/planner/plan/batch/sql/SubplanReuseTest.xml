@@ -112,9 +112,9 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a0=[$6], b0=[$7],
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashJoin(joinType=[InnerJoin], where=[(b = e0)], select=[a, b, c, d, e, f, a0, b0, c0, d0, e0, f0], build=[right])
+HashJoin(joinType=[InnerJoin], where=[(b = e0)], select=[a, b, c, d, e, f, a0, b0, c0, d0, e0, f0], build=[left])
 :- Exchange(distribution=[hash[b]])
-:  +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], build=[right])
+:  +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], build=[left])
 :     :- Exchange(distribution=[hash[a]])
 :     :  +- Calc(select=[a, b, c], where=[(a < 10)])
 :     :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -122,7 +122,7 @@ HashJoin(joinType=[InnerJoin], where=[(b = e0)], select=[a, b, c, d, e, f, a0, b
 :        +- Calc(select=[d, e, f], where=[(d < 10)])
 :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 +- Exchange(distribution=[hash[e]])
-   +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], build=[right])
+   +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], build=[left])
       :- Exchange(distribution=[hash[a]])
       :  +- Calc(select=[a, b, c], where=[(a > 5)])
       :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -161,9 +161,9 @@ LogicalProject(a=[$0], b=[$1], d=[$2], e=[$3], a0=[$4], b0=[$5], d0=[$6], e0=[$7
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashJoin(joinType=[InnerJoin], where=[(b = e0)], select=[a, b, d, e, a0, b0, d0, e0], build=[right])
+HashJoin(joinType=[InnerJoin], where=[(b = e0)], select=[a, b, d, e, a0, b0, d0, e0], build=[left])
 :- Exchange(distribution=[hash[b]])
-:  +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d, e], build=[right])
+:  +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d, e], build=[left])
 :     :- Exchange(distribution=[hash[a]])
 :     :  +- Calc(select=[a, b], where=[(a < 10)])
 :     :     +- TableSourceScan(table=[[default_catalog, default_database, newX, filter=[], project=[a, b], metadata=[]]], fields=[a, b])
@@ -171,7 +171,7 @@ HashJoin(joinType=[InnerJoin], where=[(b = e0)], select=[a, b, d, e, a0, b0, d0,
 :        +- Calc(select=[d, e], where=[(d < 10)])
 :           +- TableSourceScan(table=[[default_catalog, default_database, newY, filter=[], project=[d, e], metadata=[]]], fields=[d, e])
 +- Exchange(distribution=[hash[e]])
-   +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d, e], build=[right])
+   +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d, e], build=[left])
       :- Exchange(distribution=[hash[a]])
       :  +- Calc(select=[a, b], where=[(a > 5)])
       :     +- TableSourceScan(table=[[default_catalog, default_database, newX, filter=[], project=[a, b], metadata=[]]], fields=[a, b])
@@ -207,9 +207,9 @@ LogicalProject(a=[$0], b=[$1], d=[$2], e=[$3], a0=[$4], b0=[$5], d0=[$6], e0=[$7
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashJoin(joinType=[InnerJoin], where=[(b = e0)], select=[a, b, d, e, a0, b0, d0, e0], build=[right])
+HashJoin(joinType=[InnerJoin], where=[(b = e0)], select=[a, b, d, e, a0, b0, d0, e0], build=[left])
 :- Exchange(distribution=[hash[b]])
-:  +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d, e], build=[right])
+:  +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d, e], build=[left])
 :     :- Exchange(distribution=[hash[a]])
 :     :  +- Calc(select=[a, b], where=[(a < 10)])
 :     :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])(reuse_id=[1])
@@ -217,7 +217,7 @@ HashJoin(joinType=[InnerJoin], where=[(b = e0)], select=[a, b, d, e, a0, b0, d0,
 :        +- Calc(select=[d, e], where=[(d < 10)])
 :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])(reuse_id=[2])
 +- Exchange(distribution=[hash[e]])
-   +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d, e], build=[right])
+   +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d, e], build=[left])
       :- Exchange(distribution=[hash[a]])
       :  +- Calc(select=[a, b], where=[(a > 5)])
       :     +- Reused(reference_id=[1])
@@ -256,9 +256,9 @@ LogicalProject(a=[$0], b=[$1], d=[$2], e=[$3], a0=[$4], b0=[$5], d0=[$6], e0=[$7
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashJoin(joinType=[InnerJoin], where=[(b = e0)], select=[a, b, d, e, a0, b0, d0, e0], build=[right])
+HashJoin(joinType=[InnerJoin], where=[(b = e0)], select=[a, b, d, e, a0, b0, d0, e0], build=[left])
 :- Exchange(distribution=[hash[b]])
-:  +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d, e], build=[right])
+:  +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d, e], build=[left])
 :     :- Exchange(distribution=[hash[a]])
 :     :  +- Calc(select=[a, b], where=[(a < 10)])
 :     :     +- TableSourceScan(table=[[default_catalog, default_database, newX, filter=[], project=[a, b], metadata=[]]], fields=[a, b])(reuse_id=[1])
@@ -266,7 +266,7 @@ HashJoin(joinType=[InnerJoin], where=[(b = e0)], select=[a, b, d, e, a0, b0, d0,
 :        +- Calc(select=[d, e], where=[(d < 10)])
 :           +- TableSourceScan(table=[[default_catalog, default_database, newY, filter=[], project=[d, e], metadata=[]]], fields=[d, e])(reuse_id=[2])
 +- Exchange(distribution=[hash[e]])
-   +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d, e], build=[right])
+   +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d, e], build=[left])
       :- Exchange(distribution=[hash[a]])
       :  +- Calc(select=[a, b], where=[(a > 5)])
       :     +- Reused(reference_id=[1])
@@ -365,6 +365,140 @@ Calc(select=[c, e, avg_b, sum_b, sum_b0 AS psum, sum_b1 AS nsum, avg_b0 AS avg_b
    +- Exchange(distribution=[hash[c, e, $f5]])
       +- Calc(select=[sum_b, (CASE((w0$o0 > 0), w0$o1, null:BIGINT) / w0$o0) AS avg_b, c, e, (w1$o0 + 1) AS $f5], where=[(c <> '')])
          +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReuseTableSourceWithProjectPushDownAndMetaDataKey">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink1], fields=[a1, b1, my_time1, d1])
++- LogicalProject(a1=[$0], b1=[CAST($1):VARCHAR(32) CHARACTER SET "UTF-16LE"], my_time1=[CAST($2):TIMESTAMP(6)], d1=[CAST($3):DECIMAL(20, 2)])
+   +- LogicalProject(a=[$0], b=[$1], my_time=[$4], d1=[CAST($3):DECIMAL(28, 2)])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], my_time=[$4], unUse_time=[$5])
+         +- LogicalTableScan(table=[[default_catalog, default_database, reuseTable, metadata=[ts1, ts2]]])
+
+LogicalSink(table=[default_catalog.default_database.sink2], fields=[a2, update_time])
++- LogicalProject(a2=[$0], update_time=[CAST($1):TIMESTAMP(6)])
+   +- LogicalProject(a=[$0], update_time=[$4])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], my_time=[$4], unUse_time=[$5])
+         +- LogicalTableScan(table=[[default_catalog, default_database, reuseTable, metadata=[ts1, ts2]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink1], fields=[a1, b1, my_time1, d1])
++- Calc(select=[a AS a1, CAST(b AS VARCHAR(32)) AS b1, CAST(my_time AS TIMESTAMP(6)) AS my_time1, CAST(CAST(d AS DECIMAL(28, 2)) AS DECIMAL(20, 2)) AS d1])
+   +- TableSourceScan(table=[[default_catalog, default_database, reuseTable, project=[a, b, d], metadata=[ts1]]], fields=[a, b, d, my_time])
+
+Sink(table=[default_catalog.default_database.sink2], fields=[a2, update_time])
++- Calc(select=[a AS a2, CAST(my_time AS TIMESTAMP(6)) AS update_time])
+   +- TableSourceScan(table=[[default_catalog, default_database, reuseTable, project=[a], metadata=[ts1]]], fields=[a, my_time])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReuseTableSourceWithProjectPushDownAndMetaDataKey1">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink1], fields=[a1, b1, my_time1, d1])
++- LogicalProject(a1=[$0], b1=[CAST($1):VARCHAR(32) CHARACTER SET "UTF-16LE"], my_time1=[CAST($2):TIMESTAMP(6)], d1=[CAST($3):DECIMAL(20, 2)])
+   +- LogicalProject(a=[$0], b=[$1], ts1=[$4], d1=[CAST($3):DECIMAL(28, 2)])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts1=[$4], ts2=[$5])
+         +- LogicalTableScan(table=[[default_catalog, default_database, reuseTable, metadata=[ts1, ts2]]])
+
+LogicalSink(table=[default_catalog.default_database.sink2], fields=[a2, update_time])
++- LogicalProject(a2=[$0], update_time=[CAST($1):TIMESTAMP(6)])
+   +- LogicalProject(a=[$0], update_time=[$4])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts1=[$4], ts2=[$5])
+         +- LogicalTableScan(table=[[default_catalog, default_database, reuseTable, metadata=[ts1, ts2]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink1], fields=[a1, b1, my_time1, d1])
++- Calc(select=[a AS a1, CAST(b AS VARCHAR(32)) AS b1, CAST(ts1 AS TIMESTAMP(6)) AS my_time1, CAST(CAST(d AS DECIMAL(28, 2)) AS DECIMAL(20, 2)) AS d1])
+   +- TableSourceScan(table=[[default_catalog, default_database, reuseTable, project=[a, b, d], metadata=[ts1]]], fields=[a, b, d, ts1])
+
+Sink(table=[default_catalog.default_database.sink2], fields=[a2, update_time])
++- Calc(select=[a AS a2, CAST(ts1 AS TIMESTAMP(6)) AS update_time])
+   +- TableSourceScan(table=[[default_catalog, default_database, reuseTable, project=[a], metadata=[ts1]]], fields=[a, ts1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSourceReuseWithEmptyFilterCondAndIgnoreEmptyFilter">
+    <Resource name="sql">
+      <![CDATA[
+ SELECT * FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a AND T1.a > 5
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], a0=[$3], b0=[$4], c0=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), >($0, 5))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, c, a0, b0, c0], build=[left])
+:- Exchange(distribution=[hash[a]])
+:  +- Calc(select=[a, b, c], where=[(a > 5)])(reuse_id=[1])
+:     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[]]], fields=[a, b, c])
++- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
+   +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSourceReuseWithEmptyFilterCondAndIgnoreEmptyFilterTrue">
+    <Resource name="sql">
+      <![CDATA[
+ SELECT * FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a AND T1.a > 5
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], a0=[$3], b0=[$4], c0=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), >($0, 5))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, c, a0, b0, c0], build=[left])
+:- Exchange(distribution=[hash[a]])
+:  +- Calc(select=[a, b, c], where=[(a > 5)])(reuse_id=[1])
+:     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[]]], fields=[a, b, c])
++- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
+   +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSourceReuseWithEmptyFilterCondAndIgnoreEmptyFilterTrue2">
+    <Resource name="sql">
+      <![CDATA[
+ SELECT * FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a AND T2.a < 10
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], a0=[$3], b0=[$4], c0=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), <($3, 10))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, c, a0, b0, c0], build=[left])
+:- Exchange(distribution=[hash[a]])
+:  +- Calc(select=[a, b, c], where=[(a < 10)])(reuse_id=[1])
+:     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[]]], fields=[a, b, c])
++- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
+   +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -516,21 +650,21 @@ LogicalProject(a=[$0], b=[$1], c=[$2], v=[$3], a0=[$4], b0=[$5], c0=[$6], v0=[$7
       :- LogicalProject(a=[$0], b=[$1], c=[$2], v=[$3])
       :  +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
       :     :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
-      :     +- LogicalTableFunctionScan(invocation=[str_split($cor0.c, _UTF-16LE'-')], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+      :     +- LogicalTableFunctionScan(invocation=[str_split($cor0.c, _UTF-16LE'-')], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
       +- LogicalProject(a=[$0], b=[$1], c=[$2], v=[$3])
          +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{2}])
             :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
-            +- LogicalTableFunctionScan(invocation=[str_split($cor1.c, _UTF-16LE'-')], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+            +- LogicalTableFunctionScan(invocation=[str_split($cor1.c, _UTF-16LE'-')], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashJoin(joinType=[InnerJoin], where=[(f0 = f00)], select=[a, b, c, f0, a0, b0, c0, f00], build=[right])
-:- Exchange(distribution=[hash[f0]])
-:  +- Correlate(invocation=[str_split($cor0.c, _UTF-16LE'-')], correlate=[table(str_split($cor0.c,'-'))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)], joinType=[INNER])
+HashJoin(joinType=[InnerJoin], where=[(EXPR$0 = EXPR$00)], select=[a, b, c, EXPR$0, a0, b0, c0, EXPR$00], build=[left])
+:- Exchange(distribution=[hash[EXPR$0]])
+:  +- Correlate(invocation=[str_split($cor0.c, _UTF-16LE'-')], correlate=[table(str_split($cor0.c,'-'))], select=[a,b,c,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Exchange(distribution=[hash[f0]])
-   +- Correlate(invocation=[str_split($cor1.c, _UTF-16LE'-')], correlate=[table(str_split($cor1.c,'-'))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)], joinType=[INNER])
++- Exchange(distribution=[hash[EXPR$0]])
+   +- Correlate(invocation=[str_split($cor1.c, _UTF-16LE'-')], correlate=[table(str_split($cor1.c,'-'))], select=[a,b,c,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -550,18 +684,18 @@ LogicalProject(a=[$0], b=[$1], c=[$2], s=[$3], a0=[$4], b0=[$5], c0=[$6], s0=[$7
       :- LogicalProject(a=[$0], b=[$1], c=[$2], s=[$3])
       :  +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
       :     :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
-      :     +- LogicalTableFunctionScan(invocation=[TableFun($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+      :     +- LogicalTableFunctionScan(invocation=[TableFun($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
       +- LogicalProject(a=[$0], b=[$1], c=[$2], s=[$3])
          +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{2}])
             :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
-            +- LogicalTableFunctionScan(invocation=[TableFun($cor1.c)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+            +- LogicalTableFunctionScan(invocation=[TableFun($cor1.c)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[(c = f00)], select=[a, b, c, f0, a0, b0, c0, f00], build=[right])\n:- Correlate(invocation=[TableFun($cor0.c)], correlate=[table(TableFun($cor0.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)], joinType=[INNER])\n:  +- [#2] Exchange(distribution=[hash[c]])\n+- [#1] Exchange(distribution=[hash[f0]])\n])
-:- Exchange(distribution=[hash[f0]])
-:  +- Correlate(invocation=[TableFun($cor1.c)], correlate=[table(TableFun($cor1.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)], joinType=[INNER])
+MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(c = EXPR$00)], select=[a, b, c, EXPR$0, a0, b0, c0, EXPR$00], build=[left])\n:- Correlate(invocation=[TableFun($cor0.c)], correlate=[table(TableFun($cor0.c))], select=[a,b,c,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])\n:  +- [#2] Exchange(distribution=[hash[c]])\n+- [#1] Exchange(distribution=[hash[EXPR$0]])\n])
+:- Exchange(distribution=[hash[EXPR$0]])
+:  +- Correlate(invocation=[TableFun($cor1.c)], correlate=[table(TableFun($cor1.c))], select=[a,b,c,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[c]])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -739,15 +873,15 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a0=[$6], b0=[$7],
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, e, f, a0, b0, c0, d0, e0, f0], build=[right])
-:- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
+HashJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, e, f, a0, b0, c0, d0, e0, f0], build=[left])
+:- Exchange(distribution=[keep_input_as_is[hash[a]]])
 :  +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], build=[left])(reuse_id=[1])
 :     :- Exchange(distribution=[hash[a]])
 :     :  +- Calc(select=[a, b, c], where=[LIKE(c, 'He%')])
 :     :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :     +- Exchange(distribution=[hash[d]])
 :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-+- Exchange(distribution=[keep_input_as_is[hash[d]]])
++- Exchange(distribution=[hash[d]], shuffle_mode=[BATCH])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -930,7 +1064,7 @@ LogicalProject(a=[$0], b=[$1], EXPR$2=[$2], a0=[$3], b0=[$4], EXPR$20=[$5])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, w0$o0, a0, b0, w0$o00], build=[right])
+HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, w0$o0, a0, b0, w0$o00], build=[left])
 :- Exchange(distribution=[hash[a]])
 :  +- Calc(select=[a, b, w0$o0], where=[(b < 100)])
 :     +- OverAggregate(partitionBy=[c], orderBy=[c DESC], window#0=[MyFirst(c) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0])(reuse_id=[1])
@@ -1039,7 +1173,7 @@ LogicalProject(a=[$0], b=[$1], EXPR$2=[$2], a0=[$3], b0=[$4], EXPR$20=[$5])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, w0$o0, a0, b0, w0$o00], build=[right])
+HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, w0$o0, a0, b0, w0$o00], build=[left])
 :- Exchange(distribution=[hash[a]])
 :  +- Calc(select=[a, b, w0$o0], where=[(b < 100)])
 :     +- OverAggregate(orderBy=[c DESC], window#0=[RANK(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0])(reuse_id=[1])
@@ -1049,6 +1183,43 @@ HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, w0$o0, a0, b0, w0
 +- Exchange(distribution=[hash[a]])
    +- Calc(select=[a, b, w0$o0], where=[(b > 10)])
       +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuseOnSortedView">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, b, EXPR$2])
++- LogicalAggregate(group=[{0, 1}], EXPR$2=[LISTAGG($2)])
+   +- LogicalProject(a=[$0], b=[$1], d=[$3])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
+         +- LogicalTableScan(table=[[default_catalog, default_database, Source]])
+
+LogicalSink(table=[default_catalog.default_database.Sink2], fields=[a, b, c, d])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+   +- LogicalSort(sort0=[$2], dir0=[ASC-nulls-first])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
+         +- LogicalTableScan(table=[[default_catalog, default_database, Source]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.Sink1], fields=[a, b, EXPR$2])
++- SortAggregate(isMerge=[true], groupBy=[a, b], select=[a, b, Final_LISTAGG(accDelimiter$0, concatAcc$1) AS EXPR$2])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[a ASC, b ASC])
+         +- Exchange(distribution=[hash[a, b]])
+            +- LocalSortAggregate(groupBy=[a, b], select=[a, b, Partial_LISTAGG(d) AS (accDelimiter$0, concatAcc$1)])
+               +- Exchange(distribution=[forward])
+                  +- Sort(orderBy=[a ASC, b ASC])
+                     +- Calc(select=[a, b, d])
+                        +- TableSourceScan(table=[[default_catalog, default_database, Source]], fields=[a, b, c, d, e])
+
+Sink(table=[default_catalog.default_database.Sink2], fields=[a, b, c, d])
++- Calc(select=[a, b, c, d])
+   +- Sort(orderBy=[c ASC])
+      +- Exchange(distribution=[single])
+         +- TableSourceScan(table=[[default_catalog, default_database, Source]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -1123,14 +1294,14 @@ LogicalProject(a=[$0], c=[$1], c0=[$3])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, c, c0])
-+- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, c, a0, c0], build=[right])
-   :- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
++- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, c, a0, c0], build=[left])
+   :- Exchange(distribution=[hash[a]])
    :  +- Union(all=[true], union=[a, c])(reuse_id=[1])
    :     :- Calc(select=[a, c], where=[(b > 10)])
    :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    :     +- Calc(select=[d, f], where=[(e < 100)])
    :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-   +- Exchange(distribution=[hash[a]])
+   +- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
       +- Reused(reference_id=[1])
 ]]>
     </Resource>

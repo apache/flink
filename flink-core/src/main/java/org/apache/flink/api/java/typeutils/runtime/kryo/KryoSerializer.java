@@ -21,6 +21,7 @@ package org.apache.flink.api.java.typeutils.runtime.kryo;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig.SerializableSerializer;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.java.typeutils.AvroUtils;
@@ -33,6 +34,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.TernaryBoolean;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoException;
@@ -176,17 +178,22 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
     // ------------------------------------------------------------------------
 
     public KryoSerializer(Class<T> type, ExecutionConfig executionConfig) {
+        this(type, executionConfig.getSerializerConfig());
+    }
+
+    public KryoSerializer(Class<T> type, SerializerConfig serializerConfig) {
         this.type = checkNotNull(type);
 
-        this.defaultSerializers = executionConfig.getDefaultKryoSerializers();
-        this.defaultSerializerClasses = executionConfig.getDefaultKryoSerializerClasses();
+        this.defaultSerializers = serializerConfig.getDefaultKryoSerializers();
+        this.defaultSerializerClasses = serializerConfig.getDefaultKryoSerializerClasses();
 
         this.kryoRegistrations =
                 buildKryoRegistrations(
                         this.type,
-                        executionConfig.getRegisteredKryoTypes(),
-                        executionConfig.getRegisteredTypesWithKryoSerializerClasses(),
-                        executionConfig.getRegisteredTypesWithKryoSerializers());
+                        serializerConfig.getRegisteredKryoTypes(),
+                        serializerConfig.getRegisteredTypesWithKryoSerializerClasses(),
+                        serializerConfig.getRegisteredTypesWithKryoSerializers(),
+                        serializerConfig.isForceKryoAvroEnabled());
     }
 
     /**
@@ -248,22 +255,6 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
                 checkNotNull(defaultSerializers, "Default serializers cannot be null.");
         this.kryoRegistrations =
                 checkNotNull(kryoRegistrations, "Kryo registrations cannot be null.");
-    }
-
-    Class<T> getType() {
-        return type;
-    }
-
-    LinkedHashMap<Class<?>, SerializableSerializer<?>> getDefaultKryoSerializers() {
-        return defaultSerializers;
-    }
-
-    LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> getDefaultKryoSerializerClasses() {
-        return defaultSerializerClasses;
-    }
-
-    LinkedHashMap<String, KryoRegistration> getKryoRegistrations() {
-        return kryoRegistrations;
     }
 
     // ------------------------------------------------------------------------
@@ -578,7 +569,8 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
             LinkedHashMap<Class<?>, Class<? extends Serializer<?>>>
                     registeredTypesWithSerializerClasses,
             LinkedHashMap<Class<?>, ExecutionConfig.SerializableSerializer<?>>
-                    registeredTypesWithSerializers) {
+                    registeredTypesWithSerializers,
+            TernaryBoolean isForceAvroKryoEnabledOpt) {
 
         final LinkedHashMap<String, KryoRegistration> kryoRegistrations = new LinkedHashMap<>();
 
@@ -610,8 +602,19 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
                             registeredTypeWithSerializerEntry.getValue()));
         }
 
-        // add Avro support if flink-avro is available; a dummy otherwise
-        AvroUtils.getAvroUtils().addAvroGenericDataArrayRegistration(kryoRegistrations);
+        // we always register avro to maintain backward compatibility if this option is not present.
+        if (isForceAvroKryoEnabledOpt.getAsBoolean() == null) {
+            // add Avro support if flink-avro is available; a dummy otherwise
+            AvroUtils.getAvroUtils().addAvroGenericDataArrayRegistration(kryoRegistrations);
+        } else if (isForceAvroKryoEnabledOpt.getAsBoolean()) {
+            // we only register if flink-avro is available. That is, we won't register the
+            // dummy serializer.
+            AvroUtils.tryGetAvroUtils()
+                    .ifPresent(
+                            avroUtils ->
+                                    avroUtils.addAvroGenericDataArrayRegistration(
+                                            kryoRegistrations));
+        }
 
         return kryoRegistrations;
     }
@@ -638,7 +641,8 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
                             type,
                             registeredTypes,
                             registeredTypesWithSerializerClasses,
-                            registeredTypesWithSerializers);
+                            registeredTypesWithSerializers,
+                            TernaryBoolean.UNDEFINED);
         }
     }
 

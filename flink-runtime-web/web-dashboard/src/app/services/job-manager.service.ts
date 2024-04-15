@@ -30,6 +30,7 @@ import {
   ClusterConfiguration,
   EnvironmentInfo
 } from '@flink-runtime-web/interfaces';
+import { ProfilingDetail, ProfilingList } from '@flink-runtime-web/interfaces/job-profiler';
 
 import { ConfigService } from './config.service';
 
@@ -124,5 +125,28 @@ export class JobManagerService {
     return this.httpClient
       .get<{ url: string }>(`${this.configService.BASE_URL}/jobs/${jobId}/jobmanager/log-url`)
       .pipe(map(data => data.url));
+  }
+
+  loadProfilingList(): Observable<ProfilingList> {
+    return this.httpClient.get<ProfilingList>(`${this.configService.BASE_URL}/jobmanager/profiler`);
+  }
+
+  createProfilingInstance(mode: string, duration: number): Observable<ProfilingDetail> {
+    const requestParam = { mode, duration };
+    return this.httpClient.post<ProfilingDetail>(`${this.configService.BASE_URL}/jobmanager/profiler`, requestParam);
+  }
+
+  loadProfilingResult(filePath: string): Observable<Record<string, string>> {
+    const url = `${this.configService.BASE_URL}/jobmanager/profiler/${filePath}`;
+    return this.httpClient
+      .get(url, { responseType: 'text', headers: new HttpHeaders().append('Cache-Control', 'no-cache') })
+      .pipe(
+        map(data => {
+          return {
+            data,
+            url
+          };
+        })
+      );
   }
 }

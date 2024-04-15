@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.reuse
 import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkTypeFactory}
 import org.apache.flink.table.planner.plan.nodes.calcite.{LegacySink, Sink}
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalLegacyTableSourceScan, FlinkLogicalTableSourceScan}
 import org.apache.flink.table.planner.plan.nodes.physical.common.{CommonPhysicalLegacyTableSourceScan, CommonPhysicalTableSourceScan}
@@ -51,15 +52,25 @@ import scala.collection.JavaConversions._
 object SubplanReuser {
 
   /** Finds duplicated sub-plans and return the reused plan. */
-  def reuseDuplicatedSubplan(rels: Seq[RelNode], tableConfig: ReadableConfig): Seq[RelNode] = {
+  def reuseDuplicatedSubplan(
+      rels: Seq[RelNode],
+      tableConfig: ReadableConfig,
+      flinkContext: FlinkContext,
+      flinkTypeFactory: FlinkTypeFactory): Seq[RelNode] = {
     if (!tableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED)) {
       return rels
     }
     val tableSourceReuseEnabled =
       tableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED)
-    val context = new SubplanReuseContext(tableSourceReuseEnabled, rels: _*)
+
+    var newRels = rels
+    if (tableSourceReuseEnabled) {
+      newRels = new ScanReuser(flinkContext, flinkTypeFactory).reuseDuplicatedScan(rels)
+    }
+
+    val context = new SubplanReuseContext(tableSourceReuseEnabled, newRels: _*)
     val reuseShuttle = new SubplanReuseShuttle(context)
-    rels.map(_.accept(reuseShuttle))
+    newRels.map(_.accept(reuseShuttle))
   }
 
   /**
@@ -98,7 +109,11 @@ object SubplanReuser {
       if (digest != null) {
         digest
       } else {
-        val newDigest = FlinkRelOptUtil.getDigest(node)
+        val newDigest = if (node.isInstanceOf[CommonPhysicalTableSourceScan]) {
+          ScanReuserUtils.getDigest(node.asInstanceOf[CommonPhysicalTableSourceScan], false)
+        } else {
+          FlinkRelOptUtil.getDigest(node)
+        }
         mapRelToDigest.put(node, newDigest)
         newDigest
       }

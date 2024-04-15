@@ -37,6 +37,7 @@ import org.apache.flink.table.api.Schema.UnresolvedPrimaryKey;
 import org.apache.flink.table.api.Schema.UnresolvedWatermarkSpec;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.expressions.SqlCallExpression;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -76,6 +77,7 @@ class MergeTableLikeUtil {
         defaultMergingStrategies.put(FeatureOption.GENERATED, MergingStrategy.INCLUDING);
         defaultMergingStrategies.put(FeatureOption.METADATA, MergingStrategy.INCLUDING);
         defaultMergingStrategies.put(FeatureOption.CONSTRAINTS, MergingStrategy.INCLUDING);
+        defaultMergingStrategies.put(FeatureOption.DISTRIBUTION, MergingStrategy.INCLUDING);
         defaultMergingStrategies.put(FeatureOption.PARTITIONS, MergingStrategy.INCLUDING);
     }
 
@@ -160,6 +162,32 @@ class MergeTableLikeUtil {
         schemaBuilder.appendDerivedPrimaryKey(derivedPrimaryKey);
 
         return schemaBuilder.build();
+    }
+
+    /**
+     * Merges the distribution part of {@code CREATE TABLE} statement.
+     *
+     * <p>Distribution is a single property of a Table, thus there can be at most a single instance
+     * of it. Therefore, it is not possible to use {@link MergingStrategy#INCLUDING} with a
+     * distribution defined in both source and derived table.
+     */
+    public Optional<TableDistribution> mergeDistribution(
+            MergingStrategy mergingStrategy,
+            Optional<TableDistribution> sourceTableDistribution,
+            Optional<TableDistribution> derivedTabledDistribution) {
+
+        if (derivedTabledDistribution.isPresent()
+                && sourceTableDistribution.isPresent()
+                && mergingStrategy != MergingStrategy.EXCLUDING) {
+            throw new ValidationException(
+                    "The base table already has a distribution defined. You might want to specify "
+                            + "EXCLUDING DISTRIBUTION.");
+        }
+
+        if (derivedTabledDistribution.isPresent()) {
+            return derivedTabledDistribution;
+        }
+        return sourceTableDistribution;
     }
 
     /**
@@ -319,7 +347,12 @@ class MergeTableLikeUtil {
                         new UnresolvedPrimaryKey(
                                 derivedPrimaryKey
                                         .getConstraintName()
-                                        .orElseGet(() -> "PK_" + primaryKeyColumns.hashCode()),
+                                        .orElseGet(
+                                                () ->
+                                                        primaryKeyColumns.stream()
+                                                                .collect(
+                                                                        Collectors.joining(
+                                                                                "_", "PK_", ""))),
                                 primaryKeyColumns);
             }
         }

@@ -19,27 +19,32 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.api.connector.sink2.CommitterInitContext;
 import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.api.connector.sink2.SupportsCommitter;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
-import org.apache.flink.streaming.api.connector.sink2.WithPostCommitTopology;
-import org.apache.flink.streaming.api.connector.sink2.WithPreCommitTopology;
-import org.apache.flink.streaming.api.connector.sink2.WithPreWriteTopology;
+import org.apache.flink.streaming.api.connector.sink2.SupportsPostCommitTopology;
+import org.apache.flink.streaming.api.connector.sink2.SupportsPreCommitTopology;
+import org.apache.flink.streaming.api.connector.sink2.SupportsPreWriteTopology;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 
 import java.io.IOException;
 
 /** A test sink that expands into a simple subgraph. Do not use in runtime. */
 public class TestExpandingSink
         implements Sink<Integer>,
-                WithPreWriteTopology<Integer>,
-                WithPreCommitTopology<Integer, Integer>,
-                WithPostCommitTopology<Integer, Integer> {
+                SupportsCommitter<Integer>,
+                SupportsPreWriteTopology<Integer>,
+                SupportsPreCommitTopology<Integer, Integer>,
+                SupportsPostCommitTopology<Integer> {
 
     @Override
     public void addPostCommitTopology(DataStream<CommittableMessage<Integer>> committables) {
-        committables.addSink(new DiscardingSink<>());
+        committables.sinkTo(new DiscardingSink<>());
     }
 
     @Override
@@ -54,18 +59,27 @@ public class TestExpandingSink
     }
 
     @Override
-    public PrecommittingSinkWriter<Integer, Integer> createWriter(InitContext context)
-            throws IOException {
+    public SinkWriter<Integer> createWriter(WriterInitContext context) throws IOException {
         return null;
     }
 
     @Override
-    public Committer<Integer> createCommitter() {
+    public SinkWriter<Integer> createWriter(InitContext context) throws IOException {
+        return null;
+    }
+
+    @Override
+    public Committer<Integer> createCommitter(CommitterInitContext context) {
         return null;
     }
 
     @Override
     public SimpleVersionedSerializer<Integer> getCommittableSerializer() {
+        return null;
+    }
+
+    @Override
+    public SimpleVersionedSerializer<Integer> getWriteResultSerializer() {
         return null;
     }
 }

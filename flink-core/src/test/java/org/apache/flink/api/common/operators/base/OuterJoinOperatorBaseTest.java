@@ -20,20 +20,21 @@ package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatJoinFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.Collector;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -43,10 +44,10 @@ import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@SuppressWarnings("serial")
+/** The test for outer join operator. */
 public class OuterJoinOperatorBaseTest implements Serializable {
 
     private MockRichFlatJoinFunction joiner;
@@ -59,7 +60,7 @@ public class OuterJoinOperatorBaseTest implements Serializable {
     private RuntimeContext runtimeContext;
 
     @SuppressWarnings({"rawtypes", "unchecked"})
-    @Before
+    @BeforeEach
     public void setup() {
         joiner = new MockRichFlatJoinFunction();
 
@@ -78,7 +79,7 @@ public class OuterJoinOperatorBaseTest implements Serializable {
         executionConfig = new ExecutionConfig();
 
         String taskName = "Test rich outer join function";
-        TaskInfo taskInfo = new TaskInfo(taskName, 1, 0, 1, 0);
+        TaskInfo taskInfo = new TaskInfoImpl(taskName, 1, 0, 1, 0);
         HashMap<String, Accumulator<?, ?>> accumulatorMap = new HashMap<>();
         HashMap<String, Future<Path>> cpTasks = new HashMap<>();
 
@@ -93,7 +94,7 @@ public class OuterJoinOperatorBaseTest implements Serializable {
     }
 
     @Test
-    public void testFullOuterJoinWithoutMatchingPartners() throws Exception {
+    void testFullOuterJoinWithoutMatchingPartners() throws Exception {
         final List<String> leftInput = Arrays.asList("foo", "bar", "foobar");
         final List<String> rightInput = Arrays.asList("oof", "rab", "raboof");
         baseOperator.setOuterJoinType(OuterJoinOperatorBase.OuterJoinType.FULL);
@@ -109,7 +110,7 @@ public class OuterJoinOperatorBaseTest implements Serializable {
     }
 
     @Test
-    public void testFullOuterJoinWithFullMatchingKeys() throws Exception {
+    void testFullOuterJoinWithFullMatchingKeys() throws Exception {
         final List<String> leftInput = Arrays.asList("foo", "bar", "foobar");
         final List<String> rightInput = Arrays.asList("bar", "foobar", "foo");
         baseOperator.setOuterJoinType(OuterJoinOperatorBase.OuterJoinType.FULL);
@@ -118,7 +119,7 @@ public class OuterJoinOperatorBaseTest implements Serializable {
     }
 
     @Test
-    public void testFullOuterJoinWithEmptyLeftInput() throws Exception {
+    void testFullOuterJoinWithEmptyLeftInput() throws Exception {
         final List<String> leftInput = Collections.emptyList();
         final List<String> rightInput = Arrays.asList("foo", "bar", "foobar");
         baseOperator.setOuterJoinType(OuterJoinOperatorBase.OuterJoinType.FULL);
@@ -127,7 +128,7 @@ public class OuterJoinOperatorBaseTest implements Serializable {
     }
 
     @Test
-    public void testFullOuterJoinWithEmptyRightInput() throws Exception {
+    void testFullOuterJoinWithEmptyRightInput() throws Exception {
         final List<String> leftInput = Arrays.asList("foo", "bar", "foobar");
         final List<String> rightInput = Collections.emptyList();
         baseOperator.setOuterJoinType(OuterJoinOperatorBase.OuterJoinType.FULL);
@@ -136,7 +137,7 @@ public class OuterJoinOperatorBaseTest implements Serializable {
     }
 
     @Test
-    public void testFullOuterJoinWithPartialMatchingKeys() throws Exception {
+    void testFullOuterJoinWithPartialMatchingKeys() throws Exception {
         final List<String> leftInput = Arrays.asList("foo", "bar", "foobar");
         final List<String> rightInput = Arrays.asList("bar", "foo", "barfoo");
         baseOperator.setOuterJoinType(OuterJoinOperatorBase.OuterJoinType.FULL);
@@ -145,7 +146,7 @@ public class OuterJoinOperatorBaseTest implements Serializable {
     }
 
     @Test
-    public void testFullOuterJoinBuildingCorrectCrossProducts() throws Exception {
+    void testFullOuterJoinBuildingCorrectCrossProducts() throws Exception {
         final List<String> leftInput =
                 Arrays.asList("foo", "foo", "foo", "bar", "bar", "foobar", "foobar");
         final List<String> rightInput =
@@ -173,7 +174,7 @@ public class OuterJoinOperatorBaseTest implements Serializable {
     }
 
     @Test
-    public void testLeftOuterJoin() throws Exception {
+    void testLeftOuterJoin() throws Exception {
         final List<String> leftInput =
                 Arrays.asList("foo", "foo", "foo", "bar", "bar", "foobar", "foobar");
         final List<String> rightInput =
@@ -199,7 +200,7 @@ public class OuterJoinOperatorBaseTest implements Serializable {
     }
 
     @Test
-    public void testRightOuterJoin() throws Exception {
+    void testRightOuterJoin() throws Exception {
         final List<String> leftInput =
                 Arrays.asList("foo", "foo", "foo", "bar", "bar", "foobar", "foobar");
         final List<String> rightInput =
@@ -224,15 +225,19 @@ public class OuterJoinOperatorBaseTest implements Serializable {
         testOuterJoin(leftInput, rightInput, expected);
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testThatExceptionIsThrownForOuterJoinTypeNull() throws Exception {
+    @Test
+    void testThatExceptionIsThrownForOuterJoinTypeNull() throws Exception {
         final List<String> leftInput = Arrays.asList("foo", "bar", "foobar");
         final List<String> rightInput = Arrays.asList("bar", "foobar", "foo");
 
         baseOperator.setOuterJoinType(null);
         ExecutionConfig executionConfig = new ExecutionConfig();
         executionConfig.disableObjectReuse();
-        baseOperator.executeOnCollections(leftInput, rightInput, runtimeContext, executionConfig);
+        assertThatThrownBy(
+                        () ->
+                                baseOperator.executeOnCollections(
+                                        leftInput, rightInput, runtimeContext, executionConfig))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     private void testOuterJoin(
@@ -247,11 +252,11 @@ public class OuterJoinOperatorBaseTest implements Serializable {
                 baseOperator.executeOnCollections(
                         leftInput, rightInput, runtimeContext, executionConfig);
 
-        assertEquals(expected, resultSafe);
-        assertEquals(expected, resultRegular);
+        assertThat(resultSafe).isEqualTo(expected);
+        assertThat(resultRegular).isEqualTo(expected);
 
-        assertTrue(joiner.opened.get());
-        assertTrue(joiner.closed.get());
+        assertThat(joiner.opened).isTrue();
+        assertThat(joiner.closed).isTrue();
     }
 
     private static class MockRichFlatJoinFunction
@@ -260,20 +265,20 @@ public class OuterJoinOperatorBaseTest implements Serializable {
         final AtomicBoolean closed = new AtomicBoolean(false);
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) {
             opened.compareAndSet(false, true);
-            assertEquals(0, getRuntimeContext().getIndexOfThisSubtask());
-            assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
+            assertThat(getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()).isZero();
+            assertThat(getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks()).isOne();
         }
 
         @Override
-        public void close() throws Exception {
+        public void close() {
             closed.compareAndSet(false, true);
         }
 
         @Override
-        public void join(String first, String second, Collector<String> out) throws Exception {
-            out.collect(String.valueOf(first) + ',' + String.valueOf(second));
+        public void join(String first, String second, Collector<String> out) {
+            out.collect(String.valueOf(first) + ',' + second);
         }
     }
 }

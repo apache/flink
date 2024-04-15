@@ -35,10 +35,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -122,25 +120,31 @@ public class TieredStorageNettyServiceImpl implements TieredStorageNettyService 
             return new TieredStorageResultSubpartitionView(
                     availabilityListener, new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
         }
-        List<Queue<NettyPayload>> queues = new ArrayList<>();
+        List<NettyPayloadManager> nettyPayloadManagers = new ArrayList<>();
         List<NettyConnectionId> nettyConnectionIds = new ArrayList<>();
-        for (NettyServiceProducer serviceProducer : serviceProducers) {
-            LinkedBlockingQueue<NettyPayload> queue = new LinkedBlockingQueue<>();
-            NettyConnectionWriterImpl writer =
-                    new NettyConnectionWriterImpl(queue, availabilityListener);
-            serviceProducer.connectionEstablished(subpartitionId, writer);
+        List<NettyConnectionWriterImpl> writers = new ArrayList<>();
+        for (int i = 0; i < serviceProducers.size(); i++) {
+            NettyPayloadManager nettyPayloadManager = new NettyPayloadManager();
+            NettyConnectionWriterImpl writer = new NettyConnectionWriterImpl(nettyPayloadManager);
             nettyConnectionIds.add(writer.getNettyConnectionId());
-            queues.add(queue);
+            nettyPayloadManagers.add(nettyPayloadManager);
+            writers.add(writer);
         }
-        return new TieredStorageResultSubpartitionView(
-                availabilityListener,
-                queues,
-                nettyConnectionIds,
-                registeredServiceProducers.get(partitionId));
+        ResultSubpartitionView result =
+                new TieredStorageResultSubpartitionView(
+                        availabilityListener,
+                        nettyPayloadManagers,
+                        nettyConnectionIds,
+                        registeredServiceProducers.get(partitionId));
+        for (int i = 0; i < writers.size(); i++) {
+            writers.get(i).registerAvailabilityListener(result::notifyDataAvailable);
+            serviceProducers.get(i).connectionEstablished(subpartitionId, writers.get(i));
+        }
+        return result;
     }
 
     /**
-     * Set up input channels in {@link SingleInputGate}. The method will be invoked by the akka rpc
+     * Set up input channels in {@link SingleInputGate}. The method will be invoked by the pekko rpc
      * thread at first, and then the method {@link
      * TieredStorageNettyService#registerConsumer(TieredStoragePartitionId,
      * TieredStorageSubpartitionId)} will be invoked by the same thread sequentially, which ensures
@@ -155,11 +159,14 @@ public class TieredStorageNettyServiceImpl implements TieredStorageNettyService 
             List<Supplier<InputChannel>> inputChannelProviders) {
         checkState(tieredStorageConsumerSpecs.size() == inputChannelProviders.size());
         for (int index = 0; index < tieredStorageConsumerSpecs.size(); ++index) {
-            setupInputChannel(
-                    index,
-                    tieredStorageConsumerSpecs.get(index).getPartitionId(),
-                    tieredStorageConsumerSpecs.get(index).getSubpartitionId(),
-                    inputChannelProviders.get(index));
+            for (int subpartitionId :
+                    tieredStorageConsumerSpecs.get(index).getSubpartitionIds().values()) {
+                setupInputChannel(
+                        index,
+                        tieredStorageConsumerSpecs.get(index).getPartitionId(),
+                        new TieredStorageSubpartitionId(subpartitionId),
+                        inputChannelProviders.get(index));
+            }
         }
     }
 

@@ -63,6 +63,17 @@ public class ResourceManagerOptions {
                                     + " Its not possible to use this configuration key to define port ranges.");
 
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+    public static final ConfigOption<Integer> MIN_SLOT_NUM =
+            ConfigOptions.key("slotmanager.number-of-slots.min")
+                    .intType()
+                    .defaultValue(0)
+                    .withDescription(
+                            "Defines the minimum number of slots that the Flink cluster allocates. This configuration option "
+                                    + "is meant for cluster to initialize certain workers in best efforts when starting. This can "
+                                    + "be used to speed up a job startup process. Note that this configuration option does not take "
+                                    + "effect for standalone clusters, where how many slots are allocated is not controlled by Flink.");
+
+    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
     @Documentation.OverrideDefault("infinite")
     public static final ConfigOption<Integer> MAX_SLOT_NUM =
             ConfigOptions.key("slotmanager.number-of-slots.max")
@@ -75,6 +86,18 @@ public class ResourceManagerOptions {
                                     + "effect for standalone clusters, where how many slots are allocated is not controlled by Flink.");
 
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+    public static final ConfigOption<Double> MIN_TOTAL_CPU =
+            ConfigOptions.key("slotmanager.min-total-resource.cpu")
+                    .doubleType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Minimum cpu cores the Flink cluster allocates for slots. Resources "
+                                    + "for JobManager and TaskManager framework are excluded. If "
+                                    + "not configured, it will be derived from '"
+                                    + MIN_SLOT_NUM.key()
+                                    + "'.");
+
+    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
     public static final ConfigOption<Double> MAX_TOTAL_CPU =
             ConfigOptions.key("slotmanager.max-total-resource.cpu")
                     .doubleType()
@@ -84,6 +107,18 @@ public class ResourceManagerOptions {
                                     + "for JobManager and TaskManager framework are excluded. If "
                                     + "not configured, it will be derived from '"
                                     + MAX_SLOT_NUM.key()
+                                    + "'.");
+
+    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+    public static final ConfigOption<MemorySize> MIN_TOTAL_MEM =
+            ConfigOptions.key("slotmanager.min-total-resource.memory")
+                    .memoryType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Minimum memory size the Flink cluster allocates for slots. Resources "
+                                    + "for JobManager and TaskManager framework are excluded. If "
+                                    + "not configured, it will be derived from '"
+                                    + MIN_SLOT_NUM.key()
                                     + "'.");
 
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
@@ -167,23 +202,12 @@ public class ResourceManagerOptions {
                     .withDescription("The delay of the declare needed resources.");
 
     /**
-     * The timeout for a slot request to be discarded, in milliseconds.
-     *
-     * @deprecated Use {@link JobManagerOptions#SLOT_REQUEST_TIMEOUT}.
-     */
-    @Deprecated
-    public static final ConfigOption<Long> SLOT_REQUEST_TIMEOUT =
-            ConfigOptions.key("slotmanager.request-timeout")
-                    .longType()
-                    .defaultValue(-1L)
-                    .withDescription("The timeout for a slot request to be discarded.");
-
-    /**
      * Time in milliseconds of the start-up period of a standalone cluster. During this time,
      * resource manager of the standalone cluster expects new task executors to be registered, and
      * will not fail slot requests that can not be satisfied by any current registered slots. After
      * this time, it will fail pending and new coming requests immediately that can not be satisfied
-     * by registered slots. If not set, {@link #SLOT_REQUEST_TIMEOUT} will be used by default.
+     * by registered slots. If not set, {@link JobManagerOptions#SLOT_REQUEST_TIMEOUT} will be used
+     * by default.
      */
     public static final ConfigOption<Long> STANDALONE_CLUSTER_STARTUP_PERIOD_TIME =
             ConfigOptions.key("resourcemanager.standalone.start-up-time")
@@ -252,7 +276,7 @@ public class ResourceManagerOptions {
     /**
      * Prefix for passing custom environment variables to Flink's master process. For example for
      * passing LD_LIBRARY_PATH as an env variable to the AppMaster, set:
-     * containerized.master.env.LD_LIBRARY_PATH: "/usr/lib/native" in the flink-conf.yaml.
+     * containerized.master.env.LD_LIBRARY_PATH: "/usr/lib/native" in the config.yaml.
      */
     public static final String CONTAINERIZED_MASTER_ENV_PREFIX = "containerized.master.env.";
 

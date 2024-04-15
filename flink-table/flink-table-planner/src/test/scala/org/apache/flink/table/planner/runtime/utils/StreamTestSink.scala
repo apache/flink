@@ -98,17 +98,14 @@ abstract class AbstractExactlyOnceSink[T] extends RichSinkFunction[T] with Check
       }
     }
 
-    val taskId = getRuntimeContext.getIndexOfThisSubtask
+    val taskId = getRuntimeContext.getTaskInfo.getIndexOfThisSubtask
     StreamTestSink.synchronized(
       StreamTestSink.globalResults(idx) += (taskId -> localResults)
     )
   }
 
   override def snapshotState(context: FunctionSnapshotContext): Unit = {
-    resultsState.clear()
-    for (value <- localResults) {
-      resultsState.add(value)
-    }
+    resultsState.update(localResults.asJava)
   }
 
   protected def clearAndStashGlobalResults(): Unit = {
@@ -203,7 +200,7 @@ final class TestingUpsertSink(keys: Array[Int], tz: TimeZone)
       }
     }
 
-    val taskId = getRuntimeContext.getIndexOfThisSubtask
+    val taskId = getRuntimeContext.getTaskInfo.getIndexOfThisSubtask
     StreamTestSink.synchronized {
       StreamTestSink.globalUpsertResults(idx) += (taskId -> localUpsertResults)
     }
@@ -441,7 +438,7 @@ class TestingRetractSink(tz: TimeZone) extends AbstractExactlyOnceSink[(Boolean,
       }
     }
 
-    val taskId = getRuntimeContext.getIndexOfThisSubtask
+    val taskId = getRuntimeContext.getTaskInfo.getIndexOfThisSubtask
     StreamTestSink.synchronized {
       StreamTestSink.globalRetractResults(idx) += (taskId -> localRetractResults)
     }

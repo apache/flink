@@ -26,11 +26,11 @@
   [nzVirtualItemSize]="virtualItemSize"
   [nzVirtualMinBufferPx]="300"
   [nzVirtualMaxBufferPx]="300"
-  [nzVirtualForTrackBy]="trackByHost"
+  [nzVirtualForTrackBy]="trackByEndpoint"
 >
   <thead>
     <tr>
-      <th nzWidth="160px" nzLeft [nzSortFn]="sortHostFn">Host</th>
+      <th nzWidth="160px" nzLeft [nzSortFn]="sortEndpointFn">Endpoint</th>
       <th nzWidth="150px" [nzSortFn]="sortReadBytesFn">Bytes received</th>
       <th nzWidth="150px" [nzSortFn]="sortReadRecordsFn">Records received</th>
       <th nzWidth="120px" [nzSortFn]="sortWriteBytesFn">Bytes sent</th>
@@ -48,7 +48,7 @@
       <ng-container *ngIf="narrowLogData(data) as taskManager">
         <tr>
           <td nzLeft>
-            <span class="ellipsis-cell">{{ taskManager.host }}</span>
+            <span class="ellipsis-cell">{{ taskManager.endpoint }}</span>
           </td>
           <td>
             <span *ngIf="taskManager['metrics']['read-bytes-complete']; else loadingTemplate">
@@ -70,8 +70,8 @@
               {{ taskManager['metrics']['write-records'] | number }}
             </span>
           </td>
-          <td>{{ taskManager['start-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
-          <td>{{ taskManager['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
+          <td>{{ taskManager['start-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
+          <td>{{ taskManager['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
           <td>{{ taskManager['duration'] | humanizeDuration }}</td>
           <td>
             <flink-dynamic-host

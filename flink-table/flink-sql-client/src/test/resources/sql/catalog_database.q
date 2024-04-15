@@ -48,7 +48,7 @@ org.apache.flink.table.api.ValidationException: Catalog my does not exist
 # ==========================================================================
 
 create catalog c1 with ('type'='generic_in_memory');
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 show catalogs;
@@ -71,7 +71,7 @@ show current catalog;
 !ok
 
 use catalog c1;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 show current catalog;
@@ -84,7 +84,7 @@ show current catalog;
 !ok
 
 drop catalog default_catalog;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 drop catalog c1;
@@ -97,7 +97,7 @@ org.apache.flink.table.catalog.exceptions.CatalogException: Cannot drop a catalo
 # ==========================================================================
 
 create database db1;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 show databases;
@@ -110,6 +110,70 @@ show databases;
 2 rows in set
 !ok
 
+create database db2;
+[INFO] Execute statement succeeded.
+!info
+
+show databases like 'db%';
++---------------+
+| database name |
++---------------+
+|           db1 |
+|           db2 |
++---------------+
+2 rows in set
+!ok
+
+show databases ilike 'db%';
++---------------+
+| database name |
++---------------+
+|           db1 |
+|           db2 |
++---------------+
+2 rows in set
+!ok
+
+show databases like 'db1%';
++---------------+
+| database name |
++---------------+
+|           db1 |
++---------------+
+1 row in set
+!ok
+
+show databases ilike 'db1%';
++---------------+
+| database name |
++---------------+
+|           db1 |
++---------------+
+1 row in set
+!ok
+
+show databases like 'db2%';
++---------------+
+| database name |
++---------------+
+|           db2 |
++---------------+
+1 row in set
+!ok
+
+show databases ilike 'db2%';
++---------------+
+| database name |
++---------------+
+|           db2 |
++---------------+
+1 row in set
+!ok
+
+drop database db2;
+[INFO] Execute statement succeeded.
+!info
+
 show current database;
 +-----------------------+
 | current database name |
@@ -120,7 +184,7 @@ show current database;
 !ok
 
 use db1;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 show current database;
@@ -133,11 +197,11 @@ show current database;
 !ok
 
 create database db2 comment 'db2_comment' with ('k1' = 'v1');
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 alter database db2 set ('k1' = 'a', 'k2' = 'b');
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # TODO: show database properties when we support DESCRIBE DATABSE
@@ -153,8 +217,103 @@ show databases;
 3 rows in set
 !ok
 
+create catalog `c0` with ('type'='generic_in_memory');
+[INFO] Execute statement succeeded.
+!info
+
+create database c0.db0a;
+[INFO] Execute statement succeeded.
+!info
+
+create database c0.db0b;
+[INFO] Execute statement succeeded.
+!info
+
+show databases from c0;
++---------------+
+| database name |
++---------------+
+|          db0a |
+|          db0b |
+|       default |
++---------------+
+3 rows in set
+!ok
+
+show databases from c0 like 'db0a%';
++---------------+
+| database name |
++---------------+
+|          db0a |
++---------------+
+1 row in set
+!ok
+
+show databases from c0 ilike 'db0a%';
++---------------+
+| database name |
++---------------+
+|          db0a |
++---------------+
+1 row in set
+!ok
+
+show databases from c0 not like 'db0a%';
++---------------+
+| database name |
++---------------+
+|          db0b |
+|       default |
++---------------+
+2 rows in set
+!ok
+
+show databases from c0 not ilike 'db0a%';
++---------------+
+| database name |
++---------------+
+|          db0b |
+|       default |
++---------------+
+2 rows in set
+!ok
+
+show databases from c0 like 'db%';
++---------------+
+| database name |
++---------------+
+|          db0a |
+|          db0b |
++---------------+
+2 rows in set
+!ok
+
+show databases from c0 ilike 'db%';
++---------------+
+| database name |
++---------------+
+|          db0a |
+|          db0b |
++---------------+
+2 rows in set
+!ok
+
+show databases in c0.t;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.sql.parser.impl.ParseException: Show databases from/in identifier [ c0.t ] format error, catalog must be a single part identifier.
+!error
+
+drop catalog `c0`;
+[INFO] Execute statement succeeded.
+!info
+
+show databases from c0;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: Catalog c0 does not exist
+!error
+
 drop database if exists db2;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 show databases;
@@ -172,20 +331,21 @@ show databases;
 # ==========================================================================
 
 create catalog `mod` with ('type'='generic_in_memory');
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 use catalog `mod`;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 use `default`;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 drop database `default`;
-[INFO] Execute statement succeed.
-!info
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: Cannot drop a database which is currently in use.
+!error
 
 drop catalog `mod`;
 [ERROR] Could not execute SQL statement. Reason:
@@ -193,19 +353,19 @@ org.apache.flink.table.catalog.exceptions.CatalogException: Cannot drop a catalo
 !error
 
 use catalog `c1`;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 drop catalog `mod`;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SET 'execution.runtime-mode' = 'batch';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SET 'sql-client.execution.result-mode' = 'tableau';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # ==========================================================================
@@ -213,19 +373,19 @@ SET 'sql-client.execution.result-mode' = 'tableau';
 # ==========================================================================
 
 create catalog c2 with ('type'='generic_in_memory');
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 use catalog `c2`;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create table MyTable1 (a int, b string) with ('connector' = 'values');
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create table MyTable2 (a int, b string) with ('connector' = 'values');
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # hive catalog is case-insensitive
@@ -244,11 +404,11 @@ Empty set
 !ok
 
 create view MyView1 as select 1 + 1;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create view MyView2 as select 1 + 1;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 show views;
@@ -263,27 +423,27 @@ show views;
 
 # test create with full qualified name
 create table c1.db1.MyTable3 (a int, b string) with ('connector' = 'values');
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create table c1.db1.MyTable4 (a int, b string) with ('connector' = 'values');
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create view c1.db1.MyView3 as select 1 + 1;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create view c1.db1.MyView4 as select 1 + 1;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 use catalog c1;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 use db1;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 show tables;
@@ -310,23 +470,23 @@ show views;
 
 # test create with database name
 create table `default`.MyTable5 (a int, b string) with ('connector' = 'values');
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create table `default`.MyTable6 (a int, b string) with ('connector' = 'values');
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create view `default`.MyView5 as select 1 + 1;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create view `default`.MyView6 as select 1 + 1;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 use `default`;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 show tables;
@@ -352,15 +512,15 @@ show views;
 !ok
 
 drop table db1.MyTable3;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 drop view db1.MyView3;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 use db1;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 show tables;
@@ -383,15 +543,15 @@ show views;
 !ok
 
 drop table c1.`default`.MyTable6;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 drop view c1.`default`.MyView6;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 use `default`;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 show tables;
@@ -418,11 +578,11 @@ show views;
 # ==========================================================================
 
 SET 'sql-client.execution.result-mode' = 'changelog';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create table MyTable7 (a int, b string) with ('connector' = 'values');
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 show tables;
@@ -437,11 +597,11 @@ show tables;
 !ok
 
 reset;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 drop table MyTable5;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 show tables;
@@ -459,27 +619,27 @@ show tables;
 # ==========================================================================
 
 create catalog catalog1 with ('type'='generic_in_memory');
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create database catalog1.db1;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create table catalog1.db1.person (a int, b string) with ('connector' = 'datagen');
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create table catalog1.db1.dim (a int, b string) with ('connector' = 'datagen');
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create table catalog1.db1.address (a int, b string) with ('connector' = 'datagen');
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 create view catalog1.db1.v_person as select * from catalog1.db1.person;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 show tables from catalog1.db1;
@@ -515,7 +675,7 @@ show tables in catalog1.db1 not like '%person%';
 !ok
 
 use catalog catalog1;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 show tables from db1 like 'p_r%';
@@ -524,5 +684,26 @@ show tables from db1 like 'p_r%';
 +------------+
 |     person |
 +------------+
+1 row in set
+!ok
+
+# ==========================================================================
+# test catalog
+# ==========================================================================
+
+create catalog cat2 WITH ('type'='generic_in_memory', 'default-database'='db');
+[INFO] Execute statement succeeded.
+!info
+
+show create catalog cat2;
++---------------------------------------------------------------------------------------------+
+|                                                                                      result |
++---------------------------------------------------------------------------------------------+
+| CREATE CATALOG `cat2` WITH (
+  'default-database' = 'db',
+  'type' = 'generic_in_memory'
+)
+ |
++---------------------------------------------------------------------------------------------+
 1 row in set
 !ok

@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.operations.command;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.operations.Operation;
 
 /** Operation that represent QUIT command. */
+@Internal
 public class QuitOperation implements Operation {
 
     @Override

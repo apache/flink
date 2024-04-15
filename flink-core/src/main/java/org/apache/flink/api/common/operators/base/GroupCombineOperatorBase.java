@@ -21,6 +21,7 @@ package org.apache.flink.api.common.operators.base;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.CopyingListCollector;
@@ -140,14 +141,17 @@ public class GroupCombineOperatorBase<IN, OUT, FT extends GroupCombineFunction<I
         }
 
         FunctionUtils.setFunctionRuntimeContext(function, ctx);
-        FunctionUtils.openFunction(function, this.parameters);
+        FunctionUtils.openFunction(function, DefaultOpenContext.INSTANCE);
 
         ArrayList<OUT> result = new ArrayList<OUT>();
 
         if (keyColumns.length == 0) {
-            final TypeSerializer<IN> inputSerializer = inputType.createSerializer(executionConfig);
+            final TypeSerializer<IN> inputSerializer =
+                    inputType.createSerializer(executionConfig.getSerializerConfig());
             TypeSerializer<OUT> outSerializer =
-                    getOperatorInfo().getOutputType().createSerializer(executionConfig);
+                    getOperatorInfo()
+                            .getOutputType()
+                            .createSerializer(executionConfig.getSerializerConfig());
             List<IN> inputDataCopy = new ArrayList<IN>(inputData.size());
             for (IN in : inputData) {
                 inputDataCopy.add(inputSerializer.copy(in));
@@ -157,7 +161,8 @@ public class GroupCombineOperatorBase<IN, OUT, FT extends GroupCombineFunction<I
 
             function.combine(inputDataCopy, collector);
         } else {
-            final TypeSerializer<IN> inputSerializer = inputType.createSerializer(executionConfig);
+            final TypeSerializer<IN> inputSerializer =
+                    inputType.createSerializer(executionConfig.getSerializerConfig());
             boolean[] keyOrderings = new boolean[keyColumns.length];
             final TypeComparator<IN> comparator =
                     getTypeComparator(inputType, keyColumns, keyOrderings, executionConfig);
@@ -166,7 +171,9 @@ public class GroupCombineOperatorBase<IN, OUT, FT extends GroupCombineFunction<I
                     new ListKeyGroupedIterator<IN>(inputData, inputSerializer, comparator);
 
             TypeSerializer<OUT> outSerializer =
-                    getOperatorInfo().getOutputType().createSerializer(executionConfig);
+                    getOperatorInfo()
+                            .getOutputType()
+                            .createSerializer(executionConfig.getSerializerConfig());
             CopyingListCollector<OUT> collector =
                     new CopyingListCollector<OUT>(result, outSerializer);
 

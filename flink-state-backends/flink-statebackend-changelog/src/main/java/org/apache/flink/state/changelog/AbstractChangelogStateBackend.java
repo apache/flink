@@ -19,18 +19,15 @@
 package org.apache.flink.state.changelog;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
-import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
 import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle.ChangelogStateBackendHandleImpl;
@@ -41,8 +38,6 @@ import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nonnull;
 
 import java.util.Collection;
 import java.util.Objects;
@@ -83,89 +78,25 @@ public abstract class AbstractChangelogStateBackend
 
     @Override
     public <K> CheckpointableKeyedStateBackend<K> createKeyedStateBackend(
-            Environment env,
-            JobID jobID,
-            String operatorIdentifier,
-            TypeSerializer<K> keySerializer,
-            int numberOfKeyGroups,
-            KeyGroupRange keyGroupRange,
-            TaskKvStateRegistry kvStateRegistry,
-            TtlTimeProvider ttlTimeProvider,
-            MetricGroup metricGroup,
-            @Nonnull Collection<KeyedStateHandle> stateHandles,
-            CloseableRegistry cancelStreamRegistry)
-            throws Exception {
+            KeyedStateBackendParameters<K> parameters) throws Exception {
         return restore(
-                env,
-                operatorIdentifier,
-                keyGroupRange,
-                ttlTimeProvider,
-                metricGroup,
-                castHandles(stateHandles),
+                parameters.getEnv(),
+                parameters.getOperatorIdentifier(),
+                parameters.getKeyGroupRange(),
+                parameters.getTtlTimeProvider(),
+                parameters.getMetricGroup(),
+                castHandles(parameters.getStateHandles()),
                 baseHandles ->
                         (AbstractKeyedStateBackend<K>)
                                 delegatedStateBackend.createKeyedStateBackend(
-                                        env,
-                                        jobID,
-                                        operatorIdentifier,
-                                        keySerializer,
-                                        numberOfKeyGroups,
-                                        keyGroupRange,
-                                        kvStateRegistry,
-                                        ttlTimeProvider,
-                                        metricGroup,
-                                        baseHandles,
-                                        cancelStreamRegistry));
-    }
-
-    @Override
-    public <K> CheckpointableKeyedStateBackend<K> createKeyedStateBackend(
-            Environment env,
-            JobID jobID,
-            String operatorIdentifier,
-            TypeSerializer<K> keySerializer,
-            int numberOfKeyGroups,
-            KeyGroupRange keyGroupRange,
-            TaskKvStateRegistry kvStateRegistry,
-            TtlTimeProvider ttlTimeProvider,
-            MetricGroup metricGroup,
-            @Nonnull Collection<KeyedStateHandle> stateHandles,
-            CloseableRegistry cancelStreamRegistry,
-            double managedMemoryFraction)
-            throws Exception {
-        return restore(
-                env,
-                operatorIdentifier,
-                keyGroupRange,
-                ttlTimeProvider,
-                metricGroup,
-                castHandles(stateHandles),
-                baseHandles ->
-                        (AbstractKeyedStateBackend<K>)
-                                delegatedStateBackend.createKeyedStateBackend(
-                                        env,
-                                        jobID,
-                                        operatorIdentifier,
-                                        keySerializer,
-                                        numberOfKeyGroups,
-                                        keyGroupRange,
-                                        kvStateRegistry,
-                                        ttlTimeProvider,
-                                        metricGroup,
-                                        baseHandles,
-                                        cancelStreamRegistry,
-                                        managedMemoryFraction));
+                                        new KeyedStateBackendParametersImpl(parameters)
+                                                .setStateHandles(baseHandles)));
     }
 
     @Override
     public OperatorStateBackend createOperatorStateBackend(
-            Environment env,
-            String operatorIdentifier,
-            @Nonnull Collection<OperatorStateHandle> stateHandles,
-            CloseableRegistry cancelStreamRegistry)
-            throws Exception {
-        return delegatedStateBackend.createOperatorStateBackend(
-                env, operatorIdentifier, stateHandles, cancelStreamRegistry);
+            OperatorStateBackendParameters parameters) throws Exception {
+        return delegatedStateBackend.createOperatorStateBackend(parameters);
     }
 
     @Override
@@ -176,6 +107,11 @@ public abstract class AbstractChangelogStateBackend
     @Override
     public StateBackend getDelegatedStateBackend() {
         return delegatedStateBackend;
+    }
+
+    @Override
+    public boolean supportsSavepointFormat(SavepointFormatType formatType) {
+        return delegatedStateBackend.supportsSavepointFormat(formatType);
     }
 
     protected abstract <K> CheckpointableKeyedStateBackend<K> restore(

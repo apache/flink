@@ -30,6 +30,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
@@ -67,6 +68,7 @@ import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.state.changelog.restore.ChangelogRestoreTarget;
 import org.apache.flink.state.changelog.restore.FunctionDelegationHelper;
 import org.apache.flink.state.common.PeriodicMaterializationManager.MaterializationTarget;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.guava31.com.google.common.io.Closer;
 
@@ -89,9 +91,11 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 import static java.util.Collections.emptyList;
@@ -191,7 +195,18 @@ public class ChangelogKeyedStateBackend<K>
 
     private long lastConfirmedMaterializationId = -1L;
 
+    /** last failed or cancelled materialization. */
+    private long lastFailedMaterializationId = -1L;
+
     private final ChangelogTruncateHelper changelogTruncateHelper;
+
+    /**
+     * The local snapshot is considered complete when there is at least one successful
+     * materialization after rescaling.
+     */
+    private AtomicBoolean hasCompletedMaterialization = new AtomicBoolean(false);
+
+    private boolean isRescaling = false;
 
     public ChangelogKeyedStateBackend(
             AbstractKeyedStateBackend<K> keyedStateBackend,
@@ -376,6 +391,11 @@ public class ChangelogKeyedStateBackend<K>
             @Nonnull CheckpointStreamFactory streamFactory,
             @Nonnull CheckpointOptions checkpointOptions)
             throws Exception {
+
+        if (checkpointOptions.getCheckpointType().isSavepoint()) {
+            return nativeSavepoint(checkpointId, timestamp, streamFactory, checkpointOptions);
+        }
+
         // The range to upload may overlap with the previous one(s). To reuse them, we could store
         // the previous results either here in the backend or in the writer. However,
         // materialization may truncate only a part of the previous result and the backend would
@@ -400,7 +420,7 @@ public class ChangelogKeyedStateBackend<K>
 
         return toRunnableFuture(
                 stateChangelogWriter
-                        .persist(lastUploadedFrom)
+                        .persist(lastUploadedFrom, checkpointId)
                         .thenApply(
                                 delta ->
                                         buildSnapshotResult(
@@ -411,6 +431,57 @@ public class ChangelogKeyedStateBackend<K>
                                 (snapshotResult, throwable) ->
                                         metrics.reportSnapshotResult(snapshotResult))
                         .thenApply(this::castSnapshotResult));
+    }
+
+    private RunnableFuture<SnapshotResult<KeyedStateHandle>> nativeSavepoint(
+            long checkpointId,
+            long timestamp,
+            @Nonnull CheckpointStreamFactory streamFactory,
+            @Nonnull CheckpointOptions checkpointOptions)
+            throws Exception {
+
+        SnapshotType.SharingFilesStrategy sharingFilesStrategy =
+                checkpointOptions.getCheckpointType().getSharingFilesStrategy();
+        if (sharingFilesStrategy != SnapshotType.SharingFilesStrategy.NO_SHARING) {
+            throw new UnsupportedOperationException(
+                    "ChangelogKeyedStateBackend doesn't support native savepoint with SharingFilesStrategy: "
+                            + sharingFilesStrategy);
+        }
+
+        long materializationID = materializedId++;
+        // For NO_SHARING native savepoint, trigger delegated one
+        RunnableFuture<SnapshotResult<KeyedStateHandle>> delegatedSnapshotResult =
+                keyedStateBackend.snapshot(
+                        materializationID, timestamp, streamFactory, checkpointOptions);
+
+        materializationIdByCheckpointId.put(checkpointId, materializationID);
+        return new FutureTask<SnapshotResult<KeyedStateHandle>>(
+                () -> {
+                    SnapshotResult<KeyedStateHandle> result =
+                            FutureUtils.runIfNotDoneAndGet(delegatedSnapshotResult);
+                    return castSnapshotResult(
+                            buildSnapshotResult(
+                                    checkpointId,
+                                    SnapshotResult.empty(),
+                                    new ChangelogSnapshotState(
+                                            getMaterializedResult(result), materializationID)));
+                }) {
+            @Override
+            public boolean cancel(boolean mayInterruptIfRunning) {
+                return delegatedSnapshotResult.cancel(mayInterruptIfRunning)
+                        && super.cancel(mayInterruptIfRunning);
+            }
+
+            @Override
+            public boolean isCancelled() {
+                return delegatedSnapshotResult.isCancelled() && super.isCancelled();
+            }
+
+            @Override
+            public boolean isDone() {
+                return delegatedSnapshotResult.isDone() && super.isDone();
+            }
+        };
     }
 
     @SuppressWarnings("unchecked")
@@ -438,8 +509,9 @@ public class ChangelogKeyedStateBackend<K>
         if (prevDeltaCopy.isEmpty()
                 && changelogStateBackendStateCopy.getMaterializedSnapshot().isEmpty()) {
             return SnapshotResult.empty();
-        } else if (!changelogStateBackendStateCopy.getLocalMaterializedSnapshot().isEmpty()
-                || delta.getTaskLocalSnapshot() != null) {
+        } else if ((!isRescaling || hasCompletedMaterialization.get())
+                && (!changelogStateBackendStateCopy.getLocalMaterializedSnapshot().isEmpty()
+                        || delta.getTaskLocalSnapshot() != null)) {
             List<ChangelogStateHandle> localDeltaCopy =
                     new ArrayList<>(
                             changelogStateBackendStateCopy.getLocalRestoredNonMaterialized());
@@ -709,7 +781,7 @@ public class ChangelogKeyedStateBackend<K>
 
         List<KeyedStateHandle> localMaterialized = new ArrayList<>();
         List<ChangelogStateHandle> localRestoredNonMaterialized = new ArrayList<>();
-
+        isRescaling = stateHandles.size() > 1;
         for (ChangelogStateBackendHandle h : stateHandles) {
             if (h != null) {
                 if (h instanceof ChangelogStateBackendLocalHandle) {
@@ -729,9 +801,11 @@ public class ChangelogKeyedStateBackend<K>
                 materializationId = Math.max(materializationId, h.getMaterializationID());
             }
         }
+        this.lastConfirmedMaterializationId = materializationId;
         this.materializedId = materializationId + 1;
 
-        if (!localMaterialized.isEmpty() || !localRestoredNonMaterialized.isEmpty()) {
+        if (!isRescaling
+                && (!localMaterialized.isEmpty() || !localRestoredNonMaterialized.isEmpty())) {
             return new ChangelogSnapshotState(
                     materialized,
                     localMaterialized,
@@ -759,6 +833,18 @@ public class ChangelogKeyedStateBackend<K>
      */
     @Override
     public Optional<MaterializationRunnable> initMaterialization() throws Exception {
+        if (lastConfirmedMaterializationId < materializedId - 1
+                && lastFailedMaterializationId < materializedId - 1) {
+            // SharedStateRegistry potentially requires that the checkpoint's dependency on the
+            // shared file be continuous, it will be broken if we trigger a new materialization
+            // before the previous one has either confirmed or failed. See discussion in
+            // https://github.com/apache/flink/pull/22669#issuecomment-1593370772 .
+            LOG.info(
+                    "materialization:{} not confirmed or failed or cancelled, skip trigger new one.",
+                    materializedId - 1);
+            return Optional.empty();
+        }
+
         SequenceNumber upTo = stateChangelogWriter.nextSequenceNumber();
         SequenceNumber lastMaterializedTo = changelogSnapshotState.lastMaterializedTo();
 
@@ -829,8 +915,20 @@ public class ChangelogKeyedStateBackend<K>
                                 Collections.emptyList(),
                                 upTo,
                                 materializationID);
-
+        hasCompletedMaterialization.set(true);
         changelogTruncateHelper.materialized(upTo);
+    }
+
+    @Override
+    public void handleMaterializationFailureOrCancellation(
+            long materializationID, SequenceNumber upTo, Throwable cause) {
+
+        LOG.info(
+                "Task {} failed or cancelled materialization:{} which is upTo:{}",
+                subtaskName,
+                materializationID,
+                upTo);
+        lastFailedMaterializationId = Math.max(lastFailedMaterializationId, materializationID);
     }
 
     // TODO: this method may change after the ownership PR
@@ -965,7 +1063,7 @@ public class ChangelogKeyedStateBackend<K>
     }
 
     /**
-     * Snapshot State for ChangelogKeyedStatebackend, a wrapper over {@link SnapshotResult}.
+     * Snapshot State for ChangelogKeyedStateBackend, a wrapper over {@link SnapshotResult}.
      *
      * <p>It includes three parts: - materialized snapshot from the underlying delegated state
      * backend - non-materialized part in the current changelog - non-materialized changelog, from
@@ -984,6 +1082,19 @@ public class ChangelogKeyedStateBackend<K>
 
         /** ID of this materialization corresponding to the nested backend checkpoint ID. */
         private final long materializationID;
+
+        /**
+         * Construct a ChangelogSnapshotState with empty non-materialized part, which could be used
+         * when triggering manual materialization.
+         */
+        public ChangelogSnapshotState(
+                List<KeyedStateHandle> materializedSnapshot, long materializationID) {
+            this(
+                    materializedSnapshot,
+                    Collections.emptyList(),
+                    SequenceNumber.of(Long.MAX_VALUE),
+                    materializationID);
+        }
 
         public ChangelogSnapshotState(
                 List<KeyedStateHandle> materializedSnapshot,

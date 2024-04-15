@@ -22,6 +22,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.planner.plan.rules.logical.WrapJsonAggFunctionArgumentsRule;
+import org.apache.flink.util.TimeUtils;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableSet;
 
@@ -35,7 +36,33 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.Optional;
 
-/** A collection of Flink style {@link HintStrategy}s. */
+/**
+ * A collection of Flink style {@link HintStrategy}s.
+ *
+ * <p>Currently, Flink support table hints with table options and query hints including join hints
+ * and state ttl hints.
+ *
+ * <p>For handling query hints, the process is as follows:
+ *
+ * <ol>
+ *   <li>Resolve query hint propagation:
+ *       <ol>
+ *         <li>The query hints are resolved using Calcite's functionality to propagate them from the
+ *             sink to the source and within sub-queries
+ *         <li>Capitalize query hints: All query hints are capitalized to ensure consistency, as
+ *             they are expected to be in uppercase.
+ *         <li>Clear incorrectly propagated query hints: Any query hints that have been mistakenly
+ *             propagated into the query block are cleared.
+ *         <li>Clear query hints from unmatched nodes: Query hints attached to unmatched nodes, such
+ *             as {@link org.apache.calcite.rel.core.Project}, are also cleared.
+ *       </ol>
+ *   <li>Validate and modify query hints: The query hints are validated, and table names in the
+ *       hints are replaced with LEFT or RIGHT to indicate the join input ordinal.
+ *   <li>Clear query block aliases: The query block aliases are cleared from the sink to the source.
+ *   <li>Consume query hints in applicable scenes. For example, the join hints are consumed in
+ *       specific rules where they are relevant.
+ * </ol>
+ */
 public abstract class FlinkHintStrategies {
 
     /**
@@ -56,10 +83,10 @@ public abstract class FlinkHintStrategies {
                         HintStrategy.builder(HintPredicates.AGGREGATE)
                                 .excludedRules(WrapJsonAggFunctionArgumentsRule.INSTANCE)
                                 .build())
-                // internal join hint used for alias
+                // internal query hint used for alias
                 .hintStrategy(
                         FlinkHints.HINT_ALIAS,
-                        // currently, only correlate&join hints care about query block alias
+                        // currently, only correlate&join nodes care about query block alias
                         HintStrategy.builder(
                                         HintPredicates.or(
                                                 HintPredicates.CORRELATE, HintPredicates.JOIN))
@@ -92,6 +119,13 @@ public abstract class FlinkHintStrategies {
                                         HintPredicates.or(
                                                 HintPredicates.CORRELATE, HintPredicates.JOIN))
                                 .optionChecker(LOOKUP_NON_EMPTY_KV_OPTION_CHECKER)
+                                .build())
+                .hintStrategy(
+                        StateTtlHint.STATE_TTL.getHintName(),
+                        HintStrategy.builder(
+                                        HintPredicates.or(
+                                                HintPredicates.JOIN, HintPredicates.AGGREGATE))
+                                .optionChecker(STATE_TTL_NON_EMPTY_KV_OPTION_CHECKER)
                                 .build())
                 .build();
     }
@@ -208,6 +242,31 @@ public abstract class FlinkHintStrategies {
                             LookupJoinHintOptions.MAX_ATTEMPTS.key(),
                             maxAttempts);
                 }
+                return true;
+            };
+
+    private static final HintOptionChecker STATE_TTL_NON_EMPTY_KV_OPTION_CHECKER =
+            (ttlHint, litmus) -> {
+                litmus.check(
+                        ttlHint.listOptions.size() == 0,
+                        "Invalid list options in STATE_TTL hint, only support key-value options.");
+
+                litmus.check(
+                        ttlHint.kvOptions.size() > 0,
+                        "Invalid STATE_TTL hint, expecting at least one key-value options specified.");
+
+                // validate the hint value
+                ttlHint.kvOptions
+                        .values()
+                        .forEach(
+                                value -> {
+                                    try {
+                                        TimeUtils.parseDuration(value);
+                                    } catch (IllegalArgumentException e) {
+                                        litmus.fail(
+                                                "Invalid STATE_TTL hint value: {}", e.getMessage());
+                                    }
+                                });
                 return true;
             };
 }

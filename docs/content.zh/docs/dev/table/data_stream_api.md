@@ -107,9 +107,9 @@ resultStream.print();
 env.execute();
 
 // prints:
-// +I[Alice]
-// +I[Bob]
-// +I[John]
+// +I[ALICE]
+// +I[BOB]
+// +I[JOHN]
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -140,9 +140,9 @@ resultStream.print()
 env.execute()
 
 // prints:
-// +I[Alice]
-// +I[Bob]
-// +I[John]
+// +I[ALICE]
+// +I[BOB]
+// +I[JOHN]
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -173,9 +173,9 @@ res_ds.print()
 env.execute()
 
 # prints:
-# +I[Alice]
-# +I[Bob]
-# +I[John]
+# +I[ALICE]
+# +I[BOB]
+# +I[JOHN]
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -523,7 +523,7 @@ We recommend setting all configuration options in DataStream API early before sw
 {{< tab "Java" >}}
 ```java
 import java.time.ZoneId;
-import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.core.execution.CheckpointingMode.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
@@ -537,7 +537,7 @@ env.setMaxParallelism(256);
 
 env.getConfig().addDefaultKryoSerializer(MyCustomType.class, CustomKryoSerializer.class);
 
-env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+env.getCheckpointConfig().setCheckpointingConsistencyMode(CheckpointingMode.EXACTLY_ONCE);
 
 // then switch to Java Table API
 
@@ -553,9 +553,9 @@ tableEnv.getConfig().setLocalTimeZone(ZoneId.of("Europe/Berlin"));
 {{< tab "Scala" >}}
 ```scala
 import java.time.ZoneId
+import org.apache.flink.core.execution.CheckpointingMode
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.streaming.api.CheckpointingMode
 import org.apache.flink.table.api.bridge.scala._
 
 // create Scala DataStream API
@@ -568,7 +568,7 @@ env.setMaxParallelism(256)
 
 env.getConfig.addDefaultKryoSerializer(classOf[MyCustomType], classOf[CustomKryoSerializer])
 
-env.getCheckpointConfig.setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE)
+env.getCheckpointConfig.setCheckpointingConsistencyMode(CheckpointingMode.EXACTLY_ONCE)
 
 // then switch to Scala Table API
 
@@ -1049,7 +1049,7 @@ joinedStream
           ValueState<String> seen;
 
           @Override
-          public void open(Configuration parameters) {
+          public void open(OpenContext openContext) {
               seen = getRuntimeContext().getState(
                   new ValueStateDescriptor<>("seen", String.class));
           }
@@ -2792,7 +2792,7 @@ The following example shows how to add table programs to a DataStream API progra
 ```java
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.table.api.*;
 import org.apache.flink.table.api.bridge.java.*;
 
@@ -2829,7 +2829,7 @@ statementSet.add(tableFromStream.insertInto(sinkDescriptor));
 statementSet.attachAsDataStream();
 
 // define other DataStream API parts
-env.fromElements(4, 5, 6).addSink(new DiscardingSink<>());
+env.fromElements(4, 5, 6).sinkTo(new DiscardingSink<>());
 
 // use DataStream API to submit the pipelines
 env.execute();
@@ -2845,7 +2845,7 @@ env.execute();
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
@@ -2880,7 +2880,7 @@ statementSet.add(tableFromStream.insertInto(sinkDescriptor))
 statementSet.attachAsDataStream()
 
 // define other DataStream API parts
-env.fromElements(4, 5, 6).addSink(new DiscardingSink[Int]())
+env.fromElements(4, 5, 6).sinkTo(new DiscardingSink[Int]())
 
 // now use DataStream API to submit the pipelines
 env.execute()

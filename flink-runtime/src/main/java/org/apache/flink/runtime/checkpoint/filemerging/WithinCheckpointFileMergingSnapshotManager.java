@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.checkpoint.filemerging;
 
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 
@@ -32,22 +31,54 @@ import java.util.concurrent.Executor;
 /** A {@link FileMergingSnapshotManager} that merging files within a checkpoint. */
 public class WithinCheckpointFileMergingSnapshotManager extends FileMergingSnapshotManagerBase {
 
-    /** A dummy subtask key to reuse files among subtasks for private states. */
-    private static final SubtaskKey DUMMY_SUBTASK_KEY = new SubtaskKey("dummy", -1, -1);
-
     /**
      * For WITHIN_BOUNDARY mode, physical files are NOT shared among multiple checkpoints. This map
      * contains all physical files that are still writable and not occupied by a writer. The key of
-     * this map consist of checkpoint id, subtask key, and checkpoint scope, which collectively
-     * determine the physical file to be reused.
+     * this map is checkpoint id, which collectively determine the physical file pool to be reused.
      */
-    private final Map<Tuple3<Long, SubtaskKey, CheckpointedStateScope>, PhysicalFile>
-            writablePhysicalFilePool;
+    private final Map<Long, PhysicalFilePool> writablePhysicalFilePool;
 
-    public WithinCheckpointFileMergingSnapshotManager(String id, Executor ioExecutor) {
+    public WithinCheckpointFileMergingSnapshotManager(
+            String id, long maxFileSize, PhysicalFilePool.Type filePoolType, Executor ioExecutor) {
         // currently there is no file size limit For WITHIN_BOUNDARY mode
-        super(id, ioExecutor);
+        super(id, maxFileSize, filePoolType, ioExecutor);
         writablePhysicalFilePool = new HashMap<>();
+    }
+
+    // ------------------------------------------------------------------------
+    //  CheckpointListener
+    // ------------------------------------------------------------------------
+
+    @Override
+    public void notifyCheckpointComplete(SubtaskKey subtaskKey, long checkpointId)
+            throws Exception {
+        super.notifyCheckpointComplete(subtaskKey, checkpointId);
+        removeAndCloseFiles(subtaskKey, checkpointId);
+    }
+
+    @Override
+    public void notifyCheckpointAborted(SubtaskKey subtaskKey, long checkpointId) throws Exception {
+        super.notifyCheckpointAborted(subtaskKey, checkpointId);
+        removeAndCloseFiles(subtaskKey, checkpointId);
+    }
+
+    /**
+     * Remove files that belongs to specific subtask and checkpoint from the reuse pool. And close
+     * these files.
+     */
+    private void removeAndCloseFiles(SubtaskKey subtaskKey, long checkpointId) throws Exception {
+        PhysicalFilePool filePool;
+        synchronized (writablePhysicalFilePool) {
+            filePool = writablePhysicalFilePool.get(checkpointId);
+        }
+        if (filePool != null) {
+            filePool.close(subtaskKey);
+            if (filePool.isEmpty()) {
+                synchronized (writablePhysicalFilePool) {
+                    writablePhysicalFilePool.remove(checkpointId);
+                }
+            }
+        }
     }
 
     @Override
@@ -55,47 +86,55 @@ public class WithinCheckpointFileMergingSnapshotManager extends FileMergingSnaps
     protected PhysicalFile getOrCreatePhysicalFileForCheckpoint(
             SubtaskKey subtaskKey, long checkpointId, CheckpointedStateScope scope)
             throws IOException {
-        // TODO: FLINK-32076 will add a file pool for each subtask key.
-        Tuple3<Long, SubtaskKey, CheckpointedStateScope> fileKey =
-                Tuple3.of(
-                        checkpointId,
-                        scope == CheckpointedStateScope.SHARED ? subtaskKey : DUMMY_SUBTASK_KEY,
-                        scope);
-        PhysicalFile file;
-        synchronized (writablePhysicalFilePool) {
-            file = writablePhysicalFilePool.remove(fileKey);
-            if (file == null) {
-                file = createPhysicalFile(subtaskKey, scope);
-            }
-        }
-        return file;
+        PhysicalFilePool filePool = getOrCreateFilePool(checkpointId);
+        return filePool.pollFile(subtaskKey, scope);
     }
 
     @Override
     protected void returnPhysicalFileForNextReuse(
             SubtaskKey subtaskKey, long checkpointId, PhysicalFile physicalFile)
             throws IOException {
-        // TODO: FLINK-32076 will add a file pool for reusing.
-        CheckpointedStateScope scope = physicalFile.getScope();
-        Tuple3<Long, SubtaskKey, CheckpointedStateScope> fileKey =
-                Tuple3.of(
-                        checkpointId,
-                        scope == CheckpointedStateScope.SHARED ? subtaskKey : DUMMY_SUBTASK_KEY,
-                        scope);
-        PhysicalFile current;
-        synchronized (writablePhysicalFilePool) {
-            current = writablePhysicalFilePool.putIfAbsent(fileKey, physicalFile);
-        }
-        // TODO: We sync the file when return to the reuse pool for safety. Actually it could be
-        // optimized after FLINK-32075.
         if (shouldSyncAfterClosingLogicalFile) {
             FSDataOutputStream os = physicalFile.getOutputStream();
             if (os != null) {
                 os.sync();
             }
         }
-        if (current != physicalFile) {
+
+        PhysicalFilePool physicalFilePool = getOrCreateFilePool(checkpointId);
+        if (!physicalFilePool.tryPutFile(subtaskKey, physicalFile)) {
             physicalFile.close();
         }
+    }
+
+    @Override
+    protected void discardCheckpoint(long checkpointId) throws IOException {
+        PhysicalFilePool filePool;
+        synchronized (writablePhysicalFilePool) {
+            filePool = writablePhysicalFilePool.get(checkpointId);
+        }
+        if (filePool != null) {
+            filePool.close();
+        }
+    }
+
+    private PhysicalFilePool getOrCreateFilePool(long checkpointId) {
+        synchronized (writablePhysicalFilePool) {
+            PhysicalFilePool filePool = writablePhysicalFilePool.get(checkpointId);
+            if (filePool == null) {
+                filePool = createPhysicalPool();
+                writablePhysicalFilePool.put(checkpointId, filePool);
+            }
+            return filePool;
+        }
+    }
+
+    @Override
+    public void close() throws IOException {
+        super.close();
+        for (PhysicalFilePool filePool : writablePhysicalFilePool.values()) {
+            filePool.close();
+        }
+        writablePhysicalFilePool.clear();
     }
 }

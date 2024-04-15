@@ -45,7 +45,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
-import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
 import static org.apache.flink.kubernetes.utils.KubernetesUtils.getOnlyConfigMap;
 
 /** {@link LeaderElectionDriver} for Kubernetes. */
@@ -62,9 +61,6 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
     private final LeaderElectionDriver.Listener leaderElectionListener;
 
     private final KubernetesLeaderElector leaderElector;
-
-    // Labels will be used to clean up the ha related ConfigMaps.
-    private final Map<String, String> configMapLabels;
 
     private final KubernetesSharedWatcher.Watch kubernetesWatch;
 
@@ -88,11 +84,6 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
         this.leaderElector =
                 kubeClient.createLeaderElector(
                         leaderElectionConfiguration, new LeaderCallbackHandlerImpl());
-
-        this.configMapLabels =
-                KubernetesUtils.getConfigMapLabels(
-                        leaderElectionConfiguration.getClusterId(),
-                        LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY);
 
         kubernetesWatch =
                 configMapSharedWatcher.watch(
@@ -174,7 +165,6 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
                             KubernetesUtils.encodeLeaderInformation(leaderInformation));
                 }
 
-                kubernetesConfigMap.getLabels().putAll(configMapLabels);
                 return Optional.of(kubernetesConfigMap);
             }
 
@@ -262,5 +252,10 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
                             String.format("Error while watching the ConfigMap %s.", configMapName),
                             throwable));
         }
+    }
+
+    @Override
+    public String toString() {
+        return String.format("%s{configMapName='%s'}", getClass().getSimpleName(), configMapName);
     }
 }

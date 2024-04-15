@@ -266,7 +266,9 @@ class SourceCoordinatorConcurrentAttemptsTest extends SourceCoordinatorTestBase 
 
         @Override
         public void handleSourceEvent(int subtaskId, int attemptNumber, SourceEvent sourceEvent) {
-            sourceEvents.computeIfAbsent(subtaskId, HashMap::new).put(attemptNumber, sourceEvent);
+            sourceEvents
+                    .computeIfAbsent(subtaskId, k -> new HashMap<>())
+                    .put(attemptNumber, sourceEvent);
             handleSourceEvent(subtaskId, sourceEvent);
         }
 

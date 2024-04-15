@@ -190,13 +190,13 @@ Calc(select=[ts, a, b, my_ts, PROCTIME_MATERIALIZE(proc) AS proc], where=[(a > 1
       <![CDATA[
 LogicalProject(a=[$0], other_metadata=[$1], b=[$2], c=[$3], metadata_1=[$4], computed=[$5])
 +- LogicalProject(a=[$0], other_metadata=[CAST($4):INTEGER], b=[$1], c=[$2], metadata_1=[$3], computed=[UPPER($3)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable, metadata=[metadata_1, metadata_3]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, CAST(other_metadata AS INTEGER) AS other_metadata, b, c, metadata_1, UPPER(metadata_1) AS computed])
-+- TableSourceScan(table=[[default_catalog, default_database, MetadataTable]], fields=[a, b, c, metadata_1, other_metadata])
++- TableSourceScan(table=[[default_catalog, default_database, MetadataTable, metadata=[metadata_1, metadata_3]]], fields=[a, b, c, metadata_1, other_metadata])
 ]]>
     </Resource>
   </TestCase>
@@ -208,7 +208,7 @@ Calc(select=[a, CAST(other_metadata AS INTEGER) AS other_metadata, b, c, metadat
       <![CDATA[
 LogicalProject(b=[$2], other_metadata=[$1])
 +- LogicalProject(a=[$0], other_metadata=[CAST($4):INTEGER], b=[$1], c=[$2], metadata_1=[$3])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable, metadata=[metadata_1, metadata_3]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -226,13 +226,31 @@ Calc(select=[b, CAST(other_metadata AS INTEGER) AS other_metadata])
       <![CDATA[
 LogicalProject(timestamp=[$0], metadata_timestamp=[$1], other=[$2], computed_other=[$3], computed_timestamp=[$4])
 +- LogicalProject(timestamp=[$0], metadata_timestamp=[$2], other=[$1], computed_other=[UPPER($1)], computed_timestamp=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable, metadata=[other, timestamp]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[timestamp, metadata_timestamp, other, UPPER(other) AS computed_other, CAST(metadata_timestamp AS VARCHAR(2147483647)) AS computed_timestamp])
-+- TableSourceScan(table=[[default_catalog, default_database, MetadataTable]], fields=[timestamp, other, metadata_timestamp])
++- TableSourceScan(table=[[default_catalog, default_database, MetadataTable, metadata=[other, timestamp]]], fields=[timestamp, other, metadata_timestamp])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDDLWithRowTypeComputedColumn">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM t1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(a=[$0], b=[$1], c=[ROW($0, $1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, ROW(a, b) AS c])
++- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -708,5 +726,90 @@ Calc(select=[ts, a, b], where=[>(a, 1)], changelogMode=[I,UB,UA,D])
    +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[ts, a, b], changelogMode=[I,UB,UA,D])
 ]]>
     </Resource>
+  </TestCase>
+
+  <TestCase name="testSetParallelismForSource">
+  <Resource name="explain">
+	  <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(id=[$0], b=[$1], c=[$2], id0=[$3], a=[$4])
++- LogicalFilter(condition=[>($2, 1)])
+   +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, src]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, changelog_src]])
+
+== Optimized Physical Plan ==
+Join(joinType=[LeftOuterJoin], where=[=(id, id0)], select=[id, b, c, id0, a], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
+:- Exchange(distribution=[hash[id]])
+:  +- Calc(select=[id, b, c], where=[>(c, 1)])
+:     +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[id, b, c])
++- Exchange(distribution=[hash[id]])
+   +- ChangelogNormalize(key=[id])
+      +- Exchange(distribution=[hash[id]])
+         +- TableSourceScan(table=[[default_catalog, default_database, changelog_src]], fields=[id, a])
+
+== Optimized Execution Plan ==
+Join(joinType=[LeftOuterJoin], where=[(id = id0)], select=[id, b, c, id0, a], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
+:- Exchange(distribution=[hash[id]])
+:  +- Calc(select=[id, b, c], where=[(c > 1)])
+:     +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[id, b, c])
++- Exchange(distribution=[hash[id]])
+   +- ChangelogNormalize(key=[id])
+      +- Exchange(distribution=[hash[id]])
+         +- TableSourceScan(table=[[default_catalog, default_database, changelog_src]], fields=[id, a])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: src[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[id, b, c])",
+    "parallelism" : 3
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[id, b, c], where=[(c > 1)])",
+    "parallelism" : 10,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "REBALANCE",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Source: changelog_src[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, changelog_src]], fields=[id, a])",
+    "parallelism" : 5
+  }, {
+    "id" : ,
+    "type" : "ChangelogNormalize[]",
+    "pact" : "Operator",
+    "contents" : "[]:ChangelogNormalize(key=[id])",
+    "parallelism" : 10,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Join[]",
+    "pact" : "Operator",
+    "contents" : "[]:Join(joinType=[LeftOuterJoin], where=[(id = id0)], select=[id, b, c, id0, a], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])",
+    "parallelism" : 10,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH",
+      "side" : "second"
+    }, {
+      "id" : ,
+      "ship_strategy" : "HASH",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+  </Resource>
   </TestCase>
 </Root>

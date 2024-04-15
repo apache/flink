@@ -46,7 +46,12 @@ import java.util.concurrent.Callable;
 import static org.apache.flink.table.catalog.hive.HiveConfOptions.LOCK_ACQUIRE_TIMEOUT;
 import static org.apache.flink.table.catalog.hive.HiveConfOptions.LOCK_CHECK_MAX_SLEEP;
 
-/** Hive {@link CatalogLock}. */
+/**
+ * Hive {@link CatalogLock}.
+ *
+ * @deprecated This class will be removed soon. Please see FLIP-346 for more details.
+ */
+@Deprecated
 public class HiveCatalogLock implements CatalogLock {
 
     private final HiveMetastoreClientWrapper client;
@@ -123,6 +128,7 @@ public class HiveCatalogLock implements CatalogLock {
         return new HiveCatalogLockFactory(hiveConf);
     }
 
+    @Deprecated
     private static class HiveCatalogLockFactory implements CatalogLock.Factory {
 
         private static final long serialVersionUID = 1L;

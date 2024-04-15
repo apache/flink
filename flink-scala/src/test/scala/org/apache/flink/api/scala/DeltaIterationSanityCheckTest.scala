@@ -20,7 +20,8 @@ package org.apache.flink.api.scala
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.Test
 
 // Verify that the sanity checking in delta iterations works. We just
 // have a dummy job that is not meant to be executed. Only verify that
@@ -57,49 +58,60 @@ class DeltaIterationSanityCheckTest extends Serializable {
     iteration.output(new DiscardingOutputFormat[(Int, String)])
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testIncorrectJoinWithSolution1(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val solutionInput = env.fromElements((1, "1"))
     val worksetInput = env.fromElements((2, "2"))
 
-    val iteration = solutionInput.iterateDelta(worksetInput, 10, Array("_1")) {
-      (s, ws) =>
-        val result = s.join(ws).where("_2").equalTo("_2")((l, r) => l)
-        (result, ws)
-    }
+    assertThatThrownBy(
+      () => {
+        val iteration = solutionInput.iterateDelta(worksetInput, 10, Array("_1")) {
+          (s, ws) =>
+            val result = s.join(ws).where("_2").equalTo("_2")((l, r) => l)
+            (result, ws)
+        }
 
-    iteration.output(new DiscardingOutputFormat[(Int, String)])
+        iteration.output(new DiscardingOutputFormat[(Int, String)])
+      })
+      .isInstanceOf(classOf[InvalidProgramException])
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testIncorrectJoinWithSolution2(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val solutionInput = env.fromElements((1, "1"))
     val worksetInput = env.fromElements((2, "2"))
 
-    val iteration = solutionInput.iterateDelta(worksetInput, 10, Array("_1")) {
-      (s, ws) =>
-        val result = ws.join(s).where("_2").equalTo("_2")((l, r) => l)
-        (result, ws)
-    }
+    assertThatThrownBy(
+      () => {
+        val iteration = solutionInput.iterateDelta(worksetInput, 10, Array("_1")) {
+          (s, ws) =>
+            val result = ws.join(s).where("_2").equalTo("_2")((l, r) => l)
+            (result, ws)
+        }
 
-    iteration.output(new DiscardingOutputFormat[(Int, String)])
+        iteration.output(new DiscardingOutputFormat[(Int, String)])
+      })
+      .isInstanceOf(classOf[InvalidProgramException])
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testIncorrectJoinWithSolution3(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val solutionInput = env.fromElements((1, "1"))
     val worksetInput = env.fromElements((2, "2"))
+    assertThatThrownBy(
+      () => {
+        val iteration = solutionInput.iterateDelta(worksetInput, 10, Array("_2")) {
+          (s, ws) =>
+            val result = ws.join(s).where("_1").equalTo("_1")((l, r) => l)
+            (result, ws)
+        }
 
-    val iteration = solutionInput.iterateDelta(worksetInput, 10, Array("_2")) {
-      (s, ws) =>
-        val result = ws.join(s).where("_1").equalTo("_1")((l, r) => l)
-        (result, ws)
-    }
-
-    iteration.output(new DiscardingOutputFormat[(Int, String)])
+        iteration.output(new DiscardingOutputFormat[(Int, String)])
+      })
+      .isInstanceOf(classOf[InvalidProgramException])
   }
 
   @Test
@@ -132,48 +144,57 @@ class DeltaIterationSanityCheckTest extends Serializable {
     iteration.output(new DiscardingOutputFormat[(Int, String)])
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testIncorrectCoGroupWithSolution1(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val solutionInput = env.fromElements((1, "1"))
     val worksetInput = env.fromElements((2, "2"))
 
-    val iteration = solutionInput.iterateDelta(worksetInput, 10, Array("_1")) {
-      (s, ws) =>
-        val result = s.coGroup(ws).where("_2").equalTo("_2")((l, r) => l.min)
-        (result, ws)
-    }
+    assertThatThrownBy(
+      () => {
+        val iteration = solutionInput.iterateDelta(worksetInput, 10, Array("_1")) {
+          (s, ws) =>
+            val result = s.coGroup(ws).where("_2").equalTo("_2")((l, r) => l.min)
+            (result, ws)
+        }
 
-    iteration.output(new DiscardingOutputFormat[(Int, String)])
+        iteration.output(new DiscardingOutputFormat[(Int, String)])
+      }).isInstanceOf(classOf[InvalidProgramException])
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testIncorrectCoGroupWithSolution2(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val solutionInput = env.fromElements((1, "1"))
     val worksetInput = env.fromElements((2, "2"))
 
-    val iteration = solutionInput.iterateDelta(worksetInput, 10, Array("_1")) {
-      (s, ws) =>
-        val result = ws.coGroup(s).where("_2").equalTo("_2")((l, r) => l.min)
-        (result, ws)
-    }
+    assertThatThrownBy(
+      () => {
+        val iteration = solutionInput.iterateDelta(worksetInput, 10, Array("_1")) {
+          (s, ws) =>
+            val result = ws.coGroup(s).where("_2").equalTo("_2")((l, r) => l.min)
+            (result, ws)
+        }
 
-    iteration.output(new DiscardingOutputFormat[(Int, String)])
+        iteration.output(new DiscardingOutputFormat[(Int, String)])
+      }).isInstanceOf(classOf[InvalidProgramException])
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testIncorrectCoGroupWithSolution3(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val solutionInput = env.fromElements((1, "1"))
     val worksetInput = env.fromElements((2, "2"))
 
-    val iteration = solutionInput.iterateDelta(worksetInput, 10, Array("_2")) {
-      (s, ws) =>
-        val result = ws.coGroup(s).where("_1").equalTo("_1")((l, r) => l.min)
-        (result, ws)
-    }
+    assertThatThrownBy(
+      () => {
+        val iteration = solutionInput.iterateDelta(worksetInput, 10, Array("_2")) {
+          (s, ws) =>
+            val result = ws.coGroup(s).where("_1").equalTo("_1")((l, r) => l.min)
+            (result, ws)
+        }
 
-    iteration.output(new DiscardingOutputFormat[(Int, String)])
+        iteration.output(new DiscardingOutputFormat[(Int, String)])
+      }).isInstanceOf(classOf[InvalidProgramException])
   }
 }

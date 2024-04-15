@@ -25,26 +25,24 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.NoOpBufferAvailablityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.types.IntValue;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link SingleRecordWriter} and {@link MultipleRecordWriters}. */
-public class RecordWriterDelegateTest extends TestLogger {
+class RecordWriterDelegateTest {
 
     private static final int recordSize = 8;
 
@@ -54,31 +52,31 @@ public class RecordWriterDelegateTest extends TestLogger {
 
     private NetworkBufferPool globalPool;
 
-    @Before
-    public void setup() {
-        assertEquals("Illegal memory segment size,", 0, memorySegmentSize % recordSize);
+    @BeforeEach
+    void setup() {
+        assertThat(memorySegmentSize % recordSize).as("Illegal memory segment size").isZero();
         globalPool = new NetworkBufferPool(numberOfBuffers, memorySegmentSize);
     }
 
-    @After
-    public void teardown() {
+    @AfterEach
+    void teardown() {
         globalPool.destroyAllBufferPools();
         globalPool.destroy();
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testSingleRecordWriterAvailability() throws Exception {
+    void testSingleRecordWriterAvailability() throws Exception {
         final RecordWriter recordWriter = createRecordWriter(globalPool);
         final RecordWriterDelegate writerDelegate = new SingleRecordWriter(recordWriter);
 
-        assertEquals(recordWriter, writerDelegate.getRecordWriter(0));
+        assertThat(writerDelegate.getRecordWriter(0)).isEqualTo(recordWriter);
         verifyAvailability(writerDelegate);
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testMultipleRecordWritersAvailability() throws Exception {
+    void testMultipleRecordWritersAvailability() throws Exception {
         // setup
         final int numRecordWriters = 2;
         final List<RecordWriter> recordWriters = new ArrayList<>(numRecordWriters);
@@ -89,7 +87,7 @@ public class RecordWriterDelegateTest extends TestLogger {
 
         RecordWriterDelegate writerDelegate = new MultipleRecordWriters(recordWriters);
         for (int i = 0; i < numRecordWriters; i++) {
-            assertEquals(recordWriters.get(i), writerDelegate.getRecordWriter(i));
+            assertThat(writerDelegate.getRecordWriter(i)).isEqualTo(recordWriters.get(i));
         }
 
         verifyAvailability(writerDelegate);
@@ -97,7 +95,7 @@ public class RecordWriterDelegateTest extends TestLogger {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testSingleRecordWriterBroadcastEvent() throws Exception {
+    void testSingleRecordWriterBroadcastEvent() throws Exception {
         // setup
         final ResultPartition partition =
                 RecordWriterTest.createResultPartition(memorySegmentSize, 2);
@@ -109,7 +107,7 @@ public class RecordWriterDelegateTest extends TestLogger {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testMultipleRecordWritersBroadcastEvent() throws Exception {
+    void testMultipleRecordWritersBroadcastEvent() throws Exception {
         // setup
         final int numRecordWriters = 2;
         final List<RecordWriter> recordWriters = new ArrayList<>(numRecordWriters);
@@ -126,8 +124,8 @@ public class RecordWriterDelegateTest extends TestLogger {
         verifyBroadcastEvent(writerDelegate, partitions);
     }
 
-    private RecordWriter createRecordWriter(NetworkBufferPool globalPool) throws Exception {
-        final BufferPool localPool = globalPool.createBufferPool(1, 1, 1, Integer.MAX_VALUE, 0);
+    private static RecordWriter createRecordWriter(NetworkBufferPool globalPool) throws Exception {
+        final BufferPool localPool = globalPool.createBufferPool(1, 1, 1, 1, Integer.MAX_VALUE, 0);
         final ResultPartitionWriter partition =
                 new ResultPartitionBuilder().setBufferPoolFactory(() -> localPool).build();
         partition.setup();
@@ -135,34 +133,36 @@ public class RecordWriterDelegateTest extends TestLogger {
         return new RecordWriterBuilder().build(partition);
     }
 
-    private void verifyAvailability(RecordWriterDelegate writerDelegate) throws Exception {
+    private static void verifyAvailability(RecordWriterDelegate writerDelegate) throws Exception {
         // writer is available at the beginning
-        assertTrue(writerDelegate.isAvailable());
-        assertTrue(writerDelegate.getAvailableFuture().isDone());
+        assertThat(writerDelegate.isAvailable()).isTrue();
+        assertThat(writerDelegate.getAvailableFuture()).isDone();
 
         // request one buffer from the local pool to make it unavailable
         RecordWriter recordWriter = writerDelegate.getRecordWriter(0);
         for (int i = 0; i < memorySegmentSize / recordSize; ++i) {
             recordWriter.emit(new IntValue(i));
         }
-        assertFalse(writerDelegate.isAvailable());
+        assertThat(writerDelegate.isAvailable()).isFalse();
         CompletableFuture future = writerDelegate.getAvailableFuture();
-        assertFalse(future.isDone());
+        assertThat(future).isNotDone();
 
         // recycle the buffer to make the local pool available again
         ResultSubpartitionView readView =
                 recordWriter
                         .getTargetPartition()
-                        .createSubpartitionView(0, new NoOpBufferAvailablityListener());
+                        .createSubpartitionView(
+                                new ResultSubpartitionIndexSet(0),
+                                new NoOpBufferAvailablityListener());
         Buffer buffer = readView.getNextBuffer().buffer();
 
         buffer.recycleBuffer();
-        assertTrue(future.isDone());
-        assertTrue(writerDelegate.isAvailable());
-        assertTrue(writerDelegate.getAvailableFuture().isDone());
+        assertThat(future).isDone();
+        assertThat(writerDelegate.isAvailable()).isTrue();
+        assertThat(writerDelegate.getAvailableFuture()).isDone();
     }
 
-    private void verifyBroadcastEvent(
+    private static void verifyBroadcastEvent(
             RecordWriterDelegate writerDelegate, List<ResultPartition> partitions)
             throws Exception {
 
@@ -172,13 +172,15 @@ public class RecordWriterDelegateTest extends TestLogger {
         // verify the added messages in all the queues
         for (ResultPartition partition : partitions) {
             for (int i = 0; i < partition.getNumberOfSubpartitions(); i++) {
-                assertEquals(1, partition.getNumberOfQueuedBuffers(i));
+                assertThat(partition.getNumberOfQueuedBuffers(i)).isOne();
 
                 ResultSubpartitionView view =
-                        partition.createSubpartitionView(i, new NoOpBufferAvailablityListener());
+                        partition.createSubpartitionView(
+                                new ResultSubpartitionIndexSet(i),
+                                new NoOpBufferAvailablityListener());
                 BufferOrEvent boe = RecordWriterTest.parseBuffer(view.getNextBuffer().buffer(), i);
-                assertTrue(boe.isEvent());
-                assertEquals(message, boe.getEvent());
+                assertThat(boe.isEvent()).isTrue();
+                assertThat(boe.getEvent()).isEqualTo(message);
             }
         }
     }

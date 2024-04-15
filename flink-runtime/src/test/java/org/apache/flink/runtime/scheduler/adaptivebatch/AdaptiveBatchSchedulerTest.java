@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.core.failure.FailureEnricher;
@@ -32,8 +33,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
-import org.apache.flink.runtime.executiongraph.failover.flip1.FixedDelayRestartBackoffTimeStrategy.FixedDelayRestartBackoffTimeStrategyFactory;
-import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
+import org.apache.flink.runtime.executiongraph.failover.FixedDelayRestartBackoffTimeStrategy.FixedDelayRestartBackoffTimeStrategyFactory;
+import org.apache.flink.runtime.executiongraph.failover.RestartBackoffTimeStrategy;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -58,6 +59,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -65,6 +67,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
@@ -75,7 +78,6 @@ import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createFin
 import static org.apache.flink.runtime.scheduler.adaptivebatch.DefaultVertexParallelismAndInputInfosDeciderTest.createDecider;
 import static org.apache.flink.shaded.guava31.com.google.common.collect.Iterables.getOnlyElement;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link AdaptiveBatchScheduler}. */
 class AdaptiveBatchSchedulerTest {
@@ -106,7 +108,7 @@ class AdaptiveBatchSchedulerTest {
         final SchedulerBase scheduler =
                 createScheduler(jobGraph, Collections.singleton(failureEnricher), restartStrategy);
         // Triggered failure on initializeJobVertex that should be labeled
-        assertThatThrownBy(scheduler::startScheduling).isInstanceOf(IllegalStateException.class);
+        scheduler.startScheduling();
         final Iterable<RootExceptionHistoryEntry> exceptionHistory =
                 scheduler.requestJob().getExceptionHistory();
         final RootExceptionHistoryEntry failure = exceptionHistory.iterator().next();
@@ -349,6 +351,34 @@ class AdaptiveBatchSchedulerTest {
 
         // check source's parallelism
         assertThat(source.getParallelism()).isEqualTo(8);
+    }
+
+    @Test
+    void testMergeDynamicParallelismFutures() {
+        List<CompletableFuture<Integer>> sourceParallelismFutures = new ArrayList<>();
+
+        CompletableFuture<Integer> sourceParallelismFuture =
+                CompletableFuture.completedFuture(ExecutionConfig.PARALLELISM_DEFAULT);
+        sourceParallelismFutures.add(sourceParallelismFuture);
+
+        // Testing scenarios without effective parallelism
+        CompletableFuture<Integer> mergedSourceParallelismFuture =
+                AdaptiveBatchScheduler.mergeDynamicParallelismFutures(sourceParallelismFutures);
+        assertThat(mergedSourceParallelismFuture.join())
+                .isEqualTo(ExecutionConfig.PARALLELISM_DEFAULT);
+
+        CompletableFuture<Integer> sourceParallelismFuture1 = CompletableFuture.completedFuture(1);
+        CompletableFuture<Integer> sourceParallelismFuture2 = CompletableFuture.completedFuture(2);
+        CompletableFuture<Integer> sourceParallelismFuture4 = CompletableFuture.completedFuture(4);
+
+        sourceParallelismFutures.add(sourceParallelismFuture1);
+        sourceParallelismFutures.add(sourceParallelismFuture2);
+        sourceParallelismFutures.add(sourceParallelismFuture4);
+
+        // Testing scenarios with multiple sources in ExecutionJobVertex
+        mergedSourceParallelismFuture =
+                AdaptiveBatchScheduler.mergeDynamicParallelismFutures(sourceParallelismFutures);
+        assertThat(mergedSourceParallelismFuture.join()).isEqualTo(4);
     }
 
     void testUserConfiguredMaxParallelism(

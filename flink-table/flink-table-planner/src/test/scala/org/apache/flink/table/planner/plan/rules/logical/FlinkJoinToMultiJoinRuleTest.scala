@@ -25,13 +25,13 @@ import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase}
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Tests for [[org.apache.flink.table.planner.plan.rules.logical.FlinkJoinToMultiJoinRule]]. */
 class FlinkJoinToMultiJoinRuleTest extends TableTestBase {
   private val util = batchTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     util.buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE)
     val calciteConfig = TableConfigUtils.getCalciteConfig(util.tableEnv.getConfig)

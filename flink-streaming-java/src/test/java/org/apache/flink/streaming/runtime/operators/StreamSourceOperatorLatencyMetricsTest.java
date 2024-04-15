@@ -42,28 +42,25 @@ import org.apache.flink.streaming.runtime.tasks.TimerService;
 import org.apache.flink.streaming.util.CollectorOutput;
 import org.apache.flink.streaming.util.MockStreamTask;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 /** Tests for the emission of latency markers by {@link StreamSource} operators. */
-public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
+class StreamSourceOperatorLatencyMetricsTest {
 
     private static final long maxProcessingTime = 100L;
     private static final long latencyMarkInterval = 10L;
 
     /** Verifies that by default no latency metrics are emitted. */
     @Test
-    public void testLatencyMarkEmissionDisabled() throws Exception {
+    void testLatencyMarkEmissionDisabled() throws Exception {
         testLatencyMarkEmission(
                 0,
                 (operator, timeProvider) ->
@@ -76,7 +73,7 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
 
     /** Verifies that latency metrics can be enabled via the {@link ExecutionConfig}. */
     @Test
-    public void testLatencyMarkEmissionEnabledViaExecutionConfig() throws Exception {
+    void testLatencyMarkEmissionEnabledViaExecutionConfig() throws Exception {
         testLatencyMarkEmission(
                 (int) (maxProcessingTime / latencyMarkInterval) + 1,
                 (operator, timeProvider) -> {
@@ -93,12 +90,12 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
 
     /** Verifies that latency metrics can be enabled via the configuration. */
     @Test
-    public void testLatencyMarkEmissionEnabledViaFlinkConfig() throws Exception {
+    void testLatencyMarkEmissionEnabledViaFlinkConfig() throws Exception {
         testLatencyMarkEmission(
                 (int) (maxProcessingTime / latencyMarkInterval) + 1,
                 (operator, timeProvider) -> {
                     Configuration tmConfig = new Configuration();
-                    tmConfig.setLong(MetricOptions.LATENCY_INTERVAL, latencyMarkInterval);
+                    tmConfig.set(MetricOptions.LATENCY_INTERVAL, latencyMarkInterval);
 
                     Environment env =
                             MockEnvironment.builder()
@@ -115,7 +112,7 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
      * disabled via the configuration.
      */
     @Test
-    public void testLatencyMarkEmissionEnabledOverrideViaExecutionConfig() throws Exception {
+    void testLatencyMarkEmissionEnabledOverrideViaExecutionConfig() throws Exception {
         testLatencyMarkEmission(
                 (int) (maxProcessingTime / latencyMarkInterval) + 1,
                 (operator, timeProvider) -> {
@@ -123,7 +120,7 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
                     executionConfig.setLatencyTrackingInterval(latencyMarkInterval);
 
                     Configuration tmConfig = new Configuration();
-                    tmConfig.setLong(MetricOptions.LATENCY_INTERVAL, 0L);
+                    tmConfig.set(MetricOptions.LATENCY_INTERVAL, 0L);
 
                     Environment env =
                             MockEnvironment.builder()
@@ -140,12 +137,12 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
      * are enabled via the configuration.
      */
     @Test
-    public void testLatencyMarkEmissionDisabledOverrideViaExecutionConfig() throws Exception {
+    void testLatencyMarkEmissionDisabledOverrideViaExecutionConfig() throws Exception {
         testLatencyMarkEmission(
                 0,
                 (operator, timeProvider) -> {
                     Configuration tmConfig = new Configuration();
-                    tmConfig.setLong(MetricOptions.LATENCY_INTERVAL, latencyMarkInterval);
+                    tmConfig.set(MetricOptions.LATENCY_INTERVAL, latencyMarkInterval);
 
                     Environment env =
                             MockEnvironment.builder()
@@ -162,8 +159,8 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
 
     private interface OperatorSetupOperation {
         void setupSourceOperator(
-                StreamSource<Long, ?> operator,
-                TestProcessingTimeService testProcessingTimeService);
+                StreamSource<Long, ?> operator, TestProcessingTimeService testProcessingTimeService)
+                throws Exception;
     }
 
     private void testLatencyMarkEmission(
@@ -196,7 +193,7 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
             operatorChain.close();
         }
 
-        assertEquals(numberLatencyMarkers, output.size());
+        assertThat(output).hasSize(numberLatencyMarkers);
 
         long timestamp = 0L;
         int expectedLatencyIndex = 0;
@@ -205,9 +202,9 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
         // verify that its only latency markers
         for (; i < numberLatencyMarkers; i++) {
             StreamElement se = output.get(i);
-            Assert.assertTrue(se.isLatencyMarker());
-            Assert.assertEquals(operator.getOperatorID(), se.asLatencyMarker().getOperatorId());
-            Assert.assertEquals(0, se.asLatencyMarker().getSubtaskIndex());
+            assertThat(se.isLatencyMarker()).isTrue();
+            assertThat(se.asLatencyMarker().getOperatorId()).isEqualTo(operator.getOperatorID());
+            assertThat(se.asLatencyMarker().getSubtaskIndex()).isZero();
 
             // determines the next latency mark that should've been emitted
             // latency marks are emitted once per latencyMarkInterval,
@@ -215,9 +212,8 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
             while (timestamp > processingTimes.get(expectedLatencyIndex)) {
                 expectedLatencyIndex++;
             }
-            Assert.assertEquals(
-                    processingTimes.get(expectedLatencyIndex).longValue(),
-                    se.asLatencyMarker().getMarkedTime());
+            assertThat(se.asLatencyMarker().getMarkedTime())
+                    .isEqualTo(processingTimes.get(expectedLatencyIndex));
 
             timestamp += latencyMarkInterval;
         }
@@ -230,7 +226,8 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
             StreamSource<T, ?> operator,
             ExecutionConfig executionConfig,
             Environment env,
-            TimerService timerService) {
+            TimerService timerService)
+            throws Exception {
 
         StreamConfig cfg = new StreamConfig(new Configuration());
         cfg.setStateBackend(new MemoryStateBackend());
@@ -239,21 +236,16 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
         cfg.setOperatorID(new OperatorID());
         cfg.serializeAllConfigs();
 
-        try {
-            MockStreamTask mockTask =
-                    new MockStreamTaskBuilder(env)
-                            .setConfig(cfg)
-                            .setExecutionConfig(executionConfig)
-                            .setTimerService(timerService)
-                            .build();
+        MockStreamTask mockTask =
+                new MockStreamTaskBuilder(env)
+                        .setConfig(cfg)
+                        .setExecutionConfig(executionConfig)
+                        .setTimerService(timerService)
+                        .build();
 
-            operator.setProcessingTimeService(
-                    mockTask.getProcessingTimeServiceFactory().createProcessingTimeService(null));
-            operator.setup(mockTask, cfg, (Output<StreamRecord<T>>) mock(Output.class));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        operator.setProcessingTimeService(
+                mockTask.getProcessingTimeServiceFactory().createProcessingTimeService(null));
+        operator.setup(mockTask, cfg, (Output<StreamRecord<T>>) mock(Output.class));
     }
 
     // ------------------------------------------------------------------------

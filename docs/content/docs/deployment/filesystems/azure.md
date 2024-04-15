@@ -67,7 +67,10 @@ env.readTextFile("wasb://<your-container>@$<your-azure-account>.blob.core.window
 stream.writeAsText("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>");
 
 // Use Azure Blob Storage as checkpoint storage
-env.getCheckpointConfig().setCheckpointStorage("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>");
+Configuration config = new Configuration();
+config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>");
+env.configure(config);
 ```
 
 ### Shaded Hadoop Azure Blob Storage file system
@@ -89,7 +92,7 @@ Hadoop's WASB Azure Filesystem supports configuration of credentials via the Had
 outlined in the [Hadoop Azure Blob Storage documentation](https://hadoop.apache.org/docs/current/hadoop-azure/index.html#Configuring_Credentials).
 For convenience Flink forwards all Flink configurations with a key prefix of `fs.azure` to the 
 Hadoop configuration of the filesystem. Consequently, the azure blob storage key can be configured 
-in `flink-conf.yaml` via:
+in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}) via:
 
 ```yaml
 fs.azure.account.key.<account_name>.blob.core.windows.net: <azure_storage_key>
@@ -97,7 +100,7 @@ fs.azure.account.key.<account_name>.blob.core.windows.net: <azure_storage_key>
 
 Alternatively, the filesystem can be configured to read the Azure Blob Storage key from an 
 environment variable `AZURE_STORAGE_KEY` by setting the following configuration keys in 
-`flink-conf.yaml`.  
+[Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}).  
 
 ```yaml
 fs.azure.account.keyprovider.<account_name>.blob.core.windows.net: org.apache.flink.fs.azurefs.EnvironmentVariableKeyProvider
@@ -114,7 +117,7 @@ Please visit the [page](https://docs.microsoft.com/en-us/azure/active-directory/
 {{< /hint >}}
 
 ##### Accessing ABFS using storage Keys (Discouraged)
-Azure blob storage key can be configured in `flink-conf.yaml` via:
+Azure blob storage key can be configured in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}) via:
 
 ```yaml
 fs.azure.account.key.<account_name>.dfs.core.windows.net: <azure_storage_key>

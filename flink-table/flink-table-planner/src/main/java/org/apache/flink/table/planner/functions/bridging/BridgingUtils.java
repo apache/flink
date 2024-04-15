@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.functions.bridging;
 
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ContextResolvedFunction;
+import org.apache.flink.table.catalog.ContextResolvedProcedure;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
@@ -57,6 +58,10 @@ final class BridgingUtils {
                 .getIdentifier()
                 .map(BridgingUtils::extractName)
                 .orElseGet(() -> createInlineFunctionName(resolvedFunction.getDefinition()));
+    }
+
+    static String createName(ContextResolvedProcedure resolveProcedure) {
+        return extractName(resolveProcedure.getIdentifier());
     }
 
     private static String extractName(FunctionIdentifier identifier) {
@@ -123,6 +128,17 @@ final class BridgingUtils {
                                                                                         ::new),
                                                                 SqlParserPos.ZERO)))
                 .orElse(null);
+    }
+
+    static SqlIdentifier createSqlIdentifier(ContextResolvedProcedure resolvedProcedure) {
+        final FunctionIdentifier fi = resolvedProcedure.getIdentifier();
+        return fi.getIdentifier()
+                .map(oi -> new SqlIdentifier(oi.toList(), SqlParserPos.ZERO))
+                .orElseGet(
+                        () ->
+                                new SqlIdentifier(
+                                        fi.getSimpleName().orElseThrow(IllegalStateException::new),
+                                        SqlParserPos.ZERO));
     }
 
     static SqlReturnTypeInference createSqlReturnTypeInference(

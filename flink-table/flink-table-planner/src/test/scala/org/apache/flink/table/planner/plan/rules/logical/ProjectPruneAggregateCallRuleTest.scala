@@ -23,10 +23,12 @@ import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
+import org.junit.jupiter.api.BeforeEach
 
 /** Test for [[PruneAggregateCallRule]]#PROJECT_ON_AGGREGATE. */
 class ProjectPruneAggregateCallRuleTest extends PruneAggregateCallRuleTestBase {
 
+  @BeforeEach
   override def setup(): Unit = {
     super.setup()
     util.buildBatchProgram(FlinkBatchProgram.LOGICAL)

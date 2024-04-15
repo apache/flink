@@ -21,6 +21,7 @@ package org.apache.flink.runtime.operators.coordination;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.metrics.groups.OperatorCoordinatorMetricGroup;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -84,6 +85,9 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
      * subtask.
      */
     long NO_CHECKPOINT = -1L;
+
+    /** The checkpoint ID passed to the restore methods when batch scenarios. */
+    long BATCH_CHECKPOINT_ID = -1L;
 
     // ------------------------------------------------------------------------
 
@@ -233,6 +237,17 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
      */
     void executionAttemptReady(int subtask, int attemptNumber, SubtaskGateway gateway);
 
+    /**
+     * Whether the operator coordinator supports taking snapshot in no-checkpoint/batch scenarios.
+     * If it returns true, the {@link OperatorCoordinator#checkpointCoordinator} and {@link
+     * OperatorCoordinator#resetToCheckpoint} methods supports taking snapshot and restoring from a
+     * snapshot in batch processing scenarios. In such scenarios, the checkpointId will always be
+     * -1.
+     */
+    default boolean supportsBatchSnapshot() {
+        return false;
+    }
+
     // ------------------------------------------------------------------------
     // ------------------------------------------------------------------------
 
@@ -277,6 +292,10 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
          * concurrent running execution attempts.
          */
         boolean isConcurrentExecutionAttemptsSupported();
+
+        /** Gets the checkpoint coordinator of this job. Return null if checkpoint is disabled. */
+        @Nullable
+        CheckpointCoordinator getCheckpointCoordinator();
     }
 
     // ------------------------------------------------------------------------

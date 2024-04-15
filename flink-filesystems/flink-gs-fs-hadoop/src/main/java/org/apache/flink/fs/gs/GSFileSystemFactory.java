@@ -18,6 +18,7 @@
 
 package org.apache.flink.fs.gs;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
@@ -77,8 +78,6 @@ public class GSFileSystemFactory implements FileSystemFactory {
 
     @Override
     public void configure(Configuration flinkConfig) {
-        LOGGER.info("Configuring GSFileSystemFactory with Flink configuration {}", flinkConfig);
-
         Preconditions.checkNotNull(flinkConfig);
 
         ConfigUtils.ConfigContext configContext = new RuntimeConfigContext();
@@ -92,11 +91,16 @@ public class GSFileSystemFactory implements FileSystemFactory {
         this.fileSystemOptions = new GSFileSystemOptions(flinkConfig);
         LOGGER.info("Using file system options {}", fileSystemOptions);
 
-        // get storage credentials and construct Storage instance
+        StorageOptions.Builder storageOptionsBuilder = StorageOptions.newBuilder();
+
+        // get storage credentials
         Optional<GoogleCredentials> credentials =
                 ConfigUtils.getStorageCredentials(hadoopConfig, configContext);
-        StorageOptions.Builder storageOptionsBuilder = StorageOptions.newBuilder();
         credentials.ifPresent(storageOptionsBuilder::setCredentials);
+
+        // override the GCS root URL only if overridden in the Hadoop config
+        ConfigUtils.getGcsRootUrl(hadoopConfig).ifPresent(storageOptionsBuilder::setHost);
+
         this.storage = storageOptionsBuilder.build().getService();
     }
 
@@ -121,6 +125,11 @@ public class GSFileSystemFactory implements FileSystemFactory {
 
         // create the file system
         return new GSFileSystem(googleHadoopFileSystem, storage, fileSystemOptions);
+    }
+
+    @VisibleForTesting
+    Storage getStorage() {
+        return storage;
     }
 
     /** Config context implementation used at runtime. */

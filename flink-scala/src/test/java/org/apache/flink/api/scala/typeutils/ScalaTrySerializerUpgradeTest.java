@@ -19,7 +19,7 @@
 package org.apache.flink.api.scala.typeutils;
 
 import org.apache.flink.FlinkVersion;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
@@ -67,7 +67,7 @@ class ScalaTrySerializerUpgradeTest
             implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<Try<String>> {
         @Override
         public TypeSerializer<Try<String>> createPriorSerializer() {
-            return new TrySerializer<>(StringSerializer.INSTANCE, new ExecutionConfig());
+            return new TrySerializer<>(StringSerializer.INSTANCE, new SerializerConfigImpl());
         }
 
         @SuppressWarnings("unchecked")
@@ -85,7 +85,7 @@ class ScalaTrySerializerUpgradeTest
             implements TypeSerializerUpgradeTestBase.UpgradeVerifier<Try<String>> {
         @Override
         public TypeSerializer<Try<String>> createUpgradedSerializer() {
-            return new TrySerializer<>(StringSerializer.INSTANCE, new ExecutionConfig());
+            return new TrySerializer<>(StringSerializer.INSTANCE, new SerializerConfigImpl());
         }
 
         @SuppressWarnings("unchecked")

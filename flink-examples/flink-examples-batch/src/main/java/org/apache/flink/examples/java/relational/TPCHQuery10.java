@@ -29,6 +29,11 @@ import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.api.java.utils.ParameterTool;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import static org.apache.flink.examples.java.util.DataSetDeprecationInfo.DATASET_DEPRECATION_INFO;
+
 /**
  * This program implements a modified version of the TPC-H query 10. The original query can be found
  * at <a
@@ -84,15 +89,23 @@ import org.apache.flink.api.java.utils.ParameterTool;
  *   <li>projection and join projection
  *   <li>built-in aggregation functions
  * </ul>
+ *
+ * <p>Note: All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a future
+ * Flink major version. You can still build your application in DataSet, but you should move to
+ * either the DataStream and/or Table API. This class is retained for testing purposes.
  */
 @SuppressWarnings("serial")
 public class TPCHQuery10 {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(TPCHQuery10.class);
 
     // *************************************************************************
     //     PROGRAM
     // *************************************************************************
 
     public static void main(String[] args) throws Exception {
+
+        LOGGER.warn(DATASET_DEPRECATION_INFO);
 
         final ParameterTool params = ParameterTool.fromArgs(args);
 

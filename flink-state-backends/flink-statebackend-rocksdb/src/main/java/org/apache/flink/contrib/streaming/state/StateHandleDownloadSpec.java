@@ -18,6 +18,8 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.runtime.state.DirectoryStateHandle;
+import org.apache.flink.runtime.state.IncrementalLocalKeyedStateHandle;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 
 import java.nio.file.Path;
@@ -45,5 +47,24 @@ public class StateHandleDownloadSpec {
 
     public Path getDownloadDestination() {
         return downloadDestination;
+    }
+
+    public IncrementalLocalKeyedStateHandle createLocalStateHandleForDownloadedState() {
+        return new IncrementalLocalKeyedStateHandle(
+                stateHandle.getBackendIdentifier(),
+                stateHandle.getCheckpointId(),
+                new DirectoryStateHandle(downloadDestination, stateHandle.getStateSize()),
+                stateHandle.getKeyGroupRange(),
+                stateHandle.getMetaDataStateHandle(),
+                stateHandle.getSharedState());
+    }
+
+    @Override
+    public String toString() {
+        return "StateHandleDownloadSpec(downloadDestination = ["
+                + downloadDestination
+                + "] stateHandle = ["
+                + stateHandle
+                + "])";
     }
 }
