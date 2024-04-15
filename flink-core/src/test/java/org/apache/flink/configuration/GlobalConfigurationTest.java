@@ -82,12 +82,10 @@ class GlobalConfigurationTest {
         assertThat(conf.getString("mykey9", null)).isEqualTo("myvalue10");
         // Clear the standard yaml flag to avoid impact to other cases.
         GlobalConfiguration.setStandardYaml(true);
-        confFile.delete();
-        tmpDir.delete();
     }
 
     @Test
-    void testConfigurationWithStandardYAML() {
+    void testConfigurationWithStandardYAML() throws FileNotFoundException {
         File confFile = new File(tmpDir, GlobalConfiguration.FLINK_CONF_FILENAME);
 
         try (final PrintWriter pw = new PrintWriter(confFile)) {
@@ -102,8 +100,6 @@ class GlobalConfigurationTest {
             pw.println("Key9: [a, b, '*', 1, '2',  true, 'true']");
             pw.println("Key10: {k1: v1, k2: '2', k3: 3}");
             pw.println("Key11: [{k1: v1, k2: '2', k3: 3}, {k4: true}]");
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
         }
 
         Configuration conf = GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath());
