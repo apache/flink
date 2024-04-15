@@ -60,12 +60,11 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
-<!--		TODO: Enable forst dependency when it's available in the maven central repository -->
-<!--		<dependency>-->
-<!--			<groupId>com.ververica</groupId>-->
-<!--			<artifactId>forstjni</artifactId>-->
-<!--			<version>0.1.0-beta</version>-->
-<!--		</dependency>-->
+		<dependency>
+			<groupId>com.ververica</groupId>
+			<artifactId>forstjni</artifactId>
+			<version>0.1.0-beta</version>
+		</dependency>
 
 		<!-- test dependencies -->
 
