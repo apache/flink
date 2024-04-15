@@ -11,26 +11,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.externalresource.log;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-/** ms-flink: Structure to serialize flink errors */
+/** flink: Structure to serialize flink errors. */
 public final class ErrorRecord {
     private String truncationMessage = "==Message truncated==";
     private String component;
     private String errorCode;
     private String message;
-
-    /**
-     * Refer to <a
-     * href="https://kubernetes.io/docs/tasks/debug/debug-application/determine-reason-pod-failure/#customizing-the-termination-message>Kubernetes
-     * doc</a>
-     */
     private static final int terminationLogLengthLimit = 4096;
 
-    /** ms-flink ojectMapper for serde. */
+    /** flink ojectMapper for serDe. */
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     public ErrorRecord() {}
