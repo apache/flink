@@ -26,18 +26,20 @@ import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Random;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Abstract integration test class for implementations of hadoop recoverable writer when exception
@@ -64,9 +66,9 @@ public abstract class AbstractHadoopRecoverableWriterExceptionITCase extends Tes
 
     protected static boolean skipped = true;
 
-    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+    @TempDir public static File tempFolder;
 
-    @AfterClass
+    @AfterAll
     public static void cleanUp() throws Exception {
         if (!skipped) {
             getFileSystem().delete(basePath, true);
@@ -76,8 +78,11 @@ public abstract class AbstractHadoopRecoverableWriterExceptionITCase extends Tes
 
     protected abstract String getLocalTmpDir() throws Exception;
 
-    @Before
+    protected abstract Path getBasePath();
+
+    @BeforeEach
     public void prepare() throws Exception {
+        basePath = getBasePath();
         basePathForTest = new Path(basePath, StringUtils.getRandomString(RND, 16, 16, 'a', 'z'));
 
         final String defaultTmpDir = getLocalTmpDir();
@@ -88,7 +93,7 @@ public abstract class AbstractHadoopRecoverableWriterExceptionITCase extends Tes
         }
     }
 
-    @After
+    @AfterEach
     public void cleanup() throws Exception {
         getFileSystem().delete(basePathForTest, true);
     }
@@ -100,7 +105,7 @@ public abstract class AbstractHadoopRecoverableWriterExceptionITCase extends Tes
         return fileSystem;
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void testExceptionWritingAfterCloseForCommit() throws Exception {
         final Path path = new Path(basePathForTest, "part-0");
 
@@ -109,7 +114,8 @@ public abstract class AbstractHadoopRecoverableWriterExceptionITCase extends Tes
         stream.write(testData1.getBytes(StandardCharsets.UTF_8));
 
         stream.closeForCommit().getRecoverable();
-        stream.write(testData2.getBytes(StandardCharsets.UTF_8));
+        assertThatThrownBy(() -> stream.write(testData2.getBytes(StandardCharsets.UTF_8)))
+                .isInstanceOf(IOException.class);
     }
 
     // IMPORTANT FOR THE FOLLOWING TWO TESTS:
@@ -120,7 +126,8 @@ public abstract class AbstractHadoopRecoverableWriterExceptionITCase extends Tes
     // when we try to "publish" the multipart upload and we realize that the MPU is no longer
     // active.
 
-    @Test(expected = IOException.class)
+    //    @Test(expected = IOException.class)
+    @Test
     public void testResumeAfterCommit() throws Exception {
         final RecoverableWriter writer = getFileSystem().createRecoverableWriter();
         final Path path = new Path(basePathForTest, "part-0");
@@ -134,10 +141,12 @@ public abstract class AbstractHadoopRecoverableWriterExceptionITCase extends Tes
         stream.closeForCommit().commit();
 
         final RecoverableFsDataOutputStream recoveredStream = writer.recover(recoverable);
-        recoveredStream.closeForCommit().commit();
+        assertThatThrownBy(() -> recoveredStream.closeForCommit().commit())
+                .isInstanceOf(IOException.class);
     }
 
-    @Test(expected = IOException.class)
+    //    @Test(expected = IOException.class)
+    @Test
     public void testResumeWithWrongOffset() throws Exception {
         // this is a rather unrealistic scenario, but it is to trigger
         // truncation of the file and try to resume with missing data.
@@ -159,6 +168,7 @@ public abstract class AbstractHadoopRecoverableWriterExceptionITCase extends Tes
 
         // this should throw an exception
         final RecoverableFsDataOutputStream newRecoveredStream = writer.recover(recoverable2);
-        newRecoveredStream.closeForCommit().commit();
+        assertThatThrownBy(() -> newRecoveredStream.closeForCommit().commit())
+                .isInstanceOf(IOException.class);
     }
 }

@@ -21,12 +21,14 @@ package org.apache.flink.fs.s3hadoop;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.testutils.AllCallbackWrapper;
+import org.apache.flink.core.testutils.TestContainerExtension;
 import org.apache.flink.fs.s3.common.FlinkS3FileSystem;
 import org.apache.flink.fs.s3.common.MinioTestContainer;
 import org.apache.flink.runtime.fs.hdfs.AbstractHadoopRecoverableWriterExceptionITCase;
 
-import org.junit.BeforeClass;
-import org.testcontainers.junit.jupiter.Container;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -46,32 +48,24 @@ public class HadoopS3RecoverableWriterExceptionITCase
     private static final long PART_UPLOAD_MIN_SIZE_VALUE = 7L << 20;
     private static final int MAX_CONCURRENT_UPLOADS_VALUE = 2;
 
-    @Container
-    private static final MinioTestContainer MINIO = new MinioTestContainer().withReuse(true);
+    @RegisterExtension
+    private static final AllCallbackWrapper<TestContainerExtension<MinioTestContainer>>
+            MINIO_EXTENSION =
+                    new AllCallbackWrapper<>(new TestContainerExtension<>(MinioTestContainer::new));
 
-    @BeforeClass
+    @BeforeAll
     public static void checkCredentialsAndSetup() throws IOException {
-        // check whether credentials exist
-        //        S3TestCredentials.assumeCredentialsAvailable();
-
-        //        basePath = new Path(S3TestCredentials.getTestBucketUri() + "tests-" +
-        // UUID.randomUUID());
-        basePath = new Path(MINIO.getS3UriForDefaultBucket() + "tests-" + UUID.randomUUID());
-
         // initialize configuration with valid credentials
         final Configuration conf = new Configuration();
-        MINIO.setS3ConfigOptions(conf);
-        //        conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
-        //        conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
+        MINIO_EXTENSION.getCustomExtension().getTestContainer().setS3ConfigOptions(conf);
 
         conf.set(PART_UPLOAD_MIN_SIZE, PART_UPLOAD_MIN_SIZE_VALUE);
         conf.set(MAX_CONCURRENT_UPLOADS, MAX_CONCURRENT_UPLOADS_VALUE);
 
-        final String defaultTmpDir = TEMP_FOLDER.getRoot().getAbsolutePath() + "s3_tmp_dir";
+        final String defaultTmpDir = tempFolder.getAbsolutePath() + "s3_tmp_dir";
         conf.set(CoreOptions.TMP_DIRS, defaultTmpDir);
 
-        //        FileSystem.initialize(conf);
-        MINIO.initializeFileSystem(conf);
+        MINIO_EXTENSION.getCustomExtension().getTestContainer().initializeFileSystem(conf);
 
         skipped = false;
     }
@@ -79,5 +73,13 @@ public class HadoopS3RecoverableWriterExceptionITCase
     @Override
     protected String getLocalTmpDir() throws Exception {
         return ((FlinkS3FileSystem) getFileSystem()).getLocalTmpDir();
+    }
+
+    @Override
+    protected Path getBasePath() {
+        return new Path(
+                MINIO_EXTENSION.getCustomExtension().getTestContainer().getS3UriForDefaultBucket()
+                        + "/temp/tests-"
+                        + UUID.randomUUID());
     }
 }
