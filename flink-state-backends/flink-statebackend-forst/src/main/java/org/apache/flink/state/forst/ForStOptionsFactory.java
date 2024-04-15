@@ -66,7 +66,19 @@ public interface ForStOptionsFactory extends java.io.Serializable {
     ColumnFamilyOptions createColumnOptions(
             ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose);
 
-    // TODO: Support Metrics Options
+    /**
+     * This method should enable certain ForSt metrics to be forwarded to Flink's metrics reporter.
+     *
+     * <p>Enabling these monitoring options may degrade ForSt performance and should be set with
+     * care.
+     *
+     * @param nativeMetricOptions The options object with the pre-defined options.
+     * @return The options object on which the additional options are set.
+     */
+    default ForStNativeMetricOptions createNativeMetricsOptions(
+            ForStNativeMetricOptions nativeMetricOptions) {
+        return nativeMetricOptions;
+    }
 
     /**
      * This method should set the additional options on top of the current options object. The
