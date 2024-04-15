@@ -49,7 +49,7 @@ class MemorySizePrettyPrintingTest {
     @Parameter private MemorySize memorySize;
 
     @Parameter(value = 1)
-    public String expectedString;
+    private String expectedString;
 
     @TestTemplate
     void testFormatting() {

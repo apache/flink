@@ -180,7 +180,7 @@ class ReadableWritableConfigurationTest {
         configuration.setString(option.key(), testSpec.getStringValue(standardYaml));
 
         Optional<?> optional = configuration.getOptional(option);
-        assertThat(optional.get()).isEqualTo(testSpec.getValue());
+        assertThat(optional).isPresent().get().isEqualTo(testSpec.getValue());
     }
 
     @TestTemplate
