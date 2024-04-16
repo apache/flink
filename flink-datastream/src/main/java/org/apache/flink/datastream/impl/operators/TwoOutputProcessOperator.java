@@ -22,6 +22,7 @@ import org.apache.flink.datastream.api.context.TwoOutputNonPartitionedContext;
 import org.apache.flink.datastream.api.function.TwoOutputStreamProcessFunction;
 import org.apache.flink.datastream.impl.common.OutputCollector;
 import org.apache.flink.datastream.impl.common.TimestampCollector;
+import org.apache.flink.datastream.impl.context.DefaultPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultRuntimeContext;
 import org.apache.flink.datastream.impl.context.DefaultTwoOutputNonPartitionedContext;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
@@ -47,6 +48,8 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
 
     protected transient DefaultRuntimeContext context;
 
+    protected transient DefaultPartitionedContext partitionedContext;
+
     protected transient TwoOutputNonPartitionedContext<OUT_MAIN, OUT_SIDE> nonPartitionedContext;
 
     protected OutputTag<OUT_SIDE> outputTag;
@@ -65,6 +68,7 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
         this.mainCollector = getMainCollector();
         this.sideCollector = getSideCollector();
         this.context = new DefaultRuntimeContext();
+        this.partitionedContext = new DefaultPartitionedContext(context);
         this.nonPartitionedContext = new DefaultTwoOutputNonPartitionedContext<>();
     }
 
@@ -72,7 +76,8 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
     public void processElement(StreamRecord<IN> element) throws Exception {
         mainCollector.setTimestampFromStreamRecord(element);
         sideCollector.setTimestampFromStreamRecord(element);
-        userFunction.processRecord(element.getValue(), mainCollector, sideCollector, context);
+        userFunction.processRecord(
+                element.getValue(), mainCollector, sideCollector, partitionedContext);
     }
 
     @Override

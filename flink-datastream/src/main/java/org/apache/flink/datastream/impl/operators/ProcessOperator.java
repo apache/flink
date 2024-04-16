@@ -22,6 +22,7 @@ import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
 import org.apache.flink.datastream.impl.common.OutputCollector;
 import org.apache.flink.datastream.impl.common.TimestampCollector;
 import org.apache.flink.datastream.impl.context.DefaultNonPartitionedContext;
+import org.apache.flink.datastream.impl.context.DefaultPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultRuntimeContext;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
@@ -35,6 +36,8 @@ public class ProcessOperator<IN, OUT>
         implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
 
     protected transient DefaultRuntimeContext context;
+
+    protected transient DefaultPartitionedContext partitionedContext;
 
     protected transient DefaultNonPartitionedContext<OUT> nonPartitionedContext;
 
@@ -50,6 +53,7 @@ public class ProcessOperator<IN, OUT>
     public void open() throws Exception {
         super.open();
         context = new DefaultRuntimeContext();
+        partitionedContext = new DefaultPartitionedContext(context);
         nonPartitionedContext = new DefaultNonPartitionedContext<>();
         outputCollector = getOutputCollector();
     }
@@ -57,7 +61,7 @@ public class ProcessOperator<IN, OUT>
     @Override
     public void processElement(StreamRecord<IN> element) throws Exception {
         outputCollector.setTimestampFromStreamRecord(element);
-        userFunction.processRecord(element.getValue(), outputCollector, context);
+        userFunction.processRecord(element.getValue(), outputCollector, partitionedContext);
     }
 
     protected TimestampCollector<OUT> getOutputCollector() {

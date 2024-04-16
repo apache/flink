@@ -22,6 +22,7 @@ import org.apache.flink.datastream.api.function.TwoInputNonBroadcastStreamProces
 import org.apache.flink.datastream.impl.common.OutputCollector;
 import org.apache.flink.datastream.impl.common.TimestampCollector;
 import org.apache.flink.datastream.impl.context.DefaultNonPartitionedContext;
+import org.apache.flink.datastream.impl.context.DefaultPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultRuntimeContext;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
@@ -41,6 +42,8 @@ public class TwoInputNonBroadcastProcessOperator<IN1, IN2, OUT>
 
     protected transient DefaultRuntimeContext context;
 
+    protected transient DefaultPartitionedContext partitionedContext;
+
     protected transient DefaultNonPartitionedContext<OUT> nonPartitionedContext;
 
     public TwoInputNonBroadcastProcessOperator(
@@ -54,19 +57,21 @@ public class TwoInputNonBroadcastProcessOperator<IN1, IN2, OUT>
         super.open();
         this.collector = getOutputCollector();
         this.context = new DefaultRuntimeContext();
+        this.partitionedContext = new DefaultPartitionedContext(context);
         this.nonPartitionedContext = new DefaultNonPartitionedContext<>();
     }
 
     @Override
     public void processElement1(StreamRecord<IN1> element) throws Exception {
         collector.setTimestampFromStreamRecord(element);
-        userFunction.processRecordFromFirstInput(element.getValue(), collector, context);
+        userFunction.processRecordFromFirstInput(element.getValue(), collector, partitionedContext);
     }
 
     @Override
     public void processElement2(StreamRecord<IN2> element) throws Exception {
         collector.setTimestampFromStreamRecord(element);
-        userFunction.processRecordFromSecondInput(element.getValue(), collector, context);
+        userFunction.processRecordFromSecondInput(
+                element.getValue(), collector, partitionedContext);
     }
 
     protected TimestampCollector<OUT> getOutputCollector() {

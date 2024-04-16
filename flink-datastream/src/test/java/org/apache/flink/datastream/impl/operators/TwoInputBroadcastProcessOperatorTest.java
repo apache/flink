@@ -20,7 +20,7 @@ package org.apache.flink.datastream.impl.operators;
 
 import org.apache.flink.datastream.api.common.Collector;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
-import org.apache.flink.datastream.api.context.RuntimeContext;
+import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.function.TwoInputBroadcastStreamProcessFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
@@ -45,7 +45,9 @@ class TwoInputBroadcastProcessOperatorTest {
 
                             @Override
                             public void processRecordFromNonBroadcastInput(
-                                    Integer record, Collector<Long> output, RuntimeContext ctx) {
+                                    Integer record,
+                                    Collector<Long> output,
+                                    PartitionedContext ctx) {
                                 fromNonBroadcastInput.add(Long.valueOf(record));
                             }
 
@@ -79,7 +81,9 @@ class TwoInputBroadcastProcessOperatorTest {
 
                             @Override
                             public void processRecordFromNonBroadcastInput(
-                                    Integer record, Collector<Long> output, RuntimeContext ctx) {
+                                    Integer record,
+                                    Collector<Long> output,
+                                    PartitionedContext ctx) {
                                 // do nothing.
                             }
 
