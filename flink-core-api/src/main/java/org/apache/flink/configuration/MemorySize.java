@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
@@ -34,8 +35,6 @@ import static org.apache.flink.configuration.MemorySize.MemoryUnit.KILO_BYTES;
 import static org.apache.flink.configuration.MemorySize.MemoryUnit.MEGA_BYTES;
 import static org.apache.flink.configuration.MemorySize.MemoryUnit.TERA_BYTES;
 import static org.apache.flink.configuration.MemorySize.MemoryUnit.hasUnit;
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * MemorySize is a representation of a number of bytes, viewable in different units.
@@ -74,7 +73,9 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
      * @param bytes The size, in bytes. Must be zero or larger.
      */
     public MemorySize(long bytes) {
-        checkArgument(bytes >= 0, "bytes must be >= 0");
+        if (bytes < 0) {
+            throw new IllegalArgumentException("bytes must be >= 0");
+        }
         this.bytes = bytes;
     }
 
@@ -204,7 +205,9 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
     }
 
     public MemorySize multiply(double multiplier) {
-        checkArgument(multiplier >= 0, "multiplier must be >= 0");
+        if (multiplier < 0) {
+            throw new IllegalArgumentException("multiplier must be >= 0");
+        }
 
         BigDecimal product =
                 BigDecimal.valueOf(this.bytes).multiply(BigDecimal.valueOf(multiplier));
@@ -215,7 +218,9 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
     }
 
     public MemorySize divide(long by) {
-        checkArgument(by >= 0, "divisor must be >= 0");
+        if (by < 0) {
+            throw new IllegalArgumentException("divisor must be != 0");
+        }
         return new MemorySize(bytes / by);
     }
 
@@ -260,10 +265,12 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
      * @throws IllegalArgumentException Thrown, if the expression cannot be parsed.
      */
     public static long parseBytes(String text) throws IllegalArgumentException {
-        checkNotNull(text, "text");
+        Objects.requireNonNull(text, "text cannot be null");
 
         final String trimmed = text.trim();
-        checkArgument(!trimmed.isEmpty(), "argument is an empty- or whitespace-only string");
+        if (trimmed.isEmpty()) {
+            throw new IllegalArgumentException("argument is an empty- or whitespace-only string");
+        }
 
         final int len = trimmed.length();
         int pos = 0;
@@ -382,10 +389,13 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
         }
 
         public static boolean hasUnit(String text) {
-            checkNotNull(text, "text");
+            Objects.requireNonNull(text, "text cannot be null");
 
             final String trimmed = text.trim();
-            checkArgument(!trimmed.isEmpty(), "argument is an empty- or whitespace-only string");
+            if (trimmed.isEmpty()) {
+                throw new IllegalArgumentException(
+                        "argument is an empty- or whitespace-only string");
+            }
 
             final int len = trimmed.length();
             int pos = 0;
