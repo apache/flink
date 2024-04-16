@@ -18,11 +18,12 @@
 
 package org.apache.flink.configuration;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.annotation.Nullable;
 
@@ -32,17 +33,15 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link StructuredOptionsSplitter}. */
-@RunWith(Parameterized.class)
-public class StructuredOptionsSplitterTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class StructuredOptionsSplitterTest {
 
-    @Rule public ExpectedException thrown = ExpectedException.none();
-
-    @Parameterized.Parameters(name = "{0}")
-    public static Collection<TestSpec> getSpecs() {
+    @Parameters(name = "testSpec = {0}")
+    private static Collection<TestSpec> getSpecs() {
         return Arrays.asList(
 
                 // Use single quotes for quoting
@@ -94,21 +93,26 @@ public class StructuredOptionsSplitterTest {
                 TestSpec.split("' A    ;B'    ;'   C'", ';').expect(" A    ;B", "   C"));
     }
 
-    @Parameterized.Parameter public TestSpec testSpec;
+    @Parameter private TestSpec testSpec;
 
-    @Test
-    public void testParse() {
-        testSpec.getExpectedException()
-                .ifPresent(
-                        exception -> {
-                            thrown.expect(IllegalArgumentException.class);
-                            thrown.expectMessage(exception);
-                        });
+    @TestTemplate
+    void testParse() {
+
+        Optional<String> expectedException = testSpec.getExpectedException();
+        if (expectedException.isPresent()) {
+            assertThatThrownBy(
+                            () ->
+                                    StructuredOptionsSplitter.splitEscaped(
+                                            testSpec.getString(), testSpec.getDelimiter()))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining(expectedException.get());
+            return;
+        }
         List<String> splits =
                 StructuredOptionsSplitter.splitEscaped(
                         testSpec.getString(), testSpec.getDelimiter());
 
-        assertThat(splits, equalTo(testSpec.getExpectedSplits()));
+        assertThat(splits).isEqualTo(testSpec.getExpectedSplits());
     }
 
     private static class TestSpec {

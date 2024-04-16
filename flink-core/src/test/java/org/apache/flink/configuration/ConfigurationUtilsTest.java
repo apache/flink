@@ -45,12 +45,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link ConfigurationUtils}. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class ConfigurationUtilsTest {
+class ConfigurationUtilsTest {
 
-    @Parameter public boolean standardYaml;
+    @Parameter private boolean standardYaml;
 
     @Parameters(name = "standardYaml: {0}")
-    public static Collection<Boolean> parameters() {
+    private static Collection<Boolean> parameters() {
         return Arrays.asList(true, false);
     }
 

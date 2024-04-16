@@ -24,11 +24,11 @@ import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.assertj.core.api.Assertions;
 import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
@@ -39,19 +39,19 @@ import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * This class contains test for the configuration package. In particular, the serialization of
  * {@link Configuration} objects is tested.
  */
 @ExtendWith(ParameterizedTestExtension.class)
-public class ConfigurationTest {
+@SuppressWarnings("deprecation")
+class ConfigurationTest {
 
-    @Parameter public boolean standardYaml;
+    @Parameter private boolean standardYaml;
 
     @Parameters(name = "standardYaml: {0}")
-    public static Collection<Boolean> parameters() {
+    private static Collection<Boolean> parameters() {
         return Arrays.asList(true, false);
     }
 
@@ -80,55 +80,44 @@ public class ConfigurationTest {
 
     /** This test checks the serialization/deserialization of configuration objects. */
     @TestTemplate
-    void testConfigurationSerializationAndGetters() {
-        try {
-            final Configuration orig = new Configuration(standardYaml);
-            orig.setString("mykey", "myvalue");
-            orig.setInteger("mynumber", 100);
-            orig.setLong("longvalue", 478236947162389746L);
-            orig.setFloat("PI", 3.1415926f);
-            orig.setDouble("E", Math.E);
-            orig.setBoolean("shouldbetrue", true);
-            orig.setBytes("bytes sequence", new byte[] {1, 2, 3, 4, 5});
-            orig.setClass("myclass", this.getClass());
+    void testConfigurationSerializationAndGetters() throws ClassNotFoundException, IOException {
+        final Configuration orig = new Configuration(standardYaml);
+        orig.setString("mykey", "myvalue");
+        orig.setInteger("mynumber", 100);
+        orig.setLong("longvalue", 478236947162389746L);
+        orig.setFloat("PI", 3.1415926f);
+        orig.setDouble("E", Math.E);
+        orig.setBoolean("shouldbetrue", true);
+        orig.setBytes("bytes sequence", new byte[] {1, 2, 3, 4, 5});
+        orig.setClass("myclass", this.getClass());
 
-            final Configuration copy = InstantiationUtil.createCopyWritable(orig);
-            assertThat("myvalue").isEqualTo(copy.getString("mykey", "null"));
-            assertThat(copy.getInteger("mynumber", 0)).isEqualTo(100);
-            assertThat(478236947162389746L).isEqualTo(copy.getLong("longvalue", 0L));
-            assertThat(3.1415926f).isCloseTo(copy.getFloat("PI", 3.1415926f), Offset.offset(0.0f));
-            assertThat(Math.E).isCloseTo(copy.getDouble("E", 0.0), Offset.offset(0.0));
-            assertThat(copy.getBoolean("shouldbetrue", false)).isTrue();
-            assertThat(new byte[] {1, 2, 3, 4, 5}).isEqualTo(copy.getBytes("bytes sequence", null));
-            assertThat(getClass())
-                    .isEqualTo(copy.getClass("myclass", null, getClass().getClassLoader()));
+        final Configuration copy = InstantiationUtil.createCopyWritable(orig);
+        assertThat("myvalue").isEqualTo(copy.getString("mykey", "null"));
+        assertThat(copy.getInteger("mynumber", 0)).isEqualTo(100);
+        assertThat(copy.getLong("longvalue", 0L)).isEqualTo(478236947162389746L);
+        assertThat(copy.getFloat("PI", 3.1415926f)).isCloseTo(3.1415926f, Offset.offset(0.0f));
+        assertThat(copy.getDouble("E", 0.0)).isCloseTo(Math.E, Offset.offset(0.0));
+        assertThat(copy.getBoolean("shouldbetrue", false)).isTrue();
+        assertThat(copy.getBytes("bytes sequence", null)).containsExactly(1, 2, 3, 4, 5);
+        assertThat(getClass())
+                .isEqualTo(copy.getClass("myclass", null, getClass().getClassLoader()));
 
-            assertThat(orig).isEqualTo(copy);
-            assertThat(orig.keySet()).isEqualTo(copy.keySet());
-            assertThat(orig).hasSameHashCodeAs(copy);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        assertThat(copy).isEqualTo(orig);
+        assertThat(copy.keySet()).isEqualTo(orig.keySet());
+        assertThat(copy).hasSameHashCodeAs(orig);
     }
 
     @TestTemplate
     void testCopyConstructor() {
-        try {
-            final String key = "theKey";
+        final String key = "theKey";
 
-            Configuration cfg1 = new Configuration(standardYaml);
-            cfg1.setString(key, "value");
+        Configuration cfg1 = new Configuration(standardYaml);
+        cfg1.setString(key, "value");
 
-            Configuration cfg2 = new Configuration(cfg1);
-            cfg2.setString(key, "another value");
+        Configuration cfg2 = new Configuration(cfg1);
+        cfg2.setString(key, "another value");
 
-            assertThat("value").isEqualTo(cfg1.getString(key, ""));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        assertThat(cfg1.getString(key, "")).isEqualTo("value");
     }
 
     @TestTemplate
@@ -142,11 +131,11 @@ public class ConfigurationTest {
         ConfigOption<Integer> presentIntOption =
                 ConfigOptions.key("int-key").intType().defaultValue(87);
 
-        assertThat("abc").isEqualTo(cfg.getString(presentStringOption));
-        assertThat("abc").isEqualTo(cfg.getValue(presentStringOption));
+        assertThat(cfg.getString(presentStringOption)).isEqualTo("abc");
+        assertThat(cfg.getValue(presentStringOption)).isEqualTo("abc");
 
         assertThat(cfg.getInteger(presentIntOption)).isEqualTo(11);
-        assertThat("11").isEqualTo(cfg.getValue(presentIntOption));
+        assertThat(cfg.getValue(presentIntOption)).isEqualTo("11");
 
         // test getting default when no value is present
 
@@ -155,15 +144,15 @@ public class ConfigurationTest {
         ConfigOption<Integer> intOption = ConfigOptions.key("test2").intType().defaultValue(87);
 
         // getting strings with default value should work
-        assertThat("my-beautiful-default").isEqualTo(cfg.getValue(stringOption));
-        assertThat("my-beautiful-default").isEqualTo(cfg.getString(stringOption));
+        assertThat(cfg.getValue(stringOption)).isEqualTo("my-beautiful-default");
+        assertThat(cfg.getString(stringOption)).isEqualTo("my-beautiful-default");
 
         // overriding the default should work
-        assertThat("override").isEqualTo(cfg.getString(stringOption, "override"));
+        assertThat(cfg.getString(stringOption, "override")).isEqualTo("override");
 
         // getting a primitive with a default value should work
         assertThat(cfg.getInteger(intOption)).isEqualTo(87);
-        assertThat("87").isEqualTo(cfg.getValue(intOption));
+        assertThat(cfg.getValue(intOption)).isEqualTo("87");
     }
 
     @TestTemplate
@@ -175,8 +164,8 @@ public class ConfigurationTest {
         ConfigOption<String> presentStringOption =
                 ConfigOptions.key("string-key").stringType().noDefaultValue();
 
-        assertThat("abc").isEqualTo(cfg.getString(presentStringOption));
-        assertThat("abc").isEqualTo(cfg.getValue(presentStringOption));
+        assertThat(cfg.getString(presentStringOption)).isEqualTo("abc");
+        assertThat(cfg.getValue(presentStringOption)).isEqualTo("abc");
 
         // test getting default when no value is present
 
@@ -187,7 +176,7 @@ public class ConfigurationTest {
         assertThat(cfg.getString(stringOption)).isNull();
 
         // overriding the null default should work
-        assertThat("override").isEqualTo(cfg.getString(stringOption, "override"));
+        assertThat(cfg.getString(stringOption, "override")).isEqualTo("override");
     }
 
     @TestTemplate
@@ -372,18 +361,14 @@ public class ConfigurationTest {
         final String invalidValueForTestEnum = "InvalidValueForTestEnum";
         configuration.setString(STRING_OPTION.key(), invalidValueForTestEnum);
 
-        try {
-            configuration.getEnum(TestEnum.class, STRING_OPTION);
-            fail("Expected exception not thrown");
-        } catch (IllegalArgumentException e) {
-            final String expectedMessage =
-                    "Value for config option "
-                            + STRING_OPTION.key()
-                            + " must be one of [VALUE1, VALUE2] (was "
-                            + invalidValueForTestEnum
-                            + ")";
-            assertThat(e.getMessage()).contains(expectedMessage);
-        }
+        assertThatThrownBy(() -> configuration.getEnum(TestEnum.class, STRING_OPTION))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(
+                        "Value for config option "
+                                + STRING_OPTION.key()
+                                + " must be one of [VALUE1, VALUE2] (was "
+                                + invalidValueForTestEnum
+                                + ")");
     }
 
     @TestTemplate
@@ -436,28 +421,28 @@ public class ConfigurationTest {
         configuration.set(STRING_OPTION, strValues);
 
         if (standardYaml) {
-            assertThat(yamlListValues)
-                    .isEqualTo(configuration.toFileWritableMap().get(LIST_STRING_OPTION.key()));
-            assertThat(yamlMapValues)
-                    .isEqualTo(configuration.toFileWritableMap().get(MAP_OPTION.key()));
-            assertThat(yamlStrValues)
-                    .isEqualTo(configuration.toFileWritableMap().get(STRING_OPTION.key()));
+            assertThat(configuration.toFileWritableMap().get(LIST_STRING_OPTION.key()))
+                    .isEqualTo(yamlListValues);
+            assertThat(configuration.toFileWritableMap().get(MAP_OPTION.key()))
+                    .isEqualTo(yamlMapValues);
+            assertThat(configuration.toFileWritableMap().get(STRING_OPTION.key()))
+                    .isEqualTo(yamlStrValues);
         } else {
-            assertThat(listValues)
-                    .isEqualTo(configuration.toFileWritableMap().get(LIST_STRING_OPTION.key()));
-            assertThat(mapValues)
-                    .isEqualTo(configuration.toFileWritableMap().get(MAP_OPTION.key()));
-            assertThat(strValues)
-                    .isEqualTo(configuration.toFileWritableMap().get(STRING_OPTION.key()));
+            assertThat(configuration.toFileWritableMap().get(LIST_STRING_OPTION.key()))
+                    .isEqualTo(listValues);
+            assertThat(configuration.toFileWritableMap().get(MAP_OPTION.key()))
+                    .isEqualTo(mapValues);
+            assertThat(configuration.toFileWritableMap().get(STRING_OPTION.key()))
+                    .isEqualTo(strValues);
         }
-        assertThat("3 s").isEqualTo(configuration.toMap().get(DURATION_OPTION.key()));
+        assertThat(configuration.toMap().get(DURATION_OPTION.key())).isEqualTo("3 s");
     }
 
     @TestTemplate
     void testMapNotContained() {
         final Configuration cfg = new Configuration(standardYaml);
 
-        assertThat(cfg.getOptional(MAP_OPTION).isPresent()).isFalse();
+        assertThat(cfg.getOptional(MAP_OPTION)).isNotPresent();
         assertThat(cfg.contains(MAP_OPTION)).isFalse();
     }
 
@@ -521,7 +506,7 @@ public class ConfigurationTest {
         ConfigOption<List<String>> secret =
                 ConfigOptions.key("secret").stringType().asList().noDefaultValue();
 
-        Assertions.assertThat(GlobalConfiguration.isSensitive(secret.key())).isTrue();
+        assertThat(GlobalConfiguration.isSensitive(secret.key())).isTrue();
 
         final Configuration cfg = new Configuration(standardYaml);
         // missing closing quote
@@ -531,7 +516,7 @@ public class ConfigurationTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .satisfies(
                         e ->
-                                Assertions.assertThat(ExceptionUtils.stringifyException(e))
+                                assertThat(ExceptionUtils.stringifyException(e))
                                         .doesNotContain("secret_value"));
     }
 
@@ -540,7 +525,7 @@ public class ConfigurationTest {
         ConfigOption<Map<String, String>> secret =
                 ConfigOptions.key("secret").mapType().noDefaultValue();
 
-        Assertions.assertThat(GlobalConfiguration.isSensitive(secret.key())).isTrue();
+        assertThat(GlobalConfiguration.isSensitive(secret.key())).isTrue();
 
         final Configuration cfg = new Configuration(standardYaml);
         // malformed map representation
@@ -550,7 +535,7 @@ public class ConfigurationTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .satisfies(
                         e ->
-                                Assertions.assertThat(ExceptionUtils.stringifyException(e))
+                                assertThat(ExceptionUtils.stringifyException(e))
                                         .doesNotContain("secret_value"));
     }
 
@@ -559,7 +544,7 @@ public class ConfigurationTest {
         ConfigOption<Map<String, String>> secret =
                 ConfigOptions.key("secret").mapType().noDefaultValue();
 
-        Assertions.assertThat(GlobalConfiguration.isSensitive(secret.key())).isTrue();
+        assertThat(GlobalConfiguration.isSensitive(secret.key())).isTrue();
 
         final Configuration cfg = new Configuration(standardYaml);
         cfg.setString(secret.key(), "secret_value");
