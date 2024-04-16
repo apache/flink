@@ -21,12 +21,8 @@ package org.apache.flink.datastream.api.context;
 import org.apache.flink.annotation.Experimental;
 
 /**
- * A RuntimeContext contains information about the context in which process functions are executed.
- *
- * <p>Each parallel instance of the function will have a context through which it can access
- * contextual information.
+ * On the base of {@link RuntimeContext}, {@link PartitionedContext} also contains all
+ * partition-wise execution information, such as getting state, registering timer, etc.
  */
 @Experimental
-public interface RuntimeContext {
-    // TODO Introduce related methods in the subsequent RP.
-}
+public interface PartitionedContext extends RuntimeContext {}

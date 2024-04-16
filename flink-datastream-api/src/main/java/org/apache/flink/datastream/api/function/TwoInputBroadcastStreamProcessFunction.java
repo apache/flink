@@ -21,7 +21,7 @@ package org.apache.flink.datastream.api.function;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.datastream.api.common.Collector;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
-import org.apache.flink.datastream.api.context.RuntimeContext;
+import org.apache.flink.datastream.api.context.PartitionedContext;
 
 /**
  * This contains all logical related to process records from a broadcast stream and a non-broadcast
@@ -36,8 +36,8 @@ public interface TwoInputBroadcastStreamProcessFunction<IN1, IN2, OUT> extends P
      * @param output to emit processed records.
      * @param ctx runtime context in which this function is executed.
      */
-    void processRecordFromNonBroadcastInput(IN1 record, Collector<OUT> output, RuntimeContext ctx)
-            throws Exception;
+    void processRecordFromNonBroadcastInput(
+            IN1 record, Collector<OUT> output, PartitionedContext ctx) throws Exception;
 
     /**
      * Process record from broadcast input. In general, the broadcast side is not allowed to

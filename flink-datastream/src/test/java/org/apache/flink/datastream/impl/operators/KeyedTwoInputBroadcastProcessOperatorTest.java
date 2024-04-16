@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.datastream.api.common.Collector;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
-import org.apache.flink.datastream.api.context.RuntimeContext;
+import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.function.TwoInputBroadcastStreamProcessFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
@@ -47,7 +47,9 @@ class KeyedTwoInputBroadcastProcessOperatorTest {
                         new TwoInputBroadcastStreamProcessFunction<Integer, Long, Long>() {
                             @Override
                             public void processRecordFromNonBroadcastInput(
-                                    Integer record, Collector<Long> output, RuntimeContext ctx) {
+                                    Integer record,
+                                    Collector<Long> output,
+                                    PartitionedContext ctx) {
                                 fromNonBroadcastInput.add(record);
                             }
 
@@ -84,7 +86,9 @@ class KeyedTwoInputBroadcastProcessOperatorTest {
                         new TwoInputBroadcastStreamProcessFunction<Integer, Long, Long>() {
                             @Override
                             public void processRecordFromNonBroadcastInput(
-                                    Integer record, Collector<Long> output, RuntimeContext ctx) {
+                                    Integer record,
+                                    Collector<Long> output,
+                                    PartitionedContext ctx) {
                                 //  do nothing.
                             }
 
@@ -126,7 +130,9 @@ class KeyedTwoInputBroadcastProcessOperatorTest {
                         new TwoInputBroadcastStreamProcessFunction<Integer, Long, Long>() {
                             @Override
                             public void processRecordFromNonBroadcastInput(
-                                    Integer record, Collector<Long> output, RuntimeContext ctx) {
+                                    Integer record,
+                                    Collector<Long> output,
+                                    PartitionedContext ctx) {
                                 output.collect(Long.valueOf(record));
                             }
 

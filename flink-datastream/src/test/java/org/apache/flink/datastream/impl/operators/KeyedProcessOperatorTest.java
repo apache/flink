@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.datastream.api.common.Collector;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
-import org.apache.flink.datastream.api.context.RuntimeContext;
+import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
@@ -44,7 +44,9 @@ class KeyedProcessOperatorTest {
                         new OneInputStreamProcessFunction<Integer, Integer>() {
                             @Override
                             public void processRecord(
-                                    Integer record, Collector<Integer> output, RuntimeContext ctx) {
+                                    Integer record,
+                                    Collector<Integer> output,
+                                    PartitionedContext ctx) {
                                 output.collect(record + 1);
                             }
                         });
@@ -74,7 +76,9 @@ class KeyedProcessOperatorTest {
                         new OneInputStreamProcessFunction<Integer, Integer>() {
                             @Override
                             public void processRecord(
-                                    Integer record, Collector<Integer> output, RuntimeContext ctx) {
+                                    Integer record,
+                                    Collector<Integer> output,
+                                    PartitionedContext ctx) {
                                 // do nothing.
                             }
 
@@ -102,7 +106,9 @@ class KeyedProcessOperatorTest {
                         new OneInputStreamProcessFunction<Integer, Integer>() {
                             @Override
                             public void processRecord(
-                                    Integer record, Collector<Integer> output, RuntimeContext ctx) {
+                                    Integer record,
+                                    Collector<Integer> output,
+                                    PartitionedContext ctx) {
                                 // forward the record to check input key.
                                 output.collect(record);
                             }

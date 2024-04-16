@@ -21,7 +21,7 @@ package org.apache.flink.datastream.impl.operators;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.datastream.api.common.Collector;
-import org.apache.flink.datastream.api.context.RuntimeContext;
+import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.context.TwoOutputNonPartitionedContext;
 import org.apache.flink.datastream.api.function.TwoOutputStreamProcessFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -52,7 +52,7 @@ class KeyedTwoOutputProcessOperatorTest {
                                     Integer record,
                                     Collector<Integer> output1,
                                     Collector<Long> output2,
-                                    RuntimeContext ctx) {
+                                    PartitionedContext ctx) {
                                 output1.collect(record);
                                 output2.collect((long) (record * 2));
                             }
@@ -93,7 +93,7 @@ class KeyedTwoOutputProcessOperatorTest {
                                     Integer record,
                                     Collector<Integer> output1,
                                     Collector<Long> output2,
-                                    RuntimeContext ctx) {
+                                    PartitionedContext ctx) {
                                 // do nothing.
                             }
 
@@ -128,7 +128,7 @@ class KeyedTwoOutputProcessOperatorTest {
                                     Integer record,
                                     Collector<Integer> output1,
                                     Collector<Long> output2,
-                                    RuntimeContext ctx) {
+                                    PartitionedContext ctx) {
                                 if (emitToFirstOutput.get()) {
                                     output1.collect(record);
                                 } else {

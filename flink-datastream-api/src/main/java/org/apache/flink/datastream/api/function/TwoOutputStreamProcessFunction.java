@@ -20,7 +20,7 @@ package org.apache.flink.datastream.api.function;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.datastream.api.common.Collector;
-import org.apache.flink.datastream.api.context.RuntimeContext;
+import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.context.TwoOutputNonPartitionedContext;
 
 /** This contains all logical related to process and emit records to two output streams. */
@@ -35,7 +35,7 @@ public interface TwoOutputStreamProcessFunction<IN, OUT1, OUT2> extends ProcessF
      * @param ctx runtime context in which this function is executed.
      */
     void processRecord(
-            IN record, Collector<OUT1> output1, Collector<OUT2> output2, RuntimeContext ctx)
+            IN record, Collector<OUT1> output1, Collector<OUT2> output2, PartitionedContext ctx)
             throws Exception;
 
     /**

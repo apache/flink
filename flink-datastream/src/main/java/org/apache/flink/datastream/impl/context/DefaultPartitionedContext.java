@@ -16,17 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.datastream.api.context;
+package org.apache.flink.datastream.impl.context;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.datastream.api.context.PartitionedContext;
+import org.apache.flink.datastream.api.context.RuntimeContext;
 
-/**
- * A RuntimeContext contains information about the context in which process functions are executed.
- *
- * <p>Each parallel instance of the function will have a context through which it can access
- * contextual information.
- */
-@Experimental
-public interface RuntimeContext {
-    // TODO Introduce related methods in the subsequent RP.
+/** The default implementation of {@link PartitionedContext}. */
+public class DefaultPartitionedContext implements PartitionedContext {
+    private final RuntimeContext context;
+
+    public DefaultPartitionedContext(RuntimeContext context) {
+        this.context = context;
+    }
 }

@@ -21,7 +21,7 @@ package org.apache.flink.datastream.api.function;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.datastream.api.common.Collector;
-import org.apache.flink.datastream.api.context.RuntimeContext;
+import org.apache.flink.datastream.api.context.PartitionedContext;
 
 /** A function to be applied to all partitions . */
 @FunctionalInterface
@@ -33,5 +33,5 @@ public interface ApplyPartitionFunction<OUT> extends Function {
      * @param collector to output data.
      * @param ctx runtime context in which this function is executed.
      */
-    void apply(Collector<OUT> collector, RuntimeContext ctx) throws Exception;
+    void apply(Collector<OUT> collector, PartitionedContext ctx) throws Exception;
 }
