@@ -126,6 +126,9 @@ public class AsyncExecutionController<K> {
      * @return the built record context.
      */
     public RecordContext<K> buildContext(Object record, K key) {
+        if (record == null) {
+            return new RecordContext<>(RecordContext.EMPTY_RECORD, key, this::disposeContext);
+        }
         return new RecordContext<>(record, key, this::disposeContext);
     }
 
@@ -144,7 +147,7 @@ public class AsyncExecutionController<K> {
      *
      * @param toDispose the context to dispose.
      */
-    public void disposeContext(RecordContext<K> toDispose) {
+    void disposeContext(RecordContext<K> toDispose) {
         keyAccountingUnit.release(toDispose.getRecord(), toDispose.getKey());
         inFlightRecordNum.decrementAndGet();
         RecordContext<K> nextRecordCtx =

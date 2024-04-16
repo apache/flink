@@ -30,7 +30,8 @@ import java.util.function.Consumer;
  * @param <K> The type of the key inside the record.
  */
 public class RecordContext<K> extends ReferenceCounted {
-
+    /** The empty record for timer and non-record input usage. */
+    static final Object EMPTY_RECORD = new Object();
     /** The record to be processed. */
     private final Object record;
 

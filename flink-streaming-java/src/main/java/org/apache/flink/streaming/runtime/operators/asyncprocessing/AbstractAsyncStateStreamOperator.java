@@ -21,21 +21,28 @@ package org.apache.flink.streaming.runtime.operators.asyncprocessing;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.Input;
+import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
+import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.util.function.ThrowingRunnable;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * This operator is an abstract class that give the {@link AbstractStreamOperator} the ability to
@@ -150,6 +157,53 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
         // stateHandler#snapshotState, so the {@link #snapshotState(StateSnapshotContext)} is not
         // needed to override.
         return super.snapshotState(checkpointId, timestamp, checkpointOptions, factory);
+    }
+
+    /**
+     * Returns a {@link InternalTimerService} that can be used to query current processing time and
+     * event time and to set timers. An operator can have several timer services, where each has its
+     * own namespace serializer. Timer services are differentiated by the string key that is given
+     * when requesting them, if you call this method with the same key multiple times you will get
+     * the same timer service instance in subsequent requests.
+     *
+     * <p>Timers are always scoped to a key, the currently active key of a keyed stream operation.
+     * When a timer fires, this key will also be set as the currently active key.
+     *
+     * <p>Each timer has attached metadata, the namespace. Different timer services can have a
+     * different namespace type. If you don't need namespace differentiation you can use {@link
+     * org.apache.flink.runtime.state.VoidNamespaceSerializer} as the namespace serializer.
+     *
+     * @param name The name of the requested timer service. If no service exists under the given
+     *     name a new one will be created and returned.
+     * @param namespaceSerializer {@code TypeSerializer} for the timer namespace.
+     * @param triggerable The {@link Triggerable} that should be invoked when timers fire
+     * @param <N> The type of the timer namespace.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public <K, N> InternalTimerService<N> getInternalTimerService(
+            String name, TypeSerializer<N> namespaceSerializer, Triggerable<K, N> triggerable) {
+        if (timeServiceManager == null) {
+            throw new RuntimeException("The timer service has not been initialized.");
+        }
+
+        if (!isAsyncStateProcessingEnabled()) {
+            // If async state processing is disabled, fallback to the super class.
+            return super.getInternalTimerService(name, namespaceSerializer, triggerable);
+        }
+
+        InternalTimeServiceManager<K> keyedTimeServiceHandler =
+                (InternalTimeServiceManager<K>) timeServiceManager;
+        KeyedStateBackend<K> keyedStateBackend = getKeyedStateBackend();
+        checkState(keyedStateBackend != null, "Timers can only be used on keyed operators.");
+        // A {@link RecordContext} will be set as the current processing context to preserve record
+        // order when the given {@link Triggerable} is invoked.
+        return keyedTimeServiceHandler.getAsyncInternalTimerService(
+                name,
+                keyedStateBackend.getKeySerializer(),
+                namespaceSerializer,
+                triggerable,
+                (AsyncExecutionController<K>) asyncExecutionController);
     }
 
     @VisibleForTesting

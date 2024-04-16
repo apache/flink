@@ -31,7 +31,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * @param <K> the type of key
  */
 public class KeyAccountingUnit<K> {
-
     /** The in-flight records that are being processed, their keys are different from each other. */
     private final Map<K, Object> noConflictInFlightRecords;
 
