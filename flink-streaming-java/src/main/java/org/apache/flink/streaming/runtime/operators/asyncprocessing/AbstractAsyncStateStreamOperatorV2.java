@@ -21,18 +21,25 @@ package org.apache.flink.streaming.runtime.operators.asyncprocessing;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
+import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
+import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
+import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.util.function.ThrowingRunnable;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * This operator is an abstract class that give the {@link AbstractStreamOperatorV2} the ability to
@@ -130,6 +137,30 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
         // stateHandler#snapshotState, so the {@link #snapshotState(StateSnapshotContext)} is not
         // needed to override.
         return super.snapshotState(checkpointId, timestamp, checkpointOptions, factory);
+    }
+
+    @SuppressWarnings("unchecked")
+    public <K, N> InternalTimerService<N> getInternalTimerService(
+            String name, TypeSerializer<N> namespaceSerializer, Triggerable<K, N> triggerable) {
+        if (timeServiceManager == null) {
+            throw new RuntimeException("The timer service has not been initialized.");
+        }
+
+        if (!isAsyncStateProcessingEnabled()) {
+            // If async state processing is disabled, fallback to the super class.
+            return super.getInternalTimerService(name, namespaceSerializer, triggerable);
+        }
+
+        InternalTimeServiceManager<K> keyedTimeServiceHandler =
+                (InternalTimeServiceManager<K>) timeServiceManager;
+        KeyedStateBackend<K> keyedStateBackend = getKeyedStateBackend();
+        checkState(keyedStateBackend != null, "Timers can only be used on keyed operators.");
+        return keyedTimeServiceHandler.getAsyncInternalTimerService(
+                name,
+                keyedStateBackend.getKeySerializer(),
+                namespaceSerializer,
+                triggerable,
+                (AsyncExecutionController<K>) asyncExecutionController);
     }
 
     @VisibleForTesting

@@ -103,7 +103,7 @@ public abstract class AbstractStreamOperatorV2<OUT>
     protected final RecordAttributes[] lastRecordAttributes;
 
     private StreamOperatorStateHandler stateHandler;
-    private InternalTimeServiceManager<?> timeServiceManager;
+    protected InternalTimeServiceManager<?> timeServiceManager;
 
     public AbstractStreamOperatorV2(StreamOperatorParameters<OUT> parameters, int numberOfInputs) {
         final Environment environment = parameters.getContainingTask().getEnvironment();
@@ -465,7 +465,6 @@ public abstract class AbstractStreamOperatorV2<OUT>
      * @param triggerable The {@link Triggerable} that should be invoked when timers fire
      * @param <N> The type of the timer namespace.
      */
-    @VisibleForTesting
     public <K, N> InternalTimerService<N> getInternalTimerService(
             String name, TypeSerializer<N> namespaceSerializer, Triggerable<K, N> triggerable) {
         if (timeServiceManager == null) {

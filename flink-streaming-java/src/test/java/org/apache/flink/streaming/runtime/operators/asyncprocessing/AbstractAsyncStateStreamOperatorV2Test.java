@@ -31,11 +31,13 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.streaming.api.operators.AbstractInput;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.InternalTimer;
+import org.apache.flink.streaming.api.operators.InternalTimerServiceAsyncImpl;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
@@ -187,6 +189,28 @@ public class AbstractAsyncStateStreamOperatorV2Test {
                             .createCheckpointStorage(new JobID())
                             .resolveCheckpointStorageLocation(1, locationReference));
             assertThat(asyncExecutionController.getInFlightRecordNum()).isEqualTo(0);
+        }
+    }
+
+    void testTimerServiceIsAsync() throws Exception {
+        try (KeyedOneInputStreamOperatorV2TestHarness<Integer, Tuple2<Integer, String>, String>
+                testHarness = createTestHarness(128, 1, 0, ElementOrder.RECORD_ORDER)) {
+            testHarness.open();
+            assertThat(testHarness.getBaseOperator())
+                    .isInstanceOf(AbstractAsyncStateStreamOperatorV2.class);
+            Triggerable triggerable =
+                    new Triggerable() {
+                        @Override
+                        public void onEventTime(InternalTimer timer) throws Exception {}
+
+                        @Override
+                        public void onProcessingTime(InternalTimer timer) throws Exception {}
+                    };
+            assertThat(
+                            ((AbstractAsyncStateStreamOperatorV2) testHarness.getBaseOperator())
+                                    .getInternalTimerService(
+                                            "test", VoidNamespaceSerializer.INSTANCE, triggerable))
+                    .isInstanceOf(InternalTimerServiceAsyncImpl.class);
         }
     }
 

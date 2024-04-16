@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators.sorted.state;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
@@ -70,6 +71,17 @@ public class BatchExecutionInternalTimeServiceManager<K>
         }
 
         return timerService;
+    }
+
+    @Override
+    public <N> InternalTimerService<N> getAsyncInternalTimerService(
+            String name,
+            TypeSerializer<K> keySerializer,
+            TypeSerializer<N> namespaceSerializer,
+            Triggerable<K, N> triggerable,
+            AsyncExecutionController<K> asyncExecutionController) {
+        throw new UnsupportedOperationException(
+                "Async timer service is not supported in BATCH execution mode.");
     }
 
     @Override
