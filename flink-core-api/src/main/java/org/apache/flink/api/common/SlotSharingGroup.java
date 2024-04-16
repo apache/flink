@@ -16,34 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common.operators;
+package org.apache.flink.api.common;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.resources.CPUResource;
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.configuration.MemorySize;
 
 import javax.annotation.Nullable;
 
-import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
-/** Describe the name and the different resource components of a slot sharing group. */
-@PublicEvolving
-public class SlotSharingGroup implements Serializable {
-    private static final long serialVersionUID = 1L;
-
+/**
+ * Describe the name and the different resource components of a slot sharing group.
+ *
+ * <p>Two SlotSharingGroup classes currently exist in flink-core and flink-core-api, because the one
+ * in flink-core exposes components marked as internal, which we want to avoid in DataStream-V2 API.
+ * Once the V1 API is removed, we will remove the legacy SlotSharingGroup.
+ */
+@Experimental
+public class SlotSharingGroup {
     private final String name;
 
     /** How many cpu cores are needed. Can be null only if it is unknown. */
     @Nullable // can be null only for UNKNOWN
-    private final CPUResource cpuCores;
+    private final Double cpuCores;
 
     /** How much task heap memory is needed. */
     @Nullable // can be null only for UNKNOWN
@@ -58,54 +57,53 @@ public class SlotSharingGroup implements Serializable {
     private final MemorySize managedMemory;
 
     /** A extensible field for user specified resources from {@link SlotSharingGroup}. */
-    private final Map<String, Double> externalResources = new HashMap<>();
+    private final Map<String, Double> externalResources;
 
     private SlotSharingGroup(
             String name,
-            CPUResource cpuCores,
-            MemorySize taskHeapMemory,
-            MemorySize taskOffHeapMemory,
-            MemorySize managedMemory,
+            @Nullable Double cpuCores,
+            @Nullable MemorySize taskHeapMemory,
+            @Nullable MemorySize taskOffHeapMemory,
+            @Nullable MemorySize managedMemory,
             Map<String, Double> extendedResources) {
-        this.name = checkNotNull(name);
-        this.cpuCores = checkNotNull(cpuCores);
-        this.taskHeapMemory = checkNotNull(taskHeapMemory);
-        this.taskOffHeapMemory = checkNotNull(taskOffHeapMemory);
-        this.managedMemory = checkNotNull(managedMemory);
-        this.externalResources.putAll(checkNotNull(extendedResources));
+        this.name = name;
+        this.cpuCores = cpuCores;
+        this.taskHeapMemory = taskHeapMemory;
+        this.taskOffHeapMemory = taskOffHeapMemory;
+        this.managedMemory = managedMemory;
+        this.externalResources = Collections.unmodifiableMap(extendedResources);
     }
 
     private SlotSharingGroup(String name) {
-        this.name = checkNotNull(name);
-        this.cpuCores = null;
-        this.taskHeapMemory = null;
-        this.taskOffHeapMemory = null;
-        this.managedMemory = null;
+        this(name, null, null, null, null, Collections.emptyMap());
     }
 
     public String getName() {
         return name;
     }
 
-    public Optional<MemorySize> getManagedMemory() {
-        return Optional.ofNullable(managedMemory);
+    @Nullable
+    public MemorySize getManagedMemory() {
+        return managedMemory;
     }
 
-    public Optional<MemorySize> getTaskHeapMemory() {
-        return Optional.ofNullable(taskHeapMemory);
+    @Nullable
+    public MemorySize getTaskHeapMemory() {
+        return taskHeapMemory;
     }
 
-    public Optional<MemorySize> getTaskOffHeapMemory() {
-        return Optional.ofNullable(taskOffHeapMemory);
+    @Nullable
+    public MemorySize getTaskOffHeapMemory() {
+        return taskOffHeapMemory;
     }
 
-    public Optional<Double> getCpuCores() {
-        return Optional.ofNullable(cpuCores)
-                .map(cpuResource -> cpuResource.getValue().doubleValue());
+    @Nullable
+    public Double getCpuCores() {
+        return cpuCores;
     }
 
     public Map<String, Double> getExternalResources() {
-        return Collections.unmodifiableMap(externalResources);
+        return externalResources;
     }
 
     public static Builder newBuilder(String name) {
@@ -137,46 +135,15 @@ public class SlotSharingGroup implements Serializable {
         return result;
     }
 
-    /**
-     * Convert a {@link org.apache.flink.api.common.SlotSharingGroup} to {@link SlotSharingGroup}.
-     */
-    public static SlotSharingGroup from(org.apache.flink.api.common.SlotSharingGroup group) {
-        if (group.getCpuCores() != null && group.getTaskHeapMemory() != null) {
-            MemorySize taskOffHeapMemory =
-                    group.getTaskOffHeapMemory() == null
-                            ? MemorySize.ZERO
-                            : group.getTaskOffHeapMemory();
-            MemorySize managedMemory =
-                    group.getManagedMemory() == null ? MemorySize.ZERO : group.getManagedMemory();
-            return new SlotSharingGroup(
-                    group.getName(),
-                    new CPUResource(group.getCpuCores()),
-                    group.getTaskHeapMemory(),
-                    taskOffHeapMemory,
-                    managedMemory,
-                    group.getExternalResources());
-        } else if (group.getCpuCores() != null
-                || group.getTaskHeapMemory() != null
-                || group.getTaskOffHeapMemory() != null
-                || group.getManagedMemory() != null
-                || !group.getExternalResources().isEmpty()) {
-            throw new IllegalArgumentException(
-                    "The cpu cores and task heap memory are required when specifying the resource of a slot sharing group. "
-                            + "You need to explicitly configure them with positive value.");
-        } else {
-            return new SlotSharingGroup(group.getName());
-        }
-    }
-
-    /** Builder for the {@link SlotSharingGroup}. */
+    /** Builder for {@link SlotSharingGroup}. */
+    @Experimental
     public static class Builder {
-
-        private String name;
-        private CPUResource cpuCores;
+        private final String name;
+        private Double cpuCores;
         private MemorySize taskHeapMemory;
         private MemorySize taskOffHeapMemory;
         private MemorySize managedMemory;
-        private Map<String, Double> externalResources = new HashMap<>();
+        private final Map<String, Double> externalResources = new HashMap<>();
 
         private Builder(String name) {
             this.name = name;
@@ -184,23 +151,27 @@ public class SlotSharingGroup implements Serializable {
 
         /** Set the CPU cores for this SlotSharingGroup. */
         public Builder setCpuCores(double cpuCores) {
-            checkArgument(cpuCores > 0, "The cpu cores should be positive.");
-            this.cpuCores = new CPUResource(cpuCores);
+            if (cpuCores <= 0) {
+                throw new IllegalArgumentException("The cpu cores should be positive.");
+            }
+            this.cpuCores = cpuCores;
             return this;
         }
 
         /** Set the task heap memory for this SlotSharingGroup. */
         public Builder setTaskHeapMemory(MemorySize taskHeapMemory) {
-            checkArgument(
-                    taskHeapMemory.compareTo(MemorySize.ZERO) > 0,
-                    "The task heap memory should be positive.");
+            if (taskHeapMemory.compareTo(MemorySize.ZERO) <= 0) {
+                throw new IllegalArgumentException("The task heap memory should be positive.");
+            }
             this.taskHeapMemory = taskHeapMemory;
             return this;
         }
 
         /** Set the task heap memory for this SlotSharingGroup in MB. */
         public Builder setTaskHeapMemoryMB(int taskHeapMemoryMB) {
-            checkArgument(taskHeapMemoryMB > 0, "The task heap memory should be positive.");
+            if (taskHeapMemoryMB <= 0) {
+                throw new IllegalArgumentException("The task heap memory should be positive.");
+            }
             this.taskHeapMemory = MemorySize.ofMebiBytes(taskHeapMemoryMB);
             return this;
         }
