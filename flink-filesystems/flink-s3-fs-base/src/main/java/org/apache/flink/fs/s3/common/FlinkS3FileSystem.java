@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -316,10 +317,20 @@ public class FlinkS3FileSystem extends HadoopFileSystem
                             .redirectOutput(outScrolls)
                             .start();
 
-            try {
+            try (Closeable ignore =
+                    closeableRegistry.registerCloseableTemporarily(
+                            () -> {
+                                maybeCloseableRegistryException.set(
+                                        new IOException(
+                                                "Copy process destroyed by CloseableRegistry."));
+                                destroyProcess(wizard);
+                            })) {
                 exitCode = wizard.waitFor();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+                destroyProcess(wizard);
+                throw new IOException(createSpellErrorMessage(exitCode, outScrolls, artefacts), e);
+            } catch (IOException e) {
                 destroyProcess(wizard);
                 throw new IOException(createSpellErrorMessage(exitCode, outScrolls, artefacts), e);
             }
