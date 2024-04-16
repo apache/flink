@@ -57,7 +57,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests for the {@link FileUtils}. */
-class FileUtilsTest {
+public class FileUtilsTest {
 
     @TempDir private java.nio.file.Path temporaryFolder;
 
