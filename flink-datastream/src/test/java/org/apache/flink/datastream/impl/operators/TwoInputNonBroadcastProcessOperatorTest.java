@@ -20,7 +20,7 @@ package org.apache.flink.datastream.impl.operators;
 
 import org.apache.flink.datastream.api.common.Collector;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
-import org.apache.flink.datastream.api.context.RuntimeContext;
+import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.function.TwoInputNonBroadcastStreamProcessFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
@@ -41,13 +41,15 @@ class TwoInputNonBroadcastProcessOperatorTest {
                         new TwoInputNonBroadcastStreamProcessFunction<Integer, Long, Long>() {
                             @Override
                             public void processRecordFromFirstInput(
-                                    Integer record, Collector<Long> output, RuntimeContext ctx) {
+                                    Integer record,
+                                    Collector<Long> output,
+                                    PartitionedContext ctx) {
                                 output.collect(Long.valueOf(record));
                             }
 
                             @Override
                             public void processRecordFromSecondInput(
-                                    Long record, Collector<Long> output, RuntimeContext ctx) {
+                                    Long record, Collector<Long> output, PartitionedContext ctx) {
                                 output.collect(record);
                             }
                         });
@@ -80,14 +82,14 @@ class TwoInputNonBroadcastProcessOperatorTest {
                         new TwoInputNonBroadcastStreamProcessFunction<Integer, Long, Long>() {
                             @Override
                             public void processRecordFromFirstInput(
-                                    Integer record, Collector<Long> output, RuntimeContext ctx)
+                                    Integer record, Collector<Long> output, PartitionedContext ctx)
                                     throws Exception {
                                 // do nothing.
                             }
 
                             @Override
                             public void processRecordFromSecondInput(
-                                    Long record, Collector<Long> output, RuntimeContext ctx)
+                                    Long record, Collector<Long> output, PartitionedContext ctx)
                                     throws Exception {
                                 // do nothing.
                             }

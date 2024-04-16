@@ -23,7 +23,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.datastream.api.ExecutionEnvironment;
 import org.apache.flink.datastream.api.common.Collector;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
-import org.apache.flink.datastream.api.context.RuntimeContext;
+import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
 import org.apache.flink.datastream.api.function.TwoInputBroadcastStreamProcessFunction;
 import org.apache.flink.datastream.api.function.TwoInputNonBroadcastStreamProcessFunction;
@@ -61,7 +61,7 @@ public final class StreamTestUtils {
             implements OneInputStreamProcessFunction<Integer, Long> {
 
         @Override
-        public void processRecord(Integer record, Collector<Long> output, RuntimeContext ctx) {
+        public void processRecord(Integer record, Collector<Long> output, PartitionedContext ctx) {
             // do nothing.
         }
     }
@@ -75,7 +75,7 @@ public final class StreamTestUtils {
                 Integer record,
                 Collector<Integer> output1,
                 Collector<Long> output2,
-                RuntimeContext ctx) {
+                PartitionedContext ctx) {
             //  do nothing.
         }
     }
@@ -88,13 +88,13 @@ public final class StreamTestUtils {
 
         @Override
         public void processRecordFromFirstInput(
-                Integer record, Collector<Long> output, RuntimeContext ctx) {
+                Integer record, Collector<Long> output, PartitionedContext ctx) {
             // do nothing.
         }
 
         @Override
         public void processRecordFromSecondInput(
-                Long record, Collector<Long> output, RuntimeContext ctx) throws Exception {
+                Long record, Collector<Long> output, PartitionedContext ctx) throws Exception {
             // do nothing.
         }
     }
@@ -106,7 +106,7 @@ public final class StreamTestUtils {
             implements TwoInputBroadcastStreamProcessFunction<Long, Integer, Long> {
         @Override
         public void processRecordFromNonBroadcastInput(
-                Long record, Collector<Long> output, RuntimeContext ctx) {
+                Long record, Collector<Long> output, PartitionedContext ctx) {
             // do nothing.
         }
 

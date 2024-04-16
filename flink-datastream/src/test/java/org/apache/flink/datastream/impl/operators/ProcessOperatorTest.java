@@ -20,7 +20,7 @@ package org.apache.flink.datastream.impl.operators;
 
 import org.apache.flink.datastream.api.common.Collector;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
-import org.apache.flink.datastream.api.context.RuntimeContext;
+import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -63,7 +63,9 @@ class ProcessOperatorTest {
                         new OneInputStreamProcessFunction<Integer, String>() {
                             @Override
                             public void processRecord(
-                                    Integer record, Collector<String> output, RuntimeContext ctx) {
+                                    Integer record,
+                                    Collector<String> output,
+                                    PartitionedContext ctx) {
                                 //  do nothing.
                             }
 
