@@ -18,14 +18,16 @@
 
 package org.apache.flink.runtime.asyncprocessing;
 
-import org.apache.flink.api.common.state.v2.StateFuture;
-import org.apache.flink.api.common.state.v2.ValueState;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.v2.InternalValueState;
+import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -368,32 +370,15 @@ class AsyncExecutionControllerTest {
         }
     }
 
-    static class TestValueState implements ValueState<Integer> {
-
-        private final AsyncExecutionController<String> asyncExecutionController;
+    static class TestValueState extends InternalValueState<String, Integer> {
 
         private final TestUnderlyingState underlyingState;
 
         public TestValueState(
                 AsyncExecutionController<String> aec, TestUnderlyingState underlyingState) {
-            this.asyncExecutionController = aec;
+            super(aec, new ValueStateDescriptor<>("test-value-state", BasicTypeInfo.INT_TYPE_INFO));
             this.underlyingState = underlyingState;
-        }
-
-        @Override
-        public StateFuture<Void> asyncClear() {
-            return asyncExecutionController.handleRequest(this, StateRequestType.CLEAR, null);
-        }
-
-        @Override
-        public StateFuture<Integer> asyncValue() {
-            return asyncExecutionController.handleRequest(this, StateRequestType.VALUE_GET, null);
-        }
-
-        @Override
-        public StateFuture<Void> asyncUpdate(Integer value) {
-            return asyncExecutionController.handleRequest(
-                    this, StateRequestType.VALUE_UPDATE, value);
+            assertThat(this.getValueSerializer()).isEqualTo(IntSerializer.INSTANCE);
         }
     }
 
