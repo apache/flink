@@ -30,13 +30,13 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysical
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkStreamProgram, StreamOptimizeContext}
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil.shouldSkipMiniBatch
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext
 import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.core.{Calc, Filter, Project, TableScan, Values}
-import org.apache.calcite.rel.logical.{LogicalProject, LogicalUnion}
+import org.apache.calcite.rel.core.TableScan
 
 import java.util
 import java.util.Collections
@@ -47,26 +47,65 @@ import scala.collection.JavaConversions._
 class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
   extends CommonSubGraphBasedOptimizer {
 
-  private def shouldSkipMiniBatch(blocks: Seq[RelNodeBlock]): Boolean = {
+  private def optimizeSinkBlocks(
+      origMiniBatchEnabled: Boolean,
+      tableConfig: TableConfig,
+      sinkBlocks: Seq[RelNodeBlock]): Seq[RelNodeBlock] = {
+    if (origMiniBatchEnabled)
+      tableConfig.set(
+        ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED,
+        Boolean.box(!shouldSkipMiniBatch(sinkBlocks)))
+    sinkBlocks.foreach {
+      sinkBlock =>
+        // don't require update before by default
+        sinkBlock.setUpdateBeforeRequired(false)
 
-    val noMiniBatchRequired = {
-      (node: RelNode) =>
-        node match {
-          case _: Filter | _: Project | _: TableScan | _: Calc | _: Values | _: Sink |
-              _: LegacySink =>
-            true
-          case unionNode: LogicalUnion => unionNode.all
-          case _ => false
-        }
+        val miniBatchInterval: MiniBatchInterval =
+          if (tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)) {
+            val miniBatchLatency =
+              tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY).toMillis
+            Preconditions.checkArgument(
+              miniBatchLatency > 0,
+              "MiniBatch Latency must be greater than 0 ms.",
+              null)
+            new MiniBatchInterval(miniBatchLatency, MiniBatchMode.ProcTime)
+          } else {
+            MiniBatchIntervalTrait.NONE.getMiniBatchInterval
+          }
+        sinkBlock.setMiniBatchInterval(miniBatchInterval)
     }
 
-    def nodeTraverser(node: RelNode): Boolean = {
-      noMiniBatchRequired(node) && node.getInputs
-        .map(n => nodeTraverser(n))
-        .forall(r => r)
+    if (sinkBlocks.size == 1) {
+      // If there is only one sink block, the given relational expressions are a simple tree
+      // (only one root), not a dag. So many operations (e.g. infer and propagate
+      // requireUpdateBefore) can be omitted to save optimization time.
+      val block = sinkBlocks.head
+      val optimizedTree = optimizeTree(
+        block.getPlan,
+        block.isUpdateBeforeRequired,
+        block.getMiniBatchInterval,
+        isSinkBlock = true)
+      block.setOptimizedPlan(optimizedTree)
+      return sinkBlocks
+    } else {
+      // TODO FLINK-24048: Move changeLog inference out of optimizing phase
+      // infer modifyKind property for each blocks independently
+      sinkBlocks.foreach(b => optimizeBlock(b, isSinkBlock = true))
+      // infer and propagate updateKind and miniBatchInterval property for each blocks
+      sinkBlocks.foreach {
+        b =>
+          propagateUpdateKindAndMiniBatchInterval(
+            b,
+            b.isUpdateBeforeRequired,
+            b.getMiniBatchInterval,
+            isSinkBlock = true)
+      }
+      // clear the intermediate result
+      sinkBlocks.foreach(resetIntermediateResult)
+      // optimize recursively RelNodeBlock
+      sinkBlocks.foreach(b => optimizeBlock(b, isSinkBlock = true))
+      sinkBlocks
     }
-
-    blocks.map(b => nodeTraverser(b.outputNode)).forall(r => r)
   }
 
   override protected def doOptimize(roots: Seq[RelNode]): Seq[RelNodeBlock] = {
@@ -78,67 +117,12 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
     val origMiniBatchEnabled = tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)
 
     try {
-      if (origMiniBatchEnabled)
-        tableConfig.set(
-          ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED,
-          Boolean.box(!shouldSkipMiniBatch(sinkBlocks)))
-      sinkBlocks.foreach {
-        sinkBlock =>
-          // don't require update before by default
-          sinkBlock.setUpdateBeforeRequired(false)
-          val miniBatchInterval: MiniBatchInterval =
-            if (tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)) {
-              val miniBatchLatency =
-                tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY).toMillis
-              Preconditions.checkArgument(
-                miniBatchLatency > 0,
-                "MiniBatch Latency must be greater than 0 ms.",
-                null)
-              new MiniBatchInterval(miniBatchLatency, MiniBatchMode.ProcTime)
-            } else {
-              MiniBatchIntervalTrait.NONE.getMiniBatchInterval
-            }
-          sinkBlock.setMiniBatchInterval(miniBatchInterval)
-      }
-
-      if (sinkBlocks.size == 1) {
-        // If there is only one sink block, the given relational expressions are a simple tree
-        // (only one root), not a dag. So many operations (e.g. infer and propagate
-        // requireUpdateBefore) can be omitted to save optimization time.
-        val block = sinkBlocks.head
-        val optimizedTree = optimizeTree(
-          block.getPlan,
-          block.isUpdateBeforeRequired,
-          block.getMiniBatchInterval,
-          isSinkBlock = true)
-        block.setOptimizedPlan(optimizedTree)
-        sinkBlocks
-      } else {
-        // TODO FLINK-24048: Move changeLog inference out of optimizing phase
-        // infer modifyKind property for each blocks independently
-        sinkBlocks.foreach(b => optimizeBlock(b, isSinkBlock = true))
-        // infer and propagate updateKind and miniBatchInterval property for each blocks
-        sinkBlocks.foreach {
-          b =>
-            propagateUpdateKindAndMiniBatchInterval(
-              b,
-              b.isUpdateBeforeRequired,
-              b.getMiniBatchInterval,
-              isSinkBlock = true)
-        }
-        // clear the intermediate result
-        sinkBlocks.foreach(resetIntermediateResult)
-        // optimize recursively RelNodeBlock
-        sinkBlocks.foreach(b => optimizeBlock(b, isSinkBlock = true))
-        sinkBlocks
-      }
-
+      optimizeSinkBlocks(origMiniBatchEnabled, tableConfig, sinkBlocks)
     } finally {
       tableConfig.getConfiguration.set(
         ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED,
         origMiniBatchEnabled)
     }
-
   }
 
   private def optimizeBlock(block: RelNodeBlock, isSinkBlock: Boolean): Unit = {

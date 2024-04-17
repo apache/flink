@@ -18,34 +18,21 @@
 
 package org.apache.flink.table.planner.plan.optimize;
 
-import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.table.api.internal.TableEnvironmentImpl;
-import org.apache.flink.table.planner.delegation.StreamPlanner;
-import org.apache.flink.table.planner.plan.trait.MiniBatchIntervalTrait;
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
-import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.apache.calcite.rel.RelNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.List;
-
-import scala.collection.JavaConverters;
-import scala.collection.Seq;
-
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import java.util.Collections;
 
 /**
  * Test for enabling/disabling mini-batch assigner operator based on query plan. The optimization is
@@ -55,69 +42,43 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class MiniBatchOptimizationTest extends TableTestBase {
 
     private final StreamTableTestUtil util = streamTestUtil(TableConfig.getDefault());
-    private final StreamTableEnvironment streamTableEnv =
-            StreamTableEnvironment.create(util.getStreamEnv());
 
     @Parameter public boolean isMiniBatchEnabled;
 
-    @Parameter(1)
     public long miniBatchLatency;
-
-    @Parameter(2)
     public long miniBatchSize;
 
     @BeforeEach
     public void setup() {
-        streamTableEnv
+        miniBatchLatency = 5L;
+        miniBatchSize = 10L;
+        util.tableEnv()
                 .getConfig()
                 .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, isMiniBatchEnabled)
                 .set(
                         ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY,
                         Duration.ofSeconds(miniBatchLatency))
                 .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, miniBatchSize);
-        streamTableEnv.executeSql(
-                "CREATE TABLE MyTableA (\n"
-                        + "  a BIGINT,\n"
-                        + "  b INT NOT NULL,\n"
-                        + "  c VARCHAR,\n"
-                        + "  d BIGINT\n"
-                        + ") WITH (\n"
-                        + "  'connector' = 'values',\n"
-                        + "  'bounded' = 'false')");
-        streamTableEnv.executeSql(
-                "CREATE TABLE MyTableB (\n"
-                        + "  a BIGINT,\n"
-                        + "  b INT NOT NULL,\n"
-                        + "  c VARCHAR,\n"
-                        + "  d BIGINT\n"
-                        + ") WITH (\n"
-                        + "  'connector' = 'values',\n"
-                        + "  'bounded' = 'false')");
-    }
-
-    private boolean containsMiniBatch(String sql) {
-        final Table result = streamTableEnv.sqlQuery(sql);
-        RelNode relNode = TableTestUtil.toRelNode(result);
-        StreamPlanner planner =
-                (StreamPlanner) ((TableEnvironmentImpl) streamTableEnv).getPlanner();
-        StreamCommonSubGraphBasedOptimizer optimizer =
-                new StreamCommonSubGraphBasedOptimizer(planner);
-        Seq<RelNode> nodeSeq =
-                JavaConverters.asScalaIteratorConverter(Arrays.asList(relNode).iterator())
-                        .asScala()
-                        .toSeq();
-        Seq<RelNodeBlock> blockSeq = optimizer.doOptimize(nodeSeq);
-        List<RelNodeBlock> blockList = scala.collection.JavaConverters.seqAsJavaList(blockSeq);
-        boolean res =
-                blockList.stream()
-                        .map(
-                                b ->
-                                        !b.getMiniBatchInterval()
-                                                .equals(
-                                                        MiniBatchIntervalTrait.NONE()
-                                                                .getMiniBatchInterval()))
-                        .reduce(false, (l, r) -> l || r);
-        return res;
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE MyTableA (\n"
+                                + "  a BIGINT,\n"
+                                + "  b INT NOT NULL,\n"
+                                + "  c VARCHAR,\n"
+                                + "  d BIGINT\n"
+                                + ") WITH (\n"
+                                + "  'connector' = 'values',\n"
+                                + "  'bounded' = 'false')");
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE MyTableB (\n"
+                                + "  a BIGINT,\n"
+                                + "  b INT NOT NULL,\n"
+                                + "  c VARCHAR,\n"
+                                + "  d BIGINT\n"
+                                + ") WITH (\n"
+                                + "  'connector' = 'values',\n"
+                                + "  'bounded' = 'false')");
     }
 
     @TestTemplate
@@ -131,11 +92,16 @@ public class MiniBatchOptimizationTest extends TableTestBase {
                         + "  MAX(c) FILTER (WHERE a > 1) AS max_c\n"
                         + "FROM MyTableA";
 
-        boolean containsMiniBatch = containsMiniBatch(aggQuery);
         if (isMiniBatchEnabled) {
-            assertTrue(containsMiniBatch);
+            util.verifyRelPlanExpected(
+                    aggQuery,
+                    JavaScalaConversionUtil.toScala(
+                            Collections.singletonList("MiniBatchAssigner")));
         } else {
-            assertFalse(containsMiniBatch);
+            util.verifyRelPlanNotExpected(
+                    aggQuery,
+                    JavaScalaConversionUtil.toScala(
+                            Collections.singletonList("MiniBatchAssigner")));
         }
     }
 
@@ -143,27 +109,29 @@ public class MiniBatchOptimizationTest extends TableTestBase {
     public void testMiniBatchWithJoin() {
         final String joinQuery = "SELECT * FROM MyTableA a, MyTableB b WHERE a.a = b.a";
 
-        boolean containsMiniBatch = containsMiniBatch(joinQuery);
         if (isMiniBatchEnabled) {
-            assertTrue(containsMiniBatch);
+            util.verifyRelPlanExpected(
+                    joinQuery,
+                    JavaScalaConversionUtil.toScala(
+                            Collections.singletonList("MiniBatchAssigner")));
         } else {
-            assertFalse(containsMiniBatch);
+            util.verifyRelPlanNotExpected(
+                    joinQuery,
+                    JavaScalaConversionUtil.toScala(
+                            Collections.singletonList("MiniBatchAssigner")));
         }
     }
 
     @TestTemplate
     public void testMiniBatchWithProjectFilter() {
         final String joinQuery = "SELECT b FROM MyTableA a WHERE a.a > 123";
-
-        boolean containsMiniBatch = containsMiniBatch(joinQuery);
-        assertFalse(containsMiniBatch);
+        util.verifyRelPlanNotExpected(
+                joinQuery,
+                JavaScalaConversionUtil.toScala(Collections.singletonList("MiniBatchAssigner")));
     }
 
-    @Parameters(name = "isMiniBatchEnabled={0}, miniBatchLatency={1}, miniBatchSize={2}")
+    @Parameters(name = "isMiniBatchEnabled={0}")
     public static Object[][] data() {
-        return new Object[][] {
-            new Object[] {true, 10L, 5L},
-            new Object[] {false, 10L, 5L}
-        };
+        return new Object[][] {new Object[] {true}, new Object[] {false}};
     }
 }

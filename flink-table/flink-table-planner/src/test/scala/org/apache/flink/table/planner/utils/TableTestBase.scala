@@ -620,6 +620,28 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
    * Verify whether the optimized rel plan for the given SELECT query does not contain the
    * `notExpected` strings.
    */
+  def verifyRelPlanExpected(query: String, notExpected: String*): Unit = {
+    verifyRelPlanExpected(getTableEnv.sqlQuery(query), notExpected: _*)
+  }
+
+  /**
+   * Verify whether the optimized rel plan for the given [[Table]] does not contain the
+   * `notExpected` strings.
+   */
+  def verifyRelPlanExpected(table: Table, expected: String*): Unit = {
+    require(expected.nonEmpty)
+    val relNode = TableTestUtil.toRelNode(table)
+    val optimizedRel = getPlanner.optimize(relNode)
+    val optimizedPlan = getOptimizedRelPlan(Array(optimizedRel), Array.empty, withRowType = false)
+    val result = expected.forall(optimizedPlan.contains(_))
+    val message = s"\nactual plan:\n$optimizedPlan\nexpected:\n${expected.mkString(", ")}"
+    assertTrue(result, message)
+  }
+
+  /**
+   * Verify whether the optimized rel plan for the given SELECT query does not contain the
+   * `notExpected` strings.
+   */
   def verifyRelPlanNotExpected(query: String, notExpected: String*): Unit = {
     verifyRelPlanNotExpected(getTableEnv.sqlQuery(query), notExpected: _*)
   }
