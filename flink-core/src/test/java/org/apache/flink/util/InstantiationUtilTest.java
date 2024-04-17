@@ -115,6 +115,14 @@ public class InstantiationUtilTest extends TestLogger {
         assertTrue(InstantiationUtil.hasPublicNullaryConstructor(StringValue.class));
     }
 
+    /**
+     * Test that {@link InstantiationUtil} class per se does not have a nullary public constructor.
+     */
+    @Test
+    public void testHasNullaryConstructorFalse() {
+        assertFalse(InstantiationUtil.hasPublicNullaryConstructor(InstantiationUtil.class));
+    }
+
     @Test
     public void testClassIsProper() {
         assertTrue(InstantiationUtil.isProperClass(StringValue.class));

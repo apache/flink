@@ -41,9 +41,9 @@ import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
 import java.io.OutputStream;
 import java.io.Serializable;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -391,14 +391,8 @@ public final class InstantiationUtil {
      * @return True, if the class has a public nullary constructor, false if not.
      */
     public static boolean hasPublicNullaryConstructor(Class<?> clazz) {
-        Constructor<?>[] constructors = clazz.getConstructors();
-        for (Constructor<?> constructor : constructors) {
-            if (constructor.getParameterCount() == 0
-                    && Modifier.isPublic(constructor.getModifiers())) {
-                return true;
-            }
-        }
-        return false;
+        return Arrays.stream(clazz.getConstructors())
+                .anyMatch(constructor -> constructor.getParameterCount() == 0);
     }
 
     /**
