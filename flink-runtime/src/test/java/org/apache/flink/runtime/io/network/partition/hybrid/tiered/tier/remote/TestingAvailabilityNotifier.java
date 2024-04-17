@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.remote;
 
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageInputChannelId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
-import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.AvailabilityNotifier;
 
 import java.util.concurrent.CompletableFuture;
@@ -30,13 +29,13 @@ import java.util.function.BiFunction;
 public class TestingAvailabilityNotifier implements AvailabilityNotifier {
 
     private final BiFunction<
-                    TieredStoragePartitionId, TieredStorageSubpartitionId, CompletableFuture<Void>>
+                    TieredStoragePartitionId, TieredStorageInputChannelId, CompletableFuture<Void>>
             notifyFunction;
 
     public TestingAvailabilityNotifier(
             BiFunction<
                             TieredStoragePartitionId,
-                            TieredStorageSubpartitionId,
+                            TieredStorageInputChannelId,
                             CompletableFuture<Void>>
                     notifyFunction) {
         this.notifyFunction = notifyFunction;
@@ -44,14 +43,8 @@ public class TestingAvailabilityNotifier implements AvailabilityNotifier {
 
     @Override
     public void notifyAvailable(
-            TieredStoragePartitionId partitionId, TieredStorageSubpartitionId subpartitionId) {
-        notifyFunction.apply(partitionId, subpartitionId).complete(null);
-    }
-
-    @Override
-    public void notifyAvailable(
             TieredStoragePartitionId partitionId, TieredStorageInputChannelId inputChannelId) {
-        throw new UnsupportedOperationException();
+        notifyFunction.apply(partitionId, inputChannelId);
     }
 
     /** Builder for {@link TestingAvailabilityNotifier}. */
@@ -59,7 +52,7 @@ public class TestingAvailabilityNotifier implements AvailabilityNotifier {
 
         private BiFunction<
                         TieredStoragePartitionId,
-                        TieredStorageSubpartitionId,
+                        TieredStorageInputChannelId,
                         CompletableFuture<Void>>
                 notifyFunction = (partitionId, subpartitionId) -> new CompletableFuture<>();
 
@@ -68,7 +61,7 @@ public class TestingAvailabilityNotifier implements AvailabilityNotifier {
         public Builder setNotifyFunction(
                 BiFunction<
                                 TieredStoragePartitionId,
-                                TieredStorageSubpartitionId,
+                                TieredStorageInputChannelId,
                                 CompletableFuture<Void>>
                         notifyFunction) {
             this.notifyFunction = notifyFunction;
