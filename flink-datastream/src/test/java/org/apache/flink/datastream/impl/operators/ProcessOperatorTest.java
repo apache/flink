@@ -28,7 +28,7 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -57,7 +57,7 @@ class ProcessOperatorTest {
 
     @Test
     void testEndInput() throws Exception {
-        CompletableFuture<Void> future = new CompletableFuture<>();
+        AtomicInteger counter = new AtomicInteger();
         ProcessOperator<Integer, String> processOperator =
                 new ProcessOperator<>(
                         new OneInputStreamProcessFunction<Integer, String>() {
@@ -71,7 +71,16 @@ class ProcessOperatorTest {
 
                             @Override
                             public void endInput(NonPartitionedContext<String> ctx) {
-                                future.complete(null);
+                                try {
+                                    ctx.applyToAllPartitions(
+                                            (out, context) -> {
+                                                counter.incrementAndGet();
+                                                out.collect("end");
+                                            });
+
+                                } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                }
                             }
                         });
 
@@ -79,7 +88,9 @@ class ProcessOperatorTest {
                 new OneInputStreamOperatorTestHarness<>(processOperator)) {
             testHarness.open();
             testHarness.endInput();
-            assertThat(future).isCompleted();
+            Collection<StreamRecord<String>> recordOutput = testHarness.getRecordOutput();
+            assertThat(recordOutput).containsExactly(new StreamRecord<>("end"));
+            assertThat(counter).hasValue(1);
         }
     }
 }

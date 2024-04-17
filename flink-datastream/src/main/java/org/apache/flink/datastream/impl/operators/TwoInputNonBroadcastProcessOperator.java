@@ -19,6 +19,7 @@
 package org.apache.flink.datastream.impl.operators;
 
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.ProcessingTimeManager;
 import org.apache.flink.datastream.api.function.TwoInputNonBroadcastStreamProcessFunction;
 import org.apache.flink.datastream.impl.common.OutputCollector;
@@ -48,7 +49,7 @@ public class TwoInputNonBroadcastProcessOperator<IN1, IN2, OUT>
 
     protected transient DefaultPartitionedContext partitionedContext;
 
-    protected transient DefaultNonPartitionedContext<OUT> nonPartitionedContext;
+    protected transient NonPartitionedContext<OUT> nonPartitionedContext;
 
     public TwoInputNonBroadcastProcessOperator(
             TwoInputNonBroadcastStreamProcessFunction<IN1, IN2, OUT> userFunction) {
@@ -71,7 +72,7 @@ public class TwoInputNonBroadcastProcessOperator<IN1, IN2, OUT>
         this.partitionedContext =
                 new DefaultPartitionedContext(
                         context, this::currentKey, this::setCurrentKey, getProcessingTimeManager());
-        this.nonPartitionedContext = new DefaultNonPartitionedContext<>(context);
+        this.nonPartitionedContext = getNonPartitionedContext();
     }
 
     @Override
@@ -89,6 +90,11 @@ public class TwoInputNonBroadcastProcessOperator<IN1, IN2, OUT>
 
     protected TimestampCollector<OUT> getOutputCollector() {
         return new OutputCollector<>(output);
+    }
+
+    protected NonPartitionedContext<OUT> getNonPartitionedContext() {
+        return new DefaultNonPartitionedContext<>(
+                context, partitionedContext, collector, false, null);
     }
 
     @Override
