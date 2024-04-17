@@ -566,8 +566,15 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
 
                 // Check if the data in all SST files referenced in the handle is within the
                 // proclaimed key-groups range of the handle.
-                if (RocksDBIncrementalCheckpointUtils.isSstDataInKeyGroupRange(
-                        tmpRestoreDBInfo.db, keyGroupPrefixBytes, stateHandle.getKeyGroupRange())) {
+                RocksDBIncrementalCheckpointUtils.RangeCheckResult rangeCheckResult =
+                        RocksDBIncrementalCheckpointUtils.checkSstDataAgainstKeyGroupRange(
+                                tmpRestoreDBInfo.db,
+                                keyGroupPrefixBytes,
+                                stateHandle.getKeyGroupRange());
+
+                logger.info("{}" + logLineSuffix, rangeCheckResult);
+
+                if (rangeCheckResult.allInRange()) {
 
                     logger.debug("Start exporting" + logLineSuffix);
 
@@ -606,16 +613,21 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
             ++index;
         }
 
+        KeyGroupRange exportedKeyGroupsRange =
+                minExportKeyGroup <= maxExportKeyGroup
+                        ? new KeyGroupRange(minExportKeyGroup, maxExportKeyGroup)
+                        : KeyGroupRange.EMPTY_KEY_GROUP_RANGE;
+
         logger.info(
-                "Completed restore export for backend with range {} in operator {}. Number of Exported handles: {}. Skipped handles: {}.",
+                "Completed restore export for backend with range {} in operator {}. {} exported handles with overall exported range {}. {} Skipped handles: {}.",
                 keyGroupRange.prettyPrintInterval(),
                 operatorIdentifier,
                 localKeyedStateHandles.size() - skipped.size(),
+                exportedKeyGroupsRange.prettyPrintInterval(),
+                skipped.size(),
                 skipped);
 
-        return minExportKeyGroup <= maxExportKeyGroup
-                ? new KeyGroupRange(minExportKeyGroup, maxExportKeyGroup)
-                : KeyGroupRange.EMPTY_KEY_GROUP_RANGE;
+        return exportedKeyGroupsRange;
     }
 
     /**
@@ -674,9 +686,10 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
 
         // We initialize the base DB by importing all the exported data.
         logger.info(
-                "Starting to import exported state handles for backend with range {} in operator {} using Clip/Ingest DB.",
+                "Starting to import exported state handles for backend with range {} in operator {} using Clip/Ingest DB with exported range {}.",
                 keyGroupRange.prettyPrintInterval(),
-                operatorIdentifier);
+                operatorIdentifier,
+                exportKeyGroupRange.prettyPrintInterval());
         rocksHandle.openDB();
         for (Map.Entry<RegisteredStateMetaInfoBase.Key, List<ExportImportFilesMetaData>> entry :
                 exportedColumnFamilyMetaData.entrySet()) {
