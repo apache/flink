@@ -29,8 +29,8 @@ import org.apache.flink.util.OutputTag;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -75,7 +75,7 @@ class TwoOutputProcessOperatorTest {
 
     @Test
     void testEndInput() throws Exception {
-        CompletableFuture<Void> future = new CompletableFuture<>();
+        AtomicInteger counter = new AtomicInteger();
         OutputTag<Long> sideOutputTag = new OutputTag<Long>("side-output") {};
 
         TwoOutputProcessOperator<Integer, Integer, Long> processOperator =
@@ -93,7 +93,16 @@ class TwoOutputProcessOperatorTest {
                             @Override
                             public void endInput(
                                     TwoOutputNonPartitionedContext<Integer, Long> ctx) {
-                                future.complete(null);
+                                try {
+                                    ctx.applyToAllPartitions(
+                                            (firstOutput, secondOutput, context) -> {
+                                                counter.incrementAndGet();
+                                                firstOutput.collect(1);
+                                                secondOutput.collect(2L);
+                                            });
+                                } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                }
                             }
                         },
                         sideOutputTag);
@@ -102,7 +111,12 @@ class TwoOutputProcessOperatorTest {
                 new OneInputStreamOperatorTestHarness<>(processOperator)) {
             testHarness.open();
             testHarness.endInput();
-            assertThat(future).isCompleted();
+            assertThat(counter).hasValue(1);
+            Collection<StreamRecord<Integer>> firstOutput = testHarness.getRecordOutput();
+            ConcurrentLinkedQueue<StreamRecord<Long>> secondOutput =
+                    testHarness.getSideOutput(sideOutputTag);
+            assertThat(firstOutput).containsExactly(new StreamRecord<>(1));
+            assertThat(secondOutput).containsExactly(new StreamRecord<>(2L));
         }
     }
 }

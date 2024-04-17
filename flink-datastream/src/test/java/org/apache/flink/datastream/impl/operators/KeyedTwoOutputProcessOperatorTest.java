@@ -31,9 +31,9 @@ import org.apache.flink.util.OutputTag;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -82,7 +82,7 @@ class KeyedTwoOutputProcessOperatorTest {
 
     @Test
     void testEndInput() throws Exception {
-        CompletableFuture<Void> future = new CompletableFuture<>();
+        AtomicInteger counter = new AtomicInteger();
         OutputTag<Long> sideOutputTag = new OutputTag<Long>("side-output") {};
 
         KeyedTwoOutputProcessOperator<Integer, Integer, Integer, Long> processOperator =
@@ -100,7 +100,18 @@ class KeyedTwoOutputProcessOperatorTest {
                             @Override
                             public void endInput(
                                     TwoOutputNonPartitionedContext<Integer, Long> ctx) {
-                                future.complete(null);
+                                try {
+                                    ctx.applyToAllPartitions(
+                                            (firstOutput, secondOutput, context) -> {
+                                                counter.incrementAndGet();
+                                                Integer currentKey =
+                                                        context.getStateManager().getCurrentKey();
+                                                firstOutput.collect(currentKey);
+                                                secondOutput.collect(Long.valueOf(currentKey));
+                                            });
+                                } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                }
                             }
                         },
                         sideOutputTag);
@@ -111,8 +122,16 @@ class KeyedTwoOutputProcessOperatorTest {
                         (KeySelector<Integer, Integer>) value -> value,
                         Types.INT)) {
             testHarness.open();
+            testHarness.processElement(new StreamRecord<>(1)); // key is 1
+            testHarness.processElement(new StreamRecord<>(2)); //  key is 2
             testHarness.endInput();
-            assertThat(future).isCompleted();
+            assertThat(counter).hasValue(2);
+            Collection<StreamRecord<Integer>> firstOutput = testHarness.getRecordOutput();
+            ConcurrentLinkedQueue<StreamRecord<Long>> secondOutput =
+                    testHarness.getSideOutput(sideOutputTag);
+            assertThat(firstOutput).containsExactly(new StreamRecord<>(1), new StreamRecord<>(2));
+            assertThat(secondOutput)
+                    .containsExactly(new StreamRecord<>(1L), new StreamRecord<>(2L));
         }
     }
 

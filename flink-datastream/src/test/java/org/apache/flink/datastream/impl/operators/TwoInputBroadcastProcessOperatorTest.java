@@ -28,8 +28,9 @@ import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -73,8 +74,8 @@ class TwoInputBroadcastProcessOperatorTest {
 
     @Test
     void testEndInput() throws Exception {
-        CompletableFuture<Void> nonBroadcastInputEnd = new CompletableFuture<>();
-        CompletableFuture<Void> broadcastInputEnd = new CompletableFuture<>();
+        AtomicInteger nonBroadcastInputCounter = new AtomicInteger();
+        AtomicInteger broadcastInputCounter = new AtomicInteger();
         TwoInputBroadcastProcessOperator<Integer, Long, Long> processOperator =
                 new TwoInputBroadcastProcessOperator<>(
                         new TwoInputBroadcastStreamProcessFunction<Integer, Long, Long>() {
@@ -95,12 +96,28 @@ class TwoInputBroadcastProcessOperatorTest {
 
                             @Override
                             public void endNonBroadcastInput(NonPartitionedContext<Long> ctx) {
-                                nonBroadcastInputEnd.complete(null);
+                                try {
+                                    ctx.applyToAllPartitions(
+                                            (out, context) -> {
+                                                nonBroadcastInputCounter.incrementAndGet();
+                                                out.collect(1L);
+                                            });
+                                } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                }
                             }
 
                             @Override
                             public void endBroadcastInput(NonPartitionedContext<Long> ctx) {
-                                broadcastInputEnd.complete(null);
+                                try {
+                                    ctx.applyToAllPartitions(
+                                            (out, context) -> {
+                                                broadcastInputCounter.incrementAndGet();
+                                                out.collect(2L);
+                                            });
+                                } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                }
                             }
                         });
 
@@ -108,9 +125,12 @@ class TwoInputBroadcastProcessOperatorTest {
                 new TwoInputStreamOperatorTestHarness<>(processOperator)) {
             testHarness.open();
             testHarness.endInput1();
-            assertThat(nonBroadcastInputEnd).isCompleted();
+            assertThat(nonBroadcastInputCounter).hasValue(1);
             testHarness.endInput2();
-            assertThat(broadcastInputEnd).isCompleted();
+            assertThat(broadcastInputCounter).hasValue(1);
+            Collection<StreamRecord<Long>> recordOutput = testHarness.getRecordOutput();
+            assertThat(recordOutput)
+                    .containsExactly(new StreamRecord<>(1L), new StreamRecord<>(2L));
         }
     }
 }

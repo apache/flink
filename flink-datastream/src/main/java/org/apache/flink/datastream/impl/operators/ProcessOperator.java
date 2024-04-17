@@ -19,6 +19,7 @@
 package org.apache.flink.datastream.impl.operators;
 
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.ProcessingTimeManager;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
 import org.apache.flink.datastream.impl.common.OutputCollector;
@@ -43,7 +44,7 @@ public class ProcessOperator<IN, OUT>
 
     protected transient DefaultPartitionedContext partitionedContext;
 
-    protected transient DefaultNonPartitionedContext<OUT> nonPartitionedContext;
+    protected transient NonPartitionedContext<OUT> nonPartitionedContext;
 
     protected transient TimestampCollector<OUT> outputCollector;
 
@@ -69,8 +70,8 @@ public class ProcessOperator<IN, OUT>
         partitionedContext =
                 new DefaultPartitionedContext(
                         context, this::currentKey, this::setCurrentKey, getProcessingTimeManager());
-        nonPartitionedContext = new DefaultNonPartitionedContext<>(context);
         outputCollector = getOutputCollector();
+        nonPartitionedContext = getNonPartitionedContext();
     }
 
     @Override
@@ -94,5 +95,10 @@ public class ProcessOperator<IN, OUT>
 
     protected ProcessingTimeManager getProcessingTimeManager() {
         return UnsupportedProcessingTimeManager.INSTANCE;
+    }
+
+    protected NonPartitionedContext<OUT> getNonPartitionedContext() {
+        return new DefaultNonPartitionedContext<>(
+                context, partitionedContext, outputCollector, false, null);
     }
 }
