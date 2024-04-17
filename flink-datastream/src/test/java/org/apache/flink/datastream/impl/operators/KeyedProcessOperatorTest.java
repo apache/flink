@@ -30,7 +30,7 @@ import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -70,7 +70,7 @@ class KeyedProcessOperatorTest {
 
     @Test
     void testEndInput() throws Exception {
-        CompletableFuture<Void> future = new CompletableFuture<>();
+        AtomicInteger counter = new AtomicInteger();
         KeyedProcessOperator<Integer, Integer, Integer> processOperator =
                 new KeyedProcessOperator<>(
                         new OneInputStreamProcessFunction<Integer, Integer>() {
@@ -84,7 +84,17 @@ class KeyedProcessOperatorTest {
 
                             @Override
                             public void endInput(NonPartitionedContext<Integer> ctx) {
-                                future.complete(null);
+                                try {
+                                    ctx.applyToAllPartitions(
+                                            (out, context) -> {
+                                                counter.incrementAndGet();
+                                                Integer currentKey =
+                                                        context.getStateManager().getCurrentKey();
+                                                out.collect(currentKey);
+                                            });
+                                } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                }
                             }
                         });
 
@@ -94,8 +104,15 @@ class KeyedProcessOperatorTest {
                         (KeySelector<Integer, Integer>) value -> value,
                         Types.INT)) {
             testHarness.open();
+            testHarness.processElement(new StreamRecord<>(1)); // key is 1
+            testHarness.processElement(new StreamRecord<>(2)); // key is 2
+            testHarness.processElement(new StreamRecord<>(3)); // key is 3
             testHarness.endInput();
-            assertThat(future).isCompleted();
+            assertThat(counter).hasValue(3);
+            Collection<StreamRecord<Integer>> recordOutput = testHarness.getRecordOutput();
+            assertThat(recordOutput)
+                    .containsExactly(
+                            new StreamRecord<>(1), new StreamRecord<>(2), new StreamRecord<>(3));
         }
     }
 
