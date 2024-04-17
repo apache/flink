@@ -20,23 +20,12 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage;
 
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageInputChannelId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
-import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 
 /**
  * {@link AvailabilityNotifier} is used to notify that the data from the specific partition and
  * subpartition in tiered storage is available.
  */
 public interface AvailabilityNotifier {
-
-    /**
-     * Notify that the data from the specific partition and subpartition is available in tiered
-     * storage.
-     *
-     * @param partitionId the partition id.
-     * @param subpartitionId the subpartition id.
-     */
-    void notifyAvailable(
-            TieredStoragePartitionId partitionId, TieredStorageSubpartitionId subpartitionId);
 
     /**
      * Notify that the data for the specific partition and input channel is available in tiered
