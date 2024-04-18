@@ -24,9 +24,12 @@ import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.Input;
+import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -131,6 +134,22 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
                 String.format(
                         "Unsupported operator type %s with input id %d",
                         getClass().getName(), inputId));
+    }
+
+    @Override
+    public final OperatorSnapshotFutures snapshotState(
+            long checkpointId,
+            long timestamp,
+            CheckpointOptions checkpointOptions,
+            CheckpointStreamFactory factory)
+            throws Exception {
+        if (isAsyncStateProcessingEnabled()) {
+            asyncExecutionController.drainInflightRecords(0);
+        }
+        // {@link #snapshotState(StateSnapshotContext)} will be called in
+        // stateHandler#snapshotState, so the {@link #snapshotState(StateSnapshotContext)} is not
+        // needed to override.
+        return super.snapshotState(checkpointId, timestamp, checkpointOptions, factory);
     }
 
     @VisibleForTesting

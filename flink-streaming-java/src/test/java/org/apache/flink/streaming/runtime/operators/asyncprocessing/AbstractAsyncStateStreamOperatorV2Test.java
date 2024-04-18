@@ -18,11 +18,20 @@
 
 package org.apache.flink.streaming.runtime.operators.asyncprocessing;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
+import org.apache.flink.runtime.asyncprocessing.StateExecutor;
+import org.apache.flink.runtime.asyncprocessing.StateRequest;
+import org.apache.flink.runtime.asyncprocessing.StateRequestType;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.streaming.api.operators.AbstractInput;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.Input;
@@ -33,6 +42,7 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.runtime.io.RecordProcessorUtils;
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.AbstractAsyncStateStreamOperatorTest.TestKeySelector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -41,6 +51,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -138,6 +149,44 @@ public class AbstractAsyncStateStreamOperatorV2Test {
             anotherThread.shutdown();
             Thread.sleep(1000);
             assertThat(testOperator.getCurrentProcessingContext().getReferenceCount()).isEqualTo(0);
+        }
+    }
+
+    @Test
+    void testCheckpointDrain() throws Exception {
+        try (KeyedOneInputStreamOperatorV2TestHarness<Integer, Tuple2<Integer, String>, String>
+                testHarness = createTestHarness(128, 1, 0, ElementOrder.RECORD_ORDER)) {
+            testHarness.open();
+            SingleInputTestOperator testOperator =
+                    (SingleInputTestOperator) testHarness.getBaseOperator();
+            CheckpointStorageLocationReference locationReference =
+                    CheckpointStorageLocationReference.getDefault();
+            AsyncExecutionController asyncExecutionController =
+                    testOperator.getAsyncExecutionController();
+            asyncExecutionController.setStateExecutor(
+                    new StateExecutor() {
+                        @Override
+                        public CompletableFuture<Boolean> executeBatchRequests(
+                                Iterable<StateRequest<?, ?, ?>> processingRequests) {
+                            for (StateRequest request : processingRequests) {
+                                request.getFuture().complete(true);
+                            }
+                            return CompletableFuture.completedFuture(true);
+                        }
+                    });
+            testOperator.setAsyncKeyedContextElement(
+                    new StreamRecord<>(Tuple2.of(5, "5")), new TestKeySelector());
+            asyncExecutionController.handleRequest(null, StateRequestType.VALUE_GET, null);
+            testOperator.postProcessElement();
+            assertThat(asyncExecutionController.getInFlightRecordNum()).isEqualTo(1);
+            testOperator.snapshotState(
+                    1,
+                    1,
+                    new CheckpointOptions(CheckpointType.CHECKPOINT, locationReference),
+                    new JobManagerCheckpointStorage()
+                            .createCheckpointStorage(new JobID())
+                            .resolveCheckpointStorageLocation(1, locationReference));
+            assertThat(asyncExecutionController.getInFlightRecordNum()).isEqualTo(0);
         }
     }
 

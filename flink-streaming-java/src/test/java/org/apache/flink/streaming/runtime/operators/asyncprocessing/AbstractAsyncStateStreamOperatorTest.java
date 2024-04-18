@@ -18,10 +18,19 @@
 
 package org.apache.flink.streaming.runtime.operators.asyncprocessing;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
+import org.apache.flink.runtime.asyncprocessing.StateExecutor;
+import org.apache.flink.runtime.asyncprocessing.StateRequest;
+import org.apache.flink.runtime.asyncprocessing.StateRequestType;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Triggerable;
@@ -32,6 +41,7 @@ import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -128,6 +138,47 @@ public class AbstractAsyncStateStreamOperatorTest {
             anotherThread.shutdown();
             Thread.sleep(1000);
             assertThat(testOperator.getCurrentProcessingContext().getReferenceCount()).isEqualTo(0);
+        }
+    }
+
+    @Test
+    void testCheckpointDrain() throws Exception {
+        try (KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
+                testHarness = createTestHarness(128, 1, 0, ElementOrder.RECORD_ORDER)) {
+            testHarness.open();
+            CheckpointStorageLocationReference locationReference =
+                    CheckpointStorageLocationReference.getDefault();
+            AsyncExecutionController asyncExecutionController =
+                    ((AbstractAsyncStateStreamOperator) testHarness.getOperator())
+                            .getAsyncExecutionController();
+            asyncExecutionController.setStateExecutor(
+                    new StateExecutor() {
+                        @Override
+                        public CompletableFuture<Boolean> executeBatchRequests(
+                                Iterable<StateRequest<?, ?, ?>> processingRequests) {
+                            for (StateRequest request : processingRequests) {
+                                request.getFuture().complete(true);
+                            }
+                            return CompletableFuture.completedFuture(true);
+                        }
+                    });
+            ((AbstractAsyncStateStreamOperator<String>) testHarness.getOperator())
+                    .setAsyncKeyedContextElement(
+                            new StreamRecord<>(Tuple2.of(5, "5")), new TestKeySelector());
+            asyncExecutionController.handleRequest(null, StateRequestType.VALUE_GET, null);
+            ((AbstractAsyncStateStreamOperator<String>) testHarness.getOperator())
+                    .postProcessElement();
+            assertThat(asyncExecutionController.getInFlightRecordNum()).isEqualTo(1);
+            testHarness
+                    .getOperator()
+                    .snapshotState(
+                            1,
+                            1,
+                            new CheckpointOptions(CheckpointType.CHECKPOINT, locationReference),
+                            new JobManagerCheckpointStorage()
+                                    .createCheckpointStorage(new JobID())
+                                    .resolveCheckpointStorageLocation(1, locationReference));
+            assertThat(asyncExecutionController.getInFlightRecordNum()).isEqualTo(0);
         }
     }
 

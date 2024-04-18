@@ -78,7 +78,7 @@ public class StateRequest<K, IN, OUT> implements Serializable {
         return state;
     }
 
-    InternalStateFuture<OUT> getFuture() {
+    public InternalStateFuture<OUT> getFuture() {
         return stateFuture;
     }
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.asyncprocessing;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.core.state.InternalStateFuture;
@@ -80,7 +81,7 @@ public class AsyncExecutionController<K> {
     private final StateFutureFactory<K> stateFutureFactory;
 
     /** The state executor where the {@link StateRequest} is actually executed. */
-    final StateExecutor stateExecutor;
+    StateExecutor stateExecutor;
 
     /** The corresponding context that currently runs in task thread. */
     RecordContext<K> currentContext;
@@ -235,17 +236,7 @@ public class AsyncExecutionController<K> {
         // 2. If the state request is for a newly entered record, the in-flight record number should
         // be less than the max in-flight record number.
         // Note: the currentContext may be updated by {@code StateFutureFactory#build}.
-        try {
-            while (inFlightRecordNum.get() > maxInFlightRecordNum) {
-                if (!mailboxExecutor.tryYield()) {
-                    triggerIfNeeded(true);
-                    Thread.sleep(1);
-                }
-            }
-        } catch (InterruptedException ignored) {
-            // ignore the interrupted exception to avoid throwing fatal error when the task cancel
-            // or exit.
-        }
+        drainInflightRecords(maxInFlightRecordNum);
         // 3. Ensure the currentContext is restored.
         setCurrentContext(storedContext);
         inFlightRecordNum.incrementAndGet();
@@ -268,5 +259,35 @@ public class AsyncExecutionController<K> {
                                 throw new FlinkRuntimeException("Unexpected runtime exception", e);
                             }
                         });
+    }
+
+    /**
+     * A helper function to drain in-flight records util {@link #inFlightRecordNum} within the limit
+     * of given {@code targetNum}.
+     *
+     * @param targetNum the target {@link #inFlightRecordNum} to achieve.
+     */
+    public void drainInflightRecords(int targetNum) {
+        try {
+            while (inFlightRecordNum.get() > targetNum) {
+                if (!mailboxExecutor.tryYield()) {
+                    triggerIfNeeded(true);
+                    Thread.sleep(1);
+                }
+            }
+        } catch (InterruptedException ignored) {
+            // ignore the interrupted exception to avoid throwing fatal error when the task cancel
+            // or exit.
+        }
+    }
+
+    @VisibleForTesting
+    public void setStateExecutor(StateExecutor stateExecutor) {
+        this.stateExecutor = stateExecutor;
+    }
+
+    @VisibleForTesting
+    public int getInFlightRecordNum() {
+        return inFlightRecordNum.get();
     }
 }

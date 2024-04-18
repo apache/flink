@@ -268,7 +268,7 @@ public abstract class AbstractStreamOperatorV2<OUT>
     }
 
     @Override
-    public final OperatorSnapshotFutures snapshotState(
+    public OperatorSnapshotFutures snapshotState(
             long checkpointId,
             long timestamp,
             CheckpointOptions checkpointOptions,
