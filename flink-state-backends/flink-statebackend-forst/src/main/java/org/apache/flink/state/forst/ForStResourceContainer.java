@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
@@ -33,6 +34,7 @@ import org.rocksdb.Cache;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.Filter;
+import org.rocksdb.FlinkEnv;
 import org.rocksdb.IndexType;
 import org.rocksdb.PlainTableConfig;
 import org.rocksdb.ReadOptions;
@@ -46,6 +48,7 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -66,7 +69,11 @@ public final class ForStResourceContainer implements AutoCloseable {
     // the filename length limit is 255 on most operating systems
     private static final int INSTANCE_PATH_LENGTH_LIMIT = 255 - FORST_RELOCATE_LOG_SUFFIX.length();
 
-    private static final String LOCAL_DB_DIR_STRING = "db";
+    private static final String DB_DIR_STRING = "db";
+
+    @Nullable private final URI remoteBasePath;
+
+    @Nullable private final URI remoteForStPath;
 
     @Nullable private final File localBasePath;
 
@@ -94,19 +101,19 @@ public final class ForStResourceContainer implements AutoCloseable {
 
     @VisibleForTesting
     public ForStResourceContainer() {
-        this(new Configuration(), null, null, null, false);
+        this(new Configuration(), null, null, null, null, false);
     }
 
     @VisibleForTesting
     public ForStResourceContainer(@Nullable ForStOptionsFactory optionsFactory) {
-        this(new Configuration(), optionsFactory, null, null, false);
+        this(new Configuration(), optionsFactory, null, null, null, false);
     }
 
     @VisibleForTesting
     public ForStResourceContainer(
             @Nullable ForStOptionsFactory optionsFactory,
             @Nullable OpaqueMemoryResource<ForStSharedResources> sharedResources) {
-        this(new Configuration(), optionsFactory, sharedResources, null, false);
+        this(new Configuration(), optionsFactory, sharedResources, null, null, false);
     }
 
     public ForStResourceContainer(
@@ -114,6 +121,7 @@ public final class ForStResourceContainer implements AutoCloseable {
             @Nullable ForStOptionsFactory optionsFactory,
             @Nullable OpaqueMemoryResource<ForStSharedResources> sharedResources,
             @Nullable File localBasePath,
+            @Nullable URI remoteBasePath,
             boolean enableStatistics) {
 
         this.configuration = configuration;
@@ -121,8 +129,10 @@ public final class ForStResourceContainer implements AutoCloseable {
         this.sharedResources = sharedResources;
 
         this.localBasePath = localBasePath;
-        this.localForStPath =
-                localBasePath != null ? new File(localBasePath, LOCAL_DB_DIR_STRING) : null;
+        this.localForStPath = localBasePath != null ? new File(localBasePath, DB_DIR_STRING) : null;
+        this.remoteBasePath = remoteBasePath;
+        this.remoteForStPath =
+                remoteBasePath != null ? remoteBasePath.resolve(DB_DIR_STRING) : null;
 
         this.enableStatistics = enableStatistics;
         this.handlesToClose = new ArrayList<>();
@@ -154,6 +164,13 @@ public final class ForStResourceContainer implements AutoCloseable {
             Statistics statistics = new Statistics();
             opt.setStatistics(statistics);
             handlesToClose.add(statistics);
+        }
+
+        // TODO: Fallback to checkpoint directory when checkpoint feature is ready if not
+        // configured,
+        //  fallback to local directory currently temporarily.
+        if (remoteForStPath != null) {
+            opt.setEnv(new FlinkEnv(remoteForStPath.toString()));
         }
 
         return opt;
@@ -239,6 +256,68 @@ public final class ForStResourceContainer implements AutoCloseable {
     @Nullable
     public File getLocalForStPath() {
         return localForStPath;
+    }
+
+    @Nullable
+    public URI getRemoteBasePath() {
+        return remoteBasePath;
+    }
+
+    /**
+     * Prepare local and remote directories.
+     *
+     * @throws Exception if any unexpected behaviors.
+     */
+    public void prepareDirectories() throws Exception {
+        if (remoteBasePath != null && remoteForStPath != null) {
+            prepareDirectories(remoteBasePath, remoteForStPath);
+        }
+        if (localBasePath != null && localForStPath != null) {
+            prepareDirectories(new URI(localBasePath.getPath()), new URI(localForStPath.getPath()));
+        }
+    }
+
+    private static void prepareDirectories(URI basePath, URI dbPath) throws IOException {
+        FileSystem fileSystem = FileSystem.get(basePath);
+        org.apache.flink.core.fs.Path tempBasePath = new org.apache.flink.core.fs.Path(basePath),
+                tempDBPath = new org.apache.flink.core.fs.Path(dbPath);
+        if (fileSystem.exists(tempBasePath)) {
+            if (!fileSystem.getFileStatus(tempBasePath).isDir()) {
+                throw new IOException("Not a directory: " + tempBasePath);
+            }
+        } else if (!fileSystem.mkdirs(tempBasePath)) {
+            throw new IOException(
+                    String.format("Could not create ForSt directory at %s.", tempBasePath));
+        }
+        if (fileSystem.exists(tempDBPath)) {
+            fileSystem.delete(tempDBPath, true);
+        }
+        if (!fileSystem.mkdirs(tempDBPath)) {
+            throw new IOException(
+                    String.format("Could not create ForSt db directory at %s.", tempDBPath));
+        }
+    }
+
+    /**
+     * Clear local and remote directories.
+     *
+     * @throws Exception if any unexpected behaviors.
+     */
+    public void clearDirectories() throws Exception {
+        if (remoteBasePath != null) {
+            clearDirectories(remoteBasePath);
+        }
+        if (localBasePath != null) {
+            clearDirectories(new URI(localBasePath.getPath()));
+        }
+    }
+
+    private static void clearDirectories(URI basePath) throws IOException {
+        FileSystem fileSystem = FileSystem.get(basePath);
+        org.apache.flink.core.fs.Path tempBasePath = new org.apache.flink.core.fs.Path(basePath);
+        if (fileSystem.exists(tempBasePath)) {
+            fileSystem.delete(tempBasePath, true);
+        }
     }
 
     ForStNativeMetricOptions getMemoryWatcherOptions(
