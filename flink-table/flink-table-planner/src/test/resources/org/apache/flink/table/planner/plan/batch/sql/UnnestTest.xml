@@ -16,7 +16,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testCrossWithUnnest">
+	<TestCase name="testUnnestWithValues">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM UNNEST(ARRAY[1,2,3])]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(EXPR$0=[$0])
++- Uncollect
+   +- LogicalProject(EXPR$0=[ARRAY(1, 2, 3)])
+      +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Correlate(invocation=[$UNNEST_ROWS$1(ARRAY(1, 2, 3))], correlate=[table($UNNEST_ROWS$1(ARRAY(1, 2, 3)))], select=[f0], rowType=[RecordType:peek_no_expand(INTEGER f0)], joinType=[INNER])
++- Values(tuples=[[{  }]], values=[])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testCrossWithUnnest">
     <Resource name="sql">
       <![CDATA[SELECT a, s FROM MyTable, UNNEST(MyTable.c) as A (s)]]>
     </Resource>

@@ -94,6 +94,11 @@ abstract class UnnestTestBase(withExecPlan: Boolean) extends TableTestBase {
   }
 
   @Test
+  def testUnnestWithValues(): Unit = {
+    verifyPlan("SELECT * FROM UNNEST(ARRAY[1,2,3])")
+  }
+
+  @Test
   def testCrossWithUnnestForMap(): Unit = {
     util.addTableSource(
       "MyTable",
