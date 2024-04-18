@@ -240,46 +240,46 @@ create catalog cat2 WITH (
 展示元数据描述。
 ```sql
 describe catalog cat2;
-+--------------------------+---------------------------+
-| catalog_description_item | catalog_description_value |
-+--------------------------+---------------------------+
-|                     Name |                      cat2 |
-|                     Type |         generic_in_memory |
-|                  Comment |                           |
-+--------------------------+---------------------------+
++-----------+-------------------+
+| info name |        info value |
++-----------+-------------------+
+|      Name |              cat2 |
+|      Type | generic_in_memory |
+|   Comment |                   |
++-----------+-------------------+
 3 rows in set
 
 desc catalog cat2;
-+--------------------------+---------------------------+
-| catalog_description_item | catalog_description_value |
-+--------------------------+---------------------------+
-|                     Name |                      cat2 |
-|                     Type |         generic_in_memory |
-|                  Comment |                           |
-+--------------------------+---------------------------+
++-----------+-------------------+
+| info name |        info value |
++-----------+-------------------+
+|      Name |              cat2 |
+|      Type | generic_in_memory |
+|   Comment |                   |
++-----------+-------------------+
 3 rows in set
 ```
 展示完整的元数据描述。
 ```sql
 describe catalog extended cat2;
-+--------------------------+---------------------------------------------------------+
-| catalog_description_item |                               catalog_description_value |
-+--------------------------+---------------------------------------------------------+
-|                     Name |                                                    cat2 |
-|                     Type |                                       generic_in_memory |
-|                  Comment |                                                         |
-|               Properties | ('default-database','db'), ('type','generic_in_memory') |
-+--------------------------+---------------------------------------------------------+
++------------+---------------------------------------------------------+
+|  info name |                                              info value |
++------------+---------------------------------------------------------+
+|       Name |                                                    cat2 |
+|       Type |                                       generic_in_memory |
+|    Comment |                                                         |
+| Properties | ('default-database','db'), ('type','generic_in_memory') |
++------------+---------------------------------------------------------+
 4 rows in set
 
 desc catalog extended cat2;
-+--------------------------+---------------------------------------------------------+
-| catalog_description_item |                               catalog_description_value |
-+--------------------------+---------------------------------------------------------+
-|                     Name |                                                    cat2 |
-|                     Type |                                       generic_in_memory |
-|                  Comment |                                                         |
-|               Properties | ('default-database','db'), ('type','generic_in_memory') |
-+--------------------------+---------------------------------------------------------+
++------------+---------------------------------------------------------+
+|  info name |                                              info value |
++------------+---------------------------------------------------------+
+|       Name |                                                    cat2 |
+|       Type |                                       generic_in_memory |
+|    Comment |                                                         |
+| Properties | ('default-database','db'), ('type','generic_in_memory') |
++------------+---------------------------------------------------------+
 4 rows in set
 ```

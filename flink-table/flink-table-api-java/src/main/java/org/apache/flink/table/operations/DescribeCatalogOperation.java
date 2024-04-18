@@ -33,6 +33,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.internal.TableResultUtils.buildTableResult;
 
@@ -92,23 +93,19 @@ public class DescribeCatalogOperation implements Operation, ExecutableOperation 
         }
 
         return buildTableResult(
-                Arrays.asList("catalog_description_item", "catalog_description_value")
-                        .toArray(new String[0]),
+                Arrays.asList("info name", "info value").toArray(new String[0]),
                 Arrays.asList(DataTypes.STRING(), DataTypes.STRING()).toArray(new DataType[0]),
                 rows.stream().map(List::toArray).toArray(Object[][]::new));
     }
 
     private String convertPropertiesToString(Map<String, String> map) {
-        StringBuilder stringBuilder = new StringBuilder();
-        for (Map.Entry<String, String> entry : map.entrySet()) {
-            stringBuilder.append(
-                    String.format(
-                            "('%s','%s'), ",
-                            EncodingUtils.escapeSingleQuotes(entry.getKey()),
-                            EncodingUtils.escapeSingleQuotes(entry.getValue())));
-        }
-        // remove the last unnecessary comma and space
-        stringBuilder.delete(stringBuilder.length() - 2, stringBuilder.length());
-        return stringBuilder.toString();
+        return map.entrySet().stream()
+                .map(
+                        entry ->
+                                String.format(
+                                        "('%s','%s')",
+                                        EncodingUtils.escapeSingleQuotes(entry.getKey()),
+                                        EncodingUtils.escapeSingleQuotes(entry.getValue())))
+                .collect(Collectors.joining(", "));
     }
 }
