@@ -18,12 +18,18 @@
 
 package org.apache.flink.state.forst.fs;
 
+import org.apache.flink.core.fs.ByteBufferReadable;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.local.LocalDataInputStream;
+import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
@@ -41,6 +47,17 @@ public class ForStFlinkFileSystemTest {
     void testReadAndWriteWithByteBuffer() throws Exception {
         ForStFlinkFileSystem fileSystem =
                 (ForStFlinkFileSystem) ForStFlinkFileSystem.get(new URI(tempDir.toString()));
+        testReadAndWriteWithByteBuffer(fileSystem);
+    }
+
+    @Test
+    void testPositionedRead() throws Exception {
+        ForStFlinkFileSystem fileSystem =
+                new ForStFlinkFileSystem(new ByteBufferReadableLocalFileSystem());
+        testReadAndWriteWithByteBuffer(fileSystem);
+    }
+
+    private void testReadAndWriteWithByteBuffer(ForStFlinkFileSystem fileSystem) throws Exception {
         org.apache.flink.core.fs.Path testFilePath =
                 new org.apache.flink.core.fs.Path(tempDir.toString() + "/temp-file");
         final int attempt = 200;
@@ -108,5 +125,41 @@ public class ForStFlinkFileSystemTest {
         Assertions.assertThat(fileSystem.exists(testFilePath)).isTrue();
         fileSystem.delete(testFilePath, true);
         Assertions.assertThat(fileSystem.exists(testFilePath)).isFalse();
+    }
+
+    private static class ByteBufferReadableLocalFileSystem extends LocalFileSystem {
+
+        @Override
+        public FSDataInputStream open(org.apache.flink.core.fs.Path path) throws IOException {
+            final File file = pathToFile(path);
+            return new ByteBufferReadableLocalDataInputStream(file);
+        }
+    }
+
+    private static class ByteBufferReadableLocalDataInputStream extends LocalDataInputStream
+            implements ByteBufferReadable {
+
+        public ByteBufferReadableLocalDataInputStream(File file) throws IOException {
+            super(file);
+        }
+
+        @Override
+        public synchronized int read(ByteBuffer byteBuffer) throws IOException {
+            byte[] tmp = new byte[byteBuffer.remaining()];
+            read(tmp, 0, tmp.length);
+            byteBuffer.put(tmp);
+            return tmp.length;
+        }
+
+        @Override
+        public synchronized int read(long position, ByteBuffer byteBuffer) throws IOException {
+            byte[] tmp = new byte[byteBuffer.remaining()];
+            long currPosition = getPos();
+            seek(position);
+            read(tmp, 0, tmp.length);
+            seek(currPosition);
+            byteBuffer.put(tmp);
+            return tmp.length;
+        }
     }
 }
