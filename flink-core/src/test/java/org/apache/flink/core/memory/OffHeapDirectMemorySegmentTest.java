@@ -18,23 +18,21 @@
 
 package org.apache.flink.core.memory;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.nio.ByteBuffer;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link MemorySegment} in off-heap mode using direct memory. */
-@RunWith(Parameterized.class)
-public class OffHeapDirectMemorySegmentTest extends MemorySegmentTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+class OffHeapDirectMemorySegmentTest extends MemorySegmentTestBase {
 
-    public OffHeapDirectMemorySegmentTest(int pageSize) {
+    OffHeapDirectMemorySegmentTest(int pageSize) {
         super(pageSize);
     }
 
@@ -48,30 +46,24 @@ public class OffHeapDirectMemorySegmentTest extends MemorySegmentTestBase {
         return MemorySegmentFactory.allocateUnpooledOffHeapMemory(size, owner);
     }
 
-    @Test
-    public void testHeapSegmentSpecifics() {
+    @TestTemplate
+    void testHeapSegmentSpecifics() {
         final int bufSize = 411;
         MemorySegment seg = createSegment(bufSize);
 
-        assertFalse(seg.isFreed());
-        assertTrue(seg.isOffHeap());
-        assertEquals(bufSize, seg.size());
+        assertThat(seg.isFreed()).isFalse();
+        assertThat(seg.isOffHeap()).isTrue();
+        assertThat(seg.size()).isEqualTo(bufSize);
 
-        try {
-            //noinspection ResultOfMethodCallIgnored
-            seg.getArray();
-            fail("should throw an exception");
-        } catch (IllegalStateException e) {
-            // expected
-        }
+        assertThatThrownBy(seg::getArray).isInstanceOf(IllegalStateException.class);
 
         ByteBuffer buf1 = seg.wrap(1, 2);
         ByteBuffer buf2 = seg.wrap(3, 4);
 
-        assertNotSame(buf1, buf2);
-        assertEquals(1, buf1.position());
-        assertEquals(3, buf1.limit());
-        assertEquals(3, buf2.position());
-        assertEquals(7, buf2.limit());
+        assertThat(buf2).isNotSameAs(buf1);
+        assertThat(buf1.position()).isOne();
+        assertThat(buf1.limit()).isEqualTo(3);
+        assertThat(buf2.position()).isEqualTo(3);
+        assertThat(buf2.limit()).isEqualTo(7);
     }
 }
