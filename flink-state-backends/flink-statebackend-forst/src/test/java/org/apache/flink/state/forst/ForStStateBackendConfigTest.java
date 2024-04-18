@@ -144,7 +144,7 @@ public class ForStStateBackendConfigTest {
                 createKeyedStateBackend(forStStateBackend, env, IntSerializer.INSTANCE);
 
         try {
-            File instanceBasePath = keyedBackend.getInstanceBasePath();
+            File instanceBasePath = keyedBackend.getLocalBasePath();
             assertThat(
                     instanceBasePath.getAbsolutePath(),
                     anyOf(startsWith(testDir1), startsWith(testDir2)));
@@ -207,7 +207,7 @@ public class ForStStateBackendConfigTest {
                 createKeyedStateBackend(forStBackend, env, IntSerializer.INSTANCE);
 
         try {
-            File instanceBasePath = keyedBackend.getInstanceBasePath();
+            File instanceBasePath = keyedBackend.getLocalBasePath();
             assertThat(
                     instanceBasePath.getAbsolutePath(), startsWith(expectedPath.getAbsolutePath()));
 
@@ -253,26 +253,26 @@ public class ForStStateBackendConfigTest {
         conf.set(ForStConfigurableOptions.LOG_LEVEL, InfoLogLevel.DEBUG_LEVEL);
         conf.set(ForStConfigurableOptions.LOG_FILE_NUM, 4);
         conf.set(ForStConfigurableOptions.LOG_MAX_FILE_SIZE, MemorySize.parse("1kb"));
-        final ForStStateBackend rocksDbBackend =
+        final ForStStateBackend forStBackend =
                 new ForStStateBackend().configure(conf, getClass().getClassLoader());
         final String dbStoragePath = new Path(folder.toURI().toString()).toString();
-        rocksDbBackend.setLocalDbStoragePath(dbStoragePath);
+        forStBackend.setLocalDbStoragePath(dbStoragePath);
 
         final MockEnvironment env = getMockEnvironment(tempFolder.newFolder());
         ForStKeyedStateBackend<Integer> keyedBackend =
-                createKeyedStateBackend(rocksDbBackend, env, IntSerializer.INSTANCE);
+                createKeyedStateBackend(forStBackend, env, IntSerializer.INSTANCE);
 
-        File instanceBasePath = keyedBackend.getInstanceBasePath();
-        File instanceRocksDBPath = new File(instanceBasePath, "db");
+        File localBasePath = keyedBackend.getLocalBasePath();
+        File localForStPath = new File(localBasePath, "db");
 
         // avoid tests without relocate.
-        Assume.assumeTrue(instanceRocksDBPath.getAbsolutePath().length() <= 255 - "_LOG".length());
+        Assume.assumeTrue(localForStPath.getAbsolutePath().length() <= 255 - "_LOG".length());
 
         java.nio.file.Path[] relocatedDbLogs;
         try {
             relocatedDbLogs = FileUtils.listDirectory(relocatedDBLogDir.toPath());
             while (relocatedDbLogs.length <= 2) {
-                // If the default number of log files in rocksdb is not enough, add more logs.
+                // If the default number of log files in ForSt is not enough, add more logs.
                 try (FlushOptions flushOptions = new FlushOptions()) {
                     keyedBackend.db.put(RandomUtils.nextBytes(32), RandomUtils.nextBytes(512));
                     keyedBackend.db.flush(flushOptions);
@@ -290,11 +290,11 @@ public class ForStStateBackendConfigTest {
     }
 
     // ------------------------------------------------------------------------
-    //  RocksDB local file automatic from temp directories
+    //  ForSt local file automatic from temp directories
     // ------------------------------------------------------------------------
 
     /**
-     * This tests whether the RocksDB backends uses the temp directories that are provided from the
+     * This tests whether the ForSt backends uses the temp directories that are provided from the
      * {@link Environment} when no db storage path is set.
      */
     @Test
@@ -326,7 +326,7 @@ public class ForStStateBackendConfigTest {
                                 cancelStreamRegistry));
 
         try {
-            File instanceBasePath = keyedBackend.getInstanceBasePath();
+            File instanceBasePath = keyedBackend.getLocalBasePath();
             assertThat(instanceBasePath.getAbsolutePath(), startsWith(dir1.getAbsolutePath()));
         } finally {
             keyedBackend.dispose();
@@ -335,7 +335,7 @@ public class ForStStateBackendConfigTest {
     }
 
     // ------------------------------------------------------------------------
-    //  RocksDB local file directory initialization
+    //  ForSt local file directory initialization
     // ------------------------------------------------------------------------
 
     @Test
@@ -429,7 +429,7 @@ public class ForStStateBackendConfigTest {
     }
 
     // ------------------------------------------------------------------------
-    //  RocksDB Options
+    //  ForSt Options
     // ------------------------------------------------------------------------
     @Test
     public void testConfigurableOptionsFromConfig() throws Exception {
@@ -465,7 +465,7 @@ public class ForStStateBackendConfigTest {
         // verify legal configuration
         {
             configuration.setString(ForStConfigurableOptions.LOG_LEVEL.key(), "DEBUG_LEVEL");
-            configuration.setString(ForStConfigurableOptions.LOG_DIR.key(), "/tmp/rocksdb-logs/");
+            configuration.setString(ForStConfigurableOptions.LOG_DIR.key(), "/tmp/ForSt-logs/");
             configuration.setString(ForStConfigurableOptions.LOG_FILE_NUM.key(), "10");
             configuration.setString(ForStConfigurableOptions.LOG_MAX_FILE_SIZE.key(), "2MB");
             configuration.setString(ForStConfigurableOptions.COMPACTION_STYLE.key(), "level");
@@ -486,12 +486,12 @@ public class ForStStateBackendConfigTest {
             configuration.setString(ForStConfigurableOptions.USE_BLOOM_FILTER.key(), "TRUE");
 
             try (ForStResourceContainer optionsContainer =
-                    new ForStResourceContainer(configuration, null, null, null, false)) {
+                    new ForStResourceContainer(configuration, null, null, null, null, false)) {
 
                 DBOptions dbOptions = optionsContainer.getDbOptions();
                 assertEquals(-1, dbOptions.maxOpenFiles());
                 assertEquals(InfoLogLevel.DEBUG_LEVEL, dbOptions.infoLogLevel());
-                assertEquals("/tmp/rocksdb-logs/", dbOptions.dbLogDir());
+                assertEquals("/tmp/ForSt-logs/", dbOptions.dbLogDir());
                 assertEquals(10, dbOptions.keepLogFileNum());
                 assertEquals(2 * SizeUnit.MB, dbOptions.maxLogFileSize());
 
@@ -569,7 +569,7 @@ public class ForStStateBackendConfigTest {
         Configuration configuration = new Configuration();
         configuration.set(ForStConfigurableOptions.COMPACTION_STYLE, CompactionStyle.UNIVERSAL);
         try (final ForStResourceContainer optionsContainer =
-                new ForStResourceContainer(configuration, null, null, null, false)) {
+                new ForStResourceContainer(configuration, null, null, null, null, false)) {
 
             final ColumnFamilyOptions columnFamilyOptions = optionsContainer.getColumnOptions();
             assertNotNull(columnFamilyOptions);
@@ -577,7 +577,7 @@ public class ForStStateBackendConfigTest {
         }
 
         try (final ForStResourceContainer optionsContainer =
-                new ForStResourceContainer(new Configuration(), null, null, null, false)) {
+                new ForStResourceContainer(new Configuration(), null, null, null, null, false)) {
 
             final ColumnFamilyOptions columnFamilyOptions = optionsContainer.getColumnOptions();
             assertNotNull(columnFamilyOptions);
@@ -638,7 +638,7 @@ public class ForStStateBackendConfigTest {
     }
 
     // ------------------------------------------------------------------------
-    //  RocksDB Memory Control
+    //  ForSt Memory Control
     // ------------------------------------------------------------------------
 
     @Test
@@ -705,6 +705,32 @@ public class ForStStateBackendConfigTest {
         }
     }
 
+    @Test
+    public void testRemoteDirectory() throws Exception {
+        FileSystem.initialize(new Configuration(), null);
+        Configuration configuration = new Configuration();
+        configuration.set(ForStOptions.REMOTE_DIRECTORY, tempFolder.newFolder().toURI().toString());
+        ForStStateBackend forStStateBackend =
+                new ForStStateBackend().configure(configuration, null);
+        ForStKeyedStateBackend<Integer> keyedBackend = null;
+        try {
+            keyedBackend =
+                    createKeyedStateBackend(
+                            forStStateBackend,
+                            getMockEnvironment(tempFolder.newFolder()),
+                            IntSerializer.INSTANCE);
+            assertTrue(
+                    keyedBackend
+                            .getRemoteBasePath()
+                            .toString()
+                            .startsWith(configuration.get(ForStOptions.REMOTE_DIRECTORY)));
+        } finally {
+            if (keyedBackend != null) {
+                keyedBackend.dispose();
+            }
+        }
+    }
+
     private void verifySetParameter(Runnable setter) {
         try {
             setter.run();
@@ -742,7 +768,7 @@ public class ForStStateBackendConfigTest {
     /** An implementation of options factory for testing. */
     public static class TestOptionsFactory implements ConfigurableForStOptionsFactory {
         public static final ConfigOption<Integer> BACKGROUND_JOBS_OPTION =
-                ConfigOptions.key("my.custom.rocksdb.backgroundJobs").intType().defaultValue(2);
+                ConfigOptions.key("my.custom.forst.backgroundJobs").intType().defaultValue(2);
 
         private int backgroundJobs = BACKGROUND_JOBS_OPTION.defaultValue();
 
