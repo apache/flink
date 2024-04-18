@@ -124,7 +124,6 @@ public class CreatingExecutionGraph implements State {
                         operatorCoordinatorHandlerFactory.create(executionGraph, context);
                 operatorCoordinatorHandler.initializeOperatorCoordinators(
                         context.getMainThreadExecutor());
-                operatorCoordinatorHandler.startAllOperatorCoordinators();
                 final String updatedPlan =
                         JsonPlanGenerator.generatePlan(
                                 executionGraph.getJobID(),
@@ -138,6 +137,10 @@ public class CreatingExecutionGraph implements State {
                                                 .iterator(),
                                 executionGraphWithVertexParallelism.getVertexParallelism());
                 executionGraph.setJsonPlan(updatedPlan);
+
+                executionGraph.transitionToRunning();
+                operatorCoordinatorHandler.startAllOperatorCoordinators();
+
                 context.goToExecuting(
                         result.getExecutionGraph(),
                         executionGraphHandler,
