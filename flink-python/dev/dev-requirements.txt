@@ -16,4 +16,4 @@ pip>=20.3
 setuptools>=18.0
 wheel
 apache-beam==2.50.0
-cython==0.29.25
+cython==0.29.36
