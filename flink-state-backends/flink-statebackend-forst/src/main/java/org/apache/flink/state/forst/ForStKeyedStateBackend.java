@@ -19,7 +19,7 @@ package org.apache.flink.state.forst;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.Disposable;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -29,14 +29,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.IOException;
+import java.net.URI;
 
 /**
  * A KeyedStateBackend that stores its state in {@code ForSt}. This state backend can store very
  * large state that exceeds memory even disk to remote storage. TODO: Support to implement the new
  * interface of KeyedStateBackend
  */
-public class ForStKeyedStateBackend<K> {
+public class ForStKeyedStateBackend<K> implements Disposable {
 
     private static final Logger LOG = LoggerFactory.getLogger(ForStKeyedStateBackend.class);
 
@@ -45,9 +45,6 @@ public class ForStKeyedStateBackend<K> {
 
     /** The container of ForSt options. */
     private final ForStResourceContainer optionsContainer;
-
-    /** Path where this configured instance stores its local data directory. */
-    private final File localBasePath;
 
     /**
      * We are not using the default column family for Flink state ops, but we still need to remember
@@ -70,14 +67,11 @@ public class ForStKeyedStateBackend<K> {
     private boolean disposed = false;
 
     public ForStKeyedStateBackend(
-            File localBasePath,
             ForStResourceContainer optionsContainer,
             TypeSerializer<K> keySerializer,
             RocksDB db,
             ColumnFamilyHandle defaultColumnFamilyHandle,
             ForStNativeMetricMonitor nativeMetricMonitor) {
-
-        this.localBasePath = Preconditions.checkNotNull(localBasePath);
         this.optionsContainer = Preconditions.checkNotNull(optionsContainer);
         this.keySerializer = keySerializer;
         this.db = db;
@@ -86,6 +80,7 @@ public class ForStKeyedStateBackend<K> {
     }
 
     /** Should only be called by one thread, and only after all accesses to the DB happened. */
+    @Override
     public void dispose() {
         if (this.disposed) {
             return;
@@ -108,27 +103,33 @@ public class ForStKeyedStateBackend<K> {
             // ... and finally close the DB instance ...
             IOUtils.closeQuietly(db);
 
-            IOUtils.closeQuietly(optionsContainer);
+            LOG.info(
+                    "Closed ForSt State Backend. Cleaning up ForSt local working directory {}, remote working directory {}.",
+                    optionsContainer.getLocalBasePath(),
+                    optionsContainer.getRemoteBasePath());
 
-            cleanLocalBasePath();
+            try {
+                optionsContainer.clearDirectories();
+            } catch (Exception ex) {
+                LOG.warn(
+                        "Could not delete ForSt local working directory {}, remote working directory {}.",
+                        optionsContainer.getLocalBasePath(),
+                        optionsContainer.getRemoteBasePath(),
+                        ex);
+            }
+
+            IOUtils.closeQuietly(optionsContainer);
         }
         this.disposed = true;
     }
 
-    private void cleanLocalBasePath() {
-        LOG.info(
-                "Closed ForSt State Backend. Cleaning up ForSt local working directory {}.",
-                localBasePath);
-
-        try {
-            FileUtils.deleteDirectory(localBasePath);
-        } catch (IOException ex) {
-            LOG.warn("Could not delete ForSt local working directory: {}", localBasePath, ex);
-        }
+    @VisibleForTesting
+    File getLocalBasePath() {
+        return optionsContainer.getLocalBasePath();
     }
 
     @VisibleForTesting
-    File getInstanceBasePath() {
-        return localBasePath;
+    URI getRemoteBasePath() {
+        return optionsContainer.getRemoteBasePath();
     }
 }

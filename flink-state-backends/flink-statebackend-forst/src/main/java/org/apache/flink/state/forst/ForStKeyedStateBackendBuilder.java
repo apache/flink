@@ -28,7 +28,6 @@ import org.apache.flink.state.forst.restore.ForStNoneRestoreOperation;
 import org.apache.flink.state.forst.restore.ForStRestoreOperation;
 import org.apache.flink.state.forst.restore.ForStRestoreResult;
 import org.apache.flink.util.CollectionUtil;
-import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -41,8 +40,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.function.Function;
 
@@ -66,12 +63,6 @@ public class ForStKeyedStateBackendBuilder<K>
     /** The container of ForSt option factory and predefined options. */
     private final ForStResourceContainer optionsContainer;
 
-    /** Path where this configured instance stores its data directory. */
-    private final File localBasePath;
-
-    /** Path where this configured instance stores its ForSt database. */
-    private final File localForStPath;
-
     private final MetricGroup metricGroup;
 
     /** ForSt property-based and statistics-based native metrics options. */
@@ -84,8 +75,6 @@ public class ForStKeyedStateBackendBuilder<K>
             MetricGroup metricGroup,
             @Nonnull Collection<KeyedStateHandle> stateHandles) {
         this.optionsContainer = optionsContainer;
-        this.localBasePath = optionsContainer.getLocalBasePath();
-        this.localForStPath = optionsContainer.getLocalForStPath();
         this.columnFamilyOptionsFactory = Preconditions.checkNotNull(columnFamilyOptionsFactory);
         this.keySerializerProvider =
                 StateSerializerProvider.fromNewRegisteredSerializer(keySerializer);
@@ -108,7 +97,7 @@ public class ForStKeyedStateBackendBuilder<K>
         ForStRestoreOperation restoreOperation = null;
 
         try {
-            prepareLocalDirectories();
+            optionsContainer.prepareDirectories();
             restoreOperation = getForStRestoreOperation();
             ForStRestoreResult restoreResult = restoreOperation.restore();
             db = restoreResult.getDb();
@@ -124,12 +113,16 @@ public class ForStKeyedStateBackendBuilder<K>
             IOUtils.closeQuietly(db);
             // it's possible that db has been initialized but later restore steps failed
             IOUtils.closeQuietly(restoreOperation);
-            IOUtils.closeQuietly(optionsContainer);
             try {
-                FileUtils.deleteDirectory(localBasePath);
+                optionsContainer.clearDirectories();
             } catch (Exception ex) {
-                logger.warn("Failed to delete local base path for ForSt: " + localBasePath, ex);
+                logger.warn(
+                        "Failed to delete ForSt local base path {}, remote base path {}.",
+                        optionsContainer.getLocalBasePath(),
+                        optionsContainer.getRemoteBasePath(),
+                        ex);
             }
+            IOUtils.closeQuietly(optionsContainer);
             // Log and rethrow
             if (e instanceof BackendBuildingException) {
                 throw (BackendBuildingException) e;
@@ -140,10 +133,10 @@ public class ForStKeyedStateBackendBuilder<K>
             }
         }
         logger.info(
-                "Finished building ForSt keyed state-backend at local base path: {}.",
-                localBasePath);
+                "Finished building ForSt keyed state-backend at local base path: {}, remote base path: {}.",
+                optionsContainer.getLocalBasePath(),
+                optionsContainer.getRemoteBasePath());
         return new ForStKeyedStateBackend<>(
-                this.localBasePath,
                 this.optionsContainer,
                 this.keySerializerProvider.currentSchemaSerializer(),
                 db,
@@ -155,7 +148,7 @@ public class ForStKeyedStateBackendBuilder<K>
         DBOptions dbOptions = optionsContainer.getDbOptions();
         if (CollectionUtil.isEmptyOrAllElementsNull(restoreStateHandles)) {
             return new ForStNoneRestoreOperation(
-                    localForStPath,
+                    optionsContainer.getLocalForStPath(),
                     dbOptions,
                     columnFamilyOptionsFactory,
                     nativeMetricOptions,
@@ -163,25 +156,5 @@ public class ForStKeyedStateBackendBuilder<K>
         }
         // TODO: Support Restoring
         throw new UnsupportedOperationException("Not support restoring yet for ForStStateBackend");
-    }
-
-    private void prepareLocalDirectories() throws IOException {
-        checkAndCreateDirectory(localBasePath);
-        if (localForStPath.exists()) {
-            // Clear the base directory when the backend is created
-            // in case something crashed and the backend never reached dispose()
-            FileUtils.deleteDirectory(localBasePath);
-        }
-    }
-
-    private static void checkAndCreateDirectory(File directory) throws IOException {
-        if (directory.exists()) {
-            if (!directory.isDirectory()) {
-                throw new IOException("Not a directory: " + directory);
-            }
-        } else if (!directory.mkdirs()) {
-            throw new IOException(
-                    String.format("Could not create ForSt data directory at %s.", directory));
-        }
     }
 }

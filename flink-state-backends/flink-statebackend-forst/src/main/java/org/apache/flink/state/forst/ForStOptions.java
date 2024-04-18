@@ -30,7 +30,7 @@ import org.apache.flink.configuration.description.TextElement;
 @Experimental
 public class ForStOptions {
 
-    /** The local directory (on the TaskManager) where ForSt puts its some files. */
+    /** The local directory (on the TaskManager) where ForSt puts some meta files. */
     public static final ConfigOption<String> LOCAL_DIRECTORIES =
             ConfigOptions.key("state.backend.forst.localdir")
                     .stringType()
@@ -38,12 +38,22 @@ public class ForStOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "The local directory (on the TaskManager) where ForSt puts its some files. Per default, it will be <WORKING_DIR>/tmp. See %s for more details.",
+                                            "The local directory (on the TaskManager) where ForSt puts some meta files. Per default, it will be <WORKING_DIR>/tmp. See %s for more details.",
                                             TextElement.code(
                                                     ClusterOptions
                                                             .TASK_MANAGER_PROCESS_WORKING_DIR_BASE
                                                             .key()))
                                     .build());
+
+    /** The remote directory where ForSt puts its SST files. */
+    public static final ConfigOption<String> REMOTE_DIRECTORY =
+            ConfigOptions.key("state.backend.forst.remotedir")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            String.format(
+                                    "The remote directory where ForSt puts its SST files, fallback to %s if not configured.",
+                                    LOCAL_DIRECTORIES.key()));
 
     /** The options factory class for ForSt to create DBOptions and ColumnFamilyOptions. */
     public static final ConfigOption<String> OPTIONS_FACTORY =

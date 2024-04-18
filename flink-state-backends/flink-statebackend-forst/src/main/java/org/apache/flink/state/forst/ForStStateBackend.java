@@ -50,6 +50,7 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -83,6 +84,13 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
     // ------------------------------------------------------------------------
 
     // -- configuration values, set in the application / configuration
+
+    /**
+     * Base paths for ForSt remote directory, as configured. Null if not yet set, in which case the
+     * configuration values will be used. The configuration will fallback to local directory by
+     * default. TODO: fallback to checkpoint directory if not configured.
+     */
+    @Nullable private URI remoteForStDirectory;
 
     /**
      * Base paths for ForSt directory, as configured. Null if not yet set, in which case the
@@ -141,6 +149,21 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                 ForStMemoryConfiguration.fromOtherAndConfiguration(
                         original.memoryConfiguration, config);
         this.memoryConfiguration.validate();
+
+        if (original.remoteForStDirectory != null) {
+            this.remoteForStDirectory = original.remoteForStDirectory;
+        } else {
+            String remoteDirStr = config.get(ForStOptions.REMOTE_DIRECTORY);
+            try {
+                this.remoteForStDirectory = remoteDirStr == null ? null : new URI(remoteDirStr);
+            } catch (URISyntaxException e) {
+                throw new RuntimeException(
+                        String.format(
+                                "Exception when transform %s to URI, the value is: %s",
+                                ForStOptions.REMOTE_DIRECTORY.key(), remoteDirStr),
+                        e);
+            }
+        }
 
         // configure local directories
         if (original.localForStDirectories != null) {
@@ -279,15 +302,12 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
 
         lazyInitializeForJob(env, fileCompatibleIdentifier);
 
-        File instanceBasePath =
-                new File(
-                        getNextStoragePath(),
-                        "job_"
-                                + jobId
-                                + "_op_"
-                                + fileCompatibleIdentifier
-                                + "_uuid_"
-                                + UUID.randomUUID());
+        String childPath =
+                "job_" + jobId + "_op_" + fileCompatibleIdentifier + "_uuid_" + UUID.randomUUID();
+
+        File localBasePath = new File(getNextStoragePath(), childPath);
+        URI remoteBasePath =
+                remoteForStDirectory != null ? remoteForStDirectory.resolve(childPath) : null;
 
         final OpaqueMemoryResource<ForStSharedResources> sharedResources =
                 ForStOperationUtils.allocateSharedCachesIfConfigured(
@@ -302,7 +322,8 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
         final ForStResourceContainer resourceContainer =
                 createOptionsAndResourceContainer(
                         sharedResources,
-                        instanceBasePath,
+                        localBasePath,
+                        remoteBasePath,
                         nativeMetricOptions.isStatisticsEnabled());
 
         ForStKeyedStateBackendBuilder<K> builder =
@@ -534,21 +555,23 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
     }
 
     @VisibleForTesting
-    ForStResourceContainer createOptionsAndResourceContainer(@Nullable File instanceBasePath) {
-        return createOptionsAndResourceContainer(null, instanceBasePath, false);
+    ForStResourceContainer createOptionsAndResourceContainer(@Nullable File localBasePath) {
+        return createOptionsAndResourceContainer(null, localBasePath, null, false);
     }
 
     @VisibleForTesting
     private ForStResourceContainer createOptionsAndResourceContainer(
             @Nullable OpaqueMemoryResource<ForStSharedResources> sharedResources,
-            @Nullable File instanceBasePath,
+            @Nullable File localBasePath,
+            @Nullable URI remoteBasePath,
             boolean enableStatistics) {
 
         return new ForStResourceContainer(
                 configurableOptions != null ? configurableOptions : new Configuration(),
                 forStOptionsFactory,
                 sharedResources,
-                instanceBasePath,
+                localBasePath,
+                remoteBasePath,
                 enableStatistics);
     }
 
@@ -557,6 +580,8 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
         return "ForStStateBackend{"
                 + ", localForStDirectories="
                 + Arrays.toString(localForStDirectories)
+                + ", remoteForStDirectory="
+                + remoteForStDirectory
                 + '}';
     }
 

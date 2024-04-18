@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.forst;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -30,6 +31,7 @@ import org.rocksdb.BloomFilter;
 import org.rocksdb.Cache;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
+import org.rocksdb.FlinkEnv;
 import org.rocksdb.IndexType;
 import org.rocksdb.LRUCache;
 import org.rocksdb.NativeLibraryLoader;
@@ -38,8 +40,10 @@ import org.rocksdb.TableFormatConfig;
 import org.rocksdb.WriteBufferManager;
 import org.rocksdb.WriteOptions;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -48,6 +52,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests to guard {@link ForStResourceContainer}. */
@@ -293,5 +298,23 @@ public class ForStResourceContainerTest {
             assertThat(actual.filterPolicy(), not(blockBasedFilter));
         }
         assertFalse("Block based filter is left unclosed.", blockBasedFilter.isOwningHandle());
+    }
+
+    @Test
+    public void testDirectoryResources() throws Exception {
+        File localBasePath = TMP_FOLDER.newFolder();
+        URI remoteBasePath = TMP_FOLDER.newFolder().toURI();
+        try (final ForStResourceContainer optionsContainer =
+                new ForStResourceContainer(
+                        new Configuration(), null, null, localBasePath, remoteBasePath, false)) {
+            optionsContainer.prepareDirectories();
+            assertTrue(localBasePath.exists());
+            assertTrue(new File(remoteBasePath).exists());
+            assertTrue(optionsContainer.getDbOptions().getEnv() instanceof FlinkEnv);
+
+            optionsContainer.clearDirectories();
+            assertFalse(localBasePath.exists());
+            assertFalse(new File(remoteBasePath).exists());
+        }
     }
 }
