@@ -47,7 +47,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @param <K> the type of the key
  */
-public class AsyncExecutionController<K> {
+public class AsyncExecutionController<K> implements StateRequestHandler {
 
     private static final Logger LOG = LoggerFactory.getLogger(AsyncExecutionController.class);
 
@@ -176,7 +176,7 @@ public class AsyncExecutionController<K> {
     }
 
     /**
-     * Submit a {@link StateRequest} to this AEC and trigger if needed.
+     * Submit a {@link StateRequest} to this AsyncExecutionController and trigger it if needed.
      *
      * @param state the state to request. Could be {@code null} if the type is {@link
      *     StateRequestType#SYNC_POINT}.
@@ -184,6 +184,7 @@ public class AsyncExecutionController<K> {
      * @param payload the payload input for this request.
      * @return the state future.
      */
+    @Override
     public <IN, OUT> InternalStateFuture<OUT> handleRequest(
             @Nullable State state, StateRequestType type, @Nullable IN payload) {
         // Step 1: build state future & assign context.
