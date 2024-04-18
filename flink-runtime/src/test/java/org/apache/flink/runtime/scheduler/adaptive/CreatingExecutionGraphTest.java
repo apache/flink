@@ -157,8 +157,12 @@ public class CreatingExecutionGraphTest extends TestLogger {
                     ignored -> CreatingExecutionGraph.AssignmentResult.notPossible());
             context.setExpectWaitingForResources();
 
-            executionGraphWithVertexParallelismFuture.complete(
-                    getGraph(new StateTrackingMockExecutionGraph()));
+            final StateTrackingMockExecutionGraph executionGraph =
+                    new StateTrackingMockExecutionGraph();
+
+            executionGraphWithVertexParallelismFuture.complete(getGraph(executionGraph));
+
+            assertThat(executionGraph.getState()).isEqualTo(JobStatus.INITIALIZING);
         }
     }
 
