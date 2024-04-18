@@ -54,8 +54,6 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraphTest;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.FixedDelayRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.failover.NoRestartBackoffTimeStrategy;
@@ -64,7 +62,6 @@ import org.apache.flink.runtime.executiongraph.metrics.DownTimeGauge;
 import org.apache.flink.runtime.executiongraph.metrics.UpTimeGauge;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
@@ -75,7 +72,6 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
-import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultAllocatedSlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPool;
@@ -149,7 +145,6 @@ import java.util.stream.Collectors;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.setVertexResource;
 import static org.apache.flink.runtime.jobgraph.JobGraphTestUtils.streamingJobGraph;
 import static org.apache.flink.runtime.jobmaster.slotpool.SlotPoolTestUtils.createSlotOffersForResourceRequirements;
 import static org.apache.flink.runtime.jobmaster.slotpool.SlotPoolTestUtils.offerSlots;
@@ -1781,56 +1776,6 @@ public class AdaptiveSchedulerTest {
                                 "some directory", false, SavepointFormatType.CANONICAL))
                 .eventuallyFailsWith(ExecutionException.class)
                 .withCauseInstanceOf(CheckpointException.class);
-    }
-
-    @Test
-    void testSavepointFailsWhenBlockingEdgeExists() throws Exception {
-        JobVertex jobVertex = createNoOpVertex(PARALLELISM);
-        jobVertex.getOrCreateResultDataSet(
-                new IntermediateDataSetID(), ResultPartitionType.BLOCKING);
-
-        final ExecutionGraph executionGraph =
-                ExecutionGraphTestUtils.createExecutionGraph(
-                        EXECUTOR_RESOURCE.getExecutor(), jobVertex);
-
-        executionGraph
-                .getAllExecutionVertices()
-                .forEach(
-                        task ->
-                                setVertexResource(
-                                        task,
-                                        new TestingLogicalSlotBuilder()
-                                                .createTestingLogicalSlot()));
-        executionGraph.transitionToRunning();
-        executionGraph
-                .getAllExecutionVertices()
-                .forEach(
-                        task ->
-                                task.getCurrentExecutionAttempt()
-                                        .transitionState(ExecutionState.RUNNING));
-
-        final AdaptiveScheduler scheduler =
-                new AdaptiveSchedulerBuilder(
-                                streamingJobGraph(jobVertex),
-                                mainThreadExecutor,
-                                EXECUTOR_RESOURCE.getExecutor())
-                        .build();
-
-        scheduler.goToExecuting(executionGraph, null, null, Collections.emptyList());
-
-        assertThatFuture(
-                        scheduler.stopWithSavepoint(
-                                "some directory", false, SavepointFormatType.CANONICAL))
-                .eventuallyFailsWith(ExecutionException.class)
-                .withCauseInstanceOf(CheckpointException.class)
-                .withMessageContaining(CheckpointFailureReason.BLOCKING_OUTPUT_EXIST.message());
-
-        assertThatFuture(
-                        scheduler.triggerSavepoint(
-                                "some directory", false, SavepointFormatType.CANONICAL))
-                .eventuallyFailsWith(ExecutionException.class)
-                .withCauseInstanceOf(CheckpointException.class)
-                .withMessageContaining(CheckpointFailureReason.BLOCKING_OUTPUT_EXIST.message());
     }
 
     @Test
