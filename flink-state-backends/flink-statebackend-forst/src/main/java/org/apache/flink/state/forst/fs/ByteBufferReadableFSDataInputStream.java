@@ -18,6 +18,8 @@
 
 package org.apache.flink.state.forst.fs;
 
+import org.apache.flink.annotation.Experimental;
+import org.apache.flink.core.fs.ByteBufferReadable;
 import org.apache.flink.core.fs.FSDataInputStream;
 
 import java.io.IOException;
@@ -33,34 +35,42 @@ import java.util.concurrent.LinkedBlockingQueue;
  * <p>All methods in this class maybe used by ForSt, please start a discussion firstly if it has to
  * be modified.
  */
+@Experimental
 public class ByteBufferReadableFSDataInputStream extends FSDataInputStream {
 
     private final FSDataInputStream originalInputStream;
 
-    private volatile long toSeek = -1L;
-
+    /**
+     * InputStream Pool which provides multiple input streams to random read concurrently. An input
+     * stream should only be used by a thread at a point in time.
+     */
     private final Queue<FSDataInputStream> readInputStreamPool;
 
     private final Callable<FSDataInputStream> inputStreamBuilder;
 
     public ByteBufferReadableFSDataInputStream(
-            FSDataInputStream originalInputStream,
-            Callable<FSDataInputStream> inputStreamBuilder,
-            int inputStreamCapacity) {
-        this.originalInputStream = originalInputStream;
+            Callable<FSDataInputStream> inputStreamBuilder, int inputStreamCapacity)
+            throws IOException {
+        try {
+            this.originalInputStream = inputStreamBuilder.call();
+        } catch (Exception e) {
+            throw new IOException("Exception when build original input stream", e);
+        }
         this.inputStreamBuilder = inputStreamBuilder;
         this.readInputStreamPool = new LinkedBlockingQueue<>(inputStreamCapacity);
     }
 
     /**
      * Reads up to <code>ByteBuffer#remaining</code> bytes of data from the input stream into a
-     * ByteBuffer. Not Tread-safe yet since the interface of sequential read of ForSt only be
-     * accessed by one thread at a time.
+     * ByteBuffer. Not Thread-safe yet since the interface of sequential read of ForSt only be
+     * accessed by one thread at a time. TODO: Rename all methods about 'readFully' to 'read' when
+     * next version of ForSt is ready.
      *
      * @param bb the buffer into which the data is read.
      * @return the total number of bytes read into the buffer.
-     * @exception IOException If the first byte cannot be read for any reason other than end of
-     *     file, or if the input stream has been closed, or if some other I/O error occurs.
+     * @throws IOException If the first byte cannot be read for any reason other than end of file,
+     *     or if the input stream has been closed, or if some other I/O error occurs.
+     * @throws NullPointerException If <code>bb</code> is <code>null</code>.
      */
     public int readFully(ByteBuffer bb) throws IOException {
         if (bb == null) {
@@ -68,87 +78,101 @@ public class ByteBufferReadableFSDataInputStream extends FSDataInputStream {
         } else if (bb.remaining() == 0) {
             return 0;
         }
-        seekIfNeeded();
-        return readFullyFromFSDataInputStream(originalInputStream, bb);
+        return originalInputStream instanceof ByteBufferReadable
+                ? ((ByteBufferReadable) originalInputStream).read(bb)
+                : readFullyFromFSDataInputStream(originalInputStream, bb);
     }
 
     /**
      * Reads up to <code>ByteBuffer#remaining</code> bytes of data from the specific position of the
-     * input stream into a ByteBuffer. Tread-safe since the interface of random read of ForSt may be
-     * concurrently accessed by multiple threads. TODO: Support to split this method to other class.
+     * input stream into a ByteBuffer. Thread-safe since the interface of random read of ForSt may
+     * be concurrently accessed by multiple threads. TODO: Support to split this method to other
+     * class.
      *
      * @param position the start offset in input stream at which the data is read.
      * @param bb the buffer into which the data is read.
      * @return the total number of bytes read into the buffer.
-     * @exception IOException If the first byte cannot be read for any reason other than end of
-     *     file, or if the input stream has been closed, or if some other I/O error occurs.
+     * @throws IOException If the first byte cannot be read for any reason other than end of file,
+     *     or if the input stream has been closed, or if some other I/O error occurs.
+     * @throws NullPointerException If <code>bb</code> is <code>null</code>.
      */
     public int readFully(long position, ByteBuffer bb) throws Exception {
-        // TODO: Support partitioned read
+        if (bb == null) {
+            throw new NullPointerException();
+        } else if (bb.remaining() == 0) {
+            return 0;
+        }
+
         FSDataInputStream fsDataInputStream = readInputStreamPool.poll();
         if (fsDataInputStream == null) {
             fsDataInputStream = inputStreamBuilder.call();
         }
-        fsDataInputStream.seek(position);
-        int result = readFullyFromFSDataInputStream(fsDataInputStream, bb);
-        if (!readInputStreamPool.offer(fsDataInputStream)) {
+
+        int result;
+        if (fsDataInputStream instanceof ByteBufferReadable) {
+            result = ((ByteBufferReadable) fsDataInputStream).read(position, bb);
+        } else {
+            fsDataInputStream.seek(position);
+            result = readFullyFromFSDataInputStream(fsDataInputStream, bb);
+        }
+
+        boolean offered;
+        try {
+            offered = readInputStreamPool.offer(fsDataInputStream);
+        } catch (Exception ex) {
+            // Close input stream and rethrow when any exception
+            fsDataInputStream.close();
+            throw ex;
+        }
+
+        if (!offered) {
             fsDataInputStream.close();
         }
+
         return result;
     }
 
     private int readFullyFromFSDataInputStream(FSDataInputStream originalInputStream, ByteBuffer bb)
             throws IOException {
-        byte[] tmp = new byte[bb.remaining()];
-        int n = 0;
-        while (n < tmp.length) {
-            int read = originalInputStream.read(tmp, n, tmp.length - n);
-            if (read == -1) {
+        int c = originalInputStream.read();
+        if (c == -1) {
+            return -1;
+        }
+        bb.put((byte) c);
+
+        int n = 1, len = bb.remaining() + 1;
+        for (; n < len; n++) {
+            c = originalInputStream.read();
+            if (c == -1) {
                 break;
             }
-            n += read;
-        }
-        if (n > 0) {
-            bb.put(tmp, 0, n);
+            bb.put((byte) c);
         }
         return n;
     }
 
-    private void seekIfNeeded() throws IOException {
-        if (toSeek >= 0) {
-            originalInputStream.seek(toSeek);
-            toSeek = -1L;
-        }
-    }
-
     @Override
-    public void seek(long desired) {
-        toSeek = desired;
+    public void seek(long desired) throws IOException {
+        originalInputStream.seek(desired);
     }
 
     @Override
     public long getPos() throws IOException {
-        if (toSeek >= 0) {
-            return toSeek;
-        }
         return originalInputStream.getPos();
     }
 
     @Override
     public int read() throws IOException {
-        seekIfNeeded();
         return originalInputStream.read();
     }
 
     @Override
     public int read(byte[] b) throws IOException {
-        seekIfNeeded();
         return originalInputStream.read(b);
     }
 
     @Override
     public int read(byte[] b, int off, int len) throws IOException {
-        seekIfNeeded();
         return originalInputStream.read(b, off, len);
     }
 
@@ -161,7 +185,6 @@ public class ByteBufferReadableFSDataInputStream extends FSDataInputStream {
 
     @Override
     public int available() throws IOException {
-        seekIfNeeded();
         return originalInputStream.available();
     }
 
@@ -180,7 +203,6 @@ public class ByteBufferReadableFSDataInputStream extends FSDataInputStream {
 
     @Override
     public synchronized void reset() throws IOException {
-        toSeek = -1L;
         originalInputStream.reset();
     }
 

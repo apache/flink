@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.forst.fs;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.core.fs.BlockLocation;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
@@ -33,7 +34,11 @@ import java.net.URI;
  * <p>All methods in this class maybe used by ForSt, please start a discussion firstly if it has to
  * be modified.
  */
+@Experimental
 public class ForStFlinkFileSystem extends FileSystem {
+
+    // TODO: make it configurable
+    private static final int DEFAULT_INPUT_STREAM_CAPACITY = 32;
 
     private final FileSystem delegateFS;
 
@@ -76,13 +81,13 @@ public class ForStFlinkFileSystem extends FileSystem {
     @Override
     public ByteBufferReadableFSDataInputStream open(Path path, int bufferSize) throws IOException {
         return new ByteBufferReadableFSDataInputStream(
-                delegateFS.open(path, bufferSize), () -> delegateFS.open(path, bufferSize), 32);
+                () -> delegateFS.open(path, bufferSize), DEFAULT_INPUT_STREAM_CAPACITY);
     }
 
     @Override
     public ByteBufferReadableFSDataInputStream open(Path path) throws IOException {
         return new ByteBufferReadableFSDataInputStream(
-                delegateFS.open(path), () -> delegateFS.open(path), 32);
+                () -> delegateFS.open(path), DEFAULT_INPUT_STREAM_CAPACITY);
     }
 
     @Override

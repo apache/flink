@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.forst.fs;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.core.fs.FSDataOutputStream;
 
 import java.io.IOException;
@@ -30,6 +31,7 @@ import java.nio.ByteBuffer;
  * <p>All methods in this class maybe used by ForSt, please start a discussion firstly if it has to
  * be modified.
  */
+@Experimental
 public class ByteBufferWritableFSDataOutputStream extends FSDataOutputStream {
 
     private final FSDataOutputStream originalOutputStream;
@@ -45,19 +47,22 @@ public class ByteBufferWritableFSDataOutputStream extends FSDataOutputStream {
      *
      * <p>If <code>bb</code> is <code>null</code>, a <code>NullPointerException</code> is thrown.
      *
-     * @exception IOException if an I/O error occurs. In particular, an <code>IOException</code> is
+     * @throws IOException if an I/O error occurs. In particular, an <code>IOException</code> is
      *     thrown if the output stream is closed.
      */
     public void write(ByteBuffer bb) throws IOException {
         if (bb == null) {
             throw new NullPointerException();
+        } else if (bb.remaining() == 0) {
+            return;
         }
         if (bb.hasArray()) {
             write(bb.array(), bb.arrayOffset() + bb.position(), bb.remaining());
         } else {
-            byte[] tmp = new byte[bb.remaining()];
-            bb.get(tmp);
-            write(tmp, 0, tmp.length);
+            int len = bb.remaining();
+            for (int i = 0; i < len; i++) {
+                originalOutputStream.write(bb.get());
+            }
         }
     }
 
