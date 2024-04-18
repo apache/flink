@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state.v2;
 import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.state.v2.ValueState;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
+import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 
 /**
@@ -32,9 +33,8 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 public class InternalValueState<K, V> extends InternalKeyedState<K, V> implements ValueState<V> {
 
     public InternalValueState(
-            AsyncExecutionController<K> asyncExecutionController,
-            ValueStateDescriptor<V> valueStateDescriptor) {
-        super(asyncExecutionController, valueStateDescriptor);
+            StateRequestHandler stateRequestHandler, ValueStateDescriptor<V> valueStateDescriptor) {
+        super(stateRequestHandler, valueStateDescriptor);
     }
 
     @Override
