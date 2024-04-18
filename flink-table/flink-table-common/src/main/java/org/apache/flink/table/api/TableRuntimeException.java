@@ -16,28 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.data.utils;
+package org.apache.flink.table.api;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableRuntimeException;
-
-import javax.annotation.Nullable;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Interface to model a function that performs the casting of a value from one type to another.
+ * Exception for errors occurring in the runtime.
  *
- * @param <IN> Input internal type
- * @param <OUT> Output internal type
+ * <p>This exception indicates the exception was thrown intentionally, e.g. during evaluation of
+ * {@code SINGLE_VALUE} function. Most likely a user error.
  */
-@Internal
-@FunctionalInterface
-public interface CastExecutor<IN, OUT> {
-    /**
-     * Cast the input value. The output is null only and only if the input is null. The method
-     * throws an exception if something goes wrong when casting.
-     *
-     * @param value Input value.
-     */
-    @Nullable
-    OUT cast(@Nullable IN value) throws TableRuntimeException;
+@PublicEvolving
+public class TableRuntimeException extends RuntimeException {
+
+    public TableRuntimeException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
+    public TableRuntimeException(String message) {
+        super(message);
+    }
 }

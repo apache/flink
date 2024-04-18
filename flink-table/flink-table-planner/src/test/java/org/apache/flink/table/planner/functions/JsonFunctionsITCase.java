@@ -23,6 +23,7 @@ import org.apache.flink.table.api.JsonExistsOnError;
 import org.apache.flink.table.api.JsonOnNull;
 import org.apache.flink.table.api.JsonType;
 import org.apache.flink.table.api.JsonValueOnEmptyOrError;
+import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
@@ -162,9 +163,11 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         BOOLEAN())
                 .testSqlRuntimeError(
                         "JSON_EXISTS(f0, 'strict $.invalid' ERROR ON ERROR)",
+                        TableRuntimeException.class,
                         "No results for path: $['invalid']")
                 .testTableApiRuntimeError(
                         $("f0").jsonExists("strict $.invalid", JsonExistsOnError.ERROR),
+                        TableRuntimeException.class,
                         "No results for path: $['invalid']");
     }
 
@@ -400,9 +403,11 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 STRING())
                         .testSqlRuntimeError(
                                 "JSON_QUERY(f0, 'lax $.err4' ERROR ON EMPTY)",
+                                TableRuntimeException.class,
                                 "Empty result of JSON_QUERY function is not allowed")
                         .testTableApiRuntimeError(
                                 $("f0").jsonQuery("lax $.err5", WITHOUT_ARRAY, ERROR, NULL),
+                                TableRuntimeException.class,
                                 "Empty result of JSON_QUERY function is not allowed")
 
                         // Error Behavior
@@ -426,9 +431,11 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 STRING())
                         .testSqlRuntimeError(
                                 "JSON_QUERY(f0, 'strict $.err9' ERROR ON ERROR)",
+                                TableRuntimeException.class,
                                 "No results for path")
                         .testTableApiRuntimeError(
                                 $("f0").jsonQuery("strict $.err10", WITHOUT_ARRAY, NULL, ERROR),
+                                TableRuntimeException.class,
                                 "No results for path"));
     }
 

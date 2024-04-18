@@ -42,7 +42,7 @@ import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CloseableIterator;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.CollectionUtil;
 
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.TestInstance;
@@ -69,6 +69,7 @@ import static org.apache.flink.runtime.state.StateBackendLoader.ROCKSDB_STATE_BA
 import static org.apache.flink.table.test.TableAssertions.assertThat;
 import static org.apache.flink.table.types.DataType.getFieldDataTypes;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test base for testing aggregate {@link BuiltInFunctionDefinition built-in functions}. */
 @Execution(ExecutionMode.CONCURRENT)
@@ -176,7 +177,7 @@ abstract class BuiltInAggregateFunctionTestBase {
     /** Test specification. */
     protected static class TestSpec {
 
-        private final BuiltInFunctionDefinition definition;
+        private final @Nullable BuiltInFunctionDefinition definition;
         private final List<TestItem> testItems = new ArrayList<>();
 
         private @Nullable String description;
@@ -185,11 +186,15 @@ abstract class BuiltInAggregateFunctionTestBase {
         private List<Row> sourceRows;
 
         private TestSpec(BuiltInFunctionDefinition definition) {
-            this.definition = Preconditions.checkNotNull(definition);
+            this.definition = definition;
         }
 
         static TestSpec forFunction(BuiltInFunctionDefinition definition) {
             return new TestSpec(definition);
+        }
+
+        static TestSpec forExpression(String expr) {
+            return new TestSpec(null).withDescription(expr);
         }
 
         TestSpec withDescription(String description) {
@@ -206,6 +211,17 @@ abstract class BuiltInAggregateFunctionTestBase {
         TestSpec testSqlResult(
                 Function<Table, String> sqlSpec, DataType expectedRowType, List<Row> expectedRows) {
             this.testItems.add(new SqlTestItem(sqlSpec, expectedRowType, expectedRows));
+            return this;
+        }
+
+        TestSpec testSqlRuntimeError(
+                Function<Table, String> sqlSpec,
+                DataType expectedRowType,
+                Class<? extends Throwable> exceptionClass,
+                String exceptionMessage) {
+            this.testItems.add(
+                    new SqlRuntimeErrorItem(
+                            sqlSpec, expectedRowType, exceptionClass, exceptionMessage));
             return this;
         }
 
@@ -297,7 +313,9 @@ abstract class BuiltInAggregateFunctionTestBase {
         @Override
         public String toString() {
             final StringBuilder bob = new StringBuilder();
-            bob.append(definition.getName());
+            if (definition != null) {
+                bob.append(definition.getName());
+            }
             if (description != null) {
                 bob.append(" (");
                 bob.append(description);
@@ -344,6 +362,41 @@ abstract class BuiltInAggregateFunctionTestBase {
         protected abstract TableResult getResult(TableEnvironment tEnv, Table sourceTable);
     }
 
+    private abstract static class RuntimeErrorItem implements TestItem {
+        private final @Nullable DataType expectedRowType;
+        private final Class<? extends Throwable> exceptionClass;
+        private final String exceptionMessage;
+
+        public RuntimeErrorItem(
+                @Nullable DataType expectedRowType,
+                Class<? extends Throwable> exceptionClass,
+                String exceptionMessage) {
+            this.expectedRowType = expectedRowType;
+            this.exceptionClass = exceptionClass;
+            this.exceptionMessage = exceptionMessage;
+        }
+
+        @Override
+        public void execute(TableEnvironment tEnv, Table sourceTable) {
+            final TableResult tableResult = getResult(tEnv, sourceTable);
+
+            if (expectedRowType != null) {
+                final DataType actualRowType =
+                        tableResult.getResolvedSchema().toSourceRowDataType();
+
+                assertThat(actualRowType)
+                        .getChildren()
+                        .containsExactlyElementsOf(getFieldDataTypes(expectedRowType));
+            }
+
+            assertThatThrownBy(() -> CollectionUtil.iteratorToList(tableResult.collect()))
+                    .hasRootCauseInstanceOf(exceptionClass)
+                    .hasRootCauseMessage(exceptionMessage);
+        }
+
+        protected abstract TableResult getResult(TableEnvironment tEnv, Table sourceTable);
+    }
+
     private static class SqlTestItem extends SuccessItem {
         private final Function<Table, String> spec;
 
@@ -352,6 +405,24 @@ abstract class BuiltInAggregateFunctionTestBase {
                 @Nullable DataType expectedRowType,
                 @Nullable List<Row> expectedRows) {
             super(expectedRowType, expectedRows);
+            this.spec = spec;
+        }
+
+        @Override
+        protected TableResult getResult(TableEnvironment tEnv, Table sourceTable) {
+            return tEnv.sqlQuery(spec.apply(sourceTable)).execute();
+        }
+    }
+
+    private static class SqlRuntimeErrorItem extends RuntimeErrorItem {
+        private final Function<Table, String> spec;
+
+        public SqlRuntimeErrorItem(
+                Function<Table, String> spec,
+                @Nullable DataType expectedRowType,
+                Class<? extends Throwable> exceptionClass,
+                String exceptionMessage) {
+            super(expectedRowType, exceptionClass, exceptionMessage);
             this.spec = spec;
         }
 
