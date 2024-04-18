@@ -68,107 +68,79 @@ public class RawFormatSerDeSchemaTest {
     @Parameterized.Parameters(name = "{index}: {0}")
     public static List<TestSpec> testData() {
         return Arrays.asList(
-                TestSpec.type(TINYINT())
-                        .values(new Byte[] {Byte.MAX_VALUE})
-                        .binary(new byte[][] {{Byte.MAX_VALUE}}),
+                TestSpec.type(TINYINT()).values(Byte.MAX_VALUE).binary(new byte[] {Byte.MAX_VALUE}),
+                TestSpec.type(SMALLINT()).values(Short.MAX_VALUE).binary(hexStringToByte("7fff")),
                 TestSpec.type(SMALLINT())
-                        .values(new Short[] {Short.MAX_VALUE})
-                        .binary(new byte[][] {hexStringToByte("7fff")}),
-                TestSpec.type(SMALLINT())
-                        .values(new Short[] {Short.MAX_VALUE})
+                        .values(Short.MAX_VALUE)
                         .withLittleEndian()
-                        .binary(new byte[][] {hexStringToByte("ff7f")}),
+                        .binary(hexStringToByte("ff7f")),
+                TestSpec.type(INT()).values(Integer.MAX_VALUE).binary(hexStringToByte("7fffffff")),
                 TestSpec.type(INT())
-                        .values(new Integer[] {Integer.MAX_VALUE})
-                        .binary(new byte[][] {hexStringToByte("7fffffff")}),
-                TestSpec.type(INT())
-                        .values(new Integer[] {Integer.MAX_VALUE})
+                        .values(Integer.MAX_VALUE)
                         .withLittleEndian()
-                        .binary(new byte[][] {hexStringToByte("ffffff7f")}),
+                        .binary(hexStringToByte("ffffff7f")),
                 TestSpec.type(BIGINT())
-                        .values(new Long[] {Long.MAX_VALUE})
-                        .binary(new byte[][] {hexStringToByte("7fffffffffffffff")}),
+                        .values(Long.MAX_VALUE)
+                        .binary(hexStringToByte("7fffffffffffffff")),
                 TestSpec.type(BIGINT())
-                        .values(new Long[] {Long.MAX_VALUE})
+                        .values(Long.MAX_VALUE)
                         .withLittleEndian()
-                        .binary(new byte[][] {hexStringToByte("ffffffffffffff7f")}),
+                        .binary(hexStringToByte("ffffffffffffff7f")),
+                TestSpec.type(FLOAT()).values(Float.MAX_VALUE).binary(hexStringToByte("7f7fffff")),
                 TestSpec.type(FLOAT())
-                        .values(new Float[] {Float.MAX_VALUE})
-                        .binary(new byte[][] {hexStringToByte("7f7fffff")}),
-                TestSpec.type(FLOAT())
-                        .values(new Float[] {Float.MAX_VALUE})
+                        .values(Float.MAX_VALUE)
                         .withLittleEndian()
-                        .binary(new byte[][] {hexStringToByte("ffff7f7f")}),
+                        .binary(hexStringToByte("ffff7f7f")),
                 TestSpec.type(DOUBLE())
-                        .values(new Double[] {Double.MAX_VALUE})
-                        .binary(new byte[][] {hexStringToByte("7fefffffffffffff")}),
+                        .values(Double.MAX_VALUE)
+                        .binary(hexStringToByte("7fefffffffffffff")),
                 TestSpec.type(DOUBLE())
-                        .values(new Double[] {Double.MAX_VALUE})
+                        .values(Double.MAX_VALUE)
                         .withLittleEndian()
-                        .binary(new byte[][] {hexStringToByte("ffffffffffffef7f")}),
-                TestSpec.type(BOOLEAN())
-                        .values(new Boolean[] {true})
-                        .binary(new byte[][] {new byte[] {1}}),
-                TestSpec.type(BOOLEAN())
-                        .values(new Boolean[] {false})
-                        .binary(new byte[][] {new byte[] {0}}),
+                        .binary(hexStringToByte("ffffffffffffef7f")),
+                TestSpec.type(BOOLEAN()).values(true).binary(new byte[] {1}),
+                TestSpec.type(BOOLEAN()).values(false).binary(new byte[] {0}),
+                TestSpec.type(STRING()).values("Hello World").binary("Hello World".getBytes()),
                 TestSpec.type(STRING())
-                        .values(new String[] {"Hello World"})
-                        .binary(new byte[][] {"Hello World".getBytes()}),
+                        .values("你好世界，Hello World")
+                        .binary("你好世界，Hello World".getBytes()),
                 TestSpec.type(STRING())
-                        .values(new String[] {"你好世界，Hello World"})
-                        .binary(new byte[][] {"你好世界，Hello World".getBytes()}),
-                TestSpec.type(STRING())
-                        .values(new String[] {"Flink Awesome!"})
+                        .values("Flink Awesome!")
                         .withCharset("UTF-16")
-                        .binary(new byte[][] {"Flink Awesome!".getBytes(StandardCharsets.UTF_16)}),
+                        .binary("Flink Awesome!".getBytes(StandardCharsets.UTF_16)),
                 TestSpec.type(STRING())
-                        .values(new String[] {"Flink 帅哭!"})
+                        .values("Flink 帅哭!")
                         .withCharset("UTF-16")
-                        .binary(new byte[][] {"Flink 帅哭!".getBytes(StandardCharsets.UTF_16)}),
+                        .binary("Flink 帅哭!".getBytes(StandardCharsets.UTF_16)),
+                TestSpec.type(STRING()).values("").binary("".getBytes()),
+                TestSpec.type(VARCHAR(5)).values("HELLO").binary("HELLO".getBytes()),
                 TestSpec.type(STRING())
-                        .values(new String[] {""})
-                        .binary(new byte[][] {"".getBytes()}),
-                TestSpec.type(VARCHAR(5))
-                        .values(new String[] {"HELLO"})
-                        .binary(new byte[][] {"HELLO".getBytes()}),
-                TestSpec.type(STRING())
-                        .values(new String[] {"line 1", "line 2", "line 3"})
-                        .binary(
-                                new byte[][] {
-                                    "line 1".getBytes(), "line 2".getBytes(), "line 3".getBytes()
-                                }),
+                        .values("line 1", "line 2", "line 3")
+                        .binary("line 1".getBytes(), "line 2".getBytes(), "line 3".getBytes()),
                 TestSpec.type(BYTES())
-                        .values(new byte[][] {{1, 3, 5, 7, 9}})
-                        .binary(new byte[][] {{1, 3, 5, 7, 9}}),
-                TestSpec.type(BYTES()).values(new byte[][] {}).binary(new byte[][] {{}}),
-                TestSpec.type(BINARY(3))
-                        .values(new byte[][] {{1, 3, 5}})
-                        .binary(new byte[][] {{1, 3, 5}}),
+                        .values(new byte[] {1, 3, 5, 7, 9})
+                        .binary(new byte[] {1, 3, 5, 7, 9}),
+                TestSpec.type(BYTES()).values(new byte[] {}).binary(new byte[] {}),
+                TestSpec.type(BINARY(3)).values(new byte[] {1, 3, 5}).binary(new byte[] {1, 3, 5}),
                 TestSpec.type(RAW(LocalDateTime.class, new LocalDateTimeSerializer()))
-                        .values(
-                                new LocalDateTime[] {
-                                    LocalDateTime.parse("2020-11-11T18:08:01.123")
-                                })
+                        .values(LocalDateTime.parse("2020-11-11T18:08:01.123"))
                         .binary(
-                                new byte[][] {
-                                    serializeLocalDateTime(
-                                            LocalDateTime.parse("2020-11-11T18:08:01.123"))
-                                }),
+                                serializeLocalDateTime(
+                                        LocalDateTime.parse("2020-11-11T18:08:01.123"))),
 
                 // test nulls
-                TestSpec.type(TINYINT()).values(new Byte[] {null}).binary(new byte[][] {null}),
-                TestSpec.type(SMALLINT()).values(new Short[] {null}).binary(new byte[][] {null}),
-                TestSpec.type(INT()).values(new Integer[] {null}).binary(new byte[][] {null}),
-                TestSpec.type(BIGINT()).values(new Long[] {null}).binary(new byte[][] {null}),
-                TestSpec.type(FLOAT()).values(new Float[] {null}).binary(new byte[][] {null}),
-                TestSpec.type(DOUBLE()).values(new Double[] {null}).binary(new byte[][] {null}),
-                TestSpec.type(BOOLEAN()).values(new Boolean[] {null}).binary(new byte[][] {null}),
-                TestSpec.type(STRING()).values(new String[] {null}).binary(new byte[][] {null}),
-                TestSpec.type(BYTES()).values(new byte[][] {null}).binary(new byte[][] {null}),
+                TestSpec.type(TINYINT()).values((Object) null).binary((byte[]) null),
+                TestSpec.type(SMALLINT()).values((Object) null).binary((byte[]) null),
+                TestSpec.type(INT()).values((Object) null).binary((byte[]) null),
+                TestSpec.type(BIGINT()).values((Object) null).binary((byte[]) null),
+                TestSpec.type(FLOAT()).values((Object) null).binary((byte[]) null),
+                TestSpec.type(DOUBLE()).values((Object) null).binary((byte[]) null),
+                TestSpec.type(BOOLEAN()).values((Object) null).binary((byte[]) null),
+                TestSpec.type(STRING()).values((Object) null).binary((byte[]) null),
+                TestSpec.type(BYTES()).values((Object) null).binary((byte[]) null),
                 TestSpec.type(RAW(LocalDateTime.class, new LocalDateTimeSerializer()))
-                        .values(new LocalDateTime[] {null})
-                        .binary(new byte[][] {null}));
+                        .values((Object) null)
+                        .binary((byte[]) null));
     }
 
     @Parameterized.Parameter public TestSpec testSpec;
@@ -247,12 +219,12 @@ public class RawFormatSerDeSchemaTest {
             return new TestSpec(fieldType);
         }
 
-        public TestSpec values(Object[] values) {
+        public TestSpec values(Object... values) {
             this.values = values;
             return this;
         }
 
-        public TestSpec binary(byte[][] bytes) {
+        public TestSpec binary(byte[]... bytes) {
             this.binary = bytes;
             return this;
         }
