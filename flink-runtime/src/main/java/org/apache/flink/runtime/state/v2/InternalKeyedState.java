@@ -22,6 +22,7 @@ import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
+import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 
 /**
@@ -38,7 +39,7 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 @Internal
 public abstract class InternalKeyedState<K, V> implements State {
 
-    private final AsyncExecutionController<K> asyncExecutionController;
+    private final StateRequestHandler stateRequestHandler;
 
     private final StateDescriptor<V> stateDescriptor;
 
@@ -46,9 +47,8 @@ public abstract class InternalKeyedState<K, V> implements State {
      * Creates a new InternalKeyedState with the given asyncExecutionController and stateDescriptor.
      */
     public InternalKeyedState(
-            AsyncExecutionController<K> asyncExecutionController,
-            StateDescriptor<V> stateDescriptor) {
-        this.asyncExecutionController = asyncExecutionController;
+            StateRequestHandler stateRequestHandler, StateDescriptor<V> stateDescriptor) {
+        this.stateRequestHandler = stateRequestHandler;
         this.stateDescriptor = stateDescriptor;
     }
 
@@ -61,7 +61,7 @@ public abstract class InternalKeyedState<K, V> implements State {
      */
     protected final <IN, OUT> StateFuture<OUT> handleRequest(
             StateRequestType stateRequestType, IN payload) {
-        return asyncExecutionController.handleRequest(this, stateRequestType, payload);
+        return stateRequestHandler.handleRequest(this, stateRequestType, payload);
     }
 
     @Override
