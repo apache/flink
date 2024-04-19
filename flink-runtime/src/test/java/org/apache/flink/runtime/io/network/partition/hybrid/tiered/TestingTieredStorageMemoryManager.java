@@ -199,6 +199,12 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
             return this;
         }
 
+        public TestingTieredStorageMemoryManager.Builder setGetBufferPoolSizeSupplier(
+                Supplier<Integer> getBufferPoolSizeSupplier) {
+            this.getBufferPoolSizeSupplier = getBufferPoolSizeSupplier;
+            return this;
+        }
+
         public TestingTieredStorageMemoryManager.Builder setReleaseRunnable(
                 Runnable releaseRunnable) {
             this.releaseRunnable = releaseRunnable;
