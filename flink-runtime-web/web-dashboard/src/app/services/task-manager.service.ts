@@ -127,7 +127,7 @@ export class TaskManagerService {
 
   createProfilingInstance(taskManagerId: string, mode: string, duration: number): Observable<ProfilingDetail> {
     const requestParam = { mode, duration };
-    return this.httpClient.post<ProfilingDetail>(
+    return this.httpClient.put<ProfilingDetail>(
       `${this.configService.BASE_URL}/taskmanagers/${taskManagerId}/profiler`,
       requestParam
     );
