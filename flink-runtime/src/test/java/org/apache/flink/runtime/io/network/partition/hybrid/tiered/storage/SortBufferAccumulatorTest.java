@@ -18,9 +18,12 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage;
 
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.TestingTieredStorageMemoryManager;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 
 import org.junit.jupiter.api.AfterEach;
@@ -200,6 +203,48 @@ class SortBufferAccumulatorTest {
                 .isEqualTo(2);
         bufferAccumulator.close();
         assertThat(tieredStorageMemoryManager.numOwnerRequestedBuffer(bufferAccumulator)).isZero();
+    }
+
+    @Test
+    void testReuseRecycledBuffersWhenFlushDataBuffer() throws IOException {
+        int numBuffers = 10;
+        int numSubpartitions = 10;
+
+        AtomicInteger numRequestedBuffers = new AtomicInteger(0);
+        TestingTieredStorageMemoryManager memoryManager =
+                new TestingTieredStorageMemoryManager.Builder()
+                        .setRequestBufferBlockingFunction(
+                                owner -> {
+                                    numRequestedBuffers.incrementAndGet();
+                                    MemorySegment memorySegment =
+                                            globalPool.requestPooledMemorySegment();
+                                    // When flushing data from the data buffer, the buffers should
+                                    // not be requested from here anymore because the freeSegments
+                                    // can be reused before released.
+                                    assertThat(numRequestedBuffers.get() < numBuffers).isTrue();
+                                    return new BufferBuilder(
+                                            memorySegment,
+                                            segment -> globalPool.requestPooledMemorySegment());
+                                })
+                        .setGetBufferPoolSizeSupplier(() -> numBuffers)
+                        .build();
+
+        SortBufferAccumulator bufferAccumulator =
+                new SortBufferAccumulator(
+                        numSubpartitions, numBuffers, BUFFER_SIZE_BYTES, 0L, memoryManager, true);
+        bufferAccumulator.setup(
+                ((subpartition, buffer, numRemainingBuffers) -> buffer.recycleBuffer()));
+
+        for (int i = 0; i < numSubpartitions; i++) {
+            bufferAccumulator.receive(
+                    generateRandomData(10, new Random()),
+                    new TieredStorageSubpartitionId(i % numSubpartitions),
+                    Buffer.DataType.DATA_BUFFER,
+                    false);
+        }
+
+        // Trigger flushing buffers from data buffer.
+        bufferAccumulator.close();
     }
 
     private TieredStorageMemoryManagerImpl createStorageMemoryManager(int numBuffersInBufferPool)
