@@ -25,13 +25,12 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.clock.ManualClock;
 
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -43,14 +42,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotTestUtils.createPhysicalSlot;
 import static org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotTestUtils.occupyPhysicalSlot;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link PhysicalSlotRequestBulkCheckerImpl}. */
-public class PhysicalSlotRequestBulkCheckerImplTest extends TestLogger {
+class PhysicalSlotRequestBulkCheckerImplTest {
 
     private static final Time TIMEOUT = Time.milliseconds(50L);
 
@@ -66,23 +65,23 @@ public class PhysicalSlotRequestBulkCheckerImplTest extends TestLogger {
 
     private Supplier<Set<SlotInfo>> slotsRetriever;
 
-    @BeforeClass
-    public static void setupClass() {
+    @BeforeAll
+    private static void setupClass() {
         singleThreadScheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
         mainThreadExecutor =
                 ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
                         singleThreadScheduledExecutorService);
     }
 
-    @AfterClass
-    public static void teardownClass() {
+    @AfterAll
+    private static void teardownClass() {
         if (singleThreadScheduledExecutorService != null) {
             singleThreadScheduledExecutorService.shutdownNow();
         }
     }
 
-    @Before
-    public void setup() throws Exception {
+    @BeforeEach
+    private void setup() {
         slots = new HashSet<>();
         slotsRetriever = () -> new HashSet<>(slots);
         bulkChecker = new PhysicalSlotRequestBulkCheckerImpl(slotsRetriever, clock);
@@ -90,7 +89,7 @@ public class PhysicalSlotRequestBulkCheckerImplTest extends TestLogger {
     }
 
     @Test
-    public void testPendingBulkIsNotCancelled() throws InterruptedException, ExecutionException {
+    void testPendingBulkIsNotCancelled() throws InterruptedException, ExecutionException {
         final CompletableFuture<SlotRequestId> cancellationFuture = new CompletableFuture<>();
         final PhysicalSlotRequestBulk bulk =
                 createPhysicalSlotRequestBulkWithCancellationFuture(
@@ -100,7 +99,7 @@ public class PhysicalSlotRequestBulkCheckerImplTest extends TestLogger {
     }
 
     @Test
-    public void testFulfilledBulkIsNotCancelled() throws InterruptedException, ExecutionException {
+    void testFulfilledBulkIsNotCancelled() throws InterruptedException, ExecutionException {
         final CompletableFuture<SlotRequestId> cancellationFuture = new CompletableFuture<>();
         final PhysicalSlotRequestBulk bulk =
                 createPhysicalSlotRequestBulkWithCancellationFuture(
@@ -112,17 +111,18 @@ public class PhysicalSlotRequestBulkCheckerImplTest extends TestLogger {
     private static void checkNotCancelledAfter(CompletableFuture<?> cancellationFuture, long milli)
             throws ExecutionException, InterruptedException {
         mainThreadExecutor.schedule(() -> {}, milli, TimeUnit.MILLISECONDS).get();
-        try {
-            assertThat(cancellationFuture.isDone(), is(false));
-            cancellationFuture.get(milli, TimeUnit.MILLISECONDS);
-            fail("The future must not have been cancelled");
-        } catch (TimeoutException e) {
-            assertThat(cancellationFuture.isDone(), is(false));
-        }
+        assertThatThrownBy(
+                        () -> {
+                            assertThatFuture(cancellationFuture).isNotDone();
+                            cancellationFuture.get(milli, TimeUnit.MILLISECONDS);
+                        })
+                .withFailMessage("The future must not have been cancelled")
+                .isInstanceOf(TimeoutException.class);
+        assertThatFuture(cancellationFuture).isNotDone();
     }
 
     @Test
-    public void testUnfulfillableBulkIsCancelled() {
+    void testUnfulfillableBulkIsCancelled() {
         final CompletableFuture<SlotRequestId> cancellationFuture = new CompletableFuture<>();
         final SlotRequestId slotRequestId = new SlotRequestId();
         final PhysicalSlotRequestBulk bulk =
@@ -130,11 +130,11 @@ public class PhysicalSlotRequestBulkCheckerImplTest extends TestLogger {
                         cancellationFuture, slotRequestId);
         bulkChecker.schedulePendingRequestBulkTimeoutCheck(bulk, TIMEOUT);
         clock.advanceTime(TIMEOUT.toMilliseconds() + 1L, TimeUnit.MILLISECONDS);
-        assertThat(cancellationFuture.join(), is(slotRequestId));
+        assertThat(cancellationFuture.join()).isEqualTo(slotRequestId);
     }
 
     @Test
-    public void testBulkFulfilledOnCheck() {
+    void testBulkFulfilledOnCheck() {
         final SlotRequestId slotRequestId = new SlotRequestId();
         final PhysicalSlotRequestBulkImpl bulk = createPhysicalSlotRequestBulk(slotRequestId);
 
@@ -142,66 +142,62 @@ public class PhysicalSlotRequestBulkCheckerImplTest extends TestLogger {
 
         final PhysicalSlotRequestBulkWithTimestamp bulkWithTimestamp =
                 new PhysicalSlotRequestBulkWithTimestamp(bulk);
-        assertThat(
-                checkBulkTimeout(bulkWithTimestamp),
-                is(PhysicalSlotRequestBulkCheckerImpl.TimeoutCheckResult.FULFILLED));
+        assertThat(checkBulkTimeout(bulkWithTimestamp))
+                .isEqualTo(PhysicalSlotRequestBulkCheckerImpl.TimeoutCheckResult.FULFILLED);
     }
 
     @Test
-    public void testBulkTimeoutOnCheck() {
+    void testBulkTimeoutOnCheck() {
         final PhysicalSlotRequestBulkWithTimestamp bulk =
                 createPhysicalSlotRequestBulkWithTimestamp(new SlotRequestId());
 
         clock.advanceTime(TIMEOUT.toMilliseconds() + 1L, TimeUnit.MILLISECONDS);
-        assertThat(
-                checkBulkTimeout(bulk),
-                is(PhysicalSlotRequestBulkCheckerImpl.TimeoutCheckResult.TIMEOUT));
+        assertThat(checkBulkTimeout(bulk))
+                .isEqualTo(PhysicalSlotRequestBulkCheckerImpl.TimeoutCheckResult.TIMEOUT);
     }
 
     @Test
-    public void testBulkPendingOnCheckIfFulfillable() {
+    void testBulkPendingOnCheckIfFulfillable() {
         final PhysicalSlotRequestBulkWithTimestamp bulk =
                 createPhysicalSlotRequestBulkWithTimestamp(new SlotRequestId());
 
         final PhysicalSlot slot = addOneSlot();
         occupyPhysicalSlot(slot, false);
 
-        assertThat(
-                checkBulkTimeout(bulk),
-                is(PhysicalSlotRequestBulkCheckerImpl.TimeoutCheckResult.PENDING));
+        assertThat(checkBulkTimeout(bulk))
+                .isEqualTo(PhysicalSlotRequestBulkCheckerImpl.TimeoutCheckResult.PENDING);
     }
 
     @Test
-    public void testBulkPendingOnCheckIfUnfulfillableButNotTimedOut() {
+    void testBulkPendingOnCheckIfUnfulfillableButNotTimedOut() {
         final PhysicalSlotRequestBulkWithTimestamp bulk =
                 createPhysicalSlotRequestBulkWithTimestamp(new SlotRequestId());
 
-        assertThat(
-                checkBulkTimeout(bulk),
-                is(PhysicalSlotRequestBulkCheckerImpl.TimeoutCheckResult.PENDING));
+        assertThat(checkBulkTimeout(bulk))
+                .isEqualTo(PhysicalSlotRequestBulkCheckerImpl.TimeoutCheckResult.PENDING);
     }
 
     @Test
-    public void testBulkFulfillable() {
+    void testBulkFulfillable() {
         final PhysicalSlotRequestBulk bulk = createPhysicalSlotRequestBulk(new SlotRequestId());
 
         addOneSlot();
 
-        assertThat(isFulfillable(bulk), is(true));
+        assertThat(isFulfillable(bulk)).isTrue();
     }
 
     @Test
-    public void testBulkUnfulfillableWithInsufficientSlots() {
+    void testBulkUnfulfillableWithInsufficientSlots() {
         final PhysicalSlotRequestBulk bulk =
                 createPhysicalSlotRequestBulk(new SlotRequestId(), new SlotRequestId());
 
         addOneSlot();
 
-        assertThat(isFulfillable(bulk), is(false));
+        assertThat(isFulfillable(bulk)).isFalse();
     }
 
     @Test
-    public void testBulkUnfulfillableWithSlotAlreadyAssignedToBulk() {
+    void testBulkUnfulfillableWithSlotAlreadyAssignedToBulk() {
         final SlotRequestId slotRequestId = new SlotRequestId();
         final PhysicalSlotRequestBulkImpl bulk =
                 createPhysicalSlotRequestBulk(slotRequestId, new SlotRequestId());
@@ -210,11 +206,11 @@ public class PhysicalSlotRequestBulkCheckerImplTest extends TestLogger {
 
         bulk.markRequestFulfilled(slotRequestId, slot.getAllocationId());
 
-        assertThat(isFulfillable(bulk), is(false));
+        assertThat(isFulfillable(bulk)).isFalse();
     }
 
     @Test
-    public void testBulkUnfulfillableWithSlotOccupiedIndefinitely() {
+    void testBulkUnfulfillableWithSlotOccupiedIndefinitely() {
         final PhysicalSlotRequestBulk bulk =
                 createPhysicalSlotRequestBulk(new SlotRequestId(), new SlotRequestId());
 
@@ -223,11 +219,11 @@ public class PhysicalSlotRequestBulkCheckerImplTest extends TestLogger {
 
         occupyPhysicalSlot(slot1, true);
 
-        assertThat(isFulfillable(bulk), is(false));
+        assertThat(isFulfillable(bulk)).isFalse();
     }
 
     @Test
-    public void testBulkFulfillableWithSlotOccupiedTemporarily() {
+    void testBulkFulfillableWithSlotOccupiedTemporarily() {
         final PhysicalSlotRequestBulk bulk =
                 createPhysicalSlotRequestBulk(new SlotRequestId(), new SlotRequestId());
 
@@ -236,7 +232,7 @@ public class PhysicalSlotRequestBulkCheckerImplTest extends TestLogger {
 
         occupyPhysicalSlot(slot1, false);
 
-        assertThat(isFulfillable(bulk), is(true));
+        assertThat(isFulfillable(bulk)).isTrue();
     }
 
     private PhysicalSlotRequestBulkWithTimestamp createPhysicalSlotRequestBulkWithTimestamp(

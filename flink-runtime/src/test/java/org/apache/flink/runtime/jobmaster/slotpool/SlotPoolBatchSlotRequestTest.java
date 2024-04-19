@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -28,14 +27,13 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.exceptions.UnfulfillableSlotRequestException;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.ManualClock;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
@@ -49,12 +47,11 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.fail;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for batch slot requests. */
-public class SlotPoolBatchSlotRequestTest extends TestLogger {
+class SlotPoolBatchSlotRequestTest {
 
     private static final ResourceProfile resourceProfile = ResourceProfile.fromResources(1.0, 1024);
     public static final CompletableFuture[] COMPLETABLE_FUTURES_EMPTY_ARRAY =
@@ -62,16 +59,16 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
     private static ScheduledExecutorService singleThreadScheduledExecutorService;
     private static ComponentMainThreadExecutor mainThreadExecutor;
 
-    @BeforeClass
-    public static void setupClass() {
+    @BeforeAll
+    private static void setupClass() {
         singleThreadScheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
         mainThreadExecutor =
                 ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
                         singleThreadScheduledExecutorService);
     }
 
-    @AfterClass
-    public static void teardownClass() {
+    @AfterAll
+    private static void teardownClass() {
         if (singleThreadScheduledExecutorService != null) {
             singleThreadScheduledExecutorService.shutdownNow();
         }
@@ -81,19 +78,17 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
      * Tests that a batch slot request fails if there is no slot which can fulfill the slot request.
      */
     @Test
-    public void testPendingBatchSlotRequestTimeout() throws Exception {
+    void testPendingBatchSlotRequestTimeout() throws Exception {
         try (final SlotPool slotPool =
                 createAndSetUpSlotPool(mainThreadExecutor, null, Time.milliseconds(2L))) {
             final CompletableFuture<PhysicalSlot> slotFuture =
                     SlotPoolUtils.requestNewAllocatedBatchSlot(
                             slotPool, mainThreadExecutor, ResourceProfile.UNKNOWN);
 
-            try {
-                slotFuture.get();
-                fail("Expected that slot future times out.");
-            } catch (ExecutionException ee) {
-                assertThat(ee, FlinkMatchers.containsCause(TimeoutException.class));
-            }
+            assertThatThrownBy(slotFuture::get)
+                    .withFailMessage("Expected that slot future times out.")
+                    .isInstanceOf(ExecutionException.class)
+                    .hasRootCauseInstanceOf(TimeoutException.class);
         }
     }
 
@@ -102,7 +97,7 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
      * fulfills the requested {@link ResourceProfile}.
      */
     @Test
-    public void testPendingBatchSlotRequestDoesNotTimeoutIfFulfillingSlotExists() throws Exception {
+    void testPendingBatchSlotRequestDoesNotTimeoutIfFulfillingSlotExists() throws Exception {
         final Time batchSlotTimeout = Time.milliseconds(2L);
         final ManualClock clock = new ManualClock();
 
@@ -128,7 +123,7 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
                     slotPool, mainThreadExecutor, clock, batchSlotTimeout);
 
             for (CompletableFuture<PhysicalSlot> slotFuture : slotFutures) {
-                assertThat(slotFuture.isDone(), is(false));
+                assertThatFuture(slotFuture).isNotDone();
             }
         }
     }
@@ -138,7 +133,7 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
      * exceptions other than {@link UnfulfillableSlotRequestException}.
      */
     @Test
-    public void testPendingBatchSlotRequestDoesNotFailIfResourceDeclaringFails() throws Exception {
+    void testPendingBatchSlotRequestDoesNotFailIfResourceDeclaringFails() throws Exception {
         final TestingResourceManagerGateway testingResourceManagerGateway =
                 new TestingResourceManagerGateway();
         testingResourceManagerGateway.setDeclareRequiredResourcesFunction(
@@ -154,7 +149,7 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
                     SlotPoolUtils.requestNewAllocatedBatchSlot(
                             slotPool, mainThreadExecutor, resourceProfile);
 
-            assertThat(slotFuture, FlinkMatchers.willNotComplete(Duration.ofMillis(50L)));
+            assertThatFuture(slotFuture).willNotCompleteWithin(Duration.ofMillis(50L));
         }
     }
 
@@ -163,7 +158,7 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
      * released.
      */
     @Test
-    public void testPendingBatchSlotRequestTimeoutAfterSlotRelease() throws Exception {
+    void testPendingBatchSlotRequestTimeoutAfterSlotRelease() throws Exception {
         final ManualClock clock = new ManualClock();
         final Time batchSlotTimeout = Time.milliseconds(10000L);
 
@@ -191,10 +186,10 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
             advanceTimeAndTriggerCheckBatchSlotTimeout(
                     slotPool, mainThreadExecutor, clock, batchSlotTimeout);
 
-            assertThat(
-                    CompletableFuture.anyOf(slotFutures.toArray(COMPLETABLE_FUTURES_EMPTY_ARRAY))
-                            .isDone(),
-                    is(false));
+            assertThatFuture(
+                            CompletableFuture.anyOf(
+                                    slotFutures.toArray(COMPLETABLE_FUTURES_EMPTY_ARRAY)))
+                    .isNotDone();
 
             SlotPoolUtils.releaseTaskManager(slotPool, mainThreadExecutor, taskManagerResourceId);
 
@@ -202,14 +197,12 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
                     slotPool, mainThreadExecutor, clock, batchSlotTimeout);
 
             for (CompletableFuture<PhysicalSlot> slotFuture : slotFutures) {
-                assertThat(slotFuture.isCompletedExceptionally(), is(true));
+                assertThatFuture(slotFuture).isCompletedExceptionally();
 
-                try {
-                    slotFuture.get();
-                    fail("Expected that the slot future times out.");
-                } catch (ExecutionException ee) {
-                    assertThat(ee, FlinkMatchers.containsCause(TimeoutException.class));
-                }
+                assertThatThrownBy(slotFuture::get)
+                        .withFailMessage("Expected that the slot future times out.")
+                        .isInstanceOf(ExecutionException.class)
+                        .hasRootCauseInstanceOf(TimeoutException.class);
             }
         }
     }

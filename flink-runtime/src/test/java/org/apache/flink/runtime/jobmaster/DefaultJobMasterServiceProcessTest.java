@@ -205,7 +205,7 @@ class DefaultJobMasterServiceProcessTest {
     }
 
     @Test
-    void testLeaderAddressGetsForwarded() throws Exception {
+    void testLeaderAddressGetsForwarded() {
         final CompletableFuture<JobMasterService> jobMasterServiceFuture =
                 new CompletableFuture<>();
         DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);
@@ -249,7 +249,7 @@ class DefaultJobMasterServiceProcessTest {
     }
 
     @Test
-    void testSuccessOnTerminalState() throws Exception {
+    void testSuccessOnTerminalState() {
         final CompletableFuture<JobMasterService> jobMasterServiceFuture =
                 new CompletableFuture<>();
         DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);

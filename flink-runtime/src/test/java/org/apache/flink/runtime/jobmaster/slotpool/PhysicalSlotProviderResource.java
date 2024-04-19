@@ -36,9 +36,11 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
 /**
- * {@code PhysicalSlotProviderResource} is used for testing different {@link SlotSelectionStrategy}
- * implementations on {@link PhysicalSlotProviderImpl}.
+ * @deprecated Use {@link PhysicalSlotProviderExtension} instead. {@code
+ *     PhysicalSlotProviderResource} is used for testing different {@link SlotSelectionStrategy}
+ *     implementations on {@link PhysicalSlotProviderImpl}.
  */
+@Deprecated
 public class PhysicalSlotProviderResource extends ExternalResource {
 
     private ScheduledExecutorService singleThreadScheduledExecutorService;

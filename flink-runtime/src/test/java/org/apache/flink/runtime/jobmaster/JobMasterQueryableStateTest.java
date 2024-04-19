@@ -40,31 +40,24 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
-import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.hamcrest.CoreMatchers.either;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /** Tests for the queryable-state logic of the {@link JobMaster}. */
-public class JobMasterQueryableStateTest extends TestLogger {
+class JobMasterQueryableStateTest {
 
     private static final Time testingTimeout = Time.seconds(10L);
 
@@ -96,18 +89,18 @@ public class JobMasterQueryableStateTest extends TestLogger {
         JOB_GRAPH.setJobType(JobType.STREAMING);
     }
 
-    @BeforeClass
-    public static void setupClass() {
+    @BeforeAll
+    private static void setupClass() {
         rpcService = new TestingRpcService();
     }
 
-    @After
-    public void teardown() throws Exception {
+    @AfterEach
+    private void teardown() throws Exception {
         rpcService.clearGateways();
     }
 
-    @AfterClass
-    public static void teardownClass() {
+    @AfterAll
+    private static void teardownClass() {
         if (rpcService != null) {
             rpcService.closeAsync();
             rpcService = null;
@@ -115,7 +108,7 @@ public class JobMasterQueryableStateTest extends TestLogger {
     }
 
     @Test
-    public void testRequestKvStateWithoutRegistration() throws Exception {
+    void testRequestKvStateWithoutRegistration() throws Exception {
         try (final JobMaster jobMaster =
                 new JobMasterBuilder(JOB_GRAPH, rpcService).createJobMaster()) {
 
@@ -136,7 +129,7 @@ public class JobMasterQueryableStateTest extends TestLogger {
     }
 
     @Test
-    public void testRequestKvStateOfWrongJob() throws Exception {
+    void testRequestKvStateOfWrongJob() throws Exception {
         try (final JobMaster jobMaster =
                 new JobMasterBuilder(JOB_GRAPH, rpcService).createJobMaster()) {
 
@@ -157,7 +150,7 @@ public class JobMasterQueryableStateTest extends TestLogger {
     }
 
     @Test
-    public void testRequestKvStateWithIrrelevantRegistration() throws Exception {
+    void testRequestKvStateWithIrrelevantRegistration() throws Exception {
         try (final JobMaster jobMaster =
                 new JobMasterBuilder(JOB_GRAPH, rpcService).createJobMaster()) {
 
@@ -181,7 +174,7 @@ public class JobMasterQueryableStateTest extends TestLogger {
     }
 
     @Test
-    public void testRegisterKvState() throws Exception {
+    void testRegisterKvState() throws Exception {
         try (JobMaster jobMaster = new JobMasterBuilder(JOB_GRAPH, rpcService).createJobMaster()) {
             jobMaster.start();
 
@@ -211,19 +204,20 @@ public class JobMasterQueryableStateTest extends TestLogger {
                             .requestKvStateLocation(JOB_GRAPH.getJobID(), registrationName)
                             .get();
 
-            assertEquals(JOB_GRAPH.getJobID(), location.getJobId());
-            assertEquals(JOB_VERTEX_1.getID(), location.getJobVertexId());
-            assertEquals(JOB_VERTEX_1.getMaxParallelism(), location.getNumKeyGroups());
-            assertEquals(1, location.getNumRegisteredKeyGroups());
-            assertEquals(1, keyGroupRange.getNumberOfKeyGroups());
-            assertEquals(kvStateID, location.getKvStateID(keyGroupRange.getStartKeyGroup()));
-            assertEquals(
-                    address, location.getKvStateServerAddress(keyGroupRange.getStartKeyGroup()));
+            assertThat(location.getJobId()).isEqualTo(JOB_GRAPH.getJobID());
+            assertThat(location.getJobVertexId()).isEqualTo(JOB_VERTEX_1.getID());
+            assertThat(location.getNumKeyGroups()).isEqualTo(JOB_VERTEX_1.getMaxParallelism());
+            assertThat(location.getNumRegisteredKeyGroups()).isOne();
+            assertThat(keyGroupRange.getNumberOfKeyGroups()).isOne();
+            assertThat(location.getKvStateID(keyGroupRange.getStartKeyGroup()))
+                    .isEqualTo(kvStateID);
+            assertThat(location.getKvStateServerAddress(keyGroupRange.getStartKeyGroup()))
+                    .isEqualTo(address);
         }
     }
 
     @Test
-    public void testUnregisterKvState() throws Exception {
+    void testUnregisterKvState() throws Exception {
         try (final JobMaster jobMaster =
                 new JobMasterBuilder(JOB_GRAPH, rpcService).createJobMaster()) {
 
@@ -258,19 +252,21 @@ public class JobMasterQueryableStateTest extends TestLogger {
                             registrationName)
                     .get();
 
-            try {
-                jobMasterGateway
-                        .requestKvStateLocation(JOB_GRAPH.getJobID(), registrationName)
-                        .get();
-                fail("Expected to fail with an UnknownKvStateLocation.");
-            } catch (Exception e) {
-                assertThat(e, containsCause(UnknownKvStateLocation.class));
-            }
+            assertThatThrownBy(
+                            () -> {
+                                jobMasterGateway
+                                        .requestKvStateLocation(
+                                                JOB_GRAPH.getJobID(), registrationName)
+                                        .get();
+                            })
+                    .as("Expected to fail with an UnknownKvStateLocation.")
+                    .isInstanceOf(Exception.class)
+                    .hasCauseInstanceOf(UnknownKvStateLocation.class);
         }
     }
 
     @Test
-    public void testDuplicatedKvStateRegistrationsFailTask() throws Exception {
+    void testDuplicatedKvStateRegistrationsFailTask() throws Exception {
         try (final JobMaster jobMaster =
                 new JobMasterBuilder(JOB_GRAPH, rpcService).createJobMaster()) {
 
@@ -287,22 +283,23 @@ public class JobMasterQueryableStateTest extends TestLogger {
 
             registerKvState(
                     jobMasterGateway, JOB_GRAPH.getJobID(), JOB_VERTEX_1.getID(), registrationName);
-            try {
-                registerKvState(
-                        jobMasterGateway,
-                        JOB_GRAPH.getJobID(),
-                        JOB_VERTEX_2.getID(),
-                        registrationName);
-                fail("Expected to fail because of clashing registration message.");
-            } catch (Exception e) {
-                assertTrue(
-                        ExceptionUtils.findThrowableWithMessage(e, "Registration name clash")
-                                .isPresent());
-
-                assertThat(
-                        jobMasterGateway.requestJobStatus(testingTimeout).get(),
-                        either(is(JobStatus.FAILED)).or(is(JobStatus.FAILING)));
-            }
+            assertThatThrownBy(
+                            () ->
+                                    registerKvState(
+                                            jobMasterGateway,
+                                            JOB_GRAPH.getJobID(),
+                                            JOB_VERTEX_2.getID(),
+                                            registrationName))
+                    .as("Expected to fail because of clashing registration message.")
+                    .isInstanceOf(Exception.class)
+                    .hasMessageContaining("Registration name clash");
+            assertThat(jobMasterGateway.requestJobStatus(testingTimeout).get())
+                    .satisfies(
+                            (Consumer<JobStatus>)
+                                    jobStatus -> {
+                                        assert jobStatus == JobStatus.FAILED
+                                                || jobStatus == JobStatus.FAILING;
+                                    });
         }
     }
 

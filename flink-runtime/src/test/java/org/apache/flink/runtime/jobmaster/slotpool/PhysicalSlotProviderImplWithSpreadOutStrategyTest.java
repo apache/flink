@@ -22,62 +22,59 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfileTestingUtils;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link PhysicalSlotProviderImpl} using {@link
  * EvenlySpreadOutLocationPreferenceSlotSelectionStrategy}.
  */
-public class PhysicalSlotProviderImplWithSpreadOutStrategyTest extends TestLogger {
+class PhysicalSlotProviderImplWithSpreadOutStrategyTest {
 
-    @Rule
-    public PhysicalSlotProviderResource physicalSlotProviderResource =
-            new PhysicalSlotProviderResource(
+    @RegisterExtension
+    private PhysicalSlotProviderExtension physicalSlotProviderExtension =
+            new PhysicalSlotProviderExtension(
                     LocationPreferenceSlotSelectionStrategy.createEvenlySpreadOut());
 
     @Test
-    public void testSlotAllocationFulfilledWithWorkloadSpreadOut()
+    void testSlotAllocationFulfilledWithWorkloadSpreadOut()
             throws InterruptedException, ExecutionException {
-        physicalSlotProviderResource.registerSlotOffersFromNewTaskExecutor(
+        physicalSlotProviderExtension.registerSlotOffersFromNewTaskExecutor(
                 ResourceProfile.ANY, ResourceProfile.ANY, ResourceProfile.ANY, ResourceProfile.ANY);
-        physicalSlotProviderResource.registerSlotOffersFromNewTaskExecutor(
+        physicalSlotProviderExtension.registerSlotOffersFromNewTaskExecutor(
                 ResourceProfile.ANY, ResourceProfile.ANY, ResourceProfile.ANY, ResourceProfile.ANY);
 
-        PhysicalSlotRequest request0 = physicalSlotProviderResource.createSimpleRequest();
-        PhysicalSlotRequest request1 = physicalSlotProviderResource.createSimpleRequest();
+        PhysicalSlotRequest request0 = physicalSlotProviderExtension.createSimpleRequest();
+        PhysicalSlotRequest request1 = physicalSlotProviderExtension.createSimpleRequest();
 
         PhysicalSlotRequest.Result result0 =
-                physicalSlotProviderResource.allocateSlot(request0).get();
+                physicalSlotProviderExtension.allocateSlot(request0).get();
         PhysicalSlotRequest.Result result1 =
-                physicalSlotProviderResource.allocateSlot(request1).get();
+                physicalSlotProviderExtension.allocateSlot(request1).get();
 
-        assertThat(
-                result0.getPhysicalSlot().getTaskManagerLocation(),
-                not(result1.getPhysicalSlot().getTaskManagerLocation()));
+        assertThat(result0.getPhysicalSlot().getTaskManagerLocation())
+                .isNotEqualTo(result1.getPhysicalSlot().getTaskManagerLocation());
     }
 
     @Test
-    public void testSlotAllocationFulfilledWithPreferredInputOverwrittingSpreadOut()
+    void testSlotAllocationFulfilledWithPreferredInputOverwrittingSpreadOut()
             throws ExecutionException, InterruptedException {
-        physicalSlotProviderResource.registerSlotOffersFromNewTaskExecutor(
+        physicalSlotProviderExtension.registerSlotOffersFromNewTaskExecutor(
                 ResourceProfile.ANY, ResourceProfile.ANY);
-        physicalSlotProviderResource.registerSlotOffersFromNewTaskExecutor(
+        physicalSlotProviderExtension.registerSlotOffersFromNewTaskExecutor(
                 ResourceProfile.ANY, ResourceProfile.ANY);
 
-        PhysicalSlotRequest request0 = physicalSlotProviderResource.createSimpleRequest();
+        PhysicalSlotRequest request0 = physicalSlotProviderExtension.createSimpleRequest();
         PhysicalSlotRequest.Result result0 =
-                physicalSlotProviderResource.allocateSlot(request0).get();
+                physicalSlotProviderExtension.allocateSlot(request0).get();
         TaskManagerLocation preferredTaskManagerLocation =
                 result0.getPhysicalSlot().getTaskManagerLocation();
 
@@ -89,36 +86,34 @@ public class PhysicalSlotProviderImplWithSpreadOutStrategyTest extends TestLogge
                                 Collections.singleton(preferredTaskManagerLocation)),
                         false);
         PhysicalSlotRequest.Result result1 =
-                physicalSlotProviderResource.allocateSlot(request1).get();
+                physicalSlotProviderExtension.allocateSlot(request1).get();
 
-        assertThat(
-                result1.getPhysicalSlot().getTaskManagerLocation(),
-                is(preferredTaskManagerLocation));
+        assertThat(result1.getPhysicalSlot().getTaskManagerLocation())
+                .isEqualTo(preferredTaskManagerLocation);
     }
 
     @Test
-    public void testSlotAllocationFulfilledWithNewSlots()
-            throws ExecutionException, InterruptedException {
+    void testSlotAllocationFulfilledWithNewSlots() throws ExecutionException, InterruptedException {
         final CompletableFuture<PhysicalSlotRequest.Result> slotFuture =
-                physicalSlotProviderResource.allocateSlot(
-                        physicalSlotProviderResource.createSimpleRequest());
-        assertThat(slotFuture.isDone(), is(false));
-        physicalSlotProviderResource.registerSlotOffersFromNewTaskExecutor(ResourceProfile.ANY);
+                physicalSlotProviderExtension.allocateSlot(
+                        physicalSlotProviderExtension.createSimpleRequest());
+        assertThatFuture(slotFuture).isNotDone();
+        physicalSlotProviderExtension.registerSlotOffersFromNewTaskExecutor(ResourceProfile.ANY);
         slotFuture.get();
     }
 
     @Test
-    public void testIndividualBatchSlotRequestTimeoutCheckIsDisabledOnAllocatingNewSlots()
+    void testIndividualBatchSlotRequestTimeoutCheckIsDisabledOnAllocatingNewSlots()
             throws Exception {
         DeclarativeSlotPoolBridge slotPool =
                 new DeclarativeSlotPoolBridgeBuilder()
-                        .buildAndStart(physicalSlotProviderResource.getMainThreadExecutor());
-        assertThat(slotPool.isBatchSlotRequestTimeoutCheckEnabled(), is(true));
+                        .buildAndStart(physicalSlotProviderExtension.getMainThreadExecutor());
+        assertThat(slotPool.isBatchSlotRequestTimeoutCheckEnabled()).isTrue();
 
         final PhysicalSlotProvider slotProvider =
                 new PhysicalSlotProviderImpl(
                         LocationPreferenceSlotSelectionStrategy.createEvenlySpreadOut(), slotPool);
         slotProvider.disableBatchSlotRequestTimeoutCheck();
-        assertThat(slotPool.isBatchSlotRequestTimeoutCheckEnabled(), is(false));
+        assertThat(slotPool.isBatchSlotRequestTimeoutCheckEnabled()).isFalse();
     }
 }
