@@ -348,7 +348,7 @@ class AdaptiveBatchSchedulerTest {
         scheduler.startScheduling();
 
         // check source's parallelism
-        assertThat(source.getParallelism()).isEqualTo(8);
+        assertThat(source.getParallelism()).isEqualTo(32);
     }
 
     @Test
