@@ -165,7 +165,7 @@ public class TieredResultPartitionFactory {
             bufferAccumulator =
                     new SortBufferAccumulator(
                             numSubpartitions,
-                            Math.min(numSubpartitions + 1, numAccumulatorExclusiveBuffers),
+                            numAccumulatorExclusiveBuffers,
                             bufferSize,
                             enableMemoryDecoupling ? poolSizeCheckInterval : 0,
                             storageMemoryManager,
