@@ -72,7 +72,11 @@ public class TestingComponentMainThreadExecutor {
         return mainThreadExecutor;
     }
 
-    /** Test resource for convenience. */
+    /**
+     * @deprecated Use {@link TestingComponentMainThreadExecutor.Extension} instead. Test resource
+     *     for convenience.
+     */
+    @Deprecated
     public static class Resource extends ExternalResource {
 
         private long shutdownTimeoutMillis;
