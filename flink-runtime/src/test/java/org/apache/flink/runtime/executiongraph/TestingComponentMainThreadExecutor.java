@@ -28,7 +28,6 @@ import org.apache.flink.util.function.ThrowingRunnable;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
-import org.junit.rules.ExternalResource;
 
 import javax.annotation.Nonnull;
 
@@ -70,45 +69,6 @@ public class TestingComponentMainThreadExecutor {
     @Nonnull
     public ComponentMainThreadExecutor getMainThreadExecutor() {
         return mainThreadExecutor;
-    }
-
-    /**
-     * @deprecated Use {@link TestingComponentMainThreadExecutor.Extension} instead. Test resource
-     *     for convenience.
-     */
-    @Deprecated
-    public static class Resource extends ExternalResource {
-
-        private long shutdownTimeoutMillis;
-        private TestingComponentMainThreadExecutor componentMainThreadTestExecutor;
-        private ScheduledExecutorService innerExecutorService;
-
-        public Resource() {
-            this(500L);
-        }
-
-        public Resource(long shutdownTimeoutMillis) {
-            this.shutdownTimeoutMillis = shutdownTimeoutMillis;
-        }
-
-        @Override
-        protected void before() {
-            this.innerExecutorService = Executors.newSingleThreadScheduledExecutor();
-            this.componentMainThreadTestExecutor =
-                    new TestingComponentMainThreadExecutor(
-                            ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
-                                    innerExecutorService));
-        }
-
-        @Override
-        protected void after() {
-            ExecutorUtils.gracefulShutdown(
-                    shutdownTimeoutMillis, TimeUnit.MILLISECONDS, innerExecutorService);
-        }
-
-        public TestingComponentMainThreadExecutor getComponentMainThreadTestExecutor() {
-            return componentMainThreadTestExecutor;
-        }
     }
 
     /** Test extension for convenience. */
