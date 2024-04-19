@@ -21,9 +21,7 @@ package org.apache.flink.formats.avro.registry.apicurio;
 /** Enumeration detailing the location of the schema ID. */
 enum IdPlacementEnum {
     HEADER("HEADER", "Schema ID is put in the header."),
-    LEGACY("LEGACY", "Schema ID is put in the message as a long."),
-    CONFLUENT("CONFLUENT", "Schema ID is put in the message as an int.");
-
+    LEGACY("LEGACY", "Schema ID is put in the message as a long.");
     private final String value;
     private final String description;
 

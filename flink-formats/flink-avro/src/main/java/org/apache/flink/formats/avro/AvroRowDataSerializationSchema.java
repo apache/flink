@@ -115,27 +115,30 @@ public class AvroRowDataSerializationSchema implements SerializationSchema<RowDa
 
     @Override
     public byte[] serialize(RowData row) {
-        throw new RuntimeException("222   public byte[] serialize(RowData row)");
-        //        GenericRecord record = null;
-        //        try {
-        //            // convert to record
-        //            record = (GenericRecord) runtimeConverter.convert(schema, row);
-        //            return nestedSchema.serialize(record);
-        //        } catch (Exception e) {
-        //            throw new RuntimeException("Failed to serialize row1. record=" + record, e);
-        //        }
+        GenericRecord record = null;
+        try {
+            // convert to record
+            record = (GenericRecord) runtimeConverter.convert(schema, row);
+            return nestedSchema.serialize(record);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to serialize row1. record=" + record, e);
+        }
     }
 
     @Override
-    public byte[] serialize(RowData row, Map<String, Object> additionalProperties) {
+    public byte[] serializeWithAdditionalProperties(
+            RowData row,
+            Map<String, Object> inputAdditionalProperties,
+            Map<String, Object> outputAdditionalProperties) {
         try {
             // convert to record
             GenericRecord record = (GenericRecord) runtimeConverter.convert(schema, row);
-            return nestedSchema.serialize(record, additionalProperties);
+            return nestedSchema.serializeWithAdditionalProperties(
+                    record, inputAdditionalProperties, outputAdditionalProperties);
         } catch (Exception e) {
             throw new RuntimeException(
-                    "Failed to serialize row2. headers="
-                            + additionalProperties
+                    "Failed to serialize row. headers="
+                            + inputAdditionalProperties
                             + " exception "
                             + e.getMessage(),
                     e);

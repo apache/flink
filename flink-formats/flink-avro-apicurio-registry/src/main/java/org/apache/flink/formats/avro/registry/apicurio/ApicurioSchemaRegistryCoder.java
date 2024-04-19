@@ -23,7 +23,9 @@ import org.apache.flink.formats.avro.SchemaCoder;
 
 import io.apicurio.registry.rest.client.RegistryClient;
 import io.apicurio.registry.rest.v2.beans.ArtifactMetaData;
+import io.apicurio.registry.rest.v2.beans.ArtifactReference;
 import io.apicurio.registry.rest.v2.beans.IfExists;
+import io.apicurio.registry.rest.v2.beans.VersionMetaData;
 import io.apicurio.registry.types.ArtifactType;
 import org.apache.avro.Schema;
 
@@ -33,43 +35,49 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.ID_OPTION;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.ID_PLACEMENT;
 
 /** Reads and Writes schema using Avro Schema Registry protocol. */
 public class ApicurioSchemaRegistryCoder implements SchemaCoder {
 
-    public static final String APICURIO_GLOBAL_ID_HEADER = "apicurio.value.globalId";
+    public static final String APICURIO_KEY_GLOBAL_ID_HEADER = "apicurio.key.globalId";
 
-    public static final String APICURIO_CONTENT_ID_HEADER = "apicurio.value.contentId";
+    public static final String APICURIO_KEY_CONTENT_ID_HEADER = "apicurio.key.contentId";
+
+    public static final String APICURIO_VALUE_GLOBAL_ID_HEADER = "apicurio.value.globalId";
+
+    public static final String APICURIO_VALUE_CONTENT_ID_HEADER = "apicurio.value.contentId";
+
     public static final String APICURIO_VALUE_ENCODING = "apicurio.value.encoding";
+
     private final RegistryClient registryClient;
 
-    private final Map<String, Object> registryConfigs;
+    private final Map<String, Object> configs;
 
     private static final int MAGIC_BYTE = 0;
 
-    /**
-     * Creates {@link SchemaCoder} that uses provided {@link RegistryClient} to connect to schema
-     * registry.
-     *
-     * @param registryClient client to connect schema registry
-     * @param registryConfigs map for registry configs
-     */
-    public ApicurioSchemaRegistryCoder(
-            RegistryClient registryClient, Map<String, Object> registryConfigs) {
-        this.registryClient = registryClient;
-        this.registryConfigs = registryConfigs;
-    }
+    public static final String TOPIC_NAME = "TOPIC_NAME";
+
+    public static final String HEADERS = "HEADERS";
+
+    public static final String IS_KEY = "IS_KEY";
 
     /**
      * Creates {@link SchemaCoder} that uses provided {@link RegistryClient} to connect to schema
      * registry.
      *
      * @param registryClient client to connect schema registry
+     * @param configs map for registry configs
      */
-    public ApicurioSchemaRegistryCoder(RegistryClient registryClient) {
+    public ApicurioSchemaRegistryCoder(RegistryClient registryClient, Map<String, Object> configs) {
         this.registryClient = registryClient;
-        this.registryConfigs = null;
+        this.configs = configs;
     }
 
     @Override
@@ -85,9 +93,15 @@ public class ApicurioSchemaRegistryCoder implements SchemaCoder {
         return buffer.getLong();
     }
 
-    public byte[] longToBytes(long x) {
+    public static byte[] longToBytes(long x) {
         ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
         buffer.putLong(x);
+        return buffer.array();
+    }
+
+    public static byte[] intToBytes(int x) {
+        ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
+        buffer.putInt(x);
         return buffer.array();
     }
 
@@ -97,99 +111,141 @@ public class ApicurioSchemaRegistryCoder implements SchemaCoder {
      * headers, then the globalId will be obtained from the headers map. Otherwise, the globalId is
      * obtained from the message payload, depending on the format configuration. This format is only
      * used with the Kafka connector. The Kafka connector lives in another repository. This
-     * repository does not have any Kafka dependancies; it is therefore not possible for us to use
+     * repository does not have any Kafka dependencies; it is therefore not possible for us to use
      * the Kafka consumer record here passing a deserialization handler. So we have to get the
      * information we need directly from the headers or the payload itself.
      *
      * @param in input stream
-     * @param headers map of Kafka headers
+     * @param additionalParameters map of additional parameters - including the headers an whether
+     *     this is a key or value
      * @return the Avro Schema
      * @throws IOException if there is an error
      */
     @Override
-    public Schema readSchemaWithHeaders(InputStream in, Map<String, Object> headers)
-            throws IOException {
+    public Schema readSchemaWithAdditionalParameters(
+            InputStream in, Map<String, Object> additionalParameters) throws IOException {
         if (in == null) {
             return null;
         }
-        Schema schema;
-        IdPlacementEnum idPlacementEnum;
-        IdOptionEnum idOptionEnum;
-        if (registryConfigs.get(AvroApicurioFormatOptions.ID_PLACEMENT) == null) {
-            idPlacementEnum = IdPlacementEnum.HEADER;
-        } else {
-            idPlacementEnum =
-                    (IdPlacementEnum) registryConfigs.get(AvroApicurioFormatOptions.ID_PLACEMENT);
-        }
-        if (registryConfigs.get(AvroApicurioFormatOptions.ID_OPTION) == null) {
-            idOptionEnum = IdOptionEnum.GLOBAL_ID;
-        } else {
-            idOptionEnum = (IdOptionEnum) registryConfigs.get(AvroApicurioFormatOptions.ID_OPTION);
-        }
+        IdOptionEnum idOptionEnum = (IdOptionEnum) configs.get(ID_OPTION.key());
         boolean useGlobalID = false;
         if (idOptionEnum == IdOptionEnum.GLOBAL_ID) {
             useGlobalID = true;
         }
+        long schemaId = getSchemaId(in, additionalParameters, useGlobalID);
 
-        Long schemaId;
+        if (!useGlobalID) {
+            // if we are  using the content ID there is not get that will dereference.
+            // so we need to get the artifact references, find the latest version,
+            // using its groupId and artifactId we can get the globalId, from which we can get
+            // a de-referenced schema
+
+            List<ArtifactReference> artifactReferenceList =
+                    registryClient.getArtifactReferencesByContentId(schemaId);
+            if (artifactReferenceList == null || artifactReferenceList.isEmpty()) {
+                throw new IOException(
+                        "Could not find any schemas in the Apicurio Registry with content ID "
+                                + schemaId);
+            }
+            long latestVersion = 0L;
+            String artifactId = "";
+            String groupId = "";
+            for (ArtifactReference artifactReference : artifactReferenceList) {
+                long version = Long.valueOf(artifactReference.getVersion());
+                // TODO check Apicurio code to see how it checks for the latest version
+                if (version > latestVersion) {
+                    latestVersion = version;
+                    artifactId = artifactReference.getArtifactId();
+                    groupId = artifactReference.getGroupId();
+                }
+            }
+            VersionMetaData artifactVersion =
+                    registryClient.getArtifactVersionMetaData(
+                            groupId, artifactId, latestVersion + "");
+            schemaId = artifactVersion.getGlobalId();
+        }
+        // get the schema in canonical form with references dereferenced
+        InputStream schemaInputStream = registryClient.getContentByGlobalId(schemaId, true, true);
+        return new Schema.Parser().parse(schemaInputStream);
+    }
+
+    /**
+     * get the schema id.
+     *
+     * @param in the Kafka body as an input stream
+     * @param additionalParameters additional Pararamters containing the headers and whetehr we are
+     *     processing a key or value
+     * @param useGlobalID hen true globalIDs are used, otherwise contentIDS
+     * @return the id of the schema
+     * @throws IOException error occurred
+     */
+    protected long getSchemaId(
+            InputStream in, Map<String, Object> additionalParameters, boolean useGlobalID)
+            throws IOException {
+        long schemaId = 0L;
+        Map<String, Object> headers = (Map<String, Object>) additionalParameters.get(HEADERS);
+        boolean isKey = (boolean) additionalParameters.get(IS_KEY);
+        // these enums have defaults so will not be null;
+        IdPlacementEnum idPlacementEnum = (IdPlacementEnum) configs.get(ID_PLACEMENT.key());
+
         if (idPlacementEnum == IdPlacementEnum.HEADER) {
+            String globalIDHeaderName =
+                    isKey ? APICURIO_KEY_GLOBAL_ID_HEADER : APICURIO_VALUE_GLOBAL_ID_HEADER;
+            String contentIDHeaderName =
+                    isKey ? APICURIO_KEY_CONTENT_ID_HEADER : APICURIO_VALUE_CONTENT_ID_HEADER;
             // get from headers
-            if (useGlobalID && headers.get(APICURIO_GLOBAL_ID_HEADER) != null) {
-                byte[] globalIDByteArray = (byte[]) headers.get(APICURIO_GLOBAL_ID_HEADER);
+            if (headers.get(globalIDHeaderName) != null) {
+                if (!useGlobalID) {
+                    throw new IOException(
+                            "The message has a global ID header "
+                                    + globalIDHeaderName
+                                    + ", but the configuration is for content ID.\n"
+                                    + "Header names received: \n"
+                                    + headers.keySet().stream().collect(Collectors.joining(",")));
+                }
+                byte[] globalIDByteArray = (byte[]) headers.get(globalIDHeaderName);
                 schemaId = bytesToLong(globalIDByteArray);
-            } else if (!useGlobalID && headers.get(APICURIO_GLOBAL_ID_HEADER) != null) {
-                byte[] globalIDByteArray = (byte[]) headers.get(APICURIO_GLOBAL_ID_HEADER);
-                schemaId = bytesToLong(globalIDByteArray);
+            } else if (headers.get(contentIDHeaderName) != null) {
+                if (useGlobalID) {
+                    throw new IOException(
+                            "The message has a content ID header "
+                                    + contentIDHeaderName
+                                    + "\n"
+                                    + ", but the configuration is for global ID.\n"
+                                    + "Header names received: "
+                                    + headers.keySet().stream().collect(Collectors.joining(",")));
+                }
+                byte[] contentIDByteArray = (byte[]) headers.get(contentIDHeaderName);
+                schemaId = bytesToLong(contentIDByteArray);
             } else {
-                String headerName =
-                        (useGlobalID) ? APICURIO_GLOBAL_ID_HEADER : APICURIO_CONTENT_ID_HEADER;
+                String headerName = useGlobalID ? globalIDHeaderName : contentIDHeaderName;
                 throw new IOException(
                         "The format was configured to enable headers, but the expected Kafka header "
                                 + headerName
                                 + " is not present.\n "
+                                + "Header names received: "
+                                + headers.keySet().stream().collect(Collectors.joining(","))
+                                + "\n "
                                 + "Ensure that the kafka message was created by an Apicurio client. Check that it is "
-                                + " sending the appropriate ID in the header, if the message is sending the ID in the payload,\n"
+                                + "sending the appropriate ID in the header, if the message is sending the ID in the payload,\n"
                                 + " review and amend the format configuration options "
                                 + AvroApicurioFormatOptions.ID_PLACEMENT
                                 + " and"
-                                + AvroApicurioFormatOptions.ID_OPTION);
+                                + ID_OPTION);
             }
         } else {
             // the id is in the payload
             DataInputStream dataInputStream = new DataInputStream(in);
-            if (idPlacementEnum == IdPlacementEnum.LEGACY) {
-                int legacySchemaId = dataInputStream.readInt();
-                schemaId = Long.valueOf(Integer.valueOf(legacySchemaId));
-            } else if (idPlacementEnum == IdPlacementEnum.CONFLUENT) {
-                if (dataInputStream.readByte() != 0) {
-                    throw new IOException("Unknown data format. Magic number was not found.");
-                } else {
-                    int schemaIdInt = dataInputStream.readInt();
-                    schemaId = Long.valueOf(Integer.valueOf(schemaIdInt));
-                }
-            } else {
-                schemaId = dataInputStream.readLong();
+            if (dataInputStream.readByte() != 0) {
+                throw new IOException(
+                        "Unknown data format. Magic number was not found. idPlacementEnum "
+                                + idPlacementEnum
+                                + " configs="
+                                + configs);
             }
+            schemaId = dataInputStream.readLong();
         }
-        try {
-            InputStream schemaInputStream;
-
-            if (useGlobalID) {
-                // get the schema in canonical form with references dereferenced
-                schemaInputStream = registryClient.getContentByGlobalId(schemaId, true, true);
-            } else {
-                // get the schema TODO can we dereference
-                schemaInputStream = registryClient.getContentById(schemaId);
-            }
-            schema = new Schema.Parser().parse(schemaInputStream);
-        } catch (IOException e) {
-            throw new IOException(
-                    "Attempting to get an Apicurio artifact with schemaId "
-                            + schemaId
-                            + " and to parse it into an Avro Schema, but got error "
-                            + e.getMessage());
-        }
-        return schema;
+        return schemaId;
     }
 
     @Override
@@ -203,90 +259,101 @@ public class ApicurioSchemaRegistryCoder implements SchemaCoder {
      *
      * @param schema Avro Schema to write into the output stream,
      * @param out the output stream where the schema is serialized.
+     * @param inputProperties properties containing the topic name
+     * @param outputProperties headers to populate
      * @throws IOException Exception has occurred
      */
     @Override
-    public void writeSchema(Schema schema, OutputStream out, Map<String, Object> headers)
+    public void writeSchema(
+            Schema schema,
+            OutputStream out,
+            Map<String, Object> inputProperties,
+            Map<String, Object> outputProperties)
             throws IOException {
-        IdPlacementEnum idPlacementEnum =
-                (IdPlacementEnum) registryConfigs.get(AvroApicurioFormatOptions.ID_PLACEMENT);
-        IdOptionEnum idOptionEnum =
-                (IdOptionEnum) registryConfigs.get(AvroApicurioFormatOptions.ID_OPTION);
+
+        // these enums have defaults so will not be null;
+        IdPlacementEnum idPlacementEnum = (IdPlacementEnum) configs.get(ID_PLACEMENT.key());
+        IdOptionEnum idOptionEnum = (IdOptionEnum) configs.get(ID_OPTION.key());
+
         boolean useGlobalID = false;
         if (idOptionEnum == IdOptionEnum.GLOBAL_ID) {
             useGlobalID = true;
         }
+        boolean isKey = (boolean) inputProperties.get(IS_KEY);
 
-        String groupId = (String) registryConfigs.get(AvroApicurioFormatOptions.GROUP_ID.key());
-        String artifactId =
-                (String)
-                        registryConfigs.get(AvroApicurioFormatOptions.REGISTERED_ARTIFACT_ID.key());
-        String artifactName =
-                (String)
-                        registryConfigs.get(
-                                AvroApicurioFormatOptions.REGISTERED_ARTIFACT_NAME.key());
-        if (artifactId == null) {
-            artifactId = new Integer(schema.hashCode()).toString();
+        String groupId = (String) configs.get(AvroApicurioFormatOptions.GROUP_ID.key());
+        Object artifactId = configs.get(AvroApicurioFormatOptions.REGISTERED_ARTIFACT_ID.key());
+        Object artifactName = configs.get(AvroApicurioFormatOptions.REGISTERED_ARTIFACT_NAME.key());
+        if (inputProperties.get(TOPIC_NAME) == null) {
+            throw new IOException();
         }
+        String defaultArtifactName =
+                (String) inputProperties.get(TOPIC_NAME + (isKey ? "-key" : "-value"));
+        artifactId = (artifactId == null) ? defaultArtifactName : artifactId;
+        artifactName = (artifactName == null) ? defaultArtifactName : artifactName;
+
+        // config option has a default so no need to check for null
         String artifactDescription =
                 (String)
-                        registryConfigs.get(
+                        configs.get(
                                 AvroApicurioFormatOptions.REGISTERED_ARTIFACT_DESCRIPTION.key());
+        // config option has a default so no need to check for null
         String artifactVersion =
-                (String)
-                        registryConfigs.get(
-                                AvroApicurioFormatOptions.REGISTERED_ARTIFACT_VERSION.key());
-        AvroFormatOptions.AvroEncoding avroEncoding;
-        Object configOption = registryConfigs.get(AvroFormatOptions.AVRO_ENCODING.key());
-        if (configOption == null) {
-            if (AvroFormatOptions.AVRO_ENCODING.hasDefaultValue()) {
-                avroEncoding = AvroFormatOptions.AVRO_ENCODING.defaultValue();
-            } else {
-                avroEncoding = null;
-            }
-        } else {
-            avroEncoding = (AvroFormatOptions.AvroEncoding) configOption;
-        }
+                (String) configs.get(AvroApicurioFormatOptions.REGISTERED_ARTIFACT_VERSION.key());
+        AvroFormatOptions.AvroEncoding avroEncoding =
+                (AvroFormatOptions.AvroEncoding) configs.get(AvroFormatOptions.AVRO_ENCODING.key());
+
         // register the schema
         InputStream in = new ByteArrayInputStream(schema.toString().getBytes());
 
         ArtifactMetaData artifactMetaData =
                 registryClient.createArtifact(
                         groupId,
-                        artifactId,
+                        (String) artifactId,
                         artifactVersion,
                         ArtifactType.AVRO,
                         IfExists.RETURN_OR_UPDATE,
                         true,
-                        artifactName,
+                        (String) artifactName,
                         artifactDescription,
                         in);
         Long registeredGlobalId = artifactMetaData.getGlobalId();
         Long registeredContentId = artifactMetaData.getContentId();
+        Map<String, Object> headers = new HashMap<>();
         if (idPlacementEnum == IdPlacementEnum.HEADER) {
-            // convert values to byte array
-
             // always add the global ID as this is a globally unique identifier
-            headers.put(APICURIO_GLOBAL_ID_HEADER, longToBytes(registeredGlobalId));
+
+            String globalHeaderName =
+                    isKey ? APICURIO_KEY_GLOBAL_ID_HEADER : APICURIO_VALUE_GLOBAL_ID_HEADER;
+            // optionally also add in the content id if the configuration says to
+            headers.put(globalHeaderName, longToBytes(registeredGlobalId));
             if (!useGlobalID) {
-                // optionally also add in the content id if the configuration says to
-                headers.put(APICURIO_CONTENT_ID_HEADER, longToBytes(registeredContentId));
+                String contentHeaderName =
+                        isKey ? APICURIO_KEY_CONTENT_ID_HEADER : APICURIO_VALUE_CONTENT_ID_HEADER;
+                headers.put(contentHeaderName, longToBytes(registeredContentId));
             }
-            // add the encoding
-            headers.put(APICURIO_VALUE_ENCODING, avroEncoding.toString().getBytes());
+
         } else {
             out.write(MAGIC_BYTE);
             byte[] schemaIdBytes;
             Long schemaId = (useGlobalID) ? registeredGlobalId : registeredContentId;
             // There could be a case where a table is created as a Kafka source and sink and the
-            // user wants the content ID in but the global ID out. This combination is currently not
+            // user wants the content ID in, but the global ID out. This combination is currently
+            // not
             // catered for.
-            if (idPlacementEnum == IdPlacementEnum.CONFLUENT) {
-                schemaIdBytes = ByteBuffer.allocate(4).putInt(schemaId.intValue()).array();
-            } else {
-                schemaIdBytes = ByteBuffer.allocate(8).putLong(schemaId).array();
-            }
+
+            schemaIdBytes = ByteBuffer.allocate(8).putLong(schemaId).array();
             out.write(schemaIdBytes);
         }
+        // always add the encoding header
+        AvroFormatOptions.AvroEncoding encoding;
+        if (avroEncoding == null) {
+            encoding = AvroFormatOptions.AvroEncoding.BINARY;
+        } else {
+            encoding = avroEncoding;
+        }
+        headers.put(APICURIO_VALUE_ENCODING, encoding.name().getBytes());
+
+        outputProperties.put(HEADERS, headers);
     }
 }

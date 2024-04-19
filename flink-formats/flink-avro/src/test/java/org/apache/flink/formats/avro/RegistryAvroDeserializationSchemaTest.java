@@ -71,7 +71,7 @@ class RegistryAvroDeserializationSchemaTest {
                                     }
 
                                     @Override
-                                    public Schema readSchemaWithHeaders(
+                                    public Schema readSchemaWithAdditionalParameters(
                                             InputStream in, Map<String, Object> headers)
                                             throws IOException {
                                         return readSchema(in);
@@ -116,7 +116,7 @@ class RegistryAvroDeserializationSchemaTest {
                                     }
 
                                     @Override
-                                    public Schema readSchemaWithHeaders(
+                                    public Schema readSchemaWithAdditionalParameters(
                                             InputStream in, Map<String, Object> headers)
                                             throws IOException {
                                         return readSchema(in);

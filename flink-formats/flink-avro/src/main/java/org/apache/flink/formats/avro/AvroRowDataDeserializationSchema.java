@@ -176,18 +176,19 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
      * Deserializes the byte message.
      *
      * @param message The message, as a byte array.
-     * @param additionalProperties headers
+     * @param inputAdditionalProperties headers
      * @return The deserialized message as an object (null if the message cannot be deserialized).
      */
     @Override
     public org.apache.flink.table.data.RowData deserializeWithAdditionalProperties(
-            byte[] message, Map<String, Object> additionalProperties) throws IOException {
+            byte[] message, Map<String, Object> inputAdditionalProperties) throws IOException {
         if (message == null) {
             return null;
         }
         try {
             GenericRecord deserialize =
-                    nestedSchema.deserializeWithAdditionalProperties(message, additionalProperties);
+                    nestedSchema.deserializeWithAdditionalProperties(
+                            message, inputAdditionalProperties);
             return (RowData) runtimeConverter.convert(deserialize);
         } catch (Exception e) {
             throw new IOException("Failed to deserialize Avro record.", e);

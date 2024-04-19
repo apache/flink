@@ -19,10 +19,12 @@
 package org.apache.flink.formats.avro.registry.apicurio;
 
 import io.apicurio.registry.rest.client.RegistryClient;
+import io.apicurio.registry.rest.v2.beans.ArtifactContent;
 import io.apicurio.registry.rest.v2.beans.ArtifactMetaData;
 import io.apicurio.registry.rest.v2.beans.ArtifactOwner;
 import io.apicurio.registry.rest.v2.beans.ArtifactReference;
 import io.apicurio.registry.rest.v2.beans.ArtifactSearchResults;
+import io.apicurio.registry.rest.v2.beans.Comment;
 import io.apicurio.registry.rest.v2.beans.ConfigurationProperty;
 import io.apicurio.registry.rest.v2.beans.EditableMetaData;
 import io.apicurio.registry.rest.v2.beans.GroupMetaData;
@@ -30,6 +32,7 @@ import io.apicurio.registry.rest.v2.beans.GroupSearchResults;
 import io.apicurio.registry.rest.v2.beans.IfExists;
 import io.apicurio.registry.rest.v2.beans.LogConfiguration;
 import io.apicurio.registry.rest.v2.beans.NamedLogConfiguration;
+import io.apicurio.registry.rest.v2.beans.NewComment;
 import io.apicurio.registry.rest.v2.beans.RoleMapping;
 import io.apicurio.registry.rest.v2.beans.Rule;
 import io.apicurio.registry.rest.v2.beans.SortBy;
@@ -46,9 +49,9 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 
-/** Mock registry client. */
+/** Mock registry client for unit tests - Apicurio version dependent produced for 2.5.10. */
 public class MockRegistryClient implements RegistryClient {
-    private InputStream in = null;
+    private ArtifactMetaData createArtifactResult;
 
     @Override
     public InputStream getLatestArtifact(String s, String s1) {
@@ -105,6 +108,12 @@ public class MockRegistryClient implements RegistryClient {
     }
 
     @Override
+    public VersionMetaData getArtifactVersionMetaDataByContent(
+            String s, String s1, Boolean aBoolean, ArtifactContent artifactContent) {
+        return null;
+    }
+
+    @Override
     public List<RuleType> listArtifactRules(String s, String s1) {
         return null;
     }
@@ -127,6 +136,24 @@ public class MockRegistryClient implements RegistryClient {
 
     @Override
     public void deleteArtifactRule(String s, String s1, RuleType ruleType) {}
+
+    @Override
+    public List<Comment> getArtifactVersionComments(String s, String s1, String s2) {
+        return null;
+    }
+
+    @Override
+    public Comment addArtifactVersionComment(
+            String s, String s1, String s2, NewComment newComment) {
+        return null;
+    }
+
+    @Override
+    public void deleteArtifactVersionComment(String s, String s1, String s2, String s3) {}
+
+    @Override
+    public void editArtifactVersionComment(
+            String s, String s1, String s2, String s3, NewComment newComment) {}
 
     @Override
     public void updateArtifactState(String s, String s1, UpdateState updateState) {}
@@ -215,6 +242,20 @@ public class MockRegistryClient implements RegistryClient {
     }
 
     @Override
+    public ArtifactMetaData createArtifact(
+            String groupId,
+            String artifactId,
+            String version,
+            String artifactType,
+            IfExists ifExists,
+            Boolean canonical,
+            String artifactName,
+            String artifactDescription,
+            InputStream data) {
+        return createArtifactResult;
+    }
+
+    @Override
     public void deleteArtifactsInGroup(String s) {}
 
     @Override
@@ -244,13 +285,9 @@ public class MockRegistryClient implements RegistryClient {
         return null;
     }
 
-    public void setInputStream(InputStream in) {
-        this.in = in;
-    }
-
     @Override
     public InputStream getContentByGlobalId(long l, Boolean aBoolean, Boolean aBoolean1) {
-        return in;
+        return null;
     }
 
     @Override
@@ -410,4 +447,8 @@ public class MockRegistryClient implements RegistryClient {
 
     @Override
     public void close() throws IOException {}
+
+    public void setCreateArtifactResult(ArtifactMetaData artifactMetaData) {
+        this.createArtifactResult = artifactMetaData;
+    }
 }

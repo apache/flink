@@ -35,15 +35,17 @@ public interface SchemaCoder {
 
     void writeSchema(Schema schema, OutputStream out) throws IOException;
 
-    default void writeSchema(Schema schema, OutputStream out, Map<String, Object> headers)
+    default void writeSchema(
+            Schema schema,
+            OutputStream out,
+            Map<String, Object> inputProperties,
+            Map<String, Object> outputProperties)
             throws IOException {
-        throw new RuntimeException(
-                "writeSchema default void writeSchema(Schema schema, OutputStream out, Map<String, Object> headers)");
-        //        writeSchema(schema, out);
+        throw new RuntimeException("writeSchema passing headers should be overridden.");
     }
 
-    default Schema readSchemaWithHeaders(InputStream in, Map<String, Object> headers)
-            throws IOException {
+    default Schema readSchemaWithAdditionalParameters(
+            InputStream in, Map<String, Object> inputProperties) throws IOException {
         return readSchema(in);
     }
 

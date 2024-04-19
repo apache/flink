@@ -109,11 +109,14 @@ public class RegistryAvroSerializationSchema<T> extends AvroSerializationSchema<
 
     @Override
     public byte[] serialize(T element) {
-        return serialize(element, null);
+        return serializeWithAdditionalProperties(element, null, null);
     }
 
     @Override
-    public byte[] serialize(T object, Map<String, Object> additionalProperties) {
+    public byte[] serializeWithAdditionalProperties(
+            T object,
+            Map<String, Object> inputAdditionalProperties,
+            Map<String, Object> outputAdditionalProperties) {
         checkAvroInitialized();
         if (object == null) {
             return null;
@@ -122,10 +125,19 @@ public class RegistryAvroSerializationSchema<T> extends AvroSerializationSchema<
                 ByteArrayOutputStream outputStream = getOutputStream();
                 outputStream.reset();
                 Encoder encoder = getEncoder();
-                if (additionalProperties == null) {
-                    schemaCoder.writeSchema(getSchema(), outputStream);
+                if (inputAdditionalProperties == null) {
+                    throw new RuntimeException(
+                            "inputAdditionalProperties"
+                                    + inputAdditionalProperties
+                                    + ",out"
+                                    + outputAdditionalProperties);
+                    //                    schemaCoder.writeSchema(getSchema(), outputStream);
                 } else {
-                    schemaCoder.writeSchema(getSchema(), outputStream, additionalProperties);
+                    schemaCoder.writeSchema(
+                            getSchema(),
+                            outputStream,
+                            inputAdditionalProperties,
+                            outputAdditionalProperties);
                 }
                 getDatumWriter().write(object, encoder);
                 encoder.flush();

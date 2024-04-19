@@ -66,6 +66,11 @@ import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormat
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.BASIC_AUTH_CREDENTIALS_USERID;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.ID_OPTION;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.ID_PLACEMENT;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.OIDC_AUTH_CLIENT_ID;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.OIDC_AUTH_CLIENT_SECRET;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.OIDC_AUTH_SCOPE;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.OIDC_AUTH_TOKEN_EXPIRATION_REDUCTION;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.OIDC_AUTH_URL;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.PROPERTIES;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.REGISTERED_ARTIFACT_DESCRIPTION;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.REGISTERED_ARTIFACT_ID;
@@ -100,12 +105,6 @@ public class ApicurioRegistryAvroFormatFactory
             // --------------------------------------------------------------------------------------------
 
             private List<String> metadataKeys;
-
-            // --------------------------------------------------------------------------------------------
-            // Apicurio specific attributes
-            // --------------------------------------------------------------------------------------------
-
-            private final @Nullable String globalIdFromHeader = null;
 
             @Override
             public DeserializationSchema<RowData> createRuntimeDecoder(
@@ -181,6 +180,10 @@ public class ApicurioRegistryAvroFormatFactory
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
+        return getOptionalOptions();
+    }
+
+    protected static Set<ConfigOption<?>> getOptionalOptions() {
         Set<ConfigOption<?>> options = new HashSet<>();
         options.add(ID_PLACEMENT);
         options.add(ID_OPTION);
@@ -196,6 +199,12 @@ public class ApicurioRegistryAvroFormatFactory
         options.add(SSL_TRUSTSTORE_PASSWORD);
         options.add(BASIC_AUTH_CREDENTIALS_USERID);
         options.add(BASIC_AUTH_CREDENTIALS_PASSWORD);
+        options.add(OIDC_AUTH_URL);
+        options.add(OIDC_AUTH_CLIENT_ID);
+        options.add(OIDC_AUTH_CLIENT_SECRET);
+        options.add(OIDC_AUTH_SCOPE);
+        options.add(OIDC_AUTH_TOKEN_EXPIRATION_REDUCTION);
+
         return options;
     }
 
@@ -216,7 +225,12 @@ public class ApicurioRegistryAvroFormatFactory
                         SSL_TRUSTSTORE_LOCATION,
                         SSL_TRUSTSTORE_PASSWORD,
                         BASIC_AUTH_CREDENTIALS_USERID,
-                        BASIC_AUTH_CREDENTIALS_PASSWORD)
+                        BASIC_AUTH_CREDENTIALS_PASSWORD,
+                        OIDC_AUTH_URL,
+                        OIDC_AUTH_CLIENT_ID,
+                        OIDC_AUTH_CLIENT_SECRET,
+                        OIDC_AUTH_SCOPE,
+                        OIDC_AUTH_TOKEN_EXPIRATION_REDUCTION)
                 .collect(Collectors.toSet());
     }
 
@@ -227,38 +241,20 @@ public class ApicurioRegistryAvroFormatFactory
         formatOptions
                 .getOptional(AvroApicurioFormatOptions.PROPERTIES)
                 .ifPresent(properties::putAll);
-        // options with defaults
 
-        ConfigOption[] configOptionsArray = {
-            ID_PLACEMENT,
-            ID_OPTION,
-            SSL_KEYSTORE_PASSWORD,
-            SSL_KEYSTORE_LOCATION,
-            SSL_TRUSTSTORE_PASSWORD,
-            SSL_TRUSTSTORE_LOCATION,
-            BASIC_AUTH_CREDENTIALS_PASSWORD
-        };
+        Set<ConfigOption<?>> configOptionsArray = getOptionalOptions();
+
         for (ConfigOption configOption : configOptionsArray) {
-            populatePropertiesFromConfig(
-                    formatOptions, configOption, properties, configOption.key());
+            formatOptions
+                    .getOptional(configOption)
+                    .ifPresent(v -> properties.put(configOption.key(), v));
+            // at java 11 we can use the orElse, but we are java 8
+            if (!properties.containsKey(configOption.key()) && configOption.hasDefaultValue()) {
+                properties.put(configOption.key(), configOption.defaultValue());
+            }
         }
-        // null pointers later if left as null TODO assess what behaviour we want for this.
-        //        if (properties.isEmpty()) {
-        //            return null;
-        //        }
-        return properties;
-    }
 
-    protected static void populatePropertiesFromConfig(
-            ReadableConfig formatOptions,
-            ConfigOption configOption,
-            Map<String, Object> properties,
-            String configOptionKey) {
-        formatOptions.getOptional(configOption).ifPresent(v -> properties.put(configOptionKey, v));
-        // we are java 8, so we cannot use ifPresentElse which would be a better implementation
-        if (properties.get(configOptionKey) == null && configOption.hasDefaultValue()) {
-            properties.put(configOptionKey, configOption.defaultValue());
-        }
+        return properties;
     }
 
     private static Schema getAvroSchema(String schemaString, RowType rowType) {

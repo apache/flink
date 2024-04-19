@@ -23,12 +23,24 @@ import org.apache.flink.formats.avro.SchemaCoder;
 
 import io.apicurio.registry.rest.client.RegistryClient;
 import io.apicurio.registry.rest.client.RegistryClientFactory;
+import io.apicurio.rest.client.JdkHttpClient;
+import io.apicurio.rest.client.auth.Auth;
+import io.apicurio.rest.client.auth.BasicAuth;
+import io.apicurio.rest.client.auth.OidcAuth;
+import io.apicurio.rest.client.auth.exception.AuthErrorHandler;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.BASIC_AUTH_CREDENTIALS_PASSWORD;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.BASIC_AUTH_CREDENTIALS_USERID;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.OIDC_AUTH_CLIENT_ID;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.OIDC_AUTH_CLIENT_SECRET;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.OIDC_AUTH_URL;
 
 /**
  * A {@link SchemaCoder.SchemaCoderProvider} that uses a cached schema registry client underneath.
@@ -40,28 +52,64 @@ class CachedSchemaCoderProvider implements SchemaCoder.SchemaCoderProvider {
 
     private final String url;
     private final int identityMapCapacity;
-    private final @Nullable Map<String, ?> registryConfigs;
+    private final @Nullable Map<String, ?> configs;
 
     CachedSchemaCoderProvider(String url, int identityMapCapacity) {
         this(url, identityMapCapacity, null);
     }
 
     CachedSchemaCoderProvider(
-            String url, int identityMapCapacity, @Nullable Map<String, ?> registryConfigs) {
+            String url, int identityMapCapacity, @Nullable Map<String, ?> configs) {
         this.url = Objects.requireNonNull(url);
         // TODO this does not seem to be used for Apicurio
         this.identityMapCapacity = identityMapCapacity;
         // Apicurio null pointers if this is left null.
-        this.registryConfigs = registryConfigs == null ? new HashMap<>() : registryConfigs;
+        this.configs = configs == null ? new HashMap<>() : configs;
     }
 
     @Override
     public SchemaCoder get() {
-        RegistryClientFactory registryClientFactory = new RegistryClientFactory();
+        Map<String, Object> registryClientConfigs = getRegistryConfigs(this.configs);
+
+        // This way of calling the client was taken from:
+        // https://github.com/Apicurio/apicurio-registry-examples/blob/main/rest-client/src/
+        // main/java/io/apicurio/registry/examples/SimpleRegistryDemo.java
         RegistryClient registryClient =
-                registryClientFactory.create(url, (Map<String, Object>) this.registryConfigs);
-        return new ApicurioSchemaRegistryCoder(
-                registryClient, (Map<String, Object>) this.registryConfigs);
+                RegistryClientFactory.create(url, registryClientConfigs, getAuth());
+        return new ApicurioSchemaRegistryCoder(registryClient, (Map<String, Object>) this.configs);
+    }
+
+    private Map<String, Object> getRegistryConfigs(Map<String, ?> configs) {
+        Map<String, Object> registryConfigs = new HashMap<>();
+        for (String configKey : configs.keySet()) {
+            if (configKey.startsWith("apicurio.registry.")) {
+                registryConfigs.put(configKey, configs.get(configKey));
+            }
+        }
+        return registryConfigs;
+    }
+
+    private Auth getAuth() {
+        Auth auth = null;
+        Object basicAuthUserid = this.configs.get(BASIC_AUTH_CREDENTIALS_USERID);
+        Object oidcAuthURL = this.configs.get(OIDC_AUTH_URL);
+        if (!Objects.isNull(oidcAuthURL)) {
+            auth =
+                    new OidcAuth(
+                            new JdkHttpClient(
+                                    (String) oidcAuthURL,
+                                    Collections.emptyMap(),
+                                    null,
+                                    new AuthErrorHandler()),
+                            (String) this.configs.get(OIDC_AUTH_CLIENT_ID),
+                            (String) this.configs.get(OIDC_AUTH_CLIENT_SECRET));
+        } else if (!Objects.isNull(basicAuthUserid)) {
+            Object basicAuthPassword = this.configs.get(BASIC_AUTH_CREDENTIALS_PASSWORD);
+            if (!Objects.isNull(basicAuthPassword)) {
+                auth = new BasicAuth((String) basicAuthUserid, (String) basicAuthPassword);
+            }
+        }
+        return auth;
     }
 
     @Override
@@ -75,11 +123,11 @@ class CachedSchemaCoderProvider implements SchemaCoder.SchemaCoderProvider {
         CachedSchemaCoderProvider that = (CachedSchemaCoderProvider) o;
         return identityMapCapacity == that.identityMapCapacity
                 && url.equals(that.url)
-                && Objects.equals(registryConfigs, that.registryConfigs);
+                && Objects.equals(configs, that.configs);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(url, identityMapCapacity, registryConfigs);
+        return Objects.hash(url, identityMapCapacity, configs);
     }
 }

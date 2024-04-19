@@ -55,18 +55,23 @@ public interface SerializationSchema<T> extends Serializable {
     byte[] serialize(T element);
 
     /**
-     * Serializes the incoming element to a specified type and populates a additionalProperties map
-     * with additionalProperties that need to be added with this serialization.
+     * Serializes the incoming element to a specified type and populates an output. The input
+     * additional properties can be used by the serialization and the output additionalProperties
+     * can be populated by the serialization.
      *
      * @param element The incoming element to be serialized
-     * @param additionalProperties additionalProperties map of additionalProperties that can be
-     *     populated by the serialisation
+     * @param inputAdditionalProperties input additionalProperties map of supplied to serialization
+     * @param outputAdditionalProperties output additionalProperties that can be populated by the
+     *     serialization
      * @return The serialized element.
      */
     @PublicEvolving
-    default byte[] serialize(T element, Map<String, Object> additionalProperties) {
-        throw new RuntimeException(
-                "default byte[] serialize(T element, Map<String, Object> additionalProperties) {");
+    default byte[] serializeWithAdditionalProperties(
+            T element,
+            Map<String, Object> inputAdditionalProperties,
+            Map<String, Object> outputAdditionalProperties) {
+        // if not overridden then serialize without the additional properties
+        return serialize(element);
     }
 
     /**

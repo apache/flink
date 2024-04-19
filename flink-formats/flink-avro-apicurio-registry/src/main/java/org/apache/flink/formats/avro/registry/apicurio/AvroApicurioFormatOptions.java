@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ConfigOptions;
 
 import io.apicurio.registry.serde.SerdeConfig;
 
+import java.time.Duration;
 import java.util.Map;
 
 /** Options for Schema Registry Avro format. */
@@ -46,17 +47,14 @@ public class AvroApicurioFormatOptions {
                                     + IdPlacementEnum.HEADER.getDescription()
                                     + "\n"
                                     + "LEGACY - "
-                                    + IdPlacementEnum.LEGACY.getDescription()
-                                    + "\n"
-                                    + "CONFLUENT - "
-                                    + IdPlacementEnum.CONFLUENT.getDescription());
+                                    + IdPlacementEnum.LEGACY.getDescription());
 
     public static final ConfigOption<IdOptionEnum> ID_OPTION =
             ConfigOptions.key("id-option")
                     .enumType(IdOptionEnum.class)
                     .defaultValue(IdOptionEnum.GLOBAL_ID)
                     .withDescription(
-                            "Specifies whether gloabl IDs or content IDs should be used to identifity the Avro schema ID . The Valid options are:\n"
+                            "Specifies whether global IDs or content IDs should be used to identify the Avro schema ID . The Valid options are:\n"
                                     + "GLOBAL_ID - "
                                     + IdOptionEnum.GLOBAL_ID.getDescription()
                                     + "\n"
@@ -82,14 +80,17 @@ public class AvroApicurioFormatOptions {
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
-                            "ArtifactId is used by serializers when registering a new Schemas to ensure that "
-                                    + "each serialization is associated with the same schema in the registry");
+                            "ArtifactId is used by serializers when registering a new Schemas to ensure that\n"
+                                    + "each serialization is associated with the same schema in the registry.\n"
+                                    + "It is often useful to include the topic name in the artifact id so\n"
+                                    + "the schema can be identified with its associated topic; the default is the topic name.");
     public static final ConfigOption<String> REGISTERED_ARTIFACT_NAME =
             ConfigOptions.key("artifactName")
                     .stringType()
                     .defaultValue("generated-schema")
                     .withDescription(
-                            "The registered artifact name is used by serializers as the name of the schema being registered");
+                            "The registered artifact name is used by serializers as the name of the schema being registered; \n"
+                                    + "the default is the topic name.");
     public static final ConfigOption<String> REGISTERED_ARTIFACT_DESCRIPTION =
             ConfigOptions.key("artifactDescription")
                     .stringType()
@@ -154,25 +155,35 @@ public class AvroApicurioFormatOptions {
                     .noDefaultValue()
                     .withDescription("Basic auth password for Apicurio Registry");
 
-    // --------------------------------------------------------------------------------------------
-    // Apicurio token security settings TODO confirm
-    // --------------------------------------------------------------------------------------------
-    public static final ConfigOption<String> AUTH_TOKEN_ENDPOINT =
-            ConfigOptions.key(SerdeConfig.AUTH_TOKEN_ENDPOINT)
+    public static final ConfigOption<String> OIDC_AUTH_URL =
+            ConfigOptions.key("OIDC_AUTH_URL")
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("Auth token endpoint");
+                    .withDescription("OIDC endpoint for Authorization.");
 
-    public static final ConfigOption<String> AUTH_CLIENT_ID =
-            ConfigOptions.key(SerdeConfig.AUTH_CLIENT_ID)
+    public static final ConfigOption<String> OIDC_AUTH_CLIENT_ID =
+            ConfigOptions.key("OIDC_AUTH_CLIENT_ID")
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("Auth client id");
-    public static final ConfigOption<String> AUTH_CLIENT_SECRET =
-            ConfigOptions.key(SerdeConfig.AUTH_CLIENT_SECRET)
+                    .withDescription("OIDC Client ID for Apicurio Registry.");
+
+    public static final ConfigOption<String> OIDC_AUTH_CLIENT_SECRET =
+            ConfigOptions.key("OIDC_AUTH_CLIENT_SECRET")
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("Auth client secret");
+                    .withDescription("OIDC Client SECRET for Apicurio Registry.");
+
+    public static final ConfigOption<String> OIDC_AUTH_SCOPE =
+            ConfigOptions.key("OIDC_AUTH_SCOPE")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("OIDC scope for Apicurio Registry.");
+
+    public static final ConfigOption<Duration> OIDC_AUTH_TOKEN_EXPIRATION_REDUCTION =
+            ConfigOptions.key("tokenExpirationReduction")
+                    .durationType()
+                    .noDefaultValue()
+                    .withDescription("OIDC token expiry reduction for Apicurio Registry.");
 
     // TODO the other SerdeConfig. options
 

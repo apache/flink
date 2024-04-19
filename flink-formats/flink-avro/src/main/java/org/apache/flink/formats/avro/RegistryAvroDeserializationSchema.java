@@ -96,7 +96,7 @@ public class RegistryAvroDeserializationSchema<T> extends AvroDeserializationSch
 
     @Override
     public T deserializeWithAdditionalProperties(
-            byte[] message, Map<String, Object> additionalProperties) throws IOException {
+            byte[] message, Map<String, Object> inputAdditionalProperties) throws IOException {
         if (message == null) {
             return null;
         }
@@ -104,9 +104,15 @@ public class RegistryAvroDeserializationSchema<T> extends AvroDeserializationSch
         checkAvroInitialized();
 
         getInputStream().setBuffer(message);
-        // get the schema passing headers
-        Schema writerSchema =
-                schemaCoder.readSchemaWithHeaders(getInputStream(), additionalProperties);
+        Schema writerSchema;
+        // get the schema passing in additional properties
+        if (inputAdditionalProperties == null) {
+            writerSchema = schemaCoder.readSchema(getInputStream());
+        } else {
+            writerSchema =
+                    schemaCoder.readSchemaWithAdditionalParameters(
+                            getInputStream(), inputAdditionalProperties);
+        }
 
         Schema readerSchema = getReaderSchema();
 
