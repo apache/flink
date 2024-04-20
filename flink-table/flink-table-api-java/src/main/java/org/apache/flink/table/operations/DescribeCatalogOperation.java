@@ -25,7 +25,6 @@ import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogDescriptor;
 import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.utils.EncodingUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,7 +32,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.internal.TableResultUtils.buildTableResult;
 
@@ -81,31 +79,20 @@ public class DescribeCatalogOperation implements Operation, ExecutableOperation 
         List<List<Object>> rows =
                 new ArrayList<>(
                         Arrays.asList(
-                                Arrays.asList("Name", catalogName),
+                                Arrays.asList("name", catalogName),
                                 Arrays.asList(
-                                        "Type",
+                                        "type",
                                         properties.getOrDefault(
                                                 CommonCatalogOptions.CATALOG_TYPE.key(), "")),
-                                Arrays.asList("Comment", "") // TODO: retain for future needs
+                                Arrays.asList("comment", "") // TODO: retain for future needs
                                 ));
         if (isExtended) {
-            rows.add(Arrays.asList("Properties", convertPropertiesToString(properties)));
+            properties.forEach((key, value) -> rows.add(Arrays.asList("option:" + key, value)));
         }
 
         return buildTableResult(
                 Arrays.asList("info name", "info value").toArray(new String[0]),
                 Arrays.asList(DataTypes.STRING(), DataTypes.STRING()).toArray(new DataType[0]),
                 rows.stream().map(List::toArray).toArray(Object[][]::new));
-    }
-
-    private String convertPropertiesToString(Map<String, String> map) {
-        return map.entrySet().stream()
-                .map(
-                        entry ->
-                                String.format(
-                                        "('%s','%s')",
-                                        EncodingUtils.escapeSingleQuotes(entry.getKey()),
-                                        EncodingUtils.escapeSingleQuotes(entry.getValue())))
-                .collect(Collectors.joining(", "));
     }
 }

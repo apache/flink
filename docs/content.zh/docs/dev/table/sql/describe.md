@@ -243,9 +243,9 @@ describe catalog cat2;
 +-----------+-------------------+
 | info name |        info value |
 +-----------+-------------------+
-|      Name |              cat2 |
-|      Type | generic_in_memory |
-|   Comment |                   |
+|      name |              cat2 |
+|      type | generic_in_memory |
+|   comment |                   |
 +-----------+-------------------+
 3 rows in set
 
@@ -253,33 +253,35 @@ desc catalog cat2;
 +-----------+-------------------+
 | info name |        info value |
 +-----------+-------------------+
-|      Name |              cat2 |
-|      Type | generic_in_memory |
-|   Comment |                   |
+|      name |              cat2 |
+|      type | generic_in_memory |
+|   comment |                   |
 +-----------+-------------------+
 3 rows in set
 ```
 展示完整的元数据描述。
 ```sql
 describe catalog extended cat2;
-+------------+---------------------------------------------------------+
-|  info name |                                              info value |
-+------------+---------------------------------------------------------+
-|       Name |                                                    cat2 |
-|       Type |                                       generic_in_memory |
-|    Comment |                                                         |
-| Properties | ('default-database','db'), ('type','generic_in_memory') |
-+------------+---------------------------------------------------------+
-4 rows in set
++-------------------------+-------------------+
+|               info name |        info value |
++-------------------------+-------------------+
+|                    name |              cat2 |
+|                    type | generic_in_memory |
+|                 comment |                   |
+| option:default-database |                db |
+|             option:type | generic_in_memory |
++-------------------------+-------------------+
+5 rows in set
 
 desc catalog extended cat2;
-+------------+---------------------------------------------------------+
-|  info name |                                              info value |
-+------------+---------------------------------------------------------+
-|       Name |                                                    cat2 |
-|       Type |                                       generic_in_memory |
-|    Comment |                                                         |
-| Properties | ('default-database','db'), ('type','generic_in_memory') |
-+------------+---------------------------------------------------------+
-4 rows in set
++-------------------------+-------------------+
+|               info name |        info value |
++-------------------------+-------------------+
+|                    name |              cat2 |
+|                    type | generic_in_memory |
+|                 comment |                   |
+| option:default-database |                db |
+|             option:type | generic_in_memory |
++-------------------------+-------------------+
+5 rows in set
 ```
