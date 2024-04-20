@@ -68,12 +68,12 @@ Rate Limiting
 GeneratorFunction<Long, Long> generatorFunction = index -> index;
 double recordsPerSecond = 100;
 
-DataGeneratorSource<String> source =
+DataGeneratorSource<Long> source =
         new DataGeneratorSource<>(
              generatorFunction,
              Long.MAX_VALUE,
              RateLimiterStrategy.perSecond(recordsPerSecond),
-             Types.STRING);
+             Types.LONG);
 ```
 
 Additional rate limiting strategies, such as limiting the number of records emitted per checkpoint, can
