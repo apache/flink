@@ -78,12 +78,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <pre>{@code
  * GeneratorFunction<Long, Long> generatorFunction = index -> index;
  *
- * DataGeneratorSource<String> source =
+ * DataGeneratorSource<Long> source =
  *         new DataGeneratorSource<>(
  *              generatorFunctionStateless,
  *              Long.MAX_VALUE,
  *              RateLimiterStrategy.perSecond(100),
- *              Types.STRING);
+ *              Types.LONG);
  * }</pre>
  *
  * <p>This source is always bounded. For very long sequences (for example when the {@code count} is
