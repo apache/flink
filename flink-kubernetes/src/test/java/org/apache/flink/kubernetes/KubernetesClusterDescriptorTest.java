@@ -86,7 +86,8 @@ class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
                                         server.createClient().inNamespace(NAMESPACE),
                                         Executors.newSingleThreadScheduledExecutor());
                             }
-                        });
+                        },
+                        config -> {});
     }
 
     @Test
