@@ -67,7 +67,7 @@ export class MetricsService {
         map(arr => {
           const result: MetricMap = {};
           arr.forEach(item => {
-            if (item.value.includes(".")) {
+            if (item.value.includes('.')) {
               result[item.id] = parseFloat(item.value);
             } else {
               result[item.id] = parseInt(item.value, 10);
