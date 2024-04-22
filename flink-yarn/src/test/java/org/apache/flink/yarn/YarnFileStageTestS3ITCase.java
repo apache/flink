@@ -128,7 +128,7 @@ class YarnFileStageTestS3ITCase {
                 new Path(S3TestCredentials.getTestBucketUriWithScheme(scheme) + TEST_DATA_DIR);
         final HadoopFileSystem fs = (HadoopFileSystem) basePath.getFileSystem();
 
-        assumeThat(fs.exists(basePath)).isTrue();
+        assumeThat(fs.exists(basePath)).isFalse();
 
         try {
             final Path directory = new Path(basePath, pathSuffix);
