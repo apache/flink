@@ -48,6 +48,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.util.function.ThrowingConsumer;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
@@ -60,7 +61,7 @@ import static org.apache.flink.runtime.state.StateBackendTestUtils.buildAsyncSta
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Basic tests for {@link AbstractAsyncStateStreamOperatorV2}. */
-public class AbstractAsyncStateStreamOperatorV2Test {
+class AbstractAsyncStateStreamOperatorV2Test {
 
     protected KeyedOneInputStreamOperatorV2TestHarness<Integer, Tuple2<Integer, String>, String>
             createTestHarness(
@@ -80,7 +81,7 @@ public class AbstractAsyncStateStreamOperatorV2Test {
     }
 
     @Test
-    public void testCreateAsyncExecutionController() throws Exception {
+    void testCreateAsyncExecutionController() throws Exception {
         try (KeyedOneInputStreamOperatorV2TestHarness<Integer, Tuple2<Integer, String>, String>
                 testHarness = createTestHarness(128, 1, 0, ElementOrder.RECORD_ORDER)) {
             testHarness.open();
@@ -99,7 +100,7 @@ public class AbstractAsyncStateStreamOperatorV2Test {
     }
 
     @Test
-    public void testRecordProcessorWithFirstStateOrder() throws Exception {
+    void testRecordProcessorWithFirstStateOrder() throws Exception {
         try (KeyedOneInputStreamOperatorV2TestHarness<Integer, Tuple2<Integer, String>, String>
                 testHarness = createTestHarness(128, 1, 0, ElementOrder.FIRST_STATE_ORDER)) {
             testHarness.open();
@@ -130,7 +131,7 @@ public class AbstractAsyncStateStreamOperatorV2Test {
     }
 
     @Test
-    public void testRecordProcessorWithRecordOrder() throws Exception {
+    void testRecordProcessorWithRecordOrder() throws Exception {
         try (KeyedOneInputStreamOperatorV2TestHarness<Integer, Tuple2<Integer, String>, String>
                 testHarness = createTestHarness(128, 1, 0, ElementOrder.RECORD_ORDER)) {
             testHarness.open();
@@ -189,6 +190,8 @@ public class AbstractAsyncStateStreamOperatorV2Test {
         }
     }
 
+    @Disabled("Support Timer for AsyncKeyedStateBackend")
+    @Test
     void testTimerServiceIsAsync() throws Exception {
         try (KeyedOneInputStreamOperatorV2TestHarness<Integer, Tuple2<Integer, String>, String>
                 testHarness = createTestHarness(128, 1, 0, ElementOrder.RECORD_ORDER)) {

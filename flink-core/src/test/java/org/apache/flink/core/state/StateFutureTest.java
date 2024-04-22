@@ -19,7 +19,9 @@
 package org.apache.flink.core.state;
 
 import org.apache.flink.api.common.state.v2.StateFuture;
+import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandler;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.junit.Test;
 
@@ -37,19 +39,23 @@ import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for {@link StateFuture} related implementations. */
 public class StateFutureTest {
+    static AsyncFrameworkExceptionHandler exceptionHandler =
+            (message, exception) -> {
+                throw new RuntimeException(message, exception);
+            };
 
     @Test
     public void basicSyncComplete() {
-        StateFutureImpl.CallbackRunner runner = Runnable::run;
+        StateFutureImpl.CallbackRunner runner = new TestCallbackRunner(null);
         final AtomicInteger counter = new AtomicInteger(0);
 
-        StateFutureImpl<Integer> stateFuture1 = new StateFutureImpl<>(runner);
+        StateFutureImpl<Integer> stateFuture1 = new StateFutureImpl<>(runner, exceptionHandler);
         stateFuture1.thenAccept(counter::addAndGet);
         assertThat(counter.get()).isEqualTo(0);
         stateFuture1.complete(5);
         assertThat(counter.get()).isEqualTo(5);
 
-        StateFutureImpl<Integer> stateFuture2 = new StateFutureImpl<>(runner);
+        StateFutureImpl<Integer> stateFuture2 = new StateFutureImpl<>(runner, exceptionHandler);
         StateFuture<String> stateFuture3 =
                 stateFuture2.thenApply((v) -> String.valueOf(counter.addAndGet(v)));
         assertThat(counter.get()).isEqualTo(5);
@@ -59,8 +65,8 @@ public class StateFutureTest {
         stateFuture3.thenAccept((v) -> counter.addAndGet(-Integer.parseInt(v)));
         assertThat(counter.get()).isEqualTo(0);
 
-        StateFutureImpl<Integer> stateFuture4 = new StateFutureImpl<>(runner);
-        StateFutureImpl<Integer> stateFuture5 = new StateFutureImpl<>(runner);
+        StateFutureImpl<Integer> stateFuture4 = new StateFutureImpl<>(runner, exceptionHandler);
+        StateFutureImpl<Integer> stateFuture5 = new StateFutureImpl<>(runner, exceptionHandler);
         stateFuture4
                 .thenCompose(
                         (v) -> {
@@ -74,8 +80,8 @@ public class StateFutureTest {
         stateFuture5.complete(3);
         assertThat(counter.get()).isEqualTo(9);
 
-        StateFutureImpl<Integer> stateFuture6 = new StateFutureImpl<>(runner);
-        StateFutureImpl<Integer> stateFuture7 = new StateFutureImpl<>(runner);
+        StateFutureImpl<Integer> stateFuture6 = new StateFutureImpl<>(runner, exceptionHandler);
+        StateFutureImpl<Integer> stateFuture7 = new StateFutureImpl<>(runner, exceptionHandler);
         stateFuture6.thenCombine(
                 stateFuture7,
                 (v1, v2) -> {
@@ -94,7 +100,7 @@ public class StateFutureTest {
         counter.set(0);
         ArrayList<StateFutureImpl<Integer>> futures = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
-            futures.add(new StateFutureImpl<>(runner));
+            futures.add(new StateFutureImpl<>(runner, exceptionHandler));
         }
         StateFutureUtils.combineAll(futures)
                 .thenAccept(
@@ -216,11 +222,11 @@ public class StateFutureTest {
         StateFutureImpl.CallbackRunner runner;
 
         MockValueState(ExecutorService executor) {
-            this.runner = executor::submit;
+            this.runner = new TestCallbackRunner(executor);
         }
 
         StateFuture<Integer> get() {
-            StateFutureImpl<Integer> ret = new StateFutureImpl<>(runner);
+            StateFutureImpl<Integer> ret = new StateFutureImpl<>(runner, exceptionHandler);
             stateExecutor.submit(
                     () -> {
                         int a = ThreadLocalRandom.current().nextInt();
@@ -234,6 +240,23 @@ public class StateFutureTest {
                         ret.complete(value.getAndIncrement());
                     });
             return ret;
+        }
+    }
+
+    private static class TestCallbackRunner implements StateFutureImpl.CallbackRunner {
+        private ExecutorService stateExecutor;
+
+        TestCallbackRunner(ExecutorService stateExecutor) {
+            this.stateExecutor = stateExecutor;
+        }
+
+        @Override
+        public void submit(ThrowingRunnable task) {
+            if (stateExecutor == null) {
+                ThrowingRunnable.unchecked(task).run();
+            } else {
+                stateExecutor.submit(() -> ThrowingRunnable.unchecked(task).run());
+            }
         }
     }
 }

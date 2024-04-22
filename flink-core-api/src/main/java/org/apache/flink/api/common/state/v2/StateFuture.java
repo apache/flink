@@ -19,10 +19,9 @@
 package org.apache.flink.api.common.state.v2;
 
 import org.apache.flink.annotation.Experimental;
-
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.function.Function;
+import org.apache.flink.util.function.BiFunctionWithException;
+import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 /**
  * StateFuture is a future that act as a return value for async state interfaces. Note: All these
@@ -40,7 +39,8 @@ public interface StateFuture<T> {
      * @param <U> the function's return type.
      * @return the new StateFuture.
      */
-    <U> StateFuture<U> thenApply(Function<? super T, ? extends U> fn);
+    <U> StateFuture<U> thenApply(
+            FunctionWithException<? super T, ? extends U, ? extends Exception> fn);
 
     /**
      * Returns a new StateFuture that, when this future completes normally, is executed with this
@@ -49,7 +49,7 @@ public interface StateFuture<T> {
      * @param action the action to perform before completing the returned StateFuture.
      * @return the new StateFuture.
      */
-    StateFuture<Void> thenAccept(Consumer<? super T> action);
+    StateFuture<Void> thenAccept(ThrowingConsumer<? super T, ? extends Exception> action);
 
     /**
      * Returns a new future that, when this future completes normally, is executed with this future
@@ -58,7 +58,8 @@ public interface StateFuture<T> {
      * @param action the action to perform.
      * @return the new StateFuture.
      */
-    <U> StateFuture<U> thenCompose(Function<? super T, ? extends StateFuture<U>> action);
+    <U> StateFuture<U> thenCompose(
+            FunctionWithException<? super T, ? extends StateFuture<U>, ? extends Exception> action);
 
     /**
      * Returns a new StateFuture that, when this and the other given future both complete normally,
@@ -71,5 +72,6 @@ public interface StateFuture<T> {
      * @return the new StateFuture.
      */
     <U, V> StateFuture<V> thenCombine(
-            StateFuture<? extends U> other, BiFunction<? super T, ? super U, ? extends V> fn);
+            StateFuture<? extends U> other,
+            BiFunctionWithException<? super T, ? super U, ? extends V, ? extends Exception> fn);
 }

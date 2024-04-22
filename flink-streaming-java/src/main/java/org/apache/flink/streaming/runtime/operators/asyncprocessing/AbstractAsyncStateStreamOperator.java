@@ -24,6 +24,7 @@ import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
+import org.apache.flink.runtime.asyncprocessing.AsyncStateException;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
@@ -60,6 +61,8 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
 
     private RecordContext currentProcessingContext;
 
+    private Environment environment;
+
     /** Initialize necessary state components for {@link AbstractStreamOperator}. */
     @Override
     public void initializeState(StreamTaskStateInitializer streamTaskStateManager)
@@ -67,7 +70,7 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
         super.initializeState(streamTaskStateManager);
         getRuntimeContext().setKeyedStateStoreV2(stateHandler.getKeyedStateStoreV2().orElse(null));
         final StreamTask<?, ?> containingTask = checkNotNull(getContainingTask());
-        final Environment environment = containingTask.getEnvironment();
+        environment = containingTask.getEnvironment();
         final MailboxExecutor mailboxExecutor = environment.getMainMailboxExecutor();
         final int maxParallelism = environment.getTaskInfo().getMaxNumberOfParallelSubtasks();
         final int inFlightRecordsLimit =
@@ -81,6 +84,7 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
             this.asyncExecutionController =
                     new AsyncExecutionController(
                             mailboxExecutor,
+                            this::handleAsyncStateException,
                             asyncKeyedStateBackend.createStateExecutor(),
                             maxParallelism,
                             asyncBufferSize,
@@ -91,6 +95,10 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
             throw new UnsupportedOperationException(
                     "Current State Backend doesn't support async access, AsyncExecutionController could not work");
         }
+    }
+
+    private void handleAsyncStateException(String message, Throwable exception) {
+        environment.failExternally(new AsyncStateException(message, exception));
     }
 
     @Override

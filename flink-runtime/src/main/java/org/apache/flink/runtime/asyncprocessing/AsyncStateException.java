@@ -16,26 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.core.state;
-
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.state.v2.StateFuture;
-import org.apache.flink.util.function.ThrowingConsumer;
+package org.apache.flink.runtime.asyncprocessing;
 
 /**
- * The Internal definition of {@link StateFuture}, add some method that will be used by framework.
+ * An exception for wrapping exceptions that are thrown by {@link
+ * org.apache.flink.api.common.state.v2.StateFuture} callback framework.
  */
-@Internal
-public interface InternalStateFuture<T> extends StateFuture<T> {
+public class AsyncStateException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
 
-    /** Complete this future. */
-    void complete(T result);
+    public AsyncStateException(Throwable cause) {
+        super(cause);
+    }
 
-    /**
-     * Accept the action in the same thread with the one of complete (or current thread if it has
-     * been completed).
-     *
-     * @param action the action to perform.
-     */
-    void thenSyncAccept(ThrowingConsumer<? super T, ? extends Exception> action);
+    public AsyncStateException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
+    @Override
+    public String toString() {
+        return "AsyncStateException{" + getCause() + "}";
+    }
 }
