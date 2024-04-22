@@ -21,6 +21,7 @@ package org.apache.flink.runtime.asyncprocessing;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.state.StateFutureUtils;
+import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
@@ -30,11 +31,11 @@ import org.apache.flink.runtime.state.v2.InternalValueState;
 import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.util.Preconditions;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -61,11 +62,15 @@ class AsyncExecutionControllerTest {
                         .thenAccept(val -> output.set(val));
             };
 
-    @BeforeEach
-    void setup() {
+    void setup(int batchSize, long timeout, int maxInFlight) {
         aec =
                 new AsyncExecutionController<>(
-                        new SyncMailboxExecutor(), createStateExecutor(), 128, 1000, 10000, 6000);
+                        new SyncMailboxExecutor(),
+                        createStateExecutor(),
+                        128,
+                        batchSize,
+                        timeout,
+                        maxInFlight);
         underlyingState = new TestUnderlyingState();
         valueState = new TestValueState(aec, underlyingState);
         output = new AtomicInteger();
@@ -73,6 +78,7 @@ class AsyncExecutionControllerTest {
 
     @Test
     void testBasicRun() {
+        setup(100, 10000L, 1000);
         // ============================ element1 ============================
         String record1 = "key1-r1";
         String key1 = "key1";
@@ -181,6 +187,7 @@ class AsyncExecutionControllerTest {
 
     @Test
     void testRecordsRunInOrder() {
+        setup(100, 10000L, 1000);
         // Record1 and record3 have the same key, record2 has a different key.
         // Record2 should be processed before record3.
 
@@ -239,37 +246,9 @@ class AsyncExecutionControllerTest {
 
     @Test
     void testInFlightRecordControl() {
-        final int batchSize = 5;
-        final int timeout = 1000;
-        final int maxInFlight = 10;
-        aec =
-                new AsyncExecutionController<>(
-                        new SyncMailboxExecutor(),
-                        new TestStateExecutor(),
-                        128,
-                        batchSize,
-                        timeout,
-                        maxInFlight);
-        valueState = new TestValueState(aec, underlyingState);
-
-        AtomicInteger output = new AtomicInteger();
-        Runnable userCode =
-                () -> {
-                    valueState
-                            .asyncValue()
-                            .thenCompose(
-                                    val -> {
-                                        int updated = (val == null ? 1 : (val + 1));
-                                        return valueState
-                                                .asyncUpdate(updated)
-                                                .thenCompose(
-                                                        o ->
-                                                                StateFutureUtils.completedFuture(
-                                                                        updated));
-                                    })
-                            .thenAccept(val -> output.set(val));
-                };
-
+        int batchSize = 5;
+        int maxInFlight = 10;
+        setup(batchSize, 10000L, maxInFlight);
         // For records with different keys, the in-flight records is controlled by batch size.
         for (int round = 0; round < 10; round++) {
             for (int i = 0; i < batchSize; i++) {
@@ -312,6 +291,7 @@ class AsyncExecutionControllerTest {
 
     @Test
     public void testSyncPoint() {
+        setup(100, 10000L, 1000);
         AtomicInteger counter = new AtomicInteger(0);
 
         // Test the sync point processing without a key occupied.
@@ -352,6 +332,138 @@ class AsyncExecutionControllerTest {
         assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(0);
         assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(0);
         recordContext2.release();
+    }
+
+    @Test
+    void testBufferTimeout() {
+        int batchSize = 5;
+        int timeout = 1000;
+        setup(batchSize, timeout, 1000);
+        ManuallyTriggeredScheduledExecutorService scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutorService();
+        aec.stateRequestsBuffer.scheduledExecutor = scheduledExecutor;
+        Runnable userCode = () -> valueState.asyncValue();
+
+        // ------------ basic timeout -------------------
+        for (int i = 0; i < batchSize - 1; i++) {
+            String record = String.format("key%d-r%d", i, i);
+            String key = String.format("key%d", batchSize + i);
+            RecordContext<String> recordContext = aec.buildContext(record, key);
+            aec.setCurrentContext(recordContext);
+            userCode.run();
+        }
+        assertThat(aec.stateRequestsBuffer.currentSeq.get()).isEqualTo(0);
+        assertThat(aec.stateRequestsBuffer.scheduledSeq.get()).isEqualTo(0);
+        assertThat(aec.stateRequestsBuffer.currentScheduledFuture.isDone()).isFalse();
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(batchSize - 1);
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(batchSize - 1);
+        assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(0);
+
+        // buffer timeout, trigger
+        scheduledExecutor.triggerNonPeriodicScheduledTasks();
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(0);
+        assertThat(aec.stateRequestsBuffer.currentScheduledFuture.isDone()).isTrue();
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(0);
+        assertThat(aec.stateRequestsBuffer.currentSeq.get()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.scheduledSeq.get()).isEqualTo(0);
+
+        // ----------------- oldest state request timeout ------------------
+        // r5 and r6 should be triggered due to r5 exceeding timeout
+        String record5 = "key5-r5";
+        String key5 = "key5";
+        RecordContext<String> recordContext5 = aec.buildContext(record5, key5);
+        aec.setCurrentContext(recordContext5);
+        // execute user code
+        userCode.run();
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.currentScheduledFuture.isDone()).isFalse();
+        ScheduledFuture<Void> scheduledFuture = aec.stateRequestsBuffer.currentScheduledFuture;
+        String record6 = "key6-r6";
+        String key6 = "key6";
+        RecordContext<String> recordContext6 = aec.buildContext(record6, key6);
+        aec.setCurrentContext(recordContext6);
+        // execute user code
+        userCode.run();
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(2);
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(2);
+
+        assertThat(scheduledExecutor.getActiveNonPeriodicScheduledTask().size()).isEqualTo(1);
+        assertThat(scheduledExecutor.getAllNonPeriodicScheduledTask().size()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.currentSeq.get()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.scheduledSeq.get()).isEqualTo(1);
+        scheduledExecutor.triggerNonPeriodicScheduledTasks();
+
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(0);
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(0);
+        assertThat(scheduledFuture).isEqualTo(aec.stateRequestsBuffer.currentScheduledFuture);
+        assertThat(scheduledFuture.isDone()).isTrue();
+        assertThat(aec.stateRequestsBuffer.currentSeq.get()).isEqualTo(2);
+        assertThat(aec.stateRequestsBuffer.scheduledSeq.get()).isEqualTo(1);
+    }
+
+    @Test
+    void testBufferTimeoutSkip() {
+        int batchSize = 3;
+        int timeout = 1000;
+        setup(batchSize, timeout, 1000);
+        ManuallyTriggeredScheduledExecutorService scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutorService();
+        aec.stateRequestsBuffer.scheduledExecutor = scheduledExecutor;
+        Runnable userCode = () -> valueState.asyncValue();
+
+        assertThat(aec.stateRequestsBuffer.currentSeq.get()).isEqualTo(0);
+        assertThat(aec.stateRequestsBuffer.scheduledSeq.get()).isEqualTo(-1);
+        // register r1 timeout
+        RecordContext<String> recordContext = aec.buildContext("record1", "key1");
+        aec.setCurrentContext(recordContext);
+        userCode.run();
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.currentSeq.get()).isEqualTo(0);
+        assertThat(aec.stateRequestsBuffer.scheduledSeq.get()).isEqualTo(0);
+
+        // before r1 timeout execute, the active buffer size reach batch size.
+        RecordContext<String> recordContext2 = aec.buildContext("record2", "key2");
+        aec.setCurrentContext(recordContext2);
+        userCode.run();
+        assertThat(aec.stateRequestsBuffer.currentSeq.get()).isEqualTo(0);
+        assertThat(aec.stateRequestsBuffer.scheduledSeq.get()).isEqualTo(0);
+        RecordContext<String> recordContext3 = aec.buildContext("record3", "key3");
+        aec.setCurrentContext(recordContext3);
+        userCode.run();
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(0);
+        assertThat(aec.stateRequestsBuffer.currentSeq.get()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.scheduledSeq.get()).isEqualTo(0);
+
+        // r1 timeout executes, but r1 is already triggered in [r1,r2,r3], so r1 timeout should skip
+        assertThat(scheduledExecutor.getActiveNonPeriodicScheduledTask().size()).isEqualTo(1);
+        assertThat(scheduledExecutor.getAllNonPeriodicScheduledTask().size()).isEqualTo(1);
+        scheduledExecutor.triggerNonPeriodicScheduledTask();
+        assertThat(aec.stateRequestsBuffer.currentScheduledFuture.isDone()).isTrue();
+        assertThat(aec.stateRequestsBuffer.currentSeq.get()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.scheduledSeq.get()).isEqualTo(0);
+
+        RecordContext<String> recordContext4 = aec.buildContext("record4", "key4");
+        aec.setCurrentContext(recordContext4);
+        userCode.run();
+
+        // register r4 timeout, set new currentScheduledFuture
+        assertThat(scheduledExecutor.getActiveNonPeriodicScheduledTask().size()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.currentScheduledFuture.isDone()).isFalse();
+        assertThat(aec.stateRequestsBuffer.currentScheduledFuture.isCancelled()).isFalse();
+        assertThat(aec.stateRequestsBuffer.currentSeq.get()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.scheduledSeq.get()).isEqualTo(1);
+
+        // r4 timeout
+        scheduledExecutor.triggerNonPeriodicScheduledTask();
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(0);
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(0);
+        assertThat(aec.stateRequestsBuffer.currentSeq.get()).isEqualTo(2);
+        assertThat(aec.stateRequestsBuffer.scheduledSeq.get()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.currentScheduledFuture.isDone()).isTrue();
     }
 
     private StateExecutor createStateExecutor() {
