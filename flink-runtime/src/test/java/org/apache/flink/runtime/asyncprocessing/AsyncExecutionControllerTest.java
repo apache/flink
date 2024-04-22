@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.asyncprocessing;
 
+import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.state.StateFutureUtils;
@@ -27,6 +28,7 @@ import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.v2.InternalValueState;
+import org.apache.flink.runtime.state.v2.StateDescriptor;
 import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.util.Preconditions;
 
@@ -415,6 +417,11 @@ class AsyncExecutionControllerTest {
                 }
 
                 @Override
+                public <S extends State> S getState(StateDescriptor<?> stateDescriptor) {
+                    return null;
+                }
+
+                @Override
                 public void dispose() {
                     // do nothing
                 }
@@ -426,7 +433,7 @@ class AsyncExecutionControllerTest {
      * A brief implementation of {@link StateExecutor}, to illustrate the interaction between AEC
      * and StateExecutor.
      */
-    static class TestStateExecutor implements StateExecutor {
+    static class TestStateExecutor extends AbstractStateExecutor {
 
         public TestStateExecutor() {}
 

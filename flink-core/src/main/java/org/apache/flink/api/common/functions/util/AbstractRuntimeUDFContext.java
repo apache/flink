@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.functions.util;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
@@ -242,5 +243,13 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
     @VisibleForTesting
     public String getAllocationIDAsString() {
         return taskInfo.getAllocationIDAsString();
+    }
+
+    @Override
+    @Experimental
+    public <T> org.apache.flink.api.common.state.v2.ValueState<T> getStateV2(
+            ValueStateDescriptor<T> stateProperties) {
+        throw new UnsupportedOperationException(
+                "This state is only accessible by functions executed on a KeyedStream");
     }
 }

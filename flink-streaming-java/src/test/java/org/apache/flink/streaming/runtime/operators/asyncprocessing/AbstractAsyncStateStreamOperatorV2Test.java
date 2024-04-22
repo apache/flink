@@ -23,8 +23,8 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.asyncprocessing.AbstractStateExecutor;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
-import org.apache.flink.runtime.asyncprocessing.StateExecutor;
 import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -164,7 +164,7 @@ public class AbstractAsyncStateStreamOperatorV2Test {
             AsyncExecutionController asyncExecutionController =
                     testOperator.getAsyncExecutionController();
             asyncExecutionController.setStateExecutor(
-                    new StateExecutor() {
+                    new AbstractStateExecutor() {
                         @Override
                         public CompletableFuture<Boolean> executeBatchRequests(
                                 Iterable<StateRequest<?, ?, ?>> processingRequests) {

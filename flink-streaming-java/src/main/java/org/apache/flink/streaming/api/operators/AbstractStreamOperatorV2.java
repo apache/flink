@@ -102,7 +102,7 @@ public abstract class AbstractStreamOperatorV2<OUT>
     protected final ProcessingTimeService processingTimeService;
     protected final RecordAttributes[] lastRecordAttributes;
 
-    private StreamOperatorStateHandler stateHandler;
+    protected StreamOperatorStateHandler stateHandler;
     private InternalTimeServiceManager<?> timeServiceManager;
 
     public AbstractStreamOperatorV2(StreamOperatorParameters<OUT> parameters, int numberOfInputs) {

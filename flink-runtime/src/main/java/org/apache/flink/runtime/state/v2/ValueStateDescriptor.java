@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state.v2;
 import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.state.v2.ValueState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 /**
  * {@link StateDescriptor} for {@link ValueState}. This can be used to create partitioned value
@@ -51,6 +52,16 @@ public class ValueStateDescriptor<T> extends StateDescriptor<T> {
     public ValueStateDescriptor(
             String stateId, TypeInformation<T> typeInfo, SerializerConfig serializerConfig) {
         super(stateId, typeInfo, serializerConfig);
+    }
+
+    /**
+     * Creates a new {@code ValueStateDescriptor} with the given stateId and type.
+     *
+     * @param stateId The (unique) stateId for the state.
+     * @param typeSerializer The serializer to serialize the value.
+     */
+    public ValueStateDescriptor(String stateId, TypeSerializer<T> typeSerializer) {
+        super(stateId, typeSerializer);
     }
 
     @Override

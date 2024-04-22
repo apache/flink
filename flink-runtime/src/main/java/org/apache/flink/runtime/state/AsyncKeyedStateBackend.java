@@ -19,7 +19,9 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.runtime.asyncprocessing.StateExecutor;
+import org.apache.flink.runtime.state.v2.StateDescriptor;
 import org.apache.flink.util.Disposable;
 
 /**
@@ -37,4 +39,13 @@ public interface AsyncKeyedStateBackend extends Disposable {
      *     asynchronously.
      */
     StateExecutor createStateExecutor();
+
+    /**
+     * Create a state by a given state descriptor.
+     *
+     * @param stateDescriptor the given state descriptor.
+     * @return the created state.
+     * @param <S> The type of state.
+     */
+    <S extends State> S getState(StateDescriptor<?> stateDescriptor) throws Exception;
 }

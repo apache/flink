@@ -24,7 +24,9 @@ import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
+import org.apache.flink.runtime.asyncprocessing.StateExecutor;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
@@ -64,6 +66,10 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
         super.initializeState(streamTaskStateManager);
         // TODO: Read config and properly set.
         this.asyncExecutionController = new AsyncExecutionController(mailboxExecutor, null);
+        final AsyncKeyedStateBackend keyedStateBackend = stateHandler.getAsyncKeyedStateBackend();
+        final StateExecutor stateExecutor = keyedStateBackend.createStateExecutor();
+        this.asyncExecutionController =
+                new AsyncExecutionController(mailboxExecutor, stateExecutor);
     }
 
     @Override

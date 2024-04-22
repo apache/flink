@@ -201,4 +201,10 @@ class CepRuntimeContext implements RuntimeContext {
     public <UK, UV> MapState<UK, UV> getMapState(final MapStateDescriptor<UK, UV> stateProperties) {
         throw new UnsupportedOperationException("State is not supported.");
     }
+
+    @Override
+    public <T> org.apache.flink.api.common.state.v2.ValueState<T> getStateV2(
+            final ValueStateDescriptor<T> stateProperties) {
+        throw new UnsupportedOperationException("State is not supported.");
+    }
 }

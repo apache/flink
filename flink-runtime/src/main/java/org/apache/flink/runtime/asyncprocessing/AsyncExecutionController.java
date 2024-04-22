@@ -111,6 +111,7 @@ public class AsyncExecutionController<K> {
         this.maxInFlightRecordNum = maxInFlightRecords;
         this.stateRequestsBuffer = new StateRequestBuffer<>();
         this.inFlightRecordNum = new AtomicInteger(0);
+        stateExecutor.bindAsyncExecutionController(this);
         LOG.info(
                 "Create AsyncExecutionController: batchSize {}, maxInFlightRecordsNum {}",
                 batchSize,

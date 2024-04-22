@@ -258,6 +258,13 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction
         public TaskInfo getTaskInfo() {
             return runtimeContext.getTaskInfo();
         }
+
+        @Override
+        public <T> org.apache.flink.api.common.state.v2.ValueState<T> getStateV2(
+                ValueStateDescriptor<T> stateProperties) {
+            throw new UnsupportedOperationException(
+                    "State is not supported in rich async functions.");
+        }
     }
 
     private static class RichAsyncFunctionIterationRuntimeContext

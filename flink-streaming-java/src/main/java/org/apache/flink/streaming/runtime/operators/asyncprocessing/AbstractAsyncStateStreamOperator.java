@@ -24,16 +24,18 @@ import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
+import org.apache.flink.runtime.asyncprocessing.StateExecutor;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
-import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -51,17 +53,17 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
 
     private RecordContext currentProcessingContext;
 
-    /** Initialize necessary state components for {@link AbstractStreamOperator}. */
     @Override
-    public void setup(
-            StreamTask<?, ?> containingTask,
-            StreamConfig config,
-            Output<StreamRecord<OUT>> output) {
-        super.setup(containingTask, config, output);
-        // TODO: properly read config and setup
+    public void initializeState(StreamTaskStateInitializer streamTaskStateManager)
+            throws Exception {
+        super.initializeState(streamTaskStateManager);
+        final StreamTask<?, ?> containingTask = Preconditions.checkNotNull(getContainingTask());
         final MailboxExecutor mailboxExecutor =
                 containingTask.getEnvironment().getMainMailboxExecutor();
-        this.asyncExecutionController = new AsyncExecutionController(mailboxExecutor, null);
+        final AsyncKeyedStateBackend keyedStateBackend = stateHandler.getAsyncKeyedStateBackend();
+        final StateExecutor stateExecutor = keyedStateBackend.createStateExecutor();
+        this.asyncExecutionController =
+                new AsyncExecutionController(mailboxExecutor, stateExecutor);
     }
 
     @Override

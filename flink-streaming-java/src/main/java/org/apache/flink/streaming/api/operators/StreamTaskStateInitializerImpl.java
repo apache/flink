@@ -30,6 +30,7 @@ import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetricsBuilder;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -165,6 +166,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
                 taskStateManager.prioritizedOperatorState(operatorID);
 
         CheckpointableKeyedStateBackend<?> keyedStatedBackend = null;
+        AsyncKeyedStateBackend asyncKeyedStateBackend = null;
         OperatorStateBackend operatorStateBackend = null;
         CloseableIterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs = null;
         CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs = null;
@@ -185,6 +187,14 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
                             metricGroup,
                             managedMemoryFraction,
                             statsCollector);
+
+            // -------------- Async Keyed State Backend --------------
+            asyncKeyedStateBackend =
+                    asyncKeyedStatedBackend(
+                            keySerializer,
+                            operatorIdentifierText,
+                            metricGroup,
+                            managedMemoryFraction);
 
             // -------------- Operator State Backend --------------
             operatorStateBackend =
@@ -263,6 +273,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
                     prioritizedOperatorSubtaskStates.getRestoredCheckpointId(),
                     operatorStateBackend,
                     keyedStatedBackend,
+                    asyncKeyedStateBackend,
                     timeServiceManager,
                     rawOperatorStateInputs,
                     rawKeyedStateInputs);
@@ -405,6 +416,44 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
                 IOUtils.closeQuietly(cancelStreamRegistryForRestore);
             }
         }
+    }
+
+    protected <K> AsyncKeyedStateBackend asyncKeyedStatedBackend(
+            TypeSerializer<K> keySerializer,
+            String operatorIdentifierText,
+            MetricGroup metricGroup,
+            double managedMemoryFraction)
+            throws Exception {
+        if (keySerializer == null || !stateBackend.supportsAsyncKeyedStateBackend()) {
+            return null;
+        }
+
+        TaskInfo taskInfo = environment.getTaskInfo();
+
+        final KeyGroupRange keyGroupRange =
+                KeyGroupRangeAssignment.computeKeyGroupRangeForOperatorIndex(
+                        taskInfo.getMaxNumberOfParallelSubtasks(),
+                        taskInfo.getNumberOfParallelSubtasks(),
+                        taskInfo.getIndexOfThisSubtask());
+
+        CloseableRegistry cancelStreamRegistryForRestore = new CloseableRegistry();
+        // TODO: exclude unused parameters.
+        KeyedStateBackendParametersImpl<K> parameters =
+                new KeyedStateBackendParametersImpl<>(
+                        environment,
+                        environment.getJobID(),
+                        operatorIdentifierText,
+                        keySerializer,
+                        taskInfo.getMaxNumberOfParallelSubtasks(),
+                        keyGroupRange,
+                        environment.getTaskKvStateRegistry(),
+                        ttlTimeProvider,
+                        metricGroup,
+                        initializationMetrics::addDurationMetric,
+                        null,
+                        cancelStreamRegistryForRestore,
+                        managedMemoryFraction);
+        return stateBackend.createAsyncKeyedStateBackend(parameters);
     }
 
     protected CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs(
@@ -704,6 +753,9 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 
         private final OperatorStateBackend operatorStateBackend;
         private final CheckpointableKeyedStateBackend<?> keyedStateBackend;
+
+        private final AsyncKeyedStateBackend asyncKeyedStateBackend;
+
         private final InternalTimeServiceManager<?> internalTimeServiceManager;
 
         private final CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs;
@@ -713,6 +765,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
                 @Nullable Long restoredCheckpointId,
                 OperatorStateBackend operatorStateBackend,
                 CheckpointableKeyedStateBackend<?> keyedStateBackend,
+                AsyncKeyedStateBackend asyncKeyedStateBackend,
                 InternalTimeServiceManager<?> internalTimeServiceManager,
                 CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs,
                 CloseableIterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs) {
@@ -720,6 +773,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
             this.restoredCheckpointId = restoredCheckpointId;
             this.operatorStateBackend = operatorStateBackend;
             this.keyedStateBackend = keyedStateBackend;
+            this.asyncKeyedStateBackend = asyncKeyedStateBackend;
             this.internalTimeServiceManager = internalTimeServiceManager;
             this.rawOperatorStateInputs = rawOperatorStateInputs;
             this.rawKeyedStateInputs = rawKeyedStateInputs;
@@ -735,6 +789,11 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
         @Override
         public CheckpointableKeyedStateBackend<?> keyedStateBackend() {
             return keyedStateBackend;
+        }
+
+        @Override
+        public AsyncKeyedStateBackend asyncKeyedStateBackend() {
+            return asyncKeyedStateBackend;
         }
 
         @Override

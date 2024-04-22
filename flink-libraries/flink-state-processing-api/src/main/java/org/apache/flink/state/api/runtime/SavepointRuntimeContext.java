@@ -239,6 +239,12 @@ public final class SavepointRuntimeContext implements RuntimeContext {
         return keyedStateStore.getMapState(stateProperties);
     }
 
+    @Override
+    public <T> org.apache.flink.api.common.state.v2.ValueState<T> getStateV2(
+            ValueStateDescriptor<T> stateProperties) {
+        throw new UnsupportedOperationException("State is not supported in rich async functions.");
+    }
+
     public List<StateDescriptor<?, ?>> getStateDescriptors() {
         if (registeredDescriptors.isEmpty()) {
             return Collections.emptyList();

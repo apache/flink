@@ -42,6 +42,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.state.v2.StateDescriptorConversionUtil;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -69,6 +70,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
     private final String operatorUniqueID;
     private final ProcessingTimeService processingTimeService;
     private @Nullable KeyedStateStore keyedStateStore;
+    private @Nullable org.apache.flink.runtime.state.v2.KeyedStateStore keyedStateStoreV2;
     private final ExternalResourceInfoProvider externalResourceInfoProvider;
 
     @VisibleForTesting
@@ -112,6 +114,11 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 
     public void setKeyedStateStore(@Nullable KeyedStateStore keyedStateStore) {
         this.keyedStateStore = keyedStateStore;
+    }
+
+    public void setKeyedStateStoreV2(
+            @Nullable org.apache.flink.runtime.state.v2.KeyedStateStore keyedStateStore) {
+        this.keyedStateStoreV2 = keyedStateStore;
     }
 
     // ------------------------------------------------------------------------
@@ -203,6 +210,14 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
     }
 
     @Override
+    public <T> org.apache.flink.api.common.state.v2.ValueState<T> getStateV2(
+            ValueStateDescriptor<T> stateProperties) {
+        org.apache.flink.runtime.state.v2.KeyedStateStore keyedStateStore =
+                checkPreconditionsAndGetKeyedStateStoreV2(stateProperties);
+        return keyedStateStore.getState(StateDescriptorConversionUtil.convert(stateProperties));
+    }
+
+    @Override
     public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
         KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
         stateProperties.initializeSerializerUnlessSet(this::createSerializer);
@@ -240,6 +255,19 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
                         "Keyed state '%s' with type %s can only be used on a 'keyed stream', i.e., after a 'keyBy()' operation.",
                         stateDescriptor.getName(), stateDescriptor.getType()));
         return keyedStateStore;
+    }
+
+    private org.apache.flink.runtime.state.v2.KeyedStateStore
+            checkPreconditionsAndGetKeyedStateStoreV2(StateDescriptor<?, ?> stateDescriptor) {
+        checkNotNull(stateDescriptor, "The state properties must not be null");
+        checkNotNull(
+                keyedStateStoreV2,
+                String.format(
+                        "Keyed state '%s' with type %s can not be created."
+                                + " This should be used on a 'keyed stream', i.e., after a 'keyBy()' operation."
+                                + " And the specified state backend should support async state (state v2)",
+                        stateDescriptor.getName(), stateDescriptor.getType()));
+        return keyedStateStoreV2;
     }
 
     // ------------------ expose (read only) relevant information from the stream config -------- //

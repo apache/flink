@@ -138,7 +138,7 @@ public abstract class AbstractStreamOperator<OUT>
      */
     protected transient KeySelector<?, ?> stateKeySelector2;
 
-    private transient StreamOperatorStateHandler stateHandler;
+    protected transient StreamOperatorStateHandler stateHandler;
 
     private transient InternalTimeServiceManager<?> timeServiceManager;
 
@@ -253,7 +253,7 @@ public abstract class AbstractStreamOperator<OUT>
     }
 
     @Override
-    public final void initializeState(StreamTaskStateInitializer streamTaskStateManager)
+    public void initializeState(StreamTaskStateInitializer streamTaskStateManager)
             throws Exception {
 
         final TypeSerializer<?> keySerializer =
@@ -285,6 +285,7 @@ public abstract class AbstractStreamOperator<OUT>
         timeServiceManager = context.internalTimerServiceManager();
         stateHandler.initializeOperatorState(this);
         runtimeContext.setKeyedStateStore(stateHandler.getKeyedStateStore().orElse(null));
+        runtimeContext.setKeyedStateStoreV2(stateHandler.getKeyedStateStoreV2().orElse(null));
     }
 
     /**

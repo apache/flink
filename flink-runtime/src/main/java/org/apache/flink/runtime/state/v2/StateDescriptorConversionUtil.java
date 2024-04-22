@@ -16,24 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.asyncprocessing;
+package org.apache.flink.runtime.state.v2;
 
-import org.apache.flink.annotation.Internal;
+/**
+ * A util class that convert the {@link org.apache.flink.api.common.state.StateDescriptor} to the
+ * new {@link StateDescriptor}.
+ */
+public class StateDescriptorConversionUtil {
 
-import java.util.concurrent.CompletableFuture;
+    public static <T> ValueStateDescriptor<T> convert(
+            org.apache.flink.api.common.state.ValueStateDescriptor<T> oldDescriptor) {
+        return new ValueStateDescriptor<>(oldDescriptor.getName(), oldDescriptor.getSerializer());
+    }
 
-/** Executor for executing batch {@link StateRequest}s. */
-@Internal
-public interface StateExecutor {
-    /**
-     * Execute a batch of state requests.
-     *
-     * @param processingRequests the given batch of processing requests
-     * @return A future can determine whether execution has completed.
-     */
-    CompletableFuture<Boolean> executeBatchRequests(
-            Iterable<StateRequest<?, ?, ?>> processingRequests);
-
-    /** Bind an {@link AsyncExecutionController} with this executor. */
-    void bindAsyncExecutionController(AsyncExecutionController<?> asyncExecutionController);
+    private StateDescriptorConversionUtil() {}
 }

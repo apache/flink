@@ -90,6 +90,12 @@ public abstract class StateDescriptor<T> implements Serializable {
         this.typeSerializer = typeInfo.createSerializer(serializerConfig);
     }
 
+    protected StateDescriptor(@Nonnull String stateId, @Nonnull TypeSerializer<T> serializer) {
+        this.stateId = checkNotNull(stateId, "stateId must not be null");
+        checkNotNull(serializer, "type serializer must not be null");
+        this.typeSerializer = serializer;
+    }
+
     // ------------------------------------------------------------------------
 
     /**

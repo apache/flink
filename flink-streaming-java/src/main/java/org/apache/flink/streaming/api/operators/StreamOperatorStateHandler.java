@@ -36,6 +36,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.DefaultKeyedStateStore;
@@ -83,8 +84,16 @@ public class StreamOperatorStateHandler {
     /** Backend for keyed state. This might be empty if we're not on a keyed stream. */
     @Nullable private final CheckpointableKeyedStateBackend<?> keyedStateBackend;
 
+    /**
+     * Backend for async keyed state. This might be empty if we're not on a keyed stream or not
+     * supported.
+     */
+    @Nullable private final AsyncKeyedStateBackend asyncKeyedStateBackend;
+
     private final CloseableRegistry closeableRegistry;
     @Nullable private final DefaultKeyedStateStore keyedStateStore;
+
+    @Nullable private final org.apache.flink.runtime.state.v2.KeyedStateStore keyedStateStoreV2;
     private final OperatorStateBackend operatorStateBackend;
     private final StreamOperatorStateContext context;
 
@@ -95,6 +104,7 @@ public class StreamOperatorStateHandler {
         this.context = context;
         operatorStateBackend = context.operatorStateBackend();
         keyedStateBackend = context.keyedStateBackend();
+        asyncKeyedStateBackend = context.asyncKeyedStateBackend();
         this.closeableRegistry = closeableRegistry;
 
         if (keyedStateBackend != null) {
@@ -111,6 +121,13 @@ public class StreamOperatorStateHandler {
                             });
         } else {
             keyedStateStore = null;
+        }
+
+        if (asyncKeyedStateBackend != null) {
+            keyedStateStoreV2 =
+                    new org.apache.flink.runtime.state.v2.KeyedStateStore(asyncKeyedStateBackend);
+        } else {
+            keyedStateStoreV2 = null;
         }
     }
 
@@ -325,6 +342,10 @@ public class StreamOperatorStateHandler {
         return (KeyedStateBackend<K>) keyedStateBackend;
     }
 
+    public AsyncKeyedStateBackend getAsyncKeyedStateBackend() {
+        return asyncKeyedStateBackend;
+    }
+
     public OperatorStateBackend getOperatorStateBackend() {
         return operatorStateBackend;
     }
@@ -398,6 +419,10 @@ public class StreamOperatorStateHandler {
 
     public Optional<KeyedStateStore> getKeyedStateStore() {
         return Optional.ofNullable(keyedStateStore);
+    }
+
+    public Optional<org.apache.flink.runtime.state.v2.KeyedStateStore> getKeyedStateStoreV2() {
+        return Optional.ofNullable(keyedStateStoreV2);
     }
 
     /** Custom state handling hooks to be invoked by {@link StreamOperatorStateHandler}. */

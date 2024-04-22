@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.OperatorStateBackend;
@@ -71,4 +72,10 @@ public interface StreamOperatorStateContext {
      * are assigned to this operator. This method returns null for non-keyed operators.
      */
     CloseableIterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs();
+
+    /**
+     * Returns the async keyed state backend for the stream operator. This method returns null for
+     * non-keyed operators. Also returns null if the user-specified
+     */
+    AsyncKeyedStateBackend asyncKeyedStateBackend();
 }

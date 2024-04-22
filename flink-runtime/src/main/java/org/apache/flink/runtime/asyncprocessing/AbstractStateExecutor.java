@@ -20,20 +20,15 @@ package org.apache.flink.runtime.asyncprocessing;
 
 import org.apache.flink.annotation.Internal;
 
-import java.util.concurrent.CompletableFuture;
-
-/** Executor for executing batch {@link StateRequest}s. */
+/** Basic implementation of {@link StateExecutor}. */
 @Internal
-public interface StateExecutor {
-    /**
-     * Execute a batch of state requests.
-     *
-     * @param processingRequests the given batch of processing requests
-     * @return A future can determine whether execution has completed.
-     */
-    CompletableFuture<Boolean> executeBatchRequests(
-            Iterable<StateRequest<?, ?, ?>> processingRequests);
+public abstract class AbstractStateExecutor implements StateExecutor {
 
-    /** Bind an {@link AsyncExecutionController} with this executor. */
-    void bindAsyncExecutionController(AsyncExecutionController<?> asyncExecutionController);
+    protected AsyncExecutionController<?> asyncExecutionController;
+
+    /** Bind a {@link AsyncExecutionController} with this executor. */
+    @Override
+    public void bindAsyncExecutionController(AsyncExecutionController<?> asyncExecutionController) {
+        this.asyncExecutionController = asyncExecutionController;
+    }
 }
