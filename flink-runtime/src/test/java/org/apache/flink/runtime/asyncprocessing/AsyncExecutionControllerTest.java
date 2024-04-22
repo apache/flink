@@ -18,9 +18,11 @@
 
 package org.apache.flink.runtime.asyncprocessing;
 
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandler;
 import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
@@ -29,7 +31,9 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendTestUtils;
 import org.apache.flink.runtime.state.v2.InternalValueState;
 import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.junit.jupiter.api.Test;
 
@@ -62,7 +66,12 @@ class AsyncExecutionControllerTest {
                         .thenAccept(val -> output.set(val));
             };
 
-    void setup(int batchSize, long timeout, int maxInFlight) {
+    void setup(
+            int batchSize,
+            long timeout,
+            int maxInFlight,
+            MailboxExecutor mailboxExecutor,
+            AsyncFrameworkExceptionHandler exceptionHandler) {
         StateExecutor stateExecutor = new TestStateExecutor();
         ValueStateDescriptor<Integer> stateDescriptor =
                 new ValueStateDescriptor<>("test-value-state", BasicTypeInfo.INT_TYPE_INFO);
@@ -79,7 +88,8 @@ class AsyncExecutionControllerTest {
         }
         aec =
                 new AsyncExecutionController<>(
-                        new SyncMailboxExecutor(),
+                        mailboxExecutor,
+                        exceptionHandler,
                         stateExecutor,
                         128,
                         batchSize,
@@ -98,7 +108,12 @@ class AsyncExecutionControllerTest {
 
     @Test
     void testBasicRun() {
-        setup(100, 10000L, 1000);
+        setup(
+                100,
+                10000L,
+                1000,
+                new SyncMailboxExecutor(),
+                new TestAsyncFrameworkExceptionHandler());
         // ============================ element1 ============================
         String record1 = "key1-r1";
         String key1 = "key1";
@@ -207,7 +222,12 @@ class AsyncExecutionControllerTest {
 
     @Test
     void testRecordsRunInOrder() {
-        setup(100, 10000L, 1000);
+        setup(
+                100,
+                10000L,
+                1000,
+                new SyncMailboxExecutor(),
+                new TestAsyncFrameworkExceptionHandler());
         // Record1 and record3 have the same key, record2 has a different key.
         // Record2 should be processed before record3.
 
@@ -268,7 +288,12 @@ class AsyncExecutionControllerTest {
     void testInFlightRecordControl() {
         int batchSize = 5;
         int maxInFlight = 10;
-        setup(batchSize, 10000L, maxInFlight);
+        setup(
+                batchSize,
+                10000L,
+                maxInFlight,
+                new SyncMailboxExecutor(),
+                new TestAsyncFrameworkExceptionHandler());
         // For records with different keys, the in-flight records is controlled by batch size.
         for (int round = 0; round < 10; round++) {
             for (int i = 0; i < batchSize; i++) {
@@ -311,7 +336,12 @@ class AsyncExecutionControllerTest {
 
     @Test
     public void testSyncPoint() {
-        setup(100, 10000L, 1000);
+        setup(
+                1000,
+                10000L,
+                6000,
+                new SyncMailboxExecutor(),
+                new TestAsyncFrameworkExceptionHandler());
         AtomicInteger counter = new AtomicInteger(0);
 
         // Test the sync point processing without a key occupied.
@@ -358,7 +388,12 @@ class AsyncExecutionControllerTest {
     void testBufferTimeout() {
         int batchSize = 5;
         int timeout = 1000;
-        setup(batchSize, timeout, 1000);
+        setup(
+                batchSize,
+                timeout,
+                1000,
+                new SyncMailboxExecutor(),
+                new TestAsyncFrameworkExceptionHandler());
         ManuallyTriggeredScheduledExecutorService scheduledExecutor =
                 new ManuallyTriggeredScheduledExecutorService();
         aec.stateRequestsBuffer.scheduledExecutor = scheduledExecutor;
@@ -426,7 +461,12 @@ class AsyncExecutionControllerTest {
     void testBufferTimeoutSkip() {
         int batchSize = 3;
         int timeout = 1000;
-        setup(batchSize, timeout, 1000);
+        setup(
+                batchSize,
+                timeout,
+                1000,
+                new SyncMailboxExecutor(),
+                new TestAsyncFrameworkExceptionHandler());
         ManuallyTriggeredScheduledExecutorService scheduledExecutor =
                 new ManuallyTriggeredScheduledExecutorService();
         aec.stateRequestsBuffer.scheduledExecutor = scheduledExecutor;
@@ -484,6 +524,68 @@ class AsyncExecutionControllerTest {
         assertThat(aec.stateRequestsBuffer.currentSeq.get()).isEqualTo(2);
         assertThat(aec.stateRequestsBuffer.scheduledSeq.get()).isEqualTo(1);
         assertThat(aec.stateRequestsBuffer.currentScheduledFuture.isDone()).isTrue();
+    }
+
+    @Test
+    void testUserCodeException() {
+        TestAsyncFrameworkExceptionHandler exceptionHandler =
+                new TestAsyncFrameworkExceptionHandler();
+        TestMailboxExecutor testMailboxExecutor = new TestMailboxExecutor(false);
+        setup(1000, 10000, 6000, testMailboxExecutor, exceptionHandler);
+        Runnable userCode =
+                () -> {
+                    valueState
+                            .asyncValue()
+                            .thenAccept(
+                                    val -> {
+                                        throw new FlinkRuntimeException(
+                                                "Artificial exception in user code");
+                                    });
+                };
+        String record = "record";
+        String key = "key";
+        RecordContext<String> recordContext = aec.buildContext(record, key);
+        aec.setCurrentContext(recordContext);
+        userCode.run();
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(0);
+        assertThat(exceptionHandler.exception).isNull();
+        assertThat(exceptionHandler.message).isNull();
+        aec.triggerIfNeeded(true);
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(0);
+        assertThat(testMailboxExecutor.lastException).isInstanceOf(FlinkRuntimeException.class);
+        assertThat(testMailboxExecutor.lastException.getMessage())
+                .isEqualTo("Artificial exception in user code");
+        assertThat(exceptionHandler.exception).isNull();
+        assertThat(exceptionHandler.message).isNull();
+    }
+
+    @Test
+    void testFrameworkException() {
+        TestAsyncFrameworkExceptionHandler exceptionHandler =
+                new TestAsyncFrameworkExceptionHandler();
+        TestMailboxExecutor testMailboxExecutor = new TestMailboxExecutor(true);
+        setup(1000, 10000, 6000, testMailboxExecutor, exceptionHandler);
+        Runnable userCode = () -> valueState.asyncValue().thenAccept(val -> {});
+        String record = "record";
+        String key = "key";
+        RecordContext<String> recordContext = aec.buildContext(record, key);
+        aec.setCurrentContext(recordContext);
+        userCode.run();
+        assertThat(aec.inFlightRecordNum.get()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
+        assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(0);
+        assertThat(exceptionHandler.exception).isNull();
+        assertThat(exceptionHandler.message).isNull();
+        aec.triggerIfNeeded(true);
+        assertThat(testMailboxExecutor.lastException).isNull();
+        assertThat(exceptionHandler.exception).isInstanceOf(RuntimeException.class);
+        assertThat(exceptionHandler.exception.getMessage())
+                .isEqualTo("java.lang.RuntimeException: Fail to execute.");
+        assertThat(exceptionHandler.message)
+                .isEqualTo("Caught exception when submitting StateFuture's callback.");
     }
 
     /** Simulate the underlying state that is actually used to execute the request. */
@@ -563,5 +665,48 @@ class AsyncExecutionControllerTest {
 
         @Override
         public void shutdown() {}
+    }
+
+    static class TestAsyncFrameworkExceptionHandler implements AsyncFrameworkExceptionHandler {
+        String message = null;
+        Throwable exception = null;
+
+        public void handleException(String message, Throwable exception) {
+            this.message = message;
+            this.exception = exception;
+        }
+    }
+
+    static class TestMailboxExecutor implements MailboxExecutor {
+        Exception lastException = null;
+
+        boolean failWhenExecute = false;
+
+        public TestMailboxExecutor(boolean fail) {
+            this.failWhenExecute = fail;
+        }
+
+        @Override
+        public void execute(
+                ThrowingRunnable<? extends Exception> command,
+                String descriptionFormat,
+                Object... descriptionArgs) {
+            if (failWhenExecute) {
+                throw new RuntimeException("Fail to execute.");
+            }
+            try {
+                command.run();
+            } catch (Exception e) {
+                this.lastException = e;
+            }
+        }
+
+        @Override
+        public void yield() throws InterruptedException, FlinkRuntimeException {}
+
+        @Override
+        public boolean tryYield() throws FlinkRuntimeException {
+            return false;
+        }
     }
 }

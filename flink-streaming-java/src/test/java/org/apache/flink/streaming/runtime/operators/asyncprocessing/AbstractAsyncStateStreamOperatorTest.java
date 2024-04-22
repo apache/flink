@@ -51,7 +51,7 @@ import static org.apache.flink.runtime.state.StateBackendTestUtils.buildAsyncSta
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Basic tests for {@link AbstractAsyncStateStreamOperator}. */
-public class AbstractAsyncStateStreamOperatorTest {
+class AbstractAsyncStateStreamOperatorTest {
 
     protected KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
             createTestHarness(
@@ -72,7 +72,7 @@ public class AbstractAsyncStateStreamOperatorTest {
     }
 
     @Test
-    public void testCreateAsyncExecutionController() throws Exception {
+    void testCreateAsyncExecutionController() throws Exception {
         try (KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
                 testHarness = createTestHarness(128, 1, 0, ElementOrder.RECORD_ORDER)) {
             testHarness.open();
@@ -91,7 +91,7 @@ public class AbstractAsyncStateStreamOperatorTest {
     }
 
     @Test
-    public void testRecordProcessorWithFirstStateOrder() throws Exception {
+    void testRecordProcessorWithFirstStateOrder() throws Exception {
         try (KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
                 testHarness = createTestHarness(128, 1, 0, ElementOrder.FIRST_STATE_ORDER)) {
             testHarness.open();
@@ -121,7 +121,7 @@ public class AbstractAsyncStateStreamOperatorTest {
     }
 
     @Test
-    public void testRecordProcessorWithRecordOrder() throws Exception {
+    void testRecordProcessorWithRecordOrder() throws Exception {
         try (KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
                 testHarness = createTestHarness(128, 1, 0, ElementOrder.RECORD_ORDER)) {
             testHarness.open();

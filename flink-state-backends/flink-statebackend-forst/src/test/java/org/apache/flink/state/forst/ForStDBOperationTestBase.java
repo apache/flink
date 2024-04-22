@@ -32,6 +32,9 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
+import org.apache.flink.util.function.BiFunctionWithException;
+import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
@@ -44,9 +47,6 @@ import org.rocksdb.RocksDB;
 
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 /** Base class for {@link ForStDBOperation} tests. */
@@ -115,30 +115,13 @@ public class ForStDBOperationTestBase {
         public CompletableFuture<T> future = new CompletableFuture<>();
 
         @Override
-        public <U> StateFuture<U> thenApply(Function<? super T, ? extends U> fn) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public StateFuture<Void> thenAccept(Consumer<? super T> action) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public <U> StateFuture<U> thenCompose(
-                Function<? super T, ? extends StateFuture<U>> action) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public <U, V> StateFuture<V> thenCombine(
-                StateFuture<? extends U> other, BiFunction<? super T, ? super U, ? extends V> fn) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
         public void complete(T result) {
             future.complete(result);
+        }
+
+        @Override
+        public void thenSyncAccept(ThrowingConsumer<? super T, ? extends Exception> action) {
+            throw new UnsupportedOperationException();
         }
 
         public T getCompletedResult() throws Exception {
@@ -146,7 +129,29 @@ public class ForStDBOperationTestBase {
         }
 
         @Override
-        public void thenSyncAccept(Consumer<? super T> action) {
+        public <U> StateFuture<U> thenApply(
+                FunctionWithException<? super T, ? extends U, ? extends Exception> fn) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public StateFuture<Void> thenAccept(
+                ThrowingConsumer<? super T, ? extends Exception> action) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public <U> StateFuture<U> thenCompose(
+                FunctionWithException<? super T, ? extends StateFuture<U>, ? extends Exception>
+                        action) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public <U, V> StateFuture<V> thenCombine(
+                StateFuture<? extends U> other,
+                BiFunctionWithException<? super T, ? super U, ? extends V, ? extends Exception>
+                        fn) {
             throw new UnsupportedOperationException();
         }
     }

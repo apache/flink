@@ -22,8 +22,8 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.core.state.InternalStateFuture;
+import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandler;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -104,6 +104,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
 
     public AsyncExecutionController(
             MailboxExecutor mailboxExecutor,
+            AsyncFrameworkExceptionHandler exceptionHandler,
             StateExecutor stateExecutor,
             int maxParallelism,
             int batchSize,
@@ -111,7 +112,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
             int maxInFlightRecords) {
         this.keyAccountingUnit = new KeyAccountingUnit<>(maxInFlightRecords);
         this.mailboxExecutor = mailboxExecutor;
-        this.stateFutureFactory = new StateFutureFactory<>(this, mailboxExecutor);
+        this.stateFutureFactory = new StateFutureFactory<>(this, mailboxExecutor, exceptionHandler);
         this.stateExecutor = stateExecutor;
         this.batchSize = batchSize;
         this.bufferTimeout = bufferTimeout;
@@ -287,16 +288,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
      * @param callback the callback to run if it finishes (once the record is not blocked).
      */
     public void syncPointRequestWithCallback(ThrowingRunnable<Exception> callback) {
-        handleRequest(null, StateRequestType.SYNC_POINT, null)
-                .thenAccept(
-                        v -> {
-                            try {
-                                callback.run();
-                            } catch (Exception e) {
-                                // TODO: Properly handle the exception and fail the entire job.
-                                throw new FlinkRuntimeException("Unexpected runtime exception", e);
-                            }
-                        });
+        handleRequest(null, StateRequestType.SYNC_POINT, null).thenAccept(v -> callback.run());
     }
 
     /**

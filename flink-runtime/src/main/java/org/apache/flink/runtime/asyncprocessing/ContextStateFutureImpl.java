@@ -39,8 +39,11 @@ public class ContextStateFutureImpl<T> extends StateFutureImpl<T> {
 
     private final RecordContext<?> recordContext;
 
-    ContextStateFutureImpl(CallbackRunner callbackRunner, RecordContext<?> recordContext) {
-        super(callbackRunner);
+    ContextStateFutureImpl(
+            CallbackRunner callbackRunner,
+            AsyncFrameworkExceptionHandler exceptionHandler,
+            RecordContext<?> recordContext) {
+        super(callbackRunner, exceptionHandler);
         this.recordContext = recordContext;
         // When state request submitted, ref count +1, as described in FLIP-425:
         // To cover the statements without a callback, in addition to the reference count marked
@@ -50,7 +53,7 @@ public class ContextStateFutureImpl<T> extends StateFutureImpl<T> {
 
     @Override
     public <A> StateFutureImpl<A> makeNewStateFuture() {
-        return new ContextStateFutureImpl<>(callbackRunner, recordContext);
+        return new ContextStateFutureImpl<>(callbackRunner, exceptionHandler, recordContext);
     }
 
     @Override
@@ -68,7 +71,15 @@ public class ContextStateFutureImpl<T> extends StateFutureImpl<T> {
         if (inCallbackRunner) {
             recordContext.release(Runnable::run);
         } else {
-            recordContext.release(callbackRunner::submit);
+            recordContext.release(
+                    runnable -> {
+                        try {
+                            callbackRunner.submit(runnable::run);
+                        } catch (Exception e) {
+                            exceptionHandler.handleException(
+                                    "Caught exception when post complete StateFuture.", e);
+                        }
+                    });
         }
     }
 
