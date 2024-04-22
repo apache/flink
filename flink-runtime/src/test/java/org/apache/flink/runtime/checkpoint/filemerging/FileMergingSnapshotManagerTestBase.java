@@ -431,6 +431,9 @@ public abstract class FileMergingSnapshotManagerTestBase {
             Set<LogicalFile> restoreFileSet = stateFiles.get(checkpointId);
             assertThat(restoreFileSet).isNotNull();
             assertThat(restoreFileSet.size()).isEqualTo(4 * operatorNum);
+            for (LogicalFile file : restoreFileSet) {
+                assertThat(fmsm.getLogicalFile(file.getFileId())).isEqualTo(file);
+            }
         }
     }
 

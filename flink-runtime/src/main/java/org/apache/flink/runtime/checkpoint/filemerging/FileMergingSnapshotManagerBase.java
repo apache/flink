@@ -598,12 +598,15 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                                     fileHandle.getFilePath(),
                                     physicalFileDeleter,
                                     fileHandle.getScope());
+                    LogicalFileId logicalFileId = fileHandle.getLogicalFileId();
                     LogicalFile logicalFile =
-                            createLogicalFile(
+                            new LogicalFile(
+                                    logicalFileId,
                                     physicalFile,
                                     fileHandle.getStartPos(),
                                     fileHandle.getStateSize(),
                                     subtaskKey);
+                    knownLogicalFiles.put(logicalFileId, logicalFile);
                     logicalFile.advanceLastCheckpointId(checkpointId);
                     synchronized (lock) {
                         uploadedLogicalFiles.add(logicalFile);
@@ -616,6 +619,7 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
         return knownLogicalFiles.get(fileId);
     }
 
+    @VisibleForTesting
     TreeMap<Long, Set<LogicalFile>> getUploadedStates() {
         return uploadedStates;
     }
