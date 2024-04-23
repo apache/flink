@@ -18,30 +18,36 @@
 
 package org.apache.flink.util.function;
 
-import org.apache.flink.util.FlinkException;
+import org.apache.flink.annotation.PublicEvolving;
 
-import java.util.function.Supplier;
-
-/** Similar to {@link java.util.function.Supplier} but can throw {@link Exception}. */
+/**
+ * Similar to a {@link Runnable}, this interface is used to capture a block of code to be executed.
+ * In contrast to {@code Runnable}, this interface allows throwing checked exceptions.
+ */
+@PublicEvolving
 @FunctionalInterface
-public interface CheckedSupplier<R> extends SupplierWithException<R, Exception> {
+public interface ThrowingRunnable<E extends Throwable> {
 
-    static <R> Supplier<R> unchecked(CheckedSupplier<R> checkedSupplier) {
+    /**
+     * The work method.
+     *
+     * @throws E Exceptions may be thrown.
+     */
+    void run() throws E;
+
+    /**
+     * Converts a {@link ThrowingRunnable} into a {@link Runnable} which throws all checked
+     * exceptions as unchecked.
+     *
+     * @param throwingRunnable to convert into a {@link Runnable}
+     * @return {@link Runnable} which throws all checked exceptions as unchecked.
+     */
+    static Runnable unchecked(ThrowingRunnable<?> throwingRunnable) {
         return () -> {
             try {
-                return checkedSupplier.get();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        };
-    }
-
-    static <R> CheckedSupplier<R> checked(Supplier<R> supplier) {
-        return () -> {
-            try {
-                return supplier.get();
-            } catch (RuntimeException e) {
-                throw new FlinkException(e);
+                throwingRunnable.run();
+            } catch (Throwable t) {
+                ThrowingExceptionUtils.rethrow(t);
             }
         };
     }

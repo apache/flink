@@ -18,8 +18,6 @@
 
 package org.apache.flink.util.function;
 
-import org.apache.flink.util.ExceptionUtils;
-
 import java.util.function.BiFunction;
 
 /**
@@ -58,7 +56,7 @@ public interface BiFunctionWithException<T, U, R, E extends Throwable> {
             try {
                 return biFunctionWithException.apply(a, b);
             } catch (Throwable t) {
-                ExceptionUtils.rethrow(t);
+                ThrowingExceptionUtils.rethrow(t);
                 // we need this to appease the compiler :-(
                 return null;
             }

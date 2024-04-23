@@ -18,8 +18,6 @@
 
 package org.apache.flink.util.function;
 
-import org.apache.flink.util.ExceptionUtils;
-
 import java.util.function.BiConsumer;
 
 /**
@@ -56,7 +54,7 @@ public interface BiConsumerWithException<T, U, E extends Throwable> {
             try {
                 biConsumerWithException.accept(a, b);
             } catch (Throwable t) {
-                ExceptionUtils.rethrow(t);
+                ThrowingExceptionUtils.rethrow(t);
             }
         };
     }
