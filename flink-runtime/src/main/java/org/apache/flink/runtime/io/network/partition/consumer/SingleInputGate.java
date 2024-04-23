@@ -652,7 +652,8 @@ public class SingleInputGate extends IndexedInputGate {
                     } else {
                         RemoteInputChannel remoteInputChannel =
                                 unknownChannel.toRemoteInputChannel(
-                                        shuffleDescriptor.getConnectionId());
+                                        shuffleDescriptor.getConnectionId(),
+                                        shuffleDescriptor.getResultPartitionID());
                         remoteInputChannel.setup();
                         newChannel = remoteInputChannel;
                     }

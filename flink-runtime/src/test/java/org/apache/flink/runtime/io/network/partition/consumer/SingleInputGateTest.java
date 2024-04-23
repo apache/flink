@@ -50,6 +50,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.buffer.TestingBufferPool;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.BufferWritingResultPartition;
 import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
@@ -566,6 +567,53 @@ class SingleInputGateTest extends InputGateTestBase {
 
         InputChannel newChannel = inputGate.getChannel(0);
         assertThat(newChannel).isInstanceOf(LocalInputChannel.class);
+        assertThat(newChannel.partitionId).isEqualTo(newPartitionId);
+    }
+
+    /**
+     * Test unknown input channel can set resultPartitionId correctly when update to remote input
+     * channel, this occurs in the case of speculative execution that unknown input channel only
+     * carries original resultPartitionId.
+     */
+    @Test
+    void testUpdateRemoteInputChannelWithNewPartitionId() throws Exception {
+        int bufferSize = 1024;
+        SingleInputGate inputGate = createInputGate(1);
+
+        TestingResultPartitionManager partitionManager =
+                new TestingResultPartitionManager(new NoOpResultSubpartitionView());
+
+        ResultPartitionID oldPartitionId = new ResultPartitionID();
+
+        InputChannel unknown =
+                InputChannelBuilder.newBuilder()
+                        .setPartitionManager(partitionManager)
+                        .setPartitionId(oldPartitionId)
+                        .buildUnknownChannel(inputGate);
+        inputGate.setInputChannels(unknown);
+
+        ResultPartitionID resultPartitionID = unknown.getPartitionId();
+        assertThat(resultPartitionID).isEqualTo(oldPartitionId);
+
+        ResultPartitionID newPartitionId =
+                new ResultPartitionID(
+                        // speculative execution have the same IntermediateResultPartitionID with
+                        // original, only executionAttemptID is different.
+                        oldPartitionId.getPartitionId(), ExecutionAttemptID.randomId());
+        NettyShuffleDescriptor nettyShuffleDescriptor =
+                NettyShuffleDescriptorBuilder.newBuilder()
+                        .setId(newPartitionId)
+                        .setProducerLocation(ResourceID.generate())
+                        .buildRemote();
+        inputGate.setBufferPool(
+                TestingBufferPool.builder()
+                        .setRequestMemorySegmentSupplier(
+                                () -> MemorySegmentFactory.allocateUnpooledSegment(bufferSize))
+                        .build());
+        inputGate.updateInputChannel(ResourceID.generate(), nettyShuffleDescriptor);
+
+        InputChannel newChannel = inputGate.getChannel(0);
+        assertThat(newChannel).isInstanceOf(RemoteInputChannel.class);
         assertThat(newChannel.partitionId).isEqualTo(newPartitionId);
     }
 
