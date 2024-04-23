@@ -269,9 +269,8 @@ describe catalog extended cat2;
 |                    type | generic_in_memory |
 |                 comment |                   |
 | option:default-database |                db |
-|             option:type | generic_in_memory |
 +-------------------------+-------------------+
-5 rows in set
+4 rows in set
 
 desc catalog extended cat2;
 +-------------------------+-------------------+
@@ -281,7 +280,6 @@ desc catalog extended cat2;
 |                    type | generic_in_memory |
 |                 comment |                   |
 | option:default-database |                db |
-|             option:type | generic_in_memory |
 +-------------------------+-------------------+
-5 rows in set
+4 rows in set
 ```

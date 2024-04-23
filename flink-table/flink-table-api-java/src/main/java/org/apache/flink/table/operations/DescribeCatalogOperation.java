@@ -84,15 +84,25 @@ public class DescribeCatalogOperation implements Operation, ExecutableOperation 
                                         "type",
                                         properties.getOrDefault(
                                                 CommonCatalogOptions.CATALOG_TYPE.key(), "")),
-                                Arrays.asList("comment", "") // TODO: retain for future needs
-                                ));
+                                // TODO: Show the catalog comment until FLINK-34918 is resolved
+                                Arrays.asList("comment", "")));
         if (isExtended) {
-            properties.forEach((key, value) -> rows.add(Arrays.asList("option:" + key, value)));
+            properties.entrySet().stream()
+                    .filter(
+                            entry ->
+                                    !CommonCatalogOptions.CATALOG_TYPE.key().equals(entry.getKey()))
+                    .sorted(Map.Entry.comparingByKey())
+                    .forEach(
+                            entry ->
+                                    rows.add(
+                                            Arrays.asList(
+                                                    String.format("option:%s", entry.getKey()),
+                                                    entry.getValue())));
         }
 
         return buildTableResult(
-                Arrays.asList("info name", "info value").toArray(new String[0]),
-                Arrays.asList(DataTypes.STRING(), DataTypes.STRING()).toArray(new DataType[0]),
+                new String[] {"info name", "info value"},
+                new DataType[] {DataTypes.STRING(), DataTypes.STRING()},
                 rows.stream().map(List::toArray).toArray(Object[][]::new));
     }
 }

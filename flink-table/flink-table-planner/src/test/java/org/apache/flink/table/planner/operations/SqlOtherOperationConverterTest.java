@@ -44,8 +44,10 @@ import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.operations.command.ShowJarsOperation;
 import org.apache.flink.table.planner.parse.ExtendedParser;
 
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Arrays;
@@ -72,39 +74,28 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
         assertThat(operation.asSummaryString()).isEqualTo("USE CATALOG cat1");
     }
 
-    @Test
-    void testDescribeCatalog() {
-        final String sql1 = "DESCRIBE CATALOG cat1";
-        Operation operation = parse(sql1);
-        assertThat(operation).isInstanceOf(DescribeCatalogOperation.class);
-        assertThat(((DescribeCatalogOperation) operation).getCatalogName()).isEqualTo("cat1");
-        assertThat(((DescribeCatalogOperation) operation).isExtended()).isEqualTo(false);
-        assertThat(operation.asSummaryString())
-                .isEqualTo("DESCRIBE CATALOG: (identifier: [cat1], isExtended: [false])");
-
-        final String sql2 = "DESCRIBE CATALOG EXTENDED cat1";
-        Operation operation2 = parse(sql2);
-        assertThat(operation2).isInstanceOf(DescribeCatalogOperation.class);
-        assertThat(((DescribeCatalogOperation) operation2).getCatalogName()).isEqualTo("cat1");
-        assertThat(((DescribeCatalogOperation) operation2).isExtended()).isEqualTo(true);
-        assertThat(operation2.asSummaryString())
-                .isEqualTo("DESCRIBE CATALOG: (identifier: [cat1], isExtended: [true])");
-
-        final String sql3 = "DESC CATALOG cat1";
-        Operation operation3 = parse(sql3);
-        assertThat(operation3).isInstanceOf(DescribeCatalogOperation.class);
-        assertThat(((DescribeCatalogOperation) operation3).getCatalogName()).isEqualTo("cat1");
-        assertThat(((DescribeCatalogOperation) operation3).isExtended()).isEqualTo(false);
-        assertThat(operation3.asSummaryString())
-                .isEqualTo("DESCRIBE CATALOG: (identifier: [cat1], isExtended: [false])");
-
-        final String sql4 = "DESC CATALOG EXTENDED cat1";
-        Operation operation4 = parse(sql4);
-        assertThat(operation4).isInstanceOf(DescribeCatalogOperation.class);
-        assertThat(((DescribeCatalogOperation) operation4).getCatalogName()).isEqualTo("cat1");
-        assertThat(((DescribeCatalogOperation) operation4).isExtended()).isEqualTo(true);
-        assertThat(operation4.asSummaryString())
-                .isEqualTo("DESCRIBE CATALOG: (identifier: [cat1], isExtended: [true])");
+    @ParameterizedTest
+    @CsvSource({"true,true", "true,false", "false,true", "false,false"})
+    void testDescribeCatalog(boolean abbr, boolean extended) {
+        final String catalogName = "cat1";
+        final String sql =
+                String.format(
+                        "%s CATALOG %s %s",
+                        abbr ? "DESC" : "DESCRIBE", extended ? "EXTENDED" : "", catalogName);
+        Operation operation = parse(sql);
+        assertThat(operation)
+                .isInstanceOf(DescribeCatalogOperation.class)
+                .asInstanceOf(InstanceOfAssertFactories.type(DescribeCatalogOperation.class))
+                .extracting(
+                        DescribeCatalogOperation::getCatalogName,
+                        DescribeCatalogOperation::isExtended,
+                        DescribeCatalogOperation::asSummaryString)
+                .containsExactly(
+                        catalogName,
+                        extended,
+                        String.format(
+                                "DESCRIBE CATALOG: (identifier: [%s], isExtended: [%b])",
+                                catalogName, extended));
     }
 
     @Test
