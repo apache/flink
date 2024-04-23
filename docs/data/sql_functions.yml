@@ -817,12 +817,12 @@ json:
       -- "right"
       JSON_VALUE('{"contains blank": "right"}', 'strict $.[''contains blank'']' NULL ON EMPTY DEFAULT 'wrong' ON ERROR)
       ```
-  - sql: JSON_QUERY(jsonValue, path [ { WITHOUT | WITH CONDITIONAL | WITH UNCONDITIONAL } [ ARRAY ] WRAPPER ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON EMPTY ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON ERROR ])
-    table: STRING.jsonQuery(path [, JsonQueryWrapper [, JsonQueryOnEmptyOrError, JsonQueryOnEmptyOrError ] ])
+  - sql: JSON_QUERY(jsonValue, path [RETURNING <dataType>] [ { WITHOUT | WITH CONDITIONAL | WITH UNCONDITIONAL } [ ARRAY ] WRAPPER ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON EMPTY ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON ERROR ])
+    table: STRING.jsonQuery(path [, returnType [, JsonQueryWrapper [, JsonQueryOnEmptyOrError, JsonQueryOnEmptyOrError ] ] ])
     description: |
       Extracts JSON values from a JSON string.
 
-      The result is always returned as a `STRING`. The `RETURNING` clause is currently not supported.
+      The result is returned as a `STRING` or `ARRAY<STRING>`. This can be controlled with the `RETURNING` clause.
 
       The `wrappingBehavior` determines whether the extracted value should be wrapped into an array,
       and whether to do so unconditionally or only if the value itself isn't an array already.
@@ -841,6 +841,8 @@ json:
       -- '["c1","c2"]'
       JSON_QUERY('{"a":[{"c":"c1"},{"c":"c2"}]}',
           'lax $.a[*].c')
+      -- ['c1','c2']
+      JSON_QUERY('{"a":[{"c":"c1"},{"c":"c2"}]}', 'lax $.a[*].c' RETURNING ARRAY<STRING>)
 
       -- Wrap result into an array
       -- '[{}]'
