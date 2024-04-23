@@ -375,7 +375,7 @@ paths:
       - name: agg
         in: query
         description: "Comma-separated list of aggregation modes which should be calculated.\
-          \ Available aggregations are: \"min, max, sum, avg\"."
+          \ Available aggregations are: \"min, max, sum, avg, skew\"."
         required: false
         style: form
         schema:
@@ -1212,7 +1212,7 @@ paths:
       - name: agg
         in: query
         description: "Comma-separated list of aggregation modes which should be calculated.\
-          \ Available aggregations are: \"min, max, sum, avg\"."
+          \ Available aggregations are: \"min, max, sum, avg, skew\"."
         required: false
         style: form
         schema:
@@ -1525,7 +1525,7 @@ paths:
       - name: agg
         in: query
         description: "Comma-separated list of aggregation modes which should be calculated.\
-          \ Available aggregations are: \"min, max, sum, avg\"."
+          \ Available aggregations are: \"min, max, sum, avg, skew\"."
         required: false
         style: form
         schema:
@@ -1654,6 +1654,7 @@ components:
       - MAX
       - SUM
       - AVG
+      - SKEW
     ApplicationStatus:
       type: string
       enum:
@@ -2411,6 +2412,8 @@ components:
         parallelism:
           type: integer
           format: int32
+        slotSharingGroupId:
+          $ref: '#/components/schemas/SlotSharingGroupId'
         start-time:
           type: integer
           format: int64
@@ -2859,6 +2862,20 @@ components:
           $ref: '#/components/schemas/JobID'
         resource:
           $ref: '#/components/schemas/ResourceProfileInfo'
+    SlotSharingGroupId:
+      type: object
+      properties:
+        bytes:
+          type: array
+          items:
+            type: string
+            format: byte
+        lowerPart:
+          type: integer
+          format: int64
+        upperPart:
+          type: integer
+          format: int64
     StatsSummaryDto:
       type: object
       properties:
