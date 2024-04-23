@@ -68,7 +68,10 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
         // TODO: properly read config and setup
         final MailboxExecutor mailboxExecutor =
                 containingTask.getEnvironment().getMainMailboxExecutor();
-        this.asyncExecutionController = new AsyncExecutionController(mailboxExecutor, null);
+        int maxParallelism =
+                containingTask.getEnvironment().getTaskInfo().getMaxNumberOfParallelSubtasks();
+        this.asyncExecutionController =
+                new AsyncExecutionController(mailboxExecutor, null, maxParallelism);
     }
 
     @Override

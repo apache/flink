@@ -63,7 +63,7 @@ class AsyncExecutionControllerTest {
 
     @BeforeEach
     void setup() {
-        aec = new AsyncExecutionController<>(new SyncMailboxExecutor(), createStateExecutor());
+        aec = new AsyncExecutionController<>(new SyncMailboxExecutor(), createStateExecutor(), 128);
         underlyingState = new TestUnderlyingState();
         valueState = new TestValueState(aec, underlyingState);
         output = new AtomicInteger();
@@ -241,7 +241,11 @@ class AsyncExecutionControllerTest {
         final int maxInFlight = 10;
         aec =
                 new AsyncExecutionController<>(
-                        new SyncMailboxExecutor(), new TestStateExecutor(), batchSize, maxInFlight);
+                        new SyncMailboxExecutor(),
+                        new TestStateExecutor(),
+                        batchSize,
+                        maxInFlight,
+                        128);
         valueState = new TestValueState(aec, underlyingState);
 
         AtomicInteger output = new AtomicInteger();

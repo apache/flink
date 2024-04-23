@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.asyncprocessing;
 
+import javax.annotation.Nullable;
+
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -48,12 +50,23 @@ public class RecordContext<K> extends ReferenceCounted {
      */
     private final Consumer<RecordContext<K>> disposer;
 
-    RecordContext(Object record, K key, Consumer<RecordContext<K>> disposer) {
+    /** The keyGroup to which key belongs. */
+    private final int keyGroup;
+
+    /**
+     * The extra context info which is used to hold customized data defined by state backend. The
+     * state backend can use this field to cache some data that can be used multiple times in
+     * different stages of asynchronous state execution.
+     */
+    private @Nullable volatile Object extra;
+
+    public RecordContext(Object record, K key, Consumer<RecordContext<K>> disposer, int keyGroup) {
         super(0);
         this.record = record;
         this.key = key;
         this.keyOccupied = false;
         this.disposer = disposer;
+        this.keyGroup = keyGroup;
     }
 
     public Object getRecord() {
@@ -80,6 +93,18 @@ public class RecordContext<K> extends ReferenceCounted {
             keyOccupied = false;
             disposer.accept(this);
         }
+    }
+
+    public int getKeyGroup() {
+        return keyGroup;
+    }
+
+    public void setExtra(Object extra) {
+        this.extra = extra;
+    }
+
+    public Object getExtra() {
+        return extra;
     }
 
     @Override

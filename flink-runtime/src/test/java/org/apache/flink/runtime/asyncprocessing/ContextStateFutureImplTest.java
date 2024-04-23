@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.asyncprocessing;
 
 import org.apache.flink.core.state.StateFutureUtils;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 
 import org.junit.Test;
 
@@ -34,7 +35,7 @@ public class ContextStateFutureImplTest {
     @Test
     public void testThenApply() {
         SingleStepRunner runner = new SingleStepRunner();
-        RecordContext<String> recordContext = new RecordContext<>("a", "b", (e) -> {});
+        RecordContext<String> recordContext = buildRecordContext("a", "b");
 
         // validate
         ContextStateFutureImpl<Void> future =
@@ -58,7 +59,7 @@ public class ContextStateFutureImplTest {
     @Test
     public void testThenAccept() {
         SingleStepRunner runner = new SingleStepRunner();
-        RecordContext<String> recordContext = new RecordContext<>("a", "b", (e) -> {});
+        RecordContext<String> recordContext = buildRecordContext("a", "b");
 
         // validate
         ContextStateFutureImpl<Void> future =
@@ -82,7 +83,7 @@ public class ContextStateFutureImplTest {
     @Test
     public void testThenCompose() {
         SingleStepRunner runner = new SingleStepRunner();
-        RecordContext<String> recordContext = new RecordContext<>("a", "b", (e) -> {});
+        RecordContext<String> recordContext = buildRecordContext("a", "b");
 
         // validate
         ContextStateFutureImpl<Void> future =
@@ -106,7 +107,7 @@ public class ContextStateFutureImplTest {
     @Test
     public void testThenCombine() {
         SingleStepRunner runner = new SingleStepRunner();
-        RecordContext<String> recordContext = new RecordContext<>("a", "b", (e) -> {});
+        RecordContext<String> recordContext = buildRecordContext("a", "b");
 
         // validate
         ContextStateFutureImpl<Void> future1 =
@@ -156,7 +157,7 @@ public class ContextStateFutureImplTest {
     @Test
     public void testComplex() {
         SingleStepRunner runner = new SingleStepRunner();
-        RecordContext<String> recordContext = new RecordContext<>("a", "b", (e) -> {});
+        RecordContext<String> recordContext = buildRecordContext("a", "b");
 
         for (int i = 0; i < 32; i++) { // 2^5 for completion status combination
             // Each bit of 'i' represents the complete status when the user code executes.
@@ -219,6 +220,11 @@ public class ContextStateFutureImplTest {
                         .isEqualTo(0);
             }
         }
+    }
+
+    private <K> RecordContext<K> buildRecordContext(Object record, K key) {
+        int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(key, 128);
+        return new RecordContext<>(record, key, (e) -> {}, keyGroup);
     }
 
     /** A runner that performs single-step debugging. */

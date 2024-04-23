@@ -18,8 +18,6 @@
 
 package org.apache.flink.state.forst;
 
-import org.apache.flink.runtime.asyncprocessing.ContextKey;
-
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
