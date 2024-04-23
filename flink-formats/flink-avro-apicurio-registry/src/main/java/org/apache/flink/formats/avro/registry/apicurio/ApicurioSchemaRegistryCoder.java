@@ -28,6 +28,8 @@ import io.apicurio.registry.rest.v2.beans.IfExists;
 import io.apicurio.registry.rest.v2.beans.VersionMetaData;
 import io.apicurio.registry.types.ArtifactType;
 import org.apache.avro.Schema;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
@@ -40,8 +42,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.ID_OPTION;
-import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.ID_PLACEMENT;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.USE_GLOBALID;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.USE_HEADERS;
 
 /** Reads and Writes schema using Avro Schema Registry protocol. */
 public class ApicurioSchemaRegistryCoder implements SchemaCoder {
@@ -67,6 +69,8 @@ public class ApicurioSchemaRegistryCoder implements SchemaCoder {
     public static final String HEADERS = "HEADERS";
 
     public static final String IS_KEY = "IS_KEY";
+
+    private static final Logger LOG = LoggerFactory.getLogger(ApicurioSchemaRegistryCoder.class);
 
     /**
      * Creates {@link SchemaCoder} that uses provided {@link RegistryClient} to connect to schema
@@ -124,22 +128,25 @@ public class ApicurioSchemaRegistryCoder implements SchemaCoder {
     @Override
     public Schema readSchemaWithAdditionalParameters(
             InputStream in, Map<String, Object> additionalParameters) throws IOException {
+        String methodName = "readSchemaWithAdditionalParameters";
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(methodName + " entered");
+        }
         if (in == null) {
             return null;
         }
-        IdOptionEnum idOptionEnum = (IdOptionEnum) configs.get(ID_OPTION.key());
-        boolean useGlobalID = false;
-        if (idOptionEnum == IdOptionEnum.GLOBAL_ID) {
-            useGlobalID = true;
-        }
-        long schemaId = getSchemaId(in, additionalParameters, useGlobalID);
+        boolean useGlobalId = (boolean) configs.get(USE_GLOBALID.key());
 
-        if (!useGlobalID) {
+        long schemaId = getSchemaId(in, additionalParameters, useGlobalId);
+
+        if (!useGlobalId) {
             // if we are  using the content ID there is not get that will dereference.
             // so we need to get the artifact references, find the latest version,
             // using its groupId and artifactId we can get the globalId, from which we can get
             // a de-referenced schema
-
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(methodName + " got using contentId " + schemaId);
+            }
             List<ArtifactReference> artifactReferenceList =
                     registryClient.getArtifactReferencesByContentId(schemaId);
             if (artifactReferenceList == null || artifactReferenceList.isEmpty()) {
@@ -166,7 +173,11 @@ public class ApicurioSchemaRegistryCoder implements SchemaCoder {
         }
         // get the schema in canonical form with references dereferenced
         InputStream schemaInputStream = registryClient.getContentByGlobalId(schemaId, true, true);
-        return new Schema.Parser().parse(schemaInputStream);
+        Schema schema = new Schema.Parser().parse(schemaInputStream);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(methodName + " got schema " + schema + " using globalId " + schemaId);
+        }
+        return schema;
     }
 
     /**
@@ -185,10 +196,9 @@ public class ApicurioSchemaRegistryCoder implements SchemaCoder {
         long schemaId = 0L;
         Map<String, Object> headers = (Map<String, Object>) additionalParameters.get(HEADERS);
         boolean isKey = (boolean) additionalParameters.get(IS_KEY);
-        // these enums have defaults so will not be null;
-        IdPlacementEnum idPlacementEnum = (IdPlacementEnum) configs.get(ID_PLACEMENT.key());
+        boolean useHeaders = (boolean) configs.get(USE_HEADERS.key());
 
-        if (idPlacementEnum == IdPlacementEnum.HEADER) {
+        if (useHeaders) {
             String globalIDHeaderName =
                     isKey ? APICURIO_KEY_GLOBAL_ID_HEADER : APICURIO_VALUE_GLOBAL_ID_HEADER;
             String contentIDHeaderName =
@@ -229,17 +239,19 @@ public class ApicurioSchemaRegistryCoder implements SchemaCoder {
                                 + "Ensure that the kafka message was created by an Apicurio client. Check that it is "
                                 + "sending the appropriate ID in the header, if the message is sending the ID in the payload,\n"
                                 + " review and amend the format configuration options "
-                                + AvroApicurioFormatOptions.ID_PLACEMENT
-                                + " and"
-                                + ID_OPTION);
+                                + USE_HEADERS
+                                + " and "
+                                + USE_GLOBALID);
             }
         } else {
             // the id is in the payload
             DataInputStream dataInputStream = new DataInputStream(in);
             if (dataInputStream.readByte() != 0) {
                 throw new IOException(
-                        "Unknown data format. Magic number was not found. idPlacementEnum "
-                                + idPlacementEnum
+                        "Unknown data format. Magic number was not found. "
+                                + USE_HEADERS
+                                + "="
+                                + useHeaders
                                 + " configs="
                                 + configs);
             }
@@ -270,22 +282,28 @@ public class ApicurioSchemaRegistryCoder implements SchemaCoder {
             Map<String, Object> inputProperties,
             Map<String, Object> outputProperties)
             throws IOException {
+        String methodName = "writeSchema with additional properties";
 
-        // these enums have defaults so will not be null;
-        IdPlacementEnum idPlacementEnum = (IdPlacementEnum) configs.get(ID_PLACEMENT.key());
-        IdOptionEnum idOptionEnum = (IdOptionEnum) configs.get(ID_OPTION.key());
-
-        boolean useGlobalID = false;
-        if (idOptionEnum == IdOptionEnum.GLOBAL_ID) {
-            useGlobalID = true;
-        }
+        boolean useHeaders = (boolean) configs.get(USE_HEADERS.key());
+        boolean useGlobalId = (boolean) configs.get(USE_GLOBALID.key());
         boolean isKey = (boolean) inputProperties.get(IS_KEY);
 
         String groupId = (String) configs.get(AvroApicurioFormatOptions.GROUP_ID.key());
         Object artifactId = configs.get(AvroApicurioFormatOptions.REGISTERED_ARTIFACT_ID.key());
         Object artifactName = configs.get(AvroApicurioFormatOptions.REGISTERED_ARTIFACT_NAME.key());
         if (inputProperties.get(TOPIC_NAME) == null) {
-            throw new IOException();
+            String configOptionName = null;
+            if (artifactId == null) {
+                configOptionName = "artifactId";
+            }
+            if (artifactName == null) {
+                configOptionName = "artifactName";
+            }
+            if (configOptionName != null) {
+                throw new IOException(
+                        "No topic name was configured, and it is required to provide a default for "
+                                + configOptionName);
+            }
         }
         String defaultArtifactName =
                 (String) inputProperties.get(TOPIC_NAME + (isKey ? "-key" : "-value"));
@@ -320,14 +338,14 @@ public class ApicurioSchemaRegistryCoder implements SchemaCoder {
         Long registeredGlobalId = artifactMetaData.getGlobalId();
         Long registeredContentId = artifactMetaData.getContentId();
         Map<String, Object> headers = new HashMap<>();
-        if (idPlacementEnum == IdPlacementEnum.HEADER) {
+        if (useHeaders) {
             // always add the global ID as this is a globally unique identifier
 
             String globalHeaderName =
                     isKey ? APICURIO_KEY_GLOBAL_ID_HEADER : APICURIO_VALUE_GLOBAL_ID_HEADER;
             // optionally also add in the content id if the configuration says to
             headers.put(globalHeaderName, longToBytes(registeredGlobalId));
-            if (!useGlobalID) {
+            if (!useGlobalId) {
                 String contentHeaderName =
                         isKey ? APICURIO_KEY_CONTENT_ID_HEADER : APICURIO_VALUE_CONTENT_ID_HEADER;
                 headers.put(contentHeaderName, longToBytes(registeredContentId));
@@ -336,11 +354,10 @@ public class ApicurioSchemaRegistryCoder implements SchemaCoder {
         } else {
             out.write(MAGIC_BYTE);
             byte[] schemaIdBytes;
-            Long schemaId = (useGlobalID) ? registeredGlobalId : registeredContentId;
+            Long schemaId = (useGlobalId) ? registeredGlobalId : registeredContentId;
             // There could be a case where a table is created as a Kafka source and sink and the
             // user wants the content ID in, but the global ID out. This combination is currently
-            // not
-            // catered for.
+            // not catered for.
 
             schemaIdBytes = ByteBuffer.allocate(8).putLong(schemaId).array();
             out.write(schemaIdBytes);

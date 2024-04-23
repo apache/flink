@@ -40,10 +40,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
-import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.ID_OPTION;
-import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.ID_PLACEMENT;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.OIDC_AUTH_TOKEN_EXPIRATION_REDUCTION;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.PROPERTIES;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.USE_GLOBALID;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.USE_HEADERS;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -162,10 +162,7 @@ class RegistryAvroFormatFactoryTest {
                 assertThat(outputMap.get(configOption.key())).isNull();
             }
         }
-        // check an individual enum explicitly is correct.
-        IdPlacementEnum idPlacementEnum =
-                (IdPlacementEnum) outputMap.get(AvroApicurioFormatOptions.ID_PLACEMENT);
-        assertThat(idPlacementEnum == IdPlacementEnum.HEADER);
+        assertThat((boolean) outputMap.get(USE_GLOBALID.key())).isTrue();
     }
 
     @Test
@@ -175,15 +172,11 @@ class RegistryAvroFormatFactoryTest {
         Map<String, String> inputMap = new HashMap<>();
         for (ConfigOption configOption : configOptions) {
             if (!configOption.equals(PROPERTIES)
-                    && !configOption.equals(OIDC_AUTH_TOKEN_EXPIRATION_REDUCTION)) {
-                String value;
-                if (configOption.equals(ID_PLACEMENT)) {
-                    value = IdPlacementEnum.LEGACY.name();
-                } else if (configOption.equals(ID_OPTION)) {
-                    value = IdOptionEnum.CONTENT_ID.name();
-                } else {
-                    value = configOption.key() + "-value";
-                }
+                    && !configOption.equals(OIDC_AUTH_TOKEN_EXPIRATION_REDUCTION)
+                    && !configOption.key().equals(USE_GLOBALID)
+                    && !configOption.key().equals(USE_HEADERS)) {
+
+                String value = configOption.key() + "-value";
                 inputMap.put(configOption.key(), value);
             }
         }
@@ -191,6 +184,8 @@ class RegistryAvroFormatFactoryTest {
         Configuration formatOptions = Configuration.fromMap(inputMap);
         Duration durationTestValue = Duration.ofSeconds(10);
         formatOptions.set(OIDC_AUTH_TOKEN_EXPIRATION_REDUCTION, durationTestValue);
+        formatOptions.set(USE_GLOBALID, true);
+        formatOptions.set(USE_HEADERS, true);
         Map propertiesInput = new HashMap<>();
         propertiesInput.put("aaa", "111");
         propertiesInput.put("bbb", "222");
@@ -206,10 +201,10 @@ class RegistryAvroFormatFactoryTest {
                 expectedValue = propertiesInput;
             } else if (configOption.equals(OIDC_AUTH_TOKEN_EXPIRATION_REDUCTION)) {
                 expectedValue = durationTestValue;
-            } else if (configOption.equals(ID_PLACEMENT)) {
-                expectedValue = IdPlacementEnum.LEGACY;
-            } else if (configOption.equals(ID_OPTION)) {
-                expectedValue = IdOptionEnum.CONTENT_ID;
+            } else if (configOption.equals(USE_HEADERS)) {
+                expectedValue = true;
+            } else if (configOption.equals(USE_GLOBALID)) {
+                expectedValue = true;
             } else {
                 expectedValue = configOption.key() + "-value";
             }

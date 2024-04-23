@@ -37,29 +37,23 @@ public class AvroApicurioFormatOptions {
                     .noDefaultValue()
                     .withDescription("The URL of the Apicurio Registry to fetch/register schemas.");
 
-    public static final ConfigOption<IdPlacementEnum> ID_PLACEMENT =
-            ConfigOptions.key("id-placement")
-                    .enumType(IdPlacementEnum.class)
-                    .defaultValue(IdPlacementEnum.HEADER)
+    public static final ConfigOption<Boolean> USE_HEADERS =
+            ConfigOptions.key("use-headers")
+                    .booleanType()
+                    .defaultValue(true)
                     .withDescription(
-                            "Specifies where the schema ID should be worked with Avro messages. The Valid options are:\n"
-                                    + "HEADER - "
-                                    + IdPlacementEnum.HEADER.getDescription()
-                                    + "\n"
-                                    + "LEGACY - "
-                                    + IdPlacementEnum.LEGACY.getDescription());
+                            "Used by serializers and deserializers. Configures the  identifier for artifacts. \n"
+                                    + "true means use global ID, false means use content ID.\n"
+                                    + "Instructs the serializer to write the specified ID to Kafka,\n"
+                                    + "and instructs the deserializer to use this ID to find the schema.");
 
-    public static final ConfigOption<IdOptionEnum> ID_OPTION =
-            ConfigOptions.key("id-option")
-                    .enumType(IdOptionEnum.class)
-                    .defaultValue(IdOptionEnum.GLOBAL_ID)
+    public static final ConfigOption<Boolean> USE_GLOBALID =
+            ConfigOptions.key("use-globalid")
+                    .booleanType()
+                    .defaultValue(true)
                     .withDescription(
-                            "Specifies whether global IDs or content IDs should be used to identify the Avro schema ID . The Valid options are:\n"
-                                    + "GLOBAL_ID - "
-                                    + IdOptionEnum.GLOBAL_ID.getDescription()
-                                    + "\n"
-                                    + "CONTENT_ID - "
-                                    + IdOptionEnum.CONTENT_ID.getDescription());
+                            "Configures to read/write the artifact identifier to "
+                                    + "Kafka message headers instead of in the message payload.");
 
     public static final ConfigOption<String> GROUP_ID =
             ConfigOptions.key("groupId")

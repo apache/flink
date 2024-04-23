@@ -39,7 +39,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.ID_OPTION;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.USE_GLOBALID;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.USE_HEADERS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for schemacoder. */
@@ -52,6 +53,8 @@ public class ApicurioSchemaRegistryCodergetSchemaTest {
 
             if (testSpec.extraConfigOptions == null) {
                 testSpec.extraConfigOptions = new HashMap<>();
+                testSpec.extraConfigOptions.put(USE_GLOBALID.key(), true);
+                testSpec.extraConfigOptions.put(USE_HEADERS.key(), true);
             }
 
             // get options map
@@ -80,12 +83,15 @@ public class ApicurioSchemaRegistryCodergetSchemaTest {
             Map<String, Object> additionalProperties = new HashMap<>();
             additionalProperties.put(apicurioSchemaRegistryCoder.HEADERS, testSpec.headers);
             additionalProperties.put(apicurioSchemaRegistryCoder.IS_KEY, testSpec.isKey);
-            IdOptionEnum idOptionEnum =
-                    (IdOptionEnum) testSpec.extraConfigOptions.get(ID_OPTION.key());
-            boolean useGlobalId = true;
-            if (idOptionEnum == IdOptionEnum.CONTENT_ID) {
-                useGlobalId = false;
+            if (testSpec.extraConfigOptions == null) {
+                testSpec.extraConfigOptions = new HashMap<>();
             }
+            if (testSpec.extraConfigOptions.get(USE_GLOBALID.key()) == null) {
+                testSpec.extraConfigOptions.put(USE_GLOBALID.key(), true);
+            }
+
+            boolean useGlobalId = (boolean) testSpec.extraConfigOptions.get(USE_GLOBALID.key());
+
             Long testSchemaId =
                     apicurioSchemaRegistryCoder.getSchemaId(in, additionalProperties, useGlobalId);
             assertThat(testSchemaId).isEqualTo(testSpec.expectedId);
@@ -202,8 +208,8 @@ public class ApicurioSchemaRegistryCodergetSchemaTest {
                                 new Object[] {ApicurioSchemaRegistryCoder.longToBytes(12)}),
                         null,
                         ofEntries(
-                                new String[] {AvroApicurioFormatOptions.ID_OPTION.key()},
-                                new Object[] {IdOptionEnum.CONTENT_ID}),
+                                new String[] {AvroApicurioFormatOptions.USE_GLOBALID.key()},
+                                new Object[] {false}),
                         12L),
                 // Value content
                 new ValidTestSpec(
@@ -214,18 +220,14 @@ public class ApicurioSchemaRegistryCodergetSchemaTest {
                                 },
                                 new Object[] {ApicurioSchemaRegistryCoder.longToBytes(12)}),
                         null,
-                        ofEntries(
-                                new String[] {AvroApicurioFormatOptions.ID_OPTION.key()},
-                                new Object[] {IdOptionEnum.CONTENT_ID}),
+                        ofEntries(new String[] {USE_GLOBALID.key()}, new Object[] {false}),
                         12L),
                 // test legacy global
                 new ValidTestSpec(
                         false,
                         null, // send no headers
                         getLegacyByteArray(12L),
-                        ofEntries(
-                                new String[] {AvroApicurioFormatOptions.ID_PLACEMENT.key()},
-                                new Object[] {IdPlacementEnum.LEGACY}),
+                        ofEntries(new String[] {USE_HEADERS.key()}, new Object[] {false}),
                         12L),
                 // test legacy content
                 new ValidTestSpec(
@@ -233,11 +235,8 @@ public class ApicurioSchemaRegistryCodergetSchemaTest {
                         null, // send no headers
                         getLegacyByteArray(12L),
                         ofEntries(
-                                new String[] {
-                                    AvroApicurioFormatOptions.ID_PLACEMENT.key(),
-                                    AvroApicurioFormatOptions.ID_OPTION.key()
-                                },
-                                new Object[] {IdPlacementEnum.LEGACY, IdOptionEnum.CONTENT_ID}),
+                                new String[] {USE_HEADERS.key(), USE_GLOBALID.key()},
+                                new Object[] {false, false}),
                         12L));
     }
 
@@ -328,9 +327,7 @@ public class ApicurioSchemaRegistryCodergetSchemaTest {
                         false,
                         null, // send no headers
                         null,
-                        ofEntries(
-                                new String[] {AvroApicurioFormatOptions.ID_PLACEMENT.key()},
-                                new Object[] {IdPlacementEnum.LEGACY}),
+                        ofEntries(new String[] {USE_HEADERS.key()}, new Object[] {false}),
                         12L));
     }
 

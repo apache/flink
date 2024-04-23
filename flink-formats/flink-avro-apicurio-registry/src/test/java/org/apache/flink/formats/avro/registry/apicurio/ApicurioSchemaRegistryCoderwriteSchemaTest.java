@@ -24,6 +24,7 @@ import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
 
 import io.apicurio.registry.rest.v2.beans.ArtifactMetaData;
 import org.apache.avro.Schema;
+import org.apache.commons.collections.MapUtils;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -43,8 +44,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.ID_OPTION;
-import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.ID_PLACEMENT;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.USE_GLOBALID;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.USE_HEADERS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for schemacoder. */
@@ -84,13 +85,26 @@ public class ApicurioSchemaRegistryCoderwriteSchemaTest {
             apicurioSchemaRegistryCoder.writeSchema(schema, out, inputProperties, outputProperties);
             Map<String, Object> headersFromWriteSchema =
                     (Map<String, Object>) outputProperties.get(ApicurioSchemaRegistryCoder.HEADERS);
-            IdPlacementEnum idPlacementEnum = (IdPlacementEnum) configs.get(ID_PLACEMENT.key());
-            IdOptionEnum idOptionEnum = (IdOptionEnum) configs.get(ID_OPTION.key());
+
+            if (testSpec.extraConfigOptions == null) {
+                testSpec.extraConfigOptions = new HashMap<>();
+            }
+            if (testSpec.extraConfigOptions.get(USE_GLOBALID.key()) == null) {
+                testSpec.extraConfigOptions.put(USE_GLOBALID.key(), true);
+            }
+
+            if (testSpec.extraConfigOptions.get(USE_HEADERS.key()) == null) {
+                testSpec.extraConfigOptions.put(USE_HEADERS.key(), true);
+            }
+
+            boolean useGlobalId = (boolean) testSpec.extraConfigOptions.get(USE_GLOBALID.key());
+            boolean useHeaders = (boolean) testSpec.extraConfigOptions.get(USE_HEADERS.key());
+
             Long testProducedId;
 
-            if (idPlacementEnum.equals(IdPlacementEnum.HEADER)) {
+            if (useHeaders) {
                 String expectedHeaderName;
-                if (idOptionEnum == IdOptionEnum.GLOBAL_ID) {
+                if (useGlobalId) {
                     if (testSpec.isKey) {
                         expectedHeaderName =
                                 ApicurioSchemaRegistryCoder.APICURIO_KEY_GLOBAL_ID_HEADER;
@@ -115,13 +129,15 @@ public class ApicurioSchemaRegistryCoderwriteSchemaTest {
                         (byte[]) testSpec.expectedHeaders.get(expectedHeaderName);
                 if (!testSpec.expectSuccess && byteArrayExpectedHeader == null) {
                     // this is an error test so fail with an exception
-                    throw new RuntimeException("Error test found an unexpected header");
+                    throw new RuntimeException(
+                            "Error test found an unexpected header with testSpec" + testSpec);
                 }
                 assertThat(byteArrayExpectedHeader).isNotEmpty();
                 long expectedHeaderId =
                         apicurioSchemaRegistryCoder.bytesToLong(byteArrayExpectedHeader);
                 if (!testSpec.expectSuccess) {
-                    throw new RuntimeException("Error test: id in header is not expected");
+                    throw new RuntimeException(
+                            "Error test: id in header is not expected with testSpec" + testSpec);
                 }
                 assertThat(testProducedId).isEqualTo(expectedHeaderId);
             } else {
@@ -131,14 +147,10 @@ public class ApicurioSchemaRegistryCoderwriteSchemaTest {
                 DataInputStream dataInputStream = new DataInputStream(bais);
                 // check for the magic byte
                 assertThat(dataInputStream.readByte()).isEqualTo((byte) 0);
-                if (idPlacementEnum.equals(IdPlacementEnum.LEGACY)) {
-                    testProducedId = dataInputStream.readLong();
-                } else {
-                    testProducedId = (long) dataInputStream.readInt();
-                }
+                testProducedId = dataInputStream.readLong();
             }
             long expectedId;
-            if (idOptionEnum == IdOptionEnum.GLOBAL_ID) {
+            if (useGlobalId) {
                 expectedId = testSpec.globalId;
             } else {
                 expectedId = testSpec.contentId;
@@ -147,7 +159,7 @@ public class ApicurioSchemaRegistryCoderwriteSchemaTest {
             assertThat(testSpec.expectSuccess).isTrue();
         } catch (Exception e) {
             if (testSpec.expectSuccess) {
-                throw new RuntimeException("Unexpected Error occurred", e);
+                throw new RuntimeException("Unexpected Error occurred with testSpec" + testSpec, e);
             }
         }
     }
@@ -184,8 +196,31 @@ public class ApicurioSchemaRegistryCoderwriteSchemaTest {
 
         @Override
         public String toString() {
+            String extraConfigOptionsStr = "";
+            if (MapUtils.isNotEmpty(this.extraConfigOptions)) {
+                for (String key : this.extraConfigOptions.keySet()) {
+                    extraConfigOptionsStr =
+                            extraConfigOptionsStr
+                                    + "("
+                                    + key
+                                    + ","
+                                    + this.extraConfigOptions.get(key)
+                                    + ")\n";
+                }
+            }
+            String headersStr = "";
+            if (MapUtils.isNotEmpty(this.expectedHeaders)) {
+                for (String key : this.expectedHeaders.keySet()) {
+                    headersStr =
+                            headersStr + "(" + key + "," + this.expectedHeaders.get(key) + ")\n";
+                }
+            }
             return "TestSpec{"
-                    + "isKey="
+                    + "extraConfigOptions="
+                    + extraConfigOptionsStr
+                    + ", headers="
+                    + headersStr
+                    + ", isKey="
                     + isKey
                     + ", topicName="
                     + topicName
@@ -284,9 +319,7 @@ public class ApicurioSchemaRegistryCoderwriteSchemaTest {
                 // key content
                 new ValidTestSpec(
                         true,
-                        ofEntries(
-                                new String[] {AvroApicurioFormatOptions.ID_OPTION.key()},
-                                new Object[] {IdOptionEnum.CONTENT_ID}),
+                        ofEntries(new String[] {USE_GLOBALID.key()}, new Object[] {false}),
                         "topic1",
                         null,
                         12L,
@@ -299,9 +332,7 @@ public class ApicurioSchemaRegistryCoderwriteSchemaTest {
                 // value content
                 new ValidTestSpec(
                         false,
-                        ofEntries(
-                                new String[] {AvroApicurioFormatOptions.ID_OPTION.key()},
-                                new Object[] {IdOptionEnum.CONTENT_ID}),
+                        ofEntries(new String[] {USE_GLOBALID.key()}, new Object[] {false}),
                         "topic1",
                         null,
                         12L,
@@ -314,9 +345,7 @@ public class ApicurioSchemaRegistryCoderwriteSchemaTest {
                 // Key global Legacy
                 new ValidTestSpec(
                         true,
-                        ofEntries(
-                                new String[] {ID_PLACEMENT.key()},
-                                new Object[] {IdPlacementEnum.LEGACY}),
+                        ofEntries(new String[] {USE_HEADERS.key()}, new Object[] {false}),
                         "topic1",
                         null,
                         12L,
@@ -325,9 +354,7 @@ public class ApicurioSchemaRegistryCoderwriteSchemaTest {
                 // Value global Legacy
                 new ValidTestSpec(
                         false,
-                        ofEntries(
-                                new String[] {ID_PLACEMENT.key()},
-                                new Object[] {IdPlacementEnum.LEGACY}),
+                        ofEntries(new String[] {USE_HEADERS.key()}, new Object[] {false}),
                         "topic1",
                         null,
                         12L,
@@ -337,10 +364,8 @@ public class ApicurioSchemaRegistryCoderwriteSchemaTest {
                 new ValidTestSpec(
                         true,
                         ofEntries(
-                                new String[] {
-                                    ID_PLACEMENT.key(), AvroApicurioFormatOptions.ID_OPTION.key()
-                                },
-                                new Object[] {IdPlacementEnum.LEGACY, IdOptionEnum.CONTENT_ID}),
+                                new String[] {USE_HEADERS.key(), USE_GLOBALID.key()},
+                                new Object[] {false, false}),
                         "topic1",
                         null,
                         12L,
@@ -350,10 +375,8 @@ public class ApicurioSchemaRegistryCoderwriteSchemaTest {
                 new ValidTestSpec(
                         false,
                         ofEntries(
-                                new String[] {
-                                    ID_PLACEMENT.key(), AvroApicurioFormatOptions.ID_OPTION.key()
-                                },
-                                new Object[] {IdPlacementEnum.LEGACY, IdOptionEnum.CONTENT_ID}),
+                                new String[] {USE_HEADERS.key(), USE_GLOBALID.key()},
+                                new Object[] {false, false}),
                         "topic1",
                         null,
                         12L,
@@ -403,9 +426,7 @@ public class ApicurioSchemaRegistryCoderwriteSchemaTest {
                 // global key with mismatching global id in content header
                 new InvalidTestSpec(
                         true,
-                        ofEntries(
-                                new String[] {AvroApicurioFormatOptions.ID_OPTION.key()},
-                                new Object[] {IdOptionEnum.CONTENT_ID}),
+                        ofEntries(new String[] {USE_GLOBALID.key()}, new Object[] {false}),
                         "topic1",
                         null,
                         12L,
@@ -433,17 +454,19 @@ public class ApicurioSchemaRegistryCoderwriteSchemaTest {
     private static Map<String, Object> getConfig(
             boolean isKey, // TODO do we need to handle value and key specific map keys or not?
             Map<String, Object> extraConfigOptions) {
+
         Set<ConfigOption<?>> configOptions = ApicurioRegistryAvroFormatFactory.getOptionalOptions();
         Map<String, Object> registryConfigs = new HashMap<>();
         for (ConfigOption configOption : configOptions) {
             Object value = null;
+            String configOptionKey = configOption.key();
             if (extraConfigOptions != null) {
-                value = extraConfigOptions.get(configOption.key());
+                value = extraConfigOptions.get(configOptionKey);
             }
             if (value == null && configOption.hasDefaultValue()) {
                 value = configOption.defaultValue();
             }
-            registryConfigs.put(configOption.key(), value);
+            registryConfigs.put(configOptionKey, value);
         }
         return registryConfigs;
     }

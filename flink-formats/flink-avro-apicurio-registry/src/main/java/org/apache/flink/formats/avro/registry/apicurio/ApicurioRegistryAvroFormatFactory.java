@@ -64,8 +64,6 @@ import java.util.stream.Stream;
 import static java.lang.String.format;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.BASIC_AUTH_CREDENTIALS_PASSWORD;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.BASIC_AUTH_CREDENTIALS_USERID;
-import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.ID_OPTION;
-import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.ID_PLACEMENT;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.OIDC_AUTH_CLIENT_ID;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.OIDC_AUTH_CLIENT_SECRET;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.OIDC_AUTH_SCOPE;
@@ -82,6 +80,8 @@ import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormat
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.SSL_TRUSTSTORE_LOCATION;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.SSL_TRUSTSTORE_PASSWORD;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.URL;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.USE_GLOBALID;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.USE_HEADERS;
 
 /** Apicurio avro format. */
 @Internal
@@ -185,8 +185,8 @@ public class ApicurioRegistryAvroFormatFactory
 
     protected static Set<ConfigOption<?>> getOptionalOptions() {
         Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(ID_PLACEMENT);
-        options.add(ID_OPTION);
+        options.add(USE_HEADERS);
+        options.add(USE_GLOBALID);
         options.add(SCHEMA);
         options.add(REGISTERED_ARTIFACT_NAME);
         options.add(REGISTERED_ARTIFACT_DESCRIPTION);
@@ -212,8 +212,8 @@ public class ApicurioRegistryAvroFormatFactory
     public Set<ConfigOption<?>> forwardOptions() {
         return Stream.of(
                         URL,
-                        ID_PLACEMENT,
-                        ID_OPTION,
+                        USE_HEADERS,
+                        USE_GLOBALID,
                         SCHEMA,
                         REGISTERED_ARTIFACT_NAME,
                         REGISTERED_ARTIFACT_DESCRIPTION,
@@ -238,22 +238,19 @@ public class ApicurioRegistryAvroFormatFactory
             ReadableConfig formatOptions) {
         final Map<String, Object> properties = new HashMap<>();
 
-        formatOptions
-                .getOptional(AvroApicurioFormatOptions.PROPERTIES)
-                .ifPresent(properties::putAll);
-
         Set<ConfigOption<?>> configOptionsArray = getOptionalOptions();
 
         for (ConfigOption configOption : configOptionsArray) {
             formatOptions
                     .getOptional(configOption)
                     .ifPresent(v -> properties.put(configOption.key(), v));
-            // at java 11 we can use the orElse, but we are java 8
-            if (!properties.containsKey(configOption.key()) && configOption.hasDefaultValue()) {
-                properties.put(configOption.key(), configOption.defaultValue());
+            // when there is no value we would like to set the default as the value.
+            // at java 11 we can use the orElse or isEmpty , but we are java 8
+            String configOptionKey = configOption.key();
+            if (properties.get(configOptionKey) == null) {
+                properties.put(configOptionKey, configOption.defaultValue());
             }
         }
-
         return properties;
     }
 
