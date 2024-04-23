@@ -70,7 +70,9 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
             throws Exception {
         super.initializeState(streamTaskStateManager);
         // TODO: Read config and properly set.
-        this.asyncExecutionController = new AsyncExecutionController(mailboxExecutor, null);
+        int maxParallelism = getExecutionConfig().getMaxParallelism();
+        this.asyncExecutionController =
+                new AsyncExecutionController(mailboxExecutor, null, maxParallelism);
     }
 
     @Override

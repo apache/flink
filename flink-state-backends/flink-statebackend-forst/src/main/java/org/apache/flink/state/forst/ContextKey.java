@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.asyncprocessing;
+package org.apache.flink.state.forst;
 
+import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.util.function.FunctionWithException;
 
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.IOException;
@@ -34,40 +34,24 @@ import java.util.Objects;
 @ThreadSafe
 public class ContextKey<K> {
 
-    private final K rawKey;
+    private final RecordContext<K> recordContext;
 
-    private final int keyGroup;
-
-    /**
-     * A record in user layer may access the state multiple times. The {@code serializedKey} can be
-     * used to cache the serialized key bytes after its first serialization, so that subsequent
-     * state accesses with the same key can avoid being serialized repeatedly.
-     */
-    private @Nullable volatile byte[] serializedKey = null;
-
-    public ContextKey(K rawKey, int keyGroup) {
-        this.rawKey = rawKey;
-        this.keyGroup = keyGroup;
-        this.serializedKey = null;
-    }
-
-    public ContextKey(K rawKey, int keyGroup, byte[] serializedKey) {
-        this.rawKey = rawKey;
-        this.keyGroup = keyGroup;
-        this.serializedKey = serializedKey;
+    public ContextKey(RecordContext<K> recordContext) {
+        this.recordContext = recordContext;
     }
 
     public K getRawKey() {
-        return rawKey;
+        return recordContext.getKey();
     }
 
     public int getKeyGroup() {
-        return keyGroup;
+        return recordContext.getKeyGroup();
     }
 
     /**
-     * Get the serialized key. If the cached serialized key is null, the provided serialization
-     * function will be called, and the serialization result will be cached by ContextKey.
+     * Get the serialized key. If the cached serialized key within {@code RecordContext#payload} is
+     * null, the provided serialization function will be called, and the serialization result will
+     * be cached by {@code RecordContext#payload}.
      *
      * @param serializeKeyFunc the provided serialization function for this contextKey.
      * @return the serialized bytes.
@@ -75,20 +59,21 @@ public class ContextKey<K> {
     public byte[] getOrCreateSerializedKey(
             FunctionWithException<ContextKey<K>, byte[], IOException> serializeKeyFunc)
             throws IOException {
-        if (serializedKey != null) {
-            return serializedKey;
+        if (recordContext.getExtra() != null) {
+            return (byte[]) recordContext.getExtra();
         }
-        synchronized (this) {
-            if (serializedKey == null) {
-                this.serializedKey = serializeKeyFunc.apply(this);
+        synchronized (recordContext) {
+            if (recordContext.getExtra() == null) {
+                byte[] serializedKey = serializeKeyFunc.apply(this);
+                recordContext.setExtra(serializedKey);
             }
         }
-        return serializedKey;
+        return (byte[]) recordContext.getExtra();
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(rawKey, keyGroup);
+        return Objects.hash(recordContext);
     }
 
     @Override
@@ -100,9 +85,6 @@ public class ContextKey<K> {
             return false;
         }
         ContextKey<?> that = (ContextKey<?>) o;
-        if (!Objects.equals(rawKey, that.rawKey)) {
-            return false;
-        }
-        return Objects.equals(keyGroup, that.keyGroup);
+        return Objects.equals(recordContext, that.recordContext);
     }
 }

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.core.state.InternalStateFuture;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingRunnable;
@@ -94,15 +95,25 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
      */
     final AtomicInteger inFlightRecordNum;
 
-    public AsyncExecutionController(MailboxExecutor mailboxExecutor, StateExecutor stateExecutor) {
-        this(mailboxExecutor, stateExecutor, DEFAULT_BATCH_SIZE, DEFAULT_MAX_IN_FLIGHT_RECORD_NUM);
+    /** Max parallelism of the job. */
+    private final int maxParallelism;
+
+    public AsyncExecutionController(
+            MailboxExecutor mailboxExecutor, StateExecutor stateExecutor, int maxParallelism) {
+        this(
+                mailboxExecutor,
+                stateExecutor,
+                DEFAULT_BATCH_SIZE,
+                DEFAULT_MAX_IN_FLIGHT_RECORD_NUM,
+                maxParallelism);
     }
 
     public AsyncExecutionController(
             MailboxExecutor mailboxExecutor,
             StateExecutor stateExecutor,
             int batchSize,
-            int maxInFlightRecords) {
+            int maxInFlightRecords,
+            int maxParallelism) {
         this.keyAccountingUnit = new KeyAccountingUnit<>(maxInFlightRecords);
         this.mailboxExecutor = mailboxExecutor;
         this.stateFutureFactory = new StateFutureFactory<>(this, mailboxExecutor);
@@ -111,6 +122,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
         this.maxInFlightRecordNum = maxInFlightRecords;
         this.stateRequestsBuffer = new StateRequestBuffer<>();
         this.inFlightRecordNum = new AtomicInteger(0);
+        this.maxParallelism = maxParallelism;
         LOG.info(
                 "Create AsyncExecutionController: batchSize {}, maxInFlightRecordsNum {}",
                 batchSize,
@@ -127,9 +139,17 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
      */
     public RecordContext<K> buildContext(Object record, K key) {
         if (record == null) {
-            return new RecordContext<>(RecordContext.EMPTY_RECORD, key, this::disposeContext);
+            return new RecordContext<>(
+                    RecordContext.EMPTY_RECORD,
+                    key,
+                    this::disposeContext,
+                    KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelism));
         }
-        return new RecordContext<>(record, key, this::disposeContext);
+        return new RecordContext<>(
+                record,
+                key,
+                this::disposeContext,
+                KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelism));
     }
 
     /**
