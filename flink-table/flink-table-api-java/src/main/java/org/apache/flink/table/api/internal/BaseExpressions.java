@@ -2046,11 +2046,72 @@ public abstract class BaseExpressions<InType, OutType> {
             JsonQueryWrapper wrappingBehavior,
             JsonQueryOnEmptyOrError onEmpty,
             JsonQueryOnEmptyOrError onError) {
+        return jsonQuery(path, DataTypes.STRING(), wrappingBehavior, onEmpty, onError);
+    }
+
+    /**
+     * Extracts JSON values from a JSON string.
+     *
+     * <p>This follows the ISO/IEC TR 19075-6 specification for JSON support in SQL. The result is
+     * always returned as a {@link DataTypes#STRING()}.
+     *
+     * <p>The {@param wrappingBehavior} determines whether the extracted value should be wrapped
+     * into an array, and whether to do so unconditionally or only if the value itself isn't an
+     * array already.
+     *
+     * <p>{@param onEmpty} and {@param onError} determine the behavior in case the path expression
+     * is empty, or in case an error was raised, respectively. By default, in both cases {@code
+     * null} is returned. Other choices are to use an empty array, an empty object, or to raise an
+     * error.
+     *
+     * <p>See {@link #jsonValue(String, DataType, JsonValueOnEmptyOrError, Object,
+     * JsonValueOnEmptyOrError, Object)} for extracting scalars from a JSON string.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * lit("{ \"a\": { \"b\": 1 } }").jsonQuery("$.a") // "{ \"b\": 1 }"
+     * lit("[1, 2]").jsonQuery("$") // "[1, 2]"
+     * nullOf(DataTypes.STRING()).jsonQuery("$") // null
+     *
+     * // Wrap result into an array
+     * lit("{}").jsonQuery("$", JsonQueryWrapper.CONDITIONAL_ARRAY) // "[{}]"
+     * lit("[1, 2]").jsonQuery("$", JsonQueryWrapper.CONDITIONAL_ARRAY) // "[1, 2]"
+     * lit("[1, 2]").jsonQuery("$", JsonQueryWrapper.UNCONDITIONAL_ARRAY) // "[[1, 2]]"
+     *
+     * // Scalars must be wrapped to be returned
+     * lit(1).jsonQuery("$") // null
+     * lit(1).jsonQuery("$", JsonQueryWrapper.CONDITIONAL_ARRAY) // "[1]"
+     *
+     * // Behavior if path expression is empty / there is an error
+     * // "{}"
+     * lit("{}").jsonQuery("lax $.invalid", JsonQueryWrapper.WITHOUT_ARRAY,
+     *     JsonQueryOnEmptyOrError.EMPTY_OBJECT, JsonQueryOnEmptyOrError.NULL)
+     * // "[]"
+     * lit("{}").jsonQuery("strict $.invalid", JsonQueryWrapper.WITHOUT_ARRAY,
+     *     JsonQueryOnEmptyOrError.NULL, JsonQueryOnEmptyOrError.EMPTY_ARRAY)
+     * }</pre>
+     *
+     * @param path JSON path to search for.
+     * @param returnType Type to convert the extracted array to, otherwise defaults to {@link
+     *     DataTypes#STRING()}.
+     * @param wrappingBehavior Determine if and when to wrap the resulting value into an array.
+     * @param onEmpty Behavior in case the path expression is empty.
+     * @param onError Behavior in case of an error.
+     * @return The extracted JSON value.
+     */
+    public OutType jsonQuery(
+            String path,
+            DataType returnType,
+            JsonQueryWrapper wrappingBehavior,
+            JsonQueryOnEmptyOrError onEmpty,
+            JsonQueryOnEmptyOrError onError) {
         return toApiSpecificExpression(
                 unresolvedCall(
                         JSON_QUERY,
                         toExpr(),
                         valueLiteral(path),
+                        typeLiteral(returnType),
                         valueLiteral(wrappingBehavior),
                         valueLiteral(onEmpty),
                         valueLiteral(onError)));
@@ -2078,6 +2139,31 @@ public abstract class BaseExpressions<InType, OutType> {
     /**
      * Extracts JSON values from a JSON string.
      *
+     * <p>The {@param wrappingBehavior} determines whether the extracted value should be wrapped
+     * into an array, and whether to do so unconditionally or only if the value itself isn't an
+     * array already.
+     *
+     * <p>See also {@link #jsonQuery(String, JsonQueryWrapper, JsonQueryOnEmptyOrError,
+     * JsonQueryOnEmptyOrError)}.
+     *
+     * @param path JSON path to search for.
+     * @param returnType Type to convert the extracted array to, otherwise defaults to {@link
+     *     DataTypes#STRING()}.
+     * @param wrappingBehavior Determine if and when to wrap the resulting value into an array.
+     * @return The extracted JSON value.
+     */
+    public OutType jsonQuery(String path, DataType returnType, JsonQueryWrapper wrappingBehavior) {
+        return jsonQuery(
+                path,
+                returnType,
+                wrappingBehavior,
+                JsonQueryOnEmptyOrError.NULL,
+                JsonQueryOnEmptyOrError.NULL);
+    }
+
+    /**
+     * Extracts JSON values from a JSON string.
+     *
      * <p>See also {@link #jsonQuery(String, JsonQueryWrapper, JsonQueryOnEmptyOrError,
      * JsonQueryOnEmptyOrError)}.
      *
@@ -2086,5 +2172,20 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType jsonQuery(String path) {
         return jsonQuery(path, JsonQueryWrapper.WITHOUT_ARRAY);
+    }
+
+    /**
+     * Extracts JSON values from a JSON string.
+     *
+     * <p>See also {@link #jsonQuery(String, JsonQueryWrapper, JsonQueryOnEmptyOrError,
+     * JsonQueryOnEmptyOrError)}.
+     *
+     * @param path JSON path to search for.
+     * @param returnType Type to convert the extracted array to, otherwise defaults to {@link
+     *     DataTypes#STRING()}.
+     * @return The extracted JSON value.
+     */
+    public OutType jsonQuery(String path, DataType returnType) {
+        return jsonQuery(path, returnType, JsonQueryWrapper.WITHOUT_ARRAY);
     }
 }

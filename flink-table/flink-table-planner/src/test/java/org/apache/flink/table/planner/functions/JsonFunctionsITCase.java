@@ -351,32 +351,52 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_QUERY)
                         .onFieldsWithData("{ \"a\": \"[1,2]\", \"b\": [1,2]}")
                         .andDataTypes(STRING())
-                        .testSqlResult("JSON_QUERY(f0, '$.b')", "[1,2]", DataTypes.STRING())
-                        .testSqlResult(
+                        .testResult(
+                                $("f0").jsonQuery("$.b"),
+                                "JSON_QUERY(f0, '$.b')",
+                                "[1,2]",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f0").jsonQuery("$.b", DataTypes.ARRAY(DataTypes.STRING())),
                                 "JSON_QUERY(f0, '$.b' RETURNING ARRAY<STRING>)",
                                 new String[] {"1", "2"},
                                 DataTypes.ARRAY(DataTypes.STRING()))
-                        .testSqlResult(
+                        .testResult(
+                                $("f0").jsonQuery("$.b", CONDITIONAL_ARRAY),
                                 "JSON_QUERY(f0, '$.b' WITH CONDITIONAL WRAPPER)",
                                 "[1,2]",
                                 DataTypes.STRING())
-                        .testSqlResult(
+                        .testResult(
+                                $("f0").jsonQuery(
+                                                "$.b",
+                                                DataTypes.ARRAY(DataTypes.STRING()),
+                                                CONDITIONAL_ARRAY),
                                 "JSON_QUERY(f0, '$.b' RETURNING ARRAY<STRING> WITH CONDITIONAL WRAPPER)",
                                 new String[] {"1", "2"},
                                 DataTypes.ARRAY(DataTypes.STRING()))
                         .testSqlValidationError(
                                 "JSON_QUERY(f0, '$.b' RETURNING ARRAY<INTEGER>  WITH CONDITIONAL WRAPPER ERROR ON ERROR)",
                                 " Unsupported array element type 'INTEGER' for RETURNING ARRAY in JSON_QUERY()")
-                        .testSqlResult("JSON_QUERY(f0, '$.a')", null, DataTypes.STRING())
-                        .testSqlResult(
+                        .testResult(
+                                $("f0").jsonQuery("$.a"),
+                                "JSON_QUERY(f0, '$.a')",
+                                null,
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f0").jsonQuery("$.a", DataTypes.ARRAY(DataTypes.STRING())),
                                 "JSON_QUERY(f0, '$.a' RETURNING ARRAY<STRING>)",
                                 null,
                                 DataTypes.ARRAY(DataTypes.STRING()))
-                        .testSqlResult(
+                        .testResult(
+                                $("f0").jsonQuery("$.a", CONDITIONAL_ARRAY),
                                 "JSON_QUERY(f0, '$.a' WITH CONDITIONAL WRAPPER)",
                                 "[\"[1,2]\"]",
                                 DataTypes.STRING())
-                        .testSqlResult(
+                        .testResult(
+                                $("f0").jsonQuery(
+                                                "$.a",
+                                                DataTypes.ARRAY(DataTypes.STRING()),
+                                                CONDITIONAL_ARRAY),
                                 "JSON_QUERY(f0, '$.a' RETURNING ARRAY<STRING> WITH CONDITIONAL WRAPPER)",
                                 new String[] {"[1,2]"},
                                 DataTypes.ARRAY(DataTypes.STRING()))
@@ -386,7 +406,13 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testSqlRuntimeError(
                                 "JSON_QUERY(f0, '$.a' RETURNING ARRAY<STRING> WITHOUT WRAPPER EMPTY OBJECT ON ERROR)",
                                 "Illegal error behavior ''EMPTY_OBJECT'' specified in JSON_QUERY function")
-                        .testSqlResult(
+                        .testResult(
+                                $("f0").jsonQuery(
+                                                "$.a",
+                                                DataTypes.ARRAY(DataTypes.STRING()),
+                                                WITHOUT_ARRAY,
+                                                EMPTY_ARRAY,
+                                                EMPTY_ARRAY),
                                 "JSON_QUERY(f0, '$.a' RETURNING ARRAY<STRING> WITHOUT WRAPPER EMPTY ARRAY ON ERROR)",
                                 new String[] {},
                                 DataTypes.ARRAY(DataTypes.STRING())),

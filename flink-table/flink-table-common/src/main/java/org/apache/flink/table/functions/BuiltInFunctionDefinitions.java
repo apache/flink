@@ -2362,10 +2362,11 @@ public final class BuiltInFunctionDefinitions {
                             sequence(
                                     logical(LogicalTypeFamily.CHARACTER_STRING),
                                     and(logical(LogicalTypeFamily.CHARACTER_STRING), LITERAL),
+                                    TYPE_LITERAL,
                                     symbol(JsonQueryWrapper.class),
                                     symbol(JsonQueryOnEmptyOrError.class),
                                     symbol(JsonQueryOnEmptyOrError.class)))
-                    .outputTypeStrategy(explicit(DataTypes.STRING().nullable()))
+                    .outputTypeStrategy(forceNullable(argument(2)))
                     .runtimeDeferred()
                     .build();
 
