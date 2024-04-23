@@ -963,7 +963,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                                     ignoreIfExists);
 
                     catalog.createTable(path, resolvedListenedTable, ignoreIfExists);
-                    if (resolvedListenedTable instanceof CatalogTable) {
+                    if (resolvedListenedTable instanceof CatalogTable
+                            || resolvedListenedTable instanceof CatalogMaterializedTable) {
                         catalogModificationListeners.forEach(
                                 listener ->
                                         listener.onEvent(
@@ -1318,6 +1319,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         Preconditions.checkNotNull(schemaResolver, "Schema resolver is not initialized.");
         if (baseTable instanceof CatalogTable) {
             return resolveCatalogTable((CatalogTable) baseTable);
+        } else if (baseTable instanceof CatalogMaterializedTable) {
+            return resolveCatalogMaterializedTable((CatalogMaterializedTable) baseTable);
         } else if (baseTable instanceof CatalogView) {
             return resolveCatalogView((CatalogView) baseTable);
         }
@@ -1387,6 +1390,42 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                         });
 
         return new ResolvedCatalogTable(table, resolvedSchema);
+    }
+
+    /**
+     * Resolves a {@link CatalogMaterializedTable} to a validated {@link
+     * ResolvedCatalogMaterializedTable}.
+     */
+    public ResolvedCatalogMaterializedTable resolveCatalogMaterializedTable(
+            CatalogMaterializedTable table) {
+        Preconditions.checkNotNull(schemaResolver, "Schema resolver is not initialized.");
+
+        if (table instanceof ResolvedCatalogMaterializedTable) {
+            return (ResolvedCatalogMaterializedTable) table;
+        }
+
+        final ResolvedSchema resolvedSchema = table.getUnresolvedSchema().resolve(schemaResolver);
+
+        // Validate partition keys are included in physical columns
+        final List<String> physicalColumns =
+                resolvedSchema.getColumns().stream()
+                        .filter(Column::isPhysical)
+                        .map(Column::getName)
+                        .collect(Collectors.toList());
+        table.getPartitionKeys()
+                .forEach(
+                        partitionKey -> {
+                            if (!physicalColumns.contains(partitionKey)) {
+                                throw new ValidationException(
+                                        String.format(
+                                                "Invalid partition key '%s'. A partition key must "
+                                                        + "reference a physical column in the schema. "
+                                                        + "Available columns are: %s",
+                                                partitionKey, physicalColumns));
+                            }
+                        });
+
+        return new ResolvedCatalogMaterializedTable(table, resolvedSchema);
     }
 
     /** Resolves a {@link CatalogView} to a validated {@link ResolvedCatalogView}. */

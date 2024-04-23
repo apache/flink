@@ -35,6 +35,7 @@ import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -49,7 +50,8 @@ import static org.assertj.core.api.Assertions.fail;
 import static org.assertj.core.api.HamcrestCondition.matching;
 
 /**
- * Tests for {@link CatalogTable} to {@link ResolvedCatalogTable} and {@link CatalogView} to {@link
+ * Tests for {@link CatalogTable} to {@link ResolvedCatalogTable}, {@link CatalogMaterializedTable}
+ * to {@link ResolvedCatalogMaterializedTable} and {@link CatalogView} to {@link
  * ResolvedCatalogView} including {@link CatalogPropertiesUtil}.
  */
 class CatalogBaseTableResolutionTest {
@@ -79,6 +81,17 @@ class CatalogBaseTableResolutionTest {
                     .columnByExpression("ts", COMPUTED_SQL)
                     .withComment("This is a computed column")
                     .watermark("ts", WATERMARK_SQL)
+                    .primaryKeyNamed("primary_constraint", "id")
+                    .build();
+
+    private static final Schema MATERIALIZED_TABLE_SCHEMA =
+            Schema.newBuilder()
+                    .column("id", DataTypes.INT().notNull())
+                    .column("region", DataTypes.VARCHAR(200))
+                    .withComment("This is a region column.")
+                    .column("county", DataTypes.VARCHAR(200))
+                    .column("topic", DataTypes.VARCHAR(200))
+                    .withComment("") // empty column comment
                     .primaryKeyNamed("primary_constraint", "id")
                     .build();
 
@@ -117,6 +130,18 @@ class CatalogBaseTableResolutionTest {
                     UniqueConstraint.primaryKey(
                             "primary_constraint", Collections.singletonList("id")));
 
+    private static final ResolvedSchema RESOLVED_MATERIALIZED_TABLE_SCHEMA =
+            new ResolvedSchema(
+                    Arrays.asList(
+                            Column.physical("id", DataTypes.INT().notNull()),
+                            Column.physical("region", DataTypes.VARCHAR(200))
+                                    .withComment("This is a region column."),
+                            Column.physical("county", DataTypes.VARCHAR(200)),
+                            Column.physical("topic", DataTypes.VARCHAR(200)).withComment("")),
+                    Collections.emptyList(),
+                    UniqueConstraint.primaryKey(
+                            "primary_constraint", Collections.singletonList("id")));
+
     private static final ResolvedSchema RESOLVED_VIEW_SCHEMA =
             new ResolvedSchema(
                     Arrays.asList(
@@ -138,6 +163,30 @@ class CatalogBaseTableResolutionTest {
         assertThat(resolvedTable.getResolvedSchema()).isEqualTo(RESOLVED_TABLE_SCHEMA);
 
         assertThat(resolvedTable.getSchema()).isEqualTo(LEGACY_TABLE_SCHEMA);
+    }
+
+    @Test
+    void testCatalogMaterializedTableResolution() {
+        final CatalogMaterializedTable materializedTable = catalogMaterializedTable();
+
+        assertThat(materializedTable.getUnresolvedSchema()).isNotNull();
+
+        final ResolvedCatalogMaterializedTable resolvedMaterializedTable =
+                resolveCatalogBaseTable(ResolvedCatalogMaterializedTable.class, materializedTable);
+
+        assertThat(resolvedMaterializedTable.getResolvedSchema())
+                .isEqualTo(RESOLVED_MATERIALIZED_TABLE_SCHEMA);
+
+        assertThat(resolvedMaterializedTable.getDefinitionQuery())
+                .isEqualTo(materializedTable.getDefinitionQuery());
+        assertThat(resolvedMaterializedTable.getFreshness())
+                .isEqualTo(materializedTable.getFreshness());
+        assertThat(resolvedMaterializedTable.getLogicalRefreshMode())
+                .isEqualTo(materializedTable.getLogicalRefreshMode());
+        assertThat(resolvedMaterializedTable.getRefreshMode())
+                .isEqualTo(materializedTable.getRefreshMode());
+        assertThat(resolvedMaterializedTable.getRefreshStatus())
+                .isEqualTo(materializedTable.getRefreshStatus());
     }
 
     @Test
@@ -317,6 +366,28 @@ class CatalogBaseTableResolutionTest {
         properties.put("comment", "This is an example table.");
         properties.put("snapshot", "1688918400000");
         return properties;
+    }
+
+    private static CatalogMaterializedTable catalogMaterializedTable() {
+        final String comment = "This is an example materialized table.";
+        final List<String> partitionKeys = Arrays.asList("region", "county");
+
+        final String definitionQuery =
+                String.format(
+                        "SELECT id, region, county FROM %s.%s.T",
+                        DEFAULT_CATALOG, DEFAULT_DATABASE);
+
+        CatalogMaterializedTable.Builder builder = CatalogMaterializedTable.newBuilder();
+        return builder.schema(MATERIALIZED_TABLE_SCHEMA)
+                .comment(comment)
+                .partitionKeys(partitionKeys)
+                .options(Collections.emptyMap())
+                .definitionQuery(definitionQuery)
+                .freshness(Duration.ofSeconds(30))
+                .logicalRefreshMode(CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC)
+                .refreshMode(CatalogMaterializedTable.RefreshMode.CONTINUOUS)
+                .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)
+                .build();
     }
 
     private static CatalogView catalogView() {

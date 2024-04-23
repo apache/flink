@@ -101,6 +101,10 @@ import static org.apache.hadoop.hive.serde2.thrift.Type.VARCHAR_TYPE;
 /** Factory to create the operation executor. */
 public class OperationExecutorFactory {
 
+    // Hive dialect doesn't support materialized table currently.
+    private static final Set<TableKind> TABLE_KINDS =
+            new HashSet<>(Arrays.asList(TableKind.TABLE, TableKind.VIEW));
+
     public static Callable<ResultSet> createGetCatalogsExecutor(
             SqlGatewayService service, SessionHandle sessionHandle) {
         return () -> executeGetCatalogs(service, sessionHandle);
@@ -291,14 +295,13 @@ public class OperationExecutorFactory {
         Set<String> schemaNames =
                 filterAndSort(
                         service.listDatabases(sessionHandle, specifiedCatalogName), schemaName);
-        Set<TableKind> tableKinds = new HashSet<>(Arrays.asList(TableKind.values()));
 
         List<RowData> results = new ArrayList<>();
         for (String schema : schemaNames) {
             Set<TableInfo> tableInfos =
                     filterAndSort(
                             service.listTables(
-                                    sessionHandle, specifiedCatalogName, schema, tableKinds),
+                                    sessionHandle, specifiedCatalogName, schema, TABLE_KINDS),
                             candidates -> candidates.getIdentifier().getObjectName(),
                             tableName);
 
@@ -369,10 +372,7 @@ public class OperationExecutorFactory {
             Set<TableInfo> tableInfos =
                     filterAndSort(
                             service.listTables(
-                                    sessionHandle,
-                                    specifiedCatalogName,
-                                    schema,
-                                    new HashSet<>(Arrays.asList(TableKind.values()))),
+                                    sessionHandle, specifiedCatalogName, schema, TABLE_KINDS),
                             candidate -> candidate.getIdentifier().getObjectName(),
                             tableName);
 
