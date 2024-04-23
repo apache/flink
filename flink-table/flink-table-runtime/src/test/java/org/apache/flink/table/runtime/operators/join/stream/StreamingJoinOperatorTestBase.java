@@ -41,7 +41,7 @@ import java.util.function.Function;
 /** Base test class for {@link AbstractStreamingJoinOperator}. */
 public abstract class StreamingJoinOperatorTestBase {
 
-    protected final InternalTypeInfo<RowData> leftTypeInfo =
+    protected InternalTypeInfo<RowData> leftTypeInfo =
             InternalTypeInfo.of(
                     RowType.of(
                             new LogicalType[] {
@@ -57,7 +57,7 @@ public abstract class StreamingJoinOperatorTestBase {
                             new LogicalType[] {new CharType(false, 20), new CharType(true, 10)},
                             new String[] {"line_order_id0", "line_order_ship_mode"}));
 
-    protected final RowDataKeySelector leftKeySelector =
+    protected RowDataKeySelector leftKeySelector =
             HandwrittenSelectorUtil.getRowDataSelector(
                     new int[] {1},
                     leftTypeInfo.toRowType().getChildren().toArray(new LogicalType[0]));
