@@ -83,6 +83,8 @@ object CodeGenUtils {
 
   val BINARY_ARRAY: String = className[BinaryArrayData]
 
+  val GENERIC_ARRAY: String = className[GenericArrayData]
+
   val BINARY_RAW_VALUE: String = className[BinaryRawValueData[_]]
 
   val BINARY_STRING: String = className[BinaryStringData]

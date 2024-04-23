@@ -18,13 +18,17 @@
 
 package org.apache.flink.table.planner.functions.sql;
 
+import org.apache.flink.table.api.ValidationException;
+
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.fun.SqlJsonQueryFunction;
 import org.apache.calcite.sql.fun.SqlJsonValueFunction;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeTransforms;
+import org.apache.calcite.sql.type.SqlTypeUtil;
 
 import java.util.Optional;
 
@@ -61,6 +65,30 @@ class SqlJsonQueryFunctionWrapper extends SqlJsonQueryFunction {
     @Override
     public SqlReturnTypeInference getReturnTypeInference() {
         return returnTypeInference;
+    }
+
+    @Override
+    public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
+        if (!super.checkOperandTypes(callBinding, throwOnFailure)) {
+            return false;
+        }
+
+        if (callBinding.getOperandCount() >= 6) {
+            final RelDataType type = SqlTypeUtil.deriveType(callBinding, callBinding.operand(5));
+            if (SqlTypeUtil.isArray(type) && !SqlTypeUtil.isCharacter(type.getComponentType())) {
+                if (throwOnFailure) {
+                    throw new ValidationException(
+                            String.format(
+                                    "Unsupported array element type '%s' for RETURNING ARRAY in JSON_QUERY().",
+                                    type.getComponentType()));
+                } else {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        return true;
     }
 
     /**

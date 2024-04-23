@@ -22,6 +22,8 @@ import org.apache.flink.table.data.{DecimalData, DecimalDataUtils, TimestampData
 import org.apache.flink.table.data.binary.{BinaryStringData, BinaryStringDataUtil}
 import org.apache.flink.table.functions.SqlLikeUtils
 import org.apache.flink.table.runtime.functions._
+import org.apache.flink.table.runtime.functions.SqlJsonUtils.JsonQueryReturnType
+import org.apache.flink.table.types.logical.LogicalTypeRoot
 import org.apache.flink.table.utils.DateTimeUtils
 import org.apache.flink.table.utils.DateTimeUtils.TimeUnitRange
 
@@ -491,6 +493,7 @@ object BuiltInMethods {
     "jsonQuery",
     classOf[String],
     classOf[String],
+    classOf[JsonQueryReturnType],
     classOf[JsonQueryWrapper],
     classOf[JsonQueryOnEmptyOrError],
     classOf[JsonQueryOnEmptyOrError]
