@@ -2232,6 +2232,7 @@ Request metrics aggregated across all entities of the respective type:
   - `/taskmanagers/metrics`
   - `/jobs/metrics`
   - `/jobs/<jobid>/vertices/<vertexid>/subtasks/metrics`
+  - `/jobs/<jobid>/vertices/<vertexid>/jm-operator-metrics`
 
 Request metrics aggregated over a subset of all entities of the respective type:
 

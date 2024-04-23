@@ -1130,6 +1130,39 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VertexFlameGraph'
+  /jobs/{jobid}/vertices/{vertexid}/jm-operator-metrics:
+    get:
+      description: Provides access to jobmanager operator metrics. This is an operator
+        that executes on the jobmanager and the coordinator for FLIP 27 sources is
+        one example of such an operator.
+      operationId: getJobManagerOperatorMetrics
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobID'
+      - name: vertexid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job vertex.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobVertexID'
+      - name: get
+        in: query
+        description: Comma-separated list of string values to select specific metrics.
+        required: false
+        style: form
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricCollectionResponseBody'
   /jobs/{jobid}/vertices/{vertexid}/metrics:
     get:
       description: Provides access to task metrics.

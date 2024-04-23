@@ -2839,6 +2839,31 @@
       }
     }
   }, {
+    "url" : "/jobs/:jobid/vertices/:vertexid/jm-operator-metrics",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      }, {
+        "key" : "vertexid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ {
+        "key" : "get",
+        "mandatory" : false
+      } ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+    },
+    "response" : {
+      "type" : "any"
+    }
+  }, {
     "url" : "/jobs/:jobid/vertices/:vertexid/flamegraph",
     "method" : "GET",
     "status-code" : "200 OK",
