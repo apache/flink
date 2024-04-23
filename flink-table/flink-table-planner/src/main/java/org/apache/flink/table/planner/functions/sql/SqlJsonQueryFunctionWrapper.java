@@ -21,7 +21,12 @@ package org.apache.flink.table.planner.functions.sql;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.fun.SqlJsonQueryFunction;
+import org.apache.calcite.sql.fun.SqlJsonValueFunction;
+import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
+import org.apache.calcite.sql.type.SqlTypeTransforms;
+
+import java.util.Optional;
 
 import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.VARCHAR_FORCE_NULLABLE;
 
@@ -30,23 +35,43 @@ import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.VARCHAR_
  * VARCHAR_FORCE_NULLABLE} return type inference.
  */
 class SqlJsonQueryFunctionWrapper extends SqlJsonQueryFunction {
+    private final SqlReturnTypeInference returnTypeInference;
+
+    SqlJsonQueryFunctionWrapper() {
+        this.returnTypeInference =
+                ReturnTypes.cascade(
+                                SqlJsonQueryFunctionWrapper::explicitTypeSpec,
+                                SqlTypeTransforms.FORCE_NULLABLE)
+                        .orElse(VARCHAR_FORCE_NULLABLE);
+    }
 
     @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-        RelDataType returnType = VARCHAR_FORCE_NULLABLE.inferReturnType(opBinding);
+        RelDataType returnType = returnTypeInference.inferReturnType(opBinding);
         if (returnType == null) {
             throw new IllegalArgumentException(
                     "Cannot infer return type for "
                             + opBinding.getOperator()
                             + "; operand types: "
                             + opBinding.collectOperandTypes());
-        } else {
-            return returnType;
         }
+        return returnType;
     }
 
     @Override
     public SqlReturnTypeInference getReturnTypeInference() {
-        return VARCHAR_FORCE_NULLABLE;
+        return returnTypeInference;
+    }
+
+    /**
+     * Copied and modified from the original {@link SqlJsonValueFunction}.
+     *
+     * <p>Changes: Instead of returning {@link Optional} this method returns null directly.
+     */
+    private static RelDataType explicitTypeSpec(SqlOperatorBinding opBinding) {
+        if (opBinding.getOperandCount() >= 6) {
+            return opBinding.getOperandType(5);
+        }
+        return null;
     }
 }

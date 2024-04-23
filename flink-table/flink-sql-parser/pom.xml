@@ -265,7 +265,8 @@ under the License.
 									<groupId>org.apache.calcite</groupId>
 									<artifactId>calcite-core</artifactId>
 									<type>jar</type>
-									<overWrite>true</overWrite>
+									<!-- this lets us overwrite some of the Calcite's methods -->
+									<overWrite>false</overWrite>
 									<outputDirectory>${project.build.directory}/</outputDirectory>
 									<includes>**/Parser.jj</includes>
 								</artifactItem>
