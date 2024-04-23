@@ -54,7 +54,7 @@ class InternalTimerServiceAsyncImplTest {
     void setup() throws Exception {
         asyncExecutionController =
                 new AsyncExecutionController(
-                        new SyncMailboxExecutor(), new TestStateExecutor(), 2, 10);
+                        new SyncMailboxExecutor(), new TestStateExecutor(), 2, 10, 128);
         // ensure arbitrary key is in the key group
         int totalKeyGroups = 128;
         KeyGroupRange testKeyGroupList = new KeyGroupRange(0, totalKeyGroups - 1);

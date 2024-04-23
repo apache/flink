@@ -25,7 +25,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.state.InternalStateFuture;
-import org.apache.flink.runtime.asyncprocessing.ContextKey;
+import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -81,7 +81,9 @@ public class ForStDBOperationTestBase {
     }
 
     protected ContextKey<Integer> buildContextKey(int i) {
-        return new ContextKey<>(i, KeyGroupRangeAssignment.assignToKeyGroup(i, 128));
+        int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(i, 128);
+        RecordContext<Integer> recordContext = new RecordContext<>(i, i, t -> {}, keyGroup);
+        return new ContextKey<>(recordContext);
     }
 
     protected ForStValueState<Integer, String> buildForStValueState(String stateName)
