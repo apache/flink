@@ -375,7 +375,7 @@ paths:
       - name: agg
         in: query
         description: "Comma-separated list of aggregation modes which should be calculated.\
-          \ Available aggregations are: \"min, max, sum, avg\"."
+          \ Available aggregations are: \"min, max, sum, avg, skew\"."
         required: false
         style: form
         schema:
@@ -1130,6 +1130,39 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VertexFlameGraph'
+  /jobs/{jobid}/vertices/{vertexid}/jm-operator-metrics:
+    get:
+      description: Provides access to jobmanager operator metrics. This is an operator
+        that executes on the jobmanager and the coordinator for FLIP 27 sources is
+        one example of such an operator.
+      operationId: getJobManagerOperatorMetrics
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobID'
+      - name: vertexid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job vertex.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobVertexID'
+      - name: get
+        in: query
+        description: Comma-separated list of string values to select specific metrics.
+        required: false
+        style: form
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricCollectionResponseBody'
   /jobs/{jobid}/vertices/{vertexid}/metrics:
     get:
       description: Provides access to task metrics.
@@ -1212,7 +1245,7 @@ paths:
       - name: agg
         in: query
         description: "Comma-separated list of aggregation modes which should be calculated.\
-          \ Available aggregations are: \"min, max, sum, avg\"."
+          \ Available aggregations are: \"min, max, sum, avg, skew\"."
         required: false
         style: form
         schema:
@@ -1525,7 +1558,7 @@ paths:
       - name: agg
         in: query
         description: "Comma-separated list of aggregation modes which should be calculated.\
-          \ Available aggregations are: \"min, max, sum, avg\"."
+          \ Available aggregations are: \"min, max, sum, avg, skew\"."
         required: false
         style: form
         schema:
@@ -1654,6 +1687,7 @@ components:
       - MAX
       - SUM
       - AVG
+      - SKEW
     ApplicationStatus:
       type: string
       enum:
@@ -2411,6 +2445,8 @@ components:
         parallelism:
           type: integer
           format: int32
+        slotSharingGroupId:
+          $ref: '#/components/schemas/SlotSharingGroupId'
         start-time:
           type: integer
           format: int64
@@ -2859,6 +2895,20 @@ components:
           $ref: '#/components/schemas/JobID'
         resource:
           $ref: '#/components/schemas/ResourceProfileInfo'
+    SlotSharingGroupId:
+      type: object
+      properties:
+        bytes:
+          type: array
+          items:
+            type: string
+            format: byte
+        lowerPart:
+          type: integer
+          format: int64
+        upperPart:
+          type: integer
+          format: int64
     StatsSummaryDto:
       type: object
       properties:

@@ -184,6 +184,22 @@ public class MetricStore {
         return ComponentMetricStore.unmodifiable(jobManager);
     }
 
+    public synchronized ComponentMetricStore getJobManagerOperatorMetricStore(
+            String jobID, String taskID) {
+        if (jobID == null || taskID == null) {
+            return null;
+        }
+        JobMetricStore job = jobs.get(jobID);
+        if (job == null) {
+            return null;
+        }
+        TaskMetricStore task = job.getTaskMetricStore(taskID);
+        if (task == null) {
+            return null;
+        }
+        return ComponentMetricStore.unmodifiable(task.getJobManagerOperatorMetricStore());
+    }
+
     /**
      * Returns the {@link TaskManagerMetricStore} for the given taskmanager ID.
      *
@@ -401,9 +417,12 @@ public class MetricStore {
                             job.tasks.computeIfAbsent(
                                     jmOperatorInfo.vertexID, k -> new TaskMetricStore());
                     jmOperator =
-                            task.jmOperators.computeIfAbsent(
-                                    jmOperatorInfo.operatorName, k -> new ComponentMetricStore());
-                    addMetric(jmOperator.metrics, name, metric);
+                            task.jmOperator == null ? new ComponentMetricStore() : task.jmOperator;
+                    addMetric(
+                            jmOperator.metrics,
+                            // to distinguish between operators
+                            jmOperatorInfo.operatorName + "." + name,
+                            metric);
                     break;
                 default:
                     LOG.debug("Invalid metric dump category: " + info.getCategory());
@@ -538,19 +557,19 @@ public class MetricStore {
     @ThreadSafe
     public static class TaskMetricStore extends ComponentMetricStore {
         private final Map<Integer, SubtaskMetricStore> subtasks;
-        private final Map<String, ComponentMetricStore> jmOperators;
+        private final ComponentMetricStore jmOperator;
 
         private TaskMetricStore() {
-            this(new ConcurrentHashMap<>(), new ConcurrentHashMap<>(), new ConcurrentHashMap<>());
+            this(new ConcurrentHashMap<>(), new ConcurrentHashMap<>(), new ComponentMetricStore());
         }
 
         private TaskMetricStore(
                 Map<String, String> metrics,
                 Map<Integer, SubtaskMetricStore> subtasks,
-                Map<String, ComponentMetricStore> jmOperators) {
+                ComponentMetricStore jmOperator) {
             super(metrics);
             this.subtasks = checkNotNull(subtasks);
-            this.jmOperators = checkNotNull(jmOperators);
+            this.jmOperator = checkNotNull(jmOperator);
         }
 
         public SubtaskMetricStore getSubtaskMetricStore(int subtaskIndex) {
@@ -591,8 +610,8 @@ public class MetricStore {
             }
         }
 
-        public ComponentMetricStore getJobManagerOperatorMetricStores(String operatorName) {
-            return jmOperators.get(operatorName);
+        public ComponentMetricStore getJobManagerOperatorMetricStore() {
+            return jmOperator;
         }
 
         private static TaskMetricStore unmodifiable(TaskMetricStore source) {
@@ -602,7 +621,7 @@ public class MetricStore {
             return new TaskMetricStore(
                     unmodifiableMap(source.metrics),
                     unmodifiableMap(source.subtasks),
-                    unmodifiableMap(source.jmOperators));
+                    ComponentMetricStore.unmodifiable(source.jmOperator));
         }
     }
 

@@ -108,14 +108,14 @@ class MetricStoreTest {
 
         assertThat(
                         store.getTaskMetricStore(JOB_ID.toString(), "taskid")
-                                .getJobManagerOperatorMetricStores("opname")
-                                .getMetric("abc.metric8", "-1"))
+                                .getJobManagerOperatorMetricStore()
+                                .getMetric("opname.abc.metric8", "-1"))
                 .isEqualTo("19");
 
         assertThat(
                         store.getTaskMetricStore(JOB_ID.toString(), "taskid")
-                                .getJobManagerOperatorMetricStores("opname")
-                                .getMetric("abc.metric9", "-1"))
+                                .getJobManagerOperatorMetricStore()
+                                .getMetric("opname.abc.metric9", "-1"))
                 .isEqualTo("20");
     }
 

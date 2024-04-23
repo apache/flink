@@ -281,7 +281,7 @@ public class MetricOptions {
                     .stringType()
                     .defaultValue("<host>.jobmanager.<job_name>.<operator_name>")
                     .withDescription(
-                            "Defines the scope format string that is applied to all metrics scoped to the components running on a JobManager of an Operator, like OperatorCoordinator.");
+                            "Defines the scope format string that is applied to all metrics scoped to the components running on a JobManager of an Operator, like OperatorCoordinator for Source Enumerator metrics.");
 
     /** The scope format string that is applied to all metrics scoped to a job on a TaskManager. */
     public static final ConfigOption<String> SCOPE_NAMING_TM_JOB =
