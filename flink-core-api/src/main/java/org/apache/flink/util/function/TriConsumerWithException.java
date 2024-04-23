@@ -18,8 +18,6 @@
 
 package org.apache.flink.util.function;
 
-import org.apache.flink.util.ExceptionUtils;
-
 /**
  * A checked extension of the {@link TriConsumer} interface.
  *
@@ -57,7 +55,7 @@ public interface TriConsumerWithException<S, T, U, E extends Throwable> {
             try {
                 triConsumerWithException.accept(a, b, c);
             } catch (Throwable t) {
-                ExceptionUtils.rethrow(t);
+                ThrowingExceptionUtils.rethrow(t);
             }
         };
     }

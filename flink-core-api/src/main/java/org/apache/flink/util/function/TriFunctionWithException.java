@@ -19,7 +19,6 @@
 package org.apache.flink.util.function;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.util.ExceptionUtils;
 
 import java.util.function.BiFunction;
 
@@ -63,7 +62,7 @@ public interface TriFunctionWithException<S, T, U, R, E extends Throwable> {
             try {
                 return triFunctionWithException.apply(a, b, c);
             } catch (Throwable t) {
-                ExceptionUtils.rethrow(t);
+                ThrowingExceptionUtils.rethrow(t);
                 // we need this to appease the compiler :-(
                 return null;
             }
