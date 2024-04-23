@@ -117,6 +117,10 @@ public class NoFetchingInput extends Input {
             throw new IllegalArgumentException("bytes cannot be null.");
         }
 
+        if (count == 0) {
+            return;
+        }
+
         try {
             int bytesRead = 0;
             int c;
