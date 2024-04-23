@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.checkpoint.filemerging;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
@@ -29,51 +29,52 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filemerging.SegmentFileStateHandle;
+import org.apache.flink.util.Preconditions;
 
-import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
- * Restore operation that restores file-merging information belonging to one task for {@link
+ * Restore operation that restores file-merging information belonging to one subtask for {@link
  * FileMergingSnapshotManager}.
  */
-public class TaskFileMergingManagerRestoreOperation {
+public class SubtaskFileMergingManagerRestoreOperation {
 
     /** The restored checkpoint id. */
     private final long checkpointId;
 
+    /** The restored job id. */
+    private final JobID jobID;
+
     /** The restored Task info. */
     private final TaskInfo taskInfo;
 
+    /** The id of the operator to which the subtask belongs. */
+    private final OperatorID operatorID;
+
     private final FileMergingSnapshotManager fileMergingSnapshotManager;
 
-    /** The TaskStateSnapshot which belongs to the restored Task. */
-    private final TaskStateSnapshot taskStateSnapshot;
+    /** The state which belongs to the restored subtask. */
+    private final OperatorSubtaskState subtaskState;
 
-    public TaskFileMergingManagerRestoreOperation(
+    public SubtaskFileMergingManagerRestoreOperation(
             long checkpointId,
             FileMergingSnapshotManager fileMergingSnapshotManager,
+            JobID jobID,
             TaskInfo taskInfo,
-            TaskStateSnapshot taskStateSnapshot) {
+            OperatorID operatorID,
+            OperatorSubtaskState subtaskState) {
         this.checkpointId = checkpointId;
-        this.taskInfo = taskInfo;
         this.fileMergingSnapshotManager = fileMergingSnapshotManager;
-        this.taskStateSnapshot = taskStateSnapshot;
+        this.jobID = jobID;
+        this.taskInfo = Preconditions.checkNotNull(taskInfo);
+        this.operatorID = Preconditions.checkNotNull(operatorID);
+        this.subtaskState = Preconditions.checkNotNull(subtaskState);
     }
 
     public void restore() {
-        for (Map.Entry<OperatorID, OperatorSubtaskState> operatorSubTaskState :
-                taskStateSnapshot.getSubtaskStateMappings()) {
-            FileMergingSnapshotManager.SubtaskKey subtaskKey =
-                    new FileMergingSnapshotManager.SubtaskKey(
-                            operatorSubTaskState.getKey(), taskInfo);
-            restoreOperatorSubtaskStateHandles(subtaskKey, operatorSubTaskState.getValue());
-        }
-    }
-
-    private void restoreOperatorSubtaskStateHandles(
-            FileMergingSnapshotManager.SubtaskKey subtaskKey, OperatorSubtaskState subtaskState) {
+        FileMergingSnapshotManager.SubtaskKey subtaskKey =
+                new FileMergingSnapshotManager.SubtaskKey(jobID, operatorID, taskInfo);
 
         Stream<? extends StateObject> keyedStateHandles =
                 Stream.concat(

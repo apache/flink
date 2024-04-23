@@ -44,6 +44,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
@@ -584,34 +585,62 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     public void restoreStateHandles(
             long checkpointId, SubtaskKey subtaskKey, Stream<SegmentFileStateHandle> stateHandles) {
 
-        Set<LogicalFile> uploadedLogicalFiles;
         synchronized (lock) {
-            uploadedLogicalFiles =
+            Set<LogicalFile> restoredLogicalFiles =
                     uploadedStates.computeIfAbsent(checkpointId, id -> new HashSet<>());
-        }
 
-        stateHandles.forEach(
-                fileHandle -> {
-                    PhysicalFile physicalFile =
-                            new PhysicalFile(
-                                    null,
-                                    fileHandle.getFilePath(),
-                                    physicalFileDeleter,
-                                    fileHandle.getScope());
-                    LogicalFileId logicalFileId = fileHandle.getLogicalFileId();
-                    LogicalFile logicalFile =
-                            new LogicalFile(
-                                    logicalFileId,
-                                    physicalFile,
-                                    fileHandle.getStartPos(),
-                                    fileHandle.getStateSize(),
-                                    subtaskKey);
-                    knownLogicalFiles.put(logicalFileId, logicalFile);
-                    logicalFile.advanceLastCheckpointId(checkpointId);
-                    synchronized (lock) {
-                        uploadedLogicalFiles.add(logicalFile);
-                    }
-                });
+            Map<Path, PhysicalFile> knownPhysicalFiles = new HashMap<>();
+            knownLogicalFiles.values().stream()
+                    .map(LogicalFile::getPhysicalFile)
+                    .forEach(file -> knownPhysicalFiles.putIfAbsent(file.getFilePath(), file));
+
+            stateHandles.forEach(
+                    fileHandle -> {
+                        PhysicalFile physicalFile =
+                                knownPhysicalFiles.computeIfAbsent(
+                                        fileHandle.getFilePath(),
+                                        path -> {
+                                            PhysicalFileDeleter fileDeleter =
+                                                    (isManagedByFileMergingManager(
+                                                                    path,
+                                                                    subtaskKey,
+                                                                    fileHandle.getScope()))
+                                                            ? physicalFileDeleter
+                                                            : null;
+                                            return new PhysicalFile(
+                                                    null, path, fileDeleter, fileHandle.getScope());
+                                        });
+
+                        LogicalFileId logicalFileId = fileHandle.getLogicalFileId();
+                        LogicalFile logicalFile =
+                                new LogicalFile(
+                                        logicalFileId,
+                                        physicalFile,
+                                        fileHandle.getStartPos(),
+                                        fileHandle.getStateSize(),
+                                        subtaskKey);
+                        knownLogicalFiles.put(logicalFileId, logicalFile);
+                        logicalFile.advanceLastCheckpointId(checkpointId);
+                        restoredLogicalFiles.add(logicalFile);
+                    });
+        }
+    }
+
+    /**
+     * Distinguish whether the given filePath is managed by the FileMergingSnapshotManager. If the
+     * filePath is located under managedDir (managedSharedStateDir or managedExclusiveStateDir) as a
+     * subFile, it should be managed by the FileMergingSnapshotManager.
+     */
+    private boolean isManagedByFileMergingManager(
+            Path filePath, SubtaskKey subtaskKey, CheckpointedStateScope scope) {
+        if (scope == CheckpointedStateScope.SHARED) {
+            Path managedDir = managedSharedStateDir.get(subtaskKey);
+            return filePath.toString().startsWith(managedDir.toString());
+        }
+        if (scope == CheckpointedStateScope.EXCLUSIVE) {
+            return filePath.toString().startsWith(managedExclusiveStateDir.toString());
+        }
+        throw new UnsupportedOperationException("Unsupported CheckpointStateScope " + scope);
     }
 
     @VisibleForTesting

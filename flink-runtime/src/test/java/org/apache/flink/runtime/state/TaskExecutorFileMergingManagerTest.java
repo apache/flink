@@ -39,8 +39,8 @@ public class TaskExecutorFileMergingManagerTest {
                 new TaskExecutorFileMergingManager();
         JobID job1 = new JobID(1234L, 4321L);
         JobID job2 = new JobID(1234L, 5678L);
-        SubtaskKey key1 = new SubtaskKey("test-op1", 0, 128);
-        SubtaskKey key2 = new SubtaskKey("test-op2", 1, 128);
+        SubtaskKey key1 = new SubtaskKey("test-jobId", "test-op1", 0, 128);
+        SubtaskKey key2 = new SubtaskKey("test-jobId", "test-op2", 1, 128);
         Path checkpointDir1 = new Path(testBaseDir.toString(), "job1");
         Path checkpointDir2 = new Path(testBaseDir.toString(), "job2");
         int writeBufferSize = 4096;

@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.checkpoint.filemerging;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -186,6 +187,7 @@ public interface FileMergingSnapshotManager extends Closeable {
      * the parallelism. Note that this key should be consistent across job attempts.
      */
     final class SubtaskKey {
+        final String jobIDString;
         final String operatorIDString;
         final int subtaskIndex;
         final int parallelism;
@@ -196,19 +198,23 @@ public interface FileMergingSnapshotManager extends Closeable {
          */
         final int hashCode;
 
-        public SubtaskKey(OperatorID operatorID, TaskInfo taskInfo) {
+        public SubtaskKey(JobID jobID, OperatorID operatorID, TaskInfo taskInfo) {
             this(
+                    jobID.toHexString(),
                     operatorID.toHexString(),
                     taskInfo.getIndexOfThisSubtask(),
                     taskInfo.getNumberOfParallelSubtasks());
         }
 
         @VisibleForTesting
-        public SubtaskKey(String operatorIDString, int subtaskIndex, int parallelism) {
+        public SubtaskKey(
+                String jobIDString, String operatorIDString, int subtaskIndex, int parallelism) {
+            this.jobIDString = jobIDString;
             this.operatorIDString = operatorIDString;
             this.subtaskIndex = subtaskIndex;
             this.parallelism = parallelism;
-            int hash = operatorIDString.hashCode();
+            int hash = jobIDString.hashCode();
+            hash = 31 * hash + operatorIDString.hashCode();
             hash = 31 * hash + subtaskIndex;
             hash = 31 * hash + parallelism;
             this.hashCode = hash;
@@ -216,6 +222,7 @@ public interface FileMergingSnapshotManager extends Closeable {
 
         public static SubtaskKey of(Environment environment) {
             return new SubtaskKey(
+                    environment.getJobID(),
                     OperatorID.fromJobVertexID(environment.getJobVertexId()),
                     environment.getTaskInfo());
         }
@@ -226,7 +233,9 @@ public interface FileMergingSnapshotManager extends Closeable {
          * @return the managed directory name.
          */
         public String getManagedDirName() {
-            return String.format("%s_%d_%d_", operatorIDString, subtaskIndex, parallelism)
+            return String.format(
+                            "%s_%s_%d_%d_",
+                            jobIDString, operatorIDString, subtaskIndex, parallelism)
                     .replaceAll("[^a-zA-Z0-9\\-]", "_");
         }
 
@@ -244,7 +253,8 @@ public interface FileMergingSnapshotManager extends Closeable {
             return hashCode == that.hashCode
                     && subtaskIndex == that.subtaskIndex
                     && parallelism == that.parallelism
-                    && operatorIDString.equals(that.operatorIDString);
+                    && operatorIDString.equals(that.operatorIDString)
+                    && jobIDString.equals(that.jobIDString);
         }
 
         @Override
@@ -254,7 +264,8 @@ public interface FileMergingSnapshotManager extends Closeable {
 
         @Override
         public String toString() {
-            return String.format("%s(%d/%d)", operatorIDString, subtaskIndex, parallelism);
+            return String.format(
+                    "%s-%s(%d/%d)", jobIDString, operatorIDString, subtaskIndex, parallelism);
         }
     }
 }

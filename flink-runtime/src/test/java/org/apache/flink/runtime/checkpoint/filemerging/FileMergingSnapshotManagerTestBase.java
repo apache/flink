@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.checkpoint.filemerging;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.core.fs.CloseableRegistry;
@@ -56,6 +57,7 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -63,6 +65,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 public abstract class FileMergingSnapshotManagerTestBase {
 
     final String tmId = "Testing";
+
+    final JobID jobID = new JobID();
 
     final OperatorID operatorID = new OperatorID(289347923L, 75893479L);
 
@@ -79,8 +83,10 @@ public abstract class FileMergingSnapshotManagerTestBase {
     public void setup(@TempDir java.nio.file.Path tempFolder) {
         // use simplified job ids for the tests
         long jobId = 1;
-        subtaskKey1 = new SubtaskKey(operatorID, new TaskInfoImpl("TestingTask", 128, 0, 128, 3));
-        subtaskKey2 = new SubtaskKey(operatorID, new TaskInfoImpl("TestingTask", 128, 1, 128, 3));
+        subtaskKey1 =
+                new SubtaskKey(jobID, operatorID, new TaskInfoImpl("TestingTask", 128, 0, 128, 3));
+        subtaskKey2 =
+                new SubtaskKey(jobID, operatorID, new TaskInfoImpl("TestingTask", 128, 1, 128, 3));
         checkpointBaseDir = new Path(tempFolder.toString(), String.valueOf(jobId));
         writeBufferSize = 4096;
     }
@@ -400,7 +406,6 @@ public abstract class FileMergingSnapshotManagerTestBase {
     public void testRestore() throws Exception {
         TaskStateSnapshot taskStateSnapshot;
         long checkpointId = 222;
-        int operatorNum = 2;
 
         // Step1: build TaskStateSnapshot using FileMergingSnapshotManagerBase;
         try (FileMergingSnapshotManagerBase fmsm =
@@ -408,11 +413,8 @@ public abstract class FileMergingSnapshotManagerTestBase {
                                 createFileMergingSnapshotManager(checkpointBaseDir);
                 CloseableRegistry closeableRegistry = new CloseableRegistry()) {
             Map<OperatorID, OperatorSubtaskState> subtaskStatesByOperatorID = new HashMap<>();
-            for (int i = 0; i < operatorNum; i++) {
-                subtaskStatesByOperatorID.put(
-                        new OperatorID(),
-                        buildOperatorSubtaskState(checkpointId, fmsm, closeableRegistry));
-            }
+            subtaskStatesByOperatorID.put(
+                    operatorID, buildOperatorSubtaskState(checkpointId, fmsm, closeableRegistry));
             taskStateSnapshot = new TaskStateSnapshot(subtaskStatesByOperatorID);
         }
         assertThat(taskStateSnapshot).isNotNull();
@@ -421,18 +423,41 @@ public abstract class FileMergingSnapshotManagerTestBase {
         try (FileMergingSnapshotManagerBase fmsm =
                 (FileMergingSnapshotManagerBase)
                         createFileMergingSnapshotManager(checkpointBaseDir)) {
-            TaskInfo taskInfo = new TaskInfoImpl("test restore", 128, 2, 64, 0);
-            TaskFileMergingManagerRestoreOperation restoreOperation =
-                    new TaskFileMergingManagerRestoreOperation(
-                            checkpointId, fmsm, taskInfo, taskStateSnapshot);
-            restoreOperation.restore();
+            TaskInfo taskInfo =
+                    new TaskInfoImpl(
+                            "test restore",
+                            128,
+                            subtaskKey1.subtaskIndex,
+                            subtaskKey1.parallelism,
+                            0);
+            for (Map.Entry<OperatorID, OperatorSubtaskState> entry :
+                    taskStateSnapshot.getSubtaskStateMappings()) {
+                SubtaskFileMergingManagerRestoreOperation restoreOperation =
+                        new SubtaskFileMergingManagerRestoreOperation(
+                                checkpointId,
+                                fmsm,
+                                jobID,
+                                taskInfo,
+                                entry.getKey(),
+                                entry.getValue());
+                restoreOperation.restore();
+            }
             TreeMap<Long, Set<LogicalFile>> stateFiles = fmsm.getUploadedStates();
             assertThat(stateFiles.size()).isEqualTo(1);
             Set<LogicalFile> restoreFileSet = stateFiles.get(checkpointId);
             assertThat(restoreFileSet).isNotNull();
-            assertThat(restoreFileSet.size()).isEqualTo(4 * operatorNum);
+            assertThat(restoreFileSet.size()).isEqualTo(4);
             for (LogicalFile file : restoreFileSet) {
                 assertThat(fmsm.getLogicalFile(file.getFileId())).isEqualTo(file);
+            }
+            Set<Path> physicalFileSet =
+                    restoreFileSet.stream()
+                            .map(LogicalFile::getPhysicalFile)
+                            .map(PhysicalFile::getFilePath)
+                            .collect(Collectors.toSet());
+            fmsm.notifyCheckpointSubsumed(subtaskKey1, checkpointId);
+            for (Path path : physicalFileSet) {
+                assertThat(path.getFileSystem().exists(path)).isFalse();
             }
         }
     }
