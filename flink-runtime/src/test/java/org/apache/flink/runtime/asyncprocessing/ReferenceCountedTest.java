@@ -57,7 +57,7 @@ class ReferenceCountedTest {
         assertThat(referenceCounted.getReferenceCount()).isEqualTo(0);
     }
 
-    private static class TestReferenceCounted extends ReferenceCounted {
+    private static class TestReferenceCounted extends ReferenceCounted<Void> {
         private boolean reachedZero = false;
 
         public TestReferenceCounted() {
@@ -65,7 +65,7 @@ class ReferenceCountedTest {
         }
 
         @Override
-        protected void referenceCountReachedZero() {
+        protected void referenceCountReachedZero(Void v) {
             reachedZero = true;
         }
     }

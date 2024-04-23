@@ -65,7 +65,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                         (t) -> {
                             callbackRunner.submit(
                                     () -> {
-                                        ret.complete(fn.apply(t));
+                                        ret.completeInCallbackRunner(fn.apply(t));
                                         callbackFinished();
                                     });
                         });
@@ -91,7 +91,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                             callbackRunner.submit(
                                     () -> {
                                         action.accept(t);
-                                        ret.complete(null);
+                                        ret.completeInCallbackRunner(null);
                                         callbackFinished();
                                     });
                         });
@@ -116,7 +116,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                             callbackRunner.submit(
                                     () -> {
                                         StateFuture<U> su = action.apply(t);
-                                        su.thenAccept(ret::complete);
+                                        su.thenAccept(ret::completeInCallbackRunner);
                                         callbackFinished();
                                     });
                         });
@@ -153,7 +153,8 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
                                             (t) -> {
                                                 callbackRunner.submit(
                                                         () -> {
-                                                            ret.complete(fn.apply(t, u));
+                                                            ret.completeInCallbackRunner(
+                                                                    fn.apply(t, u));
                                                             callbackFinished();
                                                         });
                                             });
@@ -178,7 +179,12 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
     @Override
     public void complete(T result) {
         completableFuture.complete(result);
-        postComplete();
+        postComplete(false);
+    }
+
+    private void completeInCallbackRunner(T result) {
+        completableFuture.complete(result);
+        postComplete(true);
     }
 
     /** Will be triggered when a callback is registered. */
@@ -187,7 +193,7 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
     }
 
     /** Will be triggered when this future completes. */
-    public void postComplete() {
+    public void postComplete(boolean inCallbackRunner) {
         // does nothing by default.
     }
 
