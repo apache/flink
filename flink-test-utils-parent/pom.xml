@@ -40,6 +40,7 @@ under the License.
 		<module>flink-connector-test-utils</module>
 		<module>flink-clients-test-utils</module>
 		<module>flink-migration-test-utils</module>
+		<module>flink-table-filesystem-test-utils</module>
 	</modules>
 
 </project>
