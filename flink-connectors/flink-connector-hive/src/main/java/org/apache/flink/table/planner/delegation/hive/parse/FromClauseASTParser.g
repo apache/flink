@@ -37,6 +37,10 @@ k=3;
       RecognitionException e) {
     gParent.errors.add(new HiveASTParseError(gParent, e, tokenNames));
   }
+
+  protected boolean useSQL11ReservedKeywordsForIdentifier() {
+    return gParent.useSQL11ReservedKeywordsForIdentifier();
+  }
 }
 
 @rulecatch {

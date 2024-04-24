@@ -119,6 +119,19 @@ We have some configs like the following:
 
 </configuration>
 ```
+If the [Hive dialect]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/overview" >}}) is used, Flink supports
+treating reserved keywords as identifiers in Hive SQL by configuring `hive.support.sql11.reserved.keywords=false` in
+hive-site.xml. The specific configuration is as follows:
+
+```xml
+
+<configuration>
+   <property>
+      <name>hive.support.sql11.reserved.keywords</name>
+      <value>false</value>
+   </property>
+</configuration>
+```
 
 
 Test connection to the HMS with Hive Cli. Running some commands, we can see we have a database named `default` and there's no table in it.

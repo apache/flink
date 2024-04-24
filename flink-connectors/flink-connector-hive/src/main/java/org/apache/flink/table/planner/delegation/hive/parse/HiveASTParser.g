@@ -417,6 +417,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNode;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseError;
+import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.SUPPORT_SQL11_RESERVED_KEYWORDS_AS_IDENTIFIERS_CONFIG_NAME;
 }
 
 
@@ -720,6 +721,13 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseError;
   private Configuration hiveConf;
   public void setHiveConf(Configuration hiveConf) {
     this.hiveConf = hiveConf;
+  }
+
+  protected boolean useSQL11ReservedKeywordsForIdentifier() {
+      if(hiveConf==null){
+        return false;
+      }
+      return !hiveConf.getBoolean(SUPPORT_SQL11_RESERVED_KEYWORDS_AS_IDENTIFIERS_CONFIG_NAME, true);
   }
 }
 
