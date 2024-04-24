@@ -247,7 +247,7 @@ public class ApicurioRegistryAvroFormatFactory
             // when there is no value we would like to set the default as the value.
             // at java 11 we can use the orElse or isEmpty , but we are java 8
             String configOptionKey = configOption.key();
-            if (properties.get(configOptionKey) == null) {
+            if (properties.get(configOptionKey) == null && configOption.hasDefaultValue()) {
                 properties.put(configOptionKey, configOption.defaultValue());
             }
         }

@@ -42,6 +42,7 @@ import java.util.function.Consumer;
 
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.OIDC_AUTH_TOKEN_EXPIRATION_REDUCTION;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.PROPERTIES;
+import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.SSL_TRUSTSTORE_LOCATION;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.USE_GLOBALID;
 import static org.apache.flink.formats.avro.registry.apicurio.AvroApicurioFormatOptions.USE_HEADERS;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
@@ -106,33 +107,6 @@ class RegistryAvroFormatFactoryTest {
         EXPECTED_OPTIONAL_PROPERTIES.put("bearer.auth.token", "CUSTOM");
     }
 
-    //    @Test
-    //    void testDeserializationSchema() {
-    //        AvroToRowDataConverters.AvroToRowDataConverter rowConverter =
-    //                AvroToRowDataConverters.createRowConverter(ROW_TYPE);
-    //        ApicurioRegistryAvroDeserializationSchema<GenericRecord> nestedSchema =
-    //                ApicurioRegistryAvroDeserializationSchema.forGeneric(
-    //                        AvroSchemaConverter.convertToSchema(ROW_TYPE), REGISTRY_URL);
-    //
-    //        final AvroRowDataDeserializationSchema expectedDeser =
-    //                new AvroRowDataDeserializationSchema(
-    //                        nestedSchema, rowConverter, InternalTypeInfo.of(ROW_TYPE));
-    //
-    //        final DynamicTableSource actualSource = createTableSource(SCHEMA,
-    // getDefaultOptions());
-    //
-    //
-    // assertThat(actualSource).isInstanceOf(TestDynamicTableFactory.DynamicTableSourceMock.class);
-    //        TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
-    //                (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
-    //
-    //        DeserializationSchema<RowData> actualDeser =
-    //                scanSourceMock.valueFormat.createRuntimeDecoder(
-    //                        ScanRuntimeProviderContext.INSTANCE, SCHEMA.toPhysicalRowDataType());
-    //
-    //        assertThat(actualDeser).isEqualTo(expectedDeser);
-    //    }
-
     /**
      * Returns the full options modified by the given consumer {@code optionModifier}.
      *
@@ -162,7 +136,9 @@ class RegistryAvroFormatFactoryTest {
                 assertThat(outputMap.get(configOption.key())).isNull();
             }
         }
+        // check some specific values to confirm
         assertThat((boolean) outputMap.get(USE_GLOBALID.key())).isTrue();
+        assertThat(outputMap.get(SSL_TRUSTSTORE_LOCATION.key())).isNull();
     }
 
     @Test
