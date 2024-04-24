@@ -43,6 +43,7 @@ import org.apache.flink.runtime.io.network.partition.DataSetMetaInfo;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -1268,6 +1269,7 @@ class RestClusterClientTest {
                         "foobar",
                         false,
                         JobStatus.RUNNING,
+                        JobType.STREAMING,
                         1,
                         2,
                         1,

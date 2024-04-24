@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
@@ -57,6 +58,8 @@ public class JobDetailsInfo implements ResponseBody {
 
     public static final String FIELD_NAME_JOB_STATUS = "state";
 
+    public static final String FIELD_NAME_JOB_TYPE = "job-type";
+
     public static final String FIELD_NAME_START_TIME = "start-time";
 
     public static final String FIELD_NAME_END_TIME = "end-time";
@@ -88,6 +91,9 @@ public class JobDetailsInfo implements ResponseBody {
 
     @JsonProperty(FIELD_NAME_JOB_STATUS)
     private final JobStatus jobStatus;
+
+    @JsonProperty(FIELD_NAME_JOB_TYPE)
+    private final JobType jobType;
 
     @JsonProperty(FIELD_NAME_START_TIME)
     private final long startTime;
@@ -123,6 +129,7 @@ public class JobDetailsInfo implements ResponseBody {
             @JsonProperty(FIELD_NAME_JOB_NAME) String name,
             @JsonProperty(FIELD_NAME_IS_STOPPABLE) boolean isStoppable,
             @JsonProperty(FIELD_NAME_JOB_STATUS) JobStatus jobStatus,
+            @JsonProperty(FIELD_NAME_JOB_TYPE) JobType jobType,
             @JsonProperty(FIELD_NAME_START_TIME) long startTime,
             @JsonProperty(FIELD_NAME_END_TIME) long endTime,
             @JsonProperty(FIELD_NAME_DURATION) long duration,
@@ -138,6 +145,7 @@ public class JobDetailsInfo implements ResponseBody {
         this.name = Preconditions.checkNotNull(name);
         this.isStoppable = isStoppable;
         this.jobStatus = Preconditions.checkNotNull(jobStatus);
+        this.jobType = Preconditions.checkNotNull(jobType);
         this.startTime = startTime;
         this.endTime = endTime;
         this.duration = duration;
@@ -167,6 +175,7 @@ public class JobDetailsInfo implements ResponseBody {
                 && Objects.equals(jobId, that.jobId)
                 && Objects.equals(name, that.name)
                 && jobStatus == that.jobStatus
+                && jobType == that.jobType
                 && Objects.equals(timestamps, that.timestamps)
                 && Objects.equals(jobVertexInfos, that.jobVertexInfos)
                 && Objects.equals(jobVerticesPerState, that.jobVerticesPerState)
@@ -180,6 +189,7 @@ public class JobDetailsInfo implements ResponseBody {
                 name,
                 isStoppable,
                 jobStatus,
+                jobType,
                 startTime,
                 endTime,
                 duration,
@@ -209,6 +219,11 @@ public class JobDetailsInfo implements ResponseBody {
     @JsonIgnore
     public JobStatus getJobStatus() {
         return jobStatus;
+    }
+
+    @JsonIgnore
+    public JobType getJobType() {
+        return jobType;
     }
 
     @JsonIgnore

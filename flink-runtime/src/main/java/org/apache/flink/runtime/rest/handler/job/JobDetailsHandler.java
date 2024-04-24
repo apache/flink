@@ -146,6 +146,7 @@ public class JobDetailsHandler
                 executionGraph.getJobName(),
                 executionGraph.isStoppable(),
                 executionGraph.getState(),
+                executionGraph.getJobType(),
                 startTime,
                 endTime,
                 duration,
