@@ -49,4 +49,8 @@ public interface ParserResource {
 
     @Resources.BaseMessage("Bucket count must be a positive integer.")
     Resources.ExInst<ParseException> bucketCountMustBePositiveInteger();
+
+    @Resources.BaseMessage(
+            "MATERIALIZED table FRESHNESS only support Interval Type, please refer to the materialized table document.")
+    Resources.ExInst<ParseException> freshnessUnsupportedType();
 }

@@ -2826,3 +2826,57 @@ SqlTruncateTable SqlTruncateTable() :
         return new SqlTruncateTable(getPos(), sqlIdentifier);
     }
 }
+
+/**
+  * Parses a CREATE MATERIALIZED TABLE statement.
+  */
+SqlCreateMaterializedTable SqlCreateMaterializedTable() :
+{
+    final Span s;
+    SqlIdentifier tableName;
+    SqlCharStringLiteral comment = null;
+    SqlTableConstraint constraint = null;
+    SqlNodeList partitionColumns = SqlNodeList.EMPTY;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+    SqlNode freshness = null;
+    SqlLiteral refreshMode = null;
+    SqlNode asQuery = null;
+}
+{
+    <CREATE> <MATERIALIZED> <TABLE> { s = span(); }
+    tableName = CompoundIdentifier()
+    [ <LPAREN> constraint = TableConstraint() <RPAREN> ]
+    [ <COMMENT> <QUOTED_STRING> {
+        String p = SqlParserUtil.parseString(token.image);
+        comment = SqlLiteral.createCharString(p, getPos()); }
+    ]
+    [ <PARTITIONED> <BY> partitionColumns = ParenthesizedSimpleIdentifierList() ]
+    [ <WITH> propertyList = TableProperties() ]
+    <FRESHNESS> <EQ> freshness = Expression(ExprContext.ACCEPT_NON_QUERY) {
+        if (!(freshness instanceof SqlIntervalLiteral)) {
+            throw SqlUtil.newContextException(
+            getPos(),
+            ParserResource.RESOURCE.freshnessUnsupportedType());
+        }
+    }
+    [ <REFRESH_MODE> <EQ>
+        (
+            <FULL> { refreshMode = SqlRefreshMode.FULL.symbol(getPos()); }
+        |
+            <CONTINUOUS> { refreshMode = SqlRefreshMode.CONTINUOUS.symbol(getPos()); }
+        )
+    ]
+    <AS> asQuery = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+    {
+        return new SqlCreateMaterializedTable(
+                    s.end(this),
+                    tableName,
+                    comment,
+                    constraint,
+                    partitionColumns,
+                    propertyList,
+                    (SqlIntervalLiteral) freshness,
+                    refreshMode,
+                    asQuery);
+    }
+}

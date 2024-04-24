@@ -56,6 +56,7 @@
     "org.apache.flink.sql.parser.ddl.SqlCreateCatalog"
     "org.apache.flink.sql.parser.ddl.SqlCreateDatabase"
     "org.apache.flink.sql.parser.ddl.SqlCreateFunction"
+    "org.apache.flink.sql.parser.ddl.SqlCreateMaterializedTable"
     "org.apache.flink.sql.parser.ddl.SqlCreateTable"
     "org.apache.flink.sql.parser.ddl.SqlCreateTable.TableCreationContext"
     "org.apache.flink.sql.parser.ddl.SqlCreateTableAs"
@@ -69,6 +70,7 @@
     "org.apache.flink.sql.parser.ddl.SqlDropPartitions.AlterTableDropPartitionsContext"
     "org.apache.flink.sql.parser.ddl.SqlDropTable"
     "org.apache.flink.sql.parser.ddl.SqlDropView"
+    "org.apache.flink.sql.parser.ddl.SqlRefreshMode"
     "org.apache.flink.sql.parser.ddl.SqlRemoveJar"
     "org.apache.flink.sql.parser.ddl.SqlReplaceTableAs"
     "org.apache.flink.sql.parser.ddl.SqlReset"
@@ -130,6 +132,7 @@
     "org.apache.calcite.sql.SqlAlienSystemTypeNameSpec"
     "org.apache.calcite.sql.SqlCreate"
     "org.apache.calcite.sql.SqlDrop"
+    "org.apache.calcite.sql.SqlIntervalLiteral"
     "java.util.ArrayList"
     "java.util.Collections"
     "java.util.HashSet"
@@ -157,6 +160,7 @@
     "ESTIMATED_COST"
     "EXTENDED"
     "FUNCTIONS"
+    "FRESHNESS"
     "HASH"
     "IF"
     "JSON_EXECUTION_PLAN"
@@ -167,6 +171,7 @@
     "JOBS"
     "LOAD"
     "METADATA"
+    "MATERIALIZED"
     "MODIFY"
     "MODULES"
     "OVERWRITE"
@@ -193,6 +198,8 @@
     "ANALYZE"
     "COMPUTE"
     "STATISTICS"
+    "REFRESH_MODE"
+    "CONTINUOUS"
   ]
 
   # List of keywords from "keywords" section that are not reserved.
@@ -596,6 +603,7 @@
     "SqlStopJob()"
     "SqlShowJobs()"
     "SqlTruncateTable()"
+    "SqlCreateMaterializedTable()"
   ]
 
   # List of methods for parsing custom literals.
