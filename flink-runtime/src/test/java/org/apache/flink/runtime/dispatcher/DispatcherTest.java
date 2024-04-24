@@ -51,6 +51,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
@@ -600,6 +601,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                         jobId,
                                         jobGraph.getName(),
                                         JobStatus.FAILED,
+                                        null,
                                         testFailure,
                                         jobGraph.getCheckpointingSettings(),
                                         1L)),
@@ -852,6 +854,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                                                 jobId,
                                                                 jobGraph.getName(),
                                                                 JobStatus.FAILED,
+                                                                null,
                                                                 actualError,
                                                                 jobGraph.getCheckpointingSettings(),
                                                                 1L)),
@@ -1598,6 +1601,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                                         jobGraph.getJobID(),
                                                         jobGraph.getName(),
                                                         JobStatus.RUNNING,
+                                                        JobType.STREAMING,
                                                         null,
                                                         null,
                                                         System.currentTimeMillis(),
@@ -1678,6 +1682,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                     new DefaultJobMasterServiceProcessFactory(
                             jobGraph.getJobID(),
                             jobGraph.getName(),
+                            jobGraph.getJobType(),
                             jobGraph.getCheckpointingSettings(),
                             initializationTimestamp,
                             jobMasterServiceFactory),
@@ -1743,6 +1748,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                     new DefaultJobMasterServiceProcessFactory(
                             jobGraph.getJobID(),
                             jobGraph.getName(),
+                            jobGraph.getJobType(),
                             jobGraph.getCheckpointingSettings(),
                             initializationTimestamp,
                             new TestingJobMasterServiceFactory(
@@ -1803,6 +1809,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                     new DefaultJobMasterServiceProcessFactory(
                             jobGraph.getJobID(),
                             jobGraph.getName(),
+                            jobGraph.getJobType(),
                             jobGraph.getCheckpointingSettings(),
                             initializationTimestamp,
                             new TestingJobMasterServiceFactory()),

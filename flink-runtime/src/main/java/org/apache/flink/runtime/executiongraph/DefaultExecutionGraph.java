@@ -56,6 +56,7 @@ import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertex.FinalizeOnMasterContext;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -220,6 +221,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     /** Current status of the job execution. */
     private volatile JobStatus state = JobStatus.CREATED;
 
+    /** The job type of the job execution. */
+    private final JobType jobType;
+
     /** A future that completes once the job has reached a terminal state. */
     private final CompletableFuture<JobStatus> terminationFuture = new CompletableFuture<>();
 
@@ -303,6 +307,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     // --------------------------------------------------------------------------------------------
 
     public DefaultExecutionGraph(
+            JobType jobType,
             JobInformation jobInformation,
             ScheduledExecutorService futureExecutor,
             Executor ioExecutor,
@@ -324,6 +329,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             MarkPartitionFinishedStrategy markPartitionFinishedStrategy,
             TaskDeploymentDescriptorFactory taskDeploymentDescriptorFactory) {
 
+        this.jobType = jobType;
         this.executionGraphId = new ExecutionGraphID();
 
         this.jobInformation = checkNotNull(jobInformation);
@@ -634,6 +640,11 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     @Override
     public JobStatus getState() {
         return state;
+    }
+
+    @Override
+    public JobType getJobType() {
+        return jobType;
     }
 
     @Override

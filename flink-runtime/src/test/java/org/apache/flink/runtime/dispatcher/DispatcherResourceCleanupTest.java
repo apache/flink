@@ -769,6 +769,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                                                                             JobStatus.RUNNING,
                                                                             null,
                                                                             null,
+                                                                            null,
                                                                             1337))))
                             .build();
             testingRunner.completeJobMasterGatewayFuture(testingJobMasterGateway);
