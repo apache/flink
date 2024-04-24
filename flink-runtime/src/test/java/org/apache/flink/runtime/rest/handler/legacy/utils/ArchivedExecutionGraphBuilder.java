@@ -26,6 +26,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
@@ -146,6 +147,7 @@ public class ArchivedExecutionGraphBuilder {
                         : new ArrayList<>(tasks.values()),
                 stateTimestamps != null ? stateTimestamps : new long[JobStatus.values().length],
                 state != null ? state : JobStatus.FINISHED,
+                JobType.STREAMING,
                 failureCause,
                 jsonPlan != null
                         ? jsonPlan

@@ -253,6 +253,7 @@ class JobMasterServiceLeadershipRunnerTest {
                         jobGraph.getJobID(),
                         jobGraph.getName(),
                         JobStatus.FAILED,
+                        jobGraph.getJobType(),
                         testException,
                         null,
                         1L));

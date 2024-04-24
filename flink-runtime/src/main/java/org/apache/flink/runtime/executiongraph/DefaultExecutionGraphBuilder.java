@@ -141,6 +141,7 @@ public class DefaultExecutionGraphBuilder {
         // create a new execution graph, if none exists so far
         final DefaultExecutionGraph executionGraph =
                 new DefaultExecutionGraph(
+                        jobGraph.getJobType(),
                         jobInformation,
                         futureExecutor,
                         ioExecutor,
