@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
@@ -40,11 +41,14 @@ public class ExecutionGraphInfoTest {
                         new JobID(),
                         "test job name",
                         JobStatus.FAILED,
+                        JobType.STREAMING,
                         new RuntimeException("Expected RuntimeException"),
                         null,
                         System.currentTimeMillis());
 
         final ExecutionGraphInfo executionGraphInfo = new ExecutionGraphInfo(executionGraph);
+        assertThat(executionGraphInfo.getArchivedExecutionGraph().getJobType())
+                .isEqualTo(JobType.STREAMING);
 
         final ErrorInfo failureInfo =
                 executionGraphInfo.getArchivedExecutionGraph().getFailureInfo();

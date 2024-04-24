@@ -50,6 +50,7 @@ import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
@@ -88,6 +89,7 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
             LoggerFactory.getLogger(StateTrackingMockExecutionGraph.class);
 
     private JobStatus state = JobStatus.INITIALIZING;
+    private JobType jobType = JobType.STREAMING;
     private final CompletableFuture<JobStatus> terminationFuture = new CompletableFuture<>();
     private final JobID jobId = new JobID();
     private static final ArchivedExecutionConfig archivedExecutionConfig =
@@ -122,6 +124,11 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
     @Override
     public JobStatus getState() {
         return state;
+    }
+
+    @Override
+    public JobType getJobType() {
+        return jobType;
     }
 
     @Override

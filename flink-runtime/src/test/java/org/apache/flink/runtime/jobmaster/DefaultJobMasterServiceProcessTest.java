@@ -51,7 +51,7 @@ class DefaultJobMasterServiceProcessTest {
             failedArchivedExecutionGraphFactory =
                     (throwable ->
                             ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
-                                    jobId, "test", JobStatus.FAILED, throwable, null, 1337));
+                                    jobId, "test", JobStatus.FAILED, null, throwable, null, 1337));
 
     @Test
     void testInitializationFailureCompletesResultFuture() {
