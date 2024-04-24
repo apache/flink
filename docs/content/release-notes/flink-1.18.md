@@ -102,7 +102,7 @@ the time to calculate the watermark alignment on the JobManager by a factor of 7
 Previously such large jobs were actually at large risk of overloading JobManager, now that's far less likely to happen.
 
 #### Replace Akka by Pekko
-##### [FLINK-32468](https://issues.apache.org/jira/browse/32468)
+##### [FLINK-32468](https://issues.apache.org/jira/browse/FLINK-32468)
 Flink's RPC framework is now based on Apache Pekko instead of Akka. Any Akka dependencies were removed.
 
 #### Introduce Runtime Filter for Flink Batch Jobs
