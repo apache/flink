@@ -47,6 +47,7 @@ export interface JobDetail {
   name: string;
   isStoppable: boolean;
   state: string;
+  'job-type': string;
   'start-time': number;
   'end-time': number;
   duration: number;

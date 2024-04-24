@@ -68,6 +68,9 @@
         <span *ngIf="urlLoading">-</span>
       </ng-template>
     </nz-descriptions-item>
+    <nz-descriptions-item nzTitle="Job Type" *ngIf="jobDetail['job-type'] !== undefined">
+      {{ jobDetail['job-type'] }}
+    </nz-descriptions-item>
     <nz-descriptions-item nzTitle="Start Time">
       {{ jobDetail['start-time'] | date: 'yyyy-MM-dd HH:mm:ss.SSS' }}
     </nz-descriptions-item>
