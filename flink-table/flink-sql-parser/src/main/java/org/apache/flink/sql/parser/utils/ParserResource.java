@@ -49,4 +49,14 @@ public interface ParserResource {
 
     @Resources.BaseMessage("Bucket count must be a positive integer.")
     Resources.ExInst<ParseException> bucketCountMustBePositiveInteger();
+
+    @Resources.BaseMessage(
+            "CREATE MATERIALIZED TABLE only supports interval type FRESHNESS, please refer to the materialized table document.")
+    Resources.ExInst<ParseException> unsupportedFreshnessType();
+
+    @Resources.BaseMessage("CREATE TEMPORARY MATERIALIZED TABLE is not supported.")
+    Resources.ExInst<ParseException> createTemporaryMaterializedTableUnsupported();
+
+    @Resources.BaseMessage("REPLACE MATERIALIZED TABLE is not supported.")
+    Resources.ExInst<ParseException> replaceMaterializedTableUnsupported();
 }
