@@ -61,17 +61,21 @@ public class ContextStateFutureImpl<T> extends StateFutureImpl<T> {
     }
 
     @Override
-    public void postComplete() {
+    public void postComplete(boolean inCallbackRunner) {
         // When a state request completes, ref count -1, as described in FLIP-425:
         // To cover the statements without a callback, in addition to the reference count marked
         // in Fig.5, each state request itself is also protected by a paired reference count.
-        recordContext.release();
+        if (inCallbackRunner) {
+            recordContext.release(Runnable::run);
+        } else {
+            recordContext.release(callbackRunner::submit);
+        }
     }
 
     @Override
     public void callbackFinished() {
         // When a callback ends, as shown in Fig.5 of FLIP-425, at the
         // point of 2,4 and 6, the ref count -1.
-        recordContext.release();
+        recordContext.release(Runnable::run);
     }
 }

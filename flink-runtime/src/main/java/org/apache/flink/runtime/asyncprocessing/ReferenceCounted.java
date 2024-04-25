@@ -23,6 +23,7 @@ import org.apache.flink.core.memory.MemoryUtils;
 
 import sun.misc.Unsafe;
 
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
@@ -32,7 +33,7 @@ import javax.annotation.concurrent.ThreadSafe;
  */
 @Internal
 @ThreadSafe
-public abstract class ReferenceCounted {
+public abstract class ReferenceCounted<ReleaseHelper> {
 
     /** The "unsafe", which can be used to perform native memory accesses. */
     @SuppressWarnings({"restriction", "UseOfSunClasses"})
@@ -87,9 +88,13 @@ public abstract class ReferenceCounted {
     }
 
     public int release() {
+        return release(null);
+    }
+
+    public int release(@Nullable ReleaseHelper releaseHelper) {
         int r = unsafe.getAndAddInt(this, referenceOffset, -1) - 1;
         if (r == 0) {
-            referenceCountReachedZero();
+            referenceCountReachedZero(releaseHelper);
         }
         return r;
     }
@@ -99,5 +104,5 @@ public abstract class ReferenceCounted {
     }
 
     /** A method called when the reference count reaches zero. */
-    protected abstract void referenceCountReachedZero();
+    protected abstract void referenceCountReachedZero(@Nullable ReleaseHelper releaseHelper);
 }
