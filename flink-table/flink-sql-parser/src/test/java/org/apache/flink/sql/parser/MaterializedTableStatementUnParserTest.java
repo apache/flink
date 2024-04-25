@@ -21,25 +21,26 @@ package org.apache.flink.sql.parser;
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 
 import org.apache.calcite.sql.parser.SqlParserFixture;
+import org.apache.calcite.sql.parser.SqlParserTest;
 import org.junit.jupiter.api.parallel.Execution;
 
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 /**
- * Extension to {@link MaterializedTableDDLParserTest} that ensures that every expression can
+ * Extension to {@link MaterializedTableStatementParserTest} that ensures that every expression can
  * un-parse successfully.
  */
 @Execution(CONCURRENT)
-public class MaterializedTableDDLUnParserTest extends MaterializedTableDDLParserTest {
+public class MaterializedTableStatementUnParserTest extends MaterializedTableStatementParserTest {
     // ~ Constructors -----------------------------------------------------------
 
-    public MaterializedTableDDLUnParserTest() {}
+    public MaterializedTableStatementUnParserTest() {}
 
     // ~ Methods ----------------------------------------------------------------
 
     public SqlParserFixture fixture() {
         return super.fixture()
-                .withTester(new UnparsingTesterImpl())
+                .withTester(new SqlParserTest.UnparsingTesterImpl())
                 .withConfig(c -> c.withParserFactory(FlinkSqlParserImpl.FACTORY));
     }
 }

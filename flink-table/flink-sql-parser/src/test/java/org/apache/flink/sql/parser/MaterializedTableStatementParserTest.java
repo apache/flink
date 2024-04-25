@@ -18,6 +18,9 @@
 
 package org.apache.flink.sql.parser;
 
+import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
+
+import org.apache.calcite.sql.parser.SqlParserFixture;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 
@@ -25,7 +28,7 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 /** Sql parser test for materialized related syntax. * */
 @Execution(CONCURRENT)
-public class MaterializedTableDDLParserTest extends FlinkSqlParserImplTest {
+public class MaterializedTableStatementParserTest {
 
     @Test
     void testCreateMaterializedTable() {
@@ -85,13 +88,13 @@ public class MaterializedTableDDLParserTest extends FlinkSqlParserImplTest {
         final String sql3 =
                 "CREATE MATERIALIZED TABLE tbl1\n"
                         + "COMMENT 'table comment'\n"
-                        + "FRESHNESS = INTERVAL '3' YEAR\n"
+                        + "FRESHNESS = INTERVAL '3' DAY\n"
                         + "REFRESH_MODE = FULL\n"
                         + "AS SELECT a, b, h, t m FROM source";
         final String expected3 =
                 "CREATE MATERIALIZED TABLE `TBL1`\n"
                         + "COMMENT 'table comment'\n"
-                        + "FRESHNESS = INTERVAL '3' YEAR\n"
+                        + "FRESHNESS = INTERVAL '3' DAY\n"
                         + "REFRESH_MODE = FULL\n"
                         + "AS\n"
                         + "SELECT `A`, `B`, `H`, `T` AS `M`\n"
@@ -100,7 +103,7 @@ public class MaterializedTableDDLParserTest extends FlinkSqlParserImplTest {
     }
 
     @Test
-    void testCreateMaterializedTableWithBadFreshnessInterval() {
+    void testCreateMaterializedTableWithUnsupportedFreshnessInterval() {
         final String sql =
                 "CREATE MATERIALIZED TABLE tbl1\n"
                         + "(\n"
@@ -115,7 +118,7 @@ public class MaterializedTableDDLParserTest extends FlinkSqlParserImplTest {
                         + "FRESHNESS = ^123^\n"
                         + "AS SELECT a, b, h, t m FROM source";
         sql(sql).fails(
-                        "MATERIALIZED table FRESHNESS only support Interval Type, please refer to the materialized table document.");
+                        "CREATE MATERIALIZED TABLE only supports interval type FRESHNESS, please refer to the materialized table document.");
 
         final String sql2 =
                 "CREATE MATERIALIZED TABLE tbl1\n"
@@ -139,7 +142,7 @@ public class MaterializedTableDDLParserTest extends FlinkSqlParserImplTest {
     }
 
     @Test
-    void testCreateMaterializedTableWithNoAsQuery() {
+    void testCreateMaterializedTableWithoutAsQuery() {
         final String sql =
                 "CREATE MATERIALIZED TABLE tbl1\n"
                         + "(\n"
@@ -158,5 +161,54 @@ public class MaterializedTableDDLParserTest extends FlinkSqlParserImplTest {
                                 + "Was expecting:\n"
                                 + "    \"AS\" ...\n"
                                 + "    ");
+    }
+
+    @Test
+    void testCreateTemporayMaterializedTable() {
+        final String sql =
+                "CREATE TEMPORARY ^MATERIALIZED^ TABLE tbl1\n"
+                        + "(\n"
+                        + "   PRIMARY KEY (a, b)\n"
+                        + ")\n"
+                        + "COMMENT 'table comment'\n"
+                        + "PARTITIONED BY (a, h)\n"
+                        + "WITH (\n"
+                        + "  'group.id' = 'latest', \n"
+                        + "  'kafka.topic' = 'log.test'\n"
+                        + ")\n"
+                        + "FRESHNESS = INTERVAL '3' MINUTE\n"
+                        + "AS SELECT a, b, h, t m FROM source";
+        sql(sql).fails("CREATE TEMPORARY MATERIALIZED TABLE is not supported.");
+    }
+
+    @Test
+    void testReplaceMaterializedTable() {
+        final String sql =
+                "CREATE OR REPLACE ^MATERIALIZED^ TABLE tbl1\n"
+                        + "(\n"
+                        + "   PRIMARY KEY (a, b)\n"
+                        + ")\n"
+                        + "COMMENT 'table comment'\n"
+                        + "PARTITIONED BY (a, h)\n"
+                        + "WITH (\n"
+                        + "  'group.id' = 'latest', \n"
+                        + "  'kafka.topic' = 'log.test'\n"
+                        + ")\n"
+                        + "FRESHNESS = INTERVAL '3' MINUTE\n"
+                        + "AS SELECT a, b, h, t m FROM source";
+        sql(sql).fails("REPLACE MATERIALIZED TABLE is not supported.");
+    }
+
+    public SqlParserFixture fixture() {
+        return SqlParserFixture.DEFAULT.withConfig(
+                c -> c.withParserFactory(FlinkSqlParserImpl.FACTORY));
+    }
+
+    protected SqlParserFixture sql(String sql) {
+        return this.fixture().sql(sql);
+    }
+
+    protected SqlParserFixture expr(String sql) {
+        return this.sql(sql).expression(true);
     }
 }

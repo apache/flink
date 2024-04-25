@@ -59,7 +59,6 @@ public class SqlCreateMaterializedTable extends SqlCreate {
 
     private final SqlNodeList propertyList;
 
-    // SqlIntervalLiteral
     private final SqlIntervalLiteral freshness;
 
     @Nullable private final SqlLiteral refreshMode;

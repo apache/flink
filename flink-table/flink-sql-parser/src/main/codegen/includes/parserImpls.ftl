@@ -1685,7 +1685,7 @@ SqlNode SqlReplaceTable() :
 /**
   * Parses a CREATE MATERIALIZED TABLE statement.
 */
-SqlCreate SqlCreateMaterializedTable(Span s) :
+SqlCreate SqlCreateMaterializedTable(Span s, boolean replace, boolean isTemporary) :
 {
     final SqlParserPos startPos = s.pos();
     SqlIdentifier tableName;
@@ -1698,7 +1698,20 @@ SqlCreate SqlCreateMaterializedTable(Span s) :
     SqlNode asQuery = null;
 }
 {
-    <MATERIALIZED> <TABLE>
+    <MATERIALIZED>
+    {
+        if (isTemporary) {
+           throw SqlUtil.newContextException(
+                getPos(),
+                ParserResource.RESOURCE.createTemporaryMaterializedTableUnsupported());
+        }
+        if (replace) {
+           throw SqlUtil.newContextException(
+                getPos(),
+                ParserResource.RESOURCE.replaceMaterializedTableUnsupported());
+        }
+    }
+    <TABLE>
     tableName = CompoundIdentifier()
     [
         <LPAREN>
@@ -2265,9 +2278,9 @@ SqlCreate SqlCreateExtended(Span s, boolean replace) :
     (
         create = SqlCreateCatalog(s, replace)
         |
-        create = SqlCreateTable(s, replace, isTemporary)
+        create = SqlCreateMaterializedTable(s, replace, isTemporary)
         |
-        create = SqlCreateMaterializedTable(s)
+        create = SqlCreateTable(s, replace, isTemporary)
         |
         create = SqlCreateView(s, replace, isTemporary)
         |
