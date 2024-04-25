@@ -48,13 +48,9 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
   extends CommonSubGraphBasedOptimizer {
 
   private def optimizeSinkBlocks(
-      origMiniBatchEnabled: Boolean,
       tableConfig: TableConfig,
       sinkBlocks: Seq[RelNodeBlock]): Seq[RelNodeBlock] = {
-    if (origMiniBatchEnabled)
-      tableConfig.set(
-        ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED,
-        Boolean.box(!shouldSkipMiniBatch(sinkBlocks)))
+    // infer trait properties for sink block
     sinkBlocks.foreach {
       sinkBlock =>
         // don't require update before by default
@@ -87,38 +83,41 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
         isSinkBlock = true)
       block.setOptimizedPlan(optimizedTree)
       return sinkBlocks
-    } else {
-      // TODO FLINK-24048: Move changeLog inference out of optimizing phase
-      // infer modifyKind property for each blocks independently
-      sinkBlocks.foreach(b => optimizeBlock(b, isSinkBlock = true))
-      // infer and propagate updateKind and miniBatchInterval property for each blocks
-      sinkBlocks.foreach {
-        b =>
-          propagateUpdateKindAndMiniBatchInterval(
-            b,
-            b.isUpdateBeforeRequired,
-            b.getMiniBatchInterval,
-            isSinkBlock = true)
-      }
-      // clear the intermediate result
-      sinkBlocks.foreach(resetIntermediateResult)
-      // optimize recursively RelNodeBlock
-      sinkBlocks.foreach(b => optimizeBlock(b, isSinkBlock = true))
-      sinkBlocks
     }
+    // TODO FLINK-24048: Move changeLog inference out of optimizing phase
+    // infer modifyKind property for each blocks independently
+    sinkBlocks.foreach(b => optimizeBlock(b, isSinkBlock = true))
+    // infer and propagate updateKind and miniBatchInterval property for each blocks
+    sinkBlocks.foreach {
+      b =>
+        propagateUpdateKindAndMiniBatchInterval(
+          b,
+          b.isUpdateBeforeRequired,
+          b.getMiniBatchInterval,
+          isSinkBlock = true)
+    }
+    // clear the intermediate result
+    sinkBlocks.foreach(resetIntermediateResult)
+    // optimize recursively RelNodeBlock
+    sinkBlocks.foreach(b => optimizeBlock(b, isSinkBlock = true))
+    sinkBlocks
   }
 
   override protected def doOptimize(roots: Seq[RelNode]): Seq[RelNodeBlock] = {
     val tableConfig = planner.getTableConfig
     // build RelNodeBlock plan
     val sinkBlocks = RelNodeBlockPlanBuilder.buildRelNodeBlockPlan(roots, tableConfig)
-    // infer trait properties for sink block
-
+    // get the original configuration, and disable it if it is unnecessary
     val origMiniBatchEnabled = tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)
-
     try {
-      optimizeSinkBlocks(origMiniBatchEnabled, tableConfig, sinkBlocks)
+      if (origMiniBatchEnabled) {
+        tableConfig.set(
+          ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED,
+          Boolean.box(!shouldSkipMiniBatch(sinkBlocks)))
+      }
+      optimizeSinkBlocks(tableConfig, sinkBlocks)
     } finally {
+      // revert the changed configuration back in the end
       tableConfig.getConfiguration.set(
         ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED,
         origMiniBatchEnabled)
