@@ -103,7 +103,7 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
         final Configuration pythonConfig =
                 CommonPythonUtil.extractPythonConfiguration(
-                        planner.getExecEnv(), config, planner.getFlinkContext().getClassLoader());
+                        planner.getTableConfig(), planner.getFlinkContext().getClassLoader());
         final ExecNodeConfig pythonNodeConfig =
                 ExecNodeConfig.ofNodeConfig(pythonConfig, config.isCompiled());
         final OneInputTransformation<RowData, RowData> transform =

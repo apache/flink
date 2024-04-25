@@ -115,7 +115,7 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
         final Tuple2<Long, Long> windowSizeAndSlideSize = WindowCodeGenerator.getWindowDef(window);
         final Configuration pythonConfig =
                 CommonPythonUtil.extractPythonConfiguration(
-                        planner.getExecEnv(), config, planner.getFlinkContext().getClassLoader());
+                        planner.getTableConfig(), planner.getFlinkContext().getClassLoader());
         int groupBufferLimitSize =
                 pythonConfig.get(ExecutionConfigOptions.TABLE_EXEC_WINDOW_AGG_BUFFER_SIZE_LIMIT);
 

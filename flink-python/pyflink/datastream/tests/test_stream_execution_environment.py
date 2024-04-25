@@ -662,7 +662,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         python_dependency_config = dict(
             get_gateway().jvm.org.apache.flink.python.util.PythonDependencyUtils.
             configurePythonDependencies(
-                env._j_stream_execution_environment.getCachedFiles(),
                 env._j_stream_execution_environment.getConfiguration()).toMap())
 
         # Make sure that user specified files and archives are correctly added.
