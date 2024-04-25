@@ -353,7 +353,7 @@ public class PythonDependencyUtils {
             final List<String> cachedFiles =
                     config.getOptional(PipelineOptions.CACHED_FILES).orElse(new ArrayList<>())
                             .stream()
-                            .map(m -> Tuple2.of(ConfigurationUtils.parseMap(m), m))
+                            .map(m -> Tuple2.of(ConfigurationUtils.parseStringToMap(m), m))
                             .filter(
                                     t ->
                                             t.f0.get("name") != null
