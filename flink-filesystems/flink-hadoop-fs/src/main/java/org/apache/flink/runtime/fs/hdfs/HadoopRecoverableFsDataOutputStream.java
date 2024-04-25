@@ -96,9 +96,9 @@ class HadoopRecoverableFsDataOutputStream extends BaseHadoopFsRecoverableFsDataO
 
     @Override
     public Committer closeForCommit() throws IOException {
-        final long pos = getPos();
+        HadoopFsCommitter hadoopFsCommitter = new HadoopFsCommitter(fs, persist());
         close();
-        return new HadoopFsCommitter(fs, createHadoopFsRecoverable(pos));
+        return hadoopFsCommitter;
     }
 
     // ------------------------------------------------------------------------

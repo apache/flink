@@ -21,7 +21,6 @@ package org.apache.flink.core.fs.local;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter.CommitRecoverable;
-import org.apache.flink.core.fs.RecoverableWriter.ResumeRecoverable;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -104,7 +103,7 @@ public class LocalRecoverableFsDataOutputStream extends RecoverableFsDataOutputS
     }
 
     @Override
-    public ResumeRecoverable persist() throws IOException {
+    public LocalRecoverable persist() throws IOException {
         // we call both flush and sync in order to ensure persistence on mounted
         // file systems, like NFS, EBS, EFS, ...
         flush();
@@ -115,9 +114,9 @@ public class LocalRecoverableFsDataOutputStream extends RecoverableFsDataOutputS
 
     @Override
     public Committer closeForCommit() throws IOException {
-        final long pos = getPos();
+        LocalCommitter localCommitter = new LocalCommitter(persist());
         close();
-        return new LocalCommitter(new LocalRecoverable(targetFile, tempFile, pos));
+        return localCommitter;
     }
 
     @Override

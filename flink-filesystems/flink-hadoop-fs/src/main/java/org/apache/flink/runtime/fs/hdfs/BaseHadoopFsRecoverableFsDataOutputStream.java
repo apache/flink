@@ -20,7 +20,6 @@ package org.apache.flink.runtime.fs.hdfs;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
-import org.apache.flink.core.fs.RecoverableWriter;
 
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -70,12 +69,12 @@ public abstract class BaseHadoopFsRecoverableFsDataOutputStream
     }
 
     @Override
-    public RecoverableWriter.ResumeRecoverable persist() throws IOException {
+    public HadoopFsRecoverable persist() throws IOException {
         sync();
         return createHadoopFsRecoverable(getPos());
     }
 
-    public HadoopFsRecoverable createHadoopFsRecoverable(long pos) throws IOException {
+    public HadoopFsRecoverable createHadoopFsRecoverable(long pos) {
         return new HadoopFsRecoverable(targetFile, tempFile, pos + initialFileSize);
     }
 

@@ -216,10 +216,9 @@ public class AzureBlobFsRecoverableDataOutputStream
 
     @Override
     public Committer closeForCommit() throws IOException {
-        final long pos = getPos();
+        ABFSCommitter abfsCommitter = new ABFSCommitter(fs, persist());
         close();
-        return new AzureBlobFsRecoverableDataOutputStream.ABFSCommitter(
-                fs, createHadoopFsRecoverable(pos));
+        return abfsCommitter;
     }
 
     // ------------------------------------------------------------------------
