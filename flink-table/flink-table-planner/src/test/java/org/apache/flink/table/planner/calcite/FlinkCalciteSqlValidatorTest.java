@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.utils.PlannerMocks;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 /** Test for {@link FlinkCalciteSqlValidator}. */
 class FlinkCalciteSqlValidatorTest {
@@ -61,6 +62,55 @@ class FlinkCalciteSqlValidatorTest {
         assertThatThrownBy(() -> plannerMocks.getParser().parse("INSERT INTO t2 (a,b) SELECT 1"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(" Number of columns must match number of query columns");
+    }
+
+    @Test
+    void testInsertInto3() {
+        assertThatThrownBy(
+                        () ->
+                                plannerMocks
+                                        .getParser()
+                                        .parse("INSERT INTO t2 (a,b) VALUES (1,2), (3)"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(" Number of columns must match number of query columns");
+    }
+
+    @Test
+    void testInsertInto4() {
+        assertThatThrownBy(
+                        () ->
+                                plannerMocks
+                                        .getParser()
+                                        .parse("INSERT INTO t2 (a,b) VALUES (1), (2,3)"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(" Number of columns must match number of query columns");
+    }
+
+    @Test
+    void testInsertInto5() {
+        assertThatThrownBy(
+                        () ->
+                                plannerMocks
+                                        .getParser()
+                                        .parse("INSERT INTO t2 (a,b) VALUES (1,2), (3,4,5)"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(" Number of columns must match number of query columns");
+    }
+
+    @Test
+    void testInsertInto6() {
+        assertDoesNotThrow(
+                () -> {
+                    plannerMocks.getParser().parse("INSERT INTO t2 (a,b) VALUES (1,2), (3,4)");
+                });
+    }
+
+    @Test
+    void testInsertInto7() {
+        assertDoesNotThrow(
+                () -> {
+                    plannerMocks.getParser().parse("INSERT INTO t2 (a,b) Select 1, 2");
+                });
     }
 
     @Test
