@@ -254,7 +254,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
         Trigger<?> trigger = windowAssignerAndTrigger.f1;
         final Configuration pythonConfig =
                 CommonPythonUtil.extractPythonConfiguration(
-                        planner.getExecEnv(), config, planner.getFlinkContext().getClassLoader());
+                        planner.getTableConfig(), planner.getFlinkContext().getClassLoader());
         final ExecNodeConfig pythonNodeConfig =
                 ExecNodeConfig.ofNodeConfig(pythonConfig, config.isCompiled());
         boolean isGeneralPythonUDAF =

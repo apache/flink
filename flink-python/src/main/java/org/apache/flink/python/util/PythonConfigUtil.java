@@ -23,8 +23,8 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.python.PythonConfig;
@@ -79,8 +79,16 @@ public class PythonConfigUtil {
     }
 
     public static void configPythonOperator(StreamExecutionEnvironment env) throws Exception {
-        final Configuration config =
-                extractPythonConfiguration(env.getCachedFiles(), env.getConfiguration());
+        final Configuration config = extractPythonConfiguration(env.getConfiguration());
+
+        env.getConfiguration()
+                .getOptional(PipelineOptions.CACHED_FILES)
+                .ifPresent(
+                        f -> {
+                            env.getCachedFiles().clear();
+                            env.getCachedFiles()
+                                    .addAll(DistributedCache.parseCachedFilesFromString(f));
+                        });
 
         for (Transformation<?> transformation : env.getTransformations()) {
             alignTransformation(transformation);
@@ -102,11 +110,9 @@ public class PythonConfigUtil {
     }
 
     /** Extract the configurations which is used in the Python operators. */
-    public static Configuration extractPythonConfiguration(
-            List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cachedFiles,
-            ReadableConfig config) {
+    public static Configuration extractPythonConfiguration(ReadableConfig config) {
         final Configuration pythonDependencyConfig =
-                PythonDependencyUtils.configurePythonDependencies(cachedFiles, config);
+                PythonDependencyUtils.configurePythonDependencies(config);
         final PythonConfig pythonConfig = new PythonConfig(config, pythonDependencyConfig);
         return pythonConfig.toConfiguration();
     }

@@ -95,7 +95,7 @@ public class BatchExecPythonGroupAggregate extends ExecNodeBase<RowData>
         final RowType outputRowType = InternalTypeInfo.of(getOutputType()).toRowType();
         Configuration pythonConfig =
                 CommonPythonUtil.extractPythonConfiguration(
-                        planner.getExecEnv(), config, planner.getFlinkContext().getClassLoader());
+                        planner.getTableConfig(), planner.getFlinkContext().getClassLoader());
         OneInputTransformation<RowData, RowData> transform =
                 createPythonOneInputTransformation(
                         inputTransform,
