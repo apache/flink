@@ -2961,6 +2961,24 @@ SqlShowJobs SqlShowJobs() :
 }
 
 /**
+* Parse a "DESCRIBE JOB" statement:
+* DESCRIBE | DESC JOB <JOB_ID>
+*/
+SqlDescribeJob SqlDescribeJob() :
+{
+    SqlCharStringLiteral jobId;
+    SqlParserPos pos;
+}
+{
+    ( <DESCRIBE> | <DESC> ) <JOB>  <QUOTED_STRING>
+    {
+        String id = SqlParserUtil.parseString(token.image);
+        jobId = SqlLiteral.createCharString(id, getPos());
+        return new SqlDescribeJob(getPos(), jobId);
+    }
+}
+
+/**
 * Parses a STOP JOB statement:
 * STOP JOB <JOB_ID> [<WITH SAVEPOINT>] [<WITH DRAIN>];
 */

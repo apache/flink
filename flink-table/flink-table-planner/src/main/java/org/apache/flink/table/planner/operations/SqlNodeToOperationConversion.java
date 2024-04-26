@@ -60,6 +60,7 @@ import org.apache.flink.sql.parser.dml.SqlEndStatementSet;
 import org.apache.flink.sql.parser.dml.SqlExecute;
 import org.apache.flink.sql.parser.dml.SqlExecutePlan;
 import org.apache.flink.sql.parser.dml.SqlStatementSet;
+import org.apache.flink.sql.parser.dql.SqlDescribeJob;
 import org.apache.flink.sql.parser.dql.SqlLoadModule;
 import org.apache.flink.sql.parser.dql.SqlRichDescribeTable;
 import org.apache.flink.sql.parser.dql.SqlRichExplain;
@@ -141,6 +142,7 @@ import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.UseModulesOperation;
 import org.apache.flink.table.operations.command.AddJarOperation;
+import org.apache.flink.table.operations.command.DescribeJobOperation;
 import org.apache.flink.table.operations.command.ExecutePlanOperation;
 import org.apache.flink.table.operations.command.RemoveJarOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
@@ -345,6 +347,8 @@ public class SqlNodeToOperationConversion {
             return Optional.of(converter.convertShowJars((SqlShowJars) validated));
         } else if (validated instanceof SqlShowJobs) {
             return Optional.of(converter.convertShowJobs((SqlShowJobs) validated));
+        } else if (validated instanceof SqlDescribeJob) {
+            return Optional.of(converter.convertDescribeJob((SqlDescribeJob) validated));
         } else if (validated instanceof RichSqlInsert) {
             return Optional.of(converter.convertSqlInsert((RichSqlInsert) validated));
         } else if (validated instanceof SqlBeginStatementSet) {
@@ -1271,6 +1275,10 @@ public class SqlNodeToOperationConversion {
 
     private Operation convertShowJobs(SqlShowJobs sqlStopJob) {
         return new ShowJobsOperation();
+    }
+
+    private Operation convertDescribeJob(SqlDescribeJob sqlDescribeJob) {
+        return new DescribeJobOperation(sqlDescribeJob.getJobId());
     }
 
     private Operation convertStopJob(SqlStopJob sqlStopJob) {

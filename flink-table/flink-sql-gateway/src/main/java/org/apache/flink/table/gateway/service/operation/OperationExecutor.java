@@ -83,6 +83,7 @@ import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseOperation;
 import org.apache.flink.table.operations.command.AddJarOperation;
+import org.apache.flink.table.operations.command.DescribeJobOperation;
 import org.apache.flink.table.operations.command.ExecutePlanOperation;
 import org.apache.flink.table.operations.command.RemoveJarOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
@@ -481,6 +482,8 @@ public class OperationExecutor {
             return callStopJobOperation(tableEnv, handle, (StopJobOperation) op);
         } else if (op instanceof ShowJobsOperation) {
             return callShowJobsOperation(tableEnv, handle, (ShowJobsOperation) op);
+        } else if (op instanceof DescribeJobOperation) {
+            return callDescribeJobOperation(tableEnv, handle, (DescribeJobOperation) op);
         } else if (op instanceof RemoveJarOperation) {
             return callRemoveJar(handle, ((RemoveJarOperation) op).getPath());
         } else if (op instanceof AddJarOperation
@@ -772,6 +775,53 @@ public class OperationExecutor {
                         Column.physical(STATUS, DataTypes.STRING()),
                         Column.physical(START_TIME, DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE())),
                 resultRows);
+    }
+
+    public ResultFetcher callDescribeJobOperation(
+            TableEnvironmentInternal tableEnv,
+            OperationHandle operationHandle,
+            DescribeJobOperation describeJobOperation)
+            throws SqlExecutionException {
+        Configuration configuration = tableEnv.getConfig().getConfiguration();
+        Duration clientTimeout = configuration.get(ClientOptions.CLIENT_TIMEOUT);
+        String jobId = describeJobOperation.getJobId();
+        Optional<JobStatusMessage> jobStatusOp =
+                runClusterAction(
+                        configuration,
+                        operationHandle,
+                        clusterClient -> {
+                            try {
+                                JobID expectedJobId = JobID.fromHexString(jobId);
+                                return clusterClient.listJobs()
+                                        .get(clientTimeout.toMillis(), TimeUnit.MILLISECONDS)
+                                        .stream()
+                                        .filter(job -> expectedJobId.equals(job.getJobId()))
+                                        .findFirst();
+                            } catch (Exception e) {
+                                throw new SqlExecutionException(
+                                        "Failed to get jobs in the cluster.", e);
+                            }
+                        });
+
+        if (!jobStatusOp.isPresent()) {
+            throw new SqlExecutionException("The job described by " + jobId + " does not exist.");
+        }
+        JobStatusMessage job = jobStatusOp.get();
+
+        RowData resultRow =
+                GenericRowData.of(
+                        StringData.fromString(jobId),
+                        StringData.fromString(job.getJobName()),
+                        StringData.fromString(job.getJobState().toString()),
+                        DateTimeUtils.toTimestampData(job.getStartTime(), 3));
+        return ResultFetcher.fromResults(
+                operationHandle,
+                ResolvedSchema.of(
+                        Column.physical(JOB_ID, DataTypes.STRING()),
+                        Column.physical(JOB_NAME, DataTypes.STRING()),
+                        Column.physical(STATUS, DataTypes.STRING()),
+                        Column.physical(START_TIME, DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE())),
+                Collections.singletonList(resultRow));
     }
 
     /**
