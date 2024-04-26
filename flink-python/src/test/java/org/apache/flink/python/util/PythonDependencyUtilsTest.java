@@ -231,7 +231,7 @@ class PythonDependencyUtilsTest {
                 "venv/bin/python3/lib64/python3.7/site-packages/:venv/bin/python3/lib/python3.7/site-packages/";
         Configuration config = new Configuration();
         config.set(PythonOptions.PYTHON_PATH, pyPath);
-        Configuration actual = configurePythonDependencies(cachedFiles, config);
+        Configuration actual = configurePythonDependencies(config);
         Configuration expectedConfiguration = new Configuration();
         expectedConfiguration.set(PythonOptions.PYTHON_PATH, pyPath);
         verifyConfiguration(expectedConfiguration, actual);
@@ -240,7 +240,7 @@ class PythonDependencyUtilsTest {
     private void verifyCachedFiles(Map<String, String> expected, Configuration config) {
         Map<String, String> actual =
                 config.getOptional(PipelineOptions.CACHED_FILES).orElse(new ArrayList<>()).stream()
-                        .map(ConfigurationUtils::parseMap)
+                        .map(ConfigurationUtils::parseStringToMap)
                         .collect(Collectors.toMap(m -> m.get("name"), m -> m.get("path")));
 
         assertThat(actual).isEqualTo(expected);
