@@ -28,7 +28,6 @@ import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PartETag;
 import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.s3.model.UploadPartResult;
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -147,35 +146,14 @@ class RecoverableMultiPartUploadImplTest {
         TestUploadPartResult expectedCompletePart =
                 createUploadPartResult(TEST_OBJECT_NAME, partNo, content);
 
-        final List<TestUploadPartResult> actualCompleteParts = actual.getCompletePartsUploaded();
-
-        for (TestUploadPartResult result : actualCompleteParts) {
-            if (result.equals(expectedCompletePart)) {
-                return;
-            }
-        }
-
-        Assertions.fail(
-                "Expected multipart upload with part number "
-                        + partNo
-                        + " and specific content to be present, but it was not found among the uploaded parts.");
+        assertThat(actual.getCompletePartsUploaded()).contains(expectedCompletePart);
     }
 
     private static void assertThatHasUploadedObject(StubMultiPartUploader actual, byte[] content) {
         TestPutObjectResult expectedIncompletePart =
                 createPutObjectResult(TEST_OBJECT_NAME, content);
 
-        final List<TestPutObjectResult> actualIncompleteParts = actual.getIncompletePartsUploaded();
-
-        for (TestPutObjectResult result : actualIncompleteParts) {
-            if (result.equals(expectedIncompletePart)) {
-                return;
-            }
-        }
-
-        Assertions.fail(
-                "Expected multipart upload with specific content to be present, "
-                        + "but it was not found among the uploaded parts.");
+        assertThat(actual.getIncompletePartsUploaded()).contains(expectedIncompletePart);
     }
 
     private static void assertThatIsEqualTo(

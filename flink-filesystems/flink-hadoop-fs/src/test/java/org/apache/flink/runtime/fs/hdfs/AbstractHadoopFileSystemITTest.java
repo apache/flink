@@ -103,7 +103,7 @@ public abstract class AbstractHadoopFileSystemITTest {
             checkEmptyDirectory(directory);
 
             // directory empty
-            assertThat(fs.listStatus(directory).length).isEqualTo(0);
+            assertThat(fs.listStatus(directory).length).isZero();
 
             // create some files
             final int numFiles = 3;

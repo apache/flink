@@ -34,7 +34,6 @@ import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -280,8 +279,8 @@ class ConfigUtilsHadoopTest {
         Map<String, String> hadoopConfigMap = TestUtils.hadoopConfigToMap(hadoopConfig);
         MapDifference<String, String> difference =
                 Maps.difference(expectedHadoopConfigMap, hadoopConfigMap);
-        assertThat(difference.entriesDiffering()).isEqualTo(Collections.EMPTY_MAP);
-        assertThat(difference.entriesOnlyOnLeft()).isEqualTo(Collections.EMPTY_MAP);
-        assertThat(difference.entriesOnlyOnRight()).isEqualTo(Collections.EMPTY_MAP);
+        assertThat(difference.entriesDiffering()).isEmpty();
+        assertThat(difference.entriesOnlyOnLeft()).isEmpty();
+        assertThat(difference.entriesOnlyOnRight()).isEmpty();
     }
 }

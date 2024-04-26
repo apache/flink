@@ -27,7 +27,6 @@ import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.FunctionWithException;
 
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -52,6 +51,7 @@ import java.util.SplittableRandom;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link S3RecoverableFsDataOutputStream}. */
 class S3RecoverableFsDataOutputStreamTest {
@@ -254,7 +254,7 @@ class S3RecoverableFsDataOutputStreamTest {
     @Test
     void closeForCommitOnClosedStreamShouldFail() throws IOException {
         streamUnderTest.closeForCommit().commit();
-        Assertions.assertThatThrownBy(() -> streamUnderTest.closeForCommit().commit())
+        assertThatThrownBy(() -> streamUnderTest.closeForCommit().commit())
                 .isInstanceOf(IOException.class);
     }
 
@@ -267,7 +267,7 @@ class S3RecoverableFsDataOutputStreamTest {
         assertThat(multipartUploadUnderTest.getPublishedContents())
                 .isEqualTo(bytesOf("hello world"));
 
-        Assertions.assertThatThrownBy(
+        assertThatThrownBy(
                         () ->
                                 streamUnderTest.write(
                                         randomBuffer(

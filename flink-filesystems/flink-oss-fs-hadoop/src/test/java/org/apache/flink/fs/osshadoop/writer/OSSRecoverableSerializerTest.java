@@ -19,12 +19,13 @@
 package org.apache.flink.fs.osshadoop.writer;
 
 import com.aliyun.oss.model.PartETag;
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link OSSRecoverableSerializer}. */
 class OSSRecoverableSerializerTest {
@@ -102,13 +103,12 @@ class OSSRecoverableSerializerTest {
     }
 
     private static void assertIsEqualTo(OSSRecoverable actual, OSSRecoverable expected) {
-        Assertions.assertThat(actual.getObjectName()).isEqualTo(expected.getObjectName());
-        Assertions.assertThat(actual.getUploadId()).isEqualTo(expected.getUploadId());
-        Assertions.assertThat(actual.getNumBytesInParts()).isEqualTo(expected.getNumBytesInParts());
-        Assertions.assertThat(actual.getLastPartObject()).isEqualTo(expected.getLastPartObject());
-        Assertions.assertThat(actual.getLastPartObjectLength())
-                .isEqualTo(expected.getLastPartObjectLength());
-        Assertions.assertThat(actual.getPartETags().stream().map(PartETag::getETag).toArray())
+        assertThat(actual.getObjectName()).isEqualTo(expected.getObjectName());
+        assertThat(actual.getUploadId()).isEqualTo(expected.getUploadId());
+        assertThat(actual.getNumBytesInParts()).isEqualTo(expected.getNumBytesInParts());
+        assertThat(actual.getLastPartObject()).isEqualTo(expected.getLastPartObject());
+        assertThat(actual.getLastPartObjectLength()).isEqualTo(expected.getLastPartObjectLength());
+        assertThat(actual.getPartETags().stream().map(PartETag::getETag).toArray())
                 .isEqualTo(expected.getPartETags().stream().map(PartETag::getETag).toArray());
     }
 

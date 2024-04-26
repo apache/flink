@@ -137,7 +137,7 @@ class GSRecoverableWriterCommitterTest {
         committer.commit();
 
         // there should be exactly one blob left, the final blob identifier. validate its contents.
-        assertThat(blobStorage.blobs.size()).isEqualTo(1);
+        assertThat(blobStorage.blobs.size()).isOne();
         MockBlobStorage.BlobValue blobValue = blobStorage.blobs.get(blobIdentifier);
         assertThat(blobValue).isNotNull();
         assertThat(blobValue.content).isEqualTo(expectedBytes.toByteArray());
