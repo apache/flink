@@ -2956,6 +2956,12 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testDescribeJob() {
+        sql("DESCRIBE JOB 'myjob'").ok("DESCRIBE JOB 'myjob'");
+        sql("DESC JOB 'myjob'").ok("DESCRIBE JOB 'myjob'");
+    }
+
+    @Test
     void testTruncateTable() {
         sql("truncate table t1").ok("TRUNCATE TABLE `T1`");
     }
