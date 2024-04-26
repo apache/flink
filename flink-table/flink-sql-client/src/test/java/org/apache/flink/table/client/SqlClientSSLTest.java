@@ -28,7 +28,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -66,10 +65,10 @@ class SqlClientSSLTest extends SqlClientTestBase {
                 new String[] {
                     "gateway",
                     "-e",
-                    InetSocketAddress.createUnresolved(
-                                    SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
-                                    SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort())
-                            .toString()
+                    String.format(
+                            "%s:%d",
+                            SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
+                            SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort())
                 };
         String actual = runSqlClient(args, String.join("\n", "SET;", "QUIT;"), false);
         assertThat(actual).contains(SecurityOptions.SSL_REST_ENABLED.key(), "true");
