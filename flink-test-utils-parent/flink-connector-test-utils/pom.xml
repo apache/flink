@@ -93,5 +93,11 @@
 			<artifactId>junit-vintage-engine</artifactId>
 			<scope>compile</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>commons-codec</groupId>
+			<artifactId>commons-codec</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 </project>

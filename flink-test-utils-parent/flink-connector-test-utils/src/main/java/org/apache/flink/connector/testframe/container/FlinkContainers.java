@@ -25,6 +25,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.connector.testframe.utils.FlinkContainersOperations;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterOverviewWithVersion;
 import org.apache.flink.runtime.rest.messages.ClusterOverviewHeaders;
@@ -140,7 +141,7 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
     private static final Logger LOG = LoggerFactory.getLogger(FlinkContainers.class);
 
     // Default timeout of operations
-    public static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(30);
+    public static final Duration DEFAULT_TIMEOUT = Duration.ofMinutes(1);
 
     private final GenericContainer<?> jobManager;
     private final List<GenericContainer<?>> taskManagers;
@@ -386,6 +387,21 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
         return JobID.fromHexString(matcher.group(1));
     }
 
+    /**
+     * Returns the content of files that match a pattern in the output path.
+     *
+     * @param outputPath output path
+     * @param fileNamePattern file name pattern
+     * @param isSorted should the content be returned sorted
+     * @return the content of matches files, sorted if {@code isSorted} is true
+     */
+    public String getOutputPathContent(
+            final String outputPath, final String fileNamePattern, final boolean isSorted)
+            throws IOException {
+        final FlinkContainersOperations operations = new FlinkContainersOperations(this);
+        return operations.getOutputFileContent(outputPath, fileNamePattern, isSorted);
+    }
+
     // ------------------------ JUnit 5 lifecycle management ------------------------
     @Override
     public void beforeAll(ExtensionContext context) throws Exception {
@@ -447,7 +463,7 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
                     return clusterOverview.getNumTaskManagersConnected() == taskManagers.size();
                 },
                 DEFAULT_TIMEOUT,
-                "TaskManagers are not ready within 30 seconds");
+                "TaskManagers are not ready within 1 minute");
     }
 
     private void deleteJobManagerTemporaryFiles() {
