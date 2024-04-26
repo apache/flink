@@ -103,12 +103,6 @@ public class ApicurioSchemaRegistryCoder implements SchemaCoder {
         return buffer.array();
     }
 
-    public static byte[] intToBytes(int x) {
-        ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
-        buffer.putInt(x);
-        return buffer.array();
-    }
-
     /**
      * Get the Avro schema using the Apicurio Registry. In order to call the registry, we need to
      * get the globalId of the Avro Schema in the registry. If the format is configured to expect
@@ -175,13 +169,20 @@ public class ApicurioSchemaRegistryCoder implements SchemaCoder {
         InputStream schemaInputStream = registryClient.getContentByGlobalId(schemaId, true, true);
         Schema schema = new Schema.Parser().parse(schemaInputStream);
         if (LOG.isDebugEnabled()) {
-            LOG.debug(methodName + " got schema " + schema + " using globalId " + schemaId);
+            LOG.debug(
+                    methodName
+                            + " got schema "
+                            + schema
+                            + " using "
+                            + (useGlobalId ? "global" : "content")
+                            + " ID "
+                            + schemaId);
         }
         return schema;
     }
 
     /**
-     * get the schema id.
+     * Get the schema id.
      *
      * @param in the Kafka body as an input stream
      * @param additionalParameters additional Pararamters containing the headers and whetehr we are
@@ -250,8 +251,7 @@ public class ApicurioSchemaRegistryCoder implements SchemaCoder {
                 throw new IOException(
                         "Unknown data format. Magic number was not found. "
                                 + USE_HEADERS
-                                + "="
-                                + useHeaders
+                                + "= false"
                                 + " configs="
                                 + configs);
             }
@@ -283,6 +283,9 @@ public class ApicurioSchemaRegistryCoder implements SchemaCoder {
             Map<String, Object> outputProperties)
             throws IOException {
         String methodName = "writeSchema with additional properties";
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(methodName + " entered");
+        }
 
         boolean useHeaders = (boolean) configs.get(USE_HEADERS.key());
         boolean useGlobalId = (boolean) configs.get(USE_GLOBALID.key());
