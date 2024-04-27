@@ -154,7 +154,7 @@ class DefaultExecutionTopologyTest {
     }
 
     @Test
-    void testErrorIfCoLocatedTasksAreNotInSameRegion() throws Exception {
+    void testErrorIfCoLocatedTasksAreNotInSameRegion() {
         int parallelism = 3;
         final JobVertex v1 = createNoOpVertex(parallelism);
         final JobVertex v2 = createNoOpVertex(parallelism);

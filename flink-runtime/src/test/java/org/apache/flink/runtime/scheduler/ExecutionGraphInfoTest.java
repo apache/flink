@@ -31,10 +31,10 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** {@code ExecutionGraphInfoTest} tests the proper initialization of {@link ExecutionGraphInfo}. */
-public class ExecutionGraphInfoTest {
+class ExecutionGraphInfoTest {
 
     @Test
-    public void testExecutionGraphHistoryBeingDerivedFromFailedExecutionGraph() {
+    void testExecutionGraphHistoryBeingDerivedFromFailedExecutionGraph() {
         final ArchivedExecutionGraph executionGraph =
                 ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
                         new JobID(),
