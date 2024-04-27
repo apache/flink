@@ -1103,7 +1103,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
             fileUploader.registerSingleLocalResource(
                     flinkConfigFileName,
-                    new Path(tmpConfigurationFile.getAbsolutePath()),
+                    new Path(tmpConfigurationFile.toURI()),
                     "",
                     LocalResourceType.FILE,
                     true,
