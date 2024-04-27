@@ -113,9 +113,9 @@ A basic *Flink Application cluster* deployment in Kubernetes has three component
 
 Check [the Application cluster specific resource definitions](#application-cluster-resource-definitions) and adjust them accordingly:
 
-The `args` attribute in the `jobmanager-job.yaml` has to specify the main class of the user job.
+The `args` attribute in the `jobmanager-application-non-ha.yaml` has to specify the main class of the user job.
 See also [how to specify the JobManager arguments]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#jobmanager-additional-command-line-arguments) to understand
-how to pass other `args` to the Flink image in the `jobmanager-job.yaml`.
+how to pass other `args` to the Flink image in the `jobmanager-application-non-ha.yaml`.
 
 
 The *job artifacts* could be provided by these way：
@@ -129,7 +129,7 @@ The *job artifacts* could be provided by these way：
 After creating [the common cluster components](#common-cluster-resource-definitions), use [the Application cluster specific resource definitions](#application-cluster-resource-definitions) to launch the cluster with the `kubectl` command:
 
 ```sh
-    $ kubectl create -f jobmanager-job.yaml
+    $ kubectl create -f jobmanager-application-non-ha.yaml
     $ kubectl create -f taskmanager-job-deployment.yaml
 ```
 
@@ -138,7 +138,7 @@ with the `kubectl` command:
 
 ```sh
     $ kubectl delete -f taskmanager-job-deployment.yaml
-    $ kubectl delete -f jobmanager-job.yaml
+    $ kubectl delete -f jobmanager-application-non-ha.yaml
 ```
 
 ### Session Mode

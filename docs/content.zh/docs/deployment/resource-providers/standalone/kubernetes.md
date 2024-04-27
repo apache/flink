@@ -72,7 +72,7 @@ under the License.
     $ kubectl create -f flink-configuration-configmap.yaml
     $ kubectl create -f jobmanager-service.yaml
     # 为集群创建 deployment
-    $ kubectl create -f jobmanager-session-deployment.yaml
+    $ kubectl create -f jobmanager-session-deployment-non-ha.yaml
     $ kubectl create -f taskmanager-session-deployment.yaml
 ```
 
@@ -91,7 +91,7 @@ $ ./bin/flink run -m localhost:8081 ./examples/streaming/TopSpeedWindowing.jar
     $ kubectl delete -f jobmanager-service.yaml
     $ kubectl delete -f flink-configuration-configmap.yaml
     $ kubectl delete -f taskmanager-session-deployment.yaml
-    $ kubectl delete -f jobmanager-session-deployment.yaml
+    $ kubectl delete -f jobmanager-session-deployment-non-ha.yaml
 ```
 
 {{< top >}}
@@ -114,7 +114,7 @@ $ ./bin/flink run -m localhost:8081 ./examples/streaming/TopSpeedWindowing.jar
 
 检查 [Application 集群资源定义](#application-cluster-resource-definitions) 并做出相应的调整：
 
-`jobmanager-job.yaml` 中的 `args` 属性必须指定用户作业的主类。也可以参考[如何设置 JobManager 参数]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#jobmanager-additional-command-line-arguments)来了解如何将额外的 `args` 传递给 `jobmanager-job.yaml` 配置中指定的 Flink 镜像。
+`jobmanager-application-non-ha.yaml` 中的 `args` 属性必须指定用户作业的主类。也可以参考[如何设置 JobManager 参数]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#jobmanager-additional-command-line-arguments)来了解如何将额外的 `args` 传递给 `jobmanager-application-non-ha.yaml` 配置中指定的 Flink 镜像。
 
 *job artifacts* 可由以下方式提供：
 
@@ -125,7 +125,7 @@ $ ./bin/flink run -m localhost:8081 ./examples/streaming/TopSpeedWindowing.jar
 在创建[通用集群组件](#common-cluster-resource-definitions)后，指定 [Application 集群资源定义](#application-cluster-resource-definitions)文件，执行 `kubectl` 命令来启动 Flink Application 集群：
 
 ```sh
-    $ kubectl create -f jobmanager-job.yaml
+    $ kubectl create -f jobmanager-application-non-ha.yaml
     $ kubectl create -f taskmanager-job-deployment.yaml
 ```
 
@@ -133,7 +133,7 @@ $ ./bin/flink run -m localhost:8081 ./examples/streaming/TopSpeedWindowing.jar
 
 ```sh
     $ kubectl delete -f taskmanager-job-deployment.yaml
-    $ kubectl delete -f jobmanager-job.yaml
+    $ kubectl delete -f jobmanager-application-non-ha.yaml
 ```
 
 <a name="per-job-cluster-mode"></a>
