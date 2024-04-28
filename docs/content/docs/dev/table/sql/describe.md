@@ -184,33 +184,11 @@ Flink SQL> DESC CATALOG EXTENDED cat2;
 {{< /tab >}}
 {{< /tabs >}}
 
-{{< top >}}
-
-## DESCRIBE
-
-```sql
-{ DESCRIBE | DESC } [EXTENDED] [catalog_name.][db_name.]table_name
-```
-
-Describe the metadata of an existing table or view.
-
-Assumes that the table `Orders` is created as follows:
-```sql
-CREATE TABLE Orders (
-    `user` BIGINT NOT NULl comment 'this is primary key',
-    product VARCHAR(32),
-    amount INT,
-    ts TIMESTAMP(3) comment 'notice: watermark',
-    ptime AS PROCTIME() comment 'this is a computed column',
-    PRIMARY KEY(`user`) NOT ENFORCED,
-    WATERMARK FOR ts AS ts - INTERVAL '1' SECONDS
-) with (
-    'connector' = 'datagen'
-);
-```
-Shows the schema.
-```sql
-describe Orders;
+The result of the above example is:
+{{< tabs "c20da697-b9fc-434b-b7e5-3b51510eee5b" >}}
+{{< tab "Java" >}}
+```text
+# DESCRIBE TABLE Orders
 +---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
 |    name |                        type |  null |       key |        extras |                  watermark |                   comment |
 +---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
@@ -221,68 +199,150 @@ describe Orders;
 |   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           | AS PROCTIME() |                            | this is a computed column |
 +---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
 5 rows in set
-```
 
-## DESCRIBE CATALOG
+# DESCRIBE CATALOG cat2
++-----------+-------------------+
+| info name |        info value |
++-----------+-------------------+
+|      name |              cat2 |
+|      type | generic_in_memory |
+|   comment |                   |
++-----------+-------------------+
+3 rows in set
+
+# DESCRIBE CATALOG EXTENDED cat2
++-------------------------+-------------------+
+|               info name |        info value |
++-------------------------+-------------------+
+|                    name |              cat2 |
+|                    type | generic_in_memory |
+|                 comment |                   |
+| option:default-database |                db |
++-------------------------+-------------------+
+4 rows in set
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```text
+# DESCRIBE TABLE Orders
++---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
+|    name |                        type |  null |       key |        extras |                  watermark |                   comment |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
+|    user |                      BIGINT | FALSE | PRI(user) |               |                            |       this is primary key |
+| product |                 VARCHAR(32) |  TRUE |           |               |                            |                           |
+|  amount |                         INT |  TRUE |           |               |                            |                           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |               | `ts` - INTERVAL '1' SECOND |         notice: watermark |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           | AS PROCTIME() |                            | this is a computed column |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
+5 rows in set
+
+# DESCRIBE CATALOG cat2
++-----------+-------------------+
+| info name |        info value |
++-----------+-------------------+
+|      name |              cat2 |
+|      type | generic_in_memory |
+|   comment |                   |
++-----------+-------------------+
+3 rows in set
+
+# DESCRIBE CATALOG EXTENDED cat2
++-------------------------+-------------------+
+|               info name |        info value |
++-------------------------+-------------------+
+|                    name |              cat2 |
+|                    type | generic_in_memory |
+|                 comment |                   |
+| option:default-database |                db |
++-------------------------+-------------------+
+4 rows in set
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```text
+# DESCRIBE TABLE Orders
++---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
+|    name |                        type |  null |       key |        extras |                  watermark |                   comment |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
+|    user |                      BIGINT | FALSE | PRI(user) |               |                            |       this is primary key |
+| product |                 VARCHAR(32) |  TRUE |           |               |                            |                           |
+|  amount |                         INT |  TRUE |           |               |                            |                           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |               | `ts` - INTERVAL '1' SECOND |         notice: watermark |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           | AS PROCTIME() |                            | this is a computed column |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
+5 rows in set
+
+# DESCRIBE CATALOG cat2
++-----------+-------------------+
+| info name |        info value |
++-----------+-------------------+
+|      name |              cat2 |
+|      type | generic_in_memory |
+|   comment |                   |
++-----------+-------------------+
+3 rows in set
+
+# DESCRIBE CATALOG EXTENDED cat2
++-------------------------+-------------------+
+|               info name |        info value |
++-------------------------+-------------------+
+|                    name |              cat2 |
+|                    type | generic_in_memory |
+|                 comment |                   |
+| option:default-database |                db |
++-------------------------+-------------------+
+4 rows in set
+```
+{{< /tab >}}
+{{< tab "SQL CLI" >}}
+```text
+# DESCRIBE TABLE Orders
++---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
+|    name |                        type |  null |       key |        extras |                  watermark |                   comment |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
+|    user |                      BIGINT | FALSE | PRI(user) |               |                            |       this is primary key |
+| product |                 VARCHAR(32) |  TRUE |           |               |                            |                           |
+|  amount |                         INT |  TRUE |           |               |                            |                           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |               | `ts` - INTERVAL '1' SECOND |         notice: watermark |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           | AS PROCTIME() |                            | this is a computed column |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
+5 rows in set
+
+# DESCRIBE CATALOG cat2
++-----------+-------------------+
+| info name |        info value |
++-----------+-------------------+
+|      name |              cat2 |
+|      type | generic_in_memory |
+|   comment |                   |
++-----------+-------------------+
+3 rows in set
+
+# DESCRIBE CATALOG EXTENDED cat2
++-------------------------+-------------------+
+|               info name |        info value |
++-------------------------+-------------------+
+|                    name |              cat2 |
+|                    type | generic_in_memory |
+|                 comment |                   |
+| option:default-database |                db |
++-------------------------+-------------------+
+4 rows in set
 
 ```
+{{< /tab >}}
+{{< /tabs >}}
+
+
+{{< top >}}
+
+## Syntax
+
+- DESCRIBE TABLE
+```sql
+{ DESCRIBE | DESC } [catalog_name.][db_name.]table_name
+```
+- DESCRIBE CATALOG
+```sql
 { DESCRIBE | DESC } CATALOG [EXTENDED] catalog_name
-```
-
-Describe the metadata of an existing catalog.
-
-The metadata information includes the catalog’s name, type, and comment. If the optional EXTENDED option is specified, catalog properties are also returned.
-
-Assumes that the catalog `cat2` is created as follows:
-```sql
-create catalog cat2 WITH (
-    'type'='generic_in_memory',
-    'default-database'='db'
-);
-```
-Shows the metadata description.
-```sql
-describe catalog cat2;
-+-----------+-------------------+
-| info name |        info value |
-+-----------+-------------------+
-|      name |              cat2 |
-|      type | generic_in_memory |
-|   comment |                   |
-+-----------+-------------------+
-3 rows in set
-
-desc catalog cat2;
-+-----------+-------------------+
-| info name |        info value |
-+-----------+-------------------+
-|      name |              cat2 |
-|      type | generic_in_memory |
-|   comment |                   |
-+-----------+-------------------+
-3 rows in set
-```
-Shows the complete metadata description.
-```sql
-describe catalog extended cat2;
-+-------------------------+-------------------+
-|               info name |        info value |
-+-------------------------+-------------------+
-|                    name |              cat2 |
-|                    type | generic_in_memory |
-|                 comment |                   |
-| option:default-database |                db |
-+-------------------------+-------------------+
-4 rows in set
-
-desc catalog extended cat2;
-+-------------------------+-------------------+
-|               info name |        info value |
-+-------------------------+-------------------+
-|                    name |              cat2 |
-|                    type | generic_in_memory |
-|                 comment |                   |
-| option:default-database |                db |
-+-------------------------+-------------------+
-4 rows in set
 ```
