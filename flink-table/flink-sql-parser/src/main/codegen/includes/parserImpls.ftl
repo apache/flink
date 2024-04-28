@@ -73,16 +73,22 @@ SqlCall SqlShowCurrentCatalogOrDatabase() :
     )
 }
 
+/**
+* Parse a "DESCRIBE CATALOG" metadata query command.
+* { DESCRIBE | DESC } CATALOG [EXTENDED] catalog_name;
+*/
 SqlDescribeCatalog SqlDescribeCatalog() :
 {
     SqlIdentifier catalogName;
     SqlParserPos pos;
+    boolean isExtended = false;
 }
 {
     ( <DESCRIBE> | <DESC> ) <CATALOG> { pos = getPos();}
+    [ <EXTENDED> { isExtended = true;} ]
     catalogName = SimpleIdentifier()
     {
-        return new SqlDescribeCatalog(pos, catalogName);
+        return new SqlDescribeCatalog(pos, catalogName, isExtended);
     }
 
 }

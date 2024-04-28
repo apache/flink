@@ -59,8 +59,10 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     void testDescribeCatalog() {
         sql("describe catalog a").ok("DESCRIBE CATALOG `A`");
+        sql("describe catalog extended a").ok("DESCRIBE CATALOG EXTENDED `A`");
 
         sql("desc catalog a").ok("DESCRIBE CATALOG `A`");
+        sql("desc catalog extended a").ok("DESCRIBE CATALOG EXTENDED `A`");
     }
 
     @Test

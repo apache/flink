@@ -707,3 +707,49 @@ show create catalog cat2;
 +---------------------------------------------------------------------------------------------+
 1 row in set
 !ok
+
+describe catalog cat2;
++-----------+-------------------+
+| info name |        info value |
++-----------+-------------------+
+|      name |              cat2 |
+|      type | generic_in_memory |
+|   comment |                   |
++-----------+-------------------+
+3 rows in set
+!ok
+
+describe catalog extended cat2;
++-------------------------+-------------------+
+|               info name |        info value |
++-------------------------+-------------------+
+|                    name |              cat2 |
+|                    type | generic_in_memory |
+|                 comment |                   |
+| option:default-database |                db |
++-------------------------+-------------------+
+4 rows in set
+!ok
+
+desc catalog cat2;
++-----------+-------------------+
+| info name |        info value |
++-----------+-------------------+
+|      name |              cat2 |
+|      type | generic_in_memory |
+|   comment |                   |
++-----------+-------------------+
+3 rows in set
+!ok
+
+desc catalog extended cat2;
++-------------------------+-------------------+
+|               info name |        info value |
++-------------------------+-------------------+
+|                    name |              cat2 |
+|                    type | generic_in_memory |
+|                 comment |                   |
+| option:default-database |                db |
++-------------------------+-------------------+
+4 rows in set
+!ok

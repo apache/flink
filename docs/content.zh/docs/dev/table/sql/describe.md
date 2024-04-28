@@ -28,7 +28,7 @@ under the License.
 
 # DESCRIBE 语句
 
-DESCRIBE 语句用于描述表或视图的 schema。
+DESCRIBE 语句用于描述表或视图的 schema 或 catalog 的元数据。
 
 <a name="run-a-describe-statement"></a>
 
@@ -81,6 +81,15 @@ tableEnv.executeSql("DESCRIBE Orders").print();
 
 // 打印 schema
 tableEnv.executeSql("DESC Orders").print();
+
+// 注册名为 “cat2” 的 catalog
+tableEnv.executeSql("CREATE CATALOG cat2 WITH ('type'='generic_in_memory', 'default-database'='db')");
+
+// 打印元数据
+tableEnv.executeSql("DESCRIBE CATALOG cat2").print();
+
+// 打印完整的元数据
+tableEnv.executeSql("DESC CATALOG EXTENDED cat2").print();
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -104,6 +113,15 @@ tableEnv.executeSql("DESCRIBE Orders").print()
 
 // 打印 schema
 tableEnv.executeSql("DESC Orders").print()
+
+// 注册名为 “cat2” 的 catalog
+tableEnv.executeSql("CREATE CATALOG cat2 WITH ('type'='generic_in_memory', 'default-database'='db')")
+
+// 打印元数据
+tableEnv.executeSql("DESCRIBE CATALOG cat2").print()
+
+// 打印完整的元数据
+tableEnv.executeSql("DESC CATALOG EXTENDED cat2").print()
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -127,6 +145,15 @@ table_env.execute_sql("DESCRIBE Orders").print()
 
 # 打印 schema
 table_env.execute_sql("DESC Orders").print()
+
+# 注册名为 “cat2” 的 catalog
+table_env.execute_sql("CREATE CATALOG cat2 WITH ('type'='generic_in_memory', 'default-database'='db')")
+
+# 打印元数据
+table_env.execute_sql("DESCRIBE CATALOG cat2").print()
+
+# 打印完整的元数据
+table_env.execute_sql("DESC CATALOG EXTENDED cat2").print()
 ```
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
@@ -147,6 +174,13 @@ Flink SQL> CREATE TABLE Orders (
 Flink SQL> DESCRIBE Orders;
 
 Flink SQL> DESC Orders;
+
+Flink SQL> CREATE CATALOG cat2 WITH ('type'='generic_in_memory', 'default-database'='db');
+[INFO] Execute statement succeeded.
+
+Flink SQL> DESCRIBE CATALOG cat2;
+
+Flink SQL> DESC CATALOG EXTENDED cat2;
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -155,7 +189,7 @@ Flink SQL> DESC Orders;
 {{< tabs "c20da697-b9fc-434b-b7e5-3b51510eee5b" >}}
 {{< tab "Java" >}}
 ```text
-
+# DESCRIBE TABLE Orders
 +---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
 |    name |                        type |  null |       key |        extras |                  watermark |                   comment |
 +---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
@@ -167,11 +201,31 @@ Flink SQL> DESC Orders;
 +---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
 5 rows in set
 
+# DESCRIBE CATALOG cat2
++-----------+-------------------+
+| info name |        info value |
++-----------+-------------------+
+|      name |              cat2 |
+|      type | generic_in_memory |
+|   comment |                   |
++-----------+-------------------+
+3 rows in set
+
+# DESCRIBE CATALOG EXTENDED cat2
++-------------------------+-------------------+
+|               info name |        info value |
++-------------------------+-------------------+
+|                    name |              cat2 |
+|                    type | generic_in_memory |
+|                 comment |                   |
+| option:default-database |                db |
++-------------------------+-------------------+
+4 rows in set
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```text
-
+# DESCRIBE TABLE Orders
 +---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
 |    name |                        type |  null |       key |        extras |                  watermark |                   comment |
 +---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
@@ -183,11 +237,31 @@ Flink SQL> DESC Orders;
 +---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
 5 rows in set
 
+# DESCRIBE CATALOG cat2
++-----------+-------------------+
+| info name |        info value |
++-----------+-------------------+
+|      name |              cat2 |
+|      type | generic_in_memory |
+|   comment |                   |
++-----------+-------------------+
+3 rows in set
+
+# DESCRIBE CATALOG EXTENDED cat2
++-------------------------+-------------------+
+|               info name |        info value |
++-------------------------+-------------------+
+|                    name |              cat2 |
+|                    type | generic_in_memory |
+|                 comment |                   |
+| option:default-database |                db |
++-------------------------+-------------------+
+4 rows in set
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```text
-
+# DESCRIBE TABLE Orders
 +---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
 |    name |                        type |  null |       key |        extras |                  watermark |                   comment |
 +---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
@@ -199,20 +273,62 @@ Flink SQL> DESC Orders;
 +---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
 5 rows in set
 
+# DESCRIBE CATALOG cat2
++-----------+-------------------+
+| info name |        info value |
++-----------+-------------------+
+|      name |              cat2 |
+|      type | generic_in_memory |
+|   comment |                   |
++-----------+-------------------+
+3 rows in set
+
+# DESCRIBE CATALOG EXTENDED cat2
++-------------------------+-------------------+
+|               info name |        info value |
++-------------------------+-------------------+
+|                    name |              cat2 |
+|                    type | generic_in_memory |
+|                 comment |                   |
+| option:default-database |                db |
++-------------------------+-------------------+
+4 rows in set
 ```
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 ```text
+# DESCRIBE TABLE Orders
++---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
+|    name |                        type |  null |       key |        extras |                  watermark |                   comment |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
+|    user |                      BIGINT | FALSE | PRI(user) |               |                            |       this is primary key |
+| product |                 VARCHAR(32) |  TRUE |           |               |                            |                           |
+|  amount |                         INT |  TRUE |           |               |                            |                           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  TRUE |           |               | `ts` - INTERVAL '1' SECOND |         notice: watermark |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | FALSE |           | AS PROCTIME() |                            | this is a computed column |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+---------------------------+
+5 rows in set
 
-root
- |-- user: BIGINT NOT NULL COMMENT 'this is primary key'
- |-- product: VARCHAR(32)
- |-- amount: INT
- |-- ts: TIMESTAMP(3) *ROWTIME* COMMENT 'notice: watermark'
- |-- ptime: TIMESTAMP(3) NOT NULL *PROCTIME* AS PROCTIME() COMMENT 'this is a computed column'
- |-- WATERMARK FOR ts AS `ts` - INTERVAL '1' SECOND
- |-- CONSTRAINT PK_3599338 PRIMARY KEY (user)
+# DESCRIBE CATALOG cat2
++-----------+-------------------+
+| info name |        info value |
++-----------+-------------------+
+|      name |              cat2 |
+|      type | generic_in_memory |
+|   comment |                   |
++-----------+-------------------+
+3 rows in set
 
+# DESCRIBE CATALOG EXTENDED cat2
++-------------------------+-------------------+
+|               info name |        info value |
++-------------------------+-------------------+
+|                    name |              cat2 |
+|                    type | generic_in_memory |
+|                 comment |                   |
+| option:default-database |                db |
++-------------------------+-------------------+
+4 rows in set
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -223,6 +339,11 @@ root
 
 ## 语法
 
+- DESCRIBE TABLE
 ```sql
 { DESCRIBE | DESC } [catalog_name.][db_name.]table_name
+```
+- DESCRIBE CATALOG
+```sql
+{ DESCRIBE | DESC } CATALOG [EXTENDED] catalog_name
 ```
