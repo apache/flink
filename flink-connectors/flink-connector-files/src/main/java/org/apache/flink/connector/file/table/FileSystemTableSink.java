@@ -152,7 +152,8 @@ public class FileSystemTableSink extends AbstractFileSystemTable
         boolean parallelismConfigued = configuredParallelism != null;
 
         if (sinkContext.isBounded()) {
-            return createBatchSink(dataStream, sinkContext, parallelism, parallelismConfigued);
+            return createBatchSink(
+                    providerContext, dataStream, sinkContext, parallelism, parallelismConfigued);
         } else {
             if (overwrite) {
                 throw new IllegalStateException("Streaming mode not support overwrite.");
@@ -172,6 +173,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
     }
 
     private DataStreamSink<RowData> createBatchSink(
+            ProviderContext providerContext,
             DataStream<RowData> inputStream,
             Context sinkContext,
             final int parallelism,
@@ -206,6 +208,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
 
         DataStreamSink<RowData> sink = inputStream.writeUsingOutputFormat(builder.build());
         sink.getTransformation().setParallelism(parallelism, parallelismConfigured);
+        providerContext.generateUid("discarding-sink").ifPresent(sink::uid);
         return sink.name("Filesystem");
     }
 

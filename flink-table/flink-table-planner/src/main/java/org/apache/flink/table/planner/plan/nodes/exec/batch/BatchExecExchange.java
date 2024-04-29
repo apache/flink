@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.dag.Transformation;
@@ -38,6 +39,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty.HashDistribution;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty.KeepInputAsIsDistribution;
@@ -47,10 +49,14 @@ import org.apache.flink.table.runtime.partitioner.BinaryHashPartitioner;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -62,10 +68,20 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *
  * <p>TODO Remove this class once FLINK-21224 is finished.
  */
+@ExecNodeMetadata(
+        name = "batch-exec-exchange",
+        version = 1,
+        producedTransformations = CommonExecExchange.EXCHANGE_TRANSFORMATION,
+        minPlanVersion = FlinkVersion.v1_20,
+        minStateVersion = FlinkVersion.v1_20)
 public class BatchExecExchange extends CommonExecExchange implements BatchExecNode<RowData> {
     // the required exchange mode for reusable BatchExecExchange
     // if it's None, use value from configuration
-    @Nullable private StreamExchangeMode requiredExchangeMode;
+    public static final String FIELD_NAME_REQUIRED_EXCHANGE_MODE = "requiredExchangeMode";
+
+    @JsonProperty(FIELD_NAME_REQUIRED_EXCHANGE_MODE)
+    @Nullable
+    private StreamExchangeMode requiredExchangeMode;
 
     public BatchExecExchange(
             ReadableConfig tableConfig,
@@ -79,6 +95,21 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
+    }
+
+    @JsonCreator
+    public BatchExecExchange(
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description,
+            @JsonProperty(FIELD_NAME_REQUIRED_EXCHANGE_MODE)
+                    StreamExchangeMode requiredExchangeMode) {
+
+        super(id, context, persistedConfig, inputProperties, outputType, description);
+        this.requiredExchangeMode = requiredExchangeMode;
     }
 
     public void setRequiredExchangeMode(@Nullable StreamExchangeMode requiredExchangeMode) {
@@ -199,6 +230,7 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
                         : getBatchStreamExchangeMode(config, requiredExchangeMode);
         final Transformation<RowData> transformation =
                 new PartitionTransformation<>(inputTransform, partitioner, exchangeMode);
+        createTransformationMeta(EXCHANGE_TRANSFORMATION, config).fill(transformation);
         transformation.setParallelism(parallelism);
         transformation.setOutputType(InternalTypeInfo.of(getOutputType()));
         return transformation;

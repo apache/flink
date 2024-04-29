@@ -123,4 +123,7 @@ public interface ExecNode<T> extends ExecNodeTranslator<T>, FusionCodegenExecNod
      * properties might be impacted by this (e.g. UID generation for transformations).
      */
     void setCompiled(boolean isCompiled);
+
+    @JsonIgnore
+    boolean isCompiled();
 }
