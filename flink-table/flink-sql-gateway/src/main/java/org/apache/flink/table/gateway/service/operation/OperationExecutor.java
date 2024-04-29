@@ -799,12 +799,15 @@ public class OperationExecutor {
                                         .findFirst();
                             } catch (Exception e) {
                                 throw new SqlExecutionException(
-                                        "Failed to get jobs in the cluster.", e);
+                                        String.format(
+                                                "Failed to get job %s in the cluster.", jobId),
+                                        e);
                             }
                         });
 
         if (!jobStatusOp.isPresent()) {
-            throw new SqlExecutionException("The job described by " + jobId + " does not exist.");
+            throw new SqlExecutionException(
+                    String.format("Described job %s does not exist in the cluster.", jobId));
         }
         JobStatusMessage job = jobStatusOp.get();
 
