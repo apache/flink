@@ -38,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class BackgroundTaskTest {
 
     @RegisterExtension
-    public static final TestExecutorExtension<ExecutorService> TEST_EXECUTOR_EXTENSION =
+    private static final TestExecutorExtension<ExecutorService> TEST_EXECUTOR_EXTENSION =
             new TestExecutorExtension<>(() -> Executors.newFixedThreadPool(2));
 
     @Test

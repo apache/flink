@@ -35,7 +35,7 @@ class StateWithoutExecutionGraphTest {
     private static final Logger LOG = LoggerFactory.getLogger(CreatedTest.class);
 
     @RegisterExtension
-    MockStateWithoutExecutionGraphContext ctx = new MockStateWithoutExecutionGraphContext();
+    private MockStateWithoutExecutionGraphContext ctx = new MockStateWithoutExecutionGraphContext();
 
     @Test
     void testCancelTransitionsToFinished() {

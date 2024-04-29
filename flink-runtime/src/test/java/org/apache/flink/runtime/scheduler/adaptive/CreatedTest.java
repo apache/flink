@@ -37,7 +37,7 @@ class CreatedTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(CreatedTest.class);
 
-    @RegisterExtension MockCreatedContext ctx = new MockCreatedContext();
+    @RegisterExtension private MockCreatedContext ctx = new MockCreatedContext();
 
     @Test
     void testStartScheduling() {

@@ -67,7 +67,7 @@ class AdaptiveSchedulerSimpleITCase {
     }
 
     @RegisterExtension
-    static final InternalMiniClusterExtension MINI_CLUSTER_EXTENSION =
+    private static final InternalMiniClusterExtension MINI_CLUSTER_EXTENSION =
             new InternalMiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(configuration)
