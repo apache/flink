@@ -408,11 +408,11 @@ class SpeculativeExecutionTest {
         final Execution attempt1 = ev.getCurrentExecutionAttempt();
 
         notifySlowTask(scheduler, attempt1);
-        assertThat(getNumSlowExecutionVertices(scheduler)).isEqualTo(1);
+        assertThat(getNumSlowExecutionVertices(scheduler)).isOne();
 
         // notify a slow vertex twice
         notifySlowTask(scheduler, attempt1);
-        assertThat(getNumSlowExecutionVertices(scheduler)).isEqualTo(1);
+        assertThat(getNumSlowExecutionVertices(scheduler)).isOne();
 
         // vertex no longer slow
         notifySlowTask(scheduler, Collections.emptyMap());
@@ -432,7 +432,7 @@ class SpeculativeExecutionTest {
         final Execution attempt2 = getExecution(ev, 1);
         scheduler.updateTaskExecutionState(
                 createFinishedTaskExecutionState(attempt2.getAttemptId()));
-        assertThat(getNumEffectiveSpeculativeExecutions(scheduler)).isEqualTo(1);
+        assertThat(getNumEffectiveSpeculativeExecutions(scheduler)).isOne();
 
         // complete cancellation
         scheduler.updateTaskExecutionState(

@@ -239,7 +239,7 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
                 createDeciderAndDecideParallelismAndInputInfos(
                         1, 10, 60L, Arrays.asList(resultInfo1, resultInfo2));
 
-        assertThat(parallelismAndInputInfos.getParallelism()).isEqualTo(1);
+        assertThat(parallelismAndInputInfos.getParallelism()).isOne();
         assertThat(parallelismAndInputInfos.getJobVertexInputInfos()).hasSize(2);
 
         checkAllToAllJobVertexInputInfo(
