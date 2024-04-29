@@ -182,7 +182,7 @@ class SsgNetworkMemoryCalculationUtilsTest {
     private void assertNetworkMemory(
             List<SlotSharingGroup> slotSharingGroups, List<MemorySize> networkMemory) {
 
-        assertThat(networkMemory.size()).isEqualTo(slotSharingGroups.size());
+        assertThat(networkMemory).hasSameSizeAs(slotSharingGroups);
         for (int i = 0; i < slotSharingGroups.size(); ++i) {
             assertThat(slotSharingGroups.get(i).getResourceProfile().getNetworkMemory())
                     .isEqualTo(networkMemory.get(i));
@@ -277,8 +277,8 @@ class SsgNetworkMemoryCalculationUtilsTest {
             List<Integer> parallelisms,
             ResultPartitionType resultPartitionType) {
 
-        assertThat(slotSharingGroups.size()).isEqualTo(3);
-        assertThat(parallelisms.size()).isEqualTo(3);
+        assertThat(slotSharingGroups).hasSize(3);
+        assertThat(parallelisms).hasSize(3);
 
         JobVertex source = new JobVertex("source");
         source.setInvokableClass(NoOpInvokable.class);

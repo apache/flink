@@ -442,7 +442,7 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
             JobVertexInputInfo jobVertexInputInfo,
             List<IndexRange> partitionRanges,
             List<IndexRange> subpartitionRanges) {
-        assertThat(partitionRanges.size()).isEqualTo(subpartitionRanges.size());
+        assertThat(partitionRanges).hasSameSizeAs(subpartitionRanges);
         List<ExecutionVertexInputInfo> executionVertexInputInfos = new ArrayList<>();
         for (int i = 0; i < subpartitionRanges.size(); ++i) {
             executionVertexInputInfos.add(
