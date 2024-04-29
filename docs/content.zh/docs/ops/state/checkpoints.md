@@ -63,7 +63,7 @@ new JobManagerCheckpointStorage(MAX_MEM_STATE_SIZE);
 `JobManagerCheckpointStorage` 的限制:
 
 - 默认情况下，每个 State 的大小限制为 5 MB。 可以在 `JobManagerCheckpointStorage` 的构造函数中修改大小。
-- 无论配置的最大 State 大小如何，状态都不能大于 Pekka 框架的大小（请参阅 [配置参数]({{< ref "docs/deployment/config" >}})）。
+- 无论配置的最大 State 大小如何，状态都不能大于 Pekko 框架的大小（请参阅 [配置参数]({{< ref "docs/deployment/config" >}})）。
 - 聚合后总的状态大小必须小于 JobManager 的内存上限。
 
 鼓励在以下场景使用 JobManagerCheckpointStorage：
