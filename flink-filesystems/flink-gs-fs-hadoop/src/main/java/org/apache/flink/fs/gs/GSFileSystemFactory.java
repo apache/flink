@@ -25,7 +25,9 @@ import org.apache.flink.core.fs.FileSystemFactory;
 import org.apache.flink.fs.gs.utils.ConfigUtils;
 import org.apache.flink.util.Preconditions;
 
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.ServiceOptions;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem;
 import com.google.cloud.http.HttpTransportOptions;
 import com.google.cloud.storage.Storage;
@@ -94,6 +96,7 @@ public class GSFileSystemFactory implements FileSystemFactory {
 
         StorageOptions.Builder storageOptionsBuilder = StorageOptions.newBuilder();
         storageOptionsBuilder.setTransportOptions(getHttpTransportOptions(fileSystemOptions));
+        storageOptionsBuilder.setRetrySettings(getRetrySettings(fileSystemOptions));
 
         // get storage credentials
         Optional<GoogleCredentials> credentials =
@@ -114,6 +117,24 @@ public class GSFileSystemFactory implements FileSystemFactory {
         connectionTimeout.ifPresent(httpTransportOptionsBuilder::setConnectTimeout);
         readTimeout.ifPresent(httpTransportOptionsBuilder::setReadTimeout);
         return httpTransportOptionsBuilder.build();
+    }
+
+    private RetrySettings getRetrySettings(GSFileSystemOptions fileSystemOptions) {
+        Optional<Integer> maxAttempts = fileSystemOptions.getMaxAttempts();
+        Optional<org.threeten.bp.Duration> initialRpcTimeout =
+                fileSystemOptions.getInitialRpcTimeout();
+        Optional<Double> rpcTimeoutMultiplier = fileSystemOptions.getRpcTimeoutMultiplier();
+        Optional<org.threeten.bp.Duration> maxRpcTimeout = fileSystemOptions.getMaxRpcTimeout();
+        Optional<org.threeten.bp.Duration> totalTimeout = fileSystemOptions.getTotalTimeout();
+        RetrySettings.Builder retrySettingsBuilder =
+                ServiceOptions.getDefaultRetrySettings().toBuilder();
+
+        maxAttempts.ifPresent(retrySettingsBuilder::setMaxAttempts);
+        initialRpcTimeout.ifPresent(retrySettingsBuilder::setInitialRpcTimeout);
+        rpcTimeoutMultiplier.ifPresent(retrySettingsBuilder::setRpcTimeoutMultiplier);
+        maxRpcTimeout.ifPresent(retrySettingsBuilder::setMaxRpcTimeout);
+        totalTimeout.ifPresent(retrySettingsBuilder::setTotalTimeout);
+        return retrySettingsBuilder.build();
     }
 
     @Override

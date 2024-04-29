@@ -22,9 +22,13 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.description.Description;
 import org.apache.flink.util.Preconditions;
 
+import java.time.Duration;
 import java.util.Optional;
+
+import static org.apache.flink.configuration.description.LinkElement.link;
 
 /** The GS file system options. */
 public class GSFileSystemOptions {
@@ -80,6 +84,74 @@ public class GSFileSystemOptions {
                     .withDescription(
                             "This option sets the timeout in milliseconds to read data from an established connection.");
 
+    /**
+     * Flink config option to set the http read timeout. It will be used by cloud-storage library.
+     */
+    public static final ConfigOption<Integer> GCS_RETRY_MAX_ATTEMPT =
+            ConfigOptions.key("gs.retry.max-attempt")
+                    .intType()
+                    .defaultValue(6)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Defines the maximum number of retry attempts to perform. See GCS %s for more information.",
+                                            link(
+                                                    "https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings#com_google_api_gax_retrying_RetrySettings_getMaxAttempts__",
+                                                    "documentation"))
+                                    .build());
+
+    public static final ConfigOption<Duration> GCS_RETRY_INIT_RPC_TIMEOUT =
+            ConfigOptions.key("gs.retry.init-rpc-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(1000L))
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Controls the timeout for the initial RPC. Subsequent calls will use this value adjusted according to the gs.retry.rpc-timeout-multiplier. See GCS %s for more information.",
+                                            link(
+                                                    "https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings#com_google_api_gax_retrying_RetrySettings_getInitialRpcTimeout__",
+                                                    "documentation"))
+                                    .build());
+
+    public static final ConfigOption<Double> GCS_RETRY_RPC_TIMEOUT_MULTIPLIER =
+            ConfigOptions.key("gs.retry.rpc-timeout-multiplier")
+                    .doubleType()
+                    .defaultValue(1.0)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Controls the change in delay before the next retry or poll. The timeout of the previous call is multiplied by the RpcTimeoutMultiplier to calculate the timeout for the next call. See GCS %s for more information.",
+                                            link(
+                                                    "https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings#com_google_api_gax_retrying_RetrySettings_getRpcTimeoutMultiplier__",
+                                                    "documentation"))
+                                    .build());
+
+    public static final ConfigOption<Duration> GCS_RETRY_MAX_RPC_TIMEOUT =
+            ConfigOptions.key("gs.retry.max-rpc-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(50_000L))
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Puts a limit on the value of the RPC timeout, so that the max rpc timeout can't increase the RPC timeout higher than this amount. See GCS %s for more information.",
+                                            link(
+                                                    "https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings#com_google_api_gax_retrying_RetrySettings_getMaxRpcTimeout__",
+                                                    "documentation"))
+                                    .build());
+
+    public static final ConfigOption<Duration> GCS_RETRY_TOTAL_TIMEOUT =
+            ConfigOptions.key("gs.retry.total-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(50_000L))
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Total duration during which retries could be attempted. See GCS %s for more information.",
+                                            link(
+                                                    "https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings#com_google_api_gax_retrying_RetrySettings_getTotalTimeout__",
+                                                    "documentation"))
+                                    .build());
+
     /** The Flink configuration. */
     private final Configuration flinkConfig;
 
@@ -116,6 +188,32 @@ public class GSFileSystemOptions {
     /** Timeout in millisecond to read content from connection. */
     public Optional<Integer> getHTTPReadTimeout() {
         return flinkConfig.getOptional(GCS_HTTP_READ_TIMEOUT);
+    }
+
+    public Optional<Integer> getMaxAttempts() {
+        return flinkConfig.getOptional(GCS_RETRY_MAX_ATTEMPT);
+    }
+
+    public Optional<org.threeten.bp.Duration> getInitialRpcTimeout() {
+        return flinkConfig
+                .getOptional(GCS_RETRY_INIT_RPC_TIMEOUT)
+                .map(timeout -> org.threeten.bp.Duration.ofMillis(timeout.toMillis()));
+    }
+
+    public Optional<Double> getRpcTimeoutMultiplier() {
+        return flinkConfig.getOptional(GCS_RETRY_RPC_TIMEOUT_MULTIPLIER);
+    }
+
+    public Optional<org.threeten.bp.Duration> getMaxRpcTimeout() {
+        return flinkConfig
+                .getOptional(GCS_RETRY_MAX_RPC_TIMEOUT)
+                .map(timeout -> org.threeten.bp.Duration.ofMillis(timeout.toMillis()));
+    }
+
+    public Optional<org.threeten.bp.Duration> getTotalTimeout() {
+        return flinkConfig
+                .getOptional(GCS_RETRY_TOTAL_TIMEOUT)
+                .map(timeout -> org.threeten.bp.Duration.ofMillis(timeout.toMillis()));
     }
 
     /** The chunk size to use for writes on the underlying Google WriteChannel. */
