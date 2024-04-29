@@ -24,6 +24,8 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandler;
 import org.apache.flink.core.state.StateFutureUtils;
+import org.apache.flink.runtime.asyncprocessing.EpochManager.Epoch;
+import org.apache.flink.runtime.asyncprocessing.EpochManager.ParallelMode;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
@@ -586,6 +588,96 @@ class AsyncExecutionControllerTest {
                 .isEqualTo("java.lang.RuntimeException: Fail to execute.");
         assertThat(exceptionHandler.message)
                 .isEqualTo("Caught exception when submitting StateFuture's callback.");
+    }
+
+    @Test
+    void testEpochManager() {
+        setup(
+                1000,
+                10000,
+                6000,
+                new SyncMailboxExecutor(),
+                new TestAsyncFrameworkExceptionHandler());
+        AtomicInteger output = new AtomicInteger(0);
+        Runnable userCode = () -> valueState.asyncValue().thenAccept(v -> output.incrementAndGet());
+
+        String record1 = "key1-r1";
+        String key1 = "key1";
+        RecordContext<String> recordContext1 = aec.buildContext(record1, key1);
+        Epoch epoch1 = recordContext1.getEpoch();
+        aec.setCurrentContext(recordContext1);
+        userCode.run();
+
+        String record2 = "key2-r2";
+        String key2 = "key2";
+        RecordContext<String> recordContext2 = aec.buildContext(record2, key2);
+        Epoch epoch2 = recordContext2.getEpoch();
+        aec.setCurrentContext(recordContext2);
+        userCode.run();
+
+        assertThat(epoch1).isEqualTo(epoch2);
+        assertThat(epoch1.ongoingRecordCount).isEqualTo(2);
+        aec.processNonRecord(() -> output.incrementAndGet());
+
+        assertThat(output.get()).isEqualTo(3);
+        // SERIAL_BETWEEN_EPOCH mode would drain in-flight records on non-record arriving.
+        assertThat(epoch1.ongoingRecordCount).isEqualTo(0);
+    }
+
+    @Test
+    void testMixEpochMode() {
+        // epoch1(parallel mode) -> epoch2(parallel mode) -> epoch3(serial mode),
+        // when epoch2 close, epoch1 is still in-flight.
+        // when epoch3 close, all in-flight records should drain, epoch1 and epoch2 should finish.
+        setup(
+                1000,
+                10000,
+                6000,
+                new SyncMailboxExecutor(),
+                new TestAsyncFrameworkExceptionHandler());
+        AtomicInteger output = new AtomicInteger(0);
+        Runnable userCode = () -> valueState.asyncValue().thenAccept(v -> output.incrementAndGet());
+
+        String record1 = "key1-r1";
+        String key1 = "key1";
+        RecordContext<String> recordContext1 = aec.buildContext(record1, key1);
+        Epoch epoch1 = recordContext1.getEpoch();
+        aec.setCurrentContext(recordContext1);
+        userCode.run();
+
+        aec.epochManager.onNonRecord(
+                () -> output.incrementAndGet(), ParallelMode.PARALLEL_BETWEEN_EPOCH);
+        assertThat(epoch1.ongoingRecordCount).isEqualTo(1);
+
+        String record2 = "key2-r2";
+        String key2 = "key2";
+        RecordContext<String> recordContext2 = aec.buildContext(record2, key2);
+        Epoch epoch2 = recordContext2.getEpoch();
+        aec.setCurrentContext(recordContext2);
+        userCode.run();
+        assertThat(epoch1.ongoingRecordCount).isEqualTo(1);
+        assertThat(epoch2.ongoingRecordCount).isEqualTo(1);
+        aec.epochManager.onNonRecord(
+                () -> output.incrementAndGet(), ParallelMode.PARALLEL_BETWEEN_EPOCH);
+        assertThat(epoch1.ongoingRecordCount).isEqualTo(1);
+        assertThat(epoch2.ongoingRecordCount).isEqualTo(1);
+        assertThat(output.get()).isEqualTo(0);
+
+        String record3 = "key3-r3";
+        String key3 = "key3";
+        RecordContext<String> recordContext3 = aec.buildContext(record3, key3);
+        Epoch epoch3 = recordContext3.getEpoch();
+        aec.setCurrentContext(recordContext3);
+        userCode.run();
+        assertThat(epoch1.ongoingRecordCount).isEqualTo(1);
+        assertThat(epoch2.ongoingRecordCount).isEqualTo(1);
+        assertThat(epoch3.ongoingRecordCount).isEqualTo(1);
+        aec.epochManager.onNonRecord(
+                () -> output.incrementAndGet(), ParallelMode.SERIAL_BETWEEN_EPOCH);
+        assertThat(epoch1.ongoingRecordCount).isEqualTo(0);
+        assertThat(epoch2.ongoingRecordCount).isEqualTo(0);
+        assertThat(epoch3.ongoingRecordCount).isEqualTo(0);
+        assertThat(output.get()).isEqualTo(6);
     }
 
     /** Simulate the underlying state that is actually used to execute the request. */
