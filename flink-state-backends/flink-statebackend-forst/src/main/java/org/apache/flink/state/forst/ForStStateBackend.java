@@ -287,7 +287,13 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
     //  State holding data structures
     // ------------------------------------------------------------------------
 
-    public <K> ForStKeyedStateBackend<K> createForStKeyedStateBackend(
+    @Override
+    public boolean supportsAsyncKeyedStateBackend() {
+        return true;
+    }
+
+    @Override
+    public <K> ForStKeyedStateBackend<K> createAsyncKeyedStateBackend(
             KeyedStateBackendParameters<K> parameters) throws IOException {
         Environment env = parameters.getEnv();
 
@@ -331,6 +337,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                                 resourceContainer,
                                 stateName -> resourceContainer.getColumnOptions(),
                                 parameters.getKeySerializer(),
+                                parameters.getNumberOfKeyGroups(),
                                 parameters.getMetricGroup(),
                                 parameters.getStateHandles())
                         .setNativeMetricOptions(

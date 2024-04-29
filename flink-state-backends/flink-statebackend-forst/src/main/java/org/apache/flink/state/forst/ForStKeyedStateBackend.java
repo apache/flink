@@ -18,33 +18,58 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.util.Disposable;
+import org.apache.flink.core.memory.DataInputDeserializer;
+import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.runtime.asyncprocessing.StateExecutor;
+import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
+import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
+import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
+import org.apache.flink.runtime.state.v2.StateDescriptor;
+import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.ColumnFamilyHandle;
+import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.RocksDB;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * A KeyedStateBackend that stores its state in {@code ForSt}. This state backend can store very
- * large state that exceeds memory even disk to remote storage. TODO: Support to implement the new
- * interface of KeyedStateBackend
+ * large state that exceeds memory even disk to remote storage.
  */
-public class ForStKeyedStateBackend<K> implements Disposable {
+public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
 
     private static final Logger LOG = LoggerFactory.getLogger(ForStKeyedStateBackend.class);
 
     /** The key serializer. */
     protected final TypeSerializer<K> keySerializer;
 
+    /** Supplier to create SerializedCompositeKeyBuilder. */
+    private final Supplier<SerializedCompositeKeyBuilder<K>> serializedKeyBuilder;
+
+    /** Supplier to create DataOutputSerializer to serialize value. */
+    private final Supplier<DataOutputSerializer> valueSerializerView;
+
+    /** Supplier to create DataInputDeserializer to deserialize value. */
+    private final Supplier<DataInputDeserializer> valueDeserializerView;
+
     /** The container of ForSt options. */
     private final ForStResourceContainer optionsContainer;
+
+    /** Factory function to create column family options from state name. */
+    private final Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory;
 
     /**
      * We are not using the default column family for Flink state ops, but we still need to remember
@@ -63,20 +88,67 @@ public class ForStKeyedStateBackend<K> implements Disposable {
      */
     protected final RocksDB db;
 
+    /** Handler to handle state request. */
+    private StateRequestHandler stateRequestHandler;
+
     // mark whether this backend is already disposed and prevent duplicate disposing
     private boolean disposed = false;
 
     public ForStKeyedStateBackend(
             ForStResourceContainer optionsContainer,
             TypeSerializer<K> keySerializer,
+            Supplier<SerializedCompositeKeyBuilder<K>> serializedKeyBuilder,
+            Supplier<DataOutputSerializer> valueSerializerView,
+            Supplier<DataInputDeserializer> valueDeserializerView,
             RocksDB db,
+            Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             ColumnFamilyHandle defaultColumnFamilyHandle,
             ForStNativeMetricMonitor nativeMetricMonitor) {
         this.optionsContainer = Preconditions.checkNotNull(optionsContainer);
         this.keySerializer = keySerializer;
+        this.serializedKeyBuilder = serializedKeyBuilder;
+        this.valueSerializerView = valueSerializerView;
+        this.valueDeserializerView = valueDeserializerView;
         this.db = db;
+        this.columnFamilyOptionsFactory = columnFamilyOptionsFactory;
         this.defaultColumnFamily = defaultColumnFamilyHandle;
         this.nativeMetricMonitor = nativeMetricMonitor;
+    }
+
+    @Override
+    public void setup(@Nonnull StateRequestHandler stateRequestHandler) {
+        this.stateRequestHandler = stateRequestHandler;
+    }
+
+    @Nonnull
+    @Override
+    @SuppressWarnings("unchecked")
+    public <SV, S extends State> S createState(@Nonnull StateDescriptor<SV> stateDesc) {
+        Preconditions.checkNotNull(
+                stateRequestHandler,
+                "A non-null stateRequestHandler must be setup before createState");
+        ColumnFamilyHandle columnFamilyHandle =
+                ForStOperationUtils.createColumnFamilyHandle(
+                        stateDesc.getStateId(), db, columnFamilyOptionsFactory);
+        if (stateDesc.getType() == StateDescriptor.Type.VALUE) {
+            return (S)
+                    new ForStValueState<>(
+                            stateRequestHandler,
+                            columnFamilyHandle,
+                            (ValueStateDescriptor<SV>) stateDesc,
+                            serializedKeyBuilder,
+                            valueSerializerView,
+                            valueDeserializerView);
+        }
+        throw new UnsupportedOperationException(
+                String.format("Unsupported state type: %s", stateDesc.getType()));
+    }
+
+    @Override
+    @Nonnull
+    public StateExecutor createStateExecutor() {
+        // TODO: Make io parallelism configurable
+        return new ForStStateExecutor(4, db, optionsContainer.getWriteOptions());
     }
 
     /** Should only be called by one thread, and only after all accesses to the DB happened. */
@@ -131,5 +203,10 @@ public class ForStKeyedStateBackend<K> implements Disposable {
     @VisibleForTesting
     URI getRemoteBasePath() {
         return optionsContainer.getRemoteBasePath();
+    }
+
+    @Override
+    public void close() throws IOException {
+        // do nothing currently, native resources will be release in dispose method
     }
 }

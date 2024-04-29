@@ -35,7 +35,7 @@ public final class ForStTestUtils {
             ForStStateBackend forStStateBackend, Environment env, TypeSerializer<K> keySerializer)
             throws IOException {
 
-        return forStStateBackend.createForStKeyedStateBackend(
+        return forStStateBackend.createAsyncKeyedStateBackend(
                 new KeyedStateBackendParametersImpl<>(
                         env,
                         env.getJobID(),
