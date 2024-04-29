@@ -18,15 +18,15 @@
 
 package org.apache.flink.runtime.asyncprocessing;
 
+import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
-import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
-import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.StateBackendTestUtils;
 import org.apache.flink.runtime.state.v2.InternalValueState;
 import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.util.Preconditions;
@@ -37,13 +37,13 @@ import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 /** Test for {@link AsyncExecutionController}. */
 class AsyncExecutionControllerTest {
     AsyncExecutionController aec;
-    TestUnderlyingState underlyingState;
     AtomicInteger output;
     TestValueState valueState;
 
@@ -63,16 +63,36 @@ class AsyncExecutionControllerTest {
             };
 
     void setup(int batchSize, long timeout, int maxInFlight) {
+        StateExecutor stateExecutor = new TestStateExecutor();
+        ValueStateDescriptor<Integer> stateDescriptor =
+                new ValueStateDescriptor<>("test-value-state", BasicTypeInfo.INT_TYPE_INFO);
+        Supplier<State> stateSupplier =
+                () -> new TestValueState(aec, new TestUnderlyingState(), stateDescriptor);
+        StateBackend testAsyncStateBackend =
+                StateBackendTestUtils.buildAsyncStateBackend(stateSupplier, stateExecutor);
+        assertThat(testAsyncStateBackend.supportsAsyncKeyedStateBackend()).isTrue();
+        AsyncKeyedStateBackend asyncKeyedStateBackend;
+        try {
+            asyncKeyedStateBackend = testAsyncStateBackend.createAsyncKeyedStateBackend(null);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
         aec =
                 new AsyncExecutionController<>(
                         new SyncMailboxExecutor(),
-                        createStateExecutor(),
+                        stateExecutor,
                         128,
                         batchSize,
                         timeout,
                         maxInFlight);
-        underlyingState = new TestUnderlyingState();
-        valueState = new TestValueState(aec, underlyingState);
+        asyncKeyedStateBackend.setup(aec);
+
+        try {
+            valueState = asyncKeyedStateBackend.createState(stateDescriptor);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
         output = new AtomicInteger();
     }
 
@@ -466,12 +486,6 @@ class AsyncExecutionControllerTest {
         assertThat(aec.stateRequestsBuffer.currentScheduledFuture.isDone()).isTrue();
     }
 
-    private StateExecutor createStateExecutor() {
-        TestAsyncStateBackend testAsyncStateBackend = new TestAsyncStateBackend();
-        assertThat(testAsyncStateBackend.supportsAsyncKeyedStateBackend()).isTrue();
-        return testAsyncStateBackend.createAsyncKeyedStateBackend(null).createStateExecutor();
-    }
-
     /** Simulate the underlying state that is actually used to execute the request. */
     static class TestUnderlyingState {
 
@@ -495,50 +509,12 @@ class AsyncExecutionControllerTest {
         private final TestUnderlyingState underlyingState;
 
         public TestValueState(
-                AsyncExecutionController<String> aec, TestUnderlyingState underlyingState) {
-            super(aec, new ValueStateDescriptor<>("test-value-state", BasicTypeInfo.INT_TYPE_INFO));
+                StateRequestHandler stateRequestHandler,
+                TestUnderlyingState underlyingState,
+                ValueStateDescriptor<Integer> stateDescriptor) {
+            super(stateRequestHandler, stateDescriptor);
             this.underlyingState = underlyingState;
             assertThat(this.getValueSerializer()).isEqualTo(IntSerializer.INSTANCE);
-        }
-    }
-
-    /**
-     * A brief implementation of {@link StateBackend} which illustrates the interaction between AEC
-     * and StateBackend.
-     */
-    static class TestAsyncStateBackend implements StateBackend {
-
-        @Override
-        public <K> CheckpointableKeyedStateBackend<K> createKeyedStateBackend(
-                KeyedStateBackendParameters<K> parameters) throws Exception {
-            throw new UnsupportedOperationException("Don't support createKeyedStateBackend yet");
-        }
-
-        @Override
-        public OperatorStateBackend createOperatorStateBackend(
-                OperatorStateBackendParameters parameters) throws Exception {
-            throw new UnsupportedOperationException("Don't support createOperatorStateBackend yet");
-        }
-
-        @Override
-        public boolean supportsAsyncKeyedStateBackend() {
-            return true;
-        }
-
-        @Override
-        public <K> AsyncKeyedStateBackend createAsyncKeyedStateBackend(
-                KeyedStateBackendParameters<K> parameters) {
-            return new AsyncKeyedStateBackend() {
-                @Override
-                public StateExecutor createStateExecutor() {
-                    return new TestStateExecutor();
-                }
-
-                @Override
-                public void dispose() {
-                    // do nothing
-                }
-            };
         }
     }
 

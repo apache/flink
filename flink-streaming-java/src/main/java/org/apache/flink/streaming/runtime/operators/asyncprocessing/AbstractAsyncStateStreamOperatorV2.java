@@ -27,6 +27,7 @@ import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
@@ -70,19 +71,28 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
     public final void initializeState(StreamTaskStateInitializer streamTaskStateManager)
             throws Exception {
         super.initializeState(streamTaskStateManager);
+        getRuntimeContext().setKeyedStateStoreV2(stateHandler.getKeyedStateStoreV2().orElse(null));
 
         final int inFlightRecordsLimit = getExecutionConfig().getAsyncInflightRecordsLimit();
         final int asyncBufferSize = getExecutionConfig().getAsyncStateBufferSize();
         final long asyncBufferTimeout = getExecutionConfig().getAsyncStateBufferTimeout();
         int maxParallelism = getExecutionConfig().getMaxParallelism();
-        this.asyncExecutionController =
-                new AsyncExecutionController(
-                        mailboxExecutor,
-                        null,
-                        maxParallelism,
-                        asyncBufferSize,
-                        asyncBufferTimeout,
-                        inFlightRecordsLimit);
+
+        AsyncKeyedStateBackend asyncKeyedStateBackend = stateHandler.getAsyncKeyedStateBackend();
+        if (asyncKeyedStateBackend != null) {
+            this.asyncExecutionController =
+                    new AsyncExecutionController(
+                            mailboxExecutor,
+                            asyncKeyedStateBackend.createStateExecutor(),
+                            maxParallelism,
+                            asyncBufferSize,
+                            asyncBufferTimeout,
+                            inFlightRecordsLimit);
+            asyncKeyedStateBackend.setup(asyncExecutionController);
+        } else if (stateHandler.getKeyedStateBackend() != null) {
+            throw new UnsupportedOperationException(
+                    "Current State Backend doesn't support async access, AsyncExecutionController could not work");
+        }
     }
 
     @Override

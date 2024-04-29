@@ -42,6 +42,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.state.v2.KeyedStateStoreV2;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -69,6 +70,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
     private final String operatorUniqueID;
     private final ProcessingTimeService processingTimeService;
     private @Nullable KeyedStateStore keyedStateStore;
+    private @Nullable KeyedStateStoreV2 keyedStateStoreV2;
     private final ExternalResourceInfoProvider externalResourceInfoProvider;
 
     @VisibleForTesting
@@ -112,6 +114,10 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 
     public void setKeyedStateStore(@Nullable KeyedStateStore keyedStateStore) {
         this.keyedStateStore = keyedStateStore;
+    }
+
+    public void setKeyedStateStoreV2(@Nullable KeyedStateStoreV2 keyedStateStoreV2) {
+        this.keyedStateStoreV2 = keyedStateStoreV2;
     }
 
     // ------------------------------------------------------------------------
@@ -240,6 +246,25 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
                         "Keyed state '%s' with type %s can only be used on a 'keyed stream', i.e., after a 'keyBy()' operation.",
                         stateDescriptor.getName(), stateDescriptor.getType()));
         return keyedStateStore;
+    }
+
+    // TODO: Reconstruct this after StateManager is ready in FLIP-410.
+    public <T> org.apache.flink.api.common.state.v2.ValueState<T> getValueState(
+            org.apache.flink.runtime.state.v2.ValueStateDescriptor<T> stateProperties) {
+        KeyedStateStoreV2 keyedStateStoreV2 =
+                checkPreconditionsAndGetKeyedStateStoreV2(stateProperties);
+        return keyedStateStoreV2.getValueState(stateProperties);
+    }
+
+    private KeyedStateStoreV2 checkPreconditionsAndGetKeyedStateStoreV2(
+            org.apache.flink.runtime.state.v2.StateDescriptor<?> stateDescriptor) {
+        checkNotNull(stateDescriptor, "The state properties must not be null");
+        checkNotNull(
+                keyedStateStoreV2,
+                String.format(
+                        "Keyed state '%s' with type %s can only be used on a 'keyed stream', i.e., after a 'keyBy()' operation.",
+                        stateDescriptor.getStateId(), stateDescriptor.getType()));
+        return keyedStateStoreV2;
     }
 
     // ------------------ expose (read only) relevant information from the stream config -------- //

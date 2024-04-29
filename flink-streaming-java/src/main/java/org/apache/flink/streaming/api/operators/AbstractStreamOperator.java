@@ -138,7 +138,7 @@ public abstract class AbstractStreamOperator<OUT>
      */
     protected transient KeySelector<?, ?> stateKeySelector2;
 
-    private transient StreamOperatorStateHandler stateHandler;
+    protected transient StreamOperatorStateHandler stateHandler;
 
     protected transient InternalTimeServiceManager<?> timeServiceManager;
 
@@ -253,7 +253,7 @@ public abstract class AbstractStreamOperator<OUT>
     }
 
     @Override
-    public final void initializeState(StreamTaskStateInitializer streamTaskStateManager)
+    public void initializeState(StreamTaskStateInitializer streamTaskStateManager)
             throws Exception {
 
         final TypeSerializer<?> keySerializer =

@@ -30,6 +30,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.streaming.api.operators.AbstractInput;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
@@ -55,6 +56,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.runtime.state.StateBackendTestUtils.buildAsyncStateBackend;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Basic tests for {@link AbstractAsyncStateStreamOperatorV2}. */
@@ -64,13 +66,17 @@ public class AbstractAsyncStateStreamOperatorV2Test {
             createTestHarness(
                     int maxParalelism, int numSubtasks, int subtaskIndex, ElementOrder elementOrder)
                     throws Exception {
-        return new KeyedOneInputStreamOperatorV2TestHarness<>(
-                new TestOperatorFactory(elementOrder),
-                new AbstractAsyncStateStreamOperatorTest.TestKeySelector(),
-                BasicTypeInfo.INT_TYPE_INFO,
-                maxParalelism,
-                numSubtasks,
-                subtaskIndex);
+        KeyedOneInputStreamOperatorV2TestHarness<Integer, Tuple2<Integer, String>, String>
+                testHarness =
+                        new KeyedOneInputStreamOperatorV2TestHarness<>(
+                                new TestOperatorFactory(elementOrder),
+                                new TestKeySelector(),
+                                BasicTypeInfo.INT_TYPE_INFO,
+                                maxParalelism,
+                                numSubtasks,
+                                subtaskIndex);
+        testHarness.setStateBackend(buildAsyncStateBackend(new HashMapStateBackend()));
+        return testHarness;
     }
 
     @Test
@@ -83,6 +89,11 @@ public class AbstractAsyncStateStreamOperatorV2Test {
             assertThat(
                             ((AbstractAsyncStateStreamOperatorV2) testHarness.getBaseOperator())
                                     .getAsyncExecutionController())
+                    .isNotNull();
+            assertThat(
+                            ((AbstractAsyncStateStreamOperatorV2) testHarness.getBaseOperator())
+                                    .getAsyncExecutionController()
+                                    .getStateExecutor())
                     .isNotNull();
         }
     }
@@ -162,7 +173,6 @@ public class AbstractAsyncStateStreamOperatorV2Test {
                     CheckpointStorageLocationReference.getDefault();
             AsyncExecutionController asyncExecutionController =
                     testOperator.getAsyncExecutionController();
-            asyncExecutionController.setStateExecutor(new MockStateExecutor());
             testOperator.setAsyncKeyedContextElement(
                     new StreamRecord<>(Tuple2.of(5, "5")), new TestKeySelector());
             asyncExecutionController.handleRequest(null, StateRequestType.VALUE_GET, null);
