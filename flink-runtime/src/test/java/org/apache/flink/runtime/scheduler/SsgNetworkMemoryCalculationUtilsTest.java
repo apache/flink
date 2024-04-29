@@ -47,6 +47,7 @@ import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -236,10 +237,12 @@ class SsgNetworkMemoryCalculationUtilsTest {
         SsgNetworkMemoryCalculationUtils.getMaxInputChannelInfoForDynamicGraph(
                 consumer, maxInputChannelNums, inputPartitionTypes);
 
-        assertThat(maxInputChannelNums.size()).isOne();
-        assertThat(maxInputChannelNums.get(result.getId())).isEqualTo(expectedNumChannels);
-        assertThat(inputPartitionTypes.size()).isOne();
-        assertThat(inputPartitionTypes.get(result.getId())).isEqualTo(result.getResultType());
+        assertThat(maxInputChannelNums)
+                .containsExactly(
+                        new AbstractMap.SimpleEntry<>(result.getId(), expectedNumChannels));
+        assertThat(inputPartitionTypes)
+                .containsExactly(
+                        new AbstractMap.SimpleEntry<>(result.getId(), result.getResultType()));
     }
 
     private DefaultExecutionGraph createDynamicExecutionGraph(

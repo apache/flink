@@ -833,7 +833,7 @@ public class AdaptiveSchedulerTest {
         // transition into next state, for which the job state is still INITIALIZING
         scheduler.transitionToState(new DummyState.Factory(JobStatus.INITIALIZING));
 
-        assertThat(numStatusUpdates.get()).isEqualTo(0);
+        assertThat(numStatusUpdates).hasValue(0);
     }
 
     @Test
@@ -2508,8 +2508,9 @@ public class AdaptiveSchedulerTest {
                     .isEqualTo(JobFailureMetricReporter.class.getCanonicalName());
             assertThat(span.getName()).isEqualTo("JobFailure");
             Map<String, Object> attributes = span.getAttributes();
-            assertThat(attributes).containsEntry("failureLabel.failKey", "failValue");
-            assertThat(attributes).containsEntry("canRestart", String.valueOf(canRestart));
+            assertThat(attributes)
+                    .containsEntry("failureLabel.failKey", "failValue")
+                    .containsEntry("canRestart", String.valueOf(canRestart));
         }
     }
 }
