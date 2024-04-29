@@ -1774,6 +1774,101 @@ SqlCreate SqlCreateMaterializedTable(Span s, boolean replace, boolean isTemporar
 }
 
 /**
+* Parses alter materialized table.
+*/
+
+SqlAlterMaterializedTable SqlAlterMaterializedTable() :
+{
+    SqlParserPos startPos;
+    SqlIdentifier tableIdentifier;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+    SqlNodeList propertyKeyList = SqlNodeList.EMPTY;
+    SqlNodeList partSpec = null;
+    SqlNode freshness = null;
+}
+{
+    <ALTER> <MATERIALIZED> <TABLE> { startPos = getPos();}
+    tableIdentifier = CompoundIdentifier()
+    (
+        <SUSPEND>
+        {
+            return new SqlAlterMaterializedTableSuspend(startPos, tableIdentifier);
+        }
+        |
+        <RESUME>
+        [ <WITH> propertyList = TableProperties() ]
+            {
+                return new SqlAlterMaterializedTableResume(
+                    startPos,
+                    tableIdentifier,
+                    propertyList);
+            }
+        |
+        <REFRESH>
+        [ <PARTITION> {
+                partSpec = new SqlNodeList(getPos());
+                PartitionSpecCommaList(partSpec);
+            }
+        ]
+            {
+                return new SqlAlterMaterializedTableRefresh(
+                    startPos.plus(getPos()),
+                    tableIdentifier,
+                    partSpec);
+            }
+        |
+        <SET>
+        (
+            <FRESHNESS> <EQ> freshness = Expression(ExprContext.ACCEPT_NON_QUERY) {
+                if (!(freshness instanceof SqlIntervalLiteral)) {
+                    throw SqlUtil.newContextException(
+                        getPos(),
+                        ParserResource.RESOURCE.unsupportedFreshnessType());
+                }
+                return new SqlAlterMaterializedTableFreshness(
+                    startPos.plus(getPos()),
+                    tableIdentifier,
+                    (SqlIntervalLiteral) freshness);
+            }
+            |
+            <REFRESH_MODE> <EQ>
+            (
+                <FULL> {
+                    return new SqlAlterMaterializedTableRefreshMode(
+                        startPos.plus(getPos()),
+                        tableIdentifier,
+                        SqlRefreshMode.FULL.symbol(getPos()));
+                }
+                |
+                <CONTINUOUS> {
+                    return new SqlAlterMaterializedTableRefreshMode(
+                        startPos.plus(getPos()),
+                        tableIdentifier,
+                        SqlRefreshMode.CONTINUOUS.symbol(getPos()));
+                }
+            )
+            |
+            propertyList = TableProperties()
+            {
+                return new SqlAlterMaterializedTableOptions(
+                    startPos.plus(getPos()),
+                    tableIdentifier,
+                    propertyList);
+            }
+        )
+        |
+        <RESET>
+            propertyKeyList = TablePropertyKeys()
+            {
+                return new SqlAlterMaterializedTableReset(
+                    startPos.plus(getPos()),
+                    tableIdentifier,
+                    propertyKeyList);
+            }
+    )
+}
+
+/**
 * Parses an INSERT statement.
 */
 SqlNode RichSqlInsert() :
