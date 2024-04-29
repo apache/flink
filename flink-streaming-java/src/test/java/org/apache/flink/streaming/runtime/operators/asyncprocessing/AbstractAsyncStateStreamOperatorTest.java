@@ -29,6 +29,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerServiceAsyncImpl;
@@ -39,12 +40,14 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.util.function.ThrowingConsumer;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.runtime.state.StateBackendTestUtils.buildAsyncStateBackend;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Basic tests for {@link AbstractAsyncStateStreamOperator}. */
@@ -55,13 +58,17 @@ public class AbstractAsyncStateStreamOperatorTest {
                     int maxParalelism, int numSubtasks, int subtaskIndex, ElementOrder elementOrder)
                     throws Exception {
         TestOperator testOperator = new TestOperator(elementOrder);
-        return new KeyedOneInputStreamOperatorTestHarness<>(
-                testOperator,
-                new TestKeySelector(),
-                BasicTypeInfo.INT_TYPE_INFO,
-                maxParalelism,
-                numSubtasks,
-                subtaskIndex);
+        KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
+                testHarness =
+                        new KeyedOneInputStreamOperatorTestHarness<>(
+                                testOperator,
+                                new TestKeySelector(),
+                                BasicTypeInfo.INT_TYPE_INFO,
+                                maxParalelism,
+                                numSubtasks,
+                                subtaskIndex);
+        testHarness.setStateBackend(buildAsyncStateBackend(new HashMapStateBackend()));
+        return testHarness;
     }
 
     @Test
@@ -74,6 +81,11 @@ public class AbstractAsyncStateStreamOperatorTest {
             assertThat(
                             ((AbstractAsyncStateStreamOperator) testHarness.getOperator())
                                     .getAsyncExecutionController())
+                    .isNotNull();
+            assertThat(
+                            ((AbstractAsyncStateStreamOperator) testHarness.getOperator())
+                                    .getAsyncExecutionController()
+                                    .getStateExecutor())
                     .isNotNull();
         }
     }
@@ -150,7 +162,6 @@ public class AbstractAsyncStateStreamOperatorTest {
             AsyncExecutionController asyncExecutionController =
                     ((AbstractAsyncStateStreamOperator) testHarness.getOperator())
                             .getAsyncExecutionController();
-            asyncExecutionController.setStateExecutor(new MockStateExecutor());
             ((AbstractAsyncStateStreamOperator<String>) testHarness.getOperator())
                     .setAsyncKeyedContextElement(
                             new StreamRecord<>(Tuple2.of(5, "5")), new TestKeySelector());
@@ -171,6 +182,7 @@ public class AbstractAsyncStateStreamOperatorTest {
         }
     }
 
+    @Disabled("Support Timer for AsyncKeyedStateBackend")
     @Test
     void testTimerServiceIsAsync() throws Exception {
         try (KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>

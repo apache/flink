@@ -16,12 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.operators.asyncprocessing;
+package org.apache.flink.runtime.asyncprocessing;
 
-import org.apache.flink.runtime.asyncprocessing.MockStateRequestContainer;
-import org.apache.flink.runtime.asyncprocessing.StateExecutor;
-import org.apache.flink.runtime.asyncprocessing.StateRequest;
-import org.apache.flink.runtime.asyncprocessing.StateRequestContainer;
 import org.apache.flink.util.Preconditions;
 
 import java.util.concurrent.CompletableFuture;

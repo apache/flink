@@ -320,8 +320,8 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
     }
 
     @VisibleForTesting
-    public void setStateExecutor(StateExecutor stateExecutor) {
-        this.stateExecutor = stateExecutor;
+    public StateExecutor getStateExecutor() {
+        return stateExecutor;
     }
 
     @VisibleForTesting

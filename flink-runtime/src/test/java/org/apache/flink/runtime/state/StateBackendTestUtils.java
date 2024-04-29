@@ -22,7 +22,11 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.asyncprocessing.MockStateExecutor;
+import org.apache.flink.runtime.asyncprocessing.StateExecutor;
+import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.util.function.FunctionWithException;
 
@@ -31,6 +35,7 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.concurrent.RunnableFuture;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /** This class contains test utils of {@link StateBackend} */
@@ -42,6 +47,109 @@ public class StateBackendTestUtils {
             SerializableFunctionWithException<RunnableFuture<SnapshotResult<KeyedStateHandle>>>
                     snapshotResultFunction) {
         return new ApplyingSnapshotStateBackend(delegatedStataBackend, snapshotResultFunction);
+    }
+
+    public static StateBackend buildAsyncStateBackend(StateBackend delegatedSyncStateBackend) {
+        return new TestAsyncStateBackend(delegatedSyncStateBackend)
+                .setInnerState(null)
+                .setStateExecutor(new MockStateExecutor());
+    }
+
+    public static StateBackend buildAsyncStateBackend(
+            Supplier<org.apache.flink.api.common.state.v2.State> innerStateSupplier,
+            StateExecutor stateExecutor) {
+        return new TestAsyncStateBackend(new HashMapStateBackend())
+                .setInnerState(innerStateSupplier)
+                .setStateExecutor(stateExecutor);
+    }
+
+    private static class TestAsyncStateBackend implements StateBackend {
+
+        private final StateBackend delegatedStateBackend;
+        private Supplier<org.apache.flink.api.common.state.v2.State> innerStateSupplier;
+        private StateExecutor stateExecutor;
+
+        public TestAsyncStateBackend(StateBackend delegatedStateBackend) {
+            this.delegatedStateBackend = delegatedStateBackend;
+        }
+
+        public TestAsyncStateBackend setInnerState(
+                Supplier<org.apache.flink.api.common.state.v2.State> innerStateSupplier) {
+            this.innerStateSupplier = innerStateSupplier;
+            return this;
+        }
+
+        public TestAsyncStateBackend setStateExecutor(StateExecutor stateExecutor) {
+            this.stateExecutor = stateExecutor;
+            return this;
+        }
+
+        @Override
+        public boolean supportsAsyncKeyedStateBackend() {
+            return true;
+        }
+
+        @Override
+        public <K> AsyncKeyedStateBackend createAsyncKeyedStateBackend(
+                KeyedStateBackendParameters<K> parameters) throws Exception {
+            return delegatedStateBackend.supportsAsyncKeyedStateBackend()
+                    ? delegatedStateBackend.createAsyncKeyedStateBackend(parameters)
+                    : new TestAsyncKeyedStateBackend(innerStateSupplier, stateExecutor);
+        }
+
+        @Override
+        public <K> CheckpointableKeyedStateBackend<K> createKeyedStateBackend(
+                KeyedStateBackendParameters<K> parameters) throws Exception {
+            return delegatedStateBackend.createKeyedStateBackend(parameters);
+        }
+
+        @Override
+        public OperatorStateBackend createOperatorStateBackend(
+                OperatorStateBackendParameters parameters) throws Exception {
+            return delegatedStateBackend.createOperatorStateBackend(parameters);
+        }
+    }
+
+    private static class TestAsyncKeyedStateBackend implements AsyncKeyedStateBackend {
+
+        private final Supplier<org.apache.flink.api.common.state.v2.State> innerStateSupplier;
+        private final StateExecutor stateExecutor;
+
+        public TestAsyncKeyedStateBackend(
+                Supplier<org.apache.flink.api.common.state.v2.State> innerStateSupplier,
+                StateExecutor stateExecutor) {
+            this.innerStateSupplier = innerStateSupplier;
+            this.stateExecutor = stateExecutor;
+        }
+
+        @Override
+        public void setup(@Nonnull StateRequestHandler stateRequestHandler) {
+            // do nothing
+        }
+
+        @Nonnull
+        @Override
+        @SuppressWarnings("unchecked")
+        public <SV, S extends org.apache.flink.api.common.state.v2.State> S createState(
+                @Nonnull org.apache.flink.runtime.state.v2.StateDescriptor<SV> stateDesc) {
+            return (S) innerStateSupplier.get();
+        }
+
+        @Nonnull
+        @Override
+        public StateExecutor createStateExecutor() {
+            return stateExecutor;
+        }
+
+        @Override
+        public void dispose() {
+            // do nothing
+        }
+
+        @Override
+        public void close() {
+            // do nothing
+        }
     }
 
     /** Wrapper of state backend which supports apply the snapshot result. */

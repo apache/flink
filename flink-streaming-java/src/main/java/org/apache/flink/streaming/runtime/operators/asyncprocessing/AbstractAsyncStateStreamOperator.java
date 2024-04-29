@@ -27,15 +27,15 @@ import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
-import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -43,6 +43,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.util.function.ThrowingRunnable;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -61,11 +62,11 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
 
     /** Initialize necessary state components for {@link AbstractStreamOperator}. */
     @Override
-    public void setup(
-            StreamTask<?, ?> containingTask,
-            StreamConfig config,
-            Output<StreamRecord<OUT>> output) {
-        super.setup(containingTask, config, output);
+    public void initializeState(StreamTaskStateInitializer streamTaskStateManager)
+            throws Exception {
+        super.initializeState(streamTaskStateManager);
+        getRuntimeContext().setKeyedStateStoreV2(stateHandler.getKeyedStateStoreV2().orElse(null));
+        final StreamTask<?, ?> containingTask = checkNotNull(getContainingTask());
         final Environment environment = containingTask.getEnvironment();
         final MailboxExecutor mailboxExecutor = environment.getMainMailboxExecutor();
         final int maxParallelism = environment.getTaskInfo().getMaxNumberOfParallelSubtasks();
@@ -74,15 +75,22 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
         final int asyncBufferSize = environment.getExecutionConfig().getAsyncStateBufferSize();
         final long asyncBufferTimeout =
                 environment.getExecutionConfig().getAsyncStateBufferTimeout();
-        // TODO: initial state executor and set state executor for aec
-        this.asyncExecutionController =
-                new AsyncExecutionController(
-                        mailboxExecutor,
-                        null,
-                        maxParallelism,
-                        asyncBufferSize,
-                        asyncBufferTimeout,
-                        inFlightRecordsLimit);
+
+        AsyncKeyedStateBackend asyncKeyedStateBackend = stateHandler.getAsyncKeyedStateBackend();
+        if (asyncKeyedStateBackend != null) {
+            this.asyncExecutionController =
+                    new AsyncExecutionController(
+                            mailboxExecutor,
+                            asyncKeyedStateBackend.createStateExecutor(),
+                            maxParallelism,
+                            asyncBufferSize,
+                            asyncBufferTimeout,
+                            inFlightRecordsLimit);
+            asyncKeyedStateBackend.setup(asyncExecutionController);
+        } else if (stateHandler.getKeyedStateBackend() != null) {
+            throw new UnsupportedOperationException(
+                    "Current State Backend doesn't support async access, AsyncExecutionController could not work");
+        }
     }
 
     @Override
@@ -218,6 +226,29 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
                 namespaceSerializer,
                 triggerable,
                 (AsyncExecutionController<K>) asyncExecutionController);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void setKeyContextElement1(StreamRecord record) throws Exception {
+        super.setKeyContextElement1(record);
+        if (stateKeySelector1 != null) {
+            setAsyncKeyedContextElement(record, stateKeySelector1);
+        }
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void setKeyContextElement2(StreamRecord record) throws Exception {
+        super.setKeyContextElement2(record);
+        if (stateKeySelector2 != null) {
+            setAsyncKeyedContextElement(record, stateKeySelector2);
+        }
+    }
+
+    @Override
+    public Object getCurrentKey() {
+        return currentProcessingContext.getKey();
     }
 
     @VisibleForTesting
