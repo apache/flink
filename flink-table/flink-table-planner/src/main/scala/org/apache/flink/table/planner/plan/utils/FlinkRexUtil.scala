@@ -21,6 +21,8 @@ import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.planner.functions.sql.SqlTryCastFunction
+import org.apache.flink.table.planner.plan.nodes.calcite.{LegacySink, Sink}
+import org.apache.flink.table.planner.plan.optimize.RelNodeBlock
 import org.apache.flink.table.planner.plan.utils.ExpressionDetail.ExpressionDetail
 import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
 import org.apache.flink.table.planner.utils.{ShortcutUtils, TableConfigUtils}
@@ -31,6 +33,8 @@ import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.plan.{RelOptPredicateList, RelOptUtil}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.core.{Calc, Filter, Project, TableScan, Values}
+import org.apache.calcite.rel.logical.LogicalUnion
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.{SqlAsOperator, SqlKind, SqlOperator}
@@ -88,6 +92,32 @@ object FlinkRexUtil {
       maxCnfNodeCount
     }
     new CnfHelper(rexBuilder, maxCnfNodeCnt).toCnf(rex)
+  }
+
+  /**
+   * Returns true if a input blocks only consist of [[Filter]], [[Project]], [[TableScan]],
+   * [[Calc]], [[Values]], and [[Sink]] nodes.
+   */
+  def shouldSkipMiniBatch(blocks: Seq[RelNodeBlock]): Boolean = {
+
+    val noMiniBatchRequired = {
+      (node: RelNode) =>
+        node match {
+          case _: Filter | _: Project | _: TableScan | _: Calc | _: Values | _: Sink |
+              _: LegacySink =>
+            true
+          case unionNode: LogicalUnion => unionNode.all
+          case _ => false
+        }
+    }
+
+    def nodeTraverser(node: RelNode): Boolean = {
+      noMiniBatchRequired(node) && node.getInputs
+        .map(n => nodeTraverser(n))
+        .forall(r => r)
+    }
+
+    blocks.map(b => nodeTraverser(b.outputNode)).forall(r => r)
   }
 
   /** Returns true if the RexNode contains any node in the given expected [[RexInputRef]] nodes. */

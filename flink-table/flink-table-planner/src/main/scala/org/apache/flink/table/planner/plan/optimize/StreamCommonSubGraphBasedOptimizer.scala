@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysical
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkStreamProgram, StreamOptimizeContext}
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil.shouldSkipMiniBatch
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext
 import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.util.Preconditions
@@ -46,10 +47,9 @@ import scala.collection.JavaConversions._
 class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
   extends CommonSubGraphBasedOptimizer {
 
-  override protected def doOptimize(roots: Seq[RelNode]): Seq[RelNodeBlock] = {
-    val tableConfig = planner.getTableConfig
-    // build RelNodeBlock plan
-    val sinkBlocks = RelNodeBlockPlanBuilder.buildRelNodeBlockPlan(roots, tableConfig)
+  private def optimizeSinkBlocks(
+      tableConfig: TableConfig,
+      sinkBlocks: Seq[RelNodeBlock]): Seq[RelNodeBlock] = {
     // infer trait properties for sink block
     sinkBlocks.foreach {
       sinkBlock =>
@@ -84,7 +84,6 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       block.setOptimizedPlan(optimizedTree)
       return sinkBlocks
     }
-
     // TODO FLINK-24048: Move changeLog inference out of optimizing phase
     // infer modifyKind property for each blocks independently
     sinkBlocks.foreach(b => optimizeBlock(b, isSinkBlock = true))
@@ -102,6 +101,27 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
     // optimize recursively RelNodeBlock
     sinkBlocks.foreach(b => optimizeBlock(b, isSinkBlock = true))
     sinkBlocks
+  }
+
+  override protected def doOptimize(roots: Seq[RelNode]): Seq[RelNodeBlock] = {
+    val tableConfig = planner.getTableConfig
+    // build RelNodeBlock plan
+    val sinkBlocks = RelNodeBlockPlanBuilder.buildRelNodeBlockPlan(roots, tableConfig)
+    // get the original configuration, and disable it if it is unnecessary
+    val origMiniBatchEnabled = tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)
+    try {
+      if (origMiniBatchEnabled) {
+        tableConfig.set(
+          ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED,
+          Boolean.box(!shouldSkipMiniBatch(sinkBlocks)))
+      }
+      optimizeSinkBlocks(tableConfig, sinkBlocks)
+    } finally {
+      // revert the changed configuration back in the end
+      tableConfig.getConfiguration.set(
+        ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED,
+        origMiniBatchEnabled)
+    }
   }
 
   private def optimizeBlock(block: RelNodeBlock, isSinkBlock: Boolean): Unit = {
