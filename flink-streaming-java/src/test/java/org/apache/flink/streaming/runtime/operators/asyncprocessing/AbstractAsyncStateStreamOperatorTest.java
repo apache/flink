@@ -23,8 +23,6 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
-import org.apache.flink.runtime.asyncprocessing.StateExecutor;
-import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
@@ -43,7 +41,6 @@ import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -153,17 +150,7 @@ public class AbstractAsyncStateStreamOperatorTest {
             AsyncExecutionController asyncExecutionController =
                     ((AbstractAsyncStateStreamOperator) testHarness.getOperator())
                             .getAsyncExecutionController();
-            asyncExecutionController.setStateExecutor(
-                    new StateExecutor() {
-                        @Override
-                        public CompletableFuture<Boolean> executeBatchRequests(
-                                Iterable<StateRequest<?, ?, ?>> processingRequests) {
-                            for (StateRequest request : processingRequests) {
-                                request.getFuture().complete(true);
-                            }
-                            return CompletableFuture.completedFuture(true);
-                        }
-                    });
+            asyncExecutionController.setStateExecutor(new MockStateExecutor());
             ((AbstractAsyncStateStreamOperator<String>) testHarness.getOperator())
                     .setAsyncKeyedContextElement(
                             new StreamRecord<>(Tuple2.of(5, "5")), new TestKeySelector());

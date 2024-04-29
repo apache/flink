@@ -552,10 +552,12 @@ class AsyncExecutionControllerTest {
 
         @Override
         @SuppressWarnings({"unchecked", "rawtypes"})
-        public CompletableFuture<Boolean> executeBatchRequests(
-                Iterable<StateRequest<?, ?, ?>> processingRequests) {
-            CompletableFuture<Boolean> future = new CompletableFuture<>();
-            for (StateRequest request : processingRequests) {
+        public CompletableFuture<Void> executeBatchRequests(
+                StateRequestContainer stateRequestContainer) {
+            Preconditions.checkArgument(stateRequestContainer instanceof MockStateRequestContainer);
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            for (StateRequest request :
+                    ((MockStateRequestContainer) stateRequestContainer).getStateRequestList()) {
                 if (request.getRequestType() == StateRequestType.VALUE_GET) {
                     Preconditions.checkState(request.getState() != null);
                     TestValueState state = (TestValueState) request.getState();
@@ -574,8 +576,16 @@ class AsyncExecutionControllerTest {
                     throw new UnsupportedOperationException("Unsupported request type");
                 }
             }
-            future.complete(true);
+            future.complete(null);
             return future;
         }
+
+        @Override
+        public StateRequestContainer createStateRequestContainer() {
+            return new MockStateRequestContainer();
+        }
+
+        @Override
+        public void shutdown() {}
     }
 }

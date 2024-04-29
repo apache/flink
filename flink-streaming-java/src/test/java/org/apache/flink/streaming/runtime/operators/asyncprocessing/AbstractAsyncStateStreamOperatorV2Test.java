@@ -24,8 +24,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
-import org.apache.flink.runtime.asyncprocessing.StateExecutor;
-import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
@@ -53,7 +51,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -165,17 +162,7 @@ public class AbstractAsyncStateStreamOperatorV2Test {
                     CheckpointStorageLocationReference.getDefault();
             AsyncExecutionController asyncExecutionController =
                     testOperator.getAsyncExecutionController();
-            asyncExecutionController.setStateExecutor(
-                    new StateExecutor() {
-                        @Override
-                        public CompletableFuture<Boolean> executeBatchRequests(
-                                Iterable<StateRequest<?, ?, ?>> processingRequests) {
-                            for (StateRequest request : processingRequests) {
-                                request.getFuture().complete(true);
-                            }
-                            return CompletableFuture.completedFuture(true);
-                        }
-                    });
+            asyncExecutionController.setStateExecutor(new MockStateExecutor());
             testOperator.setAsyncKeyedContextElement(
                     new StreamRecord<>(Tuple2.of(5, "5")), new TestKeySelector());
             asyncExecutionController.handleRequest(null, StateRequestType.VALUE_GET, null);

@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -252,8 +252,14 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
         if (!force && stateRequestsBuffer.activeQueueSize() < batchSize) {
             return;
         }
-        List<StateRequest<?, ?, ?>> toRun = stateRequestsBuffer.popActive(batchSize);
-        stateExecutor.executeBatchRequests(toRun);
+
+        Optional<StateRequestContainer> toRun =
+                stateRequestsBuffer.popActive(
+                        batchSize, () -> stateExecutor.createStateRequestContainer());
+        if (!toRun.isPresent() || toRun.get().isEmpty()) {
+            return;
+        }
+        stateExecutor.executeBatchRequests(toRun.get());
         stateRequestsBuffer.advanceSeq();
     }
 
