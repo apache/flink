@@ -1776,14 +1776,13 @@ SqlCreate SqlCreateMaterializedTable(Span s, boolean replace, boolean isTemporar
 /**
 * Parses alter materialized table.
 */
-
 SqlAlterMaterializedTable SqlAlterMaterializedTable() :
 {
     SqlParserPos startPos;
     SqlIdentifier tableIdentifier;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
     SqlNodeList propertyKeyList = SqlNodeList.EMPTY;
-    SqlNodeList partSpec = null;
+    SqlNodeList partSpec = SqlNodeList.EMPTY;
     SqlNode freshness = null;
 }
 {
@@ -1791,9 +1790,9 @@ SqlAlterMaterializedTable SqlAlterMaterializedTable() :
     tableIdentifier = CompoundIdentifier()
     (
         <SUSPEND>
-        {
-            return new SqlAlterMaterializedTableSuspend(startPos, tableIdentifier);
-        }
+            {
+                return new SqlAlterMaterializedTableSuspend(startPos, tableIdentifier);
+            }
         |
         <RESUME>
         [ <WITH> propertyList = TableProperties() ]

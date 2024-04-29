@@ -30,8 +30,8 @@ import org.apache.calcite.util.ImmutableNullableList;
 import java.util.List;
 
 /**
- * SqlNode to describe ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name SET REFRESH_MODE
- * = { FULL | CONTINUOUS } clause.
+ * SqlNode to describe ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name SET ('key' =
+ * 'val') clause.
  */
 public class SqlAlterMaterializedTableOptions extends SqlAlterMaterializedTable {
 

@@ -118,7 +118,7 @@ public class MaterializedTableStatementParserTest {
                         + "FRESHNESS = ^123^\n"
                         + "AS SELECT a, b, h, t m FROM source";
         sql(sql).fails(
-                        "CREATE MATERIALIZED TABLE only supports interval type FRESHNESS, please refer to the materialized table document.");
+                        "MATERIALIZED TABLE only supports define interval type FRESHNESS, please refer to the materialized table document.");
 
         final String sql2 =
                 "CREATE MATERIALIZED TABLE tbl1\n"
@@ -243,8 +243,12 @@ public class MaterializedTableStatementParserTest {
                         + ")";
         sql(sql1).ok(expect1);
 
-        final String sql2 = "ALTER MATERIALIZED TABLE tb1 RESUME ^PARTITION^";
-        sql(sql2)
+        final String sql2 = "ALTER MATERIALIZED TABLE tb1 RESUME";
+        final String expect2 = "ALTER MATERIALIZED TABLE `TB1` RESUME";
+        sql(sql2).ok(expect2);
+
+        final String sql3 = "ALTER MATERIALIZED TABLE tb1 RESUME ^PARTITION^";
+        sql(sql3)
                 .fails(
                         "Encountered \"PARTITION\" at line 1, column 37.\n"
                                 + "Was expecting one of:\n"
@@ -319,7 +323,7 @@ public class MaterializedTableStatementParserTest {
         final String sql2 = "ALTER MATERIALIZED TABLE tbl1 SET FRESHNESS = INTERVAL 1 ^DAY^";
         sql(sql2)
                 .fails(
-                        "CREATE MATERIALIZED TABLE only supports interval type FRESHNESS, please refer to the materialized table document.");
+                        "MATERIALIZED TABLE only supports define interval type FRESHNESS, please refer to the materialized table document.");
 
         final String sql3 = "ALTER MATERIALIZED TABLE tbl1 SET FRESHNES^S^";
         sql(sql3)

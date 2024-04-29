@@ -28,8 +28,8 @@ import org.apache.calcite.util.ImmutableNullableList;
 import java.util.List;
 
 /**
- * SqlNode to describe ALTER MATERIALIZED TABLE [catalogName.] [dataBasesName.]tableName INTERVAL
- * '&lt;num&gt;' { SECOND | MINUTE | HOUR | DAY } clause.
+ * SqlNode to describe ALTER MATERIALIZED TABLE [catalogName.] [dataBasesName.]tableName SET
+ * FRESHNESS INTERVAL '&lt;num&gt;' { SECOND | MINUTE | HOUR | DAY } clause.
  */
 public class SqlAlterMaterializedTableFreshness extends SqlAlterMaterializedTable {
 

@@ -27,8 +27,7 @@ import org.apache.calcite.util.ImmutableNullableList;
 import java.util.List;
 
 /**
- * SqlNode to describe statements like ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name
- * SUSPEND clause.
+ * SqlNode to describe ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name SUSPEND clause.
  */
 public class SqlAlterMaterializedTableSuspend extends SqlAlterMaterializedTable {
     public SqlAlterMaterializedTableSuspend(SqlParserPos pos, SqlIdentifier tableName) {

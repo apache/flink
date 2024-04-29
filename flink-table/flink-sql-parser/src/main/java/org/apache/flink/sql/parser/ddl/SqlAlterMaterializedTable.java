@@ -37,15 +37,15 @@ public abstract class SqlAlterMaterializedTable extends SqlCall {
     public static final SqlSpecialOperator OPERATOR =
             new SqlSpecialOperator("ALTER MATERIALIZED TABLE", SqlKind.ALTER_TABLE);
 
-    protected final SqlIdentifier tableName;
+    protected final SqlIdentifier tableIdentifier;
 
     public SqlAlterMaterializedTable(SqlParserPos pos, SqlIdentifier tableName) {
         super(pos);
-        this.tableName = requireNonNull(tableName, "tableName should not be null");
+        this.tableIdentifier = requireNonNull(tableName, "tableName should not be null");
     }
 
     public SqlIdentifier getTableName() {
-        return tableName;
+        return tableIdentifier;
     }
 
     @Override
@@ -56,6 +56,6 @@ public abstract class SqlAlterMaterializedTable extends SqlCall {
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         writer.keyword("ALTER MATERIALIZED TABLE");
-        tableName.unparse(writer, leftPrec, rightPrec);
+        tableIdentifier.unparse(writer, leftPrec, rightPrec);
     }
 }
