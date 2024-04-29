@@ -42,7 +42,7 @@ class BackgroundTaskTest {
             new TestExecutorExtension<>(() -> Executors.newFixedThreadPool(2));
 
     @Test
-    public void testFinishedBackgroundTaskIsTerminated() {
+    void testFinishedBackgroundTaskIsTerminated() {
         final BackgroundTask<Void> finishedBackgroundTask = BackgroundTask.finishedBackgroundTask();
 
         assertThatFuture(finishedBackgroundTask.getTerminationFuture()).isDone();
@@ -50,14 +50,14 @@ class BackgroundTaskTest {
     }
 
     @Test
-    public void testFinishedBackgroundTaskDoesNotContainAResult() {
+    void testFinishedBackgroundTaskDoesNotContainAResult() {
         final BackgroundTask<Void> finishedBackgroundTask = BackgroundTask.finishedBackgroundTask();
 
         assertThatFuture(finishedBackgroundTask.getResultFuture()).isCompletedExceptionally();
     }
 
     @Test
-    public void testNormalCompletionOfBackgroundTask() {
+    void testNormalCompletionOfBackgroundTask() {
         final String expectedValue = "foobar";
         final BackgroundTask<String> backgroundTask =
                 BackgroundTask.finishedBackgroundTask()
@@ -69,7 +69,7 @@ class BackgroundTaskTest {
     }
 
     @Test
-    public void testExceptionalCompletionOfBackgroundTask() throws InterruptedException {
+    void testExceptionalCompletionOfBackgroundTask() throws InterruptedException {
         final Exception expectedException = new Exception("Test exception");
         final BackgroundTask<String> backgroundTask =
                 BackgroundTask.finishedBackgroundTask()
@@ -88,7 +88,7 @@ class BackgroundTaskTest {
     }
 
     @Test
-    public void testRunAfterExecutesBackgroundTaskAfterPreviousHasCompleted() {
+    void testRunAfterExecutesBackgroundTaskAfterPreviousHasCompleted() {
         final OneShotLatch blockingLatch = new OneShotLatch();
         final BlockingQueue<Integer> taskCompletions = new ArrayBlockingQueue<>(2);
         final BackgroundTask<Void> backgroundTask =
@@ -114,7 +114,7 @@ class BackgroundTaskTest {
     }
 
     @Test
-    public void testAbortSkipsTasksWhichHaveNotBeenStarted() {
+    void testAbortSkipsTasksWhichHaveNotBeenStarted() {
         final OneShotLatch blockingLatch = new OneShotLatch();
         final BlockingQueue<Integer> taskCompletions = new ArrayBlockingQueue<>(2);
         final BackgroundTask<Void> backgroundTask =

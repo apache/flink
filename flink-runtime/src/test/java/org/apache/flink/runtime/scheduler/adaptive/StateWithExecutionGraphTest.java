@@ -47,7 +47,7 @@ class StateWithExecutionGraphTest {
      * when the ExecutionGraph has already reached a globally terminal state.
      */
     @Test
-    public void testSuspendCanBeCalledWhenExecutionGraphHasReachedGloballyTerminalState()
+    void testSuspendCanBeCalledWhenExecutionGraphHasReachedGloballyTerminalState()
             throws Exception {
         try (MockStateWithExecutionGraphContext context =
                 new MockStateWithExecutionGraphContext()) {
@@ -81,7 +81,7 @@ class StateWithExecutionGraphTest {
     }
 
     @Test
-    public void testOperatorCoordinatorShutdownOnLeave() throws Exception {
+    void testOperatorCoordinatorShutdownOnLeave() throws Exception {
         try (MockStateWithExecutionGraphContext context =
                 new MockStateWithExecutionGraphContext()) {
 
@@ -97,7 +97,7 @@ class StateWithExecutionGraphTest {
     }
 
     @Test
-    public void testSuspendToFinished() throws Exception {
+    void testSuspendToFinished() throws Exception {
         try (MockStateWithExecutionGraphContext context =
                 new MockStateWithExecutionGraphContext()) {
 
@@ -112,7 +112,7 @@ class StateWithExecutionGraphTest {
     }
 
     @Test
-    public void testOnGloballyTerminalStateCalled() throws Exception {
+    void testOnGloballyTerminalStateCalled() throws Exception {
         MockStateWithExecutionGraphContext context = new MockStateWithExecutionGraphContext();
 
         StateTrackingMockExecutionGraph mockExecutionGraph = new StateTrackingMockExecutionGraph();
@@ -128,7 +128,7 @@ class StateWithExecutionGraphTest {
     }
 
     @Test
-    public void testOnGloballyTerminalStateNotCalledOnNonGloballyTerminalState() throws Exception {
+    void testOnGloballyTerminalStateNotCalledOnNonGloballyTerminalState() throws Exception {
         MockStateWithExecutionGraphContext context = new MockStateWithExecutionGraphContext();
 
         StateTrackingMockExecutionGraph mockExecutionGraph = new StateTrackingMockExecutionGraph();
