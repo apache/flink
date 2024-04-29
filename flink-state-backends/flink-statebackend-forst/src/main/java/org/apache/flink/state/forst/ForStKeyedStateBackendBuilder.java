@@ -19,9 +19,13 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.DataInputDeserializer;
+import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.BackendBuildingException;
+import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.StateBackendBuilder;
 import org.apache.flink.runtime.state.StateSerializerProvider;
 import org.apache.flink.state.forst.restore.ForStNoneRestoreOperation;
@@ -42,6 +46,7 @@ import javax.annotation.Nonnull;
 
 import java.util.Collection;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * Builder class for {@link ForStKeyedStateBackend} which handles all necessary initializations and
@@ -54,7 +59,14 @@ public class ForStKeyedStateBackendBuilder<K>
 
     protected final Logger logger = LoggerFactory.getLogger(getClass());
 
+    private static final int KEY_SERIALIZER_BUFFER_START_SIZE = 32;
+
+    private static final int VALUE_SERIALIZER_BUFFER_START_SIZE = 128;
+
     private final StateSerializerProvider<K> keySerializerProvider;
+
+    private final int numberOfKeyGroups;
+
     private final Collection<KeyedStateHandle> restoreStateHandles;
 
     /** Factory function to create column family options from state name. */
@@ -72,12 +84,14 @@ public class ForStKeyedStateBackendBuilder<K>
             ForStResourceContainer optionsContainer,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             TypeSerializer<K> keySerializer,
+            int numberOfKeyGroups,
             MetricGroup metricGroup,
             @Nonnull Collection<KeyedStateHandle> stateHandles) {
         this.optionsContainer = optionsContainer;
         this.columnFamilyOptionsFactory = Preconditions.checkNotNull(columnFamilyOptionsFactory);
         this.keySerializerProvider =
                 StateSerializerProvider.fromNewRegisteredSerializer(keySerializer);
+        this.numberOfKeyGroups = numberOfKeyGroups;
         this.metricGroup = metricGroup;
         this.restoreStateHandles = stateHandles;
         this.nativeMetricOptions = new ForStNativeMetricOptions();
@@ -95,6 +109,24 @@ public class ForStKeyedStateBackendBuilder<K>
         ForStNativeMetricMonitor nativeMetricMonitor = null;
         RocksDB db = null;
         ForStRestoreOperation restoreOperation = null;
+        // Number of bytes required to prefix the key groups.
+        int keyGroupPrefixBytes =
+                CompositeKeySerializationUtils.computeRequiredBytesInKeyGroupPrefix(
+                        numberOfKeyGroups);
+        // it is important that we only create the key builder after the restore, and not
+        // before;
+        // restore operations may reconfigure the key serializer, so accessing the key
+        // serializer
+        // only now we can be certain that the key serializer used in the builder is final.
+        Supplier<SerializedCompositeKeyBuilder<K>> serializedKeyBuilder =
+                () ->
+                        new SerializedCompositeKeyBuilder<>(
+                                keySerializerProvider.currentSchemaSerializer(),
+                                keyGroupPrefixBytes,
+                                KEY_SERIALIZER_BUFFER_START_SIZE);
+        Supplier<DataOutputSerializer> valueSerializerView =
+                () -> new DataOutputSerializer(VALUE_SERIALIZER_BUFFER_START_SIZE);
+        Supplier<DataInputDeserializer> valueDeserializerView = DataInputDeserializer::new;
 
         try {
             optionsContainer.prepareDirectories();
@@ -139,7 +171,11 @@ public class ForStKeyedStateBackendBuilder<K>
         return new ForStKeyedStateBackend<>(
                 this.optionsContainer,
                 this.keySerializerProvider.currentSchemaSerializer(),
+                serializedKeyBuilder,
+                valueSerializerView,
+                valueDeserializerView,
                 db,
+                columnFamilyOptionsFactory,
                 defaultColumnFamilyHandle,
                 nativeMetricMonitor);
     }
