@@ -19,6 +19,8 @@
 package org.apache.flink.core.fs.local;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.core.fs.CommitterFromPersistRecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter.CommitRecoverable;
 
@@ -39,7 +41,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** A {@link RecoverableFsDataOutputStream} for the {@link LocalFileSystem}. */
 @Internal
-public class LocalRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
+public class LocalRecoverableFsDataOutputStream
+        extends CommitterFromPersistRecoverableFsDataOutputStream<LocalRecoverable> {
 
     private final File targetFile;
 
@@ -75,6 +78,15 @@ public class LocalRecoverableFsDataOutputStream extends RecoverableFsDataOutputS
         }
         this.fileChannel.truncate(resumable.offset());
         this.fos = Channels.newOutputStream(fileChannel);
+    }
+
+    @VisibleForTesting
+    LocalRecoverableFsDataOutputStream(
+            File targetFile, File tempFile, FileChannel fileChannel, OutputStream fos) {
+        this.targetFile = checkNotNull(targetFile);
+        this.tempFile = checkNotNull(tempFile);
+        this.fileChannel = fileChannel;
+        this.fos = fos;
     }
 
     @Override
@@ -113,10 +125,8 @@ public class LocalRecoverableFsDataOutputStream extends RecoverableFsDataOutputS
     }
 
     @Override
-    public Committer closeForCommit() throws IOException {
-        LocalCommitter localCommitter = new LocalCommitter(persist());
-        close();
-        return localCommitter;
+    protected Committer createCommitterFromResumeRecoverable(LocalRecoverable recoverable) {
+        return new LocalCommitter(recoverable);
     }
 
     @Override
