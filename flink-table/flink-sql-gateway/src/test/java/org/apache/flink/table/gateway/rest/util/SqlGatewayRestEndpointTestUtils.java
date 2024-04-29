@@ -40,7 +40,8 @@ public class SqlGatewayRestEndpointTestUtils {
                 new SqlGatewayEndpointFactoryUtils.DefaultEndpointFactoryContext(
                         null, flinkConf, getEndpointConfig(flinkConf, IDENTIFIER));
 
-        return rebuildRestEndpointOptions(context.getEndpointOptions());
+        return rebuildRestEndpointOptions(
+                context.getEndpointOptions(), context.getFlinkConfigurationOptions());
     }
 
     /** Create the configuration generated from config.yaml. */
