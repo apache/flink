@@ -16,22 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client.deployment.executors;
+package org.apache.flink.core.execution;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.client.deployment.StandaloneClientFactory;
-import org.apache.flink.client.deployment.StandaloneClusterId;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.execution.PipelineExecutor;
+import org.apache.flink.annotation.PublicEvolving;
 
-/** The {@link PipelineExecutor} to be used when executing a job on an already running cluster. */
-@Internal
-public class RemoteExecutor
-        extends AbstractSessionClusterExecutor<StandaloneClusterId, StandaloneClientFactory> {
+/**
+ * When job is created or its status is changed, Flink will generate job event and notify job status
+ * changed listener.
+ */
+@PublicEvolving
+public interface JobStatusChangedListener {
 
-    public static final String NAME = "remote";
-
-    public RemoteExecutor(Configuration configuration) {
-        super(new StandaloneClientFactory(), configuration);
-    }
+    /* Event will be fired when job status is changed. */
+    void onEvent(JobStatusChangedEvent event);
 }

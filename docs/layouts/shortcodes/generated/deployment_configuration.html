@@ -21,6 +21,12 @@
             <td>Custom JobListeners to be registered with the execution environment. The registered listeners cannot have constructors with arguments.</td>
         </tr>
         <tr>
+            <td><h5>execution.job-status-changed-listeners</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;String&gt;</td>
+            <td>When job is created or its status is changed, Flink will generate job event and notify job status changed listener.</td>
+        </tr>
+        <tr>
             <td><h5>execution.program-config.enabled</h5></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>

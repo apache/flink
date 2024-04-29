@@ -23,6 +23,8 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.core.execution.JobStatusChangedListener;
+import org.apache.flink.core.execution.JobStatusChangedListenerUtils;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
@@ -141,6 +143,10 @@ public class DefaultExecutionGraphBuilder {
             throw new JobException("Could not create the TaskDeploymentDescriptorFactory.", e);
         }
 
+        final List<JobStatusChangedListener> jobStatusChangedListeners =
+                JobStatusChangedListenerUtils.createJobStatusChangedListeners(
+                        classLoader, jobManagerConfig, ioExecutor);
+
         // create a new execution graph, if none exists so far
         final DefaultExecutionGraph executionGraph =
                 new DefaultExecutionGraph(
@@ -164,7 +170,8 @@ public class DefaultExecutionGraphBuilder {
                         executionJobVertexFactory,
                         jobGraph.getJobStatusHooks(),
                         markPartitionFinishedStrategy,
-                        taskDeploymentDescriptorFactory);
+                        taskDeploymentDescriptorFactory,
+                        jobStatusChangedListeners);
 
         // set the basic properties
 
