@@ -21,6 +21,7 @@ package org.apache.flink.formats.csv;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.formats.common.Converter;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonEncoding;
@@ -65,7 +66,7 @@ class CsvBulkWriter<T, R, C> implements BulkWriter<T> {
         try {
             this.generator = csvWriter.createGenerator(stream, JsonEncoding.UTF8);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new FlinkRuntimeException("Could not create CSV generator.", e);
         }
     }
 
@@ -113,11 +114,11 @@ class CsvBulkWriter<T, R, C> implements BulkWriter<T> {
     @Override
     public void flush() throws IOException {
         generator.flush();
-        stream.flush();
     }
 
     @Override
     public void finish() throws IOException {
+        generator.close();
         stream.sync();
     }
 }
