@@ -26,8 +26,8 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static org.apache.flink.state.forst.ForStWriteBatchOperation.PutRequest;
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unit test for {@link ForStWriteBatchOperation}. */
 public class ForStWriteBatchOperationTest extends ForStDBOperationTestBase {
@@ -36,65 +36,78 @@ public class ForStWriteBatchOperationTest extends ForStDBOperationTestBase {
     public void testValueStateWriteBatch() throws Exception {
         ForStValueState<Integer, String> valueState1 = buildForStValueState("test-write-batch-1");
         ForStValueState<Integer, String> valueState2 = buildForStValueState("test-write-batch-2");
-        List<PutRequest<ContextKey<Integer>, String>> batchPutRequest = new ArrayList<>();
+        List<ForStDBPutRequest<?, ?>> batchPutRequest = new ArrayList<>();
         int keyNum = 100;
         for (int i = 0; i < keyNum; i++) {
             batchPutRequest.add(
-                    PutRequest.of(
+                    ForStDBPutRequest.of(
                             buildContextKey(i),
                             String.valueOf(i),
-                            ((i % 2 == 0) ? valueState1 : valueState2)));
+                            ((i % 2 == 0) ? valueState1 : valueState2),
+                            new TestStateFuture<>()));
         }
 
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        ForStWriteBatchOperation<ContextKey<Integer>, String> writeBatchOperation =
-                new ForStWriteBatchOperation<>(db, batchPutRequest, new WriteOptions(), executor);
+        ForStWriteBatchOperation writeBatchOperation =
+                new ForStWriteBatchOperation(db, batchPutRequest, new WriteOptions(), executor);
         writeBatchOperation.process().get();
 
         // check data correctness
-        for (PutRequest<ContextKey<Integer>, String> request : batchPutRequest) {
-            ForStInnerTable<ContextKey<Integer>, String> table = request.table;
-            byte[] keyBytes = table.serializeKey(request.key);
-            byte[] valueBytes = db.get(table.getColumnFamilyHandle(), keyBytes);
-            assertThat(table.deserializeValue(valueBytes)).isEqualTo(request.value);
+        for (ForStDBPutRequest<?, ?> request : batchPutRequest) {
+            byte[] keyBytes = request.buildSerializedKey();
+            byte[] valueBytes = db.get(request.getColumnFamilyHandle(), keyBytes);
+            assertArrayEquals(valueBytes, request.buildSerializedValue());
         }
     }
 
     @Test
     public void testWriteBatchWithNullValue() throws Exception {
         ForStValueState<Integer, String> valueState = buildForStValueState("test-write-batch");
-        List<PutRequest<ContextKey<Integer>, String>> batchPutRequest = new ArrayList<>();
+        List<ForStDBPutRequest<?, ?>> batchPutRequest = new ArrayList<>();
         // 1. write some data without null value
         int keyNum = 100;
         for (int i = 0; i < keyNum; i++) {
-            batchPutRequest.add(PutRequest.of(buildContextKey(i), String.valueOf(i), valueState));
+            batchPutRequest.add(
+                    ForStDBPutRequest.of(
+                            buildContextKey(i),
+                            String.valueOf(i),
+                            valueState,
+                            new TestStateFuture<>()));
         }
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        ForStWriteBatchOperation<ContextKey<Integer>, String> writeBatchOperation =
-                new ForStWriteBatchOperation<>(db, batchPutRequest, new WriteOptions(), executor);
+        ForStWriteBatchOperation writeBatchOperation =
+                new ForStWriteBatchOperation(db, batchPutRequest, new WriteOptions(), executor);
         writeBatchOperation.process().get();
 
         // 2. update data with null value
         batchPutRequest.clear();
         for (int i = 0; i < keyNum; i++) {
             if (i % 8 == 0) {
-                batchPutRequest.add(PutRequest.of(buildContextKey(i), null, valueState));
+                batchPutRequest.add(
+                        ForStDBPutRequest.of(
+                                buildContextKey(i), null, valueState, new TestStateFuture<>()));
             } else {
                 batchPutRequest.add(
-                        PutRequest.of(buildContextKey(i), String.valueOf(i * 2), valueState));
+                        ForStDBPutRequest.of(
+                                buildContextKey(i),
+                                String.valueOf(i * 2),
+                                valueState,
+                                new TestStateFuture<>()));
             }
         }
-        ForStWriteBatchOperation<ContextKey<Integer>, String> writeBatchOperation2 =
-                new ForStWriteBatchOperation<>(db, batchPutRequest, new WriteOptions(), executor);
+        ForStWriteBatchOperation writeBatchOperation2 =
+                new ForStWriteBatchOperation(db, batchPutRequest, new WriteOptions(), executor);
         writeBatchOperation2.process().get();
 
         // 3.  check data correctness
-        for (PutRequest<ContextKey<Integer>, String> request : batchPutRequest) {
-            ForStInnerTable<ContextKey<Integer>, String> table = request.table;
-            byte[] keyBytes = table.serializeKey(request.key);
-            byte[] valueBytes = db.get(table.getColumnFamilyHandle(), keyBytes);
-            String value = (valueBytes == null) ? null : table.deserializeValue(valueBytes);
-            assertThat(value).isEqualTo(request.value);
+        for (ForStDBPutRequest<?, ?> request : batchPutRequest) {
+            byte[] keyBytes = request.buildSerializedKey();
+            byte[] valueBytes = db.get(request.getColumnFamilyHandle(), keyBytes);
+            if (valueBytes == null) {
+                assertTrue(request.valueIsNull());
+            } else {
+                assertArrayEquals(valueBytes, request.buildSerializedValue());
+            }
         }
     }
 }

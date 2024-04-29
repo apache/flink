@@ -19,6 +19,7 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.api.common.state.v2.State;
+import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.configuration.ConfigConstants;
@@ -42,6 +43,10 @@ import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.RocksDB;
 
 import java.nio.file.Path;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /** Base class for {@link ForStDBOperation} tests. */
@@ -103,5 +108,46 @@ public class ForStDBOperationTestBase {
                 serializedKeyBuilder,
                 valueSerializerView,
                 valueDeserializerView);
+    }
+
+    static class TestStateFuture<T> implements InternalStateFuture<T> {
+
+        public CompletableFuture<T> future = new CompletableFuture<>();
+
+        @Override
+        public <U> StateFuture<U> thenApply(Function<? super T, ? extends U> fn) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public StateFuture<Void> thenAccept(Consumer<? super T> action) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public <U> StateFuture<U> thenCompose(
+                Function<? super T, ? extends StateFuture<U>> action) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public <U, V> StateFuture<V> thenCombine(
+                StateFuture<? extends U> other, BiFunction<? super T, ? super U, ? extends V> fn) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void complete(T result) {
+            future.complete(result);
+        }
+
+        public T getCompletedResult() throws Exception {
+            return future.get();
+        }
+
+        @Override
+        public void thenSyncAccept(Consumer<? super T> action) {
+            throw new UnsupportedOperationException();
+        }
     }
 }
