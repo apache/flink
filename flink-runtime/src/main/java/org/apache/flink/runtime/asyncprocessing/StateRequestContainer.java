@@ -18,28 +18,19 @@
 
 package org.apache.flink.runtime.asyncprocessing;
 
-import org.apache.flink.annotation.Internal;
+/**
+ * A container which is used to hold {@link StateRequest}s. The role of {@code
+ * StateRequestContainer} is to serve as an intermediary carrier for data transmission between the
+ * runtime layer and the state layer. It stores the stateRequest from the runtime layer, which is
+ * then processed by the state layer.
+ *
+ * <p>Notice that the {@code StateRequestContainer} may not be thread-safe.
+ */
+public interface StateRequestContainer {
 
-import java.util.concurrent.CompletableFuture;
+    /** Preserve a stateRequest into the {@code StateRequestContainer}. */
+    void offer(StateRequest<?, ?, ?> stateRequest);
 
-/** Executor for executing batch {@link StateRequest}s. */
-@Internal
-public interface StateExecutor {
-    /**
-     * Execute a batch of state requests.
-     *
-     * @param stateRequestContainer The StateRequestContainer which holds the given batch of
-     *     processing requests.
-     * @return A future can determine whether execution has completed.
-     */
-    CompletableFuture<Void> executeBatchRequests(StateRequestContainer stateRequestContainer);
-
-    /**
-     * Create a {@link StateRequestContainer} which is used to hold the batched {@link
-     * StateRequest}.
-     */
-    StateRequestContainer createStateRequestContainer();
-
-    /** Shutdown the StateExecutor, and new committed state execution requests will be rejected. */
-    void shutdown();
+    /** Returns whether the container is empty. */
+    boolean isEmpty();
 }

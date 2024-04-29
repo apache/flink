@@ -21,10 +21,15 @@ package org.apache.flink.state.forst;
 import org.apache.flink.api.common.state.v2.ValueState;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.core.state.InternalStateFuture;
+import org.apache.flink.runtime.asyncprocessing.RecordContext;
+import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
+import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.v2.InternalValueState;
 import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
+import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.ColumnFamilyHandle;
 
@@ -94,5 +99,33 @@ public class ForStValueState<K, V> extends InternalValueState<K, V>
         DataInputDeserializer inputView = valueDeserializerView.get();
         inputView.setBuffer(valueBytes);
         return getValueSerializer().deserialize(inputView);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public ForStDBGetRequest<ContextKey<K>, V> buildDBGetRequest(
+            StateRequest<?, ?, ?> stateRequest) {
+        Preconditions.checkArgument(stateRequest.getRequestType() == StateRequestType.VALUE_GET);
+        ContextKey<K> contextKey =
+                new ContextKey<>((RecordContext<K>) stateRequest.getRecordContext());
+        return ForStDBGetRequest.of(
+                contextKey, this, (InternalStateFuture<V>) stateRequest.getFuture());
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public ForStDBPutRequest<ContextKey<K>, V> buildDBPutRequest(
+            StateRequest<?, ?, ?> stateRequest) {
+        Preconditions.checkArgument(
+                stateRequest.getRequestType() == StateRequestType.VALUE_UPDATE
+                        || stateRequest.getRequestType() == StateRequestType.CLEAR);
+        ContextKey<K> contextKey =
+                new ContextKey<>((RecordContext<K>) stateRequest.getRecordContext());
+        V value =
+                (stateRequest.getRequestType() == StateRequestType.CLEAR)
+                        ? null // "Delete(key)" is equivalent to "Put(key, null)"
+                        : (V) stateRequest.getPayload();
+        return ForStDBPutRequest.of(
+                contextKey, value, this, (InternalStateFuture<Void>) stateRequest.getFuture());
     }
 }

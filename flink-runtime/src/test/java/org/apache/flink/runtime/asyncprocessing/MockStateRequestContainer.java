@@ -18,28 +18,25 @@
 
 package org.apache.flink.runtime.asyncprocessing;
 
-import org.apache.flink.annotation.Internal;
+import java.util.ArrayList;
+import java.util.List;
 
-import java.util.concurrent.CompletableFuture;
+/** The mocked {@link StateRequestContainer} for testing. */
+public class MockStateRequestContainer implements StateRequestContainer {
 
-/** Executor for executing batch {@link StateRequest}s. */
-@Internal
-public interface StateExecutor {
-    /**
-     * Execute a batch of state requests.
-     *
-     * @param stateRequestContainer The StateRequestContainer which holds the given batch of
-     *     processing requests.
-     * @return A future can determine whether execution has completed.
-     */
-    CompletableFuture<Void> executeBatchRequests(StateRequestContainer stateRequestContainer);
+    private final List<StateRequest<?, ?, ?>> stateRequestList = new ArrayList<>();
 
-    /**
-     * Create a {@link StateRequestContainer} which is used to hold the batched {@link
-     * StateRequest}.
-     */
-    StateRequestContainer createStateRequestContainer();
+    @Override
+    public void offer(StateRequest<?, ?, ?> stateRequest) {
+        stateRequestList.add(stateRequest);
+    }
 
-    /** Shutdown the StateExecutor, and new committed state execution requests will be rejected. */
-    void shutdown();
+    @Override
+    public boolean isEmpty() {
+        return stateRequestList.isEmpty();
+    }
+
+    public List<StateRequest<?, ?, ?>> getStateRequestList() {
+        return stateRequestList;
+    }
 }

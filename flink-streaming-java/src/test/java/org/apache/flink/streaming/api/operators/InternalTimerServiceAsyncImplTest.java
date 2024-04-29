@@ -23,8 +23,6 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
-import org.apache.flink.runtime.asyncprocessing.StateExecutor;
-import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
@@ -32,14 +30,13 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.MockStateExecutor;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -54,7 +51,7 @@ class InternalTimerServiceAsyncImplTest {
     void setup() throws Exception {
         asyncExecutionController =
                 new AsyncExecutionController(
-                        new SyncMailboxExecutor(), new TestStateExecutor(), 128, 2, 1000L, 10);
+                        new SyncMailboxExecutor(), new MockStateExecutor(), 128, 2, 1000L, 10);
         // ensure arbitrary key is in the key group
         int totalKeyGroups = 128;
         KeyGroupRange testKeyGroupList = new KeyGroupRange(0, totalKeyGroups - 1);
@@ -206,16 +203,6 @@ class InternalTimerServiceAsyncImplTest {
         @Override
         public Object getCurrentKey() {
             return key;
-        }
-    }
-
-    private static class TestStateExecutor implements StateExecutor {
-        public TestStateExecutor() {}
-
-        @Override
-        public CompletableFuture<Boolean> executeBatchRequests(
-                Iterable<StateRequest<?, ?, ?>> processingRequests) {
-            return CompletableFuture.completedFuture(true);
         }
     }
 }
