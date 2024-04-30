@@ -215,6 +215,8 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
                 .await();
         check("select y from orcLimitTable where 10 >= y", Collections.singletonList(Row.of(10)));
         check("select y from orcLimitTable where 11 <= y", Collections.singletonList(Row.of(11)));
+        check("select y from orcLimitTable where 11 > y", Collections.singletonList(Row.of(10)));
+        check("select y from orcLimitTable where 10 < y", Collections.singletonList(Row.of(11)));
     }
 
     @TestTemplate
