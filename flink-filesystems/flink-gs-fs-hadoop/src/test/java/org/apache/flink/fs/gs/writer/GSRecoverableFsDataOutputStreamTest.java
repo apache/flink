@@ -135,7 +135,7 @@ class GSRecoverableFsDataOutputStreamTest {
     public void emptyStreamShouldHaveProperPositionAndComponentObjectCount() {
         if (empty) {
             assertThat(position).isZero();
-            assertThat(componentObjectCount).isOne();
+            assertThat(componentObjectCount).isZero();
         }
     }
 
