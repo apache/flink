@@ -19,8 +19,7 @@
 package org.apache.flink.runtime.fs.hdfs;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
-import org.apache.flink.core.fs.RecoverableWriter;
+import org.apache.flink.core.fs.CommitterFromPersistRecoverableFsDataOutputStream;
 
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -31,7 +30,7 @@ import java.io.IOException;
 /** Base class for ABFS and Hadoop recoverable stream. */
 @Internal
 public abstract class BaseHadoopFsRecoverableFsDataOutputStream
-        extends RecoverableFsDataOutputStream {
+        extends CommitterFromPersistRecoverableFsDataOutputStream<HadoopFsRecoverable> {
 
     protected FileSystem fs;
 
@@ -70,17 +69,14 @@ public abstract class BaseHadoopFsRecoverableFsDataOutputStream
     }
 
     @Override
-    public RecoverableWriter.ResumeRecoverable persist() throws IOException {
+    public HadoopFsRecoverable persist() throws IOException {
         sync();
         return createHadoopFsRecoverable(getPos());
     }
 
-    public HadoopFsRecoverable createHadoopFsRecoverable(long pos) throws IOException {
+    public HadoopFsRecoverable createHadoopFsRecoverable(long pos) {
         return new HadoopFsRecoverable(targetFile, tempFile, pos + initialFileSize);
     }
-
-    @Override
-    public abstract Committer closeForCommit() throws IOException;
 
     @Override
     public void close() throws IOException {
