@@ -257,6 +257,44 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
     }
 
     @Test
+    public void testCreateAndGetGenericTable() throws Exception {
+        ObjectPath tablePath = new ObjectPath(TEST_DEFAULT_DATABASE, "tb1");
+        // test create datagen table
+        Map<String, String> options = new HashMap<>();
+        options.put("connector", "datagen");
+        options.put("number-of-rows", "10");
+        ResolvedCatalogTable datagenResolvedTable =
+                new ResolvedCatalogTable(
+                        CatalogTable.newBuilder()
+                                .schema(CREATE_SCHEMA)
+                                .comment("test generic table")
+                                .options(options)
+                                .build(),
+                        CREATE_RESOLVED_SCHEMA);
+
+        catalog.createTable(tablePath, datagenResolvedTable, true);
+
+        // test table exist
+        assertThat(catalog.tableExists(tablePath)).isTrue();
+
+        // test get table
+        CatalogBaseTable actualTable = catalog.getTable(tablePath);
+
+        // validate table type
+        assertThat(actualTable.getTableKind()).isEqualTo(CatalogBaseTable.TableKind.TABLE);
+        // validate schema
+        assertThat(actualTable.getUnresolvedSchema().resolve(new TestSchemaResolver()))
+                .isEqualTo(CREATE_RESOLVED_SCHEMA);
+        // validate options
+        assertThat(actualTable.getOptions()).isEqualTo(options);
+
+        // test create exist table
+        assertThrows(
+                TableAlreadyExistException.class,
+                () -> catalog.createTable(tablePath, datagenResolvedTable, false));
+    }
+
+    @Test
     public void testListTable() throws Exception {
         ObjectPath tablePath1 = new ObjectPath(TEST_DEFAULT_DATABASE, "tb1");
         ObjectPath tablePath2 = new ObjectPath(TEST_DEFAULT_DATABASE, "tb2");
