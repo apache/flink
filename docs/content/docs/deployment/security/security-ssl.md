@@ -49,7 +49,7 @@ Internal connectivity includes:
   - The data plane: The connections between TaskManagers to exchange data during shuffles, broadcasts, redistribution, etc.
   - The Blob Service (distribution of libraries and other artifacts).
 
-All internal connections are SSL authenticated and encrypted. The connections use **mutual authentication**, meaning both server
+All internal connections are SSL authenticated and encrypted. The connections use **mutual authentication** (mTLS), meaning both server
 and client side of each connection need to present the certificate to each other. The certificate acts effectively as a shared
 secret when a dedicated CA is used to exclusively sign an internal cert.
 The certificate for internal communication is not needed by any other party to interact with Flink, and can be simply
