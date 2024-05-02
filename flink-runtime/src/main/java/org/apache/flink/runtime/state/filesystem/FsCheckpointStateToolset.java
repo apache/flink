@@ -66,7 +66,9 @@ public class FsCheckpointStateToolset implements CheckpointStateToolset {
                 throw new IllegalArgumentException("We can duplicate only FileStateHandles.");
             }
             final Path srcPath = ((FileStateHandle) handle).getFilePath();
-            requests.add(CopyRequest.of(srcPath, getNewDstPath(srcPath.getName())));
+            requests.add(
+                    CopyRequest.of(
+                            srcPath, getNewDstPath(srcPath.getName()), handle.getStateSize()));
         }
         fs.copyFiles(requests, new CloseableRegistry());
 

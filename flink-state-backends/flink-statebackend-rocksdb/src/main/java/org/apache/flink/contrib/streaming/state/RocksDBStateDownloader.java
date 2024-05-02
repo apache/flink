@@ -154,6 +154,7 @@ public class RocksDBStateDownloader implements Closeable {
                 if (canCopyPaths(handleAndLocalPath)) {
                     org.apache.flink.core.fs.Path remotePath =
                             handleAndLocalPath.getHandle().maybeGetPath().get();
+                    long size = handleAndLocalPath.getHandle().getStateSize();
                     FileSystem.FSKey newFSKey = new FileSystem.FSKey(remotePath.toUri());
                     filesSystemsFilesToDownload
                             .computeIfAbsent(newFSKey, fsKey -> new ArrayList<>())
@@ -161,7 +162,8 @@ public class RocksDBStateDownloader implements Closeable {
                                     CopyRequest.of(
                                             remotePath,
                                             new org.apache.flink.core.fs.Path(
-                                                    downloadDestination.toUri())));
+                                                    downloadDestination.toUri()),
+                                            size));
                 } else {
                     runnables.add(
                             createDownloadRunnableUsingStreams(

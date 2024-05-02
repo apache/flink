@@ -50,8 +50,11 @@ public interface PathsCopyingFileSystem extends IFileSystem {
         /** The path where to duplicate the source file. */
         Path getDestination();
 
+        /** The size in bytes of the requested file to copy. */
+        long getSize();
+
         /** A factory method for creating a simple pair of source/destination. */
-        static CopyRequest of(Path source, Path destination) {
+        static CopyRequest of(Path source, Path destination, long size) {
             return new CopyRequest() {
                 @Override
                 public Path getSource() {
@@ -61,6 +64,11 @@ public interface PathsCopyingFileSystem extends IFileSystem {
                 @Override
                 public Path getDestination() {
                     return destination;
+                }
+
+                @Override
+                public long getSize() {
+                    return size;
                 }
 
                 @Override
