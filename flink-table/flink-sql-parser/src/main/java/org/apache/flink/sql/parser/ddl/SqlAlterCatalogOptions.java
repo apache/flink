@@ -20,13 +20,9 @@ package org.apache.flink.sql.parser.ddl;
 
 import org.apache.flink.sql.parser.SqlUnparseUtils;
 
-import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
@@ -38,25 +34,14 @@ import java.util.stream.Collectors;
 import static java.util.Objects.requireNonNull;
 
 /** ALTER CATALOG catalog_name SET (key1=val1, ...). */
-public class SqlAlterCatalogOptions extends SqlCall {
-
-    public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("ALTER CATALOG", SqlKind.OTHER_DDL);
-
-    private final SqlIdentifier catalogName;
+public class SqlAlterCatalogOptions extends SqlAlterCatalog {
 
     private final SqlNodeList propertyList;
 
     public SqlAlterCatalogOptions(
             SqlParserPos position, SqlIdentifier catalogName, SqlNodeList propertyList) {
-        super(position);
-        this.catalogName = requireNonNull(catalogName, "catalogName cannot be null");
+        super(position, catalogName);
         this.propertyList = requireNonNull(propertyList, "propertyList cannot be null");
-    }
-
-    @Override
-    public SqlOperator getOperator() {
-        return OPERATOR;
     }
 
     @Override
@@ -64,16 +49,8 @@ public class SqlAlterCatalogOptions extends SqlCall {
         return ImmutableNullableList.of(catalogName, propertyList);
     }
 
-    public SqlIdentifier getCatalogName() {
-        return catalogName;
-    }
-
     public SqlNodeList getPropertyList() {
         return propertyList;
-    }
-
-    public String catalogName() {
-        return catalogName.getSimple();
     }
 
     public Map<String, String> getProperties() {
@@ -88,8 +65,7 @@ public class SqlAlterCatalogOptions extends SqlCall {
 
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        writer.keyword("ALTER CATALOG");
-        catalogName.unparse(writer, leftPrec, rightPrec);
+        super.unparse(writer, leftPrec, rightPrec);
         writer.keyword("SET");
         SqlWriter.Frame withFrame = writer.startList("(", ")");
         for (SqlNode property : propertyList) {

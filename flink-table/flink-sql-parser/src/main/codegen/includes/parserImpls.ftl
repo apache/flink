@@ -151,7 +151,7 @@ SqlDrop SqlDropCatalog(Span s, boolean replace) :
 * Parses a alter catalog statement.
 * ALTER CATALOG catalog_name SET (key1=val1, key2=val2, ...);
 */
-SqlAlterCatalogOptions SqlAlterCatalog() :
+SqlAlterCatalog SqlAlterCatalog() :
 {
     SqlParserPos startPos;
     SqlIdentifier catalogName;
