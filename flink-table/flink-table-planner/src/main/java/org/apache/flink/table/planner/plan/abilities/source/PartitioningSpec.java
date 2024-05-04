@@ -36,7 +36,7 @@ public final class PartitioningSpec extends SourceAbilitySpecBase {
     @Override
     public void apply(DynamicTableSource tableSource, SourceAbilityContext context) {
         if (tableSource instanceof SupportsPartitioning) {
-            ((SupportsPartitioning<?>) tableSource).applyPartitionedRead();
+            ((SupportsPartitioning) tableSource).applyPartitionedRead();
         } else {
             throw new TableException(
                     String.format(

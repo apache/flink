@@ -49,6 +49,9 @@ import org.apache.flink.table.connector.source.abilities.SupportsPartitioning;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.connector.source.abilities.SupportsStatisticReport;
+import org.apache.flink.table.connector.source.partitioning.AnyPartitioning;
+import org.apache.flink.table.connector.source.partitioning.HashPartitioning;
+import org.apache.flink.table.connector.source.partitioning.Partitioning;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
@@ -91,7 +94,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                 SupportsFilterPushDown,
                 SupportsReadingMetadata,
                 SupportsStatisticReport,
-                SupportsPartitioning<Path> {
+                SupportsPartitioning {
 
     private static final Logger LOG = LoggerFactory.getLogger(FileSystemTableSource.class);
 
@@ -490,10 +493,18 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                 .collect(Collectors.toMap(ReadableFileInfo::getKey, ReadableFileInfo::getDataType));
     }
 
-    @Override
-    public Optional<List<Path>> sourcePartitions() {
+    private Optional<List<Path>> sourcePartitions() {
         if (!this.tableOptions.get(FileSystemConnectorOptions.PARTITIONED_READ)) {
             return Optional.empty();
+        }
+        if (!this.tableOptions
+                .get(FileSystemConnectorOptions.SOURCE_PARTITIONING)
+                .equalsIgnoreCase(Partitioning.Distribution.HASH.name())) {
+            throw new ValidationException(
+                    String.format(
+                            "%s currently only supports %s option",
+                            FileSystemConnectorOptions.SOURCE_PARTITIONING.key(),
+                            FileSystemConnectorOptions.SOURCE_PARTITIONING.defaultValue()));
         }
         Optional<List<Map<String, String>>> maybeListPartitions = listPartitions();
         if (!(maybeListPartitions.isPresent())) {
@@ -518,6 +529,30 @@ public class FileSystemTableSource extends AbstractFileSystemTable
         }
 
         return !res.isEmpty() ? Optional.of(res) : Optional.empty();
+    }
+
+    @Override
+    public Partitioning outputPartitioning() {
+
+        Optional<List<Path>> maybeSourcePartitions = sourcePartitions();
+
+        Optional<Integer> numPartitions = Optional.empty();
+        if (maybeSourcePartitions.isPresent() && !maybeSourcePartitions.get().isEmpty()) {
+            return new HashPartitioning() {
+                @Override
+                public Optional<List<Integer>> getColumns() {
+                    // for file connector, we get partitioned columns via PARTITIONED BY clause
+                    return Optional.empty();
+                }
+
+                @Override
+                public Optional<Integer> numPartitions() {
+                    return Optional.of(maybeSourcePartitions.get().size());
+                }
+            };
+        } else {
+            return new AnyPartitioning();
+        }
     }
 
     @Override

@@ -21,6 +21,7 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.catalog.ResolvedCatalogTable
 import org.apache.flink.table.connector.source.abilities.SupportsPartitioning
+import org.apache.flink.table.connector.source.partitioning.Partitioning
 import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenUtils, ExprCodeGenerator, OperatorCodeGenerator}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{DEFAULT_INPUT1_TERM, GENERIC_ROW}
@@ -185,12 +186,13 @@ object ScanUtil {
 
   def getPartitionCols(tableSourceTable: TableSourceTable): Option[util.List[String]] = {
     val tableSource = tableSourceTable.tableSource
-    if (!tableSource.isInstanceOf[SupportsPartitioning[_]]) {
+    if (!tableSource.isInstanceOf[SupportsPartitioning]) {
       return None
     }
 
-    val sourcePartitions = tableSource.asInstanceOf[SupportsPartitioning[_]].sourcePartitions()
-    if (!sourcePartitions.isPresent) {
+    val distribution =
+      tableSource.asInstanceOf[SupportsPartitioning].outputPartitioning().getDistribution
+    if (distribution == Partitioning.Distribution.ANY) {
       return None
     }
 

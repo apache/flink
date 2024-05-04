@@ -47,6 +47,13 @@ public class FileSystemConnectorOptions {
                     .withDescription(
                             "The configuration option for forcing the source to read input in a partitioned manner.");
 
+    public static final ConfigOption<String> SOURCE_PARTITIONING =
+            ConfigOptions.key("source-partitioning")
+                    .stringType()
+                    .defaultValue("hash")
+                    .withDescription(
+                            "The configuration option to indicate partitioning type of the source.");
+
     public static final ConfigOption<String> PARTITION_DEFAULT_NAME =
             key("partition.default-name")
                     .stringType()

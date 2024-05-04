@@ -20,9 +20,7 @@ package org.apache.flink.table.connector.source.abilities;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.connector.source.ScanTableSource;
-
-import java.util.List;
-import java.util.Optional;
+import org.apache.flink.table.connector.source.partitioning.Partitioning;
 
 /**
  * Enables {@link ScanTableSource} to discover source partitions and inform the optimizer
@@ -48,14 +46,12 @@ import java.util.Optional;
  * this pre-partitioned data source to eliminate possible shuffle operation. For example, for a
  * query SELECT region, month, AVG(age) from MyTable GROUP BY region, month the optimizer takes the
  * advantage of pre-partitioned source and avoids partitioning the data w.r.t. [region,month]
- *
- * @param <T> The type of data each partition.
  */
 @PublicEvolving
-public interface SupportsPartitioning<T> {
+public interface SupportsPartitioning {
 
-    /** Returns a list of data units in each partition. */
-    Optional<List<T>> sourcePartitions();
+    /** Returns the output data partitioning that this reader guarantees. */
+    Partitioning outputPartitioning();
 
     /** Applies partitioned reading to the source operator. */
     void applyPartitionedRead();
