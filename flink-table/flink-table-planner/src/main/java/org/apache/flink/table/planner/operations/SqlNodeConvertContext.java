@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.operations;
 
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.calcite.SqlToRexConverter;
@@ -43,6 +44,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig;
+
 /** An implementation of {@link SqlNodeConverter.ConvertContext}. */
 public class SqlNodeConvertContext implements SqlNodeConverter.ConvertContext {
 
@@ -52,6 +55,11 @@ public class SqlNodeConvertContext implements SqlNodeConverter.ConvertContext {
     public SqlNodeConvertContext(FlinkPlannerImpl flinkPlanner, CatalogManager catalogManager) {
         this.flinkPlanner = flinkPlanner;
         this.catalogManager = catalogManager;
+    }
+
+    @Override
+    public TableConfig getTableConfig() {
+        return unwrapTableConfig(flinkPlanner.cluster());
     }
 
     @Override
