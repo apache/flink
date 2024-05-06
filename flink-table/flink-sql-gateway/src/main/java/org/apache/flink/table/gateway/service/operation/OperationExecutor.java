@@ -65,6 +65,7 @@ import org.apache.flink.table.gateway.api.results.FunctionInfo;
 import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.environment.SqlGatewayStreamExecutionEnvironment;
 import org.apache.flink.table.gateway.service.context.SessionContext;
+import org.apache.flink.table.gateway.service.materializedtable.MaterializedTableManager;
 import org.apache.flink.table.gateway.service.result.ResultFetcher;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.module.ModuleManager;
@@ -96,6 +97,7 @@ import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateOperation;
 import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropOperation;
+import org.apache.flink.table.operations.materializedtable.MaterializedTableOperation;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.util.CollectionUtil;
@@ -193,9 +195,14 @@ public class OperationExecutor {
     }
 
     public ResultFetcher executeStatement(OperationHandle handle, String statement) {
+        return executeStatement(handle, new Configuration(), statement);
+    }
+
+    public ResultFetcher executeStatement(
+            OperationHandle handle, Configuration customConfig, String statement) {
         // Instantiate the TableEnvironment lazily
         ResourceManager resourceManager = sessionContext.getSessionState().resourceManager.copy();
-        TableEnvironmentInternal tableEnv = getTableEnvironment(resourceManager);
+        TableEnvironmentInternal tableEnv = getTableEnvironment(resourceManager, customConfig);
         PlanCacheManager planCacheManager = sessionContext.getPlanCacheManager();
         CachedPlan cachedPlan = null;
         Operation op = null;
@@ -344,13 +351,16 @@ public class OperationExecutor {
     // --------------------------------------------------------------------------------------------
 
     public TableEnvironmentInternal getTableEnvironment() {
-        return getTableEnvironment(sessionContext.getSessionState().resourceManager);
+        return getTableEnvironment(
+                sessionContext.getSessionState().resourceManager, new Configuration());
     }
 
-    public TableEnvironmentInternal getTableEnvironment(ResourceManager resourceManager) {
+    public TableEnvironmentInternal getTableEnvironment(
+            ResourceManager resourceManager, Configuration customConfig) {
         // checks the value of RUNTIME_MODE
         Configuration operationConfig = sessionContext.getSessionConf().clone();
         operationConfig.addAll(executionConfig);
+        operationConfig.addAll(customConfig);
         final EnvironmentSettings settings =
                 EnvironmentSettings.newInstance().withConfiguration(operationConfig).build();
 
@@ -492,12 +502,15 @@ public class OperationExecutor {
                 || op instanceof CreateCatalogFunctionOperation
                 || op instanceof ShowFunctionsOperation) {
             return callExecutableOperation(handle, (ExecutableOperation) op);
+        } else if (op instanceof MaterializedTableOperation) {
+            return MaterializedTableManager.callMaterializedTableOperation(
+                    this, handle, (MaterializedTableOperation) op, statement);
         } else {
             return callOperation(tableEnv, handle, op);
         }
     }
 
-    private ResultFetcher callExecutableOperation(OperationHandle handle, ExecutableOperation op) {
+    public ResultFetcher callExecutableOperation(OperationHandle handle, ExecutableOperation op) {
         TableResultInternal result =
                 op.execute(
                         new ExecutableOperationContextImpl(
@@ -519,6 +532,10 @@ public class OperationExecutor {
         tableConfig.addConfiguration(operationConfig);
 
         return tableConfig;
+    }
+
+    public SessionContext getSessionContext() {
+        return sessionContext;
     }
 
     private ResultFetcher callSetOperation(
