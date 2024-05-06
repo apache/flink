@@ -734,7 +734,9 @@ public class SqlNodeToOperationConversion {
 
         UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(targetTablePath);
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-        ContextResolvedTable contextResolvedTable = catalogManager.getTableOrError(identifier);
+        // If it is materialized table, convert it to catalog table for query optimize
+        ContextResolvedTable contextResolvedTable =
+                catalogManager.getTableOrError(identifier).toCatalogTable();
 
         PlannerQueryOperation query =
                 (PlannerQueryOperation)
