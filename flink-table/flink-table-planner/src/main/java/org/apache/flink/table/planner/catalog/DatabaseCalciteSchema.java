@@ -90,7 +90,7 @@ class DatabaseCalciteSchema extends FlinkSchema {
         return table.map(
                         lookupResult ->
                                 new CatalogSchemaTable(
-                                        lookupResult,
+                                        lookupResult.toCatalogTable(),
                                         getStatistic(lookupResult, identifier),
                                         isStreamingMode))
                 .orElse(null);
@@ -102,6 +102,7 @@ class DatabaseCalciteSchema extends FlinkSchema {
                 contextResolvedTable.getResolvedTable();
         switch (resolvedBaseTable.getTableKind()) {
             case TABLE:
+            case MATERIALIZED_TABLE:
                 return FlinkStatistic.unknown(resolvedBaseTable.getResolvedSchema())
                         .tableStats(extractTableStats(contextResolvedTable, identifier))
                         .build();

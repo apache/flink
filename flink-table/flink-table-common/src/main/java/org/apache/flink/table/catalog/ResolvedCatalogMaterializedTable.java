@@ -182,4 +182,17 @@ public class ResolvedCatalogMaterializedTable
                 + resolvedSchema
                 + '}';
     }
+
+    /** Convert this object to a {@link ResolvedCatalogTable} object for planner optimize query. */
+    public ResolvedCatalogTable toResolvedCatalogTable() {
+        return new ResolvedCatalogTable(
+                CatalogTable.newBuilder()
+                        .schema(getUnresolvedSchema())
+                        .comment(getComment())
+                        .partitionKeys(getPartitionKeys())
+                        .options(getOptions())
+                        .snapshot(getSnapshot().orElse(null))
+                        .build(),
+                getResolvedSchema());
+    }
 }
