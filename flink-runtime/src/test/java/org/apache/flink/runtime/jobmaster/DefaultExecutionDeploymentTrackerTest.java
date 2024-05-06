@@ -19,42 +19,34 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
-import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.hasEntry;
-import static org.hamcrest.Matchers.hasKey;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link DefaultExecutionDeploymentTracker}. */
-public class DefaultExecutionDeploymentTrackerTest extends TestLogger {
+class DefaultExecutionDeploymentTrackerTest {
 
     @Test
-    public void testStartTracking() {
+    void testStartTracking() {
         final DefaultExecutionDeploymentTracker tracker = new DefaultExecutionDeploymentTracker();
 
         final ExecutionAttemptID attemptId1 = createExecutionAttemptId();
         final ResourceID resourceId1 = ResourceID.generate();
         tracker.startTrackingPendingDeploymentOf(attemptId1, resourceId1);
 
-        assertThat(
-                tracker.getExecutionsOn(resourceId1),
-                hasEntry(attemptId1, ExecutionDeploymentState.PENDING));
+        assertThat(tracker.getExecutionsOn(resourceId1))
+                .containsEntry(attemptId1, ExecutionDeploymentState.PENDING);
 
         tracker.completeDeploymentOf(attemptId1);
 
-        assertThat(
-                tracker.getExecutionsOn(resourceId1),
-                hasEntry(attemptId1, ExecutionDeploymentState.DEPLOYED));
+        assertThat(tracker.getExecutionsOn(resourceId1))
+                .containsEntry(attemptId1, ExecutionDeploymentState.DEPLOYED);
     }
 
     @Test
-    public void testStopTrackingCompletedDeployment() {
+    void testStopTrackingCompletedDeployment() {
         final DefaultExecutionDeploymentTracker tracker = new DefaultExecutionDeploymentTracker();
 
         final ExecutionAttemptID attemptId1 = createExecutionAttemptId();
@@ -65,11 +57,11 @@ public class DefaultExecutionDeploymentTrackerTest extends TestLogger {
 
         tracker.stopTrackingDeploymentOf(attemptId1);
 
-        assertThat(tracker.getExecutionsOn(resourceId1).entrySet(), empty());
+        assertThat(tracker.getExecutionsOn(resourceId1).entrySet()).isEmpty();
     }
 
     @Test
-    public void testStopTrackingPendingDeployment() {
+    void testStopTrackingPendingDeployment() {
         final DefaultExecutionDeploymentTracker tracker = new DefaultExecutionDeploymentTracker();
 
         final ExecutionAttemptID attemptId1 = createExecutionAttemptId();
@@ -78,11 +70,11 @@ public class DefaultExecutionDeploymentTrackerTest extends TestLogger {
 
         tracker.stopTrackingDeploymentOf(attemptId1);
 
-        assertThat(tracker.getExecutionsOn(resourceId1).entrySet(), empty());
+        assertThat(tracker.getExecutionsOn(resourceId1).entrySet()).isEmpty();
     }
 
     @Test
-    public void testStopTrackingDoesNotAffectOtherIds() {
+    void testStopTrackingDoesNotAffectOtherIds() {
         final DefaultExecutionDeploymentTracker tracker = new DefaultExecutionDeploymentTracker();
 
         final ExecutionAttemptID attemptId1 = createExecutionAttemptId();
@@ -92,18 +84,18 @@ public class DefaultExecutionDeploymentTrackerTest extends TestLogger {
 
         tracker.stopTrackingDeploymentOf(createExecutionAttemptId());
 
-        assertThat(tracker.getExecutionsOn(resourceId1), hasKey(attemptId1));
+        assertThat(tracker.getExecutionsOn(resourceId1)).containsKey(attemptId1);
     }
 
     @Test
-    public void testCompleteDeploymentUnknownExecutionDoesNotThrowException() {
+    void testCompleteDeploymentUnknownExecutionDoesNotThrowException() {
         final DefaultExecutionDeploymentTracker tracker = new DefaultExecutionDeploymentTracker();
 
         tracker.completeDeploymentOf(createExecutionAttemptId());
     }
 
     @Test
-    public void testStopTrackingUnknownExecutionDoesNotThrowException() {
+    void testStopTrackingUnknownExecutionDoesNotThrowException() {
         final DefaultExecutionDeploymentTracker tracker = new DefaultExecutionDeploymentTracker();
 
         final ExecutionAttemptID attemptId2 = createExecutionAttemptId();
@@ -111,11 +103,9 @@ public class DefaultExecutionDeploymentTrackerTest extends TestLogger {
     }
 
     @Test
-    public void testGetExecutionsReturnsEmptySetForUnknownHost() {
+    void testGetExecutionsReturnsEmptySetForUnknownHost() {
         final DefaultExecutionDeploymentTracker tracker = new DefaultExecutionDeploymentTracker();
 
-        assertThat(
-                tracker.getExecutionsOn(ResourceID.generate()).entrySet(),
-                allOf(notNullValue(), empty()));
+        assertThat(tracker.getExecutionsOn(ResourceID.generate()).entrySet()).isEmpty();
     }
 }

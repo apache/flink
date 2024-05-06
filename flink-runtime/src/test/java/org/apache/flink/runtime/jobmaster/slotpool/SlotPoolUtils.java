@@ -43,8 +43,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static java.util.stream.Collectors.reducing;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Testing utility functions for the {@link SlotPool}. */
 public class SlotPoolUtils {
@@ -129,7 +128,7 @@ public class SlotPoolUtils {
                                             taskManagerLocation, taskManagerGateway, slotOffers);
 
                             if (assertAllSlotsAreAccepted) {
-                                assertThat(acceptedOffers, is(slotOffers));
+                                assertThat(acceptedOffers).isEqualTo(slotOffers);
                             }
                         },
                         mainThreadExecutor)

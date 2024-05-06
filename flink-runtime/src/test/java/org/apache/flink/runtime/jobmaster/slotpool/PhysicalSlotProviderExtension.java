@@ -24,7 +24,9 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 
-import org.junit.rules.ExternalResource;
+import org.junit.jupiter.api.extension.AfterEachCallback;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
 
 import javax.annotation.Nonnull;
 
@@ -36,10 +38,10 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
 /**
- * {@code PhysicalSlotProviderResource} is used for testing different {@link SlotSelectionStrategy}
+ * {@code PhysicalSlotProviderExtension} is used for testing different {@link SlotSelectionStrategy}
  * implementations on {@link PhysicalSlotProviderImpl}.
  */
-public class PhysicalSlotProviderResource extends ExternalResource {
+public class PhysicalSlotProviderExtension implements BeforeEachCallback, AfterEachCallback {
 
     private ScheduledExecutorService singleThreadScheduledExecutorService;
 
@@ -51,12 +53,12 @@ public class PhysicalSlotProviderResource extends ExternalResource {
 
     private PhysicalSlotProvider physicalSlotProvider;
 
-    public PhysicalSlotProviderResource(@Nonnull SlotSelectionStrategy slotSelectionStrategy) {
+    public PhysicalSlotProviderExtension(@Nonnull SlotSelectionStrategy slotSelectionStrategy) {
         this.slotSelectionStrategy = slotSelectionStrategy;
     }
 
     @Override
-    protected void before() throws Throwable {
+    public void beforeEach(ExtensionContext context) throws Exception {
         this.singleThreadScheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
         this.mainThreadExecutor =
                 ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
@@ -66,7 +68,7 @@ public class PhysicalSlotProviderResource extends ExternalResource {
     }
 
     @Override
-    protected void after() {
+    public void afterEach(ExtensionContext context) throws Exception {
         CompletableFuture.runAsync(() -> slotPool.close(), mainThreadExecutor).join();
         singleThreadScheduledExecutorService.shutdown();
     }

@@ -51,16 +51,15 @@ import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
@@ -71,14 +70,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.equalTo;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the partition release logic of the {@link JobMaster}. */
-public class JobMasterPartitionReleaseTest extends TestLogger {
+class JobMasterPartitionReleaseTest {
 
-    @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private static File temporaryFolder;
 
     private static final Time testingTimeout = Time.seconds(10L);
 
@@ -86,18 +84,18 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
 
     private TestingFatalErrorHandler testingFatalErrorHandler;
 
-    @BeforeClass
-    public static void setupClass() {
+    @BeforeAll
+    private static void setupClass() {
         rpcService = new TestingRpcService();
     }
 
-    @Before
-    public void setup() throws IOException {
+    @BeforeEach
+    private void setup() throws IOException {
         testingFatalErrorHandler = new TestingFatalErrorHandler();
     }
 
-    @After
-    public void teardown() throws Exception {
+    @AfterEach
+    private void teardown() throws Exception {
         if (testingFatalErrorHandler != null) {
             testingFatalErrorHandler.rethrowError();
         }
@@ -105,8 +103,8 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
         rpcService.clearGateways();
     }
 
-    @AfterClass
-    public static void teardownClass() {
+    @AfterAll
+    private static void teardownClass() {
         if (rpcService != null) {
             rpcService.closeAsync();
             rpcService = null;
@@ -114,7 +112,7 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
     }
 
     @Test
-    public void testPartitionTableCleanupOnDisconnect() throws Exception {
+    void testPartitionTableCleanupOnDisconnect() throws Exception {
         final CompletableFuture<JobID> disconnectTaskExecutorFuture = new CompletableFuture<>();
         final TestingTaskExecutorGateway testingTaskExecutorGateway =
                 new TestingTaskExecutorGatewayBuilder()
@@ -131,20 +129,20 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
                     testSetup.getTaskExecutorResourceID(), new Exception("test"));
             disconnectTaskExecutorFuture.get();
 
-            assertThat(
-                    testSetup.getStopTrackingPartitionsTargetResourceId().get(),
-                    equalTo(testSetup.getTaskExecutorResourceID()));
+            assertThatFuture(testSetup.getStopTrackingPartitionsTargetResourceId())
+                    .eventuallySucceeds()
+                    .isEqualTo(testSetup.getTaskExecutorResourceID());
         }
     }
 
     @Test
-    public void testPartitionReleaseOrPromotionOnJobSuccess() throws Exception {
+    void testPartitionReleaseOrPromotionOnJobSuccess() throws Exception {
         testPartitionReleaseOrPromotionOnJobTermination(
                 TestSetup::getPartitionsForReleaseOrPromote, ExecutionState.FINISHED);
     }
 
     @Test
-    public void testPartitionReleaseOrPromotionOnJobFailure() throws Exception {
+    void testPartitionReleaseOrPromotionOnJobFailure() throws Exception {
         testPartitionReleaseOrPromotionOnJobTermination(
                 TestSetup::getPartitionsForRelease, ExecutionState.FAILED);
     }
@@ -192,15 +190,12 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
             jobMasterGateway.updateTaskExecutionState(
                     new TaskExecutionState(
                             taskDeploymentDescriptor.getExecutionAttemptId(), finalExecutionState));
-            assertThat(
-                    callSelector.apply(testSetup).get(),
-                    containsInAnyOrder(partitionID0, partitionID1));
+            assertThat(callSelector.apply(testSetup).get())
+                    .containsExactlyInAnyOrder(partitionID0, partitionID1);
         }
     }
 
     private static class TestSetup implements AutoCloseable {
-
-        private final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
         private final LocalUnresolvedTaskManagerLocation localTaskManagerUnresolvedLocation =
                 new LocalUnresolvedTaskManagerLocation();
@@ -224,8 +219,6 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
                 TaskExecutorGateway taskExecutorGateway)
                 throws Exception {
 
-            temporaryFolder.create();
-
             TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
             haServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
 
@@ -243,8 +236,7 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
 
             Configuration configuration = new Configuration();
             configuration.set(
-                    BlobServerOptions.STORAGE_DIRECTORY,
-                    temporaryFolder.newFolder().getAbsolutePath());
+                    BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.getAbsolutePath());
 
             HeartbeatServices heartbeatServices = new HeartbeatServicesImpl(1000L, 5_000_000L);
 
@@ -327,12 +319,8 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
         }
 
         public void close() throws Exception {
-            try {
-                if (jobMaster != null) {
-                    RpcUtils.terminateRpcEndpoint(jobMaster);
-                }
-            } finally {
-                temporaryFolder.delete();
+            if (jobMaster != null) {
+                RpcUtils.terminateRpcEndpoint(jobMaster);
             }
         }
     }
