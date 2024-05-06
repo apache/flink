@@ -298,7 +298,7 @@ class SourceOperatorAlignmentTest {
         expectedOutput.add(record1);
         assertOutput(actualOutput, expectedOutput);
 
-        //no more split event, verify that the final watermark is emitted
+        // no more split event, verify that the final watermark is emitted
         operator.handleOperatorEvent(new NoMoreSplitsEvent());
         assertThat(operator.emitNext(actualOutput)).isEqualTo(DataInputStatus.END_OF_DATA);
 

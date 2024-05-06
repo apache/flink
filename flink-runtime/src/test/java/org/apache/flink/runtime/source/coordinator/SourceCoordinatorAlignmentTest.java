@@ -349,7 +349,7 @@ class SourceCoordinatorAlignmentTest extends SourceCoordinatorTestBase {
         reportWatermarkEvent(sourceCoordinator, subtask1, 44);
         assertLatestWatermarkAlignmentEvent(subtask1, 1042);
 
-        //mock noMoreSplits event
+        // mock noMoreSplits event
         assertHasNoMoreSplits(subtask0, true);
         reportWatermarkEvent(sourceCoordinator, subtask0, Long.MAX_VALUE);
         assertLatestWatermarkAlignmentEvent(subtask1, 1044);
