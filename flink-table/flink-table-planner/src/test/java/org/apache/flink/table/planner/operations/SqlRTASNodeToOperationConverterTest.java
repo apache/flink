@@ -126,7 +126,7 @@ public class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConve
                 .fromFields(
                         new String[] {"a", "b", "c", "d"},
                         new AbstractDataType[] {
-                            DataTypes.BIGINT(),
+                            DataTypes.BIGINT().notNull(),
                             DataTypes.STRING(),
                             DataTypes.INT(),
                             DataTypes.STRING()

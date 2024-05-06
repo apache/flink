@@ -107,7 +107,7 @@ public class SqlNodeToOperationConversionTestBase {
                 Schema.newBuilder()
                         .fromResolvedSchema(
                                 ResolvedSchema.of(
-                                        Column.physical("a", DataTypes.BIGINT()),
+                                        Column.physical("a", DataTypes.BIGINT().notNull()),
                                         Column.physical("b", DataTypes.VARCHAR(Integer.MAX_VALUE)),
                                         Column.physical("c", DataTypes.INT()),
                                         Column.physical("d", DataTypes.VARCHAR(Integer.MAX_VALUE))))

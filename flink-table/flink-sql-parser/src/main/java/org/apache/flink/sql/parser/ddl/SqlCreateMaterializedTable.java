@@ -132,7 +132,6 @@ public class SqlCreateMaterializedTable extends SqlCreate {
         return freshness;
     }
 
-    @Nullable
     public Optional<SqlLiteral> getRefreshMode() {
         return Optional.ofNullable(refreshMode);
     }
