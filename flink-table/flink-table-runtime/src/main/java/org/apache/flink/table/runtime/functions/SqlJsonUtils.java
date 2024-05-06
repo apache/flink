@@ -23,8 +23,7 @@ import org.apache.flink.table.api.JsonExistsOnError;
 import org.apache.flink.table.api.JsonQueryOnEmptyOrError;
 import org.apache.flink.table.api.JsonQueryWrapper;
 import org.apache.flink.table.api.JsonValueOnEmptyOrError;
-import org.apache.flink.table.api.TableException;
-import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.table.api.TableRuntimeException;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonValue;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
@@ -103,7 +102,8 @@ public class SqlJsonUtils {
             final Object convertedNode = MAPPER.treeToValue(node, Object.class);
             return MAPPER.writeValueAsString(convertedNode);
         } catch (JsonProcessingException e) {
-            throw new TableException("JSON object could not be serialized: " + node.asText(), e);
+            throw new TableRuntimeException(
+                    "JSON object could not be serialized: " + node.asText(), e);
         }
     }
 
@@ -389,82 +389,82 @@ public class SqlJsonUtils {
         }
     }
 
-    private static RuntimeException toUnchecked(Exception e) {
-        if (e instanceof RuntimeException) {
-            return (RuntimeException) e;
+    private static TableRuntimeException toUnchecked(Exception e) {
+        if (e instanceof TableRuntimeException) {
+            return (TableRuntimeException) e;
         }
-        return new RuntimeException(e);
+        return new TableRuntimeException(e.getMessage(), e);
     }
 
     private static RuntimeException illegalJsonPathModeInPathSpec(
             String pathMode, String pathSpec) {
-        return new FlinkRuntimeException(
+        return new TableRuntimeException(
                 String.format(
                         "Illegal jsonpath mode ''%s'' in jsonpath spec: ''%s''",
                         pathMode, pathSpec));
     }
 
     private static RuntimeException illegalJsonPathMode(String pathMode) {
-        return new FlinkRuntimeException(String.format("Illegal jsonpath mode ''%s''", pathMode));
+        return new TableRuntimeException(String.format("Illegal jsonpath mode ''%s''", pathMode));
     }
 
     private static RuntimeException illegalJsonPathSpec(String pathSpec) {
-        return new FlinkRuntimeException(
+        return new TableRuntimeException(
                 String.format(
                         "Illegal jsonpath spec ''%s'', format of the spec should be: ''<lax|strict> $'{'expr'}'''",
                         pathSpec));
     }
 
     private static RuntimeException strictPathModeRequiresNonEmptyValue() {
-        return new FlinkRuntimeException(
+        return new TableRuntimeException(
                 "Strict jsonpath mode requires a non empty returned value, but is null");
     }
 
     private static RuntimeException illegalErrorBehaviorInJsonExistsFunc(String errorBehavior) {
-        return new FlinkRuntimeException(
+        return new TableRuntimeException(
                 String.format(
                         "Illegal error behavior ''{0}'' specified in JSON_EXISTS function",
                         errorBehavior));
     }
 
     private static RuntimeException emptyResultOfJsonValueFuncNotAllowed() {
-        return new FlinkRuntimeException("Empty result of JSON_VALUE function is not allowed");
+        return new TableRuntimeException("Empty result of JSON_VALUE function is not allowed");
     }
 
     private static RuntimeException illegalEmptyBehaviorInJsonValueFunc(String emptyBehavior) {
-        return new FlinkRuntimeException(
+        return new TableRuntimeException(
                 String.format(
                         "Illegal empty behavior ''{0}'' specified in JSON_VALUE function",
                         emptyBehavior));
     }
 
     private static RuntimeException illegalErrorBehaviorInJsonValueFunc(String errorBehavior) {
-        return new FlinkRuntimeException(
+        return new TableRuntimeException(
                 String.format(
                         "Illegal error behavior ''%s'' specified in JSON_VALUE function",
                         errorBehavior));
     }
 
     private static RuntimeException scalarValueRequiredInStrictModeOfJsonValueFunc(String value) {
-        return new FlinkRuntimeException(
+        return new TableRuntimeException(
                 String.format(
                         "Strict jsonpath mode requires scalar value, and the actual value is: ''%s''",
                         value));
     }
 
     private static RuntimeException illegalWrapperBehaviorInJsonQueryFunc(String wrapperBehavior) {
-        return new FlinkRuntimeException(
+        return new TableRuntimeException(
                 String.format(
                         "Illegal wrapper behavior ''%s'' specified in JSON_QUERY function",
                         wrapperBehavior));
     }
 
     private static RuntimeException emptyResultOfJsonQueryFuncNotAllowed() {
-        return new FlinkRuntimeException("Empty result of JSON_QUERY function is not allowed");
+        return new TableRuntimeException("Empty result of JSON_QUERY function is not allowed");
     }
 
     private static RuntimeException illegalEmptyBehaviorInJsonQueryFunc(String emptyBehavior) {
-        return new FlinkRuntimeException(
+        return new TableRuntimeException(
                 String.format(
                         "Illegal empty behavior ''%s'' specified in JSON_VALUE function",
                         emptyBehavior));
@@ -472,14 +472,14 @@ public class SqlJsonUtils {
 
     private static RuntimeException arrayOrObjectValueRequiredInStrictModeOfJsonQueryFunc(
             String value) {
-        return new FlinkRuntimeException(
+        return new TableRuntimeException(
                 String.format(
                         "Strict jsonpath mode requires array or object value, and the actual value is: ''%s''",
                         value));
     }
 
     private static RuntimeException illegalErrorBehaviorInJsonQueryFunc(String errorBehavior) {
-        return new FlinkRuntimeException(
+        return new TableRuntimeException(
                 String.format(
                         "Illegal error behavior ''%s'' specified in JSON_VALUE function",
                         errorBehavior));

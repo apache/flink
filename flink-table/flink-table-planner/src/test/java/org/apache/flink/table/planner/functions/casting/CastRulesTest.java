@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeutils.base.LocalDateSerializer;
 import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericArrayData;
@@ -170,13 +170,13 @@ class CastRulesTest {
         return Stream.of(
                 CastTestSpecBuilder.testCastTo(TINYINT())
                         .fromCase(TINYINT(), null, null)
-                        .fail(CHAR(3), fromString("foo"), TableException.class)
-                        .fail(VARCHAR(5), fromString("Flink"), TableException.class)
-                        .fail(STRING(), fromString("Apache"), TableException.class)
+                        .fail(CHAR(3), fromString("foo"), TableRuntimeException.class)
+                        .fail(VARCHAR(5), fromString("Flink"), TableRuntimeException.class)
+                        .fail(STRING(), fromString("Apache"), TableRuntimeException.class)
                         .fromCase(STRING(), fromString("1.234"), (byte) 1)
                         .fromCase(STRING(), fromString("123"), (byte) 123)
                         .fromCase(STRING(), fromString(" 123 "), (byte) 123)
-                        .fail(STRING(), fromString("-130"), TableException.class)
+                        .fail(STRING(), fromString("-130"), TableRuntimeException.class)
                         .fromCase(
                                 DECIMAL(4, 3),
                                 fromBigDecimal(new BigDecimal("9.87"), 4, 3),
@@ -205,13 +205,13 @@ class CastRulesTest {
                         .fromCase(BOOLEAN(), false, (byte) 0),
                 CastTestSpecBuilder.testCastTo(SMALLINT())
                         .fromCase(SMALLINT(), null, null)
-                        .fail(CHAR(3), fromString("foo"), TableException.class)
-                        .fail(VARCHAR(5), fromString("Flink"), TableException.class)
-                        .fail(STRING(), fromString("Apache"), TableException.class)
+                        .fail(CHAR(3), fromString("foo"), TableRuntimeException.class)
+                        .fail(VARCHAR(5), fromString("Flink"), TableRuntimeException.class)
+                        .fail(STRING(), fromString("Apache"), TableRuntimeException.class)
                         .fromCase(STRING(), fromString("1.234"), (short) 1)
                         .fromCase(STRING(), fromString("123"), (short) 123)
                         .fromCase(STRING(), fromString(" 123 "), (short) 123)
-                        .fail(STRING(), fromString("-32769"), TableException.class)
+                        .fail(STRING(), fromString("-32769"), TableRuntimeException.class)
                         .fromCase(
                                 DECIMAL(4, 3),
                                 fromBigDecimal(new BigDecimal("9.87"), 4, 3),
@@ -250,13 +250,13 @@ class CastRulesTest {
                         .fromCase(BOOLEAN(), true, (short) 1)
                         .fromCase(BOOLEAN(), false, (short) 0),
                 CastTestSpecBuilder.testCastTo(INT())
-                        .fail(CHAR(3), fromString("foo"), TableException.class)
-                        .fail(VARCHAR(5), fromString("Flink"), TableException.class)
-                        .fail(STRING(), fromString("Apache"), TableException.class)
+                        .fail(CHAR(3), fromString("foo"), TableRuntimeException.class)
+                        .fail(VARCHAR(5), fromString("Flink"), TableRuntimeException.class)
+                        .fail(STRING(), fromString("Apache"), TableRuntimeException.class)
                         .fromCase(STRING(), fromString("1.234"), 1)
                         .fromCase(STRING(), fromString("123"), 123)
                         .fromCase(STRING(), fromString(" 123 "), 123)
-                        .fail(STRING(), fromString("-3276913443134"), TableException.class)
+                        .fail(STRING(), fromString("-3276913443134"), TableRuntimeException.class)
                         .fromCase(DECIMAL(4, 3), fromBigDecimal(new BigDecimal("9.87"), 4, 3), 9)
                         // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
                         // instead of overflow
@@ -297,9 +297,9 @@ class CastRulesTest {
                         .fromCase(BOOLEAN(), false, 0),
                 CastTestSpecBuilder.testCastTo(BIGINT())
                         .fromCase(BIGINT(), null, null)
-                        .fail(CHAR(3), fromString("foo"), TableException.class)
-                        .fail(VARCHAR(5), fromString("Flink"), TableException.class)
-                        .fail(STRING(), fromString("Apache"), TableException.class)
+                        .fail(CHAR(3), fromString("foo"), TableRuntimeException.class)
+                        .fail(VARCHAR(5), fromString("Flink"), TableRuntimeException.class)
+                        .fail(STRING(), fromString("Apache"), TableRuntimeException.class)
                         .fromCase(STRING(), fromString("1.234"), 1L)
                         .fromCase(STRING(), fromString("123"), 123L)
                         .fromCase(STRING(), fromString(" 123 "), 123L)
@@ -339,9 +339,9 @@ class CastRulesTest {
                         .fromCase(BOOLEAN(), false, 0L),
                 CastTestSpecBuilder.testCastTo(FLOAT())
                         .fromCase(FLOAT(), null, null)
-                        .fail(CHAR(3), fromString("foo"), TableException.class)
-                        .fail(VARCHAR(5), fromString("Flink"), TableException.class)
-                        .fail(STRING(), fromString("Apache"), TableException.class)
+                        .fail(CHAR(3), fromString("foo"), TableRuntimeException.class)
+                        .fail(VARCHAR(5), fromString("Flink"), TableRuntimeException.class)
+                        .fail(STRING(), fromString("Apache"), TableRuntimeException.class)
                         .fromCase(STRING(), fromString("1.234"), 1.234f)
                         .fromCase(STRING(), fromString("123"), 123.0f)
                         .fromCase(STRING(), fromString(" 123 "), 123.0f)
@@ -386,9 +386,9 @@ class CastRulesTest {
                         .fromCase(BOOLEAN(), false, 0.0f),
                 CastTestSpecBuilder.testCastTo(DOUBLE())
                         .fromCase(DOUBLE(), null, null)
-                        .fail(CHAR(3), fromString("foo"), TableException.class)
-                        .fail(VARCHAR(5), fromString("Flink"), TableException.class)
-                        .fail(STRING(), fromString("Apache"), TableException.class)
+                        .fail(CHAR(3), fromString("foo"), TableRuntimeException.class)
+                        .fail(VARCHAR(5), fromString("Flink"), TableRuntimeException.class)
+                        .fail(STRING(), fromString("Apache"), TableRuntimeException.class)
                         .fromCase(STRING(), fromString("1.234"), 1.234d)
                         .fromCase(STRING(), fromString("123"), 123.0d)
                         .fromCase(STRING(), fromString(" 123 "), 123.0d)
@@ -436,8 +436,8 @@ class CastRulesTest {
                         .fromCase(BOOLEAN(), true, 1.0d)
                         .fromCase(BOOLEAN(), false, 0.0d),
                 CastTestSpecBuilder.testCastTo(DATE())
-                        .fail(CHAR(3), fromString("foo"), TableException.class)
-                        .fail(VARCHAR(5), fromString("Flink"), TableException.class)
+                        .fail(CHAR(3), fromString("foo"), TableRuntimeException.class)
+                        .fail(VARCHAR(5), fromString("Flink"), TableRuntimeException.class)
                         .fromCase(
                                 STRING(),
                                 fromString("123"),
@@ -450,7 +450,7 @@ class CastRulesTest {
                                 STRING(),
                                 fromString("2021-09-27 12:34:56.123456789"),
                                 DateTimeUtils.toInternal(LocalDate.of(2021, 9, 27)))
-                        .fail(STRING(), fromString("2021/09/27"), TableException.class)
+                        .fail(STRING(), fromString("2021/09/27"), TableRuntimeException.class)
                         .fromCase(
                                 TIMESTAMP(9),
                                 TIMESTAMP,
@@ -460,8 +460,8 @@ class CastRulesTest {
                                 TIMESTAMP_LTZ,
                                 DateTimeUtils.toInternal(LocalDate.of(2022, 1, 4))),
                 CastTestSpecBuilder.testCastTo(TIME())
-                        .fail(CHAR(3), fromString("foo"), TableException.class)
-                        .fail(VARCHAR(5), fromString("Flink"), TableException.class)
+                        .fail(CHAR(3), fromString("foo"), TableRuntimeException.class)
+                        .fail(VARCHAR(5), fromString("Flink"), TableRuntimeException.class)
                         .fromCase(
                                 STRING(),
                                 fromString("23"),
@@ -470,8 +470,11 @@ class CastRulesTest {
                                 STRING(),
                                 fromString("23:45"),
                                 DateTimeUtils.toInternal(LocalTime.of(23, 45, 0)))
-                        .fail(STRING(), fromString("2021-09-27"), TableException.class)
-                        .fail(STRING(), fromString("2021-09-27 12:34:56"), TableException.class)
+                        .fail(STRING(), fromString("2021-09-27"), TableRuntimeException.class)
+                        .fail(
+                                STRING(),
+                                fromString("2021-09-27 12:34:56"),
+                                TableRuntimeException.class)
                         // https://issues.apache.org/jira/browse/FLINK-17224 Currently, fractional
                         // seconds are lost
                         .fromCase(
@@ -481,7 +484,7 @@ class CastRulesTest {
                         .fail(
                                 STRING(),
                                 fromString("2021-09-27 12:34:56.123456789"),
-                                TableException.class)
+                                TableRuntimeException.class)
                         .fromCase(
                                 TIMESTAMP(6),
                                 TIMESTAMP,
@@ -491,14 +494,14 @@ class CastRulesTest {
                                 TIMESTAMP_LTZ,
                                 DateTimeUtils.toInternal(LocalTime.of(11, 34, 56, 123_000_000))),
                 CastTestSpecBuilder.testCastTo(TIMESTAMP(9))
-                        .fail(CHAR(3), fromString("foo"), TableException.class)
-                        .fail(VARCHAR(5), fromString("Flink"), TableException.class)
-                        .fail(STRING(), fromString("123"), TableException.class)
+                        .fail(CHAR(3), fromString("foo"), TableRuntimeException.class)
+                        .fail(VARCHAR(5), fromString("Flink"), TableRuntimeException.class)
+                        .fail(STRING(), fromString("123"), TableRuntimeException.class)
                         .fromCase(
                                 STRING(),
                                 fromString("2021-09-27"),
                                 timestampDataFromLocalDateTime(2021, 9, 27, 0, 0, 0, 0))
-                        .fail(STRING(), fromString("2021/09/27"), TableException.class)
+                        .fail(STRING(), fromString("2021/09/27"), TableRuntimeException.class)
                         .fromCase(
                                 STRING(),
                                 fromString("2021-09-27 12:34:56.123"),
@@ -578,9 +581,9 @@ class CastRulesTest {
                                 fromString("2021-09-27 12:34:56.12345"),
                                 timestampDataFromLocalDateTime(2021, 9, 27, 12, 34, 56, 123400000)),
                 CastTestSpecBuilder.testCastTo(TIMESTAMP_LTZ(9))
-                        .fail(CHAR(3), fromString("foo"), TableException.class)
-                        .fail(VARCHAR(5), fromString("Flink"), TableException.class)
-                        .fail(STRING(), fromString("123"), TableException.class)
+                        .fail(CHAR(3), fromString("foo"), TableRuntimeException.class)
+                        .fail(VARCHAR(5), fromString("Flink"), TableRuntimeException.class)
+                        .fail(STRING(), fromString("123"), TableRuntimeException.class)
                         .fromCase(
                                 STRING(),
                                 CET_CONTEXT,
@@ -1127,12 +1130,12 @@ class CastRulesTest {
                                 EMPTY_UTF8),
                 CastTestSpecBuilder.testCastTo(BOOLEAN())
                         .fromCase(BOOLEAN(), null, null)
-                        .fail(CHAR(3), fromString("foo"), TableException.class)
+                        .fail(CHAR(3), fromString("foo"), TableRuntimeException.class)
                         .fromCase(CHAR(4), fromString("true"), true)
                         .fromCase(VARCHAR(5), fromString("FalsE"), false)
-                        .fail(STRING(), fromString("Apache Flink"), TableException.class)
+                        .fail(STRING(), fromString("Apache Flink"), TableRuntimeException.class)
                         .fromCase(STRING(), fromString("TRUE"), true)
-                        .fail(STRING(), fromString(""), TableException.class)
+                        .fail(STRING(), fromString(""), TableRuntimeException.class)
                         // Should fail when https://issues.apache.org/jira/browse/FLINK-24576 is
                         // fixed
                         .fromCase(
@@ -1253,9 +1256,9 @@ class CastRulesTest {
                                 fromString("Apache"),
                                 new byte[] {65, 112, 97, 99, 104, 101}),
                 CastTestSpecBuilder.testCastTo(DECIMAL(5, 3))
-                        .fail(CHAR(3), fromString("foo"), TableException.class)
-                        .fail(VARCHAR(5), fromString("Flink"), TableException.class)
-                        .fail(STRING(), fromString("Apache"), TableException.class)
+                        .fail(CHAR(3), fromString("foo"), TableRuntimeException.class)
+                        .fail(VARCHAR(5), fromString("Flink"), TableRuntimeException.class)
+                        .fail(STRING(), fromString("Apache"), TableRuntimeException.class)
                         .fromCase(
                                 STRING(),
                                 fromString("1.234"),

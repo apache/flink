@@ -773,7 +773,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
              |${operands.map(_.code).mkString("\n")}
              |${nullValue.code}
              |org.apache.flink.util.ExceptionUtils.rethrow(
-             |  new RuntimeException(${operands.head.resultTerm}.toString()));
+             |  new org.apache.flink.table.api.TableRuntimeException(${operands.head.resultTerm}.toString()));
              |""".stripMargin
         GeneratedExpression(nullValue.resultTerm, nullValue.nullTerm, code, resultType)
 
