@@ -58,7 +58,9 @@ public class AlterTableChangeOperation extends AlterTableOperation {
     @Override
     public String asSummaryString() {
         String changes =
-                tableChanges.stream().map(this::toString).collect(Collectors.joining(",\n"));
+                tableChanges.stream()
+                        .map(AlterTableChangeOperation::toString)
+                        .collect(Collectors.joining(",\n"));
         return String.format(
                 "ALTER TABLE %s%s\n%s",
                 ignoreIfTableNotExists ? "IF EXISTS " : "",
@@ -66,7 +68,7 @@ public class AlterTableChangeOperation extends AlterTableOperation {
                 changes);
     }
 
-    private String toString(TableChange tableChange) {
+    public static String toString(TableChange tableChange) {
         if (tableChange instanceof TableChange.SetOption) {
             TableChange.SetOption setChange = (TableChange.SetOption) tableChange;
             return String.format("  SET '%s' = '%s'", setChange.getKey(), setChange.getValue());

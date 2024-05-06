@@ -1151,7 +1151,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                 (catalog, path) -> {
                     final CatalogBaseTable resolvedTable = resolveCatalogBaseTable(table);
                     catalog.alterTable(path, resolvedTable, ignoreIfNotExists);
-                    if (resolvedTable instanceof CatalogTable) {
+                    if (resolvedTable instanceof CatalogTable
+                            || resolvedTable instanceof CatalogMaterializedTable) {
                         catalogModificationListeners.forEach(
                                 listener ->
                                         listener.onEvent(
