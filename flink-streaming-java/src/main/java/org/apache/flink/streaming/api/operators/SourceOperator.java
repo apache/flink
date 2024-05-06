@@ -434,7 +434,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                     // introduces a small performance regression (probably because of an extra
                     // virtual call)
                     processingTimeService.scheduleWithFixedDelay(
-                            this::emitLatestWatermark,
+                            time -> emitLatestWatermark(),
                             watermarkAlignmentParams.getUpdateInterval(),
                             watermarkAlignmentParams.getUpdateInterval());
                 }
@@ -507,7 +507,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         }
     }
 
-    private void emitLatestWatermark(long time) {
+    private void emitLatestWatermark() {
         checkState(currentMainOutput != null);
         if (latestWatermark == Watermark.UNINITIALIZED.getTimestamp()) {
             return;
@@ -572,6 +572,10 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         } else if (event instanceof SourceEventWrapper) {
             sourceReader.handleSourceEvents(((SourceEventWrapper) event).getSourceEvent());
         } else if (event instanceof NoMoreSplitsEvent) {
+            if (watermarkAlignmentParams.isEnabled()) {
+                latestWatermark = Watermark.MAX_WATERMARK.getTimestamp();
+                emitLatestWatermark();
+            }
             sourceReader.notifyNoMoreSplits();
         } else if (event instanceof IsProcessingBacklogEvent) {
             if (eventTimeLogic != null) {
