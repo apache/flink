@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.operations;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
@@ -126,9 +127,7 @@ public class PlannerCallProcedureOperation implements CallProcedureOperation {
             TableConfig tableConfig, ClassLoader userClassLoader) {
         // should be [ProcedureContext, arg1, arg2, ..]
         Object[] argumentVal = new Object[1 + internalInputArguments.length];
-        StreamExecutionEnvironment env =
-                StreamExecutionEnvironment.getExecutionEnvironment(tableConfig.getConfiguration());
-        argumentVal[0] = new DefaultProcedureContext(env);
+        argumentVal[0] = getProcedureContext(tableConfig);
         for (int i = 0; i < internalInputArguments.length; i++) {
             argumentVal[i + 1] =
                     (internalInputArguments[i] != null)
@@ -136,6 +135,15 @@ public class PlannerCallProcedureOperation implements CallProcedureOperation {
                             : null;
         }
         return argumentVal;
+    }
+
+    private ProcedureContext getProcedureContext(TableConfig tableConfig) {
+        Configuration configuration =
+                new Configuration((Configuration) tableConfig.getRootConfiguration());
+        configuration.addAll(tableConfig.getConfiguration());
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+        return new DefaultProcedureContext(env);
     }
 
     /** Convert the value with internal representation to the value with external representation. */
