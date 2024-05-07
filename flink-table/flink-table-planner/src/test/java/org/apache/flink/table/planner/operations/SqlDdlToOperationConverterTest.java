@@ -75,6 +75,7 @@ import org.apache.flink.table.types.DataType;
 
 import org.apache.calcite.sql.SqlNode;
 import org.assertj.core.api.HamcrestCondition;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
@@ -107,17 +108,22 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
     public void testAlterCatalog() {
         // test alter catalog options
         final String sql1 = "ALTER CATALOG cat2 SET ('K1' = 'V1', 'k2' = 'v2', 'k2' = 'v2_new')";
-        Operation operation = parse(sql1);
-        assertThat(operation).isInstanceOf(AlterCatalogOptionsOperation.class);
-        assertThat(((AlterCatalogOptionsOperation) operation).getCatalogName()).isEqualTo("cat2");
-        assertThat(operation.asSummaryString())
-                .isEqualTo("ALTER CATALOG cat2\n  SET 'K1' = 'V1',\n  SET 'k2' = 'v2_new'");
-
         final Map<String, String> expectedOptions = new HashMap<>();
         expectedOptions.put("K1", "V1");
         expectedOptions.put("k2", "v2_new");
-        assertThat(((AlterCatalogOptionsOperation) operation).getProperties())
-                .isEqualTo(expectedOptions);
+
+        Operation operation = parse(sql1);
+        assertThat(operation)
+                .isInstanceOf(AlterCatalogOptionsOperation.class)
+                .asInstanceOf(InstanceOfAssertFactories.type(AlterCatalogOptionsOperation.class))
+                .extracting(
+                        AlterCatalogOptionsOperation::getCatalogName,
+                        AlterCatalogOptionsOperation::asSummaryString,
+                        AlterCatalogOptionsOperation::getProperties)
+                .containsExactly(
+                        "cat2",
+                        "ALTER CATALOG cat2\n  SET 'K1' = 'V1',\n  SET 'k2' = 'v2_new'",
+                        expectedOptions);
     }
 
     @Test

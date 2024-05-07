@@ -340,17 +340,16 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         CatalogStore catalogStore = catalogStoreHolder.catalogStore();
         Optional<CatalogDescriptor> oldCatalogDescriptor = getCatalogDescriptor(catalogName);
         if (catalogStore.contains(catalogName) && oldCatalogDescriptor.isPresent()) {
-            Map<String, String> props = oldCatalogDescriptor.get().getConfiguration().toMap();
-            props.putAll(catalogDescriptor.getConfiguration().toMap());
-            CatalogDescriptor newCatalogDescriptor =
-                    CatalogDescriptor.of(catalogName, Configuration.fromMap(props));
-            Catalog catalog = initCatalog(catalogName, newCatalogDescriptor);
+            Configuration conf = oldCatalogDescriptor.get().getConfiguration();
+            conf.addAll(catalogDescriptor.getConfiguration());
+            CatalogDescriptor newCatalogDescriptor = CatalogDescriptor.of(catalogName, conf);
+            Catalog newCatalog = initCatalog(catalogName, newCatalogDescriptor);
             catalogStore.removeCatalog(catalogName, false);
             if (catalogs.containsKey(catalogName)) {
                 catalogs.get(catalogName).close();
             }
-            catalog.open();
-            catalogs.put(catalogName, catalog);
+            newCatalog.open();
+            catalogs.put(catalogName, newCatalog);
             catalogStoreHolder.catalogStore().storeCatalog(catalogName, newCatalogDescriptor);
         } else {
             throw new CatalogException(
