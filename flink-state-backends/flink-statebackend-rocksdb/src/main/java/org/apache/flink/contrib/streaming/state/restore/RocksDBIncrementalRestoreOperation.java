@@ -90,7 +90,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.core.fs.ICloseableRegistry.asCloseable;
 import static org.apache.flink.runtime.metrics.MetricNames.DOWNLOAD_STATE_DURATION;
 import static org.apache.flink.runtime.metrics.MetricNames.RESTORE_ASYNC_COMPACTION_DURATION;
 import static org.apache.flink.runtime.metrics.MetricNames.RESTORE_STATE_DURATION;
@@ -798,7 +797,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                         new RocksDBWriteBatchWrapper(this.rocksHandle.getDb(), writeBatchSize);
                 Closeable ignored =
                         cancelStreamRegistryForRestore.registerCloseableTemporarily(
-                                asCloseable(writeBatchWrapper))) {
+                                writeBatchWrapper.getCancelCloseable())) {
             for (IncrementalLocalKeyedStateHandle handleToCopy : toImport) {
                 try (RestoredDBInstance restoredDBInstance =
                         restoreTempDBInstanceFromLocalState(handleToCopy)) {

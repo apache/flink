@@ -84,6 +84,7 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -840,7 +841,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         try (RocksIteratorWrapper iterator =
                         RocksDBOperationUtils.getRocksIterator(db, stateMetaInfo.f0, readOptions);
                 RocksDBWriteBatchWrapper batchWriter =
-                        new RocksDBWriteBatchWrapper(db, getWriteOptions(), getWriteBatchSize())) {
+                        new RocksDBWriteBatchWrapper(db, getWriteOptions(), getWriteBatchSize());
+                Closeable ignored =
+                        cancelStreamRegistry.registerCloseableTemporarily(
+                                writeBatchWrapper.getCancelCloseable())) {
             iterator.seekToFirst();
 
             DataInputDeserializer serializedValueInput = new DataInputDeserializer();
