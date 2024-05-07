@@ -42,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SuppressWarnings("unused")
-public class ExpressionKeysTest {
+class ExpressionKeysTest {
 
     @Test
     void testBasicType() {

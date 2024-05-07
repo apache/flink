@@ -20,19 +20,17 @@ package org.apache.flink.api.scala.typeutils;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
+import org.apache.flink.api.common.typeutils.TypeSerializerConditions;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 
-import org.hamcrest.Matcher;
+import org.assertj.core.api.Condition;
 
 import java.util.ArrayList;
 import java.util.Collection;
 
 import scala.Option;
-
-import static org.hamcrest.CoreMatchers.is;
 
 /**
  * A {@link org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase} for {@link
@@ -89,14 +87,14 @@ class OptionSerializerUpgradeTest
         }
 
         @Override
-        public Matcher<Option<String>> testDataMatcher() {
-            return is(Option.empty());
+        public Condition<Option<String>> testDataCondition() {
+            return new Condition<>(Option::isEmpty, "is empty");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<Option<String>>>
-                schemaCompatibilityMatcher(FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+        public Condition<TypeSerializerSchemaCompatibility<Option<String>>>
+                schemaCompatibilityCondition(FlinkVersion version) {
+            return TypeSerializerConditions.isCompatibleAsIs();
         }
     }
 }

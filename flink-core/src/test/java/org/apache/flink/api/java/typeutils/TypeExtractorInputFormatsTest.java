@@ -28,97 +28,75 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @SuppressWarnings("serial")
-public class TypeExtractorInputFormatsTest {
+class TypeExtractorInputFormatsTest {
 
     @Test
-    public void testExtractInputFormatType() {
-        try {
-            InputFormat<?, ?> format = new DummyFloatInputFormat();
+    void testExtractInputFormatType() {
+        InputFormat<?, ?> format = new DummyFloatInputFormat();
+        TypeInformation<?> typeInfo = TypeExtractor.getInputFormatTypes(format);
+        assertThat(typeInfo).isEqualTo(BasicTypeInfo.FLOAT_TYPE_INFO);
+    }
+
+    @Test
+    void testExtractDerivedInputFormatType() {
+        // simple type
+        {
+            InputFormat<?, ?> format = new DerivedInputFormat();
             TypeInformation<?> typeInfo = TypeExtractor.getInputFormatTypes(format);
-            assertEquals(BasicTypeInfo.FLOAT_TYPE_INFO, typeInfo);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
+            assertThat(typeInfo).isEqualTo(BasicTypeInfo.SHORT_TYPE_INFO);
         }
-    }
 
-    @Test
-    public void testExtractDerivedInputFormatType() {
-        try {
-            // simple type
-            {
-                InputFormat<?, ?> format = new DerivedInputFormat();
-                TypeInformation<?> typeInfo = TypeExtractor.getInputFormatTypes(format);
-                assertEquals(BasicTypeInfo.SHORT_TYPE_INFO, typeInfo);
-            }
-
-            // composite type
-            {
-                InputFormat<?, ?> format = new DerivedTupleInputFormat();
-                TypeInformation<?> typeInfo = TypeExtractor.getInputFormatTypes(format);
-
-                assertTrue(typeInfo.isTupleType());
-                assertTrue(typeInfo instanceof TupleTypeInfo);
-
-                @SuppressWarnings("unchecked")
-                TupleTypeInfo<Tuple3<String, Short, Double>> tupleInfo =
-                        (TupleTypeInfo<Tuple3<String, Short, Double>>) typeInfo;
-
-                assertEquals(3, tupleInfo.getArity());
-                assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tupleInfo.getTypeAt(0));
-                assertEquals(BasicTypeInfo.SHORT_TYPE_INFO, tupleInfo.getTypeAt(1));
-                assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO, tupleInfo.getTypeAt(2));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
-    }
-
-    @Test
-    public void testMultiLevelDerivedInputFormatType() {
-        try {
-
-            // composite type
-            {
-                InputFormat<?, ?> format = new FinalRelativeInputFormat();
-                TypeInformation<?> typeInfo = TypeExtractor.getInputFormatTypes(format);
-
-                assertTrue(typeInfo.isTupleType());
-                assertTrue(typeInfo instanceof TupleTypeInfo);
-
-                @SuppressWarnings("unchecked")
-                TupleTypeInfo<Tuple3<String, Integer, Double>> tupleInfo =
-                        (TupleTypeInfo<Tuple3<String, Integer, Double>>) typeInfo;
-
-                assertEquals(3, tupleInfo.getArity());
-                assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tupleInfo.getTypeAt(0));
-                assertEquals(BasicTypeInfo.INT_TYPE_INFO, tupleInfo.getTypeAt(1));
-                assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO, tupleInfo.getTypeAt(2));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
-    }
-
-    @Test
-    public void testQueryableFormatType() {
-        try {
-            InputFormat<?, ?> format = new QueryableInputFormat();
+        // composite type
+        {
+            InputFormat<?, ?> format = new DerivedTupleInputFormat();
             TypeInformation<?> typeInfo = TypeExtractor.getInputFormatTypes(format);
-            assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO, typeInfo);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
+
+            assertThat(typeInfo.isTupleType()).isTrue();
+            assertThat(typeInfo).isInstanceOf(TupleTypeInfo.class);
+
+            @SuppressWarnings("unchecked")
+            TupleTypeInfo<Tuple3<String, Short, Double>> tupleInfo =
+                    (TupleTypeInfo<Tuple3<String, Short, Double>>) typeInfo;
+
+            assertThat(tupleInfo.getArity()).isEqualTo(3);
+            assertThat(tupleInfo.getTypeAt(0)).isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
+            assertThat(tupleInfo.getTypeAt(1)).isEqualTo(BasicTypeInfo.SHORT_TYPE_INFO);
+            assertThat(tupleInfo.getTypeAt(2)).isEqualTo(BasicTypeInfo.DOUBLE_TYPE_INFO);
         }
+    }
+
+    @Test
+    void testMultiLevelDerivedInputFormatType() {
+
+        // composite type
+        InputFormat<?, ?> format = new FinalRelativeInputFormat();
+        TypeInformation<?> typeInfo = TypeExtractor.getInputFormatTypes(format);
+
+        assertThat(typeInfo.isTupleType()).isTrue();
+        assertThat(typeInfo).isInstanceOf(TupleTypeInfo.class);
+
+        @SuppressWarnings("unchecked")
+        TupleTypeInfo<Tuple3<String, Integer, Double>> tupleInfo =
+                (TupleTypeInfo<Tuple3<String, Integer, Double>>) typeInfo;
+
+        assertThat(tupleInfo.getArity()).isEqualTo(3);
+        assertThat(tupleInfo.getTypeAt(0)).isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
+        assertThat(tupleInfo.getTypeAt(1)).isEqualTo(BasicTypeInfo.INT_TYPE_INFO);
+        assertThat(tupleInfo.getTypeAt(2)).isEqualTo(BasicTypeInfo.DOUBLE_TYPE_INFO);
+    }
+
+    @Test
+    void testQueryableFormatType() {
+        InputFormat<?, ?> format = new QueryableInputFormat();
+        TypeInformation<?> typeInfo = TypeExtractor.getInputFormatTypes(format);
+        assertThat(typeInfo).isEqualTo(BasicTypeInfo.DOUBLE_TYPE_INFO);
     }
 
     // --------------------------------------------------------------------------------------------
