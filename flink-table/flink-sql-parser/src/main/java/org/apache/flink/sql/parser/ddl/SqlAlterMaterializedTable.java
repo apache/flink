@@ -48,6 +48,10 @@ public abstract class SqlAlterMaterializedTable extends SqlCall {
         return tableIdentifier;
     }
 
+    public String[] fullTableName() {
+        return tableIdentifier.names.toArray(new String[0]);
+    }
+
     @Override
     public SqlOperator getOperator() {
         return OPERATOR;

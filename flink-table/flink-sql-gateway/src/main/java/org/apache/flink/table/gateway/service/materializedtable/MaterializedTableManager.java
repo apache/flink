@@ -23,6 +23,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
+import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
@@ -31,6 +33,7 @@ import org.apache.flink.table.gateway.service.operation.OperationExecutor;
 import org.apache.flink.table.gateway.service.result.ResultFetcher;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableChangeOperation;
+import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableRefreshOperation;
 import org.apache.flink.table.operations.materializedtable.CreateMaterializedTableOperation;
 import org.apache.flink.table.operations.materializedtable.DropMaterializedTableOperation;
 import org.apache.flink.table.operations.materializedtable.MaterializedTableOperation;
@@ -41,8 +44,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
+import static org.apache.flink.api.common.RuntimeExecutionMode.BATCH;
 import static org.apache.flink.api.common.RuntimeExecutionMode.STREAMING;
 import static org.apache.flink.configuration.DeploymentOptions.TARGET;
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
@@ -65,6 +72,11 @@ public class MaterializedTableManager {
             return callCreateMaterializedTableOperation(
                     operationExecutor, handle, (CreateMaterializedTableOperation) op);
         }
+        if (op instanceof AlterMaterializedTableRefreshOperation) {
+            return callAlterMaterializedTableRefreshOperation(
+                    operationExecutor, handle, (AlterMaterializedTableRefreshOperation) op);
+        }
+
         throw new SqlExecutionException(
                 String.format(
                         "Unsupported Operation %s for materialized table.", op.asSummaryString()));
@@ -164,6 +176,83 @@ public class MaterializedTableManager {
             throw new TableException(
                     String.format(
                             "Submit continuous refresh job for materialized table %s occur exception.",
+                            materializedTableIdentifier),
+                    e);
+        }
+    }
+
+    private static ResultFetcher callAlterMaterializedTableRefreshOperation(
+            OperationExecutor operationExecutor,
+            OperationHandle handle,
+            AlterMaterializedTableRefreshOperation alterMaterializedTableRefreshOperation) {
+        ObjectIdentifier materializedTableIdentifier =
+                alterMaterializedTableRefreshOperation.getTableIdentifier();
+        ResolvedCatalogBaseTable<?> table = operationExecutor.getTable(materializedTableIdentifier);
+        if (!(table instanceof ResolvedCatalogMaterializedTable)) {
+            throw new TableException(
+                    String.format(
+                            "The table '%s' is not a materialized table.",
+                            materializedTableIdentifier));
+        }
+
+        ResolvedCatalogMaterializedTable materializedTable =
+                (ResolvedCatalogMaterializedTable) table;
+
+        Map<String, String> partitionSpec =
+                alterMaterializedTableRefreshOperation.getPartitionSpec();
+
+        Set<String> allPartitionKeys =
+                new HashSet<>(((ResolvedCatalogMaterializedTable) table).getPartitionKeys());
+        Set<String> unknownPartitionKeys = new HashSet<>(partitionSpec.keySet());
+        unknownPartitionKeys.removeAll(allPartitionKeys);
+        if (!unknownPartitionKeys.isEmpty()) {
+            throw new TableException(
+                    String.format(
+                            "The partition spec contains unknown partition keys: %s.",
+                            unknownPartitionKeys));
+        }
+
+        // Set job name, runtime mode, checkpoint interval
+        Configuration customConfig = new Configuration();
+        String jobName =
+                String.format(
+                        "Materialized_table_%s_one_time_refresh_job",
+                        materializedTableIdentifier.asSerializableString());
+        customConfig.set(NAME, jobName);
+        customConfig.set(RUNTIME_MODE, BATCH);
+
+        StringBuilder insertStatement =
+                new StringBuilder(
+                        String.format(
+                                "INSERT INTO %s SELECT * FROM (%s)",
+                                materializedTableIdentifier,
+                                materializedTable.getDefinitionQuery()));
+
+        if (!partitionSpec.isEmpty()) {
+            insertStatement.append(" WHERE ");
+            insertStatement.append(
+                    partitionSpec.entrySet().stream()
+                            .map(
+                                    entry ->
+                                            String.format(
+                                                    "%s = '%s'", entry.getKey(), entry.getValue()))
+                            .reduce((s1, s2) -> s1 + " AND " + s2)
+                            .orElseThrow(() -> new TableException("Could not happen")));
+        }
+
+        try {
+            // return jobId for one time refresh, user should get the refresh job info via desc
+            // job.
+            return operationExecutor.executeStatement(handle, insertStatement.toString());
+        } catch (Exception e) {
+            // log and throw exception
+            LOG.error(
+                    "Refresh job manually for materialized table {} occur exception.",
+                    materializedTableIdentifier,
+                    e);
+            throw new TableException(
+                    String.format(
+                            "Refresh job manually for materialized table %s occur exception.",
                             materializedTableIdentifier),
                     e);
         }

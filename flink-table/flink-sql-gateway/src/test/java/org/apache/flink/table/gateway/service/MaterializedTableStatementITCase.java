@@ -21,12 +21,15 @@ package org.apache.flink.table.gateway.service;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
+import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.MockedEndpointVersion;
@@ -47,8 +50,10 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -236,6 +241,80 @@ public class MaterializedTableStatementITCase {
                         "Only support create materialized table in continuous refresh mode currently.");
     }
 
+    @Test
+    void testAlterMaterializedTableRefresh() throws Exception {
+        // initialize session handle, create test-filesystem catalog and register it to catalog
+        // store
+        SessionHandle sessionHandle = initializeSession();
+
+        String materializedTableDDL =
+                "CREATE MATERIALIZED TABLE users_shops"
+                        + " PARTITIONED BY (ds)\n"
+                        + " WITH(\n"
+                        + "   'format' = 'debezium-json'\n"
+                        + " )\n"
+                        + " FRESHNESS = INTERVAL '30' SECOND\n"
+                        + " AS SELECT \n"
+                        + "  user_id,\n"
+                        + "  shop_id,\n"
+                        + "  ds,\n"
+                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum,\n"
+                        + "  SUM (1) AS pv\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds)";
+
+        OperationHandle materializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, materializedTableHandle);
+
+        // check unknown partition keys
+        String alterStatementWithUnknownPartitionKey =
+                "ALTER MATERIALIZED TABLE users_shops REFRESH PARTITION (ds2 = '2023-01-01')";
+        OperationHandle alterStatementWithUnknownPartitionKeyHandle =
+                service.executeStatement(
+                        sessionHandle,
+                        alterStatementWithUnknownPartitionKey,
+                        -1,
+                        new Configuration());
+
+        assertThatThrownBy(
+                        () ->
+                                awaitOperationTermination(
+                                        service,
+                                        sessionHandle,
+                                        alterStatementWithUnknownPartitionKeyHandle))
+                .isInstanceOf(SqlExecutionException.class)
+                .rootCause()
+                .isInstanceOf(TableException.class)
+                .hasMessage("The partition spec contains unknown partition keys: [ds2].");
+
+        // check valid statement
+        long currentTime = System.currentTimeMillis();
+        String alterStatement =
+                "ALTER MATERIALIZED TABLE users_shops REFRESH PARTITION (ds = '2023-01-01')";
+        OperationHandle alterHandle =
+                service.executeStatement(sessionHandle, alterStatement, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, alterHandle);
+        List<RowData> result = fetchAllResults(sessionHandle, alterHandle);
+        assertThat(result.size()).isEqualTo(1);
+        String jobId = result.get(0).getString(0).toString();
+
+        OperationHandle describeJobOperationHandle =
+                service.executeStatement(
+                        sessionHandle,
+                        String.format("DESCRIBE JOB '%s'", jobId),
+                        -1,
+                        new Configuration());
+
+        result = fetchAllResults(sessionHandle, describeJobOperationHandle);
+        assertThat(result.size()).isEqualTo(1);
+        RowData jobRow = result.get(0);
+        assertThat(jobRow.getTimestamp(3, 3).getMillisecond()).isGreaterThan(currentTime);
+    }
+
     private SessionHandle initializeSession() {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
         String catalogDDL =
@@ -270,5 +349,18 @@ public class MaterializedTableStatementITCase {
                         + ")";
         service.configureSession(sessionHandle, dataGenSource, -1);
         return sessionHandle;
+    }
+
+    private List<RowData> fetchAllResults(
+            SessionHandle sessionHandle, OperationHandle operationHandle) {
+        Long token = 0L;
+        List<RowData> results = new ArrayList<>();
+        while (token != null) {
+            ResultSet result =
+                    service.fetchResults(sessionHandle, operationHandle, token, Integer.MAX_VALUE);
+            results.addAll(result.getData());
+            token = result.getNextToken();
+        }
+        return results;
     }
 }

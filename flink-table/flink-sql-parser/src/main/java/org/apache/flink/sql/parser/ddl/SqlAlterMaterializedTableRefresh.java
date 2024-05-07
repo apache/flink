@@ -58,4 +58,9 @@ public class SqlAlterMaterializedTableRefresh extends SqlAlterMaterializedTable 
                     writer, getOperator().getLeftPrec(), getOperator().getRightPrec());
         }
     }
+
+    @Nullable
+    public SqlNodeList getPartitionSpec() {
+        return partitionSpec;
+    }
 }
