@@ -90,7 +90,10 @@ public class FileMergingCheckpointStateOutputStreamTest {
                             FileSystem.WriteMode.NO_OVERWRITE);
             physicalFile =
                     new PhysicalFile(
-                            streamAndPath.stream(), physicalFilePath, (path) -> {}, EXCLUSIVE);
+                            streamAndPath.stream(),
+                            physicalFilePath,
+                            (path, size) -> {},
+                            EXCLUSIVE);
         }
         isPhysicalFileProvided = false;
 
