@@ -56,7 +56,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class LocalInputPreferredSlotSharingStrategyTest {
 
     @RegisterExtension
-    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
             TestingUtils.defaultExecutorExtension();
 
     private TestingSchedulingTopology topology;

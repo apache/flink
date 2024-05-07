@@ -45,7 +45,7 @@ import static org.hamcrest.Matchers.hasSize;
 /** {@link StateLocalitySlotAssigner} test. */
 class StateLocalitySlotAssignerTest {
     @Test
-    public void testSlotsAreNotWasted() {
+    void testSlotsAreNotWasted() {
         VertexInformation vertex = createVertex(2);
         AllocationID alloc1 = new AllocationID();
         AllocationID alloc2 = new AllocationID();
@@ -61,7 +61,7 @@ class StateLocalitySlotAssignerTest {
     }
 
     @Test
-    public void testUpScaling() {
+    void testUpScaling() {
         final int oldParallelism = 3;
         final int newParallelism = 7;
         final int numFreeSlots = 100;
@@ -90,7 +90,7 @@ class StateLocalitySlotAssignerTest {
     }
 
     @Test
-    public void testDownScaling() {
+    void testDownScaling() {
         final int oldParallelism = 5;
         final int newParallelism = 1;
         final int numFreeSlots = 100;

@@ -21,18 +21,15 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link RescalingController}. */
-@ExtendWith(TestLoggerExtension.class)
-public class EnforceMinimalIncreaseRescalingControllerTest {
+class EnforceMinimalIncreaseRescalingControllerTest {
     private static final Configuration TEST_CONFIG =
             new Configuration().set(JobManagerOptions.MIN_PARALLELISM_INCREASE, 2);
 

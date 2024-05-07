@@ -27,9 +27,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -41,25 +40,21 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link org.apache.flink.runtime.scheduler.MergingSharedSlotProfileRetrieverFactory}.
  */
-public class MergingSharedSlotProfileRetrieverTest extends TestLogger {
+class MergingSharedSlotProfileRetrieverTest {
 
     private static final SyncPreferredLocationsRetriever EMPTY_PREFERRED_LOCATIONS_RETRIEVER =
             (executionVertexId, producersToIgnore) -> Collections.emptyList();
 
     @Test
-    public void testGetEmptySlotProfile() throws ExecutionException, InterruptedException {
+    void testGetEmptySlotProfile() {
         SharedSlotProfileRetriever sharedSlotProfileRetriever =
                 new MergingSharedSlotProfileRetrieverFactory(
                                 EMPTY_PREFERRED_LOCATIONS_RETRIEVER,
@@ -71,15 +66,15 @@ public class MergingSharedSlotProfileRetrieverTest extends TestLogger {
                 sharedSlotProfileRetriever.getSlotProfile(
                         new ExecutionSlotSharingGroup(), ResourceProfile.ZERO);
 
-        assertThat(slotProfile.getTaskResourceProfile(), is(ResourceProfile.ZERO));
-        assertThat(slotProfile.getPhysicalSlotResourceProfile(), is(ResourceProfile.ZERO));
-        assertThat(slotProfile.getPreferredLocations(), hasSize(0));
-        assertThat(slotProfile.getPreferredAllocations(), hasSize(0));
-        assertThat(slotProfile.getReservedAllocations(), hasSize(0));
+        assertThat(slotProfile.getTaskResourceProfile()).isEqualTo(ResourceProfile.ZERO);
+        assertThat(slotProfile.getPhysicalSlotResourceProfile()).isEqualTo(ResourceProfile.ZERO);
+        assertThat(slotProfile.getPreferredLocations()).isEmpty();
+        assertThat(slotProfile.getPreferredAllocations()).isEmpty();
+        assertThat(slotProfile.getReservedAllocations()).isEmpty();
     }
 
     @Test
-    public void testResourceProfileOfSlotProfile() throws ExecutionException, InterruptedException {
+    void testResourceProfileOfSlotProfile() {
         ResourceProfile resourceProfile =
                 ResourceProfile.newBuilder()
                         .setCpuCores(1.0)
@@ -88,13 +83,12 @@ public class MergingSharedSlotProfileRetrieverTest extends TestLogger {
         SlotProfile slotProfile =
                 getSlotProfile(resourceProfile, Collections.nCopies(3, new AllocationID()), 2);
 
-        assertThat(slotProfile.getTaskResourceProfile(), is(resourceProfile));
-        assertThat(slotProfile.getPhysicalSlotResourceProfile(), is(resourceProfile));
+        assertThat(slotProfile.getTaskResourceProfile()).isEqualTo(resourceProfile);
+        assertThat(slotProfile.getPhysicalSlotResourceProfile()).isEqualTo(resourceProfile);
     }
 
     @Test
-    public void testPreferredLocationsOfSlotProfile()
-            throws ExecutionException, InterruptedException {
+    void testPreferredLocationsOfSlotProfile() {
         // preferred locations
         List<ExecutionVertexID> executions =
                 IntStream.range(0, 3)
@@ -113,7 +107,7 @@ public class MergingSharedSlotProfileRetrieverTest extends TestLogger {
         SlotProfile slotProfile =
                 getSlotProfile(
                         (executionVertexId, producersToIgnore) -> {
-                            assertThat(producersToIgnore, containsInAnyOrder(executions.toArray()));
+                            assertThat(producersToIgnore).containsAll(executions);
                             return locations.get(executionVertexId);
                         },
                         executions,
@@ -123,25 +117,24 @@ public class MergingSharedSlotProfileRetrieverTest extends TestLogger {
                         2);
 
         assertThat(
-                slotProfile.getPreferredLocations().stream()
-                        .filter(allLocations.get(0)::equals)
-                        .count(),
-                is(1L));
+                        slotProfile.getPreferredLocations().stream()
+                                .filter(allLocations.get(0)::equals)
+                                .count())
+                .isOne();
         assertThat(
-                slotProfile.getPreferredLocations().stream()
-                        .filter(allLocations.get(1)::equals)
-                        .count(),
-                is(2L));
+                        slotProfile.getPreferredLocations().stream()
+                                .filter(allLocations.get(1)::equals)
+                                .count())
+                .isEqualTo(2L);
         assertThat(
-                slotProfile.getPreferredLocations().stream()
-                        .filter(allLocations.get(2)::equals)
-                        .count(),
-                is(1L));
+                        slotProfile.getPreferredLocations().stream()
+                                .filter(allLocations.get(2)::equals)
+                                .count())
+                .isOne();
     }
 
     @Test
-    public void testPreferredAllocationsOfSlotProfile()
-            throws ExecutionException, InterruptedException {
+    void testPreferredAllocationsOfSlotProfile() {
         AllocationID prevAllocationID1 = new AllocationID();
         AllocationID prevAllocationID2 = new AllocationID();
         List<AllocationID> prevAllocationIDs =
@@ -149,14 +142,12 @@ public class MergingSharedSlotProfileRetrieverTest extends TestLogger {
 
         SlotProfile slotProfile = getSlotProfile(ResourceProfile.ZERO, prevAllocationIDs, 2);
 
-        assertThat(
-                slotProfile.getPreferredAllocations(),
-                containsInAnyOrder(prevAllocationID1, prevAllocationID2));
+        assertThat(slotProfile.getPreferredAllocations())
+                .contains(prevAllocationID1, prevAllocationID2);
     }
 
     @Test
-    public void testReservedAllocationsOfSlotProfile()
-            throws ExecutionException, InterruptedException {
+    void testReservedAllocationsOfSlotProfile() {
         List<AllocationID> reservedAllocationIds =
                 Arrays.asList(new AllocationID(), new AllocationID(), new AllocationID());
 
@@ -169,16 +160,13 @@ public class MergingSharedSlotProfileRetrieverTest extends TestLogger {
                         reservedAllocationIds,
                         0);
 
-        assertThat(
-                slotProfile.getReservedAllocations(),
-                containsInAnyOrder(reservedAllocationIds.toArray()));
+        assertThat(slotProfile.getReservedAllocations()).containsAll(reservedAllocationIds);
     }
 
     private static SlotProfile getSlotProfile(
             ResourceProfile resourceProfile,
             List<AllocationID> prevAllocationIDs,
-            int executionSlotSharingGroupSize)
-            throws ExecutionException, InterruptedException {
+            int executionSlotSharingGroupSize) {
         List<ExecutionVertexID> executions =
                 prevAllocationIDs.stream()
                         .map(stub -> new ExecutionVertexID(new JobVertexID(), 0))
@@ -198,8 +186,7 @@ public class MergingSharedSlotProfileRetrieverTest extends TestLogger {
             ResourceProfile resourceProfile,
             List<AllocationID> prevAllocationIDs,
             Collection<AllocationID> reservedAllocationIds,
-            int executionSlotSharingGroupSize)
-            throws ExecutionException, InterruptedException {
+            int executionSlotSharingGroupSize) {
         SharedSlotProfileRetriever sharedSlotProfileRetriever =
                 new MergingSharedSlotProfileRetrieverFactory(
                                 preferredLocationsRetriever,

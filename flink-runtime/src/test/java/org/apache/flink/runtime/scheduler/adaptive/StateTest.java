@@ -37,7 +37,8 @@ class StateTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(StateTest.class);
 
-    @RegisterExtension CreatedTest.MockCreatedContext ctx = new CreatedTest.MockCreatedContext();
+    @RegisterExtension
+    private CreatedTest.MockCreatedContext ctx = new CreatedTest.MockCreatedContext();
 
     @Test
     void testEmptyAs() {

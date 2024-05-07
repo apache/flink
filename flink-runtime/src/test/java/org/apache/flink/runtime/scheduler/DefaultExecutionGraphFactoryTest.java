@@ -21,7 +21,6 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.SavepointFormatType;
-import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointProperties;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
@@ -45,17 +44,17 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.traces.Span;
 import org.apache.flink.traces.SpanBuilder;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.clock.SystemClock;
 
-import org.hamcrest.MatcherAssert;
-import org.hamcrest.Matchers;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
@@ -66,49 +65,57 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link DefaultExecutionGraphFactory}. */
-public class DefaultExecutionGraphFactoryTest extends TestLogger {
+class DefaultExecutionGraphFactoryTest {
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    private static final Logger log =
+            LoggerFactory.getLogger(DefaultExecutionGraphFactoryTest.class);
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @TempDir private File tempDir;
+    private File temporaryFile;
+
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+            TestingUtils.defaultExecutorExtension();
+
+    @BeforeEach
+    private void setup() {
+        temporaryFile = new File(tempDir.getAbsolutePath(), "stateFile");
+    }
 
     @Test
-    public void testRestoringModifiedJobFromSavepointFails() throws Exception {
+    void testRestoringModifiedJobFromSavepointFails() throws Exception {
         final JobGraph jobGraphWithNewOperator = createJobGraphWithSavepoint(false, 42L, 1);
 
         final ExecutionGraphFactory executionGraphFactory = createExecutionGraphFactory();
 
-        try {
-            executionGraphFactory.createAndRestoreExecutionGraph(
-                    jobGraphWithNewOperator,
-                    new StandaloneCompletedCheckpointStore(1),
-                    new CheckpointsCleaner(),
-                    new StandaloneCheckpointIDCounter(),
-                    TaskDeploymentDescriptorFactory.PartitionLocationConstraint.CAN_BE_UNKNOWN,
-                    0L,
-                    new DefaultVertexAttemptNumberStore(),
-                    SchedulerBase.computeVertexParallelismStore(jobGraphWithNewOperator),
-                    (execution, previousState, newState) -> {},
-                    rp -> false,
-                    log);
-            fail("Expected ExecutionGraph creation to fail because of non restored state.");
-        } catch (Exception e) {
-            assertThat(
-                    e, FlinkMatchers.containsMessage("Failed to rollback to checkpoint/savepoint"));
-        }
+        assertThatThrownBy(
+                        () ->
+                                executionGraphFactory.createAndRestoreExecutionGraph(
+                                        jobGraphWithNewOperator,
+                                        new StandaloneCompletedCheckpointStore(1),
+                                        new CheckpointsCleaner(),
+                                        new StandaloneCheckpointIDCounter(),
+                                        TaskDeploymentDescriptorFactory.PartitionLocationConstraint
+                                                .CAN_BE_UNKNOWN,
+                                        0L,
+                                        new DefaultVertexAttemptNumberStore(),
+                                        SchedulerBase.computeVertexParallelismStore(
+                                                jobGraphWithNewOperator),
+                                        (execution, previousState, newState) -> {},
+                                        rp -> false,
+                                        log))
+                .withFailMessage(
+                        "Expected ExecutionGraph creation to fail because of non restored state.")
+                .isInstanceOf(Exception.class)
+                .hasMessageContaining("Failed to rollback to checkpoint/savepoint");
     }
 
     @Test
-    public void testRestoringModifiedJobFromSavepointWithAllowNonRestoredStateSucceeds()
-            throws Exception {
+    void testRestoringModifiedJobFromSavepointWithAllowNonRestoredStateSucceeds() throws Exception {
         // create savepoint data
         final long savepointId = 42L;
         final JobGraph jobGraphWithNewOperator = createJobGraphWithSavepoint(true, savepointId, 1);
@@ -132,13 +139,12 @@ public class DefaultExecutionGraphFactoryTest extends TestLogger {
 
         final CompletedCheckpoint savepoint = completedCheckpointStore.getLatestCheckpoint();
 
-        MatcherAssert.assertThat(savepoint, notNullValue());
-
-        MatcherAssert.assertThat(savepoint.getCheckpointID(), Matchers.is(savepointId));
+        assertThat(savepoint).isNotNull();
+        assertThat(savepoint.getCheckpointID()).isEqualTo(savepointId);
     }
 
     @Test
-    public void testCheckpointStatsTrackerUpdatedWithNewParallelism() throws Exception {
+    void testCheckpointStatsTrackerUpdatedWithNewParallelism() throws Exception {
         final long savepointId = 42L;
         final JobGraph jobGraphWithParallelism2 = createJobGraphWithSavepoint(true, savepointId, 2);
 
@@ -184,7 +190,7 @@ public class DefaultExecutionGraphFactoryTest extends TestLogger {
                                 SystemClock.getInstance().absoluteTimeMillis())
                         .build());
 
-        MatcherAssert.assertThat(spans, hasSize(1));
+        assertThat(spans).hasSize(1);
     }
 
     @Nonnull
@@ -201,8 +207,8 @@ public class DefaultExecutionGraphFactoryTest extends TestLogger {
                         new Configuration(),
                         ClassLoader.getSystemClassLoader(),
                         new DefaultExecutionDeploymentTracker(),
-                        EXECUTOR_RESOURCE.getExecutor(),
-                        EXECUTOR_RESOURCE.getExecutor(),
+                        EXECUTOR_EXTENSION.getExecutor(),
+                        EXECUTOR_EXTENSION.getExecutor(),
                         Time.milliseconds(0L),
                         metricGroup,
                         VoidBlobWriter.getInstance(),
@@ -217,8 +223,7 @@ public class DefaultExecutionGraphFactoryTest extends TestLogger {
         // create savepoint data
         final OperatorID operatorID = new OperatorID();
         final File savepointFile =
-                TestUtils.createSavepointWithOperatorState(
-                        TEMPORARY_FOLDER.newFile(), savepointId, operatorID);
+                TestUtils.createSavepointWithOperatorState(temporaryFile, savepointId, operatorID);
 
         // set savepoint settings which don't allow non restored state
         final SavepointRestoreSettings savepointRestoreSettings =

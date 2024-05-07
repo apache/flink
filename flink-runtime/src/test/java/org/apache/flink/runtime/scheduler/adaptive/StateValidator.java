@@ -22,7 +22,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.function.Consumer;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Utility for state test classes (e.g. {@link WaitingForResourcesTest}) to track if correct input

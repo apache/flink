@@ -75,7 +75,7 @@ class PointwiseBlockingResultInfoTest {
 
         // reset partition info
         resultInfo.resetPartitionInfo(0);
-        assertThat(resultInfo.getNumOfRecordedPartitions()).isEqualTo(1);
+        assertThat(resultInfo.getNumOfRecordedPartitions()).isOne();
 
         // record partition info again
         resultInfo.recordPartitionInfo(0, new ResultPartitionBytes(new long[] {64L, 128L}));

@@ -42,11 +42,12 @@ import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.shuffle.TaskInputsOutputsDescriptor;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -55,22 +56,20 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link SsgNetworkMemoryCalculationUtils}. */
-public class SsgNetworkMemoryCalculationUtilsTest {
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+class SsgNetworkMemoryCalculationUtilsTest {
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+            TestingUtils.defaultExecutorExtension();
 
     private static final TestShuffleMaster SHUFFLE_MASTER = new TestShuffleMaster();
 
     private static final ResourceProfile DEFAULT_RESOURCE = ResourceProfile.fromResources(1.0, 100);
 
     @Test
-    public void testGenerateEnrichedResourceProfile() throws Exception {
+    void testGenerateEnrichedResourceProfile() throws Exception {
         // 1. for the first source vertex, no input channel, 1 or 2 subpartitions for point-wise
         // output edge (the max is 2)
         // 2. for the second map vertex, 1 input channel for point-wise edge, 2 result partitions
@@ -115,12 +114,14 @@ public class SsgNetworkMemoryCalculationUtilsTest {
                 Arrays.asList(slotSharingGroup0, slotSharingGroup0, slotSharingGroup1),
                 resultPartitionType);
 
-        assertEquals(group0MemorySize, slotSharingGroup0.getResourceProfile().getNetworkMemory());
-        assertEquals(group1MemorySize, slotSharingGroup1.getResourceProfile().getNetworkMemory());
+        assertThat(slotSharingGroup0.getResourceProfile().getNetworkMemory())
+                .isEqualTo(group0MemorySize);
+        assertThat(slotSharingGroup1.getResourceProfile().getNetworkMemory())
+                .isEqualTo(group1MemorySize);
     }
 
     @Test
-    public void testGenerateUnknownResourceProfile() throws Exception {
+    void testGenerateUnknownResourceProfile() throws Exception {
         SlotSharingGroup slotSharingGroup0 = new SlotSharingGroup();
         slotSharingGroup0.setResourceProfile(ResourceProfile.UNKNOWN);
 
@@ -131,12 +132,12 @@ public class SsgNetworkMemoryCalculationUtilsTest {
                 Arrays.asList(slotSharingGroup0, slotSharingGroup0, slotSharingGroup1),
                 ResultPartitionType.PIPELINED);
 
-        assertEquals(ResourceProfile.UNKNOWN, slotSharingGroup0.getResourceProfile());
-        assertEquals(ResourceProfile.UNKNOWN, slotSharingGroup1.getResourceProfile());
+        assertThat(slotSharingGroup0.getResourceProfile()).isEqualTo(ResourceProfile.UNKNOWN);
+        assertThat(slotSharingGroup1.getResourceProfile()).isEqualTo(ResourceProfile.UNKNOWN);
     }
 
     @Test
-    public void testGenerateEnrichedResourceProfileForDynamicGraph() throws Exception {
+    void testGenerateEnrichedResourceProfileForDynamicGraph() throws Exception {
         List<SlotSharingGroup> slotSharingGroups =
                 Arrays.asList(
                         new SlotSharingGroup(), new SlotSharingGroup(), new SlotSharingGroup());
@@ -182,21 +183,20 @@ public class SsgNetworkMemoryCalculationUtilsTest {
     private void assertNetworkMemory(
             List<SlotSharingGroup> slotSharingGroups, List<MemorySize> networkMemory) {
 
-        assertEquals(slotSharingGroups.size(), networkMemory.size());
+        assertThat(networkMemory).hasSameSizeAs(slotSharingGroups);
         for (int i = 0; i < slotSharingGroups.size(); ++i) {
-            assertThat(
-                    slotSharingGroups.get(i).getResourceProfile().getNetworkMemory(),
-                    is(networkMemory.get(i)));
+            assertThat(slotSharingGroups.get(i).getResourceProfile().getNetworkMemory())
+                    .isEqualTo(networkMemory.get(i));
         }
     }
 
     @Test
-    public void testGetMaxInputChannelNumForResultForAllToAll() throws Exception {
+    void testGetMaxInputChannelNumForResultForAllToAll() throws Exception {
         testGetMaxInputChannelNumForResult(DistributionPattern.ALL_TO_ALL, 5, 20, 7, 15);
     }
 
     @Test
-    public void testGetMaxInputChannelNumForResultForPointWise() throws Exception {
+    void testGetMaxInputChannelNumForResultForPointWise() throws Exception {
         testGetMaxInputChannelNumForResult(DistributionPattern.POINTWISE, 5, 20, 3, 8);
         testGetMaxInputChannelNumForResult(DistributionPattern.POINTWISE, 5, 20, 5, 4);
         testGetMaxInputChannelNumForResult(DistributionPattern.POINTWISE, 5, 20, 7, 4);
@@ -218,7 +218,7 @@ public class SsgNetworkMemoryCalculationUtilsTest {
                                 consumerMaxParallelism,
                                 distributionPattern,
                                 true,
-                                EXECUTOR_RESOURCE.getExecutor());
+                                EXECUTOR_EXTENSION.getExecutor());
 
         final Iterator<ExecutionJobVertex> vertexIterator =
                 eg.getVerticesTopologically().iterator();
@@ -237,10 +237,12 @@ public class SsgNetworkMemoryCalculationUtilsTest {
         SsgNetworkMemoryCalculationUtils.getMaxInputChannelInfoForDynamicGraph(
                 consumer, maxInputChannelNums, inputPartitionTypes);
 
-        assertThat(maxInputChannelNums.size(), is(1));
-        assertThat(maxInputChannelNums.get(result.getId()), is(expectedNumChannels));
-        assertThat(inputPartitionTypes.size(), is(1));
-        assertThat(inputPartitionTypes.get(result.getId()), is(result.getResultType()));
+        assertThat(maxInputChannelNums)
+                .containsExactly(
+                        new AbstractMap.SimpleEntry<>(result.getId(), expectedNumChannels));
+        assertThat(inputPartitionTypes)
+                .containsExactly(
+                        new AbstractMap.SimpleEntry<>(result.getId(), result.getResultType()));
     }
 
     private DefaultExecutionGraph createDynamicExecutionGraph(
@@ -259,7 +261,7 @@ public class SsgNetworkMemoryCalculationUtilsTest {
                 .setJobGraph(jobGraph)
                 .setVertexParallelismStore(vertexParallelismStore)
                 .setShuffleMaster(SHUFFLE_MASTER)
-                .buildDynamicGraph(EXECUTOR_RESOURCE.getExecutor());
+                .buildDynamicGraph(EXECUTOR_EXTENSION.getExecutor());
     }
 
     private void createExecutionGraphAndEnrichNetworkMemory(
@@ -270,7 +272,7 @@ public class SsgNetworkMemoryCalculationUtilsTest {
                         createJobGraph(
                                 slotSharingGroups, Arrays.asList(4, 5, 6), resultPartitionType))
                 .setShuffleMaster(SHUFFLE_MASTER)
-                .build(EXECUTOR_RESOURCE.getExecutor());
+                .build(EXECUTOR_EXTENSION.getExecutor());
     }
 
     private static JobGraph createJobGraph(
@@ -278,8 +280,8 @@ public class SsgNetworkMemoryCalculationUtilsTest {
             List<Integer> parallelisms,
             ResultPartitionType resultPartitionType) {
 
-        assertThat(slotSharingGroups.size(), is(3));
-        assertThat(parallelisms.size(), is(3));
+        assertThat(slotSharingGroups).hasSize(3);
+        assertThat(parallelisms).hasSize(3);
 
         JobVertex source = new JobVertex("source");
         source.setInvokableClass(NoOpInvokable.class);

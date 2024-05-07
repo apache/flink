@@ -32,10 +32,8 @@ import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry
 import org.apache.flink.runtime.scheduler.exceptionhistory.TestingAccessExecution;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointStoppingException;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,7 +53,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 /** Tests for the {@link StopWithSavepoint} state. */
-@ExtendWith(TestLoggerExtension.class)
 class StopWithSavepointTest {
     private static final Logger LOG = LoggerFactory.getLogger(StopWithSavepointTest.class);
 

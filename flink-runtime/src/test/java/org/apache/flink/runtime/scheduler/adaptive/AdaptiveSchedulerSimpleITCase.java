@@ -35,21 +35,20 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.InternalMiniClusterExtension;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
 import java.time.Duration;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Integration tests for the adaptive scheduler. */
-public class AdaptiveSchedulerSimpleITCase extends TestLogger {
+class AdaptiveSchedulerSimpleITCase {
 
     private static final int NUMBER_TASK_MANAGERS = 2;
     private static final int NUMBER_SLOTS_PER_TASK_MANAGER = 2;
@@ -67,9 +66,9 @@ public class AdaptiveSchedulerSimpleITCase extends TestLogger {
         return configuration;
     }
 
-    @ClassRule
-    public static final MiniClusterResource MINI_CLUSTER_RESOURCE =
-            new MiniClusterResource(
+    @RegisterExtension
+    private static final InternalMiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new InternalMiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(configuration)
                             .setNumberTaskManagers(NUMBER_TASK_MANAGERS)
@@ -77,8 +76,8 @@ public class AdaptiveSchedulerSimpleITCase extends TestLogger {
                             .build());
 
     @Test
-    public void testSchedulingOfSimpleJob() throws Exception {
-        final MiniCluster miniCluster = MINI_CLUSTER_RESOURCE.getMiniCluster();
+    void testSchedulingOfSimpleJob() throws Exception {
+        final MiniCluster miniCluster = MINI_CLUSTER_EXTENSION.getMiniCluster();
         final JobGraph jobGraph = createJobGraph();
 
         miniCluster.submitJob(jobGraph).join();
@@ -88,7 +87,7 @@ public class AdaptiveSchedulerSimpleITCase extends TestLogger {
         final JobExecutionResult jobExecutionResult =
                 jobResult.toJobExecutionResult(getClass().getClassLoader());
 
-        assertTrue(jobResult.isSuccess());
+        assertThat(jobResult.isSuccess()).isTrue();
     }
 
     private JobGraph createJobGraph() {
@@ -107,10 +106,10 @@ public class AdaptiveSchedulerSimpleITCase extends TestLogger {
     }
 
     @Test
-    public void testJobCancellationWhileRestartingSucceeds() throws Exception {
+    void testJobCancellationWhileRestartingSucceeds() throws Exception {
         final long timeInRestartingState = 10000L;
 
-        final MiniCluster miniCluster = MINI_CLUSTER_RESOURCE.getMiniCluster();
+        final MiniCluster miniCluster = MINI_CLUSTER_EXTENSION.getMiniCluster();
         final JobVertex alwaysFailingOperator = new JobVertex("Always failing operator");
         alwaysFailingOperator.setInvokableClass(AlwaysFailingInvokable.class);
         alwaysFailingOperator.setParallelism(1);
@@ -133,8 +132,8 @@ public class AdaptiveSchedulerSimpleITCase extends TestLogger {
     }
 
     @Test
-    public void testGlobalFailoverIfTaskFails() throws Throwable {
-        final MiniCluster miniCluster = MINI_CLUSTER_RESOURCE.getMiniCluster();
+    void testGlobalFailoverIfTaskFails() throws Throwable {
+        final MiniCluster miniCluster = MINI_CLUSTER_EXTENSION.getMiniCluster();
         final JobGraph jobGraph = createOnceFailingJobGraph();
 
         miniCluster.submitJob(jobGraph).join();

@@ -87,7 +87,7 @@ class AdaptiveBatchSchedulerTest {
     private static final long SUBPARTITION_BYTES = 100L;
 
     @RegisterExtension
-    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
             TestingUtils.defaultExecutorExtension();
 
     private ComponentMainThreadExecutor mainThreadExecutor;

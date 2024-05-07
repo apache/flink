@@ -57,7 +57,7 @@ class CreatingExecutionGraphTest {
     private static final Logger LOG = LoggerFactory.getLogger(CreatingExecutionGraphTest.class);
 
     @RegisterExtension
-    MockCreatingExecutionGraphContext context = new MockCreatingExecutionGraphContext();
+    private MockCreatingExecutionGraphContext context = new MockCreatingExecutionGraphContext();
 
     @Test
     void testFailedExecutionGraphCreationTransitionsToFinished() {

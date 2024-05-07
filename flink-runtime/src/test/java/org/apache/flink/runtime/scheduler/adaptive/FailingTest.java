@@ -29,49 +29,52 @@ import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.TestingAccessExecution;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.scheduler.adaptive.WaitingForResourcesTest.assertNonNull;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link Failing} state of the {@link AdaptiveScheduler}. */
-public class FailingTest extends TestLogger {
+class FailingTest {
+
+    private static final Logger log = LoggerFactory.getLogger(FailingTest.class);
 
     private final Throwable testFailureCause = new RuntimeException();
 
     @Test
-    public void testFailingStateOnEnter() throws Exception {
+    void testFailingStateOnEnter() throws Exception {
         try (MockFailingContext ctx = new MockFailingContext()) {
             StateTrackingMockExecutionGraph meg = new StateTrackingMockExecutionGraph();
 
             createFailingState(ctx, meg);
 
-            assertThat(meg.getState(), is(JobStatus.FAILING));
+            assertThat(meg.getState()).isEqualTo(JobStatus.FAILING);
             ctx.assertNoStateTransition();
         }
     }
 
     @Test
-    public void testTransitionToFailedWhenFailingCompletes() throws Exception {
+    void testTransitionToFailedWhenFailingCompletes() throws Exception {
         try (MockFailingContext ctx = new MockFailingContext()) {
             StateTrackingMockExecutionGraph meg = new StateTrackingMockExecutionGraph();
             Failing failing = createFailingState(ctx, meg);
             ctx.setExpectFinished(
                     archivedExecutionGraph ->
-                            assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED)));
+                            assertThat(archivedExecutionGraph.getState())
+                                    .isEqualTo(JobStatus.FAILED));
             meg.completeTerminationFuture(JobStatus.FAILED);
         }
     }
 
     @Test
-    public void testTransitionToCancelingOnCancel() throws Exception {
+    void testTransitionToCancelingOnCancel() throws Exception {
         try (MockFailingContext ctx = new MockFailingContext()) {
             StateTrackingMockExecutionGraph meg = new StateTrackingMockExecutionGraph();
             Failing failing = createFailingState(ctx, meg);
@@ -81,19 +84,20 @@ public class FailingTest extends TestLogger {
     }
 
     @Test
-    public void testTransitionToFinishedOnSuspend() throws Exception {
+    void testTransitionToFinishedOnSuspend() throws Exception {
         try (MockFailingContext ctx = new MockFailingContext()) {
             StateTrackingMockExecutionGraph meg = new StateTrackingMockExecutionGraph();
             Failing failing = createFailingState(ctx, meg);
             ctx.setExpectFinished(
                     archivedExecutionGraph ->
-                            assertThat(archivedExecutionGraph.getState(), is(JobStatus.SUSPENDED)));
+                            assertThat(archivedExecutionGraph.getState())
+                                    .isEqualTo(JobStatus.SUSPENDED));
             failing.suspend(new RuntimeException("suspend"));
         }
     }
 
     @Test
-    public void testIgnoreGlobalFailure() throws Exception {
+    void testIgnoreGlobalFailure() throws Exception {
         try (MockFailingContext ctx = new MockFailingContext()) {
             StateTrackingMockExecutionGraph meg = new StateTrackingMockExecutionGraph();
             Failing failing = createFailingState(ctx, meg);
@@ -104,7 +108,7 @@ public class FailingTest extends TestLogger {
     }
 
     @Test
-    public void testTaskFailuresAreIgnored() throws Exception {
+    void testTaskFailuresAreIgnored() throws Exception {
         try (MockFailingContext ctx = new MockFailingContext()) {
             StateTrackingMockExecutionGraph meg = new StateTrackingMockExecutionGraph();
             Failing failing = createFailingState(ctx, meg);
@@ -124,7 +128,7 @@ public class FailingTest extends TestLogger {
     }
 
     @Test
-    public void testStateDoesNotExposeGloballyTerminalExecutionGraph() throws Exception {
+    void testStateDoesNotExposeGloballyTerminalExecutionGraph() throws Exception {
         try (MockFailingContext ctx = new MockFailingContext()) {
             StateTrackingMockExecutionGraph meg = new StateTrackingMockExecutionGraph();
             Failing failing = createFailingState(ctx, meg);
@@ -136,11 +140,11 @@ public class FailingTest extends TestLogger {
             meg.completeTerminationFuture(JobStatus.FAILED);
 
             // this is just a sanity check for the test
-            assertThat(meg.getState(), is(JobStatus.FAILED));
+            assertThat(meg.getState()).isEqualTo(JobStatus.FAILED);
 
-            assertThat(failing.getJobStatus(), is(JobStatus.FAILING));
-            assertThat(failing.getJob().getState(), is(JobStatus.FAILING));
-            assertThat(failing.getJob().getStatusTimestamp(JobStatus.FAILED), is(0L));
+            assertThat(failing.getJobStatus()).isEqualTo(JobStatus.FAILING);
+            assertThat(failing.getJob().getState()).isEqualTo(JobStatus.FAILING);
+            assertThat(failing.getJob().getStatusTimestamp(JobStatus.FAILED)).isZero();
         }
     }
 
