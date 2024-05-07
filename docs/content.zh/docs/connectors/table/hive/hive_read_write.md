@@ -136,16 +136,21 @@ Flink 允许你灵活的配置并发推断策略。你可以在 `TableConfig` �
   </thead>
   <tbody>
     <tr>
-        <td><h5>table.exec.hive.infer-source-parallelism</h5></td>
-        <td style="word-wrap: break-word;">true</td>
-        <td>Boolean</td>
-        <td>如果是 true，会根据 split 的数量推断 source 的并发度。如果是 false，source 的并发度由配置决定。</td>
+        <td><h5>table.exec.hive.infer-source-parallelism.mode</h5></td>
+        <td style="word-wrap: break-word;">dynamic</td>
+        <td>InferMode</td>
+        <td>选择Hive Source并行度推断模式的选项，根据splits数推断并行度。
+            'static' 代表静态推断，它会在作业创建阶段推断Source并行度。
+            'dynamic' 代表动态推断，它会在作业执行阶段利用运行时信息更准确地推断Source并行度。
+            'none' 代表禁用并行度推断。
+            注意，它仍然受到已弃用选项 'table.exec.hive.infer-source-parallelism' 的影响，需要其值为 true 才能启用并行度推断。
+        </td>
     </tr>
     <tr>
         <td><h5>table.exec.hive.infer-source-parallelism.max</h5></td>
         <td style="word-wrap: break-word;">1000</td>
         <td>Integer</td>
-        <td>设置 source operator 推断的最大并发度。</td>
+        <td>设置 source operator 推断的最大并发度。请注意，默认值仅在静态并行性推断模式下有效。</td>
     </tr>
   </tbody>
 </table>

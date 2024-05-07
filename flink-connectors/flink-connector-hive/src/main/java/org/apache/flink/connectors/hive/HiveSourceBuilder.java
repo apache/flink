@@ -60,6 +60,7 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import static org.apache.flink.connector.file.src.FileSource.DEFAULT_SPLIT_ASSIGNER;
@@ -340,6 +341,16 @@ public class HiveSourceBuilder {
         jobConf.set(
                 HiveOptions.TABLE_EXEC_HIVE_CALCULATE_PARTITION_SIZE_THREAD_NUM.key(),
                 String.valueOf(calPartitionSizeThreadNum));
+
+        jobConf.setBoolean(
+                HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM.key(),
+                flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM));
+        jobConf.set(
+                HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MODE.key(),
+                String.valueOf(
+                                flinkConf.get(
+                                        HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MODE))
+                        .toUpperCase(Locale.ROOT));
     }
 
     private boolean isStreamingSource() {

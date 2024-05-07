@@ -100,7 +100,7 @@ public abstract class AbstractFileSource<T, SplitT extends FileSourceSplit>
     //  Getters
     // ------------------------------------------------------------------------
 
-    FileEnumerator.Provider getEnumeratorFactory() {
+    protected FileEnumerator.Provider getEnumeratorFactory() {
         return enumeratorFactory;
     }
 

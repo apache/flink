@@ -177,8 +177,7 @@ public class HiveSourceDynamicFileEnumerator implements DynamicFileEnumerator {
                         minDesiredSplits, finalPartitions, jobConf, false));
     }
 
-    @VisibleForTesting
-    List<HiveTablePartition> getFinalPartitions() {
+    public List<HiveTablePartition> getFinalPartitions() {
         return finalPartitions;
     }
 
