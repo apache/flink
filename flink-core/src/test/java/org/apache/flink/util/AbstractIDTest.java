@@ -35,7 +35,7 @@ class AbstractIDTest {
         final AbstractID origID = new AbstractID();
         final AbstractID copyID = CommonTestUtils.createCopySerializable(origID);
 
-        assertThat(copyID.hashCode()).isEqualTo(origID.hashCode());
+        assertThat(copyID).hasSameHashCodeAs(origID.hashCode());
         assertThat(copyID).isEqualTo(origID);
     }
 

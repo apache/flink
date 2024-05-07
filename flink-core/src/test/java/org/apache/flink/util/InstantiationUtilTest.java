@@ -39,7 +39,6 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.net.URLClassLoader;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Random;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -98,14 +97,14 @@ class InstantiationUtilTest {
 
     @Test
     void testInstantiationOfStringValue() {
-        StringValue stringValue = InstantiationUtil.instantiate(StringValue.class, null);
-        assertThat(Optional.of(stringValue)).isNotNull();
+        Object stringValue = InstantiationUtil.instantiate(StringValue.class, null);
+        assertThat(stringValue).isNotNull();
     }
 
     @Test
     void testInstantiationOfStringValueAndCastToValue() {
-        StringValue stringValue = InstantiationUtil.instantiate(StringValue.class, Value.class);
-        assertThat(Optional.of(stringValue)).isNotNull();
+        Object stringValue = InstantiationUtil.instantiate(StringValue.class, Value.class);
+        assertThat(stringValue).isNotNull();
     }
 
     @Test

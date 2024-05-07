@@ -51,7 +51,7 @@ class NumberSequenceIteratorTest {
     private static void testSplitting(NumberSequenceIterator iter, int numSplits) {
         NumberSequenceIterator[] splits = iter.split(numSplits);
 
-        assertThat(splits.length).isEqualTo(numSplits);
+        assertThat(splits).hasSize(numSplits);
 
         // test start and end of range
         assertThat(splits[0].getCurrent()).isEqualTo(iter.getCurrent());

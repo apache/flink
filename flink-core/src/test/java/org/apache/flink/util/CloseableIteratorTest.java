@@ -40,7 +40,7 @@ class CloseableIteratorTest {
                         CloseableIterator.flatten(CloseableIterator.empty()),
                         CloseableIterator.flatten(CloseableIterator.flatten()));
         for (CloseableIterator<?> i : iterators) {
-            assertThat(i.hasNext()).isFalse();
+            assertThat(i).isExhausted();
             i.close();
         }
     }

@@ -56,7 +56,7 @@ class LongValueSequenceIteratorTest {
             org.apache.flink.util.LongValueSequenceIterator iter, int numSplits) {
         org.apache.flink.util.LongValueSequenceIterator[] splits = iter.split(numSplits);
 
-        assertThat(splits.length).isEqualTo(numSplits);
+        assertThat(splits).hasSize(numSplits);
 
         // test start and end of range
         assertThat(splits[0].getCurrent()).isEqualTo(iter.getCurrent());

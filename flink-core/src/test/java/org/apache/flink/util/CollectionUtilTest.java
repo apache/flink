@@ -132,7 +132,7 @@ class CollectionUtilTest {
         assertThat(iterator.next()).isEqualTo(b);
         assertThat(iterator.next()).isEqualTo(c);
         assertThat(iterator.next()).isNull();
-        assertThat(iterator.hasNext()).isFalse();
+        assertThat(iterator).isExhausted();
         assertThatThrownBy(() -> CollectionUtil.checkedSubTypeCast(list, C.class))
                 .isInstanceOf(ClassCastException.class);
     }

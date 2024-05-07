@@ -28,7 +28,6 @@ class ExceptionUtilsTest {
 
     @Test
     void testStringifyNullException() {
-        assertThat(ExceptionUtils.STRINGIFIED_NULL_EXCEPTION).isNotNull();
         assertThat(ExceptionUtils.STRINGIFIED_NULL_EXCEPTION)
                 .isEqualTo(ExceptionUtils.stringifyException(null));
     }

@@ -157,7 +157,7 @@ class LinkedOptionalMapTest {
         LinkedHashMap<Class<?>, String> m = map.unwrapOptionals();
 
         assertThat(m).containsKey(String.class);
-        assertThat(m).containsValue("aaa");
+        assertThat(m).containsValues("aaa", "bbb");
     }
 
     @Test

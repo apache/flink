@@ -199,7 +199,7 @@ class NetUtilsTest {
         portsIter = NetUtils.getPortRangeFromString(" 51234");
         assertThat(portsIter.hasNext()).isTrue();
         assertThat((int) portsIter.next()).isEqualTo(51234);
-        assertThat(portsIter.hasNext()).isFalse();
+        assertThat(portsIter).isExhausted();
 
         // test port list
         portsIter = NetUtils.getPortRangeFromString("5,1,2,3,4");
@@ -209,7 +209,7 @@ class NetUtilsTest {
         assertThat((int) portsIter.next()).isEqualTo(2);
         assertThat((int) portsIter.next()).isEqualTo(3);
         assertThat((int) portsIter.next()).isEqualTo(4);
-        assertThat(portsIter.hasNext()).isFalse();
+        assertThat(portsIter).isExhausted();
 
         Throwable error = null;
 

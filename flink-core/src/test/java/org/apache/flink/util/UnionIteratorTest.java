@@ -36,7 +36,7 @@ class UnionIteratorTest {
         UnionIterator<Integer> iter = new UnionIterator<>();
 
         // should succeed and be empty
-        assertThat(iter.iterator().hasNext()).isFalse();
+        assertThat(iter.iterator()).isExhausted();
 
         iter.clear();
 
@@ -95,6 +95,6 @@ class UnionIteratorTest {
         iter.clear();
 
         // should succeed again
-        assertThat(iter.iterator().hasNext()).isFalse();
+        assertThat(iter.iterator()).isExhausted();
     }
 }

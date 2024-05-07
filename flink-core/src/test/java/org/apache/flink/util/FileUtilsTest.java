@@ -566,6 +566,8 @@ public class FileUtilsTest {
      * @param outputFile the path of the output file
      * @param length the size of content to generate
      * @return MD5 of the output file
+     * @throws IOException
+     * @throws NoSuchAlgorithmException
      */
     private static String generateTestFile(String outputFile, int length)
             throws IOException, NoSuchAlgorithmException {
