@@ -171,7 +171,8 @@ public class HiveTableSource
                             remainingPartitions);
 
             int parallelism =
-                    new HiveParallelismInference(tablePath, flinkConf)
+                    new HiveStaticParallelismInferenceFactory(tablePath, flinkConf)
+                            .create()
                             .infer(
                                     () ->
                                             HiveSourceFileEnumerator.getNumFiles(

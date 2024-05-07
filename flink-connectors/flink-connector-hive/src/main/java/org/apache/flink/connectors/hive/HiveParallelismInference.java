@@ -18,10 +18,7 @@
 
 package org.apache.flink.connectors.hive;
 
-import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.slf4j.Logger;
@@ -40,18 +37,12 @@ class HiveParallelismInference {
 
     private int parallelism;
 
-    HiveParallelismInference(ObjectPath tablePath, ReadableConfig flinkConf) {
+    HiveParallelismInference(
+            ObjectPath tablePath, boolean infer, int inferMaxParallelism, int parallelism) {
         this.tablePath = tablePath;
-        this.infer = flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM);
-        this.inferMaxParallelism =
-                flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX);
-        Preconditions.checkArgument(
-                inferMaxParallelism >= 1,
-                HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX.key()
-                        + " cannot be less than 1");
-
-        this.parallelism =
-                flinkConf.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM);
+        this.infer = infer;
+        this.inferMaxParallelism = inferMaxParallelism;
+        this.parallelism = parallelism;
     }
 
     /**
@@ -73,7 +64,8 @@ class HiveParallelismInference {
 
     /**
      * Infer parallelism by number of files and number of splits. If {@link
-     * HiveOptions#TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM} is not set this method does nothing.
+     * HiveOptions#TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM} is false or {@link
+     * HiveOptions#TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MODE} is none, this method does nothing.
      */
     HiveParallelismInference infer(
             SupplierWithException<Integer, IOException> numFiles,
@@ -112,5 +104,16 @@ class HiveParallelismInference {
                 System.currentTimeMillis() - startTimeMillis,
                 result);
         return result;
+    }
+
+    /** Factory for the {@code HiveParallelismInference}. */
+    interface Provider {
+
+        /**
+         * Creates a new {@code HiveParallelismInference}.
+         *
+         * @return a new {@code HiveParallelismInference} with designated factors.
+         */
+        HiveParallelismInference create();
     }
 }
