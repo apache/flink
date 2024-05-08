@@ -70,9 +70,9 @@ public class GSFileSystemOptions {
     public static final ConfigOption<Integer> GCS_HTTP_CONNECT_TIMEOUT =
             ConfigOptions.key("gs.http.connect-timeout")
                     .intType()
-                    .defaultValue(20_000)
+                    .noDefaultValue()
                     .withDescription(
-                            "This option sets the timeout in milliseconds to establish a connection.");
+                            "This option sets the timeout in milliseconds to establish a connection. GCS default will be used if not configured.");
 
     /**
      * Flink config option to set the http read timeout. It will be used by cloud-storage library.
@@ -80,9 +80,9 @@ public class GSFileSystemOptions {
     public static final ConfigOption<Integer> GCS_HTTP_READ_TIMEOUT =
             ConfigOptions.key("gs.http.read-timeout")
                     .intType()
-                    .defaultValue(20_000)
+                    .noDefaultValue()
                     .withDescription(
-                            "This option sets the timeout in milliseconds to read data from an established connection.");
+                            "If configured this option sets the timeout in milliseconds to read data from an established connection. GCS default will be used if not configured");
 
     /**
      * Flink config option to set the http read timeout. It will be used by cloud-storage library.
@@ -90,11 +90,11 @@ public class GSFileSystemOptions {
     public static final ConfigOption<Integer> GCS_RETRY_MAX_ATTEMPT =
             ConfigOptions.key("gs.retry.max-attempt")
                     .intType()
-                    .defaultValue(6)
+                    .noDefaultValue()
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Defines the maximum number of retry attempts to perform. See GCS %s for more information.",
+                                            "If configured this option defines the maximum number of retry attempts to perform. GCS default will be used if not configured. See GCS %s for more information.",
                                             link(
                                                     "https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings#com_google_api_gax_retrying_RetrySettings_getMaxAttempts__",
                                                     "documentation"))
@@ -103,11 +103,11 @@ public class GSFileSystemOptions {
     public static final ConfigOption<Duration> GCS_RETRY_INIT_RPC_TIMEOUT =
             ConfigOptions.key("gs.retry.init-rpc-timeout")
                     .durationType()
-                    .defaultValue(Duration.ofMillis(1000L))
+                    .noDefaultValue()
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Controls the timeout for the initial RPC. Subsequent calls will use this value adjusted according to the gs.retry.rpc-timeout-multiplier. See GCS %s for more information.",
+                                            "If configured this option controls the timeout for the initial RPC. Subsequent calls will use this value adjusted according to the gs.retry.rpc-timeout-multiplier. GCS default will be used if not configured. See GCS %s for more information.",
                                             link(
                                                     "https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings#com_google_api_gax_retrying_RetrySettings_getInitialRpcTimeout__",
                                                     "documentation"))
@@ -116,11 +116,11 @@ public class GSFileSystemOptions {
     public static final ConfigOption<Double> GCS_RETRY_RPC_TIMEOUT_MULTIPLIER =
             ConfigOptions.key("gs.retry.rpc-timeout-multiplier")
                     .doubleType()
-                    .defaultValue(1.0)
+                    .noDefaultValue()
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Controls the change in delay before the next retry or poll. The timeout of the previous call is multiplied by the RpcTimeoutMultiplier to calculate the timeout for the next call. See GCS %s for more information.",
+                                            "If configured this option controls the change in delay before the next retry or poll. The timeout of the previous call is multiplied by the RpcTimeoutMultiplier to calculate the timeout for the next call. See GCS %s for more information.",
                                             link(
                                                     "https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings#com_google_api_gax_retrying_RetrySettings_getRpcTimeoutMultiplier__",
                                                     "documentation"))
@@ -129,11 +129,11 @@ public class GSFileSystemOptions {
     public static final ConfigOption<Duration> GCS_RETRY_MAX_RPC_TIMEOUT =
             ConfigOptions.key("gs.retry.max-rpc-timeout")
                     .durationType()
-                    .defaultValue(Duration.ofMillis(50_000L))
+                    .noDefaultValue()
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Puts a limit on the value of the RPC timeout, so that the max rpc timeout can't increase the RPC timeout higher than this amount. See GCS %s for more information.",
+                                            "If configured this option puts a limit on the value of the RPC timeout, so that the max rpc timeout can't increase the RPC timeout higher than this amount. GCS default will be used if not configured. See GCS %s for more information.",
                                             link(
                                                     "https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings#com_google_api_gax_retrying_RetrySettings_getMaxRpcTimeout__",
                                                     "documentation"))
@@ -142,11 +142,11 @@ public class GSFileSystemOptions {
     public static final ConfigOption<Duration> GCS_RETRY_TOTAL_TIMEOUT =
             ConfigOptions.key("gs.retry.total-timeout")
                     .durationType()
-                    .defaultValue(Duration.ofMillis(50_000L))
+                    .noDefaultValue()
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Total duration during which retries could be attempted. See GCS %s for more information.",
+                                            "If configured total duration during which retries could be attempted. GCS default will be used if not configured. See GCS %s for more information.",
                                             link(
                                                     "https://cloud.google.com/java/docs/reference/gax/latest/com.google.api.gax.retrying.RetrySettings#com_google_api_gax_retrying_RetrySettings_getTotalTimeout__",
                                                     "documentation"))
