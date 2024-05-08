@@ -662,7 +662,7 @@ public abstract class SourceTestSuiteBase<T> {
     }
 
     protected JobClient submitJob(StreamExecutionEnvironment env, String jobName) throws Exception {
-        LOG.info("Submitting Flink job to test environment");
+        LOG.info("Submitting Flink job {} to test environment", jobName);
         return env.executeAsync(jobName);
     }
 
