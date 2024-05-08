@@ -540,10 +540,14 @@ If the function doesn't exist, nothing happens.
 
 Language tag to instruct flink runtime how to execute the function. Currently only JAVA, SCALA and PYTHON are supported, the default language for a function is JAVA.
 
+{{< top >}}
+
 ## ALTER CATALOG
 
 ```sql
-ALTER CATALOG catalog_name SET (key1=val1, ...)
+ALTER CATALOG catalog_name 
+    SET (key1=val1, ...)
+  | RESET (key1, ...)
 ```
 
 ### SET
@@ -555,6 +559,17 @@ The following examples illustrate the usage of the `SET` statements.
 ```sql
 -- set 'default-database'
 ALTER CATALOG cat2 SET ('default-database'='db');
+```
+
+### RESET
+
+Reset one or more properties to its default value in the specified catalog.
+
+The following examples illustrate the usage of the `RESET` statements.
+
+```sql
+-- reset 'default-database'
+ALTER CATALOG cat2 RESET ('default-database');
 ```
 
 {{< top >}}

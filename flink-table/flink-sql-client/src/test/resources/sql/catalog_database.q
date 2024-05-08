@@ -769,3 +769,28 @@ desc catalog extended cat2;
 +-------------------------+-------------------+
 4 rows in set
 !ok
+
+alter catalog cat2 reset ('default-database', 'k1');
+[INFO] Execute statement succeeded.
+!info
+
+desc catalog extended cat2;
++-----------+-------------------+
+| info name |        info value |
++-----------+-------------------+
+|      name |              cat2 |
+|      type | generic_in_memory |
+|   comment |                   |
++-----------+-------------------+
+3 rows in set
+!ok
+
+alter catalog cat2 reset ('type');
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: ALTER CATALOG RESET does not support changing 'type'
+!error
+
+alter catalog cat2 reset ();
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: ALTER CATALOG RESET does not support empty key
+!error

@@ -342,6 +342,15 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         if (catalogStore.contains(catalogName) && oldCatalogDescriptor.isPresent()) {
             Configuration conf = oldCatalogDescriptor.get().getConfiguration();
             conf.addAll(catalogDescriptor.getConfiguration());
+            catalogDescriptor
+                    .getConfiguration()
+                    .toMap()
+                    .forEach(
+                            (key, value) -> {
+                                if (value.isEmpty()) {
+                                    conf.removeKey(key);
+                                }
+                            });
             CatalogDescriptor newCatalogDescriptor = CatalogDescriptor.of(catalogName, conf);
             Catalog newCatalog = initCatalog(catalogName, newCatalogDescriptor);
             catalogStore.removeCatalog(catalogName, false);
