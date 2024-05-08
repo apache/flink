@@ -46,7 +46,7 @@ class SerializedValueTest {
         assertThat(v.toString()).isNotNull();
         assertThat(copy.toString()).isNotNull();
 
-        assertThat(v.getByteArray().length).isNotEqualTo(0);
+        assertThat(v.getByteArray()).isNotEmpty();
         assertThat(copy.getByteArray()).isEqualTo(v.getByteArray());
 
         byte[] bytes = v.getByteArray();

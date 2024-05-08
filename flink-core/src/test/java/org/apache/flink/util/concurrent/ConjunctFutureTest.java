@@ -45,7 +45,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class ConjunctFutureTest {
 
     @Parameters
-    public static Collection<FutureFactory> parameters() {
+    private static Collection<FutureFactory> parameters() {
         return Arrays.asList(new ConjunctFutureFactory(), new WaitingFutureFactory());
     }
 
