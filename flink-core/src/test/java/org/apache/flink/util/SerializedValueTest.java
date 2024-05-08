@@ -41,7 +41,7 @@ class SerializedValueTest {
         assertThat(copy.deserializeValue(getClass().getClassLoader())).isEqualTo(value);
 
         assertThat(copy).isEqualTo(v);
-        assertThat(copy).hasSameHashCodeAs(v.hashCode());
+        assertThat(copy).hasSameHashCodeAs(v);
 
         assertThat(v.toString()).isNotNull();
         assertThat(copy.toString()).isNotNull();
