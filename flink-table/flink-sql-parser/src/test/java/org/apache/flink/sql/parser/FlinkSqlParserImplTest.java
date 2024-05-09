@@ -66,6 +66,12 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testAlterCatalog() {
+        sql("alter catalog a set ('k1'='v1','k2'='v2')")
+                .ok("ALTER CATALOG `A` SET (\n" + "  'k1' = 'v1',\n" + "  'k2' = 'v2'\n" + ")");
+    }
+
+    @Test
     void testArrayAgg() {
         sql("select\n"
                         + "  array_agg(ename respect nulls order by deptno, ename) as c1,\n"
