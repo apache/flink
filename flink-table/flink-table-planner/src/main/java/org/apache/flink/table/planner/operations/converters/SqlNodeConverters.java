@@ -59,6 +59,8 @@ public class SqlNodeConverters {
         register(new SqlDescribeJobConverter());
         register(new SqlCreateMaterializedTableConverter());
         register(new SqlAlterMaterializedTableRefreshConverter());
+        register(new SqlAlterMaterializedTableSuspendConverter());
+        register(new SqlAlterMaterializedTableResumeConverter());
     }
 
     /**
