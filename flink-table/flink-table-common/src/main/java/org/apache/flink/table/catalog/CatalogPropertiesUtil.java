@@ -32,7 +32,6 @@ import org.apache.flink.util.StringUtils;
 
 import javax.annotation.Nullable;
 
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -49,6 +48,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.utils.EncodingUtils.decodeBase64ToBytes;
+import static org.apache.flink.table.utils.EncodingUtils.encodeBytesToBase64;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Utilities for de/serializing {@link Catalog} objects into a map of string properties. */
@@ -159,9 +160,8 @@ public final class CatalogPropertiesUtil {
             if (resolvedMaterializedTable.getSerializedRefreshHandler() != null) {
                 properties.put(
                         REFRESH_HANDLER_BYTES,
-                        new String(
-                                resolvedMaterializedTable.getSerializedRefreshHandler(),
-                                StandardCharsets.UTF_8));
+                        encodeBytesToBase64(
+                                resolvedMaterializedTable.getSerializedRefreshHandler()));
             }
 
             return properties;
@@ -248,7 +248,7 @@ public final class CatalogPropertiesUtil {
             final @Nullable byte[] refreshHandlerBytes =
                     StringUtils.isNullOrWhitespaceOnly(refreshHandlerStringBytes)
                             ? null
-                            : refreshHandlerStringBytes.getBytes(StandardCharsets.UTF_8);
+                            : decodeBase64ToBytes(refreshHandlerStringBytes);
 
             CatalogMaterializedTable.Builder builder = CatalogMaterializedTable.newBuilder();
             builder.schema(schema)
