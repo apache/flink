@@ -20,7 +20,10 @@ package org.apache.flink.table.refresh;
 
 import org.apache.flink.annotation.Internal;
 
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
+import java.util.Optional;
 
 /** Embedded continuous refresh handler of Flink streaming job for materialized table. */
 @Internal
@@ -30,9 +33,18 @@ public class ContinuousRefreshHandler implements RefreshHandler, Serializable {
     private final String executionTarget;
     private final String jobId;
 
+    private @Nullable final String restorePath;
+
     public ContinuousRefreshHandler(String executionTarget, String jobId) {
         this.executionTarget = executionTarget;
         this.jobId = jobId;
+        this.restorePath = null;
+    }
+
+    public ContinuousRefreshHandler(String executionTarget, String jobId, String restorePath) {
+        this.executionTarget = executionTarget;
+        this.jobId = jobId;
+        this.restorePath = restorePath;
     }
 
     public String getExecutionTarget() {
@@ -43,8 +55,16 @@ public class ContinuousRefreshHandler implements RefreshHandler, Serializable {
         return jobId;
     }
 
+    public Optional<String> getRestorePath() {
+        return Optional.ofNullable(restorePath);
+    }
+
     @Override
     public String asSummaryString() {
-        return String.format("{\n executionTarget: %s,\n jobId: %s\n}", executionTarget, jobId);
+        return String.format(
+                "{\njobId=%s,\n executionTarget=%s%s\n}",
+                jobId,
+                executionTarget,
+                restorePath == null ? "" : ",\n restorePath=" + restorePath);
     }
 }

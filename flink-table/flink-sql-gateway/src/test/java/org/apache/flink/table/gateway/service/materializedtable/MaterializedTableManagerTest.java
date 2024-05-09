@@ -18,9 +18,12 @@
 
 package org.apache.flink.table.gateway.service.materializedtable;
 
+import org.apache.flink.table.catalog.ObjectIdentifier;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -50,5 +53,41 @@ class MaterializedTableManagerTest {
                         "INSERT OVERWRITE my_materialized_table\n"
                                 + "  SELECT * FROM (SELECT * FROM my_source_table)\n"
                                 + "  WHERE k1 = 'v1' AND k2 = 'v2'");
+    }
+
+    @Test
+    void testGenerateInsertStatement() {
+        // Test generate insert crate statement
+        ObjectIdentifier materializedTableIdentifier =
+                ObjectIdentifier.of("catalog", "database", "table");
+        String definitionQuery = "SELECT * FROM source_table";
+        String expectedStatement =
+                "INSERT INTO `catalog`.`database`.`table`\n" + "SELECT * FROM source_table";
+
+        String actualStatement =
+                MaterializedTableManager.getInsertStatement(
+                        materializedTableIdentifier, definitionQuery, Collections.emptyMap());
+
+        assertThat(actualStatement).isEqualTo(expectedStatement);
+    }
+
+    @Test
+    void generateInsertStatementWithDynamicOptions() {
+        ObjectIdentifier materializedTableIdentifier =
+                ObjectIdentifier.of("catalog", "database", "table");
+        String definitionQuery = "SELECT * FROM source_table";
+        Map<String, String> dynamicOptions = new HashMap<>();
+        dynamicOptions.put("option1", "value1");
+        dynamicOptions.put("option2", "value2");
+
+        String expectedStatement =
+                "INSERT INTO `catalog`.`database`.`table` "
+                        + "/*+ OPTIONS('option1'='value1', 'option2'='value2') */\n"
+                        + "SELECT * FROM source_table";
+
+        String actualStatement =
+                MaterializedTableManager.getInsertStatement(
+                        materializedTableIdentifier, definitionQuery, dynamicOptions);
+        assertThat(actualStatement).isEqualTo(expectedStatement);
     }
 }
