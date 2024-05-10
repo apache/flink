@@ -18,15 +18,13 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
-import org.apache.flink.sql.parser.SqlProperty;
+import org.apache.flink.sql.parser.SqlPartitionUtils;
 import org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTableRefresh;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableRefreshOperation;
-import org.apache.flink.util.Preconditions;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 /** A converter for {@link SqlAlterMaterializedTableRefresh}. */
@@ -39,17 +37,8 @@ public class SqlAlterMaterializedTableRefreshConverter
         ObjectIdentifier identifier =
                 context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
 
-        Map<String, String> partitionSpec = new LinkedHashMap<>();
-        if (node.getPartitionSpec() != null) {
-            node.getPartitionSpec()
-                    .forEach(
-                            spec -> {
-                                Preconditions.checkArgument(spec instanceof SqlProperty);
-                                SqlProperty property = (SqlProperty) spec;
-                                partitionSpec.put(
-                                        property.getKeyString(), property.getValueString());
-                            });
-        }
+        Map<String, String> partitionSpec =
+                SqlPartitionUtils.getPartitionKVs(node.getPartitionSpec());
 
         return new AlterMaterializedTableRefreshOperation(identifier, partitionSpec);
     }
