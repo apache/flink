@@ -121,7 +121,7 @@ SqlCreate SqlCreateCatalog(Span s, boolean replace) :
     catalogName = SimpleIdentifier()
     [
         <WITH>
-        propertyList = TableProperties()
+        propertyList = Properties()
     ]
     {
         return new SqlCreateCatalog(startPos.plus(getPos()),
@@ -161,7 +161,7 @@ SqlAlterCatalog SqlAlterCatalog() :
     <ALTER> <CATALOG> { startPos = getPos(); }
     catalogName = SimpleIdentifier()
     <SET>
-    propertyList = TableProperties()
+    propertyList = Properties()
     {
         return new SqlAlterCatalogOptions(startPos.plus(getPos()),
                     catalogName,
@@ -262,7 +262,7 @@ SqlCreate SqlCreateDatabase(Span s, boolean replace) :
     ]
     [
         <WITH>
-        propertyList = TableProperties()
+        propertyList = Properties()
     ]
 
     { return new SqlCreateDatabase(startPos.plus(getPos()),
@@ -283,7 +283,7 @@ SqlAlterDatabase SqlAlterDatabase() :
     <ALTER> <DATABASE> { startPos = getPos(); }
     databaseName = CompoundIdentifier()
     <SET>
-    propertyList = TableProperties()
+    propertyList = Properties()
     {
         return new SqlAlterDatabase(startPos.plus(getPos()),
                     databaseName,
@@ -712,7 +712,33 @@ SqlShowCreate SqlShowCreate() :
         {
             return new SqlShowCreateCatalog(pos, sqlIdentifier);
         }
+    |
+        <MODEL>
+        { pos = getPos(); }
+        sqlIdentifier = CompoundIdentifier()
+        {
+            return new SqlShowCreateModel(pos, sqlIdentifier);
+        }
     )
+}
+
+/**
+ * DESCRIBE | DESC MODEL [ EXTENDED] [[catalogName.] dataBasesName].modelName sql call.
+ * Here we add Rich in className to match the naming of SqlRichDescribeTable.
+ */
+SqlRichDescribeModel SqlRichDescribeModel() :
+{
+    SqlIdentifier modelName;
+    SqlParserPos pos;
+    boolean isExtended = false;
+}
+{
+    ( <DESCRIBE> | <DESC> ) <MODEL> { pos = getPos();}
+    [ <EXTENDED> { isExtended = true;} ]
+    modelName = CompoundIdentifier()
+    {
+        return new SqlRichDescribeModel(pos, modelName, isExtended);
+    }
 }
 
 /**
@@ -782,7 +808,7 @@ SqlAlterTable SqlAlterTable() :
         }
     |
         <RESET>
-        propertyKeyList = TablePropertyKeys()
+        propertyKeyList = PropertyKeys()
         {
             return new SqlAlterTableReset(
                         startPos.plus(getPos()),
@@ -792,7 +818,7 @@ SqlAlterTable SqlAlterTable() :
         }
     |
         <SET>
-        propertyList = TableProperties()
+        propertyList = Properties()
         {
             return new SqlAlterTableOptions(
                         startPos.plus(getPos()),
@@ -926,7 +952,7 @@ SqlAlterTable SqlAlterTable() :
 }
 
 /** Parse a table option key list. */
-SqlNodeList TablePropertyKeys():
+SqlNodeList PropertyKeys():
 {
     SqlNode key;
     final List<SqlNode> proKeyList = new ArrayList<SqlNode>();
@@ -1115,7 +1141,7 @@ void  AlterTableAddPartition(AlterTableAddPartitionContext context) :
             partProp = null;
             PartitionSpecCommaList(partSpec);
         }
-        [ <WITH> { partProp = TableProperties(); } ]
+        [ <WITH> { partProp = Properties(); } ]
         {
             partSpecs.add(partSpec);
             partProps.add(partProp);
@@ -1360,8 +1386,8 @@ SqlNode TableOption() :
     }
 }
 
-/** Parse a table properties. */
-SqlNodeList TableProperties():
+/** Parse properties such as ('k' = 'v'). */
+SqlNodeList Properties():
 {
     SqlNode property;
     final List<SqlNode> proList = new ArrayList<SqlNode>();
@@ -1482,7 +1508,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
     ]
     [
         <WITH>
-        propertyList = TableProperties()
+        propertyList = Properties()
     ]
     [
         <LIKE>
@@ -1689,7 +1715,7 @@ SqlNode SqlReplaceTable() :
     ]
     [
         <WITH>
-        propertyList = TableProperties()
+        propertyList = Properties()
     ]
     <AS>
     asQuery = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
@@ -1759,7 +1785,7 @@ SqlCreate SqlCreateMaterializedTable(Span s, boolean replace, boolean isTemporar
     ]
     [
         <WITH>
-        propertyList = TableProperties()
+        propertyList = Properties()
     ]
     <FRESHNESS> <EQ>
     freshness = Expression(ExprContext.ACCEPT_NON_QUERY)
@@ -1851,7 +1877,7 @@ SqlAlterMaterializedTable SqlAlterMaterializedTable() :
             }
         |
         <RESUME>
-        [ <WITH> propertyList = TableProperties() ]
+        [ <WITH> propertyList = Properties() ]
             {
                 return new SqlAlterMaterializedTableResume(
                     startPos,
@@ -1903,7 +1929,7 @@ SqlAlterMaterializedTable SqlAlterMaterializedTable() :
                 }
             )
             |
-            propertyList = TableProperties()
+            propertyList = Properties()
             {
                 return new SqlAlterMaterializedTableOptions(
                     startPos.plus(getPos()),
@@ -1913,7 +1939,7 @@ SqlAlterMaterializedTable SqlAlterMaterializedTable() :
         )
         |
         <RESET>
-            propertyKeyList = TablePropertyKeys()
+            propertyKeyList = PropertyKeys()
             {
                 return new SqlAlterMaterializedTableReset(
                     startPos.plus(getPos()),
@@ -2437,6 +2463,8 @@ SqlCreate SqlCreateExtended(Span s, boolean replace) :
         create = SqlCreateDatabase(s, replace)
         |
         create = SqlCreateFunction(s, replace, isTemporary)
+        |
+        create = SqlCreateModel(s, isTemporary)
     )
     {
         return create;
@@ -2464,6 +2492,8 @@ SqlDrop SqlDropExtended(Span s, boolean replace) :
         drop = SqlDropDatabase(s, replace)
         |
         drop = SqlDropFunction(s, replace, isTemporary)
+        |
+        drop = SqlDropModel(s, isTemporary)
     )
     {
         return drop;
@@ -2504,7 +2534,7 @@ SqlLoadModule SqlLoadModule() :
     moduleName = SimpleIdentifier()
     [
         <WITH>
-        propertyList = TableProperties()
+        propertyList = Properties()
     ]
     {
         return new SqlLoadModule(startPos.plus(getPos()),
@@ -3087,5 +3117,189 @@ SqlTruncateTable SqlTruncateTable() :
     sqlIdentifier = CompoundIdentifier()
     {
         return new SqlTruncateTable(getPos(), sqlIdentifier);
+    }
+}
+
+/**
+* SHOW MODELS [FROM [catalog.] database] sql call.
+*/
+SqlShowModels SqlShowModels() :
+{
+    SqlIdentifier databaseName = null;
+    SqlCharStringLiteral likeLiteral = null;
+    String prep = null;
+    boolean notLike = false;
+    SqlParserPos pos;
+}
+{
+    <SHOW> <MODELS>
+    { pos = getPos(); }
+    [
+        ( <FROM> { prep = "FROM"; } | <IN> { prep = "IN"; } )
+        { pos = getPos(); }
+        databaseName = CompoundIdentifier()
+    ]
+    [
+        [
+            <NOT>
+            {
+                notLike = true;
+            }
+        ]
+        <LIKE>  <QUOTED_STRING>
+        {
+            String likeCondition = SqlParserUtil.parseString(token.image);
+            likeLiteral = SqlLiteral.createCharString(likeCondition, getPos());
+        }
+    ]
+    {
+        return new SqlShowModels(pos, prep, databaseName, notLike, likeLiteral);
+    }
+}
+
+/**
+* ALTER MODEL [IF EXISTS] modelName SET (property_key = property_val, ...)
+* ALTER MODEL [IF EXISTS] modelName RENAME TO newModelName
+*/
+SqlAlterModel SqlAlterModel() :
+{
+    SqlParserPos startPos;
+    boolean ifExists = false;
+    SqlIdentifier modelIdentifier;
+    SqlIdentifier newModelIdentifier = null;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+}
+{
+    <ALTER> <MODEL> { startPos = getPos(); }
+    ifExists = IfExistsOpt()
+    modelIdentifier = CompoundIdentifier()
+    (
+        LOOKAHEAD(2)
+        <RENAME> <TO>
+        newModelIdentifier = CompoundIdentifier()
+        {
+            return new SqlAlterModel(
+                        startPos.plus(getPos()),
+                        modelIdentifier,
+                        newModelIdentifier,
+                        ifExists);
+        }
+    |
+        <SET>
+        propertyList = Properties()
+        {
+            return new SqlAlterModel(
+                        startPos.plus(getPos()),
+                        modelIdentifier,
+                        propertyList,
+                        ifExists);
+        }
+    )
+}
+
+/**
+* DROP MODEL [IF EXIST] modelName
+*/
+SqlDrop SqlDropModel(Span s, boolean isTemporary) :
+{
+    SqlIdentifier modelIdentifier = null;
+    boolean ifExists = false;
+}
+{
+    <MODEL>
+
+    ifExists = IfExistsOpt()
+
+    modelIdentifier = CompoundIdentifier()
+
+    {
+         return new SqlDropModel(s.pos(), modelIdentifier, ifExists, isTemporary);
+    }
+}
+
+/**
+* CREATE MODEL [IF NOT EXIST] modelName
+* [INPUT(col1 type1, col2 type2, ...)]
+* [OUTPUT(col3 type1, col4 type4, ...)]
+* [COMMENT model_comment]
+* WITH (option_key = option_val, ...)
+* [AS SELECT ...]
+*/
+SqlCreate SqlCreateModel(Span s, boolean isTemporary) :
+{
+    final SqlParserPos startPos = s.pos();
+    boolean ifNotExists = false;
+    SqlIdentifier modelIdentifier;
+    SqlNodeList inputColumnList = SqlNodeList.EMPTY;
+    SqlNodeList outputColumnList = SqlNodeList.EMPTY;
+    SqlCharStringLiteral comment = null;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+    SqlNode asQuery = null;
+    SqlParserPos pos = startPos;
+}
+{
+    <MODEL>
+
+    ifNotExists = IfNotExistsOpt()
+
+    modelIdentifier = CompoundIdentifier()
+    [
+        <INPUT> <LPAREN> { pos = getPos(); TableCreationContext ctx = new TableCreationContext();}
+        TableColumn(ctx)
+        (
+            <COMMA> TableColumn(ctx)
+        )*
+        {
+            pos = pos.plus(getPos());
+            inputColumnList = new SqlNodeList(ctx.columnList, pos);
+        }
+        <RPAREN>
+    ]
+    [
+        <OUTPUT> <LPAREN> { pos = getPos(); TableCreationContext ctx = new TableCreationContext();}
+        TableColumn(ctx)
+        (
+            <COMMA> TableColumn(ctx)
+        )*
+        {
+            pos = pos.plus(getPos());
+            outputColumnList = new SqlNodeList(ctx.columnList, pos);
+        }
+        <RPAREN>
+    ]
+    [ <COMMENT> <QUOTED_STRING>
+        {
+            String p = SqlParserUtil.parseString(token.image);
+            comment = SqlLiteral.createCharString(p, getPos());
+        }
+    ]
+    [
+        <WITH>
+        propertyList = Properties()
+    ]
+    [
+        <AS>
+        asQuery = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+        {
+            return new SqlCreateModelAs(startPos.plus(getPos()),
+                modelIdentifier,
+                comment,
+                inputColumnList,
+                outputColumnList,
+                propertyList,
+                asQuery,
+                isTemporary,
+                ifNotExists);
+        }
+    ]
+    {
+        return new SqlCreateModel(startPos.plus(getPos()),
+            modelIdentifier,
+            comment,
+            inputColumnList,
+            outputColumnList,
+            propertyList,
+            isTemporary,
+            ifNotExists);
     }
 }
