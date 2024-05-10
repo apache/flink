@@ -40,6 +40,7 @@ import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -62,10 +63,13 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
 
     private RecordContext currentProcessingContext;
 
+    private final DeclarationManager declarationManager;
+
     public AbstractAsyncStateStreamOperatorV2(
             StreamOperatorParameters<OUT> parameters, int numberOfInputs) {
         super(parameters, numberOfInputs);
         this.environment = parameters.getContainingTask().getEnvironment();
+        this.declarationManager = new DeclarationManager();
     }
 
     /** Initialize necessary state components for {@link AbstractStreamOperatorV2}. */
@@ -142,6 +146,11 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
     @SuppressWarnings("unchecked")
     public final void preserveRecordOrderAndProcess(ThrowingRunnable<Exception> processing) {
         asyncExecutionController.syncPointRequestWithCallback(processing);
+    }
+
+    @Override
+    public final DeclarationManager getDeclarationManager() {
+        return declarationManager;
     }
 
     @Override

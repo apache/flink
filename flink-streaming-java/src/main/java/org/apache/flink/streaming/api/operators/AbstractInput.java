@@ -24,11 +24,15 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessing;
 import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessingOperator;
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.declare.DeclarativeProcessingInput;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.function.ThrowingConsumer;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -41,6 +45,9 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 @Experimental
 public abstract class AbstractInput<IN, OUT>
         implements Input<IN>, KeyContextHandler, AsyncStateProcessing {
+
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractInput.class);
+
     /**
      * {@code KeySelector} for extracting a key from an element being processed. This is used to
      * scope keyed state to a key. This is null if the operator is not a keyed operator.
@@ -101,10 +108,22 @@ public abstract class AbstractInput<IN, OUT>
 
     @Internal
     @Override
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public final ThrowingConsumer<StreamRecord<IN>, Exception> getRecordProcessor(int inputId) {
-        return AsyncStateProcessing.makeRecordProcessor(
-                (AsyncStateProcessingOperator) owner,
-                (KeySelector) stateKeySelector,
-                this::processElement);
+        if (this instanceof DeclarativeProcessingInput) {
+            LOG.info("declareProcess is overridden, build process is invoked.");
+            return AsyncStateProcessing.<IN>makeRecordProcessor(
+                    (AsyncStateProcessingOperator) owner,
+                    (KeySelector) stateKeySelector,
+                    ((AsyncStateProcessingOperator) owner)
+                            .getDeclarationManager()
+                            .<IN>buildProcess(
+                                    ((DeclarativeProcessingInput<IN>) this)::declareProcess));
+        } else {
+            return AsyncStateProcessing.<IN>makeRecordProcessor(
+                    (AsyncStateProcessingOperator) owner,
+                    (KeySelector) stateKeySelector,
+                    this::processElement);
+        }
     }
 }

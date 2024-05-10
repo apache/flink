@@ -42,11 +42,17 @@ import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.declare.DeclarationManager;
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.declare.DeclarativeProcessingInput;
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.declare.DeclarativeProcessingTwoInputOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.util.function.ThrowingRunnable;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -60,12 +66,16 @@ import static org.apache.flink.util.Preconditions.checkState;
 @SuppressWarnings("rawtypes")
 public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStreamOperator<OUT>
         implements AsyncStateProcessingOperator {
+    private static final Logger LOG =
+            LoggerFactory.getLogger(AbstractAsyncStateStreamOperator.class);
 
     private AsyncExecutionController asyncExecutionController;
 
     private RecordContext currentProcessingContext;
 
     private Environment environment;
+
+    private DeclarationManager declarationManager;
 
     /** Initialize necessary state components for {@link AbstractStreamOperator}. */
     @Override
@@ -99,6 +109,7 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
             throw new UnsupportedOperationException(
                     "Current State Backend doesn't support async access, AsyncExecutionController could not work");
         }
+        this.declarationManager = new DeclarationManager();
     }
 
     private void handleAsyncStateException(String message, Throwable exception) {
@@ -148,6 +159,53 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
     }
 
     @Override
+    public final DeclarationManager getDeclarationManager() {
+        return declarationManager;
+    }
+
+    // --------------------------- Declaration part ----------------------------------------
+    /** The ordinal identifying which process is declaring. */
+    enum DeclareProcessOrdinal {
+        INPUT1,
+        INPUT2,
+        ONLY_ONE
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> ThrowingConsumer<StreamRecord<T>, Exception> declareOverrideOrDefault(
+            DeclareProcessOrdinal processOrdinal,
+            ThrowingConsumer<StreamRecord<T>, Exception> defaultProcess) {
+        switch (processOrdinal) {
+            case INPUT1:
+                if (this instanceof DeclarativeProcessingTwoInputOperator) {
+                    LOG.info("declareProcess1 is provided, build process is invoked.");
+                    return declarationManager.buildProcess(
+                            ((DeclarativeProcessingTwoInputOperator<T, ?, ?>) this)
+                                    ::declareProcess1);
+                }
+                break;
+            case INPUT2:
+                if (this instanceof DeclarativeProcessingTwoInputOperator) {
+                    LOG.info("declareProcess2 is provided, build process is invoked.");
+                    return declarationManager.buildProcess(
+                            ((DeclarativeProcessingTwoInputOperator<?, T, ?>) this)
+                                    ::declareProcess2);
+                }
+                break;
+            case ONLY_ONE:
+                if (this instanceof DeclarativeProcessingInput) {
+                    LOG.info("declareProcess is provided, build process is invoked.");
+                    return declarationManager.buildProcess(
+                            ((DeclarativeProcessingInput<T>) this)::declareProcess);
+                }
+                break;
+            default:
+                break;
+        }
+        return defaultProcess;
+    }
+
+    @Override
     @SuppressWarnings("unchecked")
     public final <T> ThrowingConsumer<StreamRecord<T>, Exception> getRecordProcessor(int inputId) {
         // Ideally, only TwoStreamInputOperator/OneInputStreamOperator(Input) will invoke here.
@@ -155,21 +213,28 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
         if (this instanceof TwoInputStreamOperator) {
             switch (inputId) {
                 case 1:
-                    return AsyncStateProcessing.<T>makeRecordProcessor(
+                    return AsyncStateProcessing.makeRecordProcessor(
                             this,
                             (KeySelector) stateKeySelector1,
-                            ((TwoInputStreamOperator) this)::processElement1);
+                            declareOverrideOrDefault(
+                                    DeclareProcessOrdinal.INPUT1,
+                                    ((TwoInputStreamOperator) this)::processElement1));
                 case 2:
-                    return AsyncStateProcessing.<T>makeRecordProcessor(
+                    return AsyncStateProcessing.makeRecordProcessor(
                             this,
                             (KeySelector) stateKeySelector2,
-                            ((TwoInputStreamOperator) this)::processElement2);
+                            declareOverrideOrDefault(
+                                    DeclareProcessOrdinal.INPUT2,
+                                    ((TwoInputStreamOperator) this)::processElement2));
                 default:
                     break;
             }
         } else if (this instanceof Input && inputId == 1) {
-            return AsyncStateProcessing.<T>makeRecordProcessor(
-                    this, (KeySelector) stateKeySelector1, ((Input) this)::processElement);
+            return AsyncStateProcessing.makeRecordProcessor(
+                    this,
+                    (KeySelector) stateKeySelector1,
+                    declareOverrideOrDefault(
+                            DeclareProcessOrdinal.ONLY_ONE, ((Input) this)::processElement));
         }
         throw new IllegalArgumentException(
                 String.format(
