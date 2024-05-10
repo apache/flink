@@ -39,7 +39,7 @@ class OrcFileSystemFilterTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testApplyPredicate() {
+    void testApplyPredicate() {
         List<ResolvedExpression> args = new ArrayList<>();
 
         // equal
@@ -86,7 +86,7 @@ class OrcFileSystemFilterTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testApplyPredicateReverse() {
+    void testApplyPredicateReverse() {
         List<ResolvedExpression> args = new ArrayList<>();
 
         FieldReferenceExpression fieldReferenceExpression =
