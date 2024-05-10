@@ -57,6 +57,20 @@ public class AbstractAsyncStateStreamOperatorDeclarationTest {
                 subtaskIndex);
     }
 
+    protected KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
+            createTestHarnessWithChain(
+                    int maxParalelism, int numSubtasks, int subtaskIndex, ElementOrder elementOrder)
+                    throws Exception {
+        TestDeclarationChainOperator testOperator = new TestDeclarationChainOperator(elementOrder);
+        return new KeyedOneInputStreamOperatorTestHarness<>(
+                testOperator,
+                new TestKeySelector(),
+                BasicTypeInfo.INT_TYPE_INFO,
+                maxParalelism,
+                numSubtasks,
+                subtaskIndex);
+    }
+
     @Test
     public void testRecordProcessor() throws Exception {
         try (KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
@@ -64,6 +78,20 @@ public class AbstractAsyncStateStreamOperatorDeclarationTest {
             testHarness.open();
             TestDeclarationOperator testOperator =
                     (TestDeclarationOperator) testHarness.getOperator();
+            ThrowingConsumer<StreamRecord<Tuple2<Integer, String>>, Exception> processor =
+                    RecordProcessorUtils.getRecordProcessor(testOperator);
+            processor.accept(new StreamRecord<>(Tuple2.of(5, "5")));
+            assertThat(testOperator.getValue()).isEqualTo(12);
+        }
+    }
+
+    @Test
+    public void testRecordProcessorWithChain() throws Exception {
+        try (KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
+                testHarness = createTestHarnessWithChain(128, 1, 0, ElementOrder.RECORD_ORDER)) {
+            testHarness.open();
+            TestDeclarationChainOperator testOperator =
+                    (TestDeclarationChainOperator) testHarness.getOperator();
             ThrowingConsumer<StreamRecord<Tuple2<Integer, String>>, Exception> processor =
                     RecordProcessorUtils.getRecordProcessor(testOperator);
             processor.accept(new StreamRecord<>(Tuple2.of(5, "5")));
@@ -135,6 +163,29 @@ public class AbstractAsyncStateStreamOperatorDeclarationTest {
 
         public int getValue() {
             return value.get();
+        }
+    }
+
+    private static class TestDeclarationChainOperator extends TestDeclarationOperator {
+
+        TestDeclarationChainOperator(ElementOrder elementOrder) {
+            super(elementOrder);
+        }
+
+        @Override
+        public ThrowingConsumer<StreamRecord<Tuple2<Integer, String>>, Exception> declareProcess(
+                DeclarationContext context) throws DeclarationException {
+
+            return context.<StreamRecord<Tuple2<Integer, String>>, Void>declareChain(
+                            e -> {
+                                value.addAndGet(e.getValue().f0);
+                                return StateFutureUtils.completedVoidFuture();
+                            })
+                    .thenCompose(v -> StateFutureUtils.completedFuture(value.incrementAndGet()))
+                    .withName("adder")
+                    .thenAccept(value::addAndGet)
+                    .withName("doubler")
+                    .finish();
         }
     }
 

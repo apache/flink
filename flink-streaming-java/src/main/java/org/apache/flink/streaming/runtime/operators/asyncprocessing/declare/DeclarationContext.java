@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators.asyncprocessing.declare;
 
+import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.util.function.BiFunctionWithException;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -71,6 +72,19 @@ public class DeclarationContext {
             BiFunctionWithException<T, U, V, ? extends Exception> callback)
             throws DeclarationException {
         return declare(manager.nextAssignedName(), callback);
+    }
+
+    /**
+     * Declaring a processing chain.
+     * @param first the first code block
+     * @return the chain itself.
+     * @param <IN> the in type of the first block
+     * @param <T> the out type of the state future given by the first block
+     */
+    public <IN, T> DeclarationChain<IN, T>.DeclarationStage<T> declareChain(
+            FunctionWithException<IN, StateFuture<T>, Exception> first)
+            throws DeclarationException {
+        return new DeclarationChain<>(this, first).firstStage();
     }
 
     DeclarationManager getManager() {
