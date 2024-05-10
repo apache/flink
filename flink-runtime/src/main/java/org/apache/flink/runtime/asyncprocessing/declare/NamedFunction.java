@@ -16,25 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.operators.asyncprocessing.declare;
+package org.apache.flink.runtime.asyncprocessing.declare;
 
-import org.apache.flink.util.function.BiFunctionWithException;
+import org.apache.flink.util.function.FunctionWithException;
 
-import java.util.function.BiFunction;
+import java.util.function.Function;
 
-/** A named version of {@link BiFunction}. */
-public class NamedBiFunction<T, U, V> extends NamedCallback
-        implements BiFunctionWithException<T, U, V, Exception> {
+/** A named version of {@link Function}. */
+public class NamedFunction<T, R> extends NamedCallback
+        implements FunctionWithException<T, R, Exception> {
 
-    BiFunctionWithException<T, U, V, ? extends Exception> function;
+    FunctionWithException<T, R, ? extends Exception> function;
 
-    NamedBiFunction(String name, BiFunctionWithException<T, U, V, ? extends Exception> function) {
+    NamedFunction(String name, FunctionWithException<T, R, ? extends Exception> function) {
         super(name);
         this.function = function;
     }
 
     @Override
-    public V apply(T t, U u) throws Exception {
-        return function.apply(t, u);
+    public R apply(T t) throws Exception {
+        return function.apply(t);
     }
 }

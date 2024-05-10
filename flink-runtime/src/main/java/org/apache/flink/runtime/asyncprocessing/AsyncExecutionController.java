@@ -24,6 +24,7 @@ import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.core.state.InternalStateFuture;
 import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandler;
 import org.apache.flink.runtime.asyncprocessing.EpochManager.ParallelMode;
+import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.v2.InternalPartitionedState;
 import org.apache.flink.util.Preconditions;
@@ -94,6 +95,9 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
     /** The state executor where the {@link StateRequest} is actually executed. */
     private final StateExecutor stateExecutor;
 
+    /** A manager that allows for declaring processing and variables. */
+    final DeclarationManager declarationManager;
+
     /** The corresponding context that currently runs in task thread. */
     RecordContext<K> currentContext;
 
@@ -121,6 +125,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
             MailboxExecutor mailboxExecutor,
             AsyncFrameworkExceptionHandler exceptionHandler,
             StateExecutor stateExecutor,
+            DeclarationManager declarationManager,
             int maxParallelism,
             int batchSize,
             long bufferTimeout,
@@ -130,6 +135,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
         this.exceptionHandler = exceptionHandler;
         this.stateFutureFactory = new StateFutureFactory<>(this, mailboxExecutor, exceptionHandler);
         this.stateExecutor = stateExecutor;
+        this.declarationManager = declarationManager;
         this.batchSize = batchSize;
         this.bufferTimeout = bufferTimeout;
         this.maxInFlightRecordNum = maxInFlightRecords;
@@ -171,14 +177,16 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
                     key,
                     this::disposeContext,
                     KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelism),
-                    epochManager.onRecord());
+                    epochManager.onRecord(),
+                    declarationManager.variableCount());
         }
         return new RecordContext<>(
                 record,
                 key,
                 this::disposeContext,
                 KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelism),
-                epochManager.onRecord());
+                epochManager.onRecord(),
+                declarationManager.variableCount());
     }
 
     /**
@@ -189,6 +197,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
      */
     public void setCurrentContext(RecordContext<K> switchingContext) {
         currentContext = switchingContext;
+        declarationManager.assignVariables(switchingContext);
     }
 
     /**

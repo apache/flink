@@ -16,12 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.operators.asyncprocessing.declare;
+package org.apache.flink.runtime.asyncprocessing.declare;
 
-/** Exception thrown when something wrong with declaration happens. */
-public class DeclarationException extends Exception {
+import org.apache.flink.util.function.ThrowingConsumer;
 
-    DeclarationException(String message) {
-        super(message);
+import java.util.function.Consumer;
+
+/** A named version of {@link Consumer}. */
+public class NamedConsumer<T> extends NamedCallback implements ThrowingConsumer<T, Exception> {
+
+    ThrowingConsumer<? super T, ? extends Exception> consumer;
+
+    NamedConsumer(String name, ThrowingConsumer<? super T, ? extends Exception> consumer) {
+        super(name);
+        this.consumer = consumer;
+    }
+
+    public void accept(T t) throws Exception {
+        consumer.accept(t);
     }
 }

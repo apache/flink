@@ -21,6 +21,7 @@ package org.apache.flink.runtime.asyncprocessing;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.state.v2.StateIterator;
 import org.apache.flink.core.state.StateFutureUtils;
+import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.util.Preconditions;
 
@@ -46,7 +47,14 @@ public class AbstractStateIteratorTest {
         TestIteratorStateExecutor stateExecutor = new TestIteratorStateExecutor(100, 3);
         AsyncExecutionController aec =
                 new AsyncExecutionController(
-                        new SyncMailboxExecutor(), (a, b) -> {}, stateExecutor, 1, 100, 1000, 1);
+                        new SyncMailboxExecutor(),
+                        (a, b) -> {},
+                        stateExecutor,
+                        new DeclarationManager(),
+                        1,
+                        100,
+                        1000,
+                        1);
         stateExecutor.bindAec(aec);
         RecordContext<String> recordContext = aec.buildContext("1", "key1");
         aec.setCurrentContext(recordContext);
@@ -77,7 +85,14 @@ public class AbstractStateIteratorTest {
         TestIteratorStateExecutor stateExecutor = new TestIteratorStateExecutor(100, 3);
         AsyncExecutionController aec =
                 new AsyncExecutionController(
-                        new SyncMailboxExecutor(), (a, b) -> {}, stateExecutor, 1, 100, 1000, 1);
+                        new SyncMailboxExecutor(),
+                        (a, b) -> {},
+                        stateExecutor,
+                        new DeclarationManager(),
+                        1,
+                        100,
+                        1000,
+                        1);
         stateExecutor.bindAec(aec);
         RecordContext<String> recordContext = aec.buildContext("1", "key1");
         aec.setCurrentContext(recordContext);

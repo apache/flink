@@ -16,25 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.operators.asyncprocessing.declare;
+package org.apache.flink.runtime.asyncprocessing.declare;
 
-import org.apache.flink.util.function.FunctionWithException;
+/** A named callback that can be identified and checkpoint. */
+public abstract class NamedCallback {
 
-import java.util.function.Function;
+    private String name;
 
-/** A named version of {@link Function}. */
-public class NamedFunction<T, R> extends NamedCallback
-        implements FunctionWithException<T, R, Exception> {
-
-    FunctionWithException<T, R, ? extends Exception> function;
-
-    NamedFunction(String name, FunctionWithException<T, R, ? extends Exception> function) {
-        super(name);
-        this.function = function;
+    NamedCallback(String name) {
+        this.name = name;
     }
 
-    @Override
-    public R apply(T t) throws Exception {
-        return function.apply(t);
+    /** Get the name of this callback. */
+    public String getName() {
+        return name;
     }
 }

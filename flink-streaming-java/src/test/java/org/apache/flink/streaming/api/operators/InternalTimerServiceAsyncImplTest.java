@@ -26,6 +26,7 @@ import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.MockStateExecutor;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
+import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -63,6 +64,7 @@ class InternalTimerServiceAsyncImplTest {
                         new SyncMailboxExecutor(),
                         exceptionHandler,
                         new MockStateExecutor(),
+                        new DeclarationManager(),
                         128,
                         2,
                         1000L,

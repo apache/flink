@@ -16,23 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.operators.asyncprocessing.declare;
+package org.apache.flink.runtime.asyncprocessing.declare;
 
-import org.apache.flink.util.function.ThrowingConsumer;
+import org.apache.flink.util.function.BiFunctionWithException;
 
-import java.util.function.Consumer;
+import java.util.function.BiFunction;
 
-/** A named version of {@link Consumer}. */
-public class NamedConsumer<T> extends NamedCallback implements ThrowingConsumer<T, Exception> {
+/** A named version of {@link BiFunction}. */
+public class NamedBiFunction<T, U, V> extends NamedCallback
+        implements BiFunctionWithException<T, U, V, Exception> {
 
-    ThrowingConsumer<? super T, ? extends Exception> consumer;
+    BiFunctionWithException<T, U, V, ? extends Exception> function;
 
-    NamedConsumer(String name, ThrowingConsumer<? super T, ? extends Exception> consumer) {
+    NamedBiFunction(String name, BiFunctionWithException<T, U, V, ? extends Exception> function) {
         super(name);
-        this.consumer = consumer;
+        this.function = function;
     }
 
-    public void accept(T t) throws Exception {
-        consumer.accept(t);
+    @Override
+    public V apply(T t, U u) throws Exception {
+        return function.apply(t, u);
     }
 }

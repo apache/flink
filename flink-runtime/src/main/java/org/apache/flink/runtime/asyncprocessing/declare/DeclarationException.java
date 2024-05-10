@@ -16,19 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.operators.asyncprocessing.declare;
+package org.apache.flink.runtime.asyncprocessing.declare;
 
-/** A named callback that can be identified and checkpoint. */
-public abstract class NamedCallback {
+/** Exception thrown when something wrong with declaration happens. */
+public class DeclarationException extends Exception {
 
-    private String name;
-
-    NamedCallback(String name) {
-        this.name = name;
-    }
-
-    /** Get the name of this callback. */
-    public String getName() {
-        return name;
+    DeclarationException(String message) {
+        super(message);
     }
 }

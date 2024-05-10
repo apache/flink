@@ -20,7 +20,7 @@ package org.apache.flink.streaming.runtime.operators.asyncprocessing;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.streaming.runtime.operators.asyncprocessing.declare.DeclarationManager;
+import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.function.ThrowingRunnable;
 

@@ -16,12 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.operators.asyncprocessing.declare;
+package org.apache.flink.runtime.asyncprocessing.declare;
 
 import org.apache.flink.api.common.state.v2.StateFuture;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.util.function.BiFunctionWithException;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
+
+import java.util.function.Supplier;
 
 /** A context to declare parts of process in user-defined function/operator. */
 public class DeclarationContext {
@@ -76,6 +79,7 @@ public class DeclarationContext {
 
     /**
      * Declaring a processing chain.
+     *
      * @param first the first code block
      * @return the chain itself.
      * @param <IN> the in type of the first block
@@ -85,6 +89,21 @@ public class DeclarationContext {
             FunctionWithException<IN, StateFuture<T>, Exception> first)
             throws DeclarationException {
         return new DeclarationChain<>(this, first).firstStage();
+    }
+
+    /**
+     * Declare a variable used across the callbacks.
+     *
+     * @param type the type information of the variable
+     * @param name the unique name of this variable
+     * @param initialValue the initial value when the variable created.
+     * @return the variable itself that can used by lambdas.
+     * @param <T> the variable type.
+     */
+    public <T> DeclaredVariable<T> declareVariable(
+            TypeInformation<T> type, String name, Supplier<T> initialValue)
+            throws DeclarationException {
+        return manager.register(type, name, initialValue);
     }
 
     DeclarationManager getManager() {

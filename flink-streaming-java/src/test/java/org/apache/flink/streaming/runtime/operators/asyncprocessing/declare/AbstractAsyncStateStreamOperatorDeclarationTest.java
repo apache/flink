@@ -23,6 +23,12 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.state.StateFutureUtils;
+import org.apache.flink.runtime.asyncprocessing.declare.DeclarationContext;
+import org.apache.flink.runtime.asyncprocessing.declare.DeclarationException;
+import org.apache.flink.runtime.asyncprocessing.declare.DeclaredVariable;
+import org.apache.flink.runtime.asyncprocessing.declare.NamedCallback;
+import org.apache.flink.runtime.asyncprocessing.declare.NamedConsumer;
+import org.apache.flink.runtime.asyncprocessing.declare.NamedFunction;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -71,6 +77,20 @@ public class AbstractAsyncStateStreamOperatorDeclarationTest {
                 subtaskIndex);
     }
 
+    protected KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
+            createTestHarnessWithVariable(
+                    int maxParalelism, int numSubtasks, int subtaskIndex, ElementOrder elementOrder)
+                    throws Exception {
+        TestDeclareVariableOperator testOperator = new TestDeclareVariableOperator(elementOrder);
+        return new KeyedOneInputStreamOperatorTestHarness<>(
+                testOperator,
+                new TestKeySelector(),
+                BasicTypeInfo.INT_TYPE_INFO,
+                maxParalelism,
+                numSubtasks,
+                subtaskIndex);
+    }
+
     @Test
     public void testRecordProcessor() throws Exception {
         try (KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
@@ -96,6 +116,22 @@ public class AbstractAsyncStateStreamOperatorDeclarationTest {
                     RecordProcessorUtils.getRecordProcessor(testOperator);
             processor.accept(new StreamRecord<>(Tuple2.of(5, "5")));
             assertThat(testOperator.getValue()).isEqualTo(12);
+        }
+    }
+
+    @Test
+    public void testRecordProcessorWithVariable() throws Exception {
+        try (KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
+                testHarness = createTestHarnessWithVariable(128, 1, 0, ElementOrder.RECORD_ORDER)) {
+            testHarness.open();
+            TestDeclareVariableOperator testOperator =
+                    (TestDeclareVariableOperator) testHarness.getOperator();
+            ThrowingConsumer<StreamRecord<Tuple2<Integer, String>>, Exception> processor =
+                    RecordProcessorUtils.getRecordProcessor(testOperator);
+            processor.accept(new StreamRecord<>(Tuple2.of(5, "5")));
+            assertThat(testOperator.getValue()).isEqualTo(6);
+            processor.accept(new StreamRecord<>(Tuple2.of(6, "6")));
+            assertThat(testOperator.getValue()).isEqualTo(13);
         }
     }
 
@@ -185,6 +221,35 @@ public class AbstractAsyncStateStreamOperatorDeclarationTest {
                     .withName("adder")
                     .thenAccept(value::addAndGet)
                     .withName("doubler")
+                    .finish();
+        }
+    }
+
+    private static class TestDeclareVariableOperator extends TestDeclarationOperator {
+
+        TestDeclareVariableOperator(ElementOrder elementOrder) {
+            super(elementOrder);
+        }
+
+        @Override
+        public ThrowingConsumer<StreamRecord<Tuple2<Integer, String>>, Exception> declareProcess(
+                DeclarationContext context) throws DeclarationException {
+            DeclaredVariable<Integer> local =
+                    context.declareVariable(BasicTypeInfo.INT_TYPE_INFO, "local count", () -> 0);
+
+            return context.<StreamRecord<Tuple2<Integer, String>>, Void>declareChain(
+                            e -> {
+                                local.set(e.getValue().f0);
+                                return StateFutureUtils.completedVoidFuture();
+                            })
+                    .thenCompose(
+                            v -> {
+                                local.set(local.get() + 1);
+                                return StateFutureUtils.completedFuture(local.get());
+                            })
+                    .withName("adder")
+                    .thenAccept(value::addAndGet)
+                    .withName("aggregate")
                     .finish();
         }
     }

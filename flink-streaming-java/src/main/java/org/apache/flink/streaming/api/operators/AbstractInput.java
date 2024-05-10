@@ -117,7 +117,7 @@ public abstract class AbstractInput<IN, OUT>
                     (KeySelector) stateKeySelector,
                     ((AsyncStateProcessingOperator) owner)
                             .getDeclarationManager()
-                            .<IN>buildProcess(
+                            .<StreamRecord<IN>>buildProcess(
                                     ((DeclarativeProcessingInput<IN>) this)::declareProcess));
         } else {
             return AsyncStateProcessing.<IN>makeRecordProcessor(

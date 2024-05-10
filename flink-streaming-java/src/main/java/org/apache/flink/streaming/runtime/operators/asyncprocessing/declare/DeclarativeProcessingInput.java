@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.runtime.operators.asyncprocessing.declare;
 
+import org.apache.flink.runtime.asyncprocessing.declare.DeclarationContext;
+import org.apache.flink.runtime.asyncprocessing.declare.DeclarationException;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.function.ThrowingConsumer;
