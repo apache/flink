@@ -22,6 +22,7 @@ import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandler;
 import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.runtime.asyncprocessing.EpochManager.Epoch;
@@ -39,6 +40,7 @@ import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
@@ -73,7 +75,9 @@ class AsyncExecutionControllerTest {
             long timeout,
             int maxInFlight,
             MailboxExecutor mailboxExecutor,
-            AsyncFrameworkExceptionHandler exceptionHandler) {
+            AsyncFrameworkExceptionHandler exceptionHandler,
+            CloseableRegistry closeableRegistry)
+            throws IOException {
         StateExecutor stateExecutor = new TestStateExecutor();
         ValueStateDescriptor<Integer> stateDescriptor =
                 new ValueStateDescriptor<>("test-value-state", BasicTypeInfo.INT_TYPE_INFO);
@@ -88,6 +92,8 @@ class AsyncExecutionControllerTest {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+        closeableRegistry.registerCloseable(asyncKeyedStateBackend);
+        closeableRegistry.registerCloseable(asyncKeyedStateBackend::dispose);
         aec =
                 new AsyncExecutionController<>(
                         mailboxExecutor,
@@ -109,13 +115,15 @@ class AsyncExecutionControllerTest {
     }
 
     @Test
-    void testBasicRun() {
+    void testBasicRun() throws IOException {
+        CloseableRegistry resourceRegistry = new CloseableRegistry();
         setup(
                 100,
                 10000L,
                 1000,
                 new SyncMailboxExecutor(),
-                new TestAsyncFrameworkExceptionHandler());
+                new TestAsyncFrameworkExceptionHandler(),
+                resourceRegistry);
         // ============================ element1 ============================
         String record1 = "key1-r1";
         String key1 = "key1";
@@ -220,16 +228,20 @@ class AsyncExecutionControllerTest {
         assertThat(aec.inFlightRecordNum.get()).isEqualTo(0);
         assertThat(output.get()).isEqualTo(1);
         assertThat(recordContext4.getReferenceCount()).isEqualTo(0);
+
+        resourceRegistry.close();
     }
 
     @Test
-    void testRecordsRunInOrder() {
+    void testRecordsRunInOrder() throws IOException {
+        CloseableRegistry resourceRegistry = new CloseableRegistry();
         setup(
                 100,
                 10000L,
                 1000,
                 new SyncMailboxExecutor(),
-                new TestAsyncFrameworkExceptionHandler());
+                new TestAsyncFrameworkExceptionHandler(),
+                resourceRegistry);
         // Record1 and record3 have the same key, record2 has a different key.
         // Record2 should be processed before record3.
 
@@ -284,18 +296,22 @@ class AsyncExecutionControllerTest {
         assertThat(output.get()).isEqualTo(2);
         assertThat(recordContext3.getReferenceCount()).isEqualTo(0);
         assertThat(aec.inFlightRecordNum.get()).isEqualTo(0);
+
+        resourceRegistry.close();
     }
 
     @Test
-    void testInFlightRecordControl() {
+    void testInFlightRecordControl() throws IOException {
         int batchSize = 5;
         int maxInFlight = 10;
+        CloseableRegistry resourceRegistry = new CloseableRegistry();
         setup(
                 batchSize,
                 10000L,
                 maxInFlight,
                 new SyncMailboxExecutor(),
-                new TestAsyncFrameworkExceptionHandler());
+                new TestAsyncFrameworkExceptionHandler(),
+                resourceRegistry);
         // For records with different keys, the in-flight records is controlled by batch size.
         for (int round = 0; round < 10; round++) {
             for (int i = 0; i < batchSize; i++) {
@@ -334,16 +350,20 @@ class AsyncExecutionControllerTest {
             assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(1);
             assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(maxInFlight);
         }
+
+        resourceRegistry.close();
     }
 
     @Test
-    public void testSyncPoint() {
+    public void testSyncPoint() throws IOException {
+        CloseableRegistry resourceRegistry = new CloseableRegistry();
         setup(
                 1000,
                 10000L,
                 6000,
                 new SyncMailboxExecutor(),
-                new TestAsyncFrameworkExceptionHandler());
+                new TestAsyncFrameworkExceptionHandler(),
+                resourceRegistry);
         AtomicInteger counter = new AtomicInteger(0);
 
         // Test the sync point processing without a key occupied.
@@ -384,18 +404,22 @@ class AsyncExecutionControllerTest {
         assertThat(aec.stateRequestsBuffer.activeQueueSize()).isEqualTo(0);
         assertThat(aec.stateRequestsBuffer.blockingQueueSize()).isEqualTo(0);
         recordContext2.release();
+
+        resourceRegistry.close();
     }
 
     @Test
-    void testBufferTimeout() {
+    void testBufferTimeout() throws IOException {
         int batchSize = 5;
         int timeout = 1000;
+        CloseableRegistry resourceRegistry = new CloseableRegistry();
         setup(
                 batchSize,
                 timeout,
                 1000,
                 new SyncMailboxExecutor(),
-                new TestAsyncFrameworkExceptionHandler());
+                new TestAsyncFrameworkExceptionHandler(),
+                resourceRegistry);
         ManuallyTriggeredScheduledExecutorService scheduledExecutor =
                 new ManuallyTriggeredScheduledExecutorService();
         aec.stateRequestsBuffer.scheduledExecutor = scheduledExecutor;
@@ -457,18 +481,22 @@ class AsyncExecutionControllerTest {
         assertThat(scheduledFuture.isDone()).isTrue();
         assertThat(aec.stateRequestsBuffer.currentSeq.get()).isEqualTo(2);
         assertThat(aec.stateRequestsBuffer.scheduledSeq.get()).isEqualTo(1);
+
+        resourceRegistry.close();
     }
 
     @Test
-    void testBufferTimeoutSkip() {
+    void testBufferTimeoutSkip() throws IOException {
         int batchSize = 3;
         int timeout = 1000;
+        CloseableRegistry resourceRegistry = new CloseableRegistry();
         setup(
                 batchSize,
                 timeout,
                 1000,
                 new SyncMailboxExecutor(),
-                new TestAsyncFrameworkExceptionHandler());
+                new TestAsyncFrameworkExceptionHandler(),
+                resourceRegistry);
         ManuallyTriggeredScheduledExecutorService scheduledExecutor =
                 new ManuallyTriggeredScheduledExecutorService();
         aec.stateRequestsBuffer.scheduledExecutor = scheduledExecutor;
@@ -526,14 +554,17 @@ class AsyncExecutionControllerTest {
         assertThat(aec.stateRequestsBuffer.currentSeq.get()).isEqualTo(2);
         assertThat(aec.stateRequestsBuffer.scheduledSeq.get()).isEqualTo(1);
         assertThat(aec.stateRequestsBuffer.currentScheduledFuture.isDone()).isTrue();
+
+        resourceRegistry.close();
     }
 
     @Test
-    void testUserCodeException() {
+    void testUserCodeException() throws IOException {
         TestAsyncFrameworkExceptionHandler exceptionHandler =
                 new TestAsyncFrameworkExceptionHandler();
         TestMailboxExecutor testMailboxExecutor = new TestMailboxExecutor(false);
-        setup(1000, 10000, 6000, testMailboxExecutor, exceptionHandler);
+        CloseableRegistry resourceRegistry = new CloseableRegistry();
+        setup(1000, 10000, 6000, testMailboxExecutor, exceptionHandler, resourceRegistry);
         Runnable userCode =
                 () -> {
                     valueState
@@ -562,14 +593,17 @@ class AsyncExecutionControllerTest {
                 .isEqualTo("Artificial exception in user code");
         assertThat(exceptionHandler.exception).isNull();
         assertThat(exceptionHandler.message).isNull();
+
+        resourceRegistry.close();
     }
 
     @Test
-    void testFrameworkException() {
+    void testFrameworkException() throws IOException {
         TestAsyncFrameworkExceptionHandler exceptionHandler =
                 new TestAsyncFrameworkExceptionHandler();
         TestMailboxExecutor testMailboxExecutor = new TestMailboxExecutor(true);
-        setup(1000, 10000, 6000, testMailboxExecutor, exceptionHandler);
+        CloseableRegistry resourceRegistry = new CloseableRegistry();
+        setup(1000, 10000, 6000, testMailboxExecutor, exceptionHandler, resourceRegistry);
         Runnable userCode = () -> valueState.asyncValue().thenAccept(val -> {});
         String record = "record";
         String key = "key";
@@ -588,16 +622,20 @@ class AsyncExecutionControllerTest {
                 .isEqualTo("java.lang.RuntimeException: Fail to execute.");
         assertThat(exceptionHandler.message)
                 .isEqualTo("Caught exception when submitting StateFuture's callback.");
+
+        resourceRegistry.close();
     }
 
     @Test
-    void testEpochManager() {
+    void testEpochManager() throws Exception {
+        CloseableRegistry resourceRegistry = new CloseableRegistry();
         setup(
                 1000,
                 10000,
                 6000,
                 new SyncMailboxExecutor(),
-                new TestAsyncFrameworkExceptionHandler());
+                new TestAsyncFrameworkExceptionHandler(),
+                resourceRegistry);
         AtomicInteger output = new AtomicInteger(0);
         Runnable userCode = () -> valueState.asyncValue().thenAccept(v -> output.incrementAndGet());
 
@@ -622,10 +660,13 @@ class AsyncExecutionControllerTest {
         assertThat(output.get()).isEqualTo(3);
         // SERIAL_BETWEEN_EPOCH mode would drain in-flight records on non-record arriving.
         assertThat(epoch1.ongoingRecordCount).isEqualTo(0);
+
+        resourceRegistry.close();
     }
 
     @Test
-    void testMixEpochMode() {
+    void testMixEpochMode() throws Exception {
+        CloseableRegistry resourceRegistry = new CloseableRegistry();
         // epoch1(parallel mode) -> epoch2(parallel mode) -> epoch3(serial mode),
         // when epoch2 close, epoch1 is still in-flight.
         // when epoch3 close, all in-flight records should drain, epoch1 and epoch2 should finish.
@@ -634,7 +675,8 @@ class AsyncExecutionControllerTest {
                 10000,
                 6000,
                 new SyncMailboxExecutor(),
-                new TestAsyncFrameworkExceptionHandler());
+                new TestAsyncFrameworkExceptionHandler(),
+                resourceRegistry);
         AtomicInteger output = new AtomicInteger(0);
         Runnable userCode = () -> valueState.asyncValue().thenAccept(v -> output.incrementAndGet());
 
@@ -678,6 +720,8 @@ class AsyncExecutionControllerTest {
         assertThat(epoch2.ongoingRecordCount).isEqualTo(0);
         assertThat(epoch3.ongoingRecordCount).isEqualTo(0);
         assertThat(output.get()).isEqualTo(6);
+
+        resourceRegistry.close();
     }
 
     /** Simulate the underlying state that is actually used to execute the request. */

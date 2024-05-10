@@ -58,6 +58,9 @@ public interface AsyncKeyedStateBackend extends Disposable, Closeable {
      * Creates a {@code StateExecutor} which supports to execute a batch of state requests
      * asynchronously.
      *
+     * <p>Notice that the {@code AsyncKeyedStateBackend} is responsible for shutting down the
+     * StateExecutors created by itself when they are no longer in use.
+     *
      * @return a {@code StateExecutor} which supports to execute a batch of state requests
      *     asynchronously.
      */

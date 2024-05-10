@@ -90,7 +90,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
     private final StateFutureFactory<K> stateFutureFactory;
 
     /** The state executor where the {@link StateRequest} is actually executed. */
-    final StateExecutor stateExecutor;
+    private final StateExecutor stateExecutor;
 
     /** The corresponding context that currently runs in task thread. */
     RecordContext<K> currentContext;
