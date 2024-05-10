@@ -28,6 +28,7 @@ import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.v2.StateDescriptor;
 import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -38,10 +39,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.concurrent.GuardedBy;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -91,6 +95,17 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
     /** Handler to handle state request. */
     private StateRequestHandler stateRequestHandler;
 
+    /** Lock guarding the {@code managedStateExecutors} and {@code disposed}. */
+    private final Object lock = new Object();
+
+    /** The StateExecutors which are managed by this ForStKeyedStateBackend. */
+    @GuardedBy("lock")
+    private final Set<StateExecutor> managedStateExecutors;
+
+    /** The flag indicating whether ForStKeyedStateBackend is closed. */
+    @GuardedBy("lock")
+    private boolean closed = false;
+
     // mark whether this backend is already disposed and prevent duplicate disposing
     private boolean disposed = false;
 
@@ -113,6 +128,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
         this.columnFamilyOptionsFactory = columnFamilyOptionsFactory;
         this.defaultColumnFamily = defaultColumnFamilyHandle;
         this.nativeMetricMonitor = nativeMetricMonitor;
+        this.managedStateExecutors = new HashSet<>(1);
     }
 
     @Override
@@ -147,8 +163,17 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
     @Override
     @Nonnull
     public StateExecutor createStateExecutor() {
-        // TODO: Make io parallelism configurable
-        return new ForStStateExecutor(4, db, optionsContainer.getWriteOptions());
+        synchronized (lock) {
+            if (closed) {
+                throw new FlinkRuntimeException(
+                        "Attempt to create StateExecutor after ForStKeyedStateBackend is disposed.");
+            }
+            // TODO: Make io parallelism configurable
+            StateExecutor stateExecutor =
+                    new ForStStateExecutor(4, db, optionsContainer.getWriteOptions());
+            managedStateExecutors.add(stateExecutor);
+            return stateExecutor;
+        }
     }
 
     /** Should only be called by one thread, and only after all accesses to the DB happened. */
@@ -156,6 +181,11 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
     public void dispose() {
         if (this.disposed) {
             return;
+        }
+        synchronized (lock) {
+            if (!closed) {
+                IOUtils.closeQuietly(this);
+            }
         }
 
         // IMPORTANT: null reference to signal potential async checkpoint workers that the db was
@@ -207,6 +237,14 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
 
     @Override
     public void close() throws IOException {
-        // do nothing currently, native resources will be release in dispose method
+        synchronized (lock) {
+            if (closed) {
+                return;
+            }
+            closed = true;
+            for (StateExecutor executor : managedStateExecutors) {
+                executor.shutdown();
+            }
+        }
     }
 }

@@ -22,7 +22,12 @@ import org.apache.flink.annotation.Internal;
 
 import java.util.concurrent.CompletableFuture;
 
-/** Executor for executing batch {@link StateRequest}s. */
+/**
+ * Executor for executing batch {@link StateRequest}s.
+ *
+ * <p>Notice that the owner who create the {@code StateExecutor} is responsible for shutting down it
+ * when it is no longer in use.
+ */
 @Internal
 public interface StateExecutor {
     /**
