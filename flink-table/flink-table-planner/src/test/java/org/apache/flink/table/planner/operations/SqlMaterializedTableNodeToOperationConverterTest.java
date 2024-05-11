@@ -263,27 +263,27 @@ public class SqlMaterializedTableNodeToOperationConverterTest
     @Test
     public void testAlterMaterializedTableRefreshOperationWithPartitionSpec() {
         final String sql =
-                "ALTER MATERIALIZED TABLE mtbl1 REFRESH PARITITON (ds1 = '1', ds2 = '2')";
+                "ALTER MATERIALIZED TABLE mtbl1 REFRESH PARTITION (ds1 = '1', ds2 = '2')";
 
         Operation operation = parse(sql);
         assertThat(operation).isInstanceOf(AlterMaterializedTableRefreshOperation.class);
 
         AlterMaterializedTableRefreshOperation op =
                 (AlterMaterializedTableRefreshOperation) operation;
-        assertThat(op.getTableIdentifier().toString()).isEqualTo("default.mtbl1");
+        assertThat(op.getTableIdentifier().toString()).isEqualTo("`builtin`.`default`.`mtbl1`");
         assertThat(op.getPartitionSpec()).isEqualTo(ImmutableMap.of("ds1", "1", "ds2", "2"));
     }
 
     @Test
     public void testAlterMaterializedTableRefreshOperationWithoutPartitionSpec() {
-        final String sql = "ALTER MATERIALIZED TABLE mtbl1 REFRESH)";
+        final String sql = "ALTER MATERIALIZED TABLE mtbl1 REFRESH";
 
         Operation operation = parse(sql);
         assertThat(operation).isInstanceOf(AlterMaterializedTableRefreshOperation.class);
 
         AlterMaterializedTableRefreshOperation op =
                 (AlterMaterializedTableRefreshOperation) operation;
-        assertThat(op.getTableIdentifier().toString()).isEqualTo("default.mtbl1");
+        assertThat(op.getTableIdentifier().toString()).isEqualTo("`builtin`.`default`.`mtbl1`");
         assertThat(op.getPartitionSpec()).isEmpty();
     }
 }
