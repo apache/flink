@@ -28,7 +28,7 @@ under the License.
 
 
 
-ALTER 语句用于修改一个已经在 [Catalog]({{< ref "docs/dev/table/catalogs" >}}) 中注册的表、视图或函数定义。
+ALTER 语句用于修改一个已经在 [Catalog]({{< ref "docs/dev/table/catalogs" >}}) 中注册的表、视图或函数定义，或 catalog 本身的定义。
 
 Flink SQL 目前支持以下 ALTER 语句：
 
@@ -36,6 +36,7 @@ Flink SQL 目前支持以下 ALTER 语句：
 - ALTER VIEW
 - ALTER DATABASE
 - ALTER FUNCTION
+- ALTER CATALOG
 
 ## 执行 ALTER 语句
 
