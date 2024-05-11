@@ -102,13 +102,13 @@ class TimeUtilsTest {
 
     @Test
     void testParseDurationUpperCase() {
-        assertThat(TimeUtils.parseDuration("1 NS").toNanos()).isEqualTo(1L);
+        assertThat(TimeUtils.parseDuration("1 NS").toNanos()).isOne();
         assertThat(TimeUtils.parseDuration("1 MICRO").toNanos()).isEqualTo(1000L);
-        assertThat(TimeUtils.parseDuration("1 MS").toMillis()).isEqualTo(1L);
-        assertThat(TimeUtils.parseDuration("1 S").getSeconds()).isEqualTo(1L);
-        assertThat(TimeUtils.parseDuration("1 MIN").toMinutes()).isEqualTo(1L);
-        assertThat(TimeUtils.parseDuration("1 H").toHours()).isEqualTo(1L);
-        assertThat(TimeUtils.parseDuration("1 D").toDays()).isEqualTo(1L);
+        assertThat(TimeUtils.parseDuration("1 MS").toMillis()).isOne();
+        assertThat(TimeUtils.parseDuration("1 S").getSeconds()).isOne();
+        assertThat(TimeUtils.parseDuration("1 MIN").toMinutes()).isOne();
+        assertThat(TimeUtils.parseDuration("1 H").toHours()).isOne();
+        assertThat(TimeUtils.parseDuration("1 D").toDays()).isOne();
     }
 
     @Test

@@ -127,7 +127,7 @@ class MathUtilTest {
 
     @Test
     void testFlipSignBit() {
-        assertThat(MathUtils.flipSignBit(Long.MIN_VALUE)).isEqualTo(0L);
+        assertThat(MathUtils.flipSignBit(Long.MIN_VALUE)).isZero();
         assertThat(MathUtils.flipSignBit(0L)).isEqualTo(Long.MIN_VALUE);
         assertThat(MathUtils.flipSignBit(Long.MAX_VALUE)).isEqualTo(-1L);
         assertThat(MathUtils.flipSignBit(-1L)).isEqualTo(Long.MAX_VALUE);

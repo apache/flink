@@ -67,16 +67,16 @@ class AbstractIDTest {
         AbstractID id10 = new AbstractID(Long.MIN_VALUE, Long.MAX_VALUE);
 
         // test self equality
-        assertThat(id1.compareTo(CommonTestUtils.createCopySerializable(id1))).isZero();
-        assertThat(id2.compareTo(CommonTestUtils.createCopySerializable(id2))).isZero();
-        assertThat(id3.compareTo(CommonTestUtils.createCopySerializable(id3))).isZero();
-        assertThat(id4.compareTo(CommonTestUtils.createCopySerializable(id4))).isZero();
-        assertThat(id5.compareTo(CommonTestUtils.createCopySerializable(id5))).isZero();
-        assertThat(id6.compareTo(CommonTestUtils.createCopySerializable(id6))).isZero();
-        assertThat(id7.compareTo(CommonTestUtils.createCopySerializable(id7))).isZero();
-        assertThat(id8.compareTo(CommonTestUtils.createCopySerializable(id8))).isZero();
-        assertThat(id9.compareTo(CommonTestUtils.createCopySerializable(id9))).isZero();
-        assertThat(id10.compareTo(CommonTestUtils.createCopySerializable(id10))).isZero();
+        assertThat(id1).isEqualByComparingTo(CommonTestUtils.createCopySerializable(id1));
+        assertThat(id2).isEqualByComparingTo(CommonTestUtils.createCopySerializable(id2));
+        assertThat(id3).isEqualByComparingTo(CommonTestUtils.createCopySerializable(id3));
+        assertThat(id4).isEqualByComparingTo(CommonTestUtils.createCopySerializable(id4));
+        assertThat(id5).isEqualByComparingTo(CommonTestUtils.createCopySerializable(id5));
+        assertThat(id6).isEqualByComparingTo(CommonTestUtils.createCopySerializable(id6));
+        assertThat(id7).isEqualByComparingTo(CommonTestUtils.createCopySerializable(id7));
+        assertThat(id8).isEqualByComparingTo(CommonTestUtils.createCopySerializable(id8));
+        assertThat(id9).isEqualByComparingTo(CommonTestUtils.createCopySerializable(id9));
+        assertThat(id10).isEqualByComparingTo(CommonTestUtils.createCopySerializable(id10));
 
         // test order
         assertCompare(id1, id2, -1);
