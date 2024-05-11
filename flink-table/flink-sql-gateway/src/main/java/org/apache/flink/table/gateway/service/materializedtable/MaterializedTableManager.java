@@ -19,6 +19,7 @@
 package org.apache.flink.table.gateway.service.materializedtable;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
@@ -50,7 +51,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.api.common.RuntimeExecutionMode.BATCH;
 import static org.apache.flink.api.common.RuntimeExecutionMode.STREAMING;
@@ -215,24 +215,11 @@ public class MaterializedTableManager {
         customConfig.set(NAME, jobName);
         customConfig.set(RUNTIME_MODE, BATCH);
 
-        StringBuilder insertStatement =
-                new StringBuilder(
-                        String.format(
-                                "INSERT OVERWRITE %s SELECT * FROM (%s)",
-                                materializedTableIdentifier,
-                                materializedTable.getDefinitionQuery()));
-
-        if (!partitionSpec.isEmpty()) {
-            insertStatement.append(" WHERE ");
-            insertStatement.append(
-                    partitionSpec.entrySet().stream()
-                            .map(
-                                    entry ->
-                                            String.format(
-                                                    "%s = '%s'", entry.getKey(), entry.getValue()))
-                            .reduce((s1, s2) -> s1 + " AND " + s2)
-                            .get());
-        }
+        String insertStatement =
+                getManuallyRefreshStatement(
+                        materializedTableIdentifier.toString(),
+                        materializedTable.getDefinitionQuery(),
+                        partitionSpec);
 
         try {
             LOG.debug(
@@ -283,22 +270,41 @@ public class MaterializedTableManager {
         if (!unknownPartitionKeys.isEmpty()) {
             throw new ValidationException(
                     String.format(
-                            "The partition spec contains unknown partition keys: [%s]. All known partition keys are: [%s].",
-                            unknownPartitionKeys.stream()
-                                    .collect(Collectors.joining("', '", "'", "'")),
-                            allPartitionKeys.stream()
-                                    .collect(Collectors.joining("', '", "'", "'"))));
+                            "The partition spec contains unknown partition keys:\n\n%s\n\nAll known partition keys are:\n\n%s",
+                            String.join("\n", unknownPartitionKeys),
+                            String.join("\n", allPartitionKeys)));
         }
 
         if (!nonStringPartitionKeys.isEmpty()) {
             throw new ValidationException(
                     String.format(
-                            "Currently, specifying non-char or non-string type partition fields"
-                                    + " to refresh materialized tables is not supported."
-                                    + " All specific partition keys with unsupported types are: [%s].",
-                            nonStringPartitionKeys.stream()
-                                    .collect(Collectors.joining("', '", "'", "'"))));
+                            "Currently, manually refreshing materialized table only supports specifying char and string type"
+                                    + " partition keys. All specific partition keys with unsupported types are:\n\n%s",
+                            String.join("\n", nonStringPartitionKeys)));
         }
+    }
+
+    @VisibleForTesting
+    protected static String getManuallyRefreshStatement(
+            String tableIdentifier, String query, Map<String, String> partitionSpec) {
+        StringBuilder insertStatement =
+                new StringBuilder(
+                        String.format(
+                                "INSERT OVERWRITE %s\n  SELECT * FROM (%s)",
+                                tableIdentifier, query));
+        if (!partitionSpec.isEmpty()) {
+            insertStatement.append("\n  WHERE ");
+            insertStatement.append(
+                    partitionSpec.entrySet().stream()
+                            .map(
+                                    entry ->
+                                            String.format(
+                                                    "%s = '%s'", entry.getKey(), entry.getValue()))
+                            .reduce((s1, s2) -> s1 + " AND " + s2)
+                            .get());
+        }
+
+        return insertStatement.toString();
     }
 
     private static List<RowData> fetchAllResults(ResultFetcher resultFetcher) {

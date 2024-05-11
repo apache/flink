@@ -20,12 +20,12 @@ package org.apache.flink.table.gateway.service;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.client.JobStatusMessage;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobType;
-import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
@@ -43,6 +43,7 @@ import org.apache.flink.table.gateway.service.utils.IgnoreExceptionHandler;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
+import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.types.Row;
@@ -253,7 +254,8 @@ public class MaterializedTableStatementITCase {
     }
 
     @Test
-    void testAlterMaterializedTableRefresh() throws Exception {
+    void testAlterMaterializedTableRefresh(
+            @InjectClusterClient RestClusterClient<?> restClusterClient) throws Exception {
         long timeout = Duration.ofSeconds(20).toMillis();
         long pause = Duration.ofSeconds(2).toMillis();
         // initialize session handle, create test-filesystem catalog and register it to catalog
@@ -280,7 +282,9 @@ public class MaterializedTableStatementITCase {
                                 + "  'data-id' = '%s'\n"
                                 + ")",
                         dataId);
-        service.executeStatement(sessionHandle, sourceDdl, -1, new Configuration());
+        OperationHandle sourceHandle =
+                service.executeStatement(sessionHandle, sourceDdl, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, sourceHandle);
 
         String materializedTableDDL =
                 "CREATE MATERIALIZED TABLE my_materialized_table"
@@ -332,31 +336,29 @@ public class MaterializedTableStatementITCase {
         assertThat(result.size()).isEqualTo(1);
         String jobId = result.get(0).getString(0).toString();
 
-        MiniCluster miniCluster = MINI_CLUSTER.getMiniCluster();
-
         // 1. verify a new job is created
         Optional<JobStatusMessage> job =
-                miniCluster.listJobs().get(timeout, TimeUnit.MILLISECONDS).stream()
+                restClusterClient.listJobs().get(timeout, TimeUnit.MILLISECONDS).stream()
                         .filter(j -> j.getJobId().toString().equals(jobId))
                         .findFirst();
         assertThat(job).isPresent();
         assertThat(job.get().getStartTime()).isGreaterThan(currentTime);
 
         // 2. verify the new job is a batch job
-        ArchivedExecutionGraph executionGraph =
-                miniCluster
-                        .getArchivedExecutionGraph(JobID.fromHexString(jobId))
-                        .get(30, TimeUnit.SECONDS);
-        assertThat(executionGraph.getJobType()).isEqualTo(JobType.BATCH);
+        JobDetailsInfo jobDetailsInfo =
+                restClusterClient
+                        .getJobDetails(JobID.fromHexString(jobId))
+                        .get(timeout, TimeUnit.MILLISECONDS);
+        assertThat(jobDetailsInfo.getJobType()).isEqualTo(JobType.BATCH);
 
         // 3. verify the new job is finished
         CommonTestUtils.waitUtil(
                 () -> {
                     try {
                         return JobStatus.FINISHED.equals(
-                                miniCluster
+                                restClusterClient
                                         .getJobStatus(JobID.fromHexString(jobId))
-                                        .get(5000, TimeUnit.SECONDS));
+                                        .get(5, TimeUnit.SECONDS));
                     } catch (Exception ignored) {
                     }
                     return false;
@@ -431,8 +433,14 @@ public class MaterializedTableStatementITCase {
                 .rootCause()
                 .isInstanceOf(ValidationException.class)
                 .hasMessage(
-                        "The partition spec contains unknown partition keys: ['ds3']. "
-                                + "All known partition keys are: ['ds2', 'ds1'].");
+                        "The partition spec contains unknown partition keys:\n"
+                                + "\n"
+                                + "ds3\n"
+                                + "\n"
+                                + "All known partition keys are:\n"
+                                + "\n"
+                                + "ds2\n"
+                                + "ds1");
 
         // CASE 2: check specific non-string partition keys as partition spec to refresh
         String alterStatementWithNonStringPartitionKey =
@@ -454,9 +462,9 @@ public class MaterializedTableStatementITCase {
                 .rootCause()
                 .isInstanceOf(ValidationException.class)
                 .hasMessage(
-                        "Currently, specifying non-char or non-string type partition fields to refresh"
-                                + " materialized tables is not supported. All specific partition"
-                                + " keys with unsupported types are: ['ds2'].");
+                        "Currently, manually refreshing materialized table only supports specifying char and string type partition keys. All specific partition keys with unsupported types are:\n"
+                                + "\n"
+                                + "ds2");
     }
 
     private SessionHandle initializeSession() {
