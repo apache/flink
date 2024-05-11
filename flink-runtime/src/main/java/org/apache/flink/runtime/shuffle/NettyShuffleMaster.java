@@ -31,10 +31,12 @@ import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.api.common.BatchShuffleMode.ALL_EXCHANGES_HYBRID_FULL;
@@ -172,10 +174,10 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
     }
 
     @Override
-    public CompletableFuture<Collection<PartitionWithMetrics>> getAllPartitionWithMetrics(
-            JobID jobId) {
+    public CompletableFuture<Collection<PartitionWithMetrics>> getPartitionWithMetrics(
+            JobID jobId, Duration timeout, Set<ResultPartitionID> expectedPartitions) {
         return checkNotNull(jobShuffleContexts.get(jobId))
-                .getAllPartitionWithMetricsOnTaskManagers();
+                .getPartitionWithMetrics(timeout, expectedPartitions);
     }
 
     @Override
@@ -198,5 +200,10 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
             CompletableFuture<ShuffleMasterSnapshot> snapshotFuture,
             ShuffleMasterSnapshotContext context) {
         snapshotFuture.complete(EmptyShuffleMasterSnapshot.getInstance());
+    }
+
+    @Override
+    public void notifyPartitionRecoveryStarted(JobID jobId) {
+        checkNotNull(jobShuffleContexts.get(jobId)).notifyPartitionRecoveryStarted();
     }
 }

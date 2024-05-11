@@ -54,6 +54,7 @@ import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.shuffle.PartitionWithMetrics;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
@@ -65,9 +66,11 @@ import org.apache.flink.util.function.TriConsumer;
 import org.apache.flink.util.function.TriFunction;
 
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
@@ -187,6 +190,13 @@ public class TestingJobMasterGatewayBuilder {
     private Supplier<CompletableFuture<JobResourceRequirements>>
             requestJobResourceRequirementsSupplier =
                     () -> CompletableFuture.completedFuture(JobResourceRequirements.empty());
+
+    private BiFunction<
+                    Duration,
+                    Set<ResultPartitionID>,
+                    CompletableFuture<Collection<PartitionWithMetrics>>>
+            getPartitionWithMetricsFunction =
+                    (timeout, set) -> CompletableFuture.completedFuture(Collections.emptyList());
 
     private Function<JobResourceRequirements, CompletableFuture<Acknowledge>>
             updateJobResourceRequirementsFunction =
@@ -424,6 +434,16 @@ public class TestingJobMasterGatewayBuilder {
         return this;
     }
 
+    public TestingJobMasterGatewayBuilder setGetPartitionWithMetricsFunction(
+            BiFunction<
+                            Duration,
+                            Set<ResultPartitionID>,
+                            CompletableFuture<Collection<PartitionWithMetrics>>>
+                    getPartitionWithMetricsFunction) {
+        this.getPartitionWithMetricsFunction = getPartitionWithMetricsFunction;
+        return this;
+    }
+
     public TestingJobMasterGatewayBuilder setUpdateJobResourceRequirementsFunction(
             Function<JobResourceRequirements, CompletableFuture<Acknowledge>>
                     updateJobResourceRequirementsFunction) {
@@ -464,6 +484,7 @@ public class TestingJobMasterGatewayBuilder {
                 notifyNotEnoughResourcesConsumer,
                 notifyNewBlockedNodesFunction,
                 requestJobResourceRequirementsSupplier,
-                updateJobResourceRequirementsFunction);
+                updateJobResourceRequirementsFunction,
+                getPartitionWithMetricsFunction);
     }
 }

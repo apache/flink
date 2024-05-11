@@ -22,7 +22,9 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 
+import java.time.Duration;
 import java.util.Collection;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -51,8 +53,13 @@ public class JobShuffleContextImpl implements JobShuffleContext {
     }
 
     @Override
-    public CompletableFuture<Collection<PartitionWithMetrics>>
-            getAllPartitionWithMetricsOnTaskManagers() {
-        return jobMasterGateway.getAllPartitionWithMetricsOnTaskManagers();
+    public CompletableFuture<Collection<PartitionWithMetrics>> getPartitionWithMetrics(
+            Duration timeout, Set<ResultPartitionID> expectedPartitions) {
+        return jobMasterGateway.getPartitionWithMetrics(timeout, expectedPartitions);
+    }
+
+    @Override
+    public void notifyPartitionRecoveryStarted() {
+        jobMasterGateway.startFetchAndRetainPartitionWithMetricsOnTaskManager();
     }
 }

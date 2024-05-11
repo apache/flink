@@ -20,10 +20,13 @@ package org.apache.flink.runtime.shuffle;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -112,14 +115,18 @@ public interface ShuffleMaster<T extends ShuffleDescriptor> extends AutoCloseabl
     }
 
     /**
-     * Get all partitions and their metrics, the metrics include sizes of sub-partitions in a result
-     * partition.
+     * Retrieves specified partitions and their metrics (identified by {@code expectedPartitions}),
+     * the metrics include sizes of sub-partitions in a result partition.
      *
      * @param jobId ID of the target job
-     * @return All partitions belong to the target job and their metrics
+     * @param timeout The timeout used for retrieve the specified partitions.
+     * @param expectedPartitions The set of identifiers for the result partitions whose metrics are
+     *     to be fetched.
+     * @return A future will contain a collection of the partitions with their metrics that could be
+     *     retrieved from the expected partitions within the specified timeout period.
      */
-    default CompletableFuture<Collection<PartitionWithMetrics>> getAllPartitionWithMetrics(
-            JobID jobId) {
+    default CompletableFuture<Collection<PartitionWithMetrics>> getPartitionWithMetrics(
+            JobID jobId, Duration timeout, Set<ResultPartitionID> expectedPartitions) {
         return CompletableFuture.completedFuture(Collections.emptyList());
     }
 
@@ -140,4 +147,11 @@ public interface ShuffleMaster<T extends ShuffleDescriptor> extends AutoCloseabl
 
     /** Restores the state of the shuffle master from the provided snapshots. */
     default void restoreState(List<ShuffleMasterSnapshot> snapshots) {}
+
+    /**
+     * Notifies that the recovery process of result partitions has started.
+     *
+     * @param jobId ID of the target job
+     */
+    default void notifyPartitionRecoveryStarted(JobID jobId) {}
 }

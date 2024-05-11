@@ -26,6 +26,7 @@ import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.ClosureCleaner;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
@@ -152,11 +153,13 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -1909,7 +1912,7 @@ class JobMasterTest {
     }
 
     @Test
-    void testGetAllPartitionWithMetrics() throws Exception {
+    void testGetPartitionWithMetrics() throws Exception {
         JobVertex jobVertex = new JobVertex("jobVertex");
         jobVertex.setInvokableClass(NoOpInvokable.class);
         jobVertex.setParallelism(1);
@@ -1929,55 +1932,209 @@ class JobMasterTest {
             final JobMasterGateway jobMasterGateway =
                     jobMaster.getSelfGateway(JobMasterGateway.class);
 
-            NettyShuffleDescriptor shuffleDescriptor =
-                    NettyShuffleDescriptorBuilder.newBuilder().buildLocal();
-            DefaultShuffleMetrics shuffleMetrics =
+            DefaultShuffleMetrics shuffleMetrics1 =
                     new DefaultShuffleMetrics(new ResultPartitionBytes(new long[] {1, 2, 3}));
-            Collection<PartitionWithMetrics> defaultPartitionWithMetrics =
+            NettyShuffleDescriptor descriptor1 =
+                    NettyShuffleDescriptorBuilder.newBuilder().buildLocal();
+            Collection<PartitionWithMetrics> defaultPartitionWithMetrics1 =
                     Collections.singletonList(
-                            new DefaultPartitionWithMetrics(shuffleDescriptor, shuffleMetrics));
-            final TestingTaskExecutorGateway taskExecutorGateway =
+                            new DefaultPartitionWithMetrics(descriptor1, shuffleMetrics1));
+
+            DefaultShuffleMetrics shuffleMetrics2 =
+                    new DefaultShuffleMetrics(new ResultPartitionBytes(new long[] {4, 5, 6}));
+            NettyShuffleDescriptor descriptor2 =
+                    NettyShuffleDescriptorBuilder.newBuilder().buildLocal();
+            Collection<PartitionWithMetrics> defaultPartitionWithMetrics2 =
+                    Collections.singletonList(
+                            new DefaultPartitionWithMetrics(descriptor2, shuffleMetrics2));
+
+            DefaultShuffleMetrics shuffleMetrics3 =
+                    new DefaultShuffleMetrics(new ResultPartitionBytes(new long[] {7, 8, 9}));
+            NettyShuffleDescriptor descriptor3 =
+                    NettyShuffleDescriptorBuilder.newBuilder().buildLocal();
+            Collection<PartitionWithMetrics> defaultPartitionWithMetrics3 =
+                    Collections.singletonList(
+                            new DefaultPartitionWithMetrics(descriptor3, shuffleMetrics3));
+
+            DefaultShuffleMetrics shuffleMetrics4 =
+                    new DefaultShuffleMetrics(new ResultPartitionBytes(new long[] {10, 11}));
+            NettyShuffleDescriptor descriptor4 =
+                    NettyShuffleDescriptorBuilder.newBuilder().buildLocal();
+            Collection<PartitionWithMetrics> defaultPartitionWithMetrics4 =
+                    Collections.singletonList(
+                            new DefaultPartitionWithMetrics(descriptor4, shuffleMetrics4));
+
+            // start fetch and retain partitions and then register tm1
+            final TestingTaskExecutorGateway taskExecutorGateway1 =
                     new TestingTaskExecutorGatewayBuilder()
                             .setRequestPartitionWithMetricsFunction(
                                     ignored ->
                                             CompletableFuture.completedFuture(
-                                                    defaultPartitionWithMetrics))
+                                                    defaultPartitionWithMetrics1))
+                            .setAddress("tm1")
                             .createTestingTaskExecutorGateway();
 
-            final LocalUnresolvedTaskManagerLocation taskManagerUnresolvedLocation =
-                    new LocalUnresolvedTaskManagerLocation();
-            final Collection<SlotOffer> slotOffers =
-                    registerSlotsAtJobMaster(
-                            1,
-                            jobMasterGateway,
-                            jobGraph.getJobID(),
-                            taskExecutorGateway,
-                            taskManagerUnresolvedLocation);
-            assertThat(slotOffers).hasSize(1);
+            registerSlotsAtJobMaster(
+                    1,
+                    jobMasterGateway,
+                    jobGraph.getJobID(),
+                    taskExecutorGateway1,
+                    new LocalUnresolvedTaskManagerLocation());
 
-            waitUntilAllExecutionsAreScheduledOrDeployed(jobMasterGateway);
+            jobMaster.startFetchAndRetainPartitionWithMetricsOnTaskManager();
 
-            PartitionWithMetrics metrics =
-                    jobMasterGateway
-                            .getAllPartitionWithMetricsOnTaskManagers()
-                            .get()
-                            .iterator()
-                            .next();
-            PartitionWithMetrics expectedMetrics = defaultPartitionWithMetrics.iterator().next();
+            verifyPartitionMetrics(
+                    jobMaster.getPartitionWithMetricsOnTaskManagers(),
+                    defaultPartitionWithMetrics1);
 
-            assertThat(metrics.getPartitionMetrics().getPartitionBytes().getSubpartitionBytes())
+            // register tm2
+            TestingTaskExecutorGateway taskExecutorGateway2 =
+                    new TestingTaskExecutorGatewayBuilder()
+                            .setRequestPartitionWithMetricsFunction(
+                                    ignored ->
+                                            CompletableFuture.completedFuture(
+                                                    defaultPartitionWithMetrics2))
+                            .setAddress("tm2")
+                            .createTestingTaskExecutorGateway();
+            registerSlotsAtJobMaster(
+                    1,
+                    jobMasterGateway,
+                    jobGraph.getJobID(),
+                    taskExecutorGateway2,
+                    new LocalUnresolvedTaskManagerLocation());
+
+            Collection<PartitionWithMetrics> expectedMetrics =
+                    new ArrayList<>(defaultPartitionWithMetrics1);
+            expectedMetrics.addAll(defaultPartitionWithMetrics2);
+            verifyPartitionMetrics(
+                    jobMaster.getPartitionWithMetricsOnTaskManagers(), expectedMetrics);
+
+            // register tm3 which received fetch request but not response on time.
+            CompletableFuture<Tuple2<JobID, Set<ResultPartitionID>>> releaseRequest =
+                    new CompletableFuture<>();
+            CompletableFuture<Collection<PartitionWithMetrics>> fetchPartitionsFuture =
+                    new CompletableFuture<>();
+            TestingTaskExecutorGateway taskExecutorGateway3 =
+                    new TestingTaskExecutorGatewayBuilder()
+                            .setRequestPartitionWithMetricsFunction(
+                                    ignored -> fetchPartitionsFuture)
+                            .setReleasePartitionsConsumer(
+                                    (id, partitions) ->
+                                            releaseRequest.complete(Tuple2.of(id, partitions)))
+                            .setAddress("tm3")
+                            .createTestingTaskExecutorGateway();
+
+            registerSlotsAtJobMaster(
+                    1,
+                    jobMasterGateway,
+                    jobGraph.getJobID(),
+                    taskExecutorGateway3,
+                    new LocalUnresolvedTaskManagerLocation());
+
+            // register tm4 which is not included in expected partitions
+            TestingTaskExecutorGateway taskExecutorGateway4 =
+                    new TestingTaskExecutorGatewayBuilder()
+                            .setRequestPartitionWithMetricsFunction(
+                                    ignored ->
+                                            CompletableFuture.completedFuture(
+                                                    defaultPartitionWithMetrics4))
+                            .setAddress("tm4")
+                            .createTestingTaskExecutorGateway();
+            registerSlotsAtJobMaster(
+                    1,
+                    jobMasterGateway,
+                    jobGraph.getJobID(),
+                    taskExecutorGateway4,
+                    new LocalUnresolvedTaskManagerLocation());
+
+            Duration timeout = Duration.ofSeconds(10);
+            Set<ResultPartitionID> expectedResultPartitions = new HashSet<>();
+            expectedResultPartitions.add(descriptor1.getResultPartitionID());
+            expectedResultPartitions.add(descriptor2.getResultPartitionID());
+            expectedResultPartitions.add(descriptor4.getResultPartitionID());
+            CompletableFuture<Collection<PartitionWithMetrics>> future =
+                    jobMasterGateway.getPartitionWithMetrics(timeout, expectedResultPartitions);
+
+            expectedMetrics = new ArrayList<>(defaultPartitionWithMetrics1);
+            expectedMetrics.addAll(defaultPartitionWithMetrics2);
+            expectedMetrics.addAll(defaultPartitionWithMetrics4);
+
+            assertThat(future).succeedsWithin(timeout);
+            verifyPartitionMetrics(
+                    future.get().stream()
+                            .collect(
+                                    Collectors.toMap(
+                                            metrics ->
+                                                    metrics.getPartition().getResultPartitionID(),
+                                            metrics -> metrics)),
+                    expectedMetrics);
+
+            // fetch partition after timeout
+            fetchPartitionsFuture.complete(defaultPartitionWithMetrics3);
+            assertThat(releaseRequest.get())
                     .isEqualTo(
-                            expectedMetrics
-                                    .getPartitionMetrics()
-                                    .getPartitionBytes()
-                                    .getSubpartitionBytes());
-            assertThat(metrics.getPartition().getResultPartitionID())
-                    .isEqualTo(expectedMetrics.getPartition().getResultPartitionID());
-            assertThat(metrics.getPartition().isUnknown())
-                    .isEqualTo(expectedMetrics.getPartition().isUnknown());
-            assertThat(metrics.getPartition().storesLocalResourcesOn())
-                    .isEqualTo(expectedMetrics.getPartition().storesLocalResourcesOn());
+                            Tuple2.of(
+                                    jobGraph.getJobID(),
+                                    Collections.singleton(descriptor3.getResultPartitionID())));
+
+            // after partitions fetching finished and then register tm5
+            CompletableFuture<Collection<PartitionWithMetrics>> requestFuture =
+                    new CompletableFuture<>();
+            TestingTaskExecutorGateway taskExecutorGateway5 =
+                    new TestingTaskExecutorGatewayBuilder()
+                            .setRequestPartitionWithMetricsFunction(
+                                    ignored -> {
+                                        requestFuture.complete(null);
+                                        return requestFuture;
+                                    })
+                            .setAddress("tm5")
+                            .createTestingTaskExecutorGateway();
+
+            registerSlotsAtJobMaster(
+                    1,
+                    jobMasterGateway,
+                    jobGraph.getJobID(),
+                    taskExecutorGateway5,
+                    new LocalUnresolvedTaskManagerLocation());
+
+            assertThatThrownBy(() -> requestFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS))
+                    .isInstanceOf(TimeoutException.class);
         }
+    }
+
+    private static void verifyPartitionMetrics(
+            Map<ResultPartitionID, PartitionWithMetrics> actualMap,
+            Collection<PartitionWithMetrics> expectedMetrics) {
+
+        Map<ResultPartitionID, PartitionWithMetrics> expectedMap =
+                expectedMetrics.stream()
+                        .collect(
+                                Collectors.toMap(
+                                        metrics -> metrics.getPartition().getResultPartitionID(),
+                                        metrics -> metrics));
+
+        assertThat(actualMap).hasSameSizeAs(expectedMap);
+
+        actualMap.forEach(
+                (k, v) -> {
+                    PartitionWithMetrics metrics = expectedMap.get(k);
+
+                    assertThat(metrics).isNotNull();
+                    assertThat(
+                                    metrics.getPartitionMetrics()
+                                            .getPartitionBytes()
+                                            .getSubpartitionBytes())
+                            .isEqualTo(
+                                    v.getPartitionMetrics()
+                                            .getPartitionBytes()
+                                            .getSubpartitionBytes());
+
+                    assertThat(metrics.getPartition().isUnknown())
+                            .isEqualTo(v.getPartition().isUnknown());
+
+                    assertThat(metrics.getPartition().storesLocalResourcesOn())
+                            .isEqualTo(v.getPartition().storesLocalResourcesOn());
+                });
     }
 
     @Test
