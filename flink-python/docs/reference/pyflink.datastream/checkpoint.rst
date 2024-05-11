@@ -82,6 +82,7 @@ The default limit of concurrently happening checkpoints: one.
     CheckpointConfig.set_checkpoint_storage_dir
     CheckpointConfig.get_checkpoint_storage
     ExternalizedCheckpointCleanup
+    ExternalizedCheckpointRetention
 
 
 CheckpointStorage
