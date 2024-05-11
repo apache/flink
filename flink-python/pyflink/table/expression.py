@@ -1273,6 +1273,18 @@ class Expression(Generic[T]):
         else:
             return _ternary_op("locate")(self, s, pos)
 
+    def url_decode(self) -> 'Expression[str]':
+        """
+        Decodes a string in 'application/x-www-form-urlencoded' format using a specific encoding scheme.
+        """
+        return _unary_op("urlDecode")(self)
+
+    def url_encode(self) -> 'Expression[str]':
+        """
+        Translates a string into 'application/x-www-form-urlencoded' format using a specific encoding scheme.
+        """
+        return _unary_op("urlEncode")(self)
+
     def parse_url(self, part_to_extract: Union[str, 'Expression[str]'],
                   key: Union[str, 'Expression[str]'] = None) -> 'Expression[str]':
         """

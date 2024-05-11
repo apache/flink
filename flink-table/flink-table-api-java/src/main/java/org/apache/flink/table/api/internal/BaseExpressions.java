@@ -193,6 +193,8 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRIM;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRUNCATE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRY_CAST;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UPPER;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.URL_DECODE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.URL_ENCODE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.VAR_POP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.VAR_SAMP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.WINDOW_END;
@@ -1184,6 +1186,22 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType locate(InType str, InType pos) {
         return toApiSpecificExpression(
                 unresolvedCall(LOCATE, toExpr(), objectToExpression(str), objectToExpression(pos)));
+    }
+
+    /**
+     * Decodes a string in 'application/x-www-form-urlencoded' format using a specific encoding
+     * scheme.
+     */
+    public OutType urlDecode() {
+        return toApiSpecificExpression(unresolvedCall(URL_DECODE, toExpr()));
+    }
+
+    /**
+     * Translates a string into 'application/x-www-form-urlencoded' format using a specific encoding
+     * scheme.
+     */
+    public OutType urlEncode() {
+        return toApiSpecificExpression(unresolvedCall(URL_ENCODE, toExpr()));
     }
 
     /**
