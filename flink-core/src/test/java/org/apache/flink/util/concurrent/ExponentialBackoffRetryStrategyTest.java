@@ -18,8 +18,6 @@
 
 package org.apache.flink.util.concurrent;
 
-import org.apache.flink.util.TestLogger;
-
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -28,10 +26,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link ExponentialBackoffRetryStrategy}. */
-public class ExponentialBackoffRetryStrategyTest extends TestLogger {
+class ExponentialBackoffRetryStrategyTest {
 
     @Test
-    public void testGettersNotCapped() {
+    void testGettersNotCapped() {
         RetryStrategy retryStrategy =
                 new ExponentialBackoffRetryStrategy(
                         10, Duration.ofMillis(5L), Duration.ofMillis(20L));
@@ -44,7 +42,7 @@ public class ExponentialBackoffRetryStrategyTest extends TestLogger {
     }
 
     @Test
-    public void testGettersHitCapped() {
+    void testGettersHitCapped() {
         RetryStrategy retryStrategy =
                 new ExponentialBackoffRetryStrategy(
                         5, Duration.ofMillis(15L), Duration.ofMillis(20L));
@@ -57,7 +55,7 @@ public class ExponentialBackoffRetryStrategyTest extends TestLogger {
     }
 
     @Test
-    public void testGettersAtCap() {
+    void testGettersAtCap() {
         RetryStrategy retryStrategy =
                 new ExponentialBackoffRetryStrategy(
                         5, Duration.ofMillis(20L), Duration.ofMillis(20L));
@@ -71,7 +69,7 @@ public class ExponentialBackoffRetryStrategyTest extends TestLogger {
 
     /** Tests that getting a next RetryStrategy below zero remaining retries fails. */
     @Test
-    public void testRetryFailure() {
+    void testRetryFailure() {
         assertThatThrownBy(
                         () ->
                                 new ExponentialBackoffRetryStrategy(

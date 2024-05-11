@@ -24,10 +24,8 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayInputStream;
@@ -59,7 +57,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests for the {@link FileUtils}. */
-@ExtendWith(TestLoggerExtension.class)
 public class FileUtilsTest {
 
     @TempDir private java.nio.file.Path temporaryFolder;
@@ -185,7 +182,7 @@ public class FileUtilsTest {
         }
 
         FileUtils.deleteDirectory(symbolicLink);
-        assertThat(fileInLinkedDirectory.exists()).isTrue();
+        assertThat(fileInLinkedDirectory).exists();
     }
 
     @Test
@@ -252,14 +249,14 @@ public class FileUtilsTest {
 
         final java.nio.file.Path rootPath = temporaryFolder.getRoot();
         final java.nio.file.Path relativePath = FileUtils.relativizePath(rootPath, absolutePath);
-        assertThat(relativePath.isAbsolute()).isFalse();
+        assertThat(relativePath).isRelative();
         assertThat(absolutePath).isEqualTo(rootPath.resolve(relativePath));
     }
 
     @Test
     void testRelativizeOfRelativePath() {
         final java.nio.file.Path path = Paths.get("foobar");
-        assertThat(path.isAbsolute()).isFalse();
+        assertThat(path).isRelative();
 
         final java.nio.file.Path relativePath =
                 FileUtils.relativizePath(temporaryFolder.getRoot(), path);
@@ -278,7 +275,7 @@ public class FileUtilsTest {
     @Test
     void testRelativePathToURL() throws MalformedURLException {
         final java.nio.file.Path relativePath = Paths.get("foobar");
-        assertThat(relativePath.isAbsolute()).isFalse();
+        assertThat(relativePath).isRelative();
 
         final URL relativeURL = FileUtils.toURL(relativePath);
         final java.nio.file.Path transformedPath = Paths.get(relativeURL.getPath());
@@ -371,11 +368,11 @@ public class FileUtilsTest {
         final File parent = TempDirUtils.newFolder(temporaryFolder);
 
         // Empty directory should have size 0
-        Assertions.assertEquals(0, FileUtils.getDirectoryFilesSize(parent.toPath()));
+        assertThat(FileUtils.getDirectoryFilesSize(parent.toPath())).isZero();
 
         // Expected size: (20*5^0 + 20*5^1 + 20*5^2 + 20*5^3) * 1 byte = 3120 bytes
         generateRandomDirs(parent, 20, 5, 3);
-        Assertions.assertEquals(3120, FileUtils.getDirectoryFilesSize(parent.toPath()));
+        assertThat(FileUtils.getDirectoryFilesSize(parent.toPath())).isEqualTo(3120);
     }
 
     // ------------------------------------------------------------------------
@@ -546,24 +543,21 @@ public class FileUtilsTest {
     }
 
     @Test
-    public void testExpandDirWithValidPaths() {
-        Assertions.assertDoesNotThrow(() -> writeZipAndFetchExpandedPath("t0", "/level1/level2/"));
-        Assertions.assertDoesNotThrow(
-                () -> writeZipAndFetchExpandedPath("t1", "/level1/level2/file.txt"));
-        Assertions.assertDoesNotThrow(
-                () -> writeZipAndFetchExpandedPath("t2", "/level1/../level1/file.txt"));
-        Assertions.assertDoesNotThrow(
-                () -> writeZipAndFetchExpandedPath("t3", "/level1/level2/level3/../"));
-        Assertions.assertThrows(
-                IOException.class,
-                () -> writeZipAndFetchExpandedPath("t2", "/level1/level2/../../pass"));
+    void testExpandDirWithValidPaths() throws IOException {
+        writeZipAndFetchExpandedPath("t0", "/level1/level2/");
+        writeZipAndFetchExpandedPath("t1", "/level1/level2/file.txt");
+        writeZipAndFetchExpandedPath("t2", "/level1/../level1/file.txt");
+        writeZipAndFetchExpandedPath("t3", "/level1/level2/level3/../");
+        assertThatThrownBy(() -> writeZipAndFetchExpandedPath("t2", "/level1/level2/../../pass"))
+                .isInstanceOf(IOException.class);
     }
 
     @Test
-    public void testExpandDirWithForbiddenEscape() {
-        Assertions.assertThrows(
-                IOException.class, () -> writeZipAndFetchExpandedPath("t1", "/../../"));
-        Assertions.assertThrows(IOException.class, () -> writeZipAndFetchExpandedPath("t2", "../"));
+    void testExpandDirWithForbiddenEscape() {
+        assertThatThrownBy(() -> writeZipAndFetchExpandedPath("t1", "/../../"))
+                .isInstanceOf(IOException.class);
+        assertThatThrownBy(() -> writeZipAndFetchExpandedPath("t2", "../"))
+                .isInstanceOf(IOException.class);
     }
 
     /**
