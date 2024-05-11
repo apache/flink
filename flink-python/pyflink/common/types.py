@@ -177,7 +177,10 @@ class Row(object):
         return row
 
     def __contains__(self, item):
-        return item in self._values
+        if hasattr(self, "_fields") and self._fields is not None:
+            return item in self._fields
+        else:
+            return item in self._values
 
     # let object acts like class
     def __call__(self, *args):
