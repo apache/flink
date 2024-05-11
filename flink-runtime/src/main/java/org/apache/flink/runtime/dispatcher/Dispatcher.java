@@ -1238,7 +1238,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                 iterator.remove();
             } else if (jobManagerRunnerOptional.get().isInitialized()) {
                 jobClientExpiredTimestamp.put(jobID, System.currentTimeMillis() + entry.getValue());
-                iterator.remove();
             }
         }
     }
