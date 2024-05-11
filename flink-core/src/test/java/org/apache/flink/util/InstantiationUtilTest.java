@@ -116,8 +116,9 @@ class InstantiationUtilTest {
      * Test that {@link InstantiationUtil} class per se does not have a nullary public constructor.
      */
     @Test
-    public void testHasNullaryConstructorFalse() {
-        assertFalse(InstantiationUtil.hasPublicNullaryConstructor(InstantiationUtil.class));
+    void testHasNullaryConstructorFalse() {
+        assertThat(InstantiationUtil.hasPublicNullaryConstructor(InstantiationUtil.class))
+                .isFalse();
     }
 
     @Test
