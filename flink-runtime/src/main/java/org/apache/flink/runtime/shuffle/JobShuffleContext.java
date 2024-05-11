@@ -21,7 +21,9 @@ package org.apache.flink.runtime.shuffle;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 
+import java.time.Duration;
 import java.util.Collection;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -41,8 +43,18 @@ public interface JobShuffleContext {
             Collection<ResultPartitionID> partitionIds);
 
     /**
-     * Retrieves a collection containing descriptions and metrics of existing result partitions from
-     * all TaskManagers.
+     * Retrieves specified partitions and their metrics (identified by {@code expectedPartitions}),
+     * the metrics include sizes of sub-partitions in a result partition.
+     *
+     * @param timeout The timeout used for retrieve the specified partitions.
+     * @param expectedPartitions The set of identifiers for the result partitions whose metrics are
+     *     to be fetched.
+     * @return A future will contain a collection of the partitions with their metrics that could be
+     *     retrieved from the expected partitions within the specified timeout period.
      */
-    CompletableFuture<Collection<PartitionWithMetrics>> getAllPartitionWithMetricsOnTaskManagers();
+    CompletableFuture<Collection<PartitionWithMetrics>> getPartitionWithMetrics(
+            Duration timeout, Set<ResultPartitionID> expectedPartitions);
+
+    /** Notifies that the recovery process of result partitions has started. */
+    void notifyPartitionRecoveryStarted();
 }
