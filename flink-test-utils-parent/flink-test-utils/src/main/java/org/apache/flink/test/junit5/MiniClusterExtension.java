@@ -312,10 +312,6 @@ public final class MiniClusterExtension
         return internalMiniClusterExtension.getMiniCluster().isRunning();
     }
 
-    public MiniCluster getMiniCluster() {
-        return internalMiniClusterExtension.getMiniCluster();
-    }
-
     private static class CloseableParameter<T extends AutoCloseable>
             implements ExtensionContext.Store.CloseableResource {
         private final T autoCloseable;
