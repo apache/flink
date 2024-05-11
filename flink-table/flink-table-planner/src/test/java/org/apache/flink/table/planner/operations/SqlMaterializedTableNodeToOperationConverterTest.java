@@ -24,7 +24,10 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableRefreshOperation;
 import org.apache.flink.table.operations.materializedtable.CreateMaterializedTableOperation;
+
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMap;
 
 import org.junit.jupiter.api.Test;
 
@@ -255,5 +258,32 @@ public class SqlMaterializedTableNodeToOperationConverterTest
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
                         "Materialized table freshness only support SECOND, MINUTE, HOUR, DAY as the time unit.");
+    }
+
+    @Test
+    public void testAlterMaterializedTableRefreshOperationWithPartitionSpec() {
+        final String sql =
+                "ALTER MATERIALIZED TABLE mtbl1 REFRESH PARTITION (ds1 = '1', ds2 = '2')";
+
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(AlterMaterializedTableRefreshOperation.class);
+
+        AlterMaterializedTableRefreshOperation op =
+                (AlterMaterializedTableRefreshOperation) operation;
+        assertThat(op.getTableIdentifier().toString()).isEqualTo("`builtin`.`default`.`mtbl1`");
+        assertThat(op.getPartitionSpec()).isEqualTo(ImmutableMap.of("ds1", "1", "ds2", "2"));
+    }
+
+    @Test
+    public void testAlterMaterializedTableRefreshOperationWithoutPartitionSpec() {
+        final String sql = "ALTER MATERIALIZED TABLE mtbl1 REFRESH";
+
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(AlterMaterializedTableRefreshOperation.class);
+
+        AlterMaterializedTableRefreshOperation op =
+                (AlterMaterializedTableRefreshOperation) operation;
+        assertThat(op.getTableIdentifier().toString()).isEqualTo("`builtin`.`default`.`mtbl1`");
+        assertThat(op.getPartitionSpec()).isEmpty();
     }
 }

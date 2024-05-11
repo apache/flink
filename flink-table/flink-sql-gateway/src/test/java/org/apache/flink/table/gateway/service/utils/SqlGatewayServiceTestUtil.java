@@ -20,6 +20,7 @@ package org.apache.flink.table.gateway.service.utils;
 
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.results.ResultSet;
@@ -29,6 +30,9 @@ import org.apache.flink.table.gateway.api.utils.MockedEndpointVersion;
 import org.apache.flink.table.gateway.service.SqlGatewayServiceITCase;
 import org.apache.flink.table.gateway.service.SqlGatewayServiceImpl;
 import org.apache.flink.table.gateway.service.SqlGatewayServiceStatementITCase;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /** Test util for {@link SqlGatewayServiceITCase} and {@link SqlGatewayServiceStatementITCase}. */
 public class SqlGatewayServiceTestUtil {
@@ -83,5 +87,20 @@ public class SqlGatewayServiceTestUtil {
                 .getSession(sessionHandle)
                 .getOperationManager()
                 .awaitOperationTermination(operationHandle);
+    }
+
+    public static List<RowData> fetchAllResults(
+            SqlGatewayService service,
+            SessionHandle sessionHandle,
+            OperationHandle operationHandle) {
+        Long token = 0L;
+        List<RowData> results = new ArrayList<>();
+        while (token != null) {
+            ResultSet result =
+                    service.fetchResults(sessionHandle, operationHandle, token, Integer.MAX_VALUE);
+            results.addAll(result.getData());
+            token = result.getNextToken();
+        }
+        return results;
     }
 }

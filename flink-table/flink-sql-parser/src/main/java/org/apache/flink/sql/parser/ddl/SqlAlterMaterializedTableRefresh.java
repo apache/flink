@@ -25,8 +25,6 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
 
-import javax.annotation.Nullable;
-
 import java.util.List;
 
 /**
@@ -38,7 +36,7 @@ public class SqlAlterMaterializedTableRefresh extends SqlAlterMaterializedTable 
     private final SqlNodeList partitionSpec;
 
     public SqlAlterMaterializedTableRefresh(
-            SqlParserPos pos, SqlIdentifier tableName, @Nullable SqlNodeList partitionSpec) {
+            SqlParserPos pos, SqlIdentifier tableName, SqlNodeList partitionSpec) {
         super(pos, tableName);
         this.partitionSpec = partitionSpec;
     }
@@ -52,10 +50,14 @@ public class SqlAlterMaterializedTableRefresh extends SqlAlterMaterializedTable 
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         super.unparse(writer, leftPrec, rightPrec);
         writer.keyword("REFRESH");
-        if (partitionSpec != null && partitionSpec.size() > 0) {
+        if (!partitionSpec.isEmpty()) {
             writer.keyword("PARTITION");
             partitionSpec.unparse(
                     writer, getOperator().getLeftPrec(), getOperator().getRightPrec());
         }
+    }
+
+    public SqlNodeList getPartitionSpec() {
+        return partitionSpec;
     }
 }

@@ -58,6 +58,7 @@ public class SqlNodeConverters {
         register(new SqlDescribeCatalogConverter());
         register(new SqlDescribeJobConverter());
         register(new SqlCreateMaterializedTableConverter());
+        register(new SqlAlterMaterializedTableRefreshConverter());
     }
 
     /**
