@@ -62,6 +62,7 @@ import static org.apache.flink.changelog.fs.FsStateChangelogOptions.CACHE_IDLE_T
 import static org.apache.flink.changelog.fs.FsStateChangelogOptions.PREEMPTIVE_PERSIST_THRESHOLD;
 import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTS_DIRECTORY;
 import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINT_STORAGE;
+import static org.apache.flink.configuration.CheckpointingOptions.FILE_MERGING_ENABLED;
 import static org.apache.flink.configuration.CoreOptions.DEFAULT_PARALLELISM;
 import static org.apache.flink.configuration.RestartStrategyOptions.RESTART_STRATEGY;
 import static org.apache.flink.configuration.StateBackendOptions.STATE_BACKEND;
@@ -187,6 +188,8 @@ public class ChangelogRecoveryCachingITCase extends TestLogger {
                 1); // prevent file is opened multiple times
         conf.set(BUFFER_DEBLOAT_ENABLED, false); // prevent randomization
         conf.set(RESTART_STRATEGY, "none"); // not expecting any failures
+        conf.set(
+                FILE_MERGING_ENABLED, false); // TODO: remove file merging setting after FLINK-32085
 
         return conf;
     }

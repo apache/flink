@@ -562,10 +562,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             return checkpointStorageAccess;
         }
         try {
-            CheckpointStorageWorkerView mergingCheckpointStorageAccess =
-                    checkpointStorageAccess.toFileMergingStorage(
-                            fileMergingSnapshotManager, environment);
-            return (CheckpointStorageAccess) mergingCheckpointStorageAccess;
+            CheckpointStorageAccess mergingCheckpointStorageAccess =
+                    (CheckpointStorageAccess)
+                            checkpointStorageAccess.toFileMergingStorage(
+                                    fileMergingSnapshotManager, environment);
+            mergingCheckpointStorageAccess.initializeBaseLocationsForCheckpoint();
+            return mergingCheckpointStorageAccess;
         } catch (IOException e) {
             LOG.warn(
                     "Initiating FsMergingCheckpointStorageAccess failed "

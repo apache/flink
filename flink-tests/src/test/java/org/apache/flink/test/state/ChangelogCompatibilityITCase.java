@@ -45,6 +45,7 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTS_DIRECTORY;
+import static org.apache.flink.configuration.CheckpointingOptions.FILE_MERGING_ENABLED;
 import static org.apache.flink.configuration.CheckpointingOptions.SAVEPOINT_DIRECTORY;
 import static org.apache.flink.runtime.jobgraph.SavepointRestoreSettings.forPath;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
@@ -135,6 +136,9 @@ public class ChangelogCompatibilityITCase {
     }
 
     private StreamExecutionEnvironment initEnvironment() {
+        Configuration conf = new Configuration();
+        conf.set(
+                FILE_MERGING_ENABLED, false); // TODO: remove file merging setting after FLINK-32085
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableChangelogStateBackend(testCase.startWithChangelog);
         if (testCase.restoreSource == RestoreSource.CHECKPOINT) {
