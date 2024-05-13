@@ -99,5 +99,8 @@ public enum StateRequestType {
      * Check the existence of any key-value mapping within current partition, {@link
      * MapState#asyncIsEmpty()}.
      */
-    MAP_IS_EMPTY
+    MAP_IS_EMPTY,
+
+    /** Continuously load elements for one iterator. */
+    ITERATOR_LOADING
 }
