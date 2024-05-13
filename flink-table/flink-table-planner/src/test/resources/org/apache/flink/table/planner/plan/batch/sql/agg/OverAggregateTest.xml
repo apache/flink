@@ -280,6 +280,50 @@ OverAggregate(partitionBy=[c], window#0=[COUNT(*) AS w0$o0 RANG BETWEEN UNBOUNDE
 ]]>
     </Resource>
   </TestCase>
+	<TestCase name="testDenseRankOnOrder">
+		<Resource name="sql">
+			<![CDATA[SELECT a, DENSE_RANK() OVER (PARTITION BY a ORDER BY proctime) FROM MyTableWithProctime]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], EXPR$1=[DENSE_RANK() OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTableWithProctime, source: [TestTableSource(a, b, c, proctime)]]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[a, w0$o0 AS $1])
++- OverAggregate(partitionBy=[a], orderBy=[proctime ASC], window#0=[DENSE_RANK(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, proctime, w0$o0])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[a ASC, proctime ASC])
+         +- Exchange(distribution=[hash[a]])
+            +- Calc(select=[a, proctime])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTableWithProctime, source: [TestTableSource(a, b, c, proctime)]]], fields=[a, b, c, proctime])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testRankOnOver">
+		<Resource name="sql">
+			<![CDATA[SELECT a, RANK() OVER (PARTITION BY a ORDER BY proctime) FROM MyTableWithProctime]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], EXPR$1=[RANK() OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTableWithProctime, source: [TestTableSource(a, b, c, proctime)]]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[a, w0$o0 AS $1])
++- OverAggregate(partitionBy=[a], orderBy=[proctime ASC], window#0=[RANK(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, proctime, w0$o0])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[a ASC, proctime ASC])
+         +- Exchange(distribution=[hash[a]])
+            +- Calc(select=[a, proctime])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTableWithProctime, source: [TestTableSource(a, b, c, proctime)]]], fields=[a, b, c, proctime])
+]]>
+		</Resource>
+	</TestCase>
   <TestCase name="testOverWindowWithoutPartitionBy">
     <Resource name="sql">
       <![CDATA[SELECT c, SUM(a) OVER (ORDER BY b) FROM MyTable]]>

@@ -31,6 +31,7 @@ class OverAggregateTest extends TableTestBase {
 
   private val util = batchTestUtil()
   util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+  util.addTableSource[(Int, Long, String, Long)]("MyTableWithProctime", 'a, 'b, 'c, 'proctime)
 
   @Test
   def testOverWindowWithoutPartitionByOrderBy(): Unit = {
@@ -45,6 +46,18 @@ class OverAggregateTest extends TableTestBase {
   @Test
   def testOverWindowWithoutPartitionBy(): Unit = {
     util.verifyExecPlan("SELECT c, SUM(a) OVER (ORDER BY b) FROM MyTable")
+  }
+
+  @Test
+  def testDenseRankOnOrder(): Unit = {
+    util.verifyExecPlan(
+      "SELECT a, DENSE_RANK() OVER (PARTITION BY a ORDER BY proctime) FROM MyTableWithProctime")
+  }
+
+  @Test
+  def testRankOnOver(): Unit = {
+    util.verifyExecPlan(
+      "SELECT a, RANK() OVER (PARTITION BY a ORDER BY proctime) FROM MyTableWithProctime")
   }
 
   @Test
