@@ -352,6 +352,22 @@ class AdaptiveBatchSchedulerTest {
     }
 
     @Test
+    void testDefaultSourceParallelismGreaterThanMaxParallelism() throws Exception {
+        final JobVertex source = createJobVertex("source", -1);
+
+        SchedulerBase scheduler =
+                createScheduler(
+                        new JobGraph(new JobID(), "test job", source),
+                        createDecider(1, 32, 1L, 128),
+                        4);
+
+        scheduler.startScheduling();
+
+        // check source's parallelism
+        assertThat(source.getParallelism()).isEqualTo(128);
+    }
+
+    @Test
     void testMergeDynamicParallelismFutures() {
         List<CompletableFuture<Integer>> sourceParallelismFutures = new ArrayList<>();
 
