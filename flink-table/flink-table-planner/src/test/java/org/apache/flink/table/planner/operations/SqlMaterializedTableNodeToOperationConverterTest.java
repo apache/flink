@@ -28,6 +28,7 @@ import org.apache.flink.table.operations.materializedtable.AlterMaterializedTabl
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableResumeOperation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableSuspendOperation;
 import org.apache.flink.table.operations.materializedtable.CreateMaterializedTableOperation;
+import org.apache.flink.table.operations.materializedtable.DropMaterializedTableOperation;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMap;
 
@@ -311,5 +312,25 @@ public class SqlMaterializedTableNodeToOperationConverterTest
                 .containsEntry("k1", "v1");
         assertThat(operation2.asSummaryString())
                 .isEqualTo("ALTER MATERIALIZED TABLE builtin.default.mtbl1 RESUME WITH (k1: [v1])");
+    }
+
+    @Test
+    void testDropMaterializedTable() {
+        final String sql = "DROP MATERIALIZED TABLE mtbl1";
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(DropMaterializedTableOperation.class);
+        assertThat(((DropMaterializedTableOperation) operation).isIfExists()).isFalse();
+        assertThat(operation.asSummaryString())
+                .isEqualTo(
+                        "DROP MATERIALIZED TABLE: (identifier: [`builtin`.`default`.`mtbl1`], IfExists: [false])");
+
+        final String sql2 = "DROP MATERIALIZED TABLE IF EXISTS mtbl1";
+        Operation operation2 = parse(sql2);
+        assertThat(operation2).isInstanceOf(DropMaterializedTableOperation.class);
+        assertThat(((DropMaterializedTableOperation) operation2).isIfExists()).isTrue();
+
+        assertThat(operation2.asSummaryString())
+                .isEqualTo(
+                        "DROP MATERIALIZED TABLE: (identifier: [`builtin`.`default`.`mtbl1`], IfExists: [true])");
     }
 }

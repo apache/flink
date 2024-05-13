@@ -33,9 +33,8 @@ import java.util.Map;
 public class DropMaterializedTableOperation extends DropTableOperation
         implements MaterializedTableOperation {
 
-    public DropMaterializedTableOperation(
-            ObjectIdentifier tableIdentifier, boolean ifExists, boolean isTemporary) {
-        super(tableIdentifier, ifExists, isTemporary);
+    public DropMaterializedTableOperation(ObjectIdentifier tableIdentifier, boolean ifExists) {
+        super(tableIdentifier, ifExists, false);
     }
 
     @Override
@@ -43,7 +42,6 @@ public class DropMaterializedTableOperation extends DropTableOperation
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("identifier", getTableIdentifier());
         params.put("IfExists", isIfExists());
-        params.put("isTemporary", isTemporary());
 
         return OperationUtils.formatWithChildren(
                 "DROP MATERIALIZED TABLE",
