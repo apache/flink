@@ -61,6 +61,7 @@ public class SqlNodeConverters {
         register(new SqlAlterMaterializedTableRefreshConverter());
         register(new SqlAlterMaterializedTableSuspendConverter());
         register(new SqlAlterMaterializedTableResumeConverter());
+        register(new SqlDropMaterializedTableConverter());
     }
 
     /**
