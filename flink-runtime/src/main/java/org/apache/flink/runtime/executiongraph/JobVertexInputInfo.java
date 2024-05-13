@@ -18,12 +18,16 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import java.io.Serializable;
 import java.util.List;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** This class describe how a job vertex consume an input(intermediate result). */
-public class JobVertexInputInfo {
+public class JobVertexInputInfo implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private final List<ExecutionVertexInputInfo> executionVertexInputInfos;
 
@@ -34,5 +38,17 @@ public class JobVertexInputInfo {
     /** The input information of subtasks of this job vertex. */
     public List<ExecutionVertexInputInfo> getExecutionVertexInputInfos() {
         return executionVertexInputInfos;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        JobVertexInputInfo that = (JobVertexInputInfo) o;
+        return Objects.equals(executionVertexInputInfos, that.executionVertexInputInfos);
     }
 }
