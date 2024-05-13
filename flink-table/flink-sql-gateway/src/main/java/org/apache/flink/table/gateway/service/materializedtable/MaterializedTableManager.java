@@ -20,6 +20,7 @@ package org.apache.flink.table.gateway.service.materializedtable;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
@@ -34,6 +35,7 @@ import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.service.operation.OperationExecutor;
 import org.apache.flink.table.gateway.service.result.ResultFetcher;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
+import org.apache.flink.table.operations.command.DescribeJobOperation;
 import org.apache.flink.table.operations.command.StopJobOperation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableChangeOperation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableRefreshOperation;
@@ -93,6 +95,9 @@ public class MaterializedTableManager {
         } else if (op instanceof AlterMaterializedTableResumeOperation) {
             return callAlterMaterializedTableResume(
                     operationExecutor, handle, (AlterMaterializedTableResumeOperation) op);
+        } else if (op instanceof DropMaterializedTableOperation) {
+            return callDropMaterializedTableOperation(
+                    operationExecutor, handle, (DropMaterializedTableOperation) op);
         }
 
         throw new SqlExecutionException(
@@ -146,8 +151,7 @@ public class MaterializedTableManager {
                     materializedTableIdentifier,
                     e);
             operationExecutor.callExecutableOperation(
-                    handle,
-                    new DropMaterializedTableOperation(materializedTableIdentifier, true, false));
+                    handle, new DropMaterializedTableOperation(materializedTableIdentifier, true));
             throw e;
         }
     }
@@ -170,7 +174,8 @@ public class MaterializedTableManager {
                         materializedTable.getSerializedRefreshHandler(),
                         operationExecutor.getSessionContext().getUserClassloader());
 
-        String savepointPath = stopJobWithSavepoint(operationExecutor, handle, refreshHandler);
+        String savepointPath =
+                stopJobWithSavepoint(operationExecutor, handle, refreshHandler.getJobId());
 
         ContinuousRefreshHandler updateRefreshHandler =
                 new ContinuousRefreshHandler(
@@ -183,9 +188,12 @@ public class MaterializedTableManager {
                         CatalogMaterializedTable.RefreshStatus.SUSPENDED,
                         materializedTable.getRefreshHandlerDescription().orElse(null),
                         serializeContinuousHandler(updateRefreshHandler));
+        List<TableChange> tableChanges = new ArrayList<>();
+        tableChanges.add(
+                TableChange.modifyRefreshStatus(CatalogMaterializedTable.RefreshStatus.ACTIVATED));
         AlterMaterializedTableChangeOperation alterMaterializedTableChangeOperation =
                 new AlterMaterializedTableChangeOperation(
-                        tableIdentifier, Collections.emptyList(), updatedMaterializedTable);
+                        tableIdentifier, tableChanges, updatedMaterializedTable);
 
         operationExecutor.callExecutableOperation(handle, alterMaterializedTableChangeOperation);
 
@@ -284,8 +292,7 @@ public class MaterializedTableManager {
             // drop materialized table while submit flink streaming job occur exception. Thus, weak
             // atomicity is guaranteed
             operationExecutor.callExecutableOperation(
-                    handle,
-                    new DropMaterializedTableOperation(materializedTableIdentifier, true, false));
+                    handle, new DropMaterializedTableOperation(materializedTableIdentifier, true));
             // log and throw exception
             LOG.error(
                     "Submit continuous refresh job for materialized table {} occur exception.",
@@ -414,10 +421,100 @@ public class MaterializedTableManager {
         return insertStatement.toString();
     }
 
-    private static String stopJobWithSavepoint(
-            OperationExecutor executor,
+    private static ResultFetcher callDropMaterializedTableOperation(
+            OperationExecutor operationExecutor,
+            OperationHandle handle,
+            DropMaterializedTableOperation dropMaterializedTableOperation) {
+        ObjectIdentifier tableIdentifier = dropMaterializedTableOperation.getTableIdentifier();
+        boolean tableExists = operationExecutor.tableExists(tableIdentifier);
+        if (!tableExists) {
+            if (dropMaterializedTableOperation.isIfExists()) {
+                LOG.info(
+                        "Materialized table {} does not exists, skip the drop operation.",
+                        tableIdentifier);
+                return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false);
+            } else {
+                throw new ValidationException(
+                        String.format(
+                                "Materialized table with identifier %s does not exist.",
+                                tableIdentifier));
+            }
+        }
+
+        CatalogMaterializedTable materializedTable =
+                getCatalogMaterializedTable(operationExecutor, tableIdentifier);
+
+        if (CatalogMaterializedTable.RefreshStatus.ACTIVATED
+                == materializedTable.getRefreshStatus()) {
+            ContinuousRefreshHandler refreshHandler =
+                    deserializeContinuousHandler(
+                            materializedTable.getSerializedRefreshHandler(),
+                            operationExecutor.getSessionContext().getUserClassloader());
+            // get job running status
+            JobStatus jobStatus = getJobStatus(operationExecutor, handle, refreshHandler);
+            if (!jobStatus.isTerminalState()) {
+                try {
+                    cancelJob(operationExecutor, handle, refreshHandler.getJobId());
+                } catch (Exception e) {
+                    jobStatus = getJobStatus(operationExecutor, handle, refreshHandler);
+                    if (!jobStatus.isTerminalState()) {
+                        throw new SqlExecutionException(
+                                String.format(
+                                        "Failed to drop the materialized table %s because the continuous refresh job %s could not be canceled."
+                                                + " The current status of the continuous refresh job is %s.",
+                                        tableIdentifier, refreshHandler.getJobId(), jobStatus),
+                                e);
+                    } else {
+                        LOG.warn(
+                                "An exception occurred while canceling the continuous refresh job {} for materialized table {},"
+                                        + " but since the job is in a terminal state, skip the cancel operation.",
+                                refreshHandler.getJobId(),
+                                tableIdentifier);
+                    }
+                }
+            } else {
+                LOG.info(
+                        "No need to cancel the continuous refresh job {} for materialized table {} as it is not currently running.",
+                        refreshHandler.getJobId(),
+                        tableIdentifier);
+            }
+        } else if (CatalogMaterializedTable.RefreshStatus.INITIALIZING
+                == materializedTable.getRefreshStatus()) {
+            throw new ValidationException(
+                    String.format(
+                            "Current refresh status of materialized table %s is initializing, skip the drop operation.",
+                            tableIdentifier.asSerializableString()));
+        }
+
+        operationExecutor.callExecutableOperation(handle, dropMaterializedTableOperation);
+
+        return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false);
+    }
+
+    private static JobStatus getJobStatus(
+            OperationExecutor operationExecutor,
             OperationHandle handle,
             ContinuousRefreshHandler refreshHandler) {
+        ResultFetcher resultFetcher =
+                operationExecutor.callDescribeJobOperation(
+                        operationExecutor.getTableEnvironment(),
+                        handle,
+                        new DescribeJobOperation(refreshHandler.getJobId()));
+        List<RowData> result = fetchAllResults(resultFetcher);
+        String jobStatus = result.get(0).getString(2).toString();
+        return JobStatus.valueOf(jobStatus);
+    }
+
+    private static void cancelJob(
+            OperationExecutor operationExecutor, OperationHandle handle, String jobId) {
+        operationExecutor.callStopJobOperation(
+                operationExecutor.getTableEnvironment(),
+                handle,
+                new StopJobOperation(jobId, false, false));
+    }
+
+    private static String stopJobWithSavepoint(
+            OperationExecutor executor, OperationHandle handle, String jobId) {
         // check savepoint dir is configured
         Optional<String> savepointDir =
                 executor.getSessionContext().getSessionConf().getOptional(SAVEPOINT_DIRECTORY);
@@ -429,7 +526,7 @@ public class MaterializedTableManager {
                 executor.callStopJobOperation(
                         executor.getTableEnvironment(),
                         handle,
-                        new StopJobOperation(refreshHandler.getJobId(), true, false));
+                        new StopJobOperation(jobId, true, false));
         List<RowData> results = fetchAllResults(resultFetcher);
         return results.get(0).getString(0).toString();
     }
