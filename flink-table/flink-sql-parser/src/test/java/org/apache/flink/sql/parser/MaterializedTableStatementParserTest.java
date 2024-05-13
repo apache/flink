@@ -384,6 +384,31 @@ public class MaterializedTableStatementParserTest {
                                 + "    ");
     }
 
+    @Test
+    void testDropMaterializedTable() {
+        final String sql = "DROP MATERIALIZED TABLE tbl1";
+        final String expected = "DROP MATERIALIZED TABLE `TBL1`";
+        sql(sql).ok(expected);
+
+        final String sql2 = "DROP MATERIALIZED TABLE IF EXISTS tbl1";
+        sql(sql2).ok("DROP MATERIALIZED TABLE IF EXISTS `TBL1`");
+
+        final String sql3 = "DROP MATERIALIZED TABLE tb1 ^IF^ EXISTS";
+        sql(sql3)
+                .fails(
+                        "Encountered \"IF\" at line 1, column 29.\n"
+                                + "Was expecting one of:\n"
+                                + "    <EOF> \n"
+                                + "    \".\" ...\n"
+                                + "    ");
+    }
+
+    @Test
+    void testDropTemporaryMaterializedTable() {
+        final String sql = "DROP TEMPORARY ^MATERIALIZED^ TABLE tbl1";
+        sql(sql).fails("DROP TEMPORARY MATERIALIZED TABLE is not supported.");
+    }
+
     public SqlParserFixture fixture() {
         return SqlParserFixture.DEFAULT.withConfig(
                 c -> c.withParserFactory(FlinkSqlParserImpl.FACTORY));
