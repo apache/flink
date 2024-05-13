@@ -25,62 +25,62 @@ under the License.
 -->
 
 
-# State Processor API
+# 状态处理器API
 
-Apache Flink's State Processor API provides powerful functionality to reading, writing, and modifying savepoints and checkpoints using Flink’s DataStream API under `BATCH` execution.
-Due to the [interoperability of DataStream and Table API]({{< ref "docs/dev/table/data_stream_api" >}}), you can even use relational Table API or SQL queries to analyze and process state data.
+Apache Flink的状态处理器API供了强大的功能，可在`批` 处理下使用Flink的DataStream API读取、写入和修改savepoint和checkpoint。
+由于 [DataStream和Table API的互操作性]({{< ref "docs/dev/table/data_stream_api" >}})，您甚至可以使用关系型Table API或SQL查询来分析和处理状态数据。
 
-For example, you can take a savepoint of a running stream processing application and analyze it with a DataStream batch program to verify that the application behaves correctly.
-Or you can read a batch of data from any store, preprocess it, and write the result to a savepoint that you use to bootstrap the state of a streaming application.
-It is also possible to fix inconsistent state entries.
-Finally, the State Processor API opens up many ways to evolve a stateful application that was previously blocked by parameter and design choices that could not be changed without losing all the state of the application after it was started.
-For example, you can now arbitrarily modify the data types of states, adjust the maximum parallelism of operators, split or merge operator state, re-assign operator UIDs, and so on.
+例如，您可以对正在运行的流处理应用程序建立savepoint，并使用DataStream批处理程序对其进行分析，以验证应用程序的正确性。
+或者，您可以从任何存储区读取一个批数据，对其进行预处理，并将结果写入一个savepoint，用于引导流处理的状态
+还可以修复不一致的状态条目。
+最后，状态处理器API为改进之前受到参数和设计选择限制的有状态应用程序创造了很多方法，此前这些限制在启动后不能更改，否则将丢失应用程序的所有状态。
+例如，现在可以任意修改状态的数据类型，调整操作符的最大并行度，拆分或合并操作符状态，重新分配操作符UID等等。
 
-To get started with the state processor api, include the following library in your application.
+要开始使用状态处理器API，请把以下库添加到您的应用程序中包含。
 
 {{< artifact flink-state-processor-api >}}
 
-## Mapping Application State to DataSets
+## 将应用程序状态映射到数据集
 
-The State Processor API maps the state of a streaming application to one or more data sets that can be processed separately.
-In order to be able to use the API, you need to understand how this mapping works.
+状态处理器API将流处理的状态映射到一个或多个可以分别处理的数据集。
+为了能够使用该API，您需要了解这种映射是如何工作的。
 
-But let us first have a look at what a stateful Flink job looks like.
-A Flink job is composed of operators; typically one or more source operators, a few operators for the actual processing, and one or more sink operators.
-Each operator runs in parallel in one or more tasks and can work with different types of state.
-An operator can have zero, one, or more *“operator states”* which are organized as lists that are scoped to the operator's tasks.
-If the operator is applied on a keyed stream, it can also have zero, one, or more *“keyed states”* which are scoped to a key that is extracted from each processed record.
-You can think of keyed state as a distributed key-value map.
+让我们先看看有状态的Flink作业是什么样子。
+一个Flink作业由运算符组成; 通常包括一个或多个源运算符，一些用于实际处理的运算符，以及一个或多个汇聚运算符。
+每个运算符以一个或多个任务的方式并行运行，并且可以使用不同类型的状态进行操作。
+一个运算符可以具有零个、一个或多个 *“运算符状态”* ，这些状态被组织为列表，其范围限定在运算符的任务中。
+如果该运算符应用于分区流，它还可以具有零个、一个或多个 *“分区状态”* ，这些状态的范围限定在从每个处理记录中提取的密钥中。
+您可以将分区状态视为分布式键值映射。
 
-The following figure shows the application “MyApp” which consists of three operators called “Src”, “Proc”, and “Snk”.
-Src has one operator state (os1), Proc has one operator state (os2) and two keyed states (ks1, ks2) and Snk is stateless.
+下图显示了名为“MyApp”的应用程序，其中包括三个运算符，分别称为“Src”、“Proc”和“Snk”。
+Src具有一个运算符状态（os1），Proc具有一个运算符状态（os2）和两个分区状态（ks1, ks2），而Snk没有状态。
 
 {{< img src="/fig/application-my-app-state-processor-api.png" width="600px" alt="Application: MyApp" >}}
 
-A savepoint or checkpoint of MyApp consists of the data of all states, organized in a way that the states of each task can be restored.
-When processing the data of a savepoint (or checkpoint) with a batch job, we need a mental model that maps the data of the individual tasks' states into data sets or tables.
-In fact, we can think of a savepoint as a database. Every operator (identified by its UID) represents a namespace.
-Each operator state of an operator is mapped to a dedicated table in the namespace with a single column that holds the state's data of all tasks.
-All keyed states of an operator are mapped to a single table consisting of a column for the key, and one column for each keyed state.
-The following figure shows how a savepoint of MyApp is mapped to a database.
+MyApp的savepoint或checkpoint包含所有状态的数据，用一种每个任务的状态都可以被恢复的方式搭建起来。
+在使用批处理作业处理savepoint（或checkpoint）的数据时，我们需要一种将各个任务状态的数据映射为数据集或表的思维模型。
+事实上，我们可以将savepoint视为数据库。每个运算符（通过其UID标识）表示一个命名空间。
+每个运算符的运算符状态映射到命名空间中的一个专用表，该表具有一个列，其中包含所有任务的状态数据。
+每个运算符的分区状态都映射到一个单独的表，其中包括一个键列和每个分区状态的一个列。
+下图显示了MyApp的savepoint如何映射到数据库。
 
 {{< img src="/fig/database-my-app-state-processor-api.png" width="600px" alt="Database: MyApp" >}}
 
-The figure shows how the values of Src's operator state are mapped to a table with one column and five rows, one row for each of the list entries across all parallel tasks of Src.
-Operator state os2 of the operator “Proc” is similarly mapped to an individual table.
-The keyed states ks1 and ks2 are combined to a single table with three columns, one for the key, one for ks1 and one for ks2.
-The keyed table holds one row for each distinct key of both keyed states.
-Since the operator “Snk” does not have any state, its namespace is empty.
+该图显示了如何将Src的运算符状态值映射到具有一列和五行的表中，每行对应Src所有并行任务中每个列表条目。
+同样，Proc的运算符状态os2被映射到一个单独的表中。
+分区状态ks1和ks2被合并到一个具有三列的单个表中，分别对应键、ks1和ks2。
+分区表中包含了每个不同键的分区状态。
+由于运算符“Snk”没有任何状态，因此其命名空间为空。
 
-## Identifying operators
+## 识别运算符
 
-The State Processor API allows you to identify operators using [UIDs]({{< ref "docs/concepts/glossary" >}}#UID) or [UID hashes]({{< ref "docs/concepts/glossary" >}}#UID-hashes) via `OperatorIdentifier#forUid/forUidHash`.
-Hashes should only be used when the use of `UIDs` is not possible, for example when the application that created the [savepoint]({{< ref "docs/ops/state/savepoints" >}}) did not specify them or when the `UID` is unknown.
+状态处理器API 可以让您用 [UIDs]({{< ref "docs/concepts/glossary" >}}#UID) 或 [UID 哈希]({{< ref "docs/concepts/glossary" >}}#UID-hashes) 基于 `OperatorIdentifier#forUid/forUidHash`来识别运算符。
+哈希只有在 `UIDs` 不可用用时才能使用, 例如，当创建 [savepoint]({{< ref "docs/ops/state/savepoints" >}}) 的应用程序未不明确或 `UID`未知。
 
-## Reading State
+## 读取状态
 
-Reading state begins by specifying the path to a valid savepoint or checkpoint along with the `StateBackend` that should be used to restore the data.
-The compatibility guarantees for restoring state are identical to those when restoring a `DataStream` application.
+读取状态的第一步是指定一个有效savepoint或checkpoint的路径以及用来恢复数据的`StateBackend` 。
+恢复状态的兼容性保证与恢复 `DataStream` 应用程序保持一致。
 
 ```java
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -88,16 +88,16 @@ SavepointReader savepoint = SavepointReader.read(env, "hdfs://path/", new HashMa
 ```
 
 
-### Operator State
+### 运算符状态
 
-[Operator state]({{< ref "docs/dev/datastream/fault-tolerance/state" >}}#operator-state) is any non-keyed state in Flink.
-This includes, but is not limited to, any use of `CheckpointedFunction` or `BroadcastState` within an application.
-When reading operator state, users specify the operator uid, the state name, and the type information.
+[运算符状态]({{< ref "docs/dev/datastream/fault-tolerance/state" >}}#operator-state) 是Flink中的所有非分区状态.
+这包括但不限于应用程序中对 `CheckpointedFunction` 或 `BroadcastState` 的任何使用。
+当读取运算符状态时，用户需要指定运算符UID、状态名称和类型信息。
 
-#### Operator List State
+#### 运算符列表状态
 
-Operator state stored in a `CheckpointedFunction` using `getListState` can be read using `ExistingSavepoint#readListState`.
-The state name and type information should match those used to define the `ListStateDescriptor` that declared this state in the DataStream application.
+用`getListState` 存储在`CheckpointedFunction` 的运算符状态可以用 `ExistingSavepoint#readListState`来读取。
+该状态名称和类型信息应与在DataStream应用程序中宣布此状态的 `ListStateDescriptor` 中使用的名称和类型信息相匹配。
 
 ```java
 DataStream<Integer> listState  = savepoint.readListState<>(
@@ -106,11 +106,11 @@ DataStream<Integer> listState  = savepoint.readListState<>(
     Types.INT);
 ```
 
-#### Operator Union List State
+#### 运算符联合列表状态
 
-Operator state stored in a `CheckpointedFunction` using `getUnionListState` can be read using `ExistingSavepoint#readUnionState`.
-The state name and type information should match those used to define the `ListStateDescriptor` that declared this state in the DataStream application.
-The framework will return a _single_ copy of the state, equivalent to restoring a DataStream with parallelism 1.
+用 `getUnionListState` 存储在 `CheckpointedFunction` 的运算符状态可以用 `ExistingSavepoint#readUnionState`来读取。
+该状态名称和类型信息应与在DataStream应用程序中宣布此状态的 `ListStateDescriptor` 中使用的名称和类型信息相匹配。
+该框架将返回状态的 _单_ 副本 ，相当于还原具有并行度为 1 的 DataStream。
 
 ```java
 DataStream<Integer> listState  = savepoint.readUnionState<>(
@@ -119,11 +119,11 @@ DataStream<Integer> listState  = savepoint.readUnionState<>(
     Types.INT);
 ```
 
-#### Broadcast State
+#### 广播状态
 
-[BroadcastState]({{< ref "docs/dev/datastream/fault-tolerance/broadcast_state" >}}) can be read using `ExistingSavepoint#readBroadcastState`.
-The state name and type information should match those used to define the `MapStateDescriptor` that declared this state in the DataStream application.
-The framework will return a _single_ copy of the state, equivalent to restoring a DataStream with parallelism 1.
+[广播状态]({{< ref "docs/dev/datastream/fault-tolerance/broadcast_state" >}}) 可以用 `ExistingSavepoint#readBroadcastState` 来读取.
+该状态名称和类型信息应与在DataStream应用程序中宣布此状态的 `MapStateDescriptor` 中使用的名称和类型信息相匹配。
+该框架将返回状态的 _单_ 副本 ，相当于还原具有并行度为 1 的 DataStream。
 
 ```java
 DataStream<Tuple2<Integer, Integer>> broadcastState = savepoint.readBroadcastState<>(
@@ -133,9 +133,9 @@ DataStream<Tuple2<Integer, Integer>> broadcastState = savepoint.readBroadcastSta
     Types.INT);
 ```
 
-#### Using Custom Serializers
+#### 使用自定义序列化器
 
-Each of the operator state readers support using custom `TypeSerializers` if one was used to define the `StateDescriptor` that wrote out the state.
+如果一个运算符状态读取器在定义写出状态的`StateDescriptor` 时使用了自定义 `TypeSerializers` 那么这个运算符状态读取器一定支持使用自定义 `TypeSerializers` 。
 
 ```java
 DataStream<Integer> listState = savepoint.readListState<>(
@@ -145,13 +145,13 @@ DataStream<Integer> listState = savepoint.readListState<>(
     new MyCustomIntSerializer());
 ```
 
-### Keyed State
+### 分区状态
 
-[Keyed state]({{< ref "docs/dev/datastream/fault-tolerance/state" >}}#keyed-state), or partitioned state, is any state that is partitioned relative to a key.
-When reading a keyed state, users specify the operator id and a `KeyedStateReaderFunction<KeyType, OutputType>`.
+[分区状态]({{< ref "docs/dev/datastream/fault-tolerance/state" >}}#keyed-state), 是所有相对于键进行分区的状态。
+在读取分区状态时，用户需要指定运算符ID和 `KeyedStateReaderFunction<KeyType, OutputType>`。
 
-The `KeyedStateReaderFunction` allows users to read arbitrary columns and complex state types such as ListState, MapState, and AggregatingState.
-This means if an operator contains a stateful process function such as:
+`KeyedStateReaderFunction` 让用户可以读取任意列和复杂的状态类型，例如ListState、MapState和AggregatingState。
+这意味着，如果运算符包含一个具有状态的处理函数，例如：
 
 ```java
 public class StatefulFunctionWithTime extends KeyedProcessFunction<Integer, Integer, Void> {
@@ -177,8 +177,7 @@ public class StatefulFunctionWithTime extends KeyedProcessFunction<Integer, Inte
 }
 ```
 
-Then it can read by defining an output type and corresponding `KeyedStateReaderFunction`.
-
+那么就可以通过定义输出类型和相应的`KeyedStateReaderFunction`来进行读取。
 ```java
 DataStream<KeyedState> keyedState = savepoint.readKeyedState(OperatorIdentifier.forUid("my-uid"), new ReaderFunction());
 
@@ -223,19 +222,18 @@ public class ReaderFunction extends KeyedStateReaderFunction<Integer, KeyedState
 }
 ```
 
-Along with reading registered state values, each key has access to a `Context` with metadata such as registered event time and processing time timers.
+除了读取已注册的状态值外， 每个键还可以访问一个包含元数据的 `内容` ，例如已注册的事件时间和处理时间定时器。
 
-**Note:** When using a `KeyedStateReaderFunction`, all state descriptors must be registered eagerly inside of open. Any attempt to call a `RuntimeContext#get*State` will result in a `RuntimeException`.
+**注意:** 在使用`KeyedStateReaderFunction`时, 所有状态描述符都必须在open方法内部及早注册。 任何调用`RuntimeContext#get*State` 的尝试都会导致`运行时异常`.
 
-### Window State
+### 窗口状态
 
-The state processor api supports reading state from a [window operator]({{< ref "docs/dev/datastream/operators/windows" >}}).
-When reading a window state, users specify the operator id, window assigner, and aggregation type.
+状态处理器API支持从 [窗口运算符]({{< ref "docs/dev/datastream/operators/windows" >}}) 中读取状态。
+在读取窗口状态时，用户需要指定运算符ID、窗口分配器和聚合类型。
 
-Additionally, a `WindowReaderFunction` can be specified to enrich each read with additional information similar
-to a `WindowFunction` or `ProcessWindowFunction`.
+此外，可以指定 `WindowReaderFunction` 来为每次读取提供类似于 `WindowFunction` 或 `ProcessWindowFunction` 的附加信息。
 
-Suppose a DataStream application that counts the number of clicks per user per minute.
+就像有一个DataStream应用程序，用于计算每分钟每个用户的点击次数。
 
 ```java
 class Click {
@@ -278,7 +276,7 @@ clicks
 
 ```
 
-This state can be read using the code below.
+这一状态可以用以下代码读取。
 
 ```java
 
@@ -321,22 +319,22 @@ savepoint
 
 ```
 
-Additionally, trigger state - from `CountTrigger`s or custom triggers - can be read using the method
-`Context#triggerState` inside the `WindowReaderFunction`.
+此外， 来自`CountTrigger` 的触发器状态或自定义的触发器可以用
+`WindowReaderFunction` 内的 `Context#triggerState` 方法来读取。
 
-## Writing New Savepoints
+## 写入新的Savepoints
 
-`Savepoint`'s may also be written, which allows such use cases as bootstrapping state based on historical data.
-Each savepoint is made up of one or more `StateBootstrapTransformation`'s (explained below), each of which defines the state for an individual operator.
+`Savepoint`' 也可以被写入，这样可以实现根据历史数据引导状态的用例。
+每个savepoint由一个或多个 `StateBootstrapTransformation` 组成（下文有解释），其中每个StateBootstrapTransformation都定义了单个运算符的状态。
 
 {{< hint info >}}
-When using the `SavepointWriter`, your application must be executed under [BATCH]({{< ref "docs/dev/datastream/execution_mode" >}}) execution.
+使用 `SavepointWriter` 时, 您的应用程序必须在 [批]({{< ref "docs/dev/datastream/execution_mode" >}}) 处理执行模式下运行。
 {{< /hint >}}
 
 {{< hint info >}}
-**Note** The state processor api does not currently provide a Scala API. As a result
-it will always auto-derive serializers using the Java type stack. To bootstrap
-a savepoint for the Scala DataStream API please manually pass in all type information.
+**注意** 状态处理器API目前不提供Scala API。因此，
+它将始终使用Java类型堆栈自动推导序列化器。要为Scala DataStream API引导
+一个savepoint，请手动传入所有类型信息。
 {{< /hint >}}
 
 ```java
@@ -349,11 +347,11 @@ SavepointWriter
     .write(savepointPath);
 ```
 
-The [UIDs]({{< ref "docs/ops/state/savepoints" >}}#assigning-operator-ids) associated with each operator must match one to one with the UIDs assigned to the operators in your `DataStream` application; these are how Flink knows what state maps to which operator.
+与每个运算符相关联的[UID]({{< ref "docs/ops/state/savepoints" >}}#assigning-operator-ids) 必须一对一地匹配您 `DataStream` 应用程序中分配给运算符的UID; 这些UID是Flink判断哪个状态映射到哪个运算符的依据。
 
-### Operator State
+### 运算符状态
 
-Simple operator state, using `CheckpointedFunction`, can be created using the `StateBootstrapFunction`.
+基于 `CheckpointedFunction` 的简单运算符状态, 可以用 `StateBootstrapFunction` 创建.
 
 ```java
 public class SimpleBootstrapFunction extends StateBootstrapFunction<Integer> {
@@ -383,9 +381,9 @@ StateBootstrapTransformation transformation = OperatorTransformation
     .transform(new SimpleBootstrapFunction());
 ```
 
-### Broadcast State
+### 广播状态
 
-[BroadcastState]({{< ref "docs/dev/datastream/fault-tolerance/broadcast_state" >}}) can be written using a `BroadcastStateBootstrapFunction`. Similar to broadcast state in the `DataStream` API, the full state must fit in memory.
+[广播状态]({{< ref "docs/dev/datastream/fault-tolerance/broadcast_state" >}}) 可以用 `BroadcastStateBootstrapFunction` 来写. 和 `DataStream` API的广播状态类似, 完整的状态必须和内存适配。
 
 ```java
 public class CurrencyRate {
@@ -413,9 +411,9 @@ StateBootstrapTransformation<CurrencyRate> broadcastTransformation = OperatorTra
     .transform(new CurrencyBootstrapFunction());
 ```
 
-### Keyed State
+### 分区状态
 
-Keyed state for `ProcessFunction`'s and other `RichFunction` types can be written using a `KeyedStateBootstrapFunction`.
+使用 `KeyedStateBootstrapFunction` 可以把分区状态写入 `ProcessFunction`'和其他 `RichFunction` 中
 
 ```java
 public class Account {
@@ -451,17 +449,17 @@ StateBootstrapTransformation<Account> transformation = OperatorTransformation
     .transform(new AccountBootstrapper());
 ```
 
-The `KeyedStateBootstrapFunction` supports setting event time and processing time timers.
-The timers will not fire inside the bootstrap function and only become active once restored within a `DataStream` application.
-If a processing time timer is set but the state is not restored until after that time has passed, the timer will fire immediately upon start.
+`KeyedStateBootstrapFunction` 支持设置事件时间和处理时间定时器。
+这些定时器不会在引导函数内触发，只有在 `DataStream` 应用程序内恢复后才会激活。
+如果设置了处理时间定时器，但在定时器时间到达之后才恢复状态，定时器会在应用程序启动时立即触发。
 
-<span class="label label-danger">Attention</span> If your bootstrap function creates timers, the state can only be restored using one of the [process]({{< ref "docs/dev/datastream/operators/process_function" >}}) type functions.
+<span class="label label-danger">Attention</span> 如果您的引导函数创建了定时器，那么状态只能使用其中一个[process]({{< ref "docs/dev/datastream/operators/process_function" >}}) 类型函数进行恢复。
 
-### Window State
+### 窗口状态
 
-The state processor api supports writing state for the [window operator]({{< ref "docs/dev/datastream/operators/windows" >}}).
-When writing window state, users specify the operator id, window assigner, evictor, optional trigger, and aggregation type.
-It is important the configurations on the bootstrap transformation match the configurations on the DataStream window.
+状态处理器API支持为 [窗口运算符]({{< ref "docs/dev/datastream/operators/windows" >}})编写状态。
+在编写窗口状态时，用户需要指定运算符ID、窗口分配器、清除器、可选触发器和聚合类型。
+在引导转换中的配置与DataStream窗口中的配置匹配非常重要。
 
 ```java
 public class Account {
@@ -483,9 +481,9 @@ StateBootstrapTransformation<Account> transformation = OperatorTransformation
     .reduce((left, right) -> left + right);
 ```
 
-## Modifying Savepoints
+## 修改 Savepoints
 
-Besides creating a savepoint from scratch, you can base one off an existing savepoint such as when bootstrapping a single new operator for an existing job.
+除了从头开始创建savepoint外，您还可以基于现有的savepoint创建一个，比如在为现有作业引导单个新运算符时。
 
 ```java
 SavepointWriter
@@ -494,11 +492,11 @@ SavepointWriter
     .write(newPath);
 ```
 
-### Changing UID (hashes)
+### 修改 UID (哈希)
 
-`SavepointWriter#changeOperatorIdenfifier` can be used to modify the [UIDs]({{< ref "docs/concepts/glossary" >}}#uid) or [UID hash]({{< ref "docs/concepts/glossary" >}}#uid-hash) of an operator.
+`SavepointWriter#changeOperatorIdenfifier` 可以被用于修改一个运算符的  [UIDs]({{< ref "docs/concepts/glossary" >}}#uid) 或 [UID hash]({{< ref "docs/concepts/glossary" >}}#uid-hash)。
 
-If a `UID` was not explicitly set (and was thus auto-generated and is effectively unknown), you can assign a `UID` provided that you know the `UID hash` (e.g., by parsing the logs):
+如果一个 `UID` 没有被明确定义 (也就是自动生成，实际上未知), 你可以分配一个你知道`UID hash` 的 `UID`  (例如，通过解析日志):
 ```java
 savepointWriter
     .changeOperatorIdentifier(
@@ -507,11 +505,11 @@ savepointWriter
     ...
 ```
 
-You can also replace one `UID` with another:
+你也可以用另外的 `UID` 替代原先的:
 ```java
 savepointWriter
-    .changeOperatorIdentifier(
+        .changeOperatorIdentifier(
         OperatorIdentifier.forUid("old-uid"),
         OperatorIdentifier.forUid("new-uid"))
-    ...
+        ...
 ```
