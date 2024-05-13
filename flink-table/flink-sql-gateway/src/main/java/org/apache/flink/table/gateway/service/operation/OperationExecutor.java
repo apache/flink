@@ -281,6 +281,15 @@ public class OperationExecutor {
         }
     }
 
+    public boolean tableExists(ObjectIdentifier tableIdentifier) {
+        return sessionContext
+                .getSessionState()
+                .catalogManager
+                .getCatalog(tableIdentifier.getCatalogName())
+                .map(catalog -> catalog.tableExists(tableIdentifier.toObjectPath()))
+                .orElse(false);
+    }
+
     public ResolvedCatalogBaseTable<?> getTable(ObjectIdentifier tableIdentifier) {
         return getTableEnvironment()
                 .getCatalogManager()

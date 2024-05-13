@@ -1268,7 +1268,9 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
             ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists, boolean isDropTable) {
         Predicate<CatalogBaseTable> filter =
                 isDropTable
-                        ? table -> table instanceof CatalogTable
+                        ? table ->
+                                table instanceof CatalogTable
+                                        || table instanceof CatalogMaterializedTable
                         : table -> table instanceof CatalogView;
         // Same name temporary table or view exists.
         if (filter.test(temporaryTables.get(objectIdentifier))) {

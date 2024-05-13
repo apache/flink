@@ -39,16 +39,20 @@ import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
+import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.MockedEndpointVersion;
+import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.service.utils.IgnoreExceptionHandler;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
@@ -74,10 +78,12 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -87,6 +93,7 @@ import static org.apache.flink.table.catalog.CommonCatalogOptions.TABLE_CATALOG_
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.awaitOperationTermination;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.fetchAllResults;
 import static org.apache.flink.test.util.TestUtils.waitUntilAllTasksAreRunning;
+import static org.apache.flink.test.util.TestUtils.waitUntilJobCanceled;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -134,6 +141,8 @@ public class MaterializedTableStatementITCase {
     private String fileSystemCatalogPath;
     private String fileSystemCatalogName;
 
+    private SessionHandle sessionHandle;
+
     @BeforeAll
     static void setUp(@TempDir Path temporaryFolder) throws Exception {
         service = (SqlGatewayServiceImpl) SQL_GATEWAY_SERVICE_EXTENSION.getService();
@@ -167,17 +176,33 @@ public class MaterializedTableStatementITCase {
 
         fileSystemCatalogPath = fileCatalogPath.toString();
         fileSystemCatalogName = TEST_CATALOG_PREFIX + randomStr;
+        // initialize session handle, create test-filesystem catalog and register it to catalog
+        // store
+        sessionHandle = initializeSession();
     }
 
     @AfterEach
-    void after(@InjectClusterClient RestClusterClient<?> restClusterClient) throws Exception {
-        // cancel all running jobs for releasing mini cluster resources
-        for (JobStatusMessage j : restClusterClient.listJobs().get()) {
-            // cancel all continuous refresh jobs
-            if (j.getJobName().endsWith("continuous_refresh_job")
-                    && (j.getJobState() == JobStatus.RUNNING
-                            || j.getJobState() == JobStatus.CREATED)) {
-                restClusterClient.cancel(j.getJobId()).get();
+    void after() throws Exception {
+        Set<TableInfo> tableInfos =
+                service.listTables(
+                        sessionHandle,
+                        fileSystemCatalogName,
+                        TEST_DEFAULT_DATABASE,
+                        Collections.singleton(CatalogBaseTable.TableKind.TABLE));
+
+        // drop all materialized tables
+        for (TableInfo tableInfo : tableInfos) {
+            ResolvedCatalogBaseTable<?> resolvedTable =
+                    service.getTable(sessionHandle, tableInfo.getIdentifier());
+            if (CatalogBaseTable.TableKind.MATERIALIZED_TABLE == resolvedTable.getTableKind()) {
+                String dropTableDDL =
+                        String.format(
+                                "DROP MATERIALIZED TABLE %s",
+                                tableInfo.getIdentifier().asSerializableString());
+                OperationHandle dropTableHandle =
+                        service.executeStatement(
+                                sessionHandle, dropTableDDL, -1, new Configuration());
+                awaitOperationTermination(service, sessionHandle, dropTableHandle);
             }
         }
     }
@@ -185,10 +210,6 @@ public class MaterializedTableStatementITCase {
     @Test
     void testCreateMaterializedTableInContinuousMode(
             @InjectClusterClient RestClusterClient<?> restClusterClient) throws Exception {
-        // initialize session handle, create test-filesystem catalog and register it to catalog
-        // store
-        SessionHandle sessionHandle = initializeSession();
-
         String materializedTableDDL =
                 "CREATE MATERIALIZED TABLE users_shops"
                         + " PARTITIONED BY (ds)\n"
@@ -267,10 +288,6 @@ public class MaterializedTableStatementITCase {
 
     @Test
     void testCreateMaterializedTableInFullMode() {
-        // initialize session handle, create test-filesystem catalog and register it to catalog
-        // store
-        SessionHandle sessionHandle = initializeSession();
-
         String materializedTableDDL =
                 "CREATE MATERIALIZED TABLE users_shops"
                         + " PARTITIONED BY (ds)\n"
@@ -303,13 +320,61 @@ public class MaterializedTableStatementITCase {
     }
 
     @Test
+    void testCreateMaterializedTableFailed() throws Exception {
+        // create a materialized table with invalid SQL
+        String materializedTableDDL =
+                "CREATE MATERIALIZED TABLE users_shops"
+                        + " PARTITIONED BY (ds)\n"
+                        + " WITH(\n"
+                        + "   'format' = 'json'\n"
+                        + " )\n"
+                        + " FRESHNESS = INTERVAL '30' SECOND\n"
+                        + " AS SELECT \n"
+                        + "  user_id,\n"
+                        + "  shop_id,\n"
+                        + "  ds,\n"
+                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum,\n"
+                        + "  SUM (1) AS pv\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds)";
+        OperationHandle materializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, materializedTableDDL, -1, new Configuration());
+
+        assertThatThrownBy(
+                        () ->
+                                awaitOperationTermination(
+                                        service, sessionHandle, materializedTableHandle))
+                .cause()
+                .hasMessageContaining(
+                        String.format(
+                                "Submit continuous refresh job for materialized table %s occur exception.",
+                                ObjectIdentifier.of(
+                                                fileSystemCatalogName,
+                                                TEST_DEFAULT_DATABASE,
+                                                "users_shops")
+                                        .asSerializableString()));
+
+        // verify the materialized table is not created
+        assertThatThrownBy(
+                        () ->
+                                service.getTable(
+                                        sessionHandle,
+                                        ObjectIdentifier.of(
+                                                fileSystemCatalogName,
+                                                TEST_DEFAULT_DATABASE,
+                                                "users_shops")))
+                .isInstanceOf(SqlGatewayException.class)
+                .hasMessageContaining("Failed to getTable.");
+    }
+
+    @Test
     void testAlterMaterializedTableRefresh(
             @InjectClusterClient RestClusterClient<?> restClusterClient) throws Exception {
         long timeout = Duration.ofSeconds(20).toMillis();
         long pause = Duration.ofSeconds(2).toMillis();
-        // initialize session handle, create test-filesystem catalog and register it to catalog
-        // store
-        SessionHandle sessionHandle = initializeSession();
 
         List<Row> data = new ArrayList<>();
         data.add(Row.of(1L, 1L, 1L, "2024-01-01"));
@@ -434,10 +499,6 @@ public class MaterializedTableStatementITCase {
 
     @Test
     void testAlterMaterializedTableRefreshWithInvalidPartitionSpec() throws Exception {
-        // initialize session handle, create test-filesystem catalog and register it to catalog
-        // store
-        SessionHandle sessionHandle = initializeSession();
-
         String materializedTableDDL =
                 "CREATE MATERIALIZED TABLE users_shops"
                         + " PARTITIONED BY (ds1, ds2)\n"
@@ -521,10 +582,6 @@ public class MaterializedTableStatementITCase {
             @TempDir Path temporaryPath,
             @InjectClusterClient RestClusterClient<?> restClusterClient)
             throws Exception {
-        // initialize session handle, create test-filesystem catalog and register it to catalog
-        // store
-        SessionHandle sessionHandle = initializeSession();
-
         String materializedTableDDL =
                 "CREATE MATERIALIZED TABLE users_shops"
                         + " PARTITIONED BY (ds)\n"
@@ -659,10 +716,6 @@ public class MaterializedTableStatementITCase {
     @Test
     void testAlterMaterializedTableWithoutSavepointDirConfigured(
             @InjectClusterClient RestClusterClient<?> restClusterClient) throws Exception {
-        // initialize session handle, create test-filesystem catalog and register it to catalog
-        // store
-        SessionHandle sessionHandle = initializeSession();
-
         String materializedTableDDL =
                 "CREATE MATERIALIZED TABLE users_shops"
                         + " PARTITIONED BY (ds)\n"
@@ -718,6 +771,132 @@ public class MaterializedTableStatementITCase {
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
                         "Savepoint directory is not configured, can't stop job with savepoint.");
+    }
+
+    @Test
+    void testDropMaterializedTable(@InjectClusterClient RestClusterClient<?> restClusterClient)
+            throws Exception {
+        String materializedTableDDL =
+                "CREATE MATERIALIZED TABLE users_shops"
+                        + " PARTITIONED BY (ds)\n"
+                        + " WITH(\n"
+                        + "   'format' = 'debezium-json'\n"
+                        + " )\n"
+                        + " FRESHNESS = INTERVAL '30' SECOND\n"
+                        + " AS SELECT \n"
+                        + "  user_id,\n"
+                        + "  shop_id,\n"
+                        + "  ds,\n"
+                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum,\n"
+                        + "  SUM (1) AS pv\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds)";
+
+        OperationHandle materializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, materializedTableHandle);
+
+        // verify materialized table exists
+        ResolvedCatalogBaseTable<?> activeMaterializedTable =
+                service.getTable(
+                        sessionHandle,
+                        ObjectIdentifier.of(
+                                fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
+
+        assertThat(activeMaterializedTable).isInstanceOf(ResolvedCatalogMaterializedTable.class);
+
+        // verify background job is running
+        ContinuousRefreshHandler activeRefreshHandler =
+                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
+                        ((ResolvedCatalogMaterializedTable) activeMaterializedTable)
+                                .getSerializedRefreshHandler(),
+                        getClass().getClassLoader());
+        String describeJobDDL = String.format("DESCRIBE JOB '%s'", activeRefreshHandler.getJobId());
+        OperationHandle describeJobHandle =
+                service.executeStatement(sessionHandle, describeJobDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, describeJobHandle);
+        List<RowData> jobResults = fetchAllResults(service, sessionHandle, describeJobHandle);
+        assertThat(jobResults.get(0).getString(2).toString()).isEqualTo("RUNNING");
+
+        // drop materialized table
+        String dropMaterializedTableDDL = "DROP MATERIALIZED TABLE IF EXISTS users_shops";
+        OperationHandle dropMaterializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, dropMaterializedTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, dropMaterializedTableHandle);
+
+        // verify materialized table metadata is removed
+        assertThatThrownBy(
+                        () ->
+                                service.getTable(
+                                        sessionHandle,
+                                        ObjectIdentifier.of(
+                                                fileSystemCatalogName,
+                                                TEST_DEFAULT_DATABASE,
+                                                "users_shops")))
+                .isInstanceOf(SqlGatewayException.class)
+                .hasMessageContaining("Failed to getTable.");
+
+        // verify background job is canceled
+        waitUntilJobCanceled(
+                JobID.fromHexString(activeRefreshHandler.getJobId()), restClusterClient);
+
+        String describeJobAfterDropDDL =
+                String.format("DESCRIBE JOB '%s'", activeRefreshHandler.getJobId());
+        OperationHandle describeJobAfterDropHandle =
+                service.executeStatement(
+                        sessionHandle, describeJobAfterDropDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, describeJobAfterDropHandle);
+        List<RowData> jobResultsAfterDrop =
+                fetchAllResults(service, sessionHandle, describeJobAfterDropHandle);
+        assertThat(jobResultsAfterDrop.get(0).getString(2).toString()).isEqualTo("CANCELED");
+
+        // verify drop materialized table that doesn't exist
+        String dropNonExistMaterializedTableDDL = "DROP MATERIALIZED TABLE users_shops";
+        OperationHandle dropNonExistTableHandle =
+                service.executeStatement(
+                        sessionHandle, dropNonExistMaterializedTableDDL, -1, new Configuration());
+
+        assertThatThrownBy(
+                        () ->
+                                awaitOperationTermination(
+                                        service, sessionHandle, dropNonExistTableHandle))
+                .rootCause()
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        String.format(
+                                "Materialized table with identifier %s does not exist.",
+                                ObjectIdentifier.of(
+                                                fileSystemCatalogName,
+                                                TEST_DEFAULT_DATABASE,
+                                                "users_shops")
+                                        .asSerializableString()));
+
+        String dropNonExistMaterializedTableDDL2 = "DROP MATERIALIZED TABLE IF EXISTS users_shops";
+        OperationHandle dropNonExistMaterializedTableHandle2 =
+                service.executeStatement(
+                        sessionHandle, dropNonExistMaterializedTableDDL2, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, dropNonExistMaterializedTableHandle2);
+
+        // Drop a table using drop materialized table statement
+        dropMaterializedTableDDL = "DROP MATERIALIZED TABLE IF EXISTS datagenSource";
+        OperationHandle dropTableHandle =
+                service.executeStatement(
+                        sessionHandle, dropMaterializedTableDDL, -1, new Configuration());
+        assertThatThrownBy(() -> awaitOperationTermination(service, sessionHandle, dropTableHandle))
+                .rootCause()
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        String.format(
+                                "Table %s is not a materialized table, does not support materialized table related operation.",
+                                ObjectIdentifier.of(
+                                                fileSystemCatalogName,
+                                                TEST_DEFAULT_DATABASE,
+                                                "datagenSource")
+                                        .asSerializableString()));
     }
 
     private SessionHandle initializeSession() {
