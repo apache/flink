@@ -104,7 +104,9 @@ public class RecordTest {
         DoubleValue recVal2 = record.getField(1, DoubleValue.class);
         IntValue recVal3 = record.getField(2, IntValue.class);
 
-        assertThat(recVal1).as("The value of the first field has changed").isEqualTo(this.origVal1);
+        assertThat((Object) recVal1)
+                .as("The value of the first field has changed")
+                .isEqualTo(this.origVal1);
         assertThat(recVal2).as("The value of the second field changed").isEqualTo(this.origVal2);
         assertThat(recVal3).as("The value of the third field has changed").isEqualTo(this.origVal3);
     }
@@ -280,9 +282,9 @@ public class RecordTest {
         StringValue rec2Val1 = record2.getField(0, StringValue.class);
         IntValue rec2Val2 = record2.getField(1, IntValue.class);
 
-        assertThat(rec1Val1).isEqualTo(origValue1);
+        assertThat((Object) rec1Val1).isEqualTo(origValue1);
         assertThat(rec1Val2).isEqualTo(origValue2);
-        assertThat(rec2Val1).isEqualTo(origValue1);
+        assertThat((Object) rec2Val1).isEqualTo(origValue1);
         assertThat(rec2Val2).isEqualTo(origValue2);
     }
 
