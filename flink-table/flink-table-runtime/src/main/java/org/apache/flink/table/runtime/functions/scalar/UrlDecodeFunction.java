@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.SpecializedFunction;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nullable;
 
@@ -39,13 +40,16 @@ public class UrlDecodeFunction extends BuiltInScalarFunction {
     }
 
     public @Nullable StringData eval(StringData value) {
+        if (value == null) {
+            return null;
+        }
         final Charset charset = StandardCharsets.UTF_8;
         try {
             return StringData.fromString(URLDecoder.decode(value.toString(), charset.name()));
         } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(
+            throw new FlinkRuntimeException(
                     "Failed to decode value: " + value + " with charset: " + charset.name(), e);
-        } catch (RuntimeException e) {
+        } catch (FlinkRuntimeException e) {
             return value;
         }
     }

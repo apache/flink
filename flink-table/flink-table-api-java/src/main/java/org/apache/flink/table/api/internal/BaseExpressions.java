@@ -1189,16 +1189,19 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
-     * Decodes a string in 'application/x-www-form-urlencoded' format using a specific encoding
-     * scheme.
+     * Decodes a given string in 'application/x-www-form-urlencoded' format using the UTF-8 encoding
+     * scheme, will be null if input is null. If there is an issue with the decoding process, such
+     * as encountering an illegal escape pattern, the function returns the original input value. If
+     * the encoding scheme is not supported, an error will be reported.
      */
     public OutType urlDecode() {
         return toApiSpecificExpression(unresolvedCall(URL_DECODE, toExpr()));
     }
 
     /**
-     * Translates a string into 'application/x-www-form-urlencoded' format using a specific encoding
-     * scheme.
+     * Translates a string into 'application/x-www-form-urlencoded' format using the UTF-8 encoding
+     * scheme, will be null if input is null. If there is an issue with the encoding process or the
+     * encoding scheme is not supported, an error will be reported.
      */
     public OutType urlEncode() {
         return toApiSpecificExpression(unresolvedCall(URL_ENCODE, toExpr()));

@@ -1275,13 +1275,20 @@ class Expression(Generic[T]):
 
     def url_decode(self) -> 'Expression[str]':
         """
-        Decodes a string in 'application/x-www-form-urlencoded' format using a specific encoding scheme.
+        Decodes a given string in 'application/x-www-form-urlencoded' format using the UTF-8
+        encoding scheme, will be null if input is null.
+        If there is an issue with the decoding process, such as encountering an illegal escape
+        pattern, the function returns the original input value.
+        If the encoding scheme is not supported, an error will be reported.
         """
         return _unary_op("urlDecode")(self)
 
     def url_encode(self) -> 'Expression[str]':
         """
-        Translates a string into 'application/x-www-form-urlencoded' format using a specific encoding scheme.
+        Translates a string into 'application/x-www-form-urlencoded' format using the UTF-8
+        encoding scheme, will be null if input is null.
+        If there is an issue with the encoding process or the encoding scheme is not supported,
+        an error will be reported.
         """
         return _unary_op("urlEncode")(self)
 
