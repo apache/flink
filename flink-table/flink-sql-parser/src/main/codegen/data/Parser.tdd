@@ -76,6 +76,7 @@
     "org.apache.flink.sql.parser.ddl.SqlDropCatalog"
     "org.apache.flink.sql.parser.ddl.SqlDropDatabase"
     "org.apache.flink.sql.parser.ddl.SqlDropFunction"
+    "org.apache.flink.sql.parser.ddl.SqlDropMaterializedTable"
     "org.apache.flink.sql.parser.ddl.SqlDropPartitions"
     "org.apache.flink.sql.parser.ddl.SqlDropPartitions.AlterTableDropPartitionsContext"
     "org.apache.flink.sql.parser.ddl.SqlDropTable"

@@ -1802,6 +1802,34 @@ SqlCreate SqlCreateMaterializedTable(Span s, boolean replace, boolean isTemporar
 }
 
 /**
+* Parses a DROP MATERIALIZED TABLE statement.
+*/
+SqlDrop SqlDropMaterializedTable(Span s, boolean replace, boolean isTemporary) :
+{
+    SqlIdentifier tableName = null;
+    boolean ifExists = false;
+}
+{
+    <MATERIALIZED>
+     {
+         if (isTemporary) {
+             throw SqlUtil.newContextException(
+                 getPos(),
+                 ParserResource.RESOURCE.dropTemporaryMaterializedTableUnsupported());
+         }
+     }
+     <TABLE>
+
+    ifExists = IfExistsOpt()
+
+    tableName = CompoundIdentifier()
+
+    {
+        return new SqlDropMaterializedTable(s.pos(), tableName, ifExists);
+    }
+}
+
+/**
 * Parses alter materialized table.
 */
 SqlAlterMaterializedTable SqlAlterMaterializedTable() :
@@ -2426,6 +2454,8 @@ SqlDrop SqlDropExtended(Span s, boolean replace) :
     ]
     (
         drop = SqlDropCatalog(s, replace)
+        |
+        drop = SqlDropMaterializedTable(s, replace, isTemporary)
         |
         drop = SqlDropTable(s, replace, isTemporary)
         |

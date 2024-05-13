@@ -59,4 +59,7 @@ public interface ParserResource {
 
     @Resources.BaseMessage("REPLACE MATERIALIZED TABLE is not supported.")
     Resources.ExInst<ParseException> replaceMaterializedTableUnsupported();
+
+    @Resources.BaseMessage("DROP TEMPORARY MATERIALIZED TABLE is not supported.")
+    Resources.ExInst<ParseException> dropTemporaryMaterializedTableUnsupported();
 }
