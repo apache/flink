@@ -18,13 +18,18 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import java.io.Serializable;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * This class describe the inputs(partitions and subpartitions that belong to the same intermediate
  * result) information of an execution vertex.
  */
-public class ExecutionVertexInputInfo {
+public class ExecutionVertexInputInfo implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
     private final int subtaskIndex;
 
     private final IndexRange partitionIndexRange;
