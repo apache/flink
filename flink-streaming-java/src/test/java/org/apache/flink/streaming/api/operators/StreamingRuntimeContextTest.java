@@ -249,7 +249,7 @@ class StreamingRuntimeContextTest {
     }
 
     @Test
-    void testAsyncValueStateInstantiation() throws Exception {
+    void testV2ValueStateInstantiation() throws Exception {
 
         final ExecutionConfig config = new ExecutionConfig();
         SerializerConfig serializerConfig = config.getSerializerConfig();
@@ -265,6 +265,34 @@ class StreamingRuntimeContextTest {
 
         org.apache.flink.runtime.state.v2.ValueStateDescriptor<?> descrIntercepted =
                 (org.apache.flink.runtime.state.v2.ValueStateDescriptor<?>) descriptorCapture.get();
+        TypeSerializer<?> serializer = descrIntercepted.getSerializer();
+
+        // check that the Path class is really registered, i.e., the execution config was applied
+        assertThat(serializer).isInstanceOf(KryoSerializer.class);
+        assertThat(((KryoSerializer<?>) serializer).getKryo().getRegistration(Path.class).getId())
+                .isPositive();
+    }
+
+    @Test
+    void testV2MapStateInstantiation() throws Exception {
+        final ExecutionConfig config = new ExecutionConfig();
+        SerializerConfig serializerConfig = config.getSerializerConfig();
+        serializerConfig.registerKryoType(Path.class);
+
+        final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
+
+        StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config);
+        org.apache.flink.runtime.state.v2.MapStateDescriptor<String, TaskInfo> descr =
+                new org.apache.flink.runtime.state.v2.MapStateDescriptor<>(
+                        "name",
+                        TypeInformation.of(String.class),
+                        TypeInformation.of(TaskInfo.class),
+                        serializerConfig);
+        context.getMapState(descr);
+
+        org.apache.flink.runtime.state.v2.MapStateDescriptor<?, ?> descrIntercepted =
+                (org.apache.flink.runtime.state.v2.MapStateDescriptor<?, ?>)
+                        descriptorCapture.get();
         TypeSerializer<?> serializer = descrIntercepted.getSerializer();
 
         // check that the Path class is really registered, i.e., the execution config was applied
