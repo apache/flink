@@ -83,28 +83,28 @@ public class OrcFilters {
                                             convertBinary(
                                                     call,
                                                     OrcFilters::convertGreaterThan,
-                                                    OrcFilters::convertLessThanEquals))
+                                                    OrcFilters::convertLessThan))
                             .put(
                                     BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL,
                                     call ->
                                             convertBinary(
                                                     call,
                                                     OrcFilters::convertGreaterThanEquals,
-                                                    OrcFilters::convertLessThan))
+                                                    OrcFilters::convertLessThanEquals))
                             .put(
                                     BuiltInFunctionDefinitions.LESS_THAN,
                                     call ->
                                             convertBinary(
                                                     call,
                                                     OrcFilters::convertLessThan,
-                                                    OrcFilters::convertGreaterThanEquals))
+                                                    OrcFilters::convertGreaterThan))
                             .put(
                                     BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL,
                                     call ->
                                             convertBinary(
                                                     call,
                                                     OrcFilters::convertLessThanEquals,
-                                                    OrcFilters::convertGreaterThan))
+                                                    OrcFilters::convertGreaterThanEquals))
                             .build();
 
     private static boolean isRef(Expression expression) {
