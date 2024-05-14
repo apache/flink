@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state.v2;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.state.v2.MapState;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.state.v2.ValueState;
 
@@ -43,4 +44,17 @@ public interface KeyedStateStoreV2 {
      * @return The partitioned state object.
      */
     <T> ValueState<T> getValueState(@Nonnull ValueStateDescriptor<T> stateProperties);
+
+    /**
+     * Gets a handle to the system's key/value map state. This state is only accessible if the
+     * function is executed on a KeyedStream.
+     *
+     * @param stateProperties The descriptor defining the properties of the state.
+     * @param <UK> The type of the user keys stored in the state.
+     * @param <UV> The type of the user values stored in the state.
+     * @return The partitioned state object.
+     * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
+     *     function (function is not part of a KeyedStream).
+     */
+    <UK, UV> MapState<UK, UV> getMapState(@Nonnull MapStateDescriptor<UK, UV> stateProperties);
 }

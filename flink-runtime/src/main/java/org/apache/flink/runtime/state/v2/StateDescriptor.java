@@ -122,12 +122,12 @@ public abstract class StateDescriptor<T> implements Serializable {
     // ------------------------------------------------------------------------
 
     @Override
-    public final int hashCode() {
+    public int hashCode() {
         return stateId.hashCode() + 31 * getClass().hashCode();
     }
 
     @Override
-    public final boolean equals(Object o) {
+    public boolean equals(Object o) {
         if (o == this) {
             return true;
         } else if (o != null && o.getClass() == this.getClass()) {
