@@ -82,6 +82,7 @@ import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNew
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewOperatorStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
 import static org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper.ARBITRARY;
+import static org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper.FULL;
 import static org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper.RANGE;
 import static org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper.ROUND_ROBIN;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -559,6 +560,44 @@ class StateAssignmentOperationTest {
             InflightDataGateOrPartitionRescalingDescriptor.MappingType mappingType) {
         return new InflightDataGateOrPartitionRescalingDescriptor(
                 oldIndices, rescaleMapping, ambiguousSubtaskIndexes, mappingType);
+    }
+
+    @Test
+    public void testChannelStateAssignmentTwoGatesPartiallyDownscaling()
+            throws JobException, JobExecutionException {
+        JobVertex upstream1 = createJobVertex(new OperatorID(), 2);
+        JobVertex upstream2 = createJobVertex(new OperatorID(), 2);
+        JobVertex downstream = createJobVertex(new OperatorID(), 3);
+        List<OperatorID> operatorIds =
+                Stream.of(upstream1, upstream2, downstream)
+                        .map(v -> v.getOperatorIDs().get(0).getGeneratedOperatorID())
+                        .collect(Collectors.toList());
+        Map<OperatorID, OperatorState> states = buildOperatorStates(operatorIds, 3);
+
+        connectVertices(upstream1, downstream, ARBITRARY, FULL);
+        connectVertices(upstream2, downstream, ROUND_ROBIN, ROUND_ROBIN);
+
+        Map<OperatorID, ExecutionJobVertex> vertices =
+                toExecutionVertices(upstream1, upstream2, downstream);
+
+        new StateAssignmentOperation(0, new HashSet<>(vertices.values()), states, false)
+                .assignStates();
+
+        assertThat(
+                        getAssignedState(vertices.get(operatorIds.get(2)), operatorIds.get(2), 0)
+                                .getInputChannelState()
+                                .size())
+                .isEqualTo(6);
+        assertThat(
+                        getAssignedState(vertices.get(operatorIds.get(2)), operatorIds.get(2), 1)
+                                .getInputChannelState()
+                                .size())
+                .isEqualTo(6);
+        assertThat(
+                        getAssignedState(vertices.get(operatorIds.get(2)), operatorIds.get(2), 2)
+                                .getInputChannelState()
+                                .size())
+                .isEqualTo(6);
     }
 
     @Test

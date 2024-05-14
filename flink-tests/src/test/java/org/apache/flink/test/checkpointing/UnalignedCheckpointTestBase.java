@@ -1136,7 +1136,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         return value;
     }
 
-    private static class TestException extends Exception {
+    static class TestException extends Exception {
         public TestException(String s) {
             super(s);
         }
