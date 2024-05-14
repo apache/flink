@@ -82,8 +82,8 @@ class MemorySizeTest {
         final MemorySize cloned = CommonTestUtils.createCopySerializable(size);
 
         assertThat(cloned).isEqualTo(size);
-        assertThat(cloned.hashCode()).isEqualTo(size.hashCode());
-        assertThat(cloned.toString()).isEqualTo(size.toString());
+        assertThat(cloned).hasSameHashCodeAs(size);
+        assertThat(cloned).hasToString(size.toString());
     }
 
     @Test

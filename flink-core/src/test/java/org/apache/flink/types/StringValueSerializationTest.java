@@ -32,7 +32,7 @@ import java.util.Random;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for the serialization of StringValue. */
-public class StringValueSerializationTest {
+class StringValueSerializationTest {
 
     private final Random rnd = new Random(2093486528937460234L);
 

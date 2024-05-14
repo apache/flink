@@ -36,7 +36,7 @@ import java.util.function.Function;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for the serialization of Strings through the StringValue class. */
-public class StringSerializationTest {
+class StringSerializationTest {
 
     private final Random rnd = new Random(2093486528937460234L);
 
