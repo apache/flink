@@ -972,7 +972,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                                 allFutures.add(
                                         taskManager
                                                 .getTaskExecutorGateway()
-                                                .getPartitionWithMetrics(jobGraph.getJobID())));
+                                                .getAndRetainPartitionWithMetrics(
+                                                        jobGraph.getJobID())));
         return FutureUtils.combineAll(allFutures)
                 .thenApply(
                         partitions ->

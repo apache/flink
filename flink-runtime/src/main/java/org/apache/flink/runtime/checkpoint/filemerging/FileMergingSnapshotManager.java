@@ -34,6 +34,7 @@ import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageAccess;
 
 import java.io.Closeable;
 import java.util.Collection;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
 /**
@@ -266,6 +267,80 @@ public interface FileMergingSnapshotManager extends Closeable {
         public String toString() {
             return String.format(
                     "%s-%s(%d/%d)", jobIDString, operatorIDString, subtaskIndex, parallelism);
+        }
+    }
+
+    /** Space usage statistics of a managed directory. */
+    final class SpaceStat {
+
+        AtomicLong physicalFileCount;
+        AtomicLong physicalFileSize;
+
+        AtomicLong logicalFileCount;
+        AtomicLong logicalFileSize;
+
+        public SpaceStat() {
+            this(0, 0, 0, 0);
+        }
+
+        public SpaceStat(
+                long physicalFileCount,
+                long physicalFileSize,
+                long logicalFileCount,
+                long logicalFileSize) {
+            this.physicalFileCount = new AtomicLong(physicalFileCount);
+            this.physicalFileSize = new AtomicLong(physicalFileSize);
+            this.logicalFileCount = new AtomicLong(logicalFileCount);
+            this.logicalFileSize = new AtomicLong(logicalFileSize);
+        }
+
+        public void onLogicalFileCreate(long size) {
+            physicalFileSize.addAndGet(size);
+            logicalFileSize.addAndGet(size);
+            logicalFileCount.incrementAndGet();
+        }
+
+        public void onLogicalFileDelete(long size) {
+            logicalFileSize.addAndGet(-size);
+            logicalFileCount.decrementAndGet();
+        }
+
+        public void onPhysicalFileCreate() {
+            physicalFileCount.incrementAndGet();
+        }
+
+        public void onPhysicalFileDelete(long size) {
+            physicalFileSize.addAndGet(-size);
+            physicalFileCount.decrementAndGet();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            SpaceStat spaceStat = (SpaceStat) o;
+            return physicalFileCount.get() == spaceStat.physicalFileCount.get()
+                    && physicalFileSize.get() == spaceStat.physicalFileSize.get()
+                    && logicalFileCount.get() == spaceStat.logicalFileCount.get()
+                    && logicalFileSize.get() == spaceStat.logicalFileSize.get();
+        }
+
+        @Override
+        public String toString() {
+            return "SpaceStat{"
+                    + "physicalFileCount="
+                    + physicalFileCount.get()
+                    + ", physicalFileSize="
+                    + physicalFileSize.get()
+                    + ", logicalFileCount="
+                    + logicalFileCount.get()
+                    + ", logicalFileSize="
+                    + logicalFileSize.get()
+                    + '}';
         }
     }
 }

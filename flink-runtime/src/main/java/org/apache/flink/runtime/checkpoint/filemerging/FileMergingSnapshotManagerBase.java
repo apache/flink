@@ -133,12 +133,16 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
      */
     protected DirectoryStreamStateHandle managedExclusiveStateDirHandle;
 
+    /** The current space statistic, updated on file creation/deletion. */
+    protected SpaceStat spaceStat;
+
     public FileMergingSnapshotManagerBase(
             String id, long maxFileSize, PhysicalFilePool.Type filePoolType, Executor ioExecutor) {
         this.id = id;
         this.maxPhysicalFileSize = maxFileSize;
         this.filePoolType = filePoolType;
         this.ioExecutor = ioExecutor;
+        this.spaceStat = new SpaceStat();
     }
 
     @Override
@@ -215,6 +219,9 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
         LogicalFileId fileID = LogicalFileId.generateRandomId();
         LogicalFile file = new LogicalFile(fileID, physicalFile, startOffset, length, subtaskKey);
         knownLogicalFiles.put(fileID, file);
+        if (physicalFile.isOwned()) {
+            spaceStat.onLogicalFileCreate(length);
+        }
         return file;
     }
 
@@ -305,7 +312,6 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                             }
 
                             // deal with physicalFile file
-                            physicalFile.incSize(stateSize);
                             returnPhysicalFileForNextReuse(subtaskKey, checkpointId, physicalFile);
 
                             return new SegmentFileStateHandle(
@@ -321,7 +327,7 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                     public void closeStreamExceptionally() throws IOException {
                         if (physicalFile != null) {
                             if (logicalFile != null) {
-                                logicalFile.discardWithCheckpointId(checkpointId);
+                                discardSingleLogicalFile(logicalFile, checkpointId);
                             } else {
                                 // The physical file should be closed anyway. This is because the
                                 // last segmented write on this file is likely to have failed, and
@@ -336,6 +342,7 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
 
     private void updateFileCreationMetrics(Path path) {
         // TODO: FLINK-32091 add io metrics
+        spaceStat.onPhysicalFileCreate();
         LOG.debug("Create a new physical file {} for checkpoint file merging.", path);
     }
 
@@ -364,11 +371,12 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
      *
      * @param filePath the given file path to delete.
      */
-    protected final void deletePhysicalFile(Path filePath) {
+    protected final void deletePhysicalFile(Path filePath, long size) {
         ioExecutor.execute(
                 () -> {
                     try {
                         fs.delete(filePath, false);
+                        spaceStat.onPhysicalFileDelete(size);
                         LOG.debug("Physical file deleted: {}.", filePath);
                     } catch (IOException e) {
                         LOG.warn("Fail to delete file: {}", filePath);
@@ -494,6 +502,14 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
         }
     }
 
+    public void discardSingleLogicalFile(LogicalFile logicalFile, long checkpointId)
+            throws IOException {
+        logicalFile.discardWithCheckpointId(checkpointId);
+        if (logicalFile.getPhysicalFile().isOwned()) {
+            spaceStat.onLogicalFileDelete(logicalFile.getLength());
+        }
+    }
+
     private boolean discardLogicalFiles(
             SubtaskKey subtaskKey, long checkpointId, Set<LogicalFile> logicalFiles)
             throws Exception {
@@ -502,7 +518,7 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
             LogicalFile logicalFile = logicalFileIterator.next();
             if (logicalFile.getSubtaskKey().equals(subtaskKey)
                     && logicalFile.getLastUsedCheckpointID() <= checkpointId) {
-                logicalFile.discardWithCheckpointId(checkpointId);
+                discardSingleLogicalFile(logicalFile, checkpointId);
                 logicalFileIterator.remove();
                 knownLogicalFiles.remove(logicalFile.getFileId());
             }
@@ -600,15 +616,20 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                                 knownPhysicalFiles.computeIfAbsent(
                                         fileHandle.getFilePath(),
                                         path -> {
-                                            PhysicalFileDeleter fileDeleter =
-                                                    (isManagedByFileMergingManager(
-                                                                    path,
-                                                                    subtaskKey,
-                                                                    fileHandle.getScope()))
-                                                            ? physicalFileDeleter
-                                                            : null;
+                                            boolean managedByFileMergingManager =
+                                                    isManagedByFileMergingManager(
+                                                            path,
+                                                            subtaskKey,
+                                                            fileHandle.getScope());
+                                            if (managedByFileMergingManager) {
+                                                spaceStat.onPhysicalFileCreate();
+                                            }
                                             return new PhysicalFile(
-                                                    null, path, fileDeleter, fileHandle.getScope());
+                                                    null,
+                                                    path,
+                                                    physicalFileDeleter,
+                                                    fileHandle.getScope(),
+                                                    managedByFileMergingManager);
                                         });
 
                         LogicalFileId logicalFileId = fileHandle.getLogicalFileId();
@@ -619,6 +640,10 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                                         fileHandle.getStartPos(),
                                         fileHandle.getStateSize(),
                                         subtaskKey);
+
+                        if (physicalFile.isOwned()) {
+                            spaceStat.onLogicalFileCreate(logicalFile.getLength());
+                        }
                         knownLogicalFiles.put(logicalFileId, logicalFile);
                         logicalFile.advanceLastCheckpointId(checkpointId);
                         restoredLogicalFiles.add(logicalFile);

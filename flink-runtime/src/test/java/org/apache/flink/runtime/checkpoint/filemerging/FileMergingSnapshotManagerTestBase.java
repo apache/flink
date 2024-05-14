@@ -27,6 +27,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager.SpaceStat;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager.SubtaskKey;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
@@ -195,6 +196,48 @@ public abstract class FileMergingSnapshotManagerTestBase {
             assertThat(physicalFile.getSize()).isEqualTo(123);
             physicalFile.incSize(456);
             assertThat(physicalFile.getSize()).isEqualTo(123 + 456);
+        }
+    }
+
+    @Test
+    void testSpaceStat() throws IOException {
+        try (FileMergingSnapshotManagerBase fmsm =
+                (FileMergingSnapshotManagerBase)
+                        createFileMergingSnapshotManager(checkpointBaseDir)) {
+            fmsm.registerSubtaskForSharedStates(subtaskKey1);
+            fmsm.registerSubtaskForSharedStates(subtaskKey2);
+            PhysicalFile physicalFile1 =
+                    fmsm.getOrCreatePhysicalFileForCheckpoint(
+                            subtaskKey1, 0, CheckpointedStateScope.SHARED);
+            assertThat(physicalFile1.isOpen()).isTrue();
+
+            LogicalFile logicalFile1 = fmsm.createLogicalFile(physicalFile1, 0, 123, subtaskKey1);
+            assertThat(fmsm.spaceStat.physicalFileSize.get()).isEqualTo(123);
+            assertThat(fmsm.spaceStat.logicalFileSize.get()).isEqualTo(123);
+            assertThat(fmsm.spaceStat.physicalFileCount.get()).isEqualTo(1);
+            assertThat(fmsm.spaceStat.logicalFileCount.get()).isEqualTo(1);
+            assertThat(physicalFile1.getSize()).isEqualTo(123);
+
+            LogicalFile logicalFile2 = fmsm.createLogicalFile(physicalFile1, 0, 456, subtaskKey1);
+            assertThat(fmsm.spaceStat.physicalFileSize.get()).isEqualTo(123 + 456);
+            assertThat(fmsm.spaceStat.logicalFileSize.get()).isEqualTo(123 + 456);
+            assertThat(fmsm.spaceStat.physicalFileCount.get()).isEqualTo(1);
+            assertThat(fmsm.spaceStat.logicalFileCount.get()).isEqualTo(2);
+            assertThat(physicalFile1.getSize()).isEqualTo(123 + 456);
+
+            logicalFile1.discardWithCheckpointId(1);
+            fmsm.discardSingleLogicalFile(logicalFile1, 1);
+            assertThat(fmsm.spaceStat.physicalFileSize.get()).isEqualTo(123 + 456);
+            assertThat(fmsm.spaceStat.logicalFileSize.get()).isEqualTo(456);
+            assertThat(fmsm.spaceStat.physicalFileCount.get()).isEqualTo(1);
+            assertThat(fmsm.spaceStat.logicalFileCount.get()).isEqualTo(1);
+
+            physicalFile1.close();
+            fmsm.discardSingleLogicalFile(logicalFile2, 1);
+            assertThat(fmsm.spaceStat.physicalFileSize.get()).isEqualTo(0);
+            assertThat(fmsm.spaceStat.logicalFileSize.get()).isEqualTo(0);
+            assertThat(fmsm.spaceStat.physicalFileCount.get()).isEqualTo(0);
+            assertThat(fmsm.spaceStat.logicalFileCount.get()).isEqualTo(0);
         }
     }
 
@@ -406,6 +449,7 @@ public abstract class FileMergingSnapshotManagerTestBase {
     public void testRestore() throws Exception {
         TaskStateSnapshot taskStateSnapshot;
         long checkpointId = 222;
+        SpaceStat oldSpaceStat;
 
         // Step1: build TaskStateSnapshot using FileMergingSnapshotManagerBase;
         try (FileMergingSnapshotManagerBase fmsm =
@@ -416,7 +460,9 @@ public abstract class FileMergingSnapshotManagerTestBase {
             subtaskStatesByOperatorID.put(
                     operatorID, buildOperatorSubtaskState(checkpointId, fmsm, closeableRegistry));
             taskStateSnapshot = new TaskStateSnapshot(subtaskStatesByOperatorID);
+            oldSpaceStat = fmsm.spaceStat;
         }
+
         assertThat(taskStateSnapshot).isNotNull();
 
         // Step 2: restore FileMergingSnapshotManagerBase from the TaskStateSnapshot.
@@ -447,6 +493,7 @@ public abstract class FileMergingSnapshotManagerTestBase {
             Set<LogicalFile> restoreFileSet = stateFiles.get(checkpointId);
             assertThat(restoreFileSet).isNotNull();
             assertThat(restoreFileSet.size()).isEqualTo(4);
+            assertThat(fmsm.spaceStat).isEqualTo(oldSpaceStat);
             for (LogicalFile file : restoreFileSet) {
                 assertThat(fmsm.getLogicalFile(file.getFileId())).isEqualTo(file);
             }

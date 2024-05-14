@@ -145,7 +145,11 @@ public class OperationUtils {
     }
 
     public static String formatPartitionSpec(CatalogPartitionSpec spec) {
-        return spec.getPartitionSpec().entrySet().stream()
+        return formatPartitionSpec(spec.getPartitionSpec());
+    }
+
+    public static String formatPartitionSpec(Map<String, String> spec) {
+        return spec.entrySet().stream()
                 .map(entry -> entry.getKey() + "=" + entry.getValue())
                 .collect(Collectors.joining(", "));
     }

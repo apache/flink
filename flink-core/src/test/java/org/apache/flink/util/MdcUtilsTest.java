@@ -51,14 +51,14 @@ class MdcUtilsTest {
             new LoggerAuditingExtension(MdcUtilsTest.class, DEBUG);
 
     @Test
-    public void testJobIDAsContext() {
+    void testJobIDAsContext() {
         JobID jobID = new JobID();
         assertThat(MdcUtils.asContextData(jobID))
                 .isEqualTo(Collections.singletonMap("flink-job-id", jobID.toHexString()));
     }
 
     @Test
-    public void testMdcCloseableAddsJobId() throws Exception {
+    void testMdcCloseableAddsJobId() throws Exception {
         assertJobIDLogged(
                 jobID -> {
                     try (MdcCloseable ignored = MdcUtils.withContext(asContextData(jobID))) {
@@ -68,7 +68,7 @@ class MdcUtilsTest {
     }
 
     @Test
-    public void testMdcCloseableRemovesJobId() {
+    void testMdcCloseableRemovesJobId() {
         JobID jobID = new JobID();
         try (MdcCloseable ignored = MdcUtils.withContext(asContextData(jobID))) {
             // ...
@@ -78,12 +78,12 @@ class MdcUtilsTest {
     }
 
     @Test
-    public void testWrapRunnable() throws Exception {
+    void testWrapRunnable() throws Exception {
         assertJobIDLogged(jobID -> wrapRunnable(asContextData(jobID), LOGGING_RUNNABLE).run());
     }
 
     @Test
-    public void testWrapCallable() throws Exception {
+    void testWrapCallable() throws Exception {
         assertJobIDLogged(
                 jobID ->
                         wrapCallable(
@@ -96,7 +96,7 @@ class MdcUtilsTest {
     }
 
     @Test
-    public void testScopeExecutor() throws Exception {
+    void testScopeExecutor() throws Exception {
         assertJobIDLogged(
                 jobID ->
                         MdcUtils.scopeToJob(jobID, Executors.directExecutor())
@@ -104,7 +104,7 @@ class MdcUtilsTest {
     }
 
     @Test
-    public void testScopeExecutorService() throws Exception {
+    void testScopeExecutorService() throws Exception {
         assertJobIDLogged(
                 jobID ->
                         MdcUtils.scopeToJob(jobID, Executors.newDirectExecutorService())
@@ -113,7 +113,7 @@ class MdcUtilsTest {
     }
 
     @Test
-    public void testScopeScheduledExecutorService() throws Exception {
+    void testScopeScheduledExecutorService() throws Exception {
         ScheduledExecutorService ses =
                 java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
         try {

@@ -90,6 +90,7 @@ public class LogicalFile {
         this.length = length;
         this.subtaskKey = subtaskKey;
         physicalFile.incRefCount();
+        physicalFile.incSize(length);
     }
 
     public LogicalFileId getFileId() {

@@ -25,6 +25,9 @@ import org.apache.flink.configuration.ConfigOptions;
 @SuppressWarnings("WeakerAccess")
 public class ShuffleServiceOptions {
 
+    public static final String NETTY_SHUFFLE_SERVICE_FACTORY_CLASS =
+            "org.apache.flink.runtime.io.network.NettyShuffleServiceFactory";
+
     private ShuffleServiceOptions() {}
 
     /**
@@ -33,7 +36,7 @@ public class ShuffleServiceOptions {
     public static final ConfigOption<String> SHUFFLE_SERVICE_FACTORY_CLASS =
             ConfigOptions.key("shuffle-service-factory.class")
                     .stringType()
-                    .defaultValue("org.apache.flink.runtime.io.network.NettyShuffleServiceFactory")
+                    .defaultValue(NETTY_SHUFFLE_SERVICE_FACTORY_CLASS)
                     .withDescription(
                             "The full class name of the shuffle service factory implementation to be used by the cluster. "
                                     + "The default implementation uses Netty for network communication and local memory as well disk space "

@@ -18,6 +18,7 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.MemorySize;
@@ -50,6 +51,8 @@ public class HiveOptions {
                                     "If it is true, flink will read the files of partitioned hive table from subdirectories under the partition directory to be read.\n"
                                             + "If it is false, an exception that 'not a file: xxx' will be thrown when the partition directory contains any sub-directory.");
 
+    /** @deprecated Use {@link #TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MODE} instead. */
+    @Deprecated
     public static final ConfigOption<Boolean> TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM =
             key("table.exec.hive.infer-source-parallelism")
                     .booleanType()
@@ -58,11 +61,33 @@ public class HiveOptions {
                             "If is false, parallelism of source are set by config.\n"
                                     + "If is true, source parallelism is inferred according to splits number.\n");
 
+    @PublicEvolving
+    public static final ConfigOption<InferMode> TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MODE =
+            key("table.exec.hive.infer-source-parallelism.mode")
+                    .enumType(InferMode.class)
+                    .defaultValue(InferMode.DYNAMIC)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "An option for selecting the hive source parallelism inference mode to infer parallelism according to splits number.")
+                                    .list(
+                                            text(
+                                                    "'static' represents static inference, which will infer source parallelism at job creation stage."),
+                                            text(
+                                                    "'dynamic' represents dynamic inference, which will infer parallelism at job execution stage and could more accurately infer the source parallelism."),
+                                            text(
+                                                    "'none' represents disabling parallelism inference."),
+                                            text(
+                                                    "Note that it is still affected by the deprecated option 'table.exec.hive.infer-source-parallelism', requiring its value to be true for enabling parallelism inference."))
+                                    .build());
+
     public static final ConfigOption<Integer> TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX =
             key("table.exec.hive.infer-source-parallelism.max")
                     .intType()
                     .defaultValue(1000)
-                    .withDescription("Sets max infer parallelism for source operator.");
+                    .withDescription(
+                            "Sets max infer parallelism for source operator. "
+                                    + "Note that the default value is effective only in the static parallelism inference mode.");
 
     public static final ConfigOption<Boolean> TABLE_EXEC_HIVE_FALLBACK_MAPRED_WRITER =
             key("table.exec.hive.fallback-mapred-writer")
@@ -267,6 +292,32 @@ public class HiveOptions {
         private final InlineElement description;
 
         PartitionOrder(String value, InlineElement description) {
+            this.value = value;
+            this.description = description;
+        }
+
+        @Override
+        public String toString() {
+            return value;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+    }
+
+    /** Infer mode used for {@link #TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MODE}. */
+    public enum InferMode implements DescribedEnum {
+        STATIC("static", text("Static parallelism inference mode.")),
+        DYNAMIC("dynamic", text("Dynamic parallelism inference mode.")),
+        NONE("none", text("Disable parallelism inference."));
+
+        private final String value;
+
+        private final InlineElement description;
+
+        InferMode(String value, InlineElement description) {
             this.value = value;
             this.description = description;
         }

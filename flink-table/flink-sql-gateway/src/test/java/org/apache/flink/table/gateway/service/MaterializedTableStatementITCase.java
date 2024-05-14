@@ -18,14 +18,33 @@
 
 package org.apache.flink.table.gateway.service;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.jobgraph.JobType;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.rest.messages.JobMessageParameters;
+import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.RequestBody;
+import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointConfigHeaders;
+import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointConfigInfo;
+import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointingStatistics;
+import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointingStatisticsHeaders;
+import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
+import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
@@ -33,10 +52,16 @@ import org.apache.flink.table.gateway.api.utils.MockedEndpointVersion;
 import org.apache.flink.table.gateway.service.utils.IgnoreExceptionHandler;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
+import org.apache.flink.table.planner.factories.TestValuesTableFactory;
+import org.apache.flink.table.refresh.ContinuousRefreshHandler;
+import org.apache.flink.table.refresh.ContinuousRefreshHandlerSerializer;
+import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Order;
@@ -47,15 +72,21 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.flink.table.catalog.CommonCatalogOptions.TABLE_CATALOG_STORE_KIND;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.awaitOperationTermination;
+import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.fetchAllResults;
+import static org.apache.flink.test.util.TestUtils.waitUntilAllTasksAreRunning;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -138,8 +169,22 @@ public class MaterializedTableStatementITCase {
         fileSystemCatalogName = TEST_CATALOG_PREFIX + randomStr;
     }
 
+    @AfterEach
+    void after(@InjectClusterClient RestClusterClient<?> restClusterClient) throws Exception {
+        // cancel all running jobs for releasing mini cluster resources
+        for (JobStatusMessage j : restClusterClient.listJobs().get()) {
+            // cancel all continuous refresh jobs
+            if (j.getJobName().endsWith("continuous_refresh_job")
+                    && (j.getJobState() == JobStatus.RUNNING
+                            || j.getJobState() == JobStatus.CREATED)) {
+                restClusterClient.cancel(j.getJobId()).get();
+            }
+        }
+    }
+
     @Test
-    void testCreateMaterializedTableInContinuousMode() throws Exception {
+    void testCreateMaterializedTableInContinuousMode(
+            @InjectClusterClient RestClusterClient<?> restClusterClient) throws Exception {
         // initialize session handle, create test-filesystem catalog and register it to catalog
         // store
         SessionHandle sessionHandle = initializeSession();
@@ -197,6 +242,27 @@ public class MaterializedTableStatementITCase {
                 .isEqualTo(CatalogMaterializedTable.RefreshStatus.ACTIVATED);
         assertThat(actualMaterializedTable.getRefreshHandlerDescription()).isNotEmpty();
         assertThat(actualMaterializedTable.getSerializedRefreshHandler()).isNotEmpty();
+
+        ContinuousRefreshHandler activeRefreshHandler =
+                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
+                        actualMaterializedTable.getSerializedRefreshHandler(),
+                        getClass().getClassLoader());
+
+        waitUntilAllTasksAreRunning(
+                restClusterClient, JobID.fromHexString(activeRefreshHandler.getJobId()));
+
+        // check the background job is running
+        String describeJobDDL = String.format("DESCRIBE JOB '%s'", activeRefreshHandler.getJobId());
+        OperationHandle describeJobHandle =
+                service.executeStatement(sessionHandle, describeJobDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, describeJobHandle);
+        List<RowData> jobResults = fetchAllResults(service, sessionHandle, describeJobHandle);
+        assertThat(jobResults.get(0).getString(2).toString()).isEqualTo("RUNNING");
+
+        // get checkpoint interval
+        long checkpointInterval =
+                getCheckpointIntervalConfig(restClusterClient, activeRefreshHandler.getJobId());
+        assertThat(checkpointInterval).isEqualTo(30 * 1000);
     }
 
     @Test
@@ -236,6 +302,424 @@ public class MaterializedTableStatementITCase {
                         "Only support create materialized table in continuous refresh mode currently.");
     }
 
+    @Test
+    void testAlterMaterializedTableRefresh(
+            @InjectClusterClient RestClusterClient<?> restClusterClient) throws Exception {
+        long timeout = Duration.ofSeconds(20).toMillis();
+        long pause = Duration.ofSeconds(2).toMillis();
+        // initialize session handle, create test-filesystem catalog and register it to catalog
+        // store
+        SessionHandle sessionHandle = initializeSession();
+
+        List<Row> data = new ArrayList<>();
+        data.add(Row.of(1L, 1L, 1L, "2024-01-01"));
+        data.add(Row.of(2L, 2L, 2L, "2024-01-02"));
+        data.add(Row.of(3L, 3L, 3L, "2024-01-02"));
+        String dataId = TestValuesTableFactory.registerData(data);
+
+        String sourceDdl =
+                String.format(
+                        "CREATE TABLE my_source (\n"
+                                + "  order_id BIGINT,\n"
+                                + "  user_id BIGINT,\n"
+                                + "  shop_id BIGINT,\n"
+                                + "  order_created_at STRING\n"
+                                + ")\n"
+                                + "WITH (\n"
+                                + "  'connector' = 'values',\n"
+                                + "  'bounded' = 'true',\n"
+                                + "  'data-id' = '%s'\n"
+                                + ")",
+                        dataId);
+        OperationHandle sourceHandle =
+                service.executeStatement(sessionHandle, sourceDdl, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, sourceHandle);
+
+        String materializedTableDDL =
+                "CREATE MATERIALIZED TABLE my_materialized_table"
+                        + " PARTITIONED BY (ds)\n"
+                        + " WITH(\n"
+                        + "   'format' = 'debezium-json'\n"
+                        + " )\n"
+                        + " FRESHNESS = INTERVAL '2' SECOND\n"
+                        + " AS SELECT \n"
+                        + "  user_id,\n"
+                        + "  shop_id,\n"
+                        + "  ds,\n"
+                        + "  COUNT(order_id) AS order_cnt\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, order_created_at AS ds, order_id FROM my_source"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds)";
+
+        OperationHandle materializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, materializedTableHandle);
+
+        // verify data exists in materialized table
+        CommonTestUtils.waitUtil(
+                () ->
+                        fetchTableData(sessionHandle, "SELECT * FROM my_materialized_table").size()
+                                == data.size(),
+                Duration.ofMillis(timeout),
+                Duration.ofMillis(pause),
+                "Failed to verify the data in materialized table.");
+        assertThat(
+                        fetchTableData(
+                                        sessionHandle,
+                                        "SELECT * FROM my_materialized_table where ds = '2024-01-02'")
+                                .size())
+                .isEqualTo(2);
+
+        // remove the last element
+        data.remove(2);
+
+        long currentTime = System.currentTimeMillis();
+        String alterStatement =
+                "ALTER MATERIALIZED TABLE my_materialized_table REFRESH PARTITION (ds = '2024-01-02')";
+        OperationHandle alterHandle =
+                service.executeStatement(sessionHandle, alterStatement, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, alterHandle);
+        List<RowData> result = fetchAllResults(service, sessionHandle, alterHandle);
+        assertThat(result.size()).isEqualTo(1);
+        String jobId = result.get(0).getString(0).toString();
+
+        // 1. verify a new job is created
+        Optional<JobStatusMessage> job =
+                restClusterClient.listJobs().get(timeout, TimeUnit.MILLISECONDS).stream()
+                        .filter(j -> j.getJobId().toString().equals(jobId))
+                        .findFirst();
+        assertThat(job).isPresent();
+        assertThat(job.get().getStartTime()).isGreaterThan(currentTime);
+
+        // 2. verify the new job is a batch job
+        JobDetailsInfo jobDetailsInfo =
+                restClusterClient
+                        .getJobDetails(JobID.fromHexString(jobId))
+                        .get(timeout, TimeUnit.MILLISECONDS);
+        assertThat(jobDetailsInfo.getJobType()).isEqualTo(JobType.BATCH);
+
+        // 3. verify the new job is finished
+        CommonTestUtils.waitUtil(
+                () -> {
+                    try {
+                        return JobStatus.FINISHED.equals(
+                                restClusterClient
+                                        .getJobStatus(JobID.fromHexString(jobId))
+                                        .get(5, TimeUnit.SECONDS));
+                    } catch (Exception ignored) {
+                    }
+                    return false;
+                },
+                Duration.ofMillis(timeout),
+                Duration.ofMillis(pause),
+                "Failed to verify whether the job is finished.");
+
+        // 4. verify the new job overwrite the data
+        CommonTestUtils.waitUtil(
+                () ->
+                        fetchTableData(sessionHandle, "SELECT * FROM my_materialized_table").size()
+                                == data.size(),
+                Duration.ofMillis(timeout),
+                Duration.ofMillis(pause),
+                "Failed to verify the data in materialized table.");
+        assertThat(
+                        fetchTableData(
+                                        sessionHandle,
+                                        "SELECT * FROM my_materialized_table where ds = '2024-01-02'")
+                                .size())
+                .isEqualTo(1);
+    }
+
+    @Test
+    void testAlterMaterializedTableRefreshWithInvalidPartitionSpec() throws Exception {
+        // initialize session handle, create test-filesystem catalog and register it to catalog
+        // store
+        SessionHandle sessionHandle = initializeSession();
+
+        String materializedTableDDL =
+                "CREATE MATERIALIZED TABLE users_shops"
+                        + " PARTITIONED BY (ds1, ds2)\n"
+                        + " WITH(\n"
+                        + "   'format' = 'debezium-json'\n"
+                        + " )\n"
+                        + " FRESHNESS = INTERVAL '30' SECOND\n"
+                        + " AS SELECT \n"
+                        + "  user_id,\n"
+                        + "  shop_id,\n"
+                        + "  ds1,\n"
+                        + "  ds2,\n"
+                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum,\n"
+                        + "  SUM (1) AS pv\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds1, user_id % 10 as ds2, payment_amount_cents FROM datagenSource"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds1, ds2)";
+
+        OperationHandle materializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, materializedTableHandle);
+
+        // CASE 1: check unknown partition keys
+        String alterStatementWithUnknownPartitionKey =
+                "ALTER MATERIALIZED TABLE users_shops REFRESH PARTITION (ds3 = '2024-01-01')";
+        OperationHandle alterStatementWithUnknownPartitionKeyHandle =
+                service.executeStatement(
+                        sessionHandle,
+                        alterStatementWithUnknownPartitionKey,
+                        -1,
+                        new Configuration());
+
+        assertThatThrownBy(
+                        () ->
+                                awaitOperationTermination(
+                                        service,
+                                        sessionHandle,
+                                        alterStatementWithUnknownPartitionKeyHandle))
+                .isInstanceOf(SqlExecutionException.class)
+                .rootCause()
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "The partition spec contains unknown partition keys:\n"
+                                + "\n"
+                                + "ds3\n"
+                                + "\n"
+                                + "All known partition keys are:\n"
+                                + "\n"
+                                + "ds2\n"
+                                + "ds1");
+
+        // CASE 2: check specific non-string partition keys as partition spec to refresh
+        String alterStatementWithNonStringPartitionKey =
+                "ALTER MATERIALIZED TABLE users_shops REFRESH PARTITION (ds2 = 5)";
+        OperationHandle alterStatementWithNonStringPartitionKeyHandle =
+                service.executeStatement(
+                        sessionHandle,
+                        alterStatementWithNonStringPartitionKey,
+                        -1,
+                        new Configuration());
+
+        assertThatThrownBy(
+                        () ->
+                                awaitOperationTermination(
+                                        service,
+                                        sessionHandle,
+                                        alterStatementWithNonStringPartitionKeyHandle))
+                .isInstanceOf(SqlExecutionException.class)
+                .rootCause()
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Currently, manually refreshing materialized table only supports specifying char and string type partition keys. All specific partition keys with unsupported types are:\n"
+                                + "\n"
+                                + "ds2");
+    }
+
+    @Test
+    void testAlterMaterializedTableSuspendAndResume(
+            @TempDir Path temporaryPath,
+            @InjectClusterClient RestClusterClient<?> restClusterClient)
+            throws Exception {
+        // initialize session handle, create test-filesystem catalog and register it to catalog
+        // store
+        SessionHandle sessionHandle = initializeSession();
+
+        String materializedTableDDL =
+                "CREATE MATERIALIZED TABLE users_shops"
+                        + " PARTITIONED BY (ds)\n"
+                        + " WITH(\n"
+                        + "   'format' = 'debezium-json'\n"
+                        + " )\n"
+                        + " FRESHNESS = INTERVAL '30' SECOND\n"
+                        + " AS SELECT \n"
+                        + "  user_id,\n"
+                        + "  shop_id,\n"
+                        + "  ds,\n"
+                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum,\n"
+                        + "  SUM (1) AS pv\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds)";
+
+        OperationHandle materializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, materializedTableHandle);
+
+        ResolvedCatalogMaterializedTable activeMaterializedTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+
+        assertThat(activeMaterializedTable.getRefreshStatus())
+                .isEqualTo(CatalogMaterializedTable.RefreshStatus.ACTIVATED);
+
+        ContinuousRefreshHandler activeRefreshHandler =
+                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
+                        activeMaterializedTable.getSerializedRefreshHandler(),
+                        getClass().getClassLoader());
+
+        waitUntilAllTasksAreRunning(
+                restClusterClient, JobID.fromHexString(activeRefreshHandler.getJobId()));
+
+        // set up savepoint dir
+        String savepointDir = temporaryPath.toString();
+        String alterJobSavepointDDL =
+                String.format("SET 'state.savepoints.dir' = 'file://%s'", savepointDir);
+        OperationHandle alterMaterializedTableSavepointHandle =
+                service.executeStatement(
+                        sessionHandle, alterJobSavepointDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableSavepointHandle);
+
+        // suspend materialized table
+        String alterMaterializedTableSuspendDDL = "ALTER MATERIALIZED TABLE users_shops SUSPEND";
+        OperationHandle alterMaterializedTableSuspendHandle =
+                service.executeStatement(
+                        sessionHandle, alterMaterializedTableSuspendDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableSuspendHandle);
+
+        ResolvedCatalogMaterializedTable suspendMaterializedTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+
+        assertThat(suspendMaterializedTable.getRefreshStatus())
+                .isEqualTo(CatalogMaterializedTable.RefreshStatus.SUSPENDED);
+
+        // check background job is stopped
+        byte[] refreshHandler = suspendMaterializedTable.getSerializedRefreshHandler();
+        ContinuousRefreshHandler suspendRefreshHandler =
+                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
+                        refreshHandler, getClass().getClassLoader());
+        String suspendJobId = suspendRefreshHandler.getJobId();
+
+        String describeJobDDL = String.format("DESCRIBE JOB '%s'", suspendJobId);
+        OperationHandle describeJobHandle =
+                service.executeStatement(sessionHandle, describeJobDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableSuspendHandle);
+        List<RowData> jobResults = fetchAllResults(service, sessionHandle, describeJobHandle);
+        assertThat(jobResults.get(0).getString(2).toString()).isEqualTo("FINISHED");
+
+        // check savepoint is created
+        assertThat(suspendRefreshHandler.getRestorePath()).isNotEmpty();
+        String actualSavepointPath = suspendRefreshHandler.getRestorePath().get();
+
+        // resume materialized table
+        String alterMaterializedTableResumeDDL =
+                "ALTER MATERIALIZED TABLE users_shops RESUME WITH ('debezium-json.ignore-parse-errors' = 'true')";
+        OperationHandle alterMaterializedTableResumeHandle =
+                service.executeStatement(
+                        sessionHandle, alterMaterializedTableResumeDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableResumeHandle);
+
+        ResolvedCatalogMaterializedTable resumedCatalogMaterializedTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+        assertThat(resumedCatalogMaterializedTable.getOptions())
+                .doesNotContainKey("debezium-json.ignore-parse-errors");
+        assertThat(resumedCatalogMaterializedTable.getRefreshStatus())
+                .isEqualTo(CatalogMaterializedTable.RefreshStatus.ACTIVATED);
+
+        // check background job is running
+        refreshHandler = resumedCatalogMaterializedTable.getSerializedRefreshHandler();
+        ContinuousRefreshHandler resumeRefreshHandler =
+                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
+                        refreshHandler, getClass().getClassLoader());
+        String resumeJobId = resumeRefreshHandler.getJobId();
+        String describeResumeJobDDL = String.format("DESCRIBE JOB '%s'", resumeJobId);
+        OperationHandle describeResumeJobHandle =
+                service.executeStatement(
+                        sessionHandle, describeResumeJobDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, describeResumeJobHandle);
+        jobResults = fetchAllResults(service, sessionHandle, describeResumeJobHandle);
+        assertThat(jobResults.get(0).getString(2).toString()).isEqualTo("RUNNING");
+
+        // check resumed job is restored from savepoint
+        Optional<String> actualRestorePath =
+                getJobRestoreSavepointPath(restClusterClient, resumeJobId);
+        assertThat(actualRestorePath).isNotEmpty();
+        assertThat(actualRestorePath.get()).isEqualTo(actualSavepointPath);
+    }
+
+    @Test
+    void testAlterMaterializedTableWithoutSavepointDirConfigured(
+            @InjectClusterClient RestClusterClient<?> restClusterClient) throws Exception {
+        // initialize session handle, create test-filesystem catalog and register it to catalog
+        // store
+        SessionHandle sessionHandle = initializeSession();
+
+        String materializedTableDDL =
+                "CREATE MATERIALIZED TABLE users_shops"
+                        + " PARTITIONED BY (ds)\n"
+                        + " WITH(\n"
+                        + "   'format' = 'debezium-json'\n"
+                        + " )\n"
+                        + " FRESHNESS = INTERVAL '30' SECOND\n"
+                        + " AS SELECT \n"
+                        + "  user_id,\n"
+                        + "  shop_id,\n"
+                        + "  ds,\n"
+                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum,\n"
+                        + "  SUM (1) AS pv\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds)";
+
+        OperationHandle materializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, materializedTableHandle);
+
+        ResolvedCatalogMaterializedTable activeMaterializedTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+        waitUntilAllTasksAreRunning(
+                restClusterClient,
+                JobID.fromHexString(
+                        ContinuousRefreshHandlerSerializer.INSTANCE
+                                .deserialize(
+                                        activeMaterializedTable.getSerializedRefreshHandler(),
+                                        getClass().getClassLoader())
+                                .getJobId()));
+
+        // suspend materialized table
+        String alterMaterializedTableSuspendDDL = "ALTER MATERIALIZED TABLE users_shops SUSPEND";
+        OperationHandle alterMaterializedTableSuspendHandle =
+                service.executeStatement(
+                        sessionHandle, alterMaterializedTableSuspendDDL, -1, new Configuration());
+        assertThatThrownBy(
+                        () ->
+                                awaitOperationTermination(
+                                        service,
+                                        sessionHandle,
+                                        alterMaterializedTableSuspendHandle))
+                .rootCause()
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Savepoint directory is not configured, can't stop job with savepoint.");
+    }
+
     private SessionHandle initializeSession() {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
         String catalogDDL =
@@ -270,5 +754,59 @@ public class MaterializedTableStatementITCase {
                         + ")";
         service.configureSession(sessionHandle, dataGenSource, -1);
         return sessionHandle;
+    }
+
+    private List<RowData> fetchTableData(SessionHandle sessionHandle, String query) {
+        OperationHandle queryHandle =
+                service.executeStatement(sessionHandle, query, -1, new Configuration());
+
+        return fetchAllResults(service, sessionHandle, queryHandle);
+    }
+
+    private long getCheckpointIntervalConfig(RestClusterClient<?> restClusterClient, String jobId)
+            throws Exception {
+        CheckpointConfigInfo checkpointConfigInfo =
+                sendJobRequest(
+                        restClusterClient,
+                        CheckpointConfigHeaders.getInstance(),
+                        EmptyRequestBody.getInstance(),
+                        jobId);
+        return RestMapperUtils.getStrictObjectMapper()
+                .readTree(
+                        RestMapperUtils.getStrictObjectMapper()
+                                .writeValueAsString(checkpointConfigInfo))
+                .get("interval")
+                .asLong();
+    }
+
+    private Optional<String> getJobRestoreSavepointPath(
+            RestClusterClient<?> restClusterClient, String jobId) throws Exception {
+        CheckpointingStatistics checkpointingStatistics =
+                sendJobRequest(
+                        restClusterClient,
+                        CheckpointingStatisticsHeaders.getInstance(),
+                        EmptyRequestBody.getInstance(),
+                        jobId);
+
+        CheckpointingStatistics.RestoredCheckpointStatistics restoredCheckpointStatistics =
+                checkpointingStatistics.getLatestCheckpoints().getRestoredCheckpointStatistics();
+        return restoredCheckpointStatistics != null
+                ? Optional.ofNullable(restoredCheckpointStatistics.getExternalPath())
+                : Optional.empty();
+    }
+
+    private static <M extends JobMessageParameters, R extends RequestBody, P extends ResponseBody>
+            P sendJobRequest(
+                    RestClusterClient<?> restClusterClient,
+                    MessageHeaders<R, P, M> headers,
+                    R requestBody,
+                    String jobId)
+                    throws Exception {
+        M jobMessageParameters = headers.getUnresolvedMessageParameters();
+        jobMessageParameters.jobPathParameter.resolve(JobID.fromHexString(jobId));
+
+        return restClusterClient
+                .sendRequest(headers, jobMessageParameters, requestBody)
+                .get(5, TimeUnit.SECONDS);
     }
 }

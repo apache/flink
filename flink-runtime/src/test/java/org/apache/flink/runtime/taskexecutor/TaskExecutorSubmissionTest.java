@@ -381,7 +381,7 @@ class TaskExecutorSubmissionTest {
             taskFinishedFuture.get();
 
             Collection<PartitionWithMetrics> partitionWithMetricsCollection =
-                    tmGateway.getPartitionWithMetrics(jobId).get();
+                    tmGateway.getAndRetainPartitionWithMetrics(jobId).get();
             assertThat(partitionWithMetricsCollection.size()).isOne();
             PartitionWithMetrics partitionWithMetrics =
                     partitionWithMetricsCollection.iterator().next();
