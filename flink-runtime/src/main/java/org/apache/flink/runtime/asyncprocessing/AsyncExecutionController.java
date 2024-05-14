@@ -249,7 +249,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
      *
      * @param force whether to trigger requests in force.
      */
-    void triggerIfNeeded(boolean force) {
+    public void triggerIfNeeded(boolean force) {
         if (!force && stateRequestsBuffer.activeQueueSize() < batchSize) {
             return;
         }
