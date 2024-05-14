@@ -145,7 +145,7 @@ public class StateHandleDummyUtil {
     public static InputChannelStateHandle createNewInputChannelStateHandle(
             int numNamedStates, Random random) {
         return new InputChannelStateHandle(
-                new InputChannelInfo(random.nextInt(), random.nextInt()),
+                new InputChannelInfo(0, random.nextInt()),
                 createStreamStateHandle(numNamedStates, random),
                 genOffsets(numNamedStates, random));
     }
