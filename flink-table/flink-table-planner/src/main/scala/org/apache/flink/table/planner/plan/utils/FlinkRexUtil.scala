@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.plan.nodes.calcite.{LegacySink, Sink}
 import org.apache.flink.table.planner.plan.optimize.RelNodeBlock
 import org.apache.flink.table.planner.plan.utils.ExpressionDetail.ExpressionDetail
 import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
-import org.apache.flink.table.planner.utils.{ShortcutUtils, TableConfigUtils}
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import com.google.common.base.Function
 import com.google.common.collect.{ImmutableList, Lists}
@@ -45,7 +45,7 @@ import org.apache.calcite.util._
 import java.lang.{Iterable => JIterable}
 import java.math.BigDecimal
 import java.util
-import java.util.{Optional, TimeZone}
+import java.util.Optional
 import java.util.function.Predicate
 
 import scala.collection.JavaConversions._
@@ -675,7 +675,6 @@ object FlinkRexUtil {
         inputNames,
         context.getFunctionCatalog,
         context.getCatalogManager,
-        TimeZone.getTimeZone(TableConfigUtils.getLocalTimeZone(context.getTableConfig)),
         Some(rel.getRowType));
 
     RexNodeExtractor.extractConjunctiveConditions(
