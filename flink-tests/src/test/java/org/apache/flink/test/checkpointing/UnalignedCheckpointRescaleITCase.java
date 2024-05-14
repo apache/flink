@@ -22,6 +22,7 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -44,6 +45,7 @@ import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.util.Collector;
 
 import org.apache.commons.lang3.ArrayUtils;
@@ -52,8 +54,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.Collection;
 import java.util.Collections;
 
 import static org.apache.flink.api.common.eventtime.WatermarkStrategy.noWatermarks;
@@ -329,6 +333,44 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
 
                 addFailingSink(joined, minCheckpoints, slotSharing);
             }
+        },
+        CUSTOM_PARTITIONER {
+            final int sinkParallelism = 3;
+            final int numberElements = 1000;
+
+            @Override
+            public void create(
+                    StreamExecutionEnvironment environment,
+                    int minCheckpoints,
+                    boolean slotSharing,
+                    int expectedFailuresUntilSourceFinishes,
+                    long sourceSleepMs) {
+                int parallelism = environment.getParallelism();
+                environment
+                        .fromData(generateStrings(numberElements / parallelism, sinkParallelism))
+                        .name("source")
+                        .setParallelism(parallelism)
+                        .partitionCustom(new StringPartitioner(), str -> str.split(" ")[0])
+                        .addSink(new StringSink(numberElements / sinkParallelism))
+                        .name("sink")
+                        .setParallelism(sinkParallelism);
+            }
+
+            private Collection<String> generateStrings(
+                    int producePerPartition, int partitionCount) {
+                Collection<String> list = new ArrayList<>();
+                for (int i = 0; i < producePerPartition; i++) {
+                    for (int partition = 0; partition < partitionCount; partition++) {
+                        list.add(buildString(partition, i));
+                    }
+                }
+                return list;
+            }
+
+            private String buildString(int partition, int index) {
+                String longStr = new String(new char[3713]).replace('\0', '\uFFFF');
+                return partition + " " + index + " " + longStr;
+            }
         };
 
         void addFailingSink(
@@ -485,6 +527,7 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
         // captured in-flight records, see FLINK-31963.
         Object[][] parameters =
                 new Object[][] {
+                    new Object[] {"downscale", Topology.CUSTOM_PARTITIONER, 3, 2, 0L},
                     new Object[] {"downscale", Topology.KEYED_DIFFERENT_PARALLELISM, 12, 7, 0L},
                     new Object[] {"upscale", Topology.KEYED_DIFFERENT_PARALLELISM, 7, 12, 0L},
                     new Object[] {"downscale", Topology.KEYED_DIFFERENT_PARALLELISM, 5, 3, 5L},
@@ -561,6 +604,7 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
 
     @Test
     public void shouldRescaleUnalignedCheckpoint() throws Exception {
+        StringSink.failed = false;
         final UnalignedSettings prescaleSettings =
                 new UnalignedSettings(topology)
                         .setParallelism(oldParallelism)
@@ -585,8 +629,12 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
                 "NUM_OUTPUTS = NUM_INPUTS",
                 result.<Long>getAccumulatorResult(NUM_OUTPUTS),
                 equalTo(result.getAccumulatorResult(NUM_INPUTS)));
-        collector.checkThat(
-                "NUM_DUPLICATES", result.<Long>getAccumulatorResult(NUM_DUPLICATES), equalTo(0L));
+        if (!topology.equals(Topology.CUSTOM_PARTITIONER)) {
+            collector.checkThat(
+                    "NUM_DUPLICATES",
+                    result.<Long>getAccumulatorResult(NUM_DUPLICATES),
+                    equalTo(0L));
+        }
     }
 
     /**
@@ -703,6 +751,53 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
         @Override
         public Long map2(Long value) throws Exception {
             return checkHeader(value);
+        }
+    }
+
+    private static class StringPartitioner implements Partitioner<String> {
+        @Override
+        public int partition(String key, int numPartitions) {
+            return Integer.parseInt(key) % numPartitions;
+        }
+    }
+
+    private static class StringSink implements SinkFunction<String>, CheckpointedFunction {
+
+        static volatile boolean failed = false;
+
+        int checkpointConsumed = 0;
+
+        int recordsConsumed = 0;
+
+        final int numberElements;
+
+        public StringSink(int numberElements) {
+            this.numberElements = numberElements;
+        }
+
+        @Override
+        public void invoke(String value, Context ctx) throws Exception {
+            if (!failed && checkpointConsumed > 1) {
+                failed = true;
+                throw new TestException("FAIL");
+            }
+            recordsConsumed++;
+            if (!failed && recordsConsumed == (numberElements / 3)) {
+                Thread.sleep(1000);
+            }
+            if (recordsConsumed == (numberElements - 1)) {
+                Thread.sleep(1000);
+            }
+        }
+
+        @Override
+        public void snapshotState(FunctionSnapshotContext context) {
+            checkpointConsumed++;
+        }
+
+        @Override
+        public void initializeState(FunctionInitializationContext context) {
+            // do  nothing
         }
     }
 }
