@@ -311,7 +311,7 @@ class SourceOperatorAlignmentTest {
         assertThat(events).isEmpty();
     }
 
-    private static class PunctuatedGenerator implements WatermarkGenerator<Integer> {
+    static class PunctuatedGenerator implements WatermarkGenerator<Integer> {
 
         private enum GenerationMode {
             ALL,
