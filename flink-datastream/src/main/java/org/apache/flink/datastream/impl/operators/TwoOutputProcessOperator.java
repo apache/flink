@@ -24,11 +24,11 @@ import org.apache.flink.datastream.impl.common.OutputCollector;
 import org.apache.flink.datastream.impl.common.TimestampCollector;
 import org.apache.flink.datastream.impl.context.DefaultRuntimeContext;
 import org.apache.flink.datastream.impl.context.DefaultTwoOutputNonPartitionedContext;
+import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.streaming.runtime.operators.asyncprocessing.AbstractAsyncStateUdfStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
 
@@ -38,7 +38,7 @@ import org.apache.flink.util.OutputTag;
  * <p>We support the second output via flink side-output mechanism.
  */
 public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
-        extends AbstractAsyncStateUdfStreamOperator<
+        extends AbstractUdfStreamOperator<
                 OUT_MAIN, TwoOutputStreamProcessFunction<IN, OUT_MAIN, OUT_SIDE>>
         implements OneInputStreamOperator<IN, OUT_MAIN>, BoundedOneInput {
     protected transient TimestampCollector<OUT_MAIN> mainCollector;

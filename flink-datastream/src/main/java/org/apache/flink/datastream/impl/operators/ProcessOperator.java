@@ -23,15 +23,15 @@ import org.apache.flink.datastream.impl.common.OutputCollector;
 import org.apache.flink.datastream.impl.common.TimestampCollector;
 import org.apache.flink.datastream.impl.context.DefaultNonPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultRuntimeContext;
+import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.runtime.operators.asyncprocessing.AbstractAsyncStateUdfStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /** Operator for {@link OneInputStreamProcessFunction}. */
 public class ProcessOperator<IN, OUT>
-        extends AbstractAsyncStateUdfStreamOperator<OUT, OneInputStreamProcessFunction<IN, OUT>>
+        extends AbstractUdfStreamOperator<OUT, OneInputStreamProcessFunction<IN, OUT>>
         implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
 
     protected transient DefaultRuntimeContext context;
