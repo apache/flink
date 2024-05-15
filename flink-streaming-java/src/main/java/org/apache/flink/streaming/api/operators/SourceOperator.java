@@ -341,6 +341,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         final List<SplitT> splits = CollectionUtil.iterableToList(readerState.get());
         if (!splits.isEmpty()) {
             LOG.info("Restoring state for {} split(s) to reader.", splits.size());
+            outputPendingSplits.addAll(splits);
             sourceReader.addSplits(splits);
         }
 
