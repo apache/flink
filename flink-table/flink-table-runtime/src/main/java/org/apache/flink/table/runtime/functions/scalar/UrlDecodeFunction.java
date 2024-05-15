@@ -39,7 +39,7 @@ public class UrlDecodeFunction extends BuiltInScalarFunction {
         super(BuiltInFunctionDefinitions.URL_DECODE, context);
     }
 
-    public @Nullable StringData eval(StringData value) {
+    public @Nullable StringData eval(StringData value) throws FlinkRuntimeException {
         if (value == null) {
             return null;
         }
@@ -49,7 +49,7 @@ public class UrlDecodeFunction extends BuiltInScalarFunction {
         } catch (UnsupportedEncodingException e) {
             throw new FlinkRuntimeException(
                     "Failed to decode value: " + value + " with charset: " + charset.name(), e);
-        } catch (FlinkRuntimeException e) {
+        } catch (RuntimeException e) {
             return value;
         }
     }
