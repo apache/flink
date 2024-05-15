@@ -165,6 +165,66 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
   }
 
   @Test
+  def testDenseRankOnOver(): Unit = {
+    val t = failingDataSource(TestData.tupleData5)
+      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
+    tEnv.createTemporaryView("MyTable", t)
+    val sqlQuery = "SELECT a, DENSE_RANK() OVER (PARTITION BY a ORDER BY proctime) FROM MyTable"
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sqlQuery).toDataStream.addSink(sink)
+    env.execute()
+
+    val expected = List(
+      "1,1",
+      "2,1",
+      "2,2",
+      "3,1",
+      "3,2",
+      "3,3",
+      "4,1",
+      "4,2",
+      "4,3",
+      "4,4",
+      "5,1",
+      "5,2",
+      "5,3",
+      "5,4",
+      "5,5")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testRankOnOver(): Unit = {
+    val t = failingDataSource(TestData.tupleData5)
+      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
+    tEnv.createTemporaryView("MyTable", t)
+    val sqlQuery = "SELECT a, RANK() OVER (PARTITION BY a ORDER BY proctime) FROM MyTable"
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sqlQuery).toDataStream.addSink(sink)
+    env.execute()
+
+    val expected = List(
+      "1,1",
+      "2,1",
+      "2,2",
+      "3,1",
+      "3,2",
+      "3,3",
+      "4,1",
+      "4,2",
+      "4,3",
+      "4,4",
+      "5,1",
+      "5,2",
+      "5,3",
+      "5,4",
+      "5,5")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
   def testProcTimeBoundedPartitionedRowsOver(): Unit = {
     val t = failingDataSource(TestData.tupleData5)
       .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
