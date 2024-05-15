@@ -73,8 +73,20 @@ public class SourceOperatorTestContext implements AutoCloseable {
 
     public SourceOperatorTestContext(boolean idle, WatermarkStrategy<Integer> watermarkStrategy)
             throws Exception {
+        this(idle, false, watermarkStrategy);
+    }
 
-        mockSourceReader = new MockSourceReader(idle, idle);
+    public SourceOperatorTestContext(
+            boolean idle, boolean usePerSplitOutputs, WatermarkStrategy<Integer> watermarkStrategy)
+            throws Exception {
+
+        mockSourceReader =
+                new MockSourceReader(
+                        idle
+                                ? MockSourceReader.WaitingForSplits.WAIT_UNTIL_ALL_SPLITS_ASSIGNED
+                                : MockSourceReader.WaitingForSplits.DO_NOT_WAIT_FOR_SPLITS,
+                        idle,
+                        usePerSplitOutputs);
         mockGateway = new MockOperatorEventGateway();
         timeService = new TestProcessingTimeService();
         operator =
