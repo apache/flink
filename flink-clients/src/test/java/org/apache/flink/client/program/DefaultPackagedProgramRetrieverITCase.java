@@ -496,6 +496,33 @@ class DefaultPackagedProgramRetrieverITCase {
     }
 
     @Test
+    void testRetrieveFromJarFileWithNonRootUserLib()
+            throws IOException, FlinkException, ProgramInvocationException {
+        final PackagedProgramRetriever retrieverUnderTest =
+                DefaultPackagedProgramRetriever.create(
+                        singleEntryClassClasspathProvider.getDirectory().getParentFile(),
+                        // the testJob jar is not on the user classpath
+                        testJobEntryClassClasspathProvider.getJobJar(),
+                        null,
+                        null,
+                        ClasspathProviderExtension.parametersForTestJob("suffix"),
+                        new Configuration());
+        final JobGraph jobGraph = retrieveJobGraph(retrieverUnderTest, new Configuration());
+
+        assertThat(jobGraph.getUserJars())
+                .contains(
+                        new org.apache.flink.core.fs.Path(
+                                testJobEntryClassClasspathProvider.getJobJar().toURI()));
+        final List<String> actualClasspath =
+                jobGraph.getClasspaths().stream().map(URL::toString).collect(Collectors.toList());
+        final List<String> expectedClasspath =
+                extractRelativizedURLsForJarsFromDirectory(
+                        singleEntryClassClasspathProvider.getDirectory());
+
+        assertThat(actualClasspath).isEqualTo(expectedClasspath);
+    }
+
+    @Test
     void testRetrieveFromJarFileWithArtifacts()
             throws IOException, FlinkException, ProgramInvocationException {
         final PackagedProgramRetriever retrieverUnderTest =
