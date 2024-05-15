@@ -47,7 +47,9 @@ import org.apache.flink.streaming.util.MockOutput;
 import org.apache.flink.streaming.util.MockStreamConfig;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -124,10 +126,18 @@ public class SourceOperatorTestContext implements AutoCloseable {
     }
 
     public StateInitializationContext createStateContext() throws Exception {
-        // Create a mock split.
-        byte[] serializedSplitWithVersion =
-                SimpleVersionedSerialization.writeVersionAndSerialize(
-                        new MockSourceSplitSerializer(), MOCK_SPLIT);
+        return createStateContext(Collections.singletonList(MOCK_SPLIT));
+    }
+
+    public StateInitializationContext createStateContext(Collection<MockSourceSplit> initialSplits)
+            throws Exception {
+
+        List<byte[]> serializedSplits = new ArrayList<>();
+        for (MockSourceSplit initialSplit : initialSplits) {
+            serializedSplits.add(
+                    SimpleVersionedSerialization.writeVersionAndSerialize(
+                            new MockSourceSplitSerializer(), initialSplit));
+        }
 
         // Crate the state context.
         OperatorStateStore operatorStateStore = createOperatorStateStore();
@@ -138,7 +148,7 @@ public class SourceOperatorTestContext implements AutoCloseable {
         stateContext
                 .getOperatorStateStore()
                 .getListState(SourceOperator.SPLITS_STATE_DESC)
-                .update(Collections.singletonList(serializedSplitWithVersion));
+                .update(serializedSplits);
 
         return stateContext;
     }
