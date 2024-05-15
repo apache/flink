@@ -84,10 +84,11 @@ public class MockSourceSplit implements SourceSplit, Serializable {
     }
 
     /** Add a record to this split. */
-    public void addRecord(int record) {
+    public MockSourceSplit addRecord(int record) {
         if (!records.offer(record)) {
             throw new IllegalStateException("Failed to add record to split.");
         }
+        return this;
     }
 
     @Override
