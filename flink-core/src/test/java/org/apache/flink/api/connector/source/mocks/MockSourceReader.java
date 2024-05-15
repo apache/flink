@@ -61,15 +61,7 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
     private CompletableFuture<Void> availableFuture;
 
     public MockSourceReader() {
-        this(false, false);
-    }
-
-    public MockSourceReader(boolean waitingForMoreSplits, boolean markIdleOnNoSplits) {
-        this(
-                waitingForMoreSplits
-                        ? WaitingForSplits.WAIT_UNTIL_ALL_SPLITS_ASSIGNED
-                        : WaitingForSplits.DO_NOT_WAIT_FOR_SPLITS,
-                markIdleOnNoSplits);
+        this(WaitingForSplits.DO_NOT_WAIT_FOR_SPLITS, false);
     }
 
     public MockSourceReader(
