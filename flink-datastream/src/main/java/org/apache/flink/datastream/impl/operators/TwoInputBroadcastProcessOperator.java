@@ -23,17 +23,17 @@ import org.apache.flink.datastream.impl.common.OutputCollector;
 import org.apache.flink.datastream.impl.common.TimestampCollector;
 import org.apache.flink.datastream.impl.context.DefaultNonPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultRuntimeContext;
+import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.streaming.runtime.operators.asyncprocessing.AbstractAsyncStateUdfStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** Operator for {@link TwoInputBroadcastStreamProcessFunction}. */
 public class TwoInputBroadcastProcessOperator<IN1, IN2, OUT>
-        extends AbstractAsyncStateUdfStreamOperator<
+        extends AbstractUdfStreamOperator<
                 OUT, TwoInputBroadcastStreamProcessFunction<IN1, IN2, OUT>>
         implements TwoInputStreamOperator<IN1, IN2, OUT>, BoundedMultiInput {
 
