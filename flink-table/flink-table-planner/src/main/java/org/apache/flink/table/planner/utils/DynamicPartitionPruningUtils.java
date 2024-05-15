@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ContextResolvedTable;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
@@ -61,10 +62,10 @@ import org.apache.calcite.util.ImmutableIntList;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 /** Planner utils for Dynamic partition Pruning. */
@@ -117,7 +118,7 @@ public class DynamicPartitionPruningUtils {
         private final RelNode relNode;
         private boolean hasFilter;
         private boolean hasPartitionedScan;
-        private final Set<ContextResolvedTable> tables = new HashSet<>();
+        private final Map<ObjectIdentifier, ContextResolvedTable> tables = new HashMap<>();
 
         public DppDimSideChecker(RelNode relNode) {
             this.relNode = relNode;
@@ -234,20 +235,8 @@ public class DynamicPartitionPruningUtils {
         }
 
         private void setTables(ContextResolvedTable catalogTable) {
-            if (tables.size() == 0) {
-                tables.add(catalogTable);
-            } else {
-                boolean hasAdded = false;
-                for (ContextResolvedTable thisTable : new ArrayList<>(tables)) {
-                    if (hasAdded) {
-                        break;
-                    }
-                    if (!thisTable.getIdentifier().equals(catalogTable.getIdentifier())) {
-                        tables.add(catalogTable);
-                        hasAdded = true;
-                    }
-                }
-            }
+            ObjectIdentifier identifier = catalogTable.getIdentifier();
+            tables.putIfAbsent(identifier, catalogTable);
         }
     }
 
