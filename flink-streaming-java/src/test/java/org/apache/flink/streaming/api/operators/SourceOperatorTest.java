@@ -203,6 +203,7 @@ class SourceOperatorTest {
         context =
                 new SourceOperatorTestContext(
                         false,
+                        false,
                         WatermarkStrategy.<Integer>forMonotonousTimestamps()
                                 .withTimestampAssigner((element, recordTimestamp) -> element),
                         new CollectorOutput<>(outputStreamElements));
