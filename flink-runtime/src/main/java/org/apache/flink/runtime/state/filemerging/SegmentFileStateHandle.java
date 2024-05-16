@@ -106,7 +106,8 @@ public class SegmentFileStateHandle implements StreamStateHandle {
 
     @Override
     public PhysicalStateHandleID getStreamStateHandleID() {
-        return new PhysicalStateHandleID(filePath.toUri().toString());
+        return new PhysicalStateHandleID(
+                String.format("%s-%d-%d", filePath.toUri(), startPos, stateSize));
     }
 
     public long getStartPos() {

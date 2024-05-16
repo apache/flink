@@ -70,6 +70,7 @@ import java.util.function.Consumer;
 import static org.apache.flink.changelog.fs.FsStateChangelogOptions.PREEMPTIVE_PERSIST_THRESHOLD;
 import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTS_DIRECTORY;
 import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINT_STORAGE;
+import static org.apache.flink.configuration.CheckpointingOptions.FILE_MERGING_ENABLED;
 import static org.apache.flink.configuration.CheckpointingOptions.FS_SMALL_FILE_THRESHOLD;
 import static org.apache.flink.configuration.CoreOptions.DEFAULT_PARALLELISM;
 import static org.apache.flink.configuration.PipelineOptions.OBJECT_REUSE;
@@ -232,6 +233,8 @@ public class ChangelogRescalingITCase extends TestLogger {
         conf.set(ALIGNED_CHECKPOINT_TIMEOUT, Duration.ZERO); // prevent randomization
         conf.set(BUFFER_DEBLOAT_ENABLED, false); // prevent randomization
         conf.set(RESTART_STRATEGY, "none"); // not expecting any failures
+        conf.set(
+                FILE_MERGING_ENABLED, false); // TODO: remove file merging setting after FLINK-32085
 
         return conf;
     }

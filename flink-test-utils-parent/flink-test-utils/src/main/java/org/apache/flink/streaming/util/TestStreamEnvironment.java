@@ -122,6 +122,9 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
                     Duration.ofSeconds(2));
             randomize(conf, CheckpointingOptions.CLEANER_PARALLEL_MODE, true, false);
             randomize(conf, ExecutionOptions.SNAPSHOT_COMPRESSION, true, false);
+            if (!conf.contains(CheckpointingOptions.FILE_MERGING_ENABLED)) {
+                randomize(conf, CheckpointingOptions.FILE_MERGING_ENABLED, true);
+            }
         }
 
         randomize(
@@ -134,7 +137,9 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
                 false);
 
         // randomize ITTests for enabling state change log
-        if (!conf.contains(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)) {
+        // TODO: remove the file merging check after FLINK-32085
+        if (!conf.contains(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)
+                && !conf.get(CheckpointingOptions.FILE_MERGING_ENABLED)) {
             if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_ON)) {
                 conf.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true);
             } else if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_RAND)) {

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.execution.JobClient;
@@ -166,7 +167,10 @@ public class RestoreUpgradedJobITCase extends TestLogger {
 
     @NotNull
     private String runOriginalJob() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        Configuration conf = new Configuration();
+        // TODO: remove this after FLINK-32081
+        conf.set(CheckpointingOptions.FILE_MERGING_ENABLED, false);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(conf);
         env.getCheckpointConfig()
                 .setExternalizedCheckpointCleanup(
                         CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
@@ -215,6 +219,7 @@ public class RestoreUpgradedJobITCase extends TestLogger {
         StreamExecutionEnvironment env;
         Configuration conf = new Configuration();
         conf.set(StateRecoveryOptions.SAVEPOINT_PATH, snapshotPath);
+        conf.set(CheckpointingOptions.FILE_MERGING_ENABLED, false);
         env = StreamExecutionEnvironment.getExecutionEnvironment(conf);
         env.setParallelism(PARALLELISM);
         env.addSource(new StringSource(allDataEmittedLatch))
