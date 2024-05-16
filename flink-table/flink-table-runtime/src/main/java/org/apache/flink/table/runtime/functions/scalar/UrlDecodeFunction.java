@@ -39,7 +39,7 @@ public class UrlDecodeFunction extends BuiltInScalarFunction {
         super(BuiltInFunctionDefinitions.URL_DECODE, context);
     }
 
-    public @Nullable StringData eval(StringData value) throws FlinkRuntimeException {
+    public @Nullable StringData eval(StringData value) {
         if (value == null) {
             return null;
         }

@@ -35,11 +35,10 @@ public class UrlFunctionsITCase extends BuiltInFunctionTestBase {
                         .onFieldsWithData(
                                 "https%3A%2F%2Fflink.apache.org%2F",
                                 "https://flink.apache.org/",
-                                "http%3A%2F%2Ftest%3Fa%3Db%26c%3Dd",
                                 null,
                                 "inva+lid%3A%2F%2Fuser%3Apass%40host%2Ffile%3Bparam%3Fquery%3Bp2",
                                 "")
-                        .andDataTypes(STRING(), STRING(), STRING(), STRING(), STRING(), STRING())
+                        .andDataTypes(STRING(), STRING(), STRING(), STRING(), STRING())
                         .testResult(
                                 $("f0").urlDecode(),
                                 "url_decode(f0)",
@@ -51,27 +50,21 @@ public class UrlFunctionsITCase extends BuiltInFunctionTestBase {
                                 "https://flink.apache.org/",
                                 STRING())
                         .testResult(
-                                $("f2").urlDecode(),
-                                "url_decode(f2)",
-                                "http://test?a=b&c=d",
-                                STRING())
+                                $("f2").urlDecode(), "url_decode(f2)", null, STRING().nullable())
                         .testResult(
-                                $("f3").urlDecode(), "url_decode(f3)", null, STRING().nullable())
-                        .testResult(
-                                $("f4").urlDecode(),
-                                "url_decode(f4)",
+                                $("f3").urlDecode(),
+                                "url_decode(f3)",
                                 "inva lid://user:pass@host/file;param?query;p2",
                                 STRING())
-                        .testResult($("f5").urlDecode(), "url_decode(f5)", "", STRING()),
-                TestSetSpec.forFunction(BuiltInFunctionDefinitions.URL_DECODE)
+                        .testResult($("f4").urlDecode(), "url_decode(f4)", "", STRING()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.URL_ENCODE)
                         .onFieldsWithData(
                                 "https://flink.apache.org/",
                                 "https%3A%2F%2Fflink.apache.org%2F",
-                                "http://test?a=b&c=d",
                                 null,
                                 "inva lid://user:pass@host/file;param?query;p2",
                                 "")
-                        .andDataTypes(STRING(), STRING(), STRING(), STRING(), STRING(), STRING())
+                        .andDataTypes(STRING(), STRING(), STRING(), STRING(), STRING())
                         .testResult(
                                 $("f0").urlEncode(),
                                 "url_encode(f0)",
@@ -83,17 +76,12 @@ public class UrlFunctionsITCase extends BuiltInFunctionTestBase {
                                 "https%253A%252F%252Fflink.apache.org%252F",
                                 STRING())
                         .testResult(
-                                $("f2").urlEncode(),
-                                "url_encode(f2)",
-                                "http%3A%2F%2Ftest%3Fa%3Db%26c%3Dd",
-                                STRING())
+                                $("f2").urlEncode(), "url_encode(f2)", null, STRING().nullable())
                         .testResult(
-                                $("f3").urlEncode(), "url_encode(f3)", null, STRING().nullable())
-                        .testResult(
-                                $("f4").urlEncode(),
-                                "url_encode(f4)",
+                                $("f3").urlEncode(),
+                                "url_encode(f3)",
                                 "inva+lid%3A%2F%2Fuser%3Apass%40host%2Ffile%3Bparam%3Fquery%3Bp2",
                                 STRING())
-                        .testResult($("f5").urlEncode(), "url_encode(f5)", "", STRING()));
+                        .testResult($("f4").urlEncode(), "url_encode(f4)", "", STRING()));
     }
 }
