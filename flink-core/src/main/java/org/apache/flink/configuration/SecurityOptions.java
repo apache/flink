@@ -19,6 +19,7 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.core.security.token.DelegationTokenProvider;
@@ -34,6 +35,7 @@ import static org.apache.flink.configuration.description.TextElement.text;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** The set of configuration options relating to security. */
+@PublicEvolving
 public class SecurityOptions {
 
     public static final String DELEGATION_TOKEN_PROVIDER_PREFIX =

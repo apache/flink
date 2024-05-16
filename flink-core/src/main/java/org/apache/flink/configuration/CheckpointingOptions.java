@@ -19,11 +19,13 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 
 /** A collection of all configuration options that relate to checkpoints and savepoints. */
+@PublicEvolving
 public class CheckpointingOptions {
 
     // ------------------------------------------------------------------------

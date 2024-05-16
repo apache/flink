@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn.configuration;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.ExternalResourceOptions;
@@ -38,6 +39,7 @@ import static org.apache.flink.yarn.configuration.YarnConfigOptions.UserJarInclu
  *
  * <p>These options are not expected to be ever configured by users explicitly.
  */
+@PublicEvolving
 public class YarnConfigOptions {
 
     /** The vcores used by YARN application master. */

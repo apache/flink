@@ -18,6 +18,7 @@
 
 package org.apache.flink.cep.configuration;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.util.TimeUtils;
@@ -25,6 +26,7 @@ import org.apache.flink.util.TimeUtils;
 import java.time.Duration;
 
 /** CEP Cache Options. */
+@PublicEvolving
 public class CEPCacheOptions {
 
     private CEPCacheOptions() {}

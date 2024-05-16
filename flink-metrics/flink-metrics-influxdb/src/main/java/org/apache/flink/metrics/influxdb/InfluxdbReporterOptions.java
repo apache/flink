@@ -18,6 +18,7 @@
 
 package org.apache.flink.metrics.influxdb;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
@@ -29,6 +30,7 @@ import org.apache.flink.metrics.MetricConfig;
 import org.influxdb.InfluxDB;
 
 /** Config options for {@link InfluxdbReporter}. */
+@PublicEvolving
 @Documentation.SuffixOption(ConfigConstants.METRICS_REPORTER_PREFIX + "influxdb")
 public class InfluxdbReporterOptions {
 

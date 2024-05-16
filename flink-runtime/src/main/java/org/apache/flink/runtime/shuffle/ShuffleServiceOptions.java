@@ -18,10 +18,12 @@
 
 package org.apache.flink.runtime.shuffle;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 
 /** Options to configure shuffle service. */
+@PublicEvolving
 @SuppressWarnings("WeakerAccess")
 public class ShuffleServiceOptions {
 
