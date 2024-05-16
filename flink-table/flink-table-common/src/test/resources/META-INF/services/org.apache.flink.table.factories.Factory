@@ -25,3 +25,4 @@ org.apache.flink.table.factories.TestCatalogFactory
 org.apache.flink.table.factories.TestCatalogStoreFactory
 org.apache.flink.table.factories.TestManagedTableFactory
 org.apache.flink.table.factories.module.DummyModuleFactory
+org.apache.flink.table.factories.workflow.TestWorkflowSchedulerFactory
