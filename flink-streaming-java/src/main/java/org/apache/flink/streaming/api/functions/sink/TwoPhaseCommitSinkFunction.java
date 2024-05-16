@@ -70,7 +70,10 @@ import static org.apache.flink.util.Preconditions.checkState;
  * @param <TXN> Transaction to store all of the information required to handle a transaction.
  * @param <CONTEXT> Context that will be shared across all invocations for the given {@link
  *     TwoPhaseCommitSinkFunction} instance. Context is created once
+ * @deprecated This interface will be removed in future versions. Use the new {@link
+ *     org.apache.flink.api.connector.sink2.Sink} interface instead.
  */
+@Deprecated
 @PublicEvolving
 public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT> extends RichSinkFunction<IN>
         implements CheckpointedFunction, CheckpointListener {
