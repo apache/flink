@@ -18,7 +18,7 @@
 
 package org.apache.flink.configuration;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
@@ -29,7 +29,7 @@ import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
 
 /** Configuration parameters for REST communication. */
-@Internal
+@PublicEvolving
 public class RestOptions {
 
     private static final String REST_PORT_KEY = "rest.port";

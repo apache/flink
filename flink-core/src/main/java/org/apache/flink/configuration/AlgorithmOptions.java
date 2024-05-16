@@ -18,9 +18,12 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
 
 /** Configuration parameters for join/sort algorithms. */
+@PublicEvolving
 public class AlgorithmOptions {
 
     public static final ConfigOption<Boolean> HASH_JOIN_BLOOM_FILTERS =
