@@ -44,7 +44,7 @@ public interface WorkflowScheduler<T extends RefreshHandler> {
      * Close this workflow scheduler when it is no longer needed and release any resource that it
      * might be holding.
      *
-     * @throws WorkflowException if close the related resources of workflow scheduler failed
+     * @throws WorkflowException if closing the related resources of workflow scheduler failed
      */
     void close() throws WorkflowException;
 
@@ -64,7 +64,7 @@ public interface WorkflowScheduler<T extends RefreshHandler> {
      * @param createRefreshWorkflow The detail info for create refresh workflow of materialized
      *     table.
      * @return The meta info which points to the refresh workflow in scheduler service.
-     * @throws WorkflowException if create refresh workflow failed
+     * @throws WorkflowException if creating refresh workflow failed
      */
     T createRefreshWorkflow(CreateRefreshWorkflow createRefreshWorkflow) throws WorkflowException;
 
