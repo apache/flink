@@ -47,7 +47,6 @@ public abstract class StateDescriptor<T> implements Serializable {
         VALUE,
         LIST,
         REDUCING,
-        FOLDING,
         AGGREGATING,
         MAP
     }

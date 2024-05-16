@@ -18,40 +18,32 @@
 
 package org.apache.flink.runtime.state.v2;
 
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
-import java.util.List;
-
-/** Tests for {@link InternalListState}. */
-public class InternalListStateTest extends InternalKeyedStateTestBase {
+/** Tests for {@link InternalReducingState}. */
+public class InternalReducingStateTest extends InternalKeyedStateTestBase {
 
     @Test
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings({"unchecked"})
     public void testEachOperation() {
-        ListStateDescriptor<Integer> descriptor =
-                new ListStateDescriptor<>("testState", BasicTypeInfo.INT_TYPE_INFO);
-        InternalListState<String, Integer> listState = new InternalListState<>(aec, descriptor);
+        ReduceFunction<Integer> reducer = Integer::sum;
+        ReducingStateDescriptor<Integer> descriptor =
+                new ReducingStateDescriptor<>("testState", reducer, BasicTypeInfo.INT_TYPE_INFO);
+        InternalReducingState<String, Integer> reducingState =
+                new InternalReducingState<>(aec, descriptor);
         aec.setCurrentContext(aec.buildContext("test", "test"));
 
-        listState.asyncClear();
-        validateRequestRun(listState, StateRequestType.CLEAR, null);
+        reducingState.asyncClear();
+        validateRequestRun(reducingState, StateRequestType.CLEAR, null);
 
-        listState.asyncGet();
-        validateRequestRun(listState, StateRequestType.LIST_GET, null);
+        reducingState.asyncGet();
+        validateRequestRun(reducingState, StateRequestType.REDUCING_GET, null);
 
-        listState.asyncAdd(1);
-        validateRequestRun(listState, StateRequestType.LIST_ADD, 1);
-
-        List<Integer> list = new ArrayList<>();
-        listState.asyncUpdate(list);
-        validateRequestRun(listState, StateRequestType.LIST_UPDATE, list);
-
-        list = new ArrayList<>();
-        listState.asyncAddAll(list);
-        validateRequestRun(listState, StateRequestType.LIST_ADD_ALL, list);
+        reducingState.asyncAdd(1);
+        validateRequestRun(reducingState, StateRequestType.REDUCING_ADD, 1);
     }
 }
