@@ -18,13 +18,13 @@
 
 package org.apache.flink.api.connector.sink2;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 
 import java.io.IOException;
 import java.util.Collection;
 
 /** A {@link SinkWriter} that performs the first part of a two-phase commit protocol. */
-@PublicEvolving
+@Public
 public interface CommittingSinkWriter<InputT, CommittableT> extends SinkWriter<InputT> {
     /**
      * Prepares for a commit.

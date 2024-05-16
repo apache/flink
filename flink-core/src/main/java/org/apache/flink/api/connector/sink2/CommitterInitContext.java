@@ -18,11 +18,11 @@
 
 package org.apache.flink.api.connector.sink2;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 
 /** The interface exposes some runtime info for creating a {@link Committer}. */
-@PublicEvolving
+@Public
 public interface CommitterInitContext extends InitContext {
     /** @return The metric group this committer belongs to. */
     SinkCommitterMetricGroup metricGroup();

@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.connector.sink2;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 
 import java.io.IOException;
 import java.util.List;
@@ -29,7 +29,7 @@ import java.util.List;
  * @param <InputT> The type of the sink writer's input
  * @param <WriterStateT> The type of the writer's state
  */
-@PublicEvolving
+@Public
 public interface StatefulSinkWriter<InputT, WriterStateT> extends SinkWriter<InputT> {
     /**
      * @return The writer's state.

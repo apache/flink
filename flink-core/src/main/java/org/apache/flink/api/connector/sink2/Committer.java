@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.connector.sink2;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -35,7 +35,7 @@ import java.util.Collection;
  *
  * @param <CommT> The type of information needed to commit the staged data
  */
-@PublicEvolving
+@Public
 public interface Committer<CommT> extends AutoCloseable {
     /**
      * Commit the given list of {@link CommT}.
@@ -51,7 +51,7 @@ public interface Committer<CommT> extends AutoCloseable {
      *
      * @param <CommT>
      */
-    @PublicEvolving
+    @Public
     interface CommitRequest<CommT> {
 
         /** Returns the committable. */
