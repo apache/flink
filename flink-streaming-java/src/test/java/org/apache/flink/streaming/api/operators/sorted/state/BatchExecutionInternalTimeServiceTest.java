@@ -207,6 +207,57 @@ class BatchExecutionInternalTimeServiceTest {
     }
 
     @Test
+    void testMaxWatermark() throws Exception {
+        BatchExecutionKeyedStateBackend<Integer> keyedStatedBackend =
+                new BatchExecutionKeyedStateBackend<>(
+                        KEY_SERIALIZER, new KeyGroupRange(0, 1), new ExecutionConfig());
+        TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
+        InternalTimeServiceManager<Integer> timeServiceManager =
+                BatchExecutionInternalTimeServiceManager.create(
+                        UnregisteredMetricGroups.createUnregisteredTaskMetricGroup()
+                                .getIOMetricGroup(),
+                        keyedStatedBackend,
+                        this.getClass().getClassLoader(),
+                        new DummyKeyContext(),
+                        processingTimeService,
+                        Collections.emptyList(),
+                        StreamTaskCancellationContext.alwaysRunning());
+        processingTimeService.setCurrentTime(100);
+        List<Long> timers = new ArrayList<>();
+        TriggerWithTimerServiceAccess<Integer, VoidNamespace> eventTimeTrigger =
+                TriggerWithTimerServiceAccess.eventTimeTrigger(
+                        (timer, timerService) -> {
+                            assertThat(timerService.currentWatermark()).isEqualTo(Long.MAX_VALUE);
+                            timers.add(timer.getTimestamp());
+                        });
+        InternalTimerService<VoidNamespace> timerService =
+                timeServiceManager.getInternalTimerService(
+                        "test", KEY_SERIALIZER, new VoidNamespaceSerializer(), eventTimeTrigger);
+        eventTimeTrigger.setTimerService(timerService);
+
+        assertThat(timerService.currentWatermark()).isEqualTo(Long.MIN_VALUE);
+        keyedStatedBackend.setCurrentKey(1);
+        timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, Long.MAX_VALUE);
+        assertThat(timerService.currentWatermark()).isEqualTo(Long.MIN_VALUE);
+
+        // advancing the watermark to a value different than Long.MAX_VALUE should have no effect
+        timeServiceManager.advanceWatermark(new Watermark(1000));
+        assertThat(timerService.currentWatermark()).isEqualTo(Long.MIN_VALUE);
+
+        // changing the current key fires all timers
+        keyedStatedBackend.setCurrentKey(2);
+        assertThat(timerService.currentWatermark()).isEqualTo(Long.MIN_VALUE);
+        timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, Long.MAX_VALUE);
+
+        // advancing the watermark to Long.MAX_VALUE should fire remaining key
+        timeServiceManager.advanceWatermark(Watermark.MAX_WATERMARK);
+
+        List<Long> accessedTimes = processingTimeService.getAccessedCurrentTimes();
+        assertThat(timers.size()).isEqualTo(accessedTimes.size());
+        assertThat(timers).containsExactly(accessedTimes.get(0), accessedTimes.get(1));
+    }
+
+    @Test
     void testCurrentWatermark() throws Exception {
         BatchExecutionKeyedStateBackend<Integer> keyedStatedBackend =
                 new BatchExecutionKeyedStateBackend<>(

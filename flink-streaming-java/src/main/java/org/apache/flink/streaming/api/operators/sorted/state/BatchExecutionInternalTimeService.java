@@ -30,6 +30,8 @@ import org.apache.flink.util.function.BiConsumerWithException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -142,12 +144,46 @@ public class BatchExecutionInternalTimeService<K, N> implements InternalTimerSer
         currentWatermark = Long.MAX_VALUE;
         InternalTimer<K, N> timer;
         while ((timer = eventTimeTimersQueue.poll()) != null) {
-            triggerTarget.onEventTime(timer);
+            triggerTarget.onEventTime(copyTimerWithCurrentTimestamp(timer));
         }
         while ((timer = processingTimeTimersQueue.poll()) != null) {
-            triggerTarget.onProcessingTime(timer);
+            triggerTarget.onProcessingTime(copyTimerWithCurrentTimestamp(timer));
         }
         currentWatermark = Long.MIN_VALUE;
         this.currentKey = currentKey;
+    }
+
+    private InternalTimer<K, N> copyTimerWithCurrentTimestamp(InternalTimer<K, N> timer) {
+        // This will be execution at the end of data.
+        // We set the timer's timestamp to the current processing time timestamp,
+        // if timer's timestamp is greater than current timestamp.
+        final long ts = processingTimeService.getCurrentProcessingTime();
+        if (timer.getTimestamp() > ts && ts != Long.MIN_VALUE) {
+            return new InternalTimer<K, N>() {
+                @Override
+                public long getTimestamp() {
+                    return ts;
+                }
+
+                @Nonnull
+                @Override
+                public K getKey() {
+                    return timer.getKey();
+                }
+
+                @Nonnull
+                @Override
+                public N getNamespace() {
+                    return timer.getNamespace();
+                }
+
+                @Override
+                public int comparePriorityTo(@Nonnull InternalTimer<?, ?> other) {
+                    return timer.comparePriorityTo(other);
+                }
+            };
+        } else {
+            return timer;
+        }
     }
 }

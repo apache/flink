@@ -20,8 +20,10 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Preconditions;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -39,6 +41,8 @@ import java.util.concurrent.atomic.AtomicReference;
 public class TestProcessingTimeService implements TimerService {
 
     private volatile long currentTime = Long.MIN_VALUE;
+
+    private List<Long> accessedCurrentTimes = new ArrayList<>();
 
     private volatile boolean isTerminated;
     private volatile boolean isQuiesced;
@@ -89,7 +93,12 @@ public class TestProcessingTimeService implements TimerService {
 
     @Override
     public long getCurrentProcessingTime() {
+        accessedCurrentTimes.add(currentTime);
         return currentTime;
+    }
+
+    public List<Long> getAccessedCurrentTimes() {
+        return accessedCurrentTimes;
     }
 
     @Override
