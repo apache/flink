@@ -28,6 +28,7 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.filemerging.EmptySegmentFileStateHandle;
 import org.apache.flink.runtime.state.filemerging.SegmentFileStateHandle;
 import org.apache.flink.util.Preconditions;
 
@@ -93,8 +94,12 @@ public class SubtaskFileMergingManagerRestoreOperation {
         Stream<SegmentFileStateHandle> segmentStateHandles =
                 Stream.of(keyedStateHandles, operatorStateHandles)
                         .flatMap(Function.identity())
-                        .filter(handle -> handle instanceof SegmentFileStateHandle)
+                        .filter(
+                                handle ->
+                                        (handle instanceof SegmentFileStateHandle)
+                                                && !(handle instanceof EmptySegmentFileStateHandle))
                         .map(handle -> (SegmentFileStateHandle) handle);
+        System.out.println("Restoring from checkpoint " + checkpointId);
         fileMergingSnapshotManager.restoreStateHandles(
                 checkpointId, subtaskKey, segmentStateHandles);
     }

@@ -102,6 +102,13 @@ public interface FileMergingSnapshotManager extends Closeable {
     void registerSubtaskForSharedStates(SubtaskKey subtaskKey);
 
     /**
+     * Unregister a subtask.
+     *
+     * @param subtaskKey the subtask key identifying a subtask.
+     */
+    void unregisterSubtask(SubtaskKey subtaskKey);
+
+    /**
      * Create a new {@link FileMergingCheckpointStateOutputStream}. According to the file merging
      * strategy, the streams returned by multiple calls to this function may share the same
      * underlying physical file, and each stream writes to a segment of the physical file.

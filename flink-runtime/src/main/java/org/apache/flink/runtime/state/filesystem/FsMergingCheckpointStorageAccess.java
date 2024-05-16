@@ -29,10 +29,12 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.Closeable;
 import java.io.IOException;
 
 /** An implementation of file merging checkpoint storage to file systems. */
-public class FsMergingCheckpointStorageAccess extends FsCheckpointStorageAccess {
+public class FsMergingCheckpointStorageAccess extends FsCheckpointStorageAccess
+        implements Closeable {
 
     /** FileMergingSnapshotManager manages files and meta information for checkpoints. */
     private final FileMergingSnapshotManager fileMergingSnapshotManager;
@@ -111,5 +113,11 @@ public class FsMergingCheckpointStorageAccess extends FsCheckpointStorageAccess 
                     fileMergingSnapshotManager,
                     checkpointId);
         }
+    }
+
+    /** This will be registered to resource closer of {@code StreamTask}. */
+    @Override
+    public void close() {
+        fileMergingSnapshotManager.unregisterSubtask(subtaskKey);
     }
 }

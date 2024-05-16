@@ -532,7 +532,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                                             ExecutionCheckpointingOptions
                                                     .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH),
                             BarrierAlignmentUtil.createRegisterTimerCallback(
-                                    mainMailboxExecutor, systemTimerService));
+                                    mainMailboxExecutor, systemTimerService),
+                            environment.getTaskStateManager().getFileMergingSnapshotManager());
             resourceCloser.registerCloseable(subtaskCheckpointCoordinator::close);
 
             // Register to stop all timers and threads. Should be closed first.
@@ -567,6 +568,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                             checkpointStorageAccess.toFileMergingStorage(
                                     fileMergingSnapshotManager, environment);
             mergingCheckpointStorageAccess.initializeBaseLocationsForCheckpoint();
+            if (mergingCheckpointStorageAccess instanceof FsMergingCheckpointStorageAccess) {
+                resourceCloser.registerCloseable(
+                        () ->
+                                ((FsMergingCheckpointStorageAccess) mergingCheckpointStorageAccess)
+                                        .close());
+            }
             return mergingCheckpointStorageAccess;
         } catch (IOException e) {
             LOG.warn(

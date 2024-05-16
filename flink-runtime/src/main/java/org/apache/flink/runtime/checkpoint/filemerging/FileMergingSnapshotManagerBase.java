@@ -27,6 +27,7 @@ import org.apache.flink.core.fs.OutputStreamAndPath;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.filemerging.LogicalFile.LogicalFileId;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
+import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filemerging.DirectoryStreamStateHandle;
 import org.apache.flink.runtime.state.filemerging.SegmentFileStateHandle;
@@ -50,6 +51,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
@@ -61,6 +63,9 @@ import static org.apache.flink.runtime.checkpoint.filemerging.PhysicalFile.Physi
 public abstract class FileMergingSnapshotManagerBase implements FileMergingSnapshotManager {
 
     private static final Logger LOG = LoggerFactory.getLogger(FileMergingSnapshotManager.class);
+
+    /** The number of recent checkpoints whose IDs are remembered. */
+    private static final int NUM_GHOST_CHECKPOINT_IDS = 16;
 
     /** The identifier of this manager. */
     private final String id;
@@ -108,6 +113,14 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     protected PhysicalFilePool.Type filePoolType;
 
     protected PhysicalFileDeleter physicalFileDeleter = this::deletePhysicalFile;
+
+    private final Object notifyLock = new Object();
+
+    @GuardedBy("notifyLock")
+    private final Map<Long, Set<SubtaskKey>> notifiedSubtaskCheckpoint = new HashMap<>();
+
+    @GuardedBy("notifyLock")
+    private final TreeSet<Long> notifiedCheckpoint = new TreeSet<>();
 
     /**
      * Currently the shared state files are merged within each subtask, files are split by different
@@ -195,6 +208,14 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                     subtaskKey,
                     DirectoryStreamStateHandle.forPathWithZeroSize(
                             new File(managedPath.getPath()).toPath()));
+        }
+    }
+
+    @Override
+    public void unregisterSubtask(SubtaskKey subtaskKey) {
+        if (managedSharedStateDir.containsKey(subtaskKey)) {
+            managedSharedStateDir.remove(subtaskKey);
+            managedSharedStateDirHandles.remove(subtaskKey);
         }
     }
 
@@ -470,6 +491,7 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                 uploadedStates.remove(checkpointId);
             }
         }
+        notifyReleaseCheckpoint(subtaskKey, checkpointId);
     }
 
     @Override
@@ -485,6 +507,36 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                 }
             }
         }
+        notifyReleaseCheckpoint(subtaskKey, checkpointId);
+    }
+
+    private void notifyReleaseCheckpoint(SubtaskKey subtaskKey, long checkpointId)
+            throws IOException {
+        synchronized (notifyLock) {
+            if (notifiedCheckpoint.contains(checkpointId)) {
+                // already release, skip
+                return;
+            }
+            Set<SubtaskKey> knownSubtask =
+                    notifiedSubtaskCheckpoint.computeIfAbsent(checkpointId, (e) -> new HashSet<>());
+            knownSubtask.add(subtaskKey);
+            if (knownSubtask.containsAll(managedSharedStateDir.keySet())) {
+                // all known subtask has been notified.
+                tryDiscardCheckpoint(checkpointId);
+            }
+        }
+    }
+
+    private void tryDiscardCheckpoint(long checkpointId) throws IOException {
+        synchronized (notifyLock) {
+            if (!notifiedCheckpoint.contains(checkpointId)) {
+                notifiedCheckpoint.add(checkpointId);
+                discardCheckpoint(checkpointId);
+                if (notifiedCheckpoint.size() > NUM_GHOST_CHECKPOINT_IDS) {
+                    notifiedCheckpoint.pollFirst();
+                }
+            }
+        }
     }
 
     @Override
@@ -495,6 +547,14 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                 LogicalFile file =
                         knownLogicalFiles.get(
                                 ((SegmentFileStateHandle) stateHandle).getLogicalFileId());
+                if (file != null) {
+                    file.advanceLastCheckpointId(checkpointId);
+                }
+            } else if (stateHandle instanceof PlaceholderStreamStateHandle) {
+                LogicalFile file =
+                        knownLogicalFiles.get(
+                                new LogicalFileId(
+                                        stateHandle.getStreamStateHandleID().getKeyString()));
                 if (file != null) {
                     file.advanceLastCheckpointId(checkpointId);
                 }
@@ -525,7 +585,7 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
         }
 
         if (logicalFiles.isEmpty()) {
-            discardCheckpoint(checkpointId);
+            tryDiscardCheckpoint(checkpointId);
             return true;
         }
         return false;
@@ -676,5 +736,10 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     @VisibleForTesting
     TreeMap<Long, Set<LogicalFile>> getUploadedStates() {
         return uploadedStates;
+    }
+
+    @VisibleForTesting
+    boolean isCheckpointDiscard(long checkpointId) {
+        return notifiedCheckpoint.contains(checkpointId);
     }
 }
