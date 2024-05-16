@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.runtime.rest.handler.job.JobConfigHandler;
+import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -168,12 +169,14 @@ public class JobConfigInfo implements ResponseBody {
     /** Nested class to encapsulate the execution configuration. */
     public static final class ExecutionConfigInfo {
 
-        public static final String FIELD_NAME_EXECUTION_MODE = "execution-mode";
+        @Deprecated public static final String FIELD_NAME_EXECUTION_MODE = "execution-mode";
         public static final String FIELD_NAME_RESTART_STRATEGY = "restart-strategy";
         public static final String FIELD_NAME_PARALLELISM = "job-parallelism";
         public static final String FIELD_NAME_OBJECT_REUSE_MODE = "object-reuse-mode";
         public static final String FIELD_NAME_GLOBAL_JOB_PARAMETERS = "user-config";
 
+        /** @deprecated Use {@link JobDetailsInfo#getJobType()} instead. */
+        @Deprecated
         @JsonProperty(FIELD_NAME_EXECUTION_MODE)
         private final String executionMode;
 
