@@ -18,6 +18,9 @@
 
 package org.apache.flink.docs.configuration;
 
+import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
@@ -35,6 +38,12 @@ import org.apache.flink.docs.util.OptionWithMetaInfo;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TimeUtils;
+
+import org.apache.flink.shaded.asm9.org.objectweb.asm.AnnotationVisitor;
+import org.apache.flink.shaded.asm9.org.objectweb.asm.ClassReader;
+import org.apache.flink.shaded.asm9.org.objectweb.asm.ClassVisitor;
+import org.apache.flink.shaded.asm9.org.objectweb.asm.Opcodes;
+import org.apache.flink.shaded.asm9.org.objectweb.asm.Type;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,6 +110,29 @@ public class ConfigOptionsDocGenerator {
         createTables(rootDir, outputDirectory);
 
         generateCommonSection(rootDir, new ConfigurationOptionLocator(), outputDirectory);
+    }
+
+    @VisibleForTesting
+    static void verifyClassAnnotation(Class<?> optionsClass) throws Exception {
+        final ClassReader classReader = new ClassReader(optionsClass.getName());
+        List<String> annotationDescriptors = new ArrayList<>();
+        classReader.accept(
+                new ClassVisitor(Opcodes.ASM9) {
+                    @Override
+                    public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
+                        annotationDescriptors.add(descriptor);
+                        return super.visitAnnotation(descriptor, visible);
+                    }
+                },
+                0);
+        if (!annotationDescriptors.contains(Type.getDescriptor(Public.class))
+                && !annotationDescriptors.contains(Type.getDescriptor(PublicEvolving.class))
+                && !annotationDescriptors.contains(Type.getDescriptor(Experimental.class))) {
+            throw new RuntimeException(
+                    String.format(
+                            "The ConfigOption class %s must be annotated with Public, PublicEvolving, or Experimental.",
+                            optionsClass.getName()));
+        }
     }
 
     @VisibleForTesting
@@ -197,6 +229,9 @@ public class ConfigOptionsDocGenerator {
                         (optionsClass, optionWithMetaInfos) -> {
                             List<Tuple2<ConfigGroup, String>> tables =
                                     generateTablesForClass(optionsClass, optionWithMetaInfos);
+                            if (!tables.isEmpty()) {
+                                verifyClassAnnotation(optionsClass);
+                            }
                             for (Tuple2<ConfigGroup, String> group : tables) {
                                 String name;
                                 if (group.f0 == null) {
