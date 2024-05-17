@@ -37,7 +37,9 @@ import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.Triggerable;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -186,6 +188,35 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
                 namespaceSerializer,
                 triggerable,
                 (AsyncExecutionController<K>) asyncExecutionController);
+    }
+
+    @Override
+    public void processWatermark(Watermark mark) throws Exception {
+        if (!isAsyncStateProcessingEnabled()) {
+            super.processWatermark(mark);
+            return;
+        }
+        asyncExecutionController.processNonRecord(() -> super.processWatermark(mark));
+    }
+
+    @Override
+    public void processWatermarkStatus(WatermarkStatus watermarkStatus, int inputId)
+            throws Exception {
+        if (!isAsyncStateProcessingEnabled()) {
+            super.processWatermarkStatus(watermarkStatus, inputId);
+            return;
+        }
+        asyncExecutionController.processNonRecord(
+                () -> {
+                    boolean wasIdle = combinedWatermark.isIdle();
+                    if (combinedWatermark.updateStatus(inputId - 1, watermarkStatus.isIdle())) {
+                        super.processWatermark(
+                                new Watermark(combinedWatermark.getCombinedWatermark()));
+                    }
+                    if (wasIdle != combinedWatermark.isIdle()) {
+                        output.emitWatermarkStatus(watermarkStatus);
+                    }
+                });
     }
 
     @VisibleForTesting

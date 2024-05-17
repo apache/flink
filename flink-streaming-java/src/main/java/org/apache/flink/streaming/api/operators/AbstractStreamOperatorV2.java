@@ -93,7 +93,7 @@ public abstract class AbstractStreamOperatorV2<OUT>
     private final ExecutionConfig executionConfig;
     private final ClassLoader userCodeClassLoader;
     private final CloseableRegistry cancelables;
-    private final IndexedCombinedWatermarkStatus combinedWatermark;
+    protected final IndexedCombinedWatermarkStatus combinedWatermark;
 
     /** Metric group for the operator. */
     protected final InternalOperatorMetricGroup metrics;
@@ -493,7 +493,7 @@ public abstract class AbstractStreamOperatorV2<OUT>
         }
     }
 
-    public final void processWatermarkStatus(WatermarkStatus watermarkStatus, int inputId)
+    public void processWatermarkStatus(WatermarkStatus watermarkStatus, int inputId)
             throws Exception {
         boolean wasIdle = combinedWatermark.isIdle();
         if (combinedWatermark.updateStatus(inputId - 1, watermarkStatus.isIdle())) {

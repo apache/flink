@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.forst;
 
+import org.apache.flink.runtime.asyncprocessing.EpochManager.Epoch;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestContainer;
@@ -127,7 +128,8 @@ public class ForStStateExecutorTest extends ForStDBOperationTestBase {
             V value,
             R record) {
         int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(key, 128);
-        RecordContext<K> recordContext = new RecordContext<>(record, key, t -> {}, keyGroup);
+        RecordContext<K> recordContext =
+                new RecordContext<>(record, key, t -> {}, keyGroup, new Epoch(0));
         TestStateFuture stateFuture = new TestStateFuture<>();
         return new StateRequest<>(innerTable, requestType, value, stateFuture, recordContext);
     }
