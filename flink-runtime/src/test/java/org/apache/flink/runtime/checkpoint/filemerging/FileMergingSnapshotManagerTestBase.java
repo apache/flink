@@ -344,7 +344,10 @@ public abstract class FileMergingSnapshotManagerTestBase {
         try (FileMergingSnapshotManagerBase fmsm =
                 (FileMergingSnapshotManagerBase)
                         createFileMergingSnapshotManager(
-                                checkpointBaseDir, 32, PhysicalFilePool.Type.BLOCKING)) {
+                                checkpointBaseDir,
+                                32,
+                                PhysicalFilePool.Type.BLOCKING,
+                                Float.MAX_VALUE)) {
             fmsm.registerSubtaskForSharedStates(subtaskKey1);
 
             // test reusing a physical file
@@ -563,11 +566,14 @@ public abstract class FileMergingSnapshotManagerTestBase {
     FileMergingSnapshotManager createFileMergingSnapshotManager(Path checkpointBaseDir)
             throws IOException {
         return createFileMergingSnapshotManager(
-                checkpointBaseDir, 32 * 1024 * 1024, PhysicalFilePool.Type.NON_BLOCKING);
+                checkpointBaseDir, 32 * 1024 * 1024, PhysicalFilePool.Type.NON_BLOCKING, 2f);
     }
 
     FileMergingSnapshotManager createFileMergingSnapshotManager(
-            Path checkpointBaseDir, long maxFileSize, PhysicalFilePool.Type filePoolType)
+            Path checkpointBaseDir,
+            long maxFileSize,
+            PhysicalFilePool.Type filePoolType,
+            float spaceAmplification)
             throws IOException {
         FileSystem fs = LocalFileSystem.getSharedInstance();
         Path sharedStateDir =
@@ -587,6 +593,7 @@ public abstract class FileMergingSnapshotManagerTestBase {
                 new FileMergingSnapshotManagerBuilder(tmId, getFileMergingType())
                         .setMaxFileSize(maxFileSize)
                         .setFilePoolType(filePoolType)
+                        .setMaxSpaceAmplification(spaceAmplification)
                         .build();
         fmsm.initFileSystem(
                 LocalFileSystem.getSharedInstance(),

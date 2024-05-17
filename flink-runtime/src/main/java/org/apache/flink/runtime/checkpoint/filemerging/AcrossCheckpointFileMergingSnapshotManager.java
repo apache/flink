@@ -31,8 +31,12 @@ public class AcrossCheckpointFileMergingSnapshotManager extends FileMergingSnaps
     private final PhysicalFilePool filePool;
 
     public AcrossCheckpointFileMergingSnapshotManager(
-            String id, long maxFileSize, PhysicalFilePool.Type filePoolType, Executor ioExecutor) {
-        super(id, maxFileSize, filePoolType, ioExecutor);
+            String id,
+            long maxFileSize,
+            PhysicalFilePool.Type filePoolType,
+            float maxSpaceAmplification,
+            Executor ioExecutor) {
+        super(id, maxFileSize, filePoolType, maxSpaceAmplification, ioExecutor);
         filePool = createPhysicalPool();
     }
 
@@ -43,9 +47,6 @@ public class AcrossCheckpointFileMergingSnapshotManager extends FileMergingSnaps
             throws IOException {
         return filePool.pollFile(subtaskKey, scope);
     }
-
-    @Override
-    protected void discardCheckpoint(long checkpointId) {}
 
     @Override
     protected void returnPhysicalFileForNextReuse(

@@ -50,11 +50,13 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
 import static org.apache.flink.runtime.checkpoint.filemerging.PhysicalFile.PhysicalFileDeleter;
@@ -112,6 +114,8 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     /** Type of physical file pool. */
     protected PhysicalFilePool.Type filePoolType;
 
+    protected final float maxSpaceAmplification;
+
     protected PhysicalFileDeleter physicalFileDeleter = this::deletePhysicalFile;
 
     private final Object notifyLock = new Object();
@@ -150,10 +154,16 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     protected SpaceStat spaceStat;
 
     public FileMergingSnapshotManagerBase(
-            String id, long maxFileSize, PhysicalFilePool.Type filePoolType, Executor ioExecutor) {
+            String id,
+            long maxFileSize,
+            PhysicalFilePool.Type filePoolType,
+            float maxSpaceAmplification,
+            Executor ioExecutor) {
         this.id = id;
         this.maxPhysicalFileSize = maxFileSize;
         this.filePoolType = filePoolType;
+        this.maxSpaceAmplification =
+                maxSpaceAmplification < 1f ? Float.MAX_VALUE : maxSpaceAmplification;
         this.ioExecutor = ioExecutor;
         this.spaceStat = new SpaceStat();
     }
@@ -245,6 +255,7 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
         knownLogicalFiles.put(fileID, file);
         if (physicalFile.isOwned()) {
             spaceStat.onLogicalFileCreate(length);
+            spaceStat.onPhysicalFileUpdate(length);
         }
         return file;
     }
@@ -471,7 +482,9 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
      * @param checkpointId the discarded checkpoint id.
      * @throws IOException if anything goes wrong with file system.
      */
-    protected abstract void discardCheckpoint(long checkpointId) throws IOException;
+    protected void discardCheckpoint(long checkpointId) throws IOException {
+        controlSpace();
+    }
 
     // ------------------------------------------------------------------------
     //  Checkpoint Listener
@@ -570,6 +583,68 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                 }
             }
         }
+    }
+
+    // ------------------------------------------------------------------------
+    //  Space Control
+    // ------------------------------------------------------------------------
+
+    /**
+     * The core method that control space if needed. This method will compare the desired space
+     * amplification with current one, and if it exceeds the configured amplification, this method
+     * will mark minimal set of {@link PhysicalFile}s not to be reused anymore.
+     */
+    private void controlSpace() {
+        if (maxSpaceAmplification != Float.MAX_VALUE
+                && spaceStat.logicalFileSize.get() * maxSpaceAmplification
+                        < spaceStat.physicalFileSize.get()) {
+            // may need control space
+            long goalPhysicalSize =
+                    Math.round(spaceStat.logicalFileSize.get() * maxSpaceAmplification);
+            final AtomicLong aliveSize = new AtomicLong(0L);
+            // retrieve all the physical files and calculate current alive size
+            Set<PhysicalFile> knownPhysicalFiles = new HashSet<>();
+            knownLogicalFiles.values().stream()
+                    .map(LogicalFile::getPhysicalFile)
+                    .forEach(
+                            file -> {
+                                if (file.isCouldReuse()) {
+                                    if (knownPhysicalFiles.add(file)) {
+                                        aliveSize.addAndGet(file.getSize());
+                                    }
+                                }
+                            });
+            // the alive size still greater than the goal
+            if (aliveSize.get() > goalPhysicalSize) {
+                // sort in DESC order on wasted size
+                SortedSet<PhysicalFile> sortedPhysicalFile =
+                        new TreeSet<>((a, b) -> Long.compare(b.wastedSize(), a.wastedSize()));
+                knownPhysicalFiles.stream()
+                        .filter(PhysicalFile::closed)
+                        .forEach(sortedPhysicalFile::add);
+                // mark the physical file un-alive, until it reaches our goal.
+                for (PhysicalFile file : sortedPhysicalFile) {
+                    if (!file.checkReuseOnSpaceAmplification(maxSpaceAmplification)) {
+                        if (aliveSize.addAndGet(-file.wastedSize()) <= goalPhysicalSize) {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Override
+    public boolean couldReusePreviousStateHandle(StreamStateHandle stateHandle) {
+        if (stateHandle instanceof SegmentFileStateHandle) {
+            LogicalFile file =
+                    knownLogicalFiles.get(
+                            ((SegmentFileStateHandle) stateHandle).getLogicalFileId());
+            if (file != null) {
+                return file.getPhysicalFile().isCouldReuse();
+            }
+        }
+        return true;
     }
 
     public void discardSingleLogicalFile(LogicalFile logicalFile, long checkpointId)
@@ -692,15 +767,23 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                                                                     path,
                                                                     subtaskKey,
                                                                     fileHandle.getScope());
+                                            PhysicalFile file =
+                                                    new PhysicalFile(
+                                                            null,
+                                                            path,
+                                                            physicalFileDeleter,
+                                                            fileHandle.getScope(),
+                                                            managedByFileMergingManager);
+                                            try {
+                                                file.updateSize(getFileSize(file));
+                                            } catch (IOException e) {
+                                                throw new RuntimeException(e);
+                                            }
                                             if (managedByFileMergingManager) {
                                                 spaceStat.onPhysicalFileCreate();
+                                                spaceStat.onPhysicalFileUpdate(file.getSize());
                                             }
-                                            return new PhysicalFile(
-                                                    null,
-                                                    path,
-                                                    physicalFileDeleter,
-                                                    fileHandle.getScope(),
-                                                    managedByFileMergingManager);
+                                            return file;
                                         });
 
                         LogicalFileId logicalFileId = fileHandle.getLogicalFileId();
@@ -719,6 +802,16 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                         logicalFile.advanceLastCheckpointId(checkpointId);
                         restoredLogicalFiles.add(logicalFile);
                     });
+        }
+    }
+
+    private long getFileSize(PhysicalFile file) throws IOException {
+        FileStatus fileStatus =
+                file.getFilePath().getFileSystem().getFileStatus(file.getFilePath());
+        if (fileStatus == null || fileStatus.isDir()) {
+            throw new FileNotFoundException("File " + file.getFilePath() + " does not exist.");
+        } else {
+            return fileStatus.getLen();
         }
     }
 

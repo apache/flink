@@ -171,6 +171,14 @@ public interface FileMergingSnapshotManager extends Closeable {
     void notifyCheckpointSubsumed(SubtaskKey subtaskKey, long checkpointId) throws Exception;
 
     /**
+     * Check whether previous state handles could further be reused considering the space
+     * amplification.
+     *
+     * @param stateHandle the handle to be reused.
+     */
+    boolean couldReusePreviousStateHandle(StreamStateHandle stateHandle);
+
+    /**
      * A callback method which is called when previous state handles are reused by following
      * checkpoint(s).
      *
@@ -302,7 +310,6 @@ public interface FileMergingSnapshotManager extends Closeable {
         }
 
         public void onLogicalFileCreate(long size) {
-            physicalFileSize.addAndGet(size);
             logicalFileSize.addAndGet(size);
             logicalFileCount.incrementAndGet();
         }
@@ -310,6 +317,10 @@ public interface FileMergingSnapshotManager extends Closeable {
         public void onLogicalFileDelete(long size) {
             logicalFileSize.addAndGet(-size);
             logicalFileCount.decrementAndGet();
+        }
+
+        public void onPhysicalFileUpdate(long size) {
+            physicalFileSize.addAndGet(size);
         }
 
         public void onPhysicalFileCreate() {

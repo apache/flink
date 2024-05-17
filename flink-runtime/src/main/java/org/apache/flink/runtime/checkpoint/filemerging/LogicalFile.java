@@ -116,6 +116,7 @@ public class LogicalFile {
     public void discardWithCheckpointId(long checkpointId) throws IOException {
         if (!discarded && checkpointId >= lastUsedCheckpointID) {
             physicalFile.decRefCount();
+            physicalFile.decSize(length);
             discarded = true;
         }
     }

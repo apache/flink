@@ -39,9 +39,13 @@ public class WithinCheckpointFileMergingSnapshotManager extends FileMergingSnaps
     private final Map<Long, PhysicalFilePool> writablePhysicalFilePool;
 
     public WithinCheckpointFileMergingSnapshotManager(
-            String id, long maxFileSize, PhysicalFilePool.Type filePoolType, Executor ioExecutor) {
+            String id,
+            long maxFileSize,
+            PhysicalFilePool.Type filePoolType,
+            float maxSpaceAmplification,
+            Executor ioExecutor) {
         // currently there is no file size limit For WITHIN_BOUNDARY mode
-        super(id, maxFileSize, filePoolType, ioExecutor);
+        super(id, maxFileSize, filePoolType, maxSpaceAmplification, ioExecutor);
         writablePhysicalFilePool = new HashMap<>();
     }
 
@@ -116,6 +120,7 @@ public class WithinCheckpointFileMergingSnapshotManager extends FileMergingSnaps
         if (filePool != null) {
             filePool.close();
         }
+        super.discardCheckpoint(checkpointId);
     }
 
     private PhysicalFilePool getOrCreateFilePool(long checkpointId) {

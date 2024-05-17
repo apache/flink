@@ -42,6 +42,7 @@ import java.util.Set;
 import static org.apache.flink.configuration.CheckpointingOptions.FILE_MERGING_ACROSS_BOUNDARY;
 import static org.apache.flink.configuration.CheckpointingOptions.FILE_MERGING_ENABLED;
 import static org.apache.flink.configuration.CheckpointingOptions.FILE_MERGING_MAX_FILE_SIZE;
+import static org.apache.flink.configuration.CheckpointingOptions.FILE_MERGING_MAX_SPACE_AMPLIFICATION;
 import static org.apache.flink.configuration.CheckpointingOptions.FILE_MERGING_POOL_BLOCKING;
 
 /**
@@ -118,6 +119,13 @@ public class TaskExecutorFileMergingManager {
                                 .getOptional(FILE_MERGING_POOL_BLOCKING)
                                 .orElse(clusterConfiguration.get(FILE_MERGING_POOL_BLOCKING));
 
+                Float spaceAmplification =
+                        jobConfiguration
+                                .getOptional(FILE_MERGING_MAX_SPACE_AMPLIFICATION)
+                                .orElse(
+                                        clusterConfiguration.get(
+                                                FILE_MERGING_MAX_SPACE_AMPLIFICATION));
+
                 fileMergingSnapshotManagerAndRetainedExecutions =
                         Tuple2.of(
                                 new FileMergingSnapshotManagerBuilder(
@@ -127,6 +135,7 @@ public class TaskExecutorFileMergingManager {
                                                 usingBlockingPool
                                                         ? PhysicalFilePool.Type.BLOCKING
                                                         : PhysicalFilePool.Type.NON_BLOCKING)
+                                        .setMaxSpaceAmplification(spaceAmplification)
                                         .build(),
                                 new HashSet<>());
                 fileMergingSnapshotManagerByJobId.put(

@@ -416,7 +416,8 @@ public class RocksIncrementalSnapshotStrategy<K>
 
                 if (fileName.endsWith(SST_FILE_SUFFIX)) {
                     Optional<StreamStateHandle> uploaded = previousSnapshot.getUploaded(fileName);
-                    if (uploaded.isPresent()) {
+                    if (uploaded.isPresent()
+                            && checkpointStreamFactory.couldReuseStateHandle(uploaded.get())) {
                         sstFiles.add(HandleAndLocalPath.of(uploaded.get(), fileName));
                     } else {
                         sstFilePaths.add(filePath); // re-upload

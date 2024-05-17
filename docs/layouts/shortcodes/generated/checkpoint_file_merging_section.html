@@ -32,5 +32,11 @@
             <td>Boolean</td>
             <td>Whether to use Blocking or Non-Blocking pool for merging physical files. A Non-Blocking pool will always provide usable physical file without blocking. It may create many physical files if poll file frequently. When poll a small file from a Blocking pool, it may be blocked until the file is returned.</td>
         </tr>
+        <tr>
+            <td><h5>state.checkpoints.file-merging.max-space-amplification</h5></td>
+            <td style="word-wrap: break-word;">2.0</td>
+            <td>Float</td>
+            <td>Space amplification stands for the magnification of the occupied space compared to the amount of valid data. The more space amplification is, the more waste of space will be. This configs a space amplification above which a re-uploading for physical files will be triggered to reclaim space. Any value below 1f means disabling the space control.</td>
+        </tr>
     </tbody>
 </table>

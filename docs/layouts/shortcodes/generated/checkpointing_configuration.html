@@ -141,6 +141,12 @@
             <td>Max size of a physical file for merged checkpoints.</td>
         </tr>
         <tr>
+            <td><h5>state.checkpoints.file-merging.max-space-amplification</h5></td>
+            <td style="word-wrap: break-word;">2.0</td>
+            <td>Float</td>
+            <td>Space amplification stands for the magnification of the occupied space compared to the amount of valid data. The more space amplification is, the more waste of space will be. This configs a space amplification above which a re-uploading for physical files will be triggered to reclaim space. Any value below 1f means disabling the space control.</td>
+        </tr>
+        <tr>
             <td><h5>state.checkpoints.file-merging.pool-blocking</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
