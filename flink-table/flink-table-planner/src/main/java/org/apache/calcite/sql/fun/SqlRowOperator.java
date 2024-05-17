@@ -19,6 +19,7 @@
 package org.apache.calcite.sql.fun;
 
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperatorBinding;
@@ -27,14 +28,17 @@ import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.type.InferTypes;
 import org.apache.calcite.sql.type.OperandTypes;
-import org.apache.calcite.util.Pair;
 
 import java.util.AbstractList;
-import java.util.Map;
 
 /**
- * Copied to keep null semantics of table api and sql in sync. At the same time SQL standard says
- * that the next about `ROW`:
+ * Copied to keep null semantics of table api and sql in sync.
+ *
+ * <p>There are differences following:
+ *
+ * <p>1. The return value about {@code R IS NULL} and {@code R IS NOT NULL}.
+ *
+ * <p>At the same time SQL standard says that the next about `ROW`:
  *
  * <ul>
  *   <li>The value of {@code R IS NULL} is:
@@ -66,12 +70,19 @@ import java.util.Map;
  *       </ul>
  * </ul>
  *
- * Once Flink applies same logic for both table api and sql, this class should be removed.
+ * <p>Once Flink applies same logic for both table api and sql, this first changes should be
+ * removed.
+ *
+ * <p>2. It uses {@link StructKind#PEEK_FIELDS_NO_EXPAND} with a nested struct type (Flink [[{@link
+ * org.apache.flink.table.types.logical.RowType}]]).
+ *
+ * <p>See more at {@link org.apache.flink.table.planner.typeutils.LogicalRelDataTypeConverter} and
+ * {@link org.apache.flink.table.planner.calcite.FlinkTypeFactory}.
  *
  * <p>Changed lines
  *
  * <ol>
- *   <li>Line 92 ~ 112
+ *   <li>Line 106 ~ 137
  * </ol>
  */
 public class SqlRowOperator extends SqlSpecialOperator {
@@ -96,20 +107,31 @@ public class SqlRowOperator extends SqlSpecialOperator {
         // The type of a ROW(e1,e2) expression is a record with the types
         // {e1type,e2type}.  According to the standard, field names are
         // implementation-defined.
+        int fieldCount = opBinding.getOperandCount();
         return opBinding
                 .getTypeFactory()
                 .createStructType(
-                        new AbstractList<Map.Entry<String, RelDataType>>() {
+                        StructKind.PEEK_FIELDS_NO_EXPAND,
+                        new AbstractList<RelDataType>() {
                             @Override
-                            public Map.Entry<String, RelDataType> get(int index) {
-                                return Pair.of(
-                                        SqlUtil.deriveAliasFromOrdinal(index),
-                                        opBinding.getOperandType(index));
+                            public RelDataType get(int index) {
+                                return opBinding.getOperandType(index);
                             }
 
                             @Override
                             public int size() {
-                                return opBinding.getOperandCount();
+                                return fieldCount;
+                            }
+                        },
+                        new AbstractList<String>() {
+                            @Override
+                            public String get(int index) {
+                                return SqlUtil.deriveAliasFromOrdinal(index);
+                            }
+
+                            @Override
+                            public int size() {
+                                return fieldCount;
                             }
                         });
         // ----- FLINK MODIFICATION END -----
