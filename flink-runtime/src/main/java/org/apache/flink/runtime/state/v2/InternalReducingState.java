@@ -17,45 +17,37 @@
 
 package org.apache.flink.runtime.state.v2;
 
-import org.apache.flink.api.common.state.v2.ListState;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.state.v2.ReducingState;
 import org.apache.flink.api.common.state.v2.StateFuture;
-import org.apache.flink.api.common.state.v2.StateIterator;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 
-import java.util.List;
-
 /**
- * A default implementation of {@link ListState} which delegates all async requests to {@link
+ * A default implementation of {@link ReducingState} which delegates all async requests to {@link
  * StateRequestHandler}.
  *
  * @param <K> The type of key the state is associated to.
  * @param <V> The type of values kept internally in state.
  */
-public class InternalListState<K, V> extends InternalKeyedState<K, V> implements ListState<V> {
+public class InternalReducingState<K, V> extends InternalKeyedState<K, V>
+        implements ReducingState<V> {
 
-    public InternalListState(
-            StateRequestHandler stateRequestHandler, ListStateDescriptor<V> stateDescriptor) {
+    protected final ReduceFunction<V> reduceFunction;
+
+    public InternalReducingState(
+            StateRequestHandler stateRequestHandler, ReducingStateDescriptor<V> stateDescriptor) {
         super(stateRequestHandler, stateDescriptor);
+        this.reduceFunction = stateDescriptor.getReduceFunction();
     }
 
     @Override
-    public StateFuture<StateIterator<V>> asyncGet() {
-        return handleRequest(StateRequestType.LIST_GET, null);
+    public StateFuture<V> asyncGet() {
+        return handleRequest(StateRequestType.REDUCING_GET, null);
     }
 
     @Override
     public StateFuture<Void> asyncAdd(V value) {
-        return handleRequest(StateRequestType.LIST_ADD, value);
-    }
-
-    @Override
-    public StateFuture<Void> asyncUpdate(List<V> values) {
-        return handleRequest(StateRequestType.LIST_UPDATE, values);
-    }
-
-    @Override
-    public StateFuture<Void> asyncAddAll(List<V> values) {
-        return handleRequest(StateRequestType.LIST_ADD_ALL, values);
+        return handleRequest(StateRequestType.REDUCING_ADD, value);
     }
 }

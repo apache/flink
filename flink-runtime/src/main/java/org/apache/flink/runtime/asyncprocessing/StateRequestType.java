@@ -20,7 +20,7 @@ package org.apache.flink.runtime.asyncprocessing;
 
 import org.apache.flink.api.common.state.v2.ListState;
 import org.apache.flink.api.common.state.v2.MapState;
-import org.apache.flink.api.common.state.v2.MergingState;
+import org.apache.flink.api.common.state.v2.ReducingState;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.state.v2.ValueState;
 
@@ -29,10 +29,7 @@ import java.util.Map;
 
 /**
  * The type of processing request for {@link State} from **users' perspective**. Each interface of
- * {@link State} and its sub-interfaces will have a corresponding enum entry. Given that there is an
- * inheritance between state interfaces, only the methods on parent/base interface class have
- * corresponding entries, and we omit the ones inherited from parent interface class. e.g. There is
- * only {@link #MERGING_GET} but no {@code LIST_GET}.
+ * {@link State} and its sub-interfaces will have a corresponding enum entry.
  *
  * <p>TODO: Serialization and Deserialization.
  */
@@ -54,11 +51,11 @@ public enum StateRequestType {
     /** Update value to current partition, {@link ValueState#asyncUpdate(Object)}. */
     VALUE_UPDATE,
 
-    /** Get from merging state, {@link MergingState#asyncGet()}. */
-    MERGING_GET,
+    /** Get from list state, {@link ListState#asyncGet()}. */
+    LIST_GET,
 
-    /** Add value to merging state, {@link MergingState#asyncAdd(Object)}. */
-    MERGING_ADD,
+    /** Add value to list state, {@link ListState#asyncAdd(Object)}. */
+    LIST_ADD,
 
     /** Put a list to current partition, {@link ListState#asyncUpdate(List)}. */
     LIST_UPDATE,
@@ -102,5 +99,11 @@ public enum StateRequestType {
     MAP_IS_EMPTY,
 
     /** Continuously load elements for one iterator. */
-    ITERATOR_LOADING
+    ITERATOR_LOADING,
+
+    /** Get from reducing state, {@link ReducingState#asyncGet()}. */
+    REDUCING_GET,
+
+    /** Add element into reducing state, {@link ReducingState#asyncAdd(Object)}. */
+    REDUCING_ADD
 }
