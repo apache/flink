@@ -66,6 +66,9 @@ public class PhysicalFile {
     /** The size of this physical file. */
     private final AtomicLong size;
 
+    /** The valid data size in this physical file. */
+    private final AtomicLong dataSize;
+
     /**
      * Deleter that will be called when delete this physical file. If null, do not delete this
      * physical file.
@@ -94,6 +97,9 @@ public class PhysicalFile {
      */
     private boolean isOwned;
 
+    /** If this physical file could be further reused, considering the space amplification. */
+    private boolean couldReuse;
+
     public PhysicalFile(
             @Nullable FSDataOutputStream outputStream,
             Path filePath,
@@ -114,6 +120,8 @@ public class PhysicalFile {
         this.deleter = deleter;
         this.scope = scope;
         this.size = new AtomicLong(0);
+        this.dataSize = new AtomicLong(0);
+        this.couldReuse = true;
         this.logicalFileRefCount = new AtomicInteger(0);
         this.isOwned = owned;
     }
@@ -170,16 +178,57 @@ public class PhysicalFile {
     }
 
     void incSize(long delta) {
-        this.size.addAndGet(delta);
+        dataSize.addAndGet(delta);
+        if (!closed) {
+            size.addAndGet(delta);
+        }
+    }
+
+    void decSize(long delta) {
+        dataSize.addAndGet(-delta);
     }
 
     long getSize() {
         return size.get();
     }
 
+    long wastedSize() {
+        return size.get() - dataSize.get();
+    }
+
+    void updateSize(long updated) {
+        size.set(updated);
+    }
+
+    boolean isCouldReuse() {
+        return !closed || couldReuse;
+    }
+
+    /**
+     * Check whether this physical file can be reused.
+     *
+     * @param maxAmp the max space amplification.
+     * @return true if it can be further reused.
+     */
+    boolean checkReuseOnSpaceAmplification(float maxAmp) {
+        if (!closed) {
+            return true;
+        }
+        if (couldReuse) {
+            if (dataSize.get() == 0L || dataSize.get() * maxAmp < size.get()) {
+                couldReuse = false;
+            }
+        }
+        return couldReuse;
+    }
+
     @VisibleForTesting
     int getRefCount() {
         return logicalFileRefCount.get();
+    }
+
+    public boolean closed() {
+        return closed;
     }
 
     public void close() throws IOException {

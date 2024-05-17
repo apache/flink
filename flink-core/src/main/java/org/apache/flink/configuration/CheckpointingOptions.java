@@ -434,10 +434,9 @@ public class CheckpointingOptions {
      * of valid data. The more space amplification is, the more waste of space will be. This configs
      * a space amplification above which a re-uploading for physical files will be triggered to
      * reclaim space.
-     *
-     * <p>TODO: remove '@Documentation.ExcludeFromDocumentation' after the feature is implemented.
      */
-    @Experimental @Documentation.ExcludeFromDocumentation
+    @Experimental
+    @Documentation.Section(value = Documentation.Sections.CHECKPOINT_FILE_MERGING, position = 6)
     public static final ConfigOption<Float> FILE_MERGING_MAX_SPACE_AMPLIFICATION =
             ConfigOptions.key("state.checkpoints.file-merging.max-space-amplification")
                     .floatType()
@@ -445,7 +444,8 @@ public class CheckpointingOptions {
                     .withDescription(
                             "Space amplification stands for the magnification of the occupied space compared to the amount of valid data. "
                                     + "The more space amplification is, the more waste of space will be. This configs a space amplification "
-                                    + "above which a re-uploading for physical files will be triggered to reclaim space.");
+                                    + "above which a re-uploading for physical files will be triggered to reclaim space. Any value below 1f "
+                                    + "means disabling the space control.");
 
     public static final ConfigOption<CheckpointingMode> CHECKPOINTING_CONSISTENCY_MODE =
             ConfigOptions.key("execution.checkpointing.mode")

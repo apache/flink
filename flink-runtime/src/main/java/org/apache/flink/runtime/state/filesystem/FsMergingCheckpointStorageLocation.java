@@ -119,4 +119,9 @@ public class FsMergingCheckpointStorageLocation extends FsCheckpointStorageLocat
     public void reusePreviousStateHandle(Collection<? extends StreamStateHandle> previousHandle) {
         fileMergingSnapshotManager.reusePreviousStateHandle(checkpointId, previousHandle);
     }
+
+    @Override
+    public boolean couldReuseStateHandle(StreamStateHandle stateHandle) {
+        return fileMergingSnapshotManager.couldReusePreviousStateHandle(stateHandle);
+    }
 }
