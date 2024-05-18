@@ -44,7 +44,7 @@ public interface KeyedStateStore {
      *
      * keyedStream.map(new RichMapFunction<MyType, Tuple2<MyType, Long>>() {
      *
-     *     private ValueState<Long> count;
+     *     private ValueState<Long> state;
      *
      *     public void open(Configuration cfg) {
      *         state = getRuntimeContext().getState(
@@ -53,7 +53,7 @@ public interface KeyedStateStore {
      *
      *     public Tuple2<MyType, Long> map(MyType value) {
      *         long count = state.value() + 1;
-     *         state.update(value);
+     *         state.update(count);
      *         return new Tuple2<>(value, count);
      *     }
      * });
