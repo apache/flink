@@ -22,9 +22,7 @@ import org.apache.flink.api.common.functions.AggregateFunction;
 
 import java.io.Serializable;
 
-/**
- * Test implementation of Aggregate function
- */
+/** Test implementation of Aggregate function */
 public class SumAggregator implements AggregateFunction<Integer, Integer, Integer>, Serializable {
 
     @Override

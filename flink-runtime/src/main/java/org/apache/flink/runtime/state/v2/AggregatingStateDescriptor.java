@@ -47,9 +47,10 @@ public class AggregatingStateDescriptor<IN, ACC, OUT> extends StateDescriptor<AC
      * @param aggregateFunction The {@code AggregateFunction} used to aggregate the state.
      * @param typeInfo The type of the accumulator. The accumulator is stored in the state.
      */
-    public AggregatingStateDescriptor(@Nonnull String stateId,
-                                      @Nonnull AggregateFunction<IN, ACC, OUT> aggregateFunction,
-                                      @Nonnull TypeInformation<ACC> typeInfo) {
+    public AggregatingStateDescriptor(
+            @Nonnull String stateId,
+            @Nonnull AggregateFunction<IN, ACC, OUT> aggregateFunction,
+            @Nonnull TypeInformation<ACC> typeInfo) {
         super(stateId, typeInfo);
         this.aggregateFunction = checkNotNull(aggregateFunction);
     }
@@ -62,10 +63,11 @@ public class AggregatingStateDescriptor<IN, ACC, OUT> extends StateDescriptor<AC
      * @param typeInfo The type of the accumulator. The accumulator is stored in the state.
      * @param serializerConfig The serializer related config used to generate TypeSerializer.
      */
-    public AggregatingStateDescriptor(@Nonnull String stateId,
-                                      @Nonnull AggregateFunction<IN, ACC, OUT> aggregateFunction,
-                                      @Nonnull TypeInformation<ACC> typeInfo,
-                                      SerializerConfig serializerConfig) {
+    public AggregatingStateDescriptor(
+            @Nonnull String stateId,
+            @Nonnull AggregateFunction<IN, ACC, OUT> aggregateFunction,
+            @Nonnull TypeInformation<ACC> typeInfo,
+            SerializerConfig serializerConfig) {
         super(stateId, typeInfo, serializerConfig);
         this.aggregateFunction = checkNotNull(aggregateFunction);
     }

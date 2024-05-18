@@ -89,8 +89,8 @@ public interface KeyedStateStoreV2 {
     <T> ReducingState<T> getReducingState(@Nonnull ReducingStateDescriptor<T> stateProperties);
 
     /**
-     * Gets a handle to the system's key/value aggregating state. This state is only accessible
-     * if the function is executed on a KeyedStream.
+     * Gets a handle to the system's key/value aggregating state. This state is only accessible if
+     * the function is executed on a KeyedStream.
      *
      * @param stateProperties The descriptor defining the properties of the stats.
      * @param <IN> The type of the values that are added to the state.
@@ -100,5 +100,6 @@ public interface KeyedStateStoreV2 {
      * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
      *     function (function is not part of a KeyedStream).
      */
-    <IN, ACC, OUT> AggregatingState<IN, OUT> getAggregatingState(@Nonnull AggregatingStateDescriptor<IN, ACC, OUT> stateProperties);
+    <IN, ACC, OUT> AggregatingState<IN, OUT> getAggregatingState(
+            @Nonnull AggregatingStateDescriptor<IN, ACC, OUT> stateProperties);
 }

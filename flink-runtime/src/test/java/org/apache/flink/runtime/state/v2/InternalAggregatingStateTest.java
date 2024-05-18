@@ -19,9 +19,7 @@
 package org.apache.flink.runtime.state.v2;
 
 import org.apache.flink.api.common.functions.AggregateFunction;
-
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 
 import org.junit.jupiter.api.Test;
@@ -34,7 +32,8 @@ class InternalAggregatingStateTest extends InternalKeyedStateTestBase {
     public void testAggregating() {
         AggregateFunction<Integer, Integer, Integer> aggregator = new SumAggregator();
         AggregatingStateDescriptor<Integer, Integer, Integer> descriptor =
-                new AggregatingStateDescriptor<>("testAggState", aggregator, BasicTypeInfo.INT_TYPE_INFO);
+                new AggregatingStateDescriptor<>(
+                        "testAggState", aggregator, BasicTypeInfo.INT_TYPE_INFO);
         InternalAggregatingState<String, Integer, Integer, Integer> state =
                 new InternalAggregatingState<>(aec, descriptor);
 

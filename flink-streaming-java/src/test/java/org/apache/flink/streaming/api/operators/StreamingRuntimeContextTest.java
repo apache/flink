@@ -369,12 +369,13 @@ class StreamingRuntimeContextTest {
         AggregateFunction<String, TaskInfo, String> aggregate =
                 (AggregateFunction<String, TaskInfo, String>) mock(AggregateFunction.class);
 
-        org.apache.flink.runtime.state.v2.AggregatingStateDescriptor<String, TaskInfo, String> descr =
-                new org.apache.flink.runtime.state.v2.AggregatingStateDescriptor<>(
-                        "name",
-                        aggregate,
-                        TypeInformation.of(TaskInfo.class),
-                        serializerConfig);
+        org.apache.flink.runtime.state.v2.AggregatingStateDescriptor<String, TaskInfo, String>
+                descr =
+                        new org.apache.flink.runtime.state.v2.AggregatingStateDescriptor<>(
+                                "name",
+                                aggregate,
+                                TypeInformation.of(TaskInfo.class),
+                                serializerConfig);
 
         context.getAggregatingState(descr);
 

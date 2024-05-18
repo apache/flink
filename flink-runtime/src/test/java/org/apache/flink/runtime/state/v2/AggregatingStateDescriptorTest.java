@@ -50,7 +50,8 @@ class AggregatingStateDescriptorTest {
         assertThat(sameBySerializer).isEqualTo(original);
 
         // equality with a clone
-        AggregatingStateDescriptor<Integer, Integer, Integer> clone = CommonTestUtils.createCopySerializable(original);
+        AggregatingStateDescriptor<Integer, Integer, Integer> clone =
+                CommonTestUtils.createCopySerializable(original);
         assertThat(clone).isEqualTo(original);
     }
 }
