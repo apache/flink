@@ -108,9 +108,9 @@ public enum StateRequestType {
     /** Add element into reducing state, {@link ReducingState#asyncAdd(Object)}. */
     REDUCING_ADD,
 
-    /** Get value from aggregating state by {@link AggregatingState#asyncGet()} */
+    /** Get value from aggregating state by {@link AggregatingState#asyncGet()}. */
     AGGREGATING_GET,
 
-    /** Add element to aggregating state by {@link AggregatingState#asyncAdd(Object)} */
+    /** Add element to aggregating state by {@link AggregatingState#asyncAdd(Object)}. */
     AGGREGATING_ADD
 }
