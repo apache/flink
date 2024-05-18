@@ -277,6 +277,13 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
         return keyedStateStoreV2.getReducingState(stateProperties);
     }
 
+    public <IN, ACC, OUT> org.apache.flink.api.common.state.v2.AggregatingState<IN, OUT> getAggregatingState(
+            org.apache.flink.runtime.state.v2.AggregatingStateDescriptor<IN, ACC, OUT> stateProperties) {
+        KeyedStateStoreV2 keyedStateStoreV2 =
+                checkPreconditionsAndGetKeyedStateStoreV2(stateProperties);
+        return keyedStateStoreV2.getAggregatingState(stateProperties);
+    }
+
     private KeyedStateStoreV2 checkPreconditionsAndGetKeyedStateStoreV2(
             org.apache.flink.runtime.state.v2.StateDescriptor<?> stateDescriptor) {
         checkNotNull(stateDescriptor, "The state properties must not be null");

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.asyncprocessing;
 
+import org.apache.flink.api.common.state.v2.AggregatingState;
 import org.apache.flink.api.common.state.v2.ListState;
 import org.apache.flink.api.common.state.v2.MapState;
 import org.apache.flink.api.common.state.v2.ReducingState;
@@ -105,5 +106,11 @@ public enum StateRequestType {
     REDUCING_GET,
 
     /** Add element into reducing state, {@link ReducingState#asyncAdd(Object)}. */
-    REDUCING_ADD
+    REDUCING_ADD,
+
+    /** Get value from aggregating state by {@link AggregatingState#asyncGet()} */
+    AGGREGATING_GET,
+
+    /** Add element to aggregating state by {@link AggregatingState#asyncAdd(Object)} */
+    AGGREGATING_ADD
 }

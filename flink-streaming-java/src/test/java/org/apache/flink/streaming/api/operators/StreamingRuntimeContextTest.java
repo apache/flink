@@ -355,6 +355,40 @@ class StreamingRuntimeContextTest {
                 .isPositive();
     }
 
+    @Test
+    void testV2AggregatingStateInstantiation() throws Exception {
+        final ExecutionConfig config = new ExecutionConfig();
+        SerializerConfig serializerConfig = config.getSerializerConfig();
+        serializerConfig.registerKryoType(Path.class);
+
+        final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
+
+        StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config);
+
+        @SuppressWarnings("unchecked")
+        AggregateFunction<String, TaskInfo, String> aggregate =
+                (AggregateFunction<String, TaskInfo, String>) mock(AggregateFunction.class);
+
+        org.apache.flink.runtime.state.v2.AggregatingStateDescriptor<String, TaskInfo, String> descr =
+                new org.apache.flink.runtime.state.v2.AggregatingStateDescriptor<>(
+                        "name",
+                        aggregate,
+                        TypeInformation.of(TaskInfo.class),
+                        serializerConfig);
+
+        context.getAggregatingState(descr);
+
+        org.apache.flink.runtime.state.v2.AggregatingStateDescriptor<?, ?, ?> descrIntercepted =
+                (org.apache.flink.runtime.state.v2.AggregatingStateDescriptor<?, ?, ?>)
+                        descriptorCapture.get();
+        TypeSerializer<?> serializer = descrIntercepted.getSerializer();
+
+        // check that the Path class is really registered, i.e., the execution config was applied
+        assertThat(serializer).isInstanceOf(KryoSerializer.class);
+        assertThat(((KryoSerializer<?>) serializer).getKryo().getRegistration(Path.class).getId())
+                .isPositive();
+    }
+
     // ------------------------------------------------------------------------
     //
     // ------------------------------------------------------------------------
