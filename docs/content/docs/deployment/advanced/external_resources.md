@@ -302,12 +302,7 @@ For the GPU plugin, you need to specify the common external resource configurati
 
 In addition, there are some specific configurations for the GPU plugin:
 
-  - `external-resource.<resource_name>.param.discovery-script.path`: The path of the [discovery script](#discovery-script). It
-  can either be an absolute path, or a relative path to `FLINK_HOME` when defined or current directory otherwise. If not
-  explicitly configured, the default script will be used.
-
-  - `external-resource.<resource_name>.param.discovery-script.args`: The arguments passed to the discovery script. For the default
-  discovery script, see [Default Script](#default-script) for the available parameters.
+{{< generated/gpu_driver_configuration >}}
 
 An example configuration for GPU resource:
 
