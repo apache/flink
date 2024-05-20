@@ -117,7 +117,7 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     private final Object notifyLock = new Object();
 
     @GuardedBy("notifyLock")
-    private final Map<Long, Set<SubtaskKey>> notifiedSubtaskCheckpoint = new HashMap<>();
+    private final TreeMap<Long, Set<SubtaskKey>> notifiedSubtaskCheckpoint = new TreeMap<>();
 
     @GuardedBy("notifyLock")
     private final TreeSet<Long> notifiedCheckpoint = new TreeSet<>();
@@ -524,6 +524,10 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                 // all known subtask has been notified.
                 tryDiscardCheckpoint(checkpointId);
             }
+            // control the size of notifiedSubtaskCheckpoint
+            if (notifiedSubtaskCheckpoint.size() > NUM_GHOST_CHECKPOINT_IDS) {
+                notifiedSubtaskCheckpoint.pollFirstEntry();
+            }
         }
     }
 
@@ -531,6 +535,7 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
         synchronized (notifyLock) {
             if (!notifiedCheckpoint.contains(checkpointId)) {
                 notifiedCheckpoint.add(checkpointId);
+                notifiedSubtaskCheckpoint.remove(checkpointId);
                 discardCheckpoint(checkpointId);
                 if (notifiedCheckpoint.size() > NUM_GHOST_CHECKPOINT_IDS) {
                     notifiedCheckpoint.pollFirst();
@@ -551,6 +556,8 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                     file.advanceLastCheckpointId(checkpointId);
                 }
             } else if (stateHandle instanceof PlaceholderStreamStateHandle) {
+                // Since the rocksdb state backend will leverage the PlaceholderStreamStateHandle,
+                // the manager should recognize this.
                 LogicalFile file =
                         knownLogicalFiles.get(
                                 new LogicalFileId(

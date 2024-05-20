@@ -99,7 +99,6 @@ public class SubtaskFileMergingManagerRestoreOperation {
                                         (handle instanceof SegmentFileStateHandle)
                                                 && !(handle instanceof EmptySegmentFileStateHandle))
                         .map(handle -> (SegmentFileStateHandle) handle);
-        System.out.println("Restoring from checkpoint " + checkpointId);
         fileMergingSnapshotManager.restoreStateHandles(
                 checkpointId, subtaskKey, segmentStateHandles);
     }
