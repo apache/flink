@@ -250,7 +250,7 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
         config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
         config.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, MemorySize.ZERO);
         config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
-        config.set(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, 300L);
+        config.set(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, Duration.ofMillis(300L));
 
         return config;
     }

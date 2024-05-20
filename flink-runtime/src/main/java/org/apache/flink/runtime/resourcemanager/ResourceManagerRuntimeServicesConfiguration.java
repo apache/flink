@@ -24,7 +24,8 @@ import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerConfiguration;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TimeUtils;
+
+import java.time.Duration;
 
 /** Configuration class for the {@link ResourceManagerRuntimeServices} class. */
 public class ResourceManagerRuntimeServicesConfiguration {
@@ -53,11 +54,11 @@ public class ResourceManagerRuntimeServicesConfiguration {
             Configuration configuration, WorkerResourceSpecFactory defaultWorkerResourceSpecFactory)
             throws ConfigurationException {
 
-        final String strJobTimeout = configuration.get(ResourceManagerOptions.JOB_TIMEOUT);
+        final Duration strJobTimeout = configuration.get(ResourceManagerOptions.JOB_TIMEOUT);
         final Time jobTimeout;
 
         try {
-            jobTimeout = Time.milliseconds(TimeUtils.parseDuration(strJobTimeout).toMillis());
+            jobTimeout = Time.milliseconds(strJobTimeout.toMillis());
         } catch (IllegalArgumentException e) {
             throw new ConfigurationException(
                     "Could not parse the resource manager's job timeout "

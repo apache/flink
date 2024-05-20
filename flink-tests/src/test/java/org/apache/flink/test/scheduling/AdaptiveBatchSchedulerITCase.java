@@ -38,6 +38,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -212,7 +213,7 @@ class AdaptiveBatchSchedulerITCase {
     private static Configuration createConfiguration() {
         final Configuration configuration = new Configuration();
         configuration.set(RestOptions.BIND_PORT, "0");
-        configuration.set(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 5000L);
+        configuration.set(JobManagerOptions.SLOT_REQUEST_TIMEOUT, Duration.ofMillis(5000L));
         configuration.set(
                 BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM,
                 DEFAULT_MAX_PARALLELISM);

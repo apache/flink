@@ -109,7 +109,7 @@ class MiniClusterITCase {
         final Duration slotRequestTimeout = Duration.ofMillis(100);
 
         // this triggers the failure for the default scheduler
-        config.set(JobManagerOptions.SLOT_REQUEST_TIMEOUT, slotRequestTimeout.toMillis());
+        config.set(JobManagerOptions.SLOT_REQUEST_TIMEOUT, slotRequestTimeout);
         // this triggers the failure for the adaptive scheduler
         config.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, slotRequestTimeout);
 
@@ -132,7 +132,7 @@ class MiniClusterITCase {
         final Duration slotRequestTimeout = Duration.ofNanos(Long.MAX_VALUE);
 
         // this triggers the failure for the default scheduler
-        config.set(JobManagerOptions.SLOT_REQUEST_TIMEOUT, slotRequestTimeout.toMillis());
+        config.set(JobManagerOptions.SLOT_REQUEST_TIMEOUT, slotRequestTimeout);
         // this triggers the failure for the adaptive scheduler
         config.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, slotRequestTimeout);
 
@@ -141,7 +141,9 @@ class MiniClusterITCase {
 
         // cluster startup relies on SLOT_REQUEST_TIMEOUT as a fallback if the following parameter
         // is not set which causes the test to take longer
-        config.set(ResourceManagerOptions.STANDALONE_CLUSTER_STARTUP_PERIOD_TIME, 1L);
+        config.set(
+                ResourceManagerOptions.STANDALONE_CLUSTER_STARTUP_PERIOD_TIME,
+                Duration.ofMillis(1L));
 
         tryRunningJobWithoutEnoughSlots(config);
     }

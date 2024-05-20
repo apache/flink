@@ -163,8 +163,12 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
                 clientHeartbeatService =
                         ClientUtils.reportHeartbeatPeriodically(
                                 jobClient,
-                                configuration.get(ClientOptions.CLIENT_HEARTBEAT_INTERVAL),
-                                configuration.get(ClientOptions.CLIENT_HEARTBEAT_TIMEOUT));
+                                configuration
+                                        .get(ClientOptions.CLIENT_HEARTBEAT_INTERVAL)
+                                        .toMillis(),
+                                configuration
+                                        .get(ClientOptions.CLIENT_HEARTBEAT_TIMEOUT)
+                                        .toMillis());
             }
 
             jobExecutionResult = jobExecutionResultFuture.get();

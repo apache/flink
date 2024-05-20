@@ -270,8 +270,9 @@ public class MetricFetcherImpl<T extends RestfulGateway> implements MetricFetche
             final MetricQueryServiceRetriever metricQueryServiceGatewayRetriever,
             final GatewayRetriever<T> dispatcherGatewayRetriever,
             final ExecutorService executor) {
-        final Time timeout = Time.milliseconds(configuration.get(WebOptions.TIMEOUT));
-        final long updateInterval = configuration.get(MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL);
+        final Time timeout = Time.fromDuration(configuration.get(WebOptions.TIMEOUT));
+        final long updateInterval =
+                configuration.get(MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL).toMillis();
 
         return new MetricFetcherImpl<>(
                 dispatcherGatewayRetriever,

@@ -157,8 +157,12 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
         }
         yarnHeartbeatIntervalMillis = yarnHeartbeatIntervalMS;
         containerRequestHeartbeatIntervalMillis =
-                flinkConfig.get(
-                        YarnConfigOptions.CONTAINER_REQUEST_HEARTBEAT_INTERVAL_MILLISECONDS);
+                Math.toIntExact(
+                        flinkConfig
+                                .get(
+                                        YarnConfigOptions
+                                                .CONTAINER_REQUEST_HEARTBEAT_INTERVAL_MILLISECONDS)
+                                .toMillis());
 
         this.taskManagerNodeLabel = flinkConfig.get(YarnConfigOptions.TASK_MANAGER_NODE_LABEL);
 

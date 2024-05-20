@@ -59,7 +59,7 @@ public class ConfigurationUtils {
             return Optional.empty();
         } else {
             return Optional.of(
-                    Time.milliseconds(configuration.get(SYSTEM_RESOURCE_METRICS_PROBING_INTERVAL)));
+                    Time.fromDuration(configuration.get(SYSTEM_RESOURCE_METRICS_PROBING_INTERVAL)));
         }
     }
 
@@ -140,12 +140,13 @@ public class ConfigurationUtils {
 
     public static Time getStandaloneClusterStartupPeriodTime(Configuration configuration) {
         final Time timeout;
-        long standaloneClusterStartupPeriodTime =
+        Duration standaloneClusterStartupPeriodTime =
                 configuration.get(ResourceManagerOptions.STANDALONE_CLUSTER_STARTUP_PERIOD_TIME);
-        if (standaloneClusterStartupPeriodTime >= 0) {
-            timeout = Time.milliseconds(standaloneClusterStartupPeriodTime);
+        if (standaloneClusterStartupPeriodTime != null
+                && !standaloneClusterStartupPeriodTime.isNegative()) {
+            timeout = Time.fromDuration(standaloneClusterStartupPeriodTime);
         } else {
-            timeout = Time.milliseconds(configuration.get(JobManagerOptions.SLOT_REQUEST_TIMEOUT));
+            timeout = Time.fromDuration(configuration.get(JobManagerOptions.SLOT_REQUEST_TIMEOUT));
         }
         return timeout;
     }

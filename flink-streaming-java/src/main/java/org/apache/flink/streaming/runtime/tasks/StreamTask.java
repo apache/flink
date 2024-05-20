@@ -1564,7 +1564,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 getEnvironment()
                         .getTaskManagerInfo()
                         .getConfiguration()
-                        .get(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT_TIMERS);
+                        .get(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT_TIMERS)
+                        .toMillis();
         tryShutdownTimerService(timeoutMs, timerService);
         tryShutdownTimerService(timeoutMs, systemTimerService);
     }

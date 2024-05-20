@@ -31,6 +31,7 @@ import org.apache.flink.util.ExecutorUtils;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -44,7 +45,7 @@ class WebMonitorEndpointTest {
     void cleansUpExpiredExecutionGraphs() throws Exception {
         final Configuration configuration = new Configuration();
         configuration.set(RestOptions.ADDRESS, "localhost");
-        configuration.set(WebOptions.REFRESH_INTERVAL, 5L);
+        configuration.set(WebOptions.REFRESH_INTERVAL, Duration.ofMillis(5L));
         final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
         final long timeout = 10000L;
 

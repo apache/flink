@@ -47,6 +47,7 @@ import org.junit.Test;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -95,7 +96,7 @@ public class SchedulingITCase extends TestLogger {
 
     private void executeSchedulingTest(Configuration configuration) throws Exception {
         final long slotIdleTimeout = 50L;
-        configuration.set(JobManagerOptions.SLOT_IDLE_TIMEOUT, slotIdleTimeout);
+        configuration.set(JobManagerOptions.SLOT_IDLE_TIMEOUT, Duration.ofMillis(slotIdleTimeout));
 
         configuration.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("1g"));
 

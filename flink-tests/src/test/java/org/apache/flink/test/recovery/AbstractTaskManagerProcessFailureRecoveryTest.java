@@ -96,8 +96,8 @@ abstract class AbstractTaskManagerProcessFailureRecoveryTest {
         Configuration config = new Configuration();
         config.set(JobManagerOptions.ADDRESS, "localhost");
         config.set(RestOptions.BIND_PORT, "0");
-        config.set(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, 200L);
-        config.set(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT, 10000L);
+        config.set(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, Duration.ofMillis(200L));
+        config.set(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT, Duration.ofMillis(10000L));
         config.set(HeartbeatManagerOptions.HEARTBEAT_RPC_FAILURE_THRESHOLD, 1);
         config.set(HighAvailabilityOptions.HA_MODE, "zookeeper");
         config.set(

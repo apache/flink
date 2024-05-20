@@ -116,7 +116,10 @@ public class MiniClusterResource extends ExternalResource {
 
     public void cancelAllJobsAndWaitUntilSlotsAreFreed() {
         final long heartbeatTimeout =
-                miniCluster.getConfiguration().get(HeartbeatManagerOptions.HEARTBEAT_INTERVAL);
+                miniCluster
+                        .getConfiguration()
+                        .get(HeartbeatManagerOptions.HEARTBEAT_INTERVAL)
+                        .toMillis();
         final long shutdownTimeout =
                 miniClusterResourceConfiguration.getShutdownTimeout().toMilliseconds();
         Preconditions.checkState(

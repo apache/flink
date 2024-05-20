@@ -241,7 +241,7 @@ public class SlotManagerConfiguration {
                 Time.fromDuration(configuration.get(RpcOptions.ASK_TIMEOUT_DURATION));
 
         final Time taskManagerTimeout =
-                Time.milliseconds(configuration.get(ResourceManagerOptions.TASK_MANAGER_TIMEOUT));
+                Time.fromDuration(configuration.get(ResourceManagerOptions.TASK_MANAGER_TIMEOUT));
 
         final Duration requirementCheckDelay =
                 configuration.get(ResourceManagerOptions.REQUIREMENTS_CHECK_DELAY);

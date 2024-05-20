@@ -178,8 +178,8 @@ public class AutoRescalingITCase extends TestLogger {
             // speed the test suite up
             // - lower refresh interval -> controls how fast we invalidate ExecutionGraphCache
             // - lower slot idle timeout -> controls how fast we return idle slots to TM
-            config.set(WebOptions.REFRESH_INTERVAL, 50L);
-            config.set(JobManagerOptions.SLOT_IDLE_TIMEOUT, 50L);
+            config.set(WebOptions.REFRESH_INTERVAL, Duration.ofMillis(50L));
+            config.set(JobManagerOptions.SLOT_IDLE_TIMEOUT, Duration.ofMillis(50L));
 
             cluster =
                     new MiniClusterWithClientResource(

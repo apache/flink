@@ -51,6 +51,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -96,7 +97,7 @@ class RestClientTest {
     @Test
     void testConnectionTimeout() throws Exception {
         final Configuration config = new Configuration();
-        config.set(RestOptions.CONNECTION_TIMEOUT, 1L);
+        config.set(RestOptions.CONNECTION_TIMEOUT, Duration.ofMillis(1L));
         try (final RestClient restClient = new RestClient(config, Executors.directExecutor())) {
             CompletableFuture<?> future =
                     restClient.sendRequest(
@@ -137,7 +138,7 @@ class RestClientTest {
     @Test
     void testConnectionClosedHandling() throws Exception {
         final Configuration config = new Configuration();
-        config.set(RestOptions.IDLENESS_TIMEOUT, 5000L);
+        config.set(RestOptions.IDLENESS_TIMEOUT, Duration.ofMillis(5000L));
         try (final ServerSocket serverSocket = new ServerSocket(0);
                 final RestClient restClient =
                         new RestClient(config, EXECUTOR_EXTENSION.getExecutor())) {
@@ -184,7 +185,7 @@ class RestClientTest {
     @Test
     void testRestClientClosedHandling() throws Exception {
         final Configuration config = new Configuration();
-        config.set(RestOptions.IDLENESS_TIMEOUT, 5000L);
+        config.set(RestOptions.IDLENESS_TIMEOUT, Duration.ofMillis(5000L));
 
         Socket connectionSocket = null;
 

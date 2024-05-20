@@ -88,7 +88,7 @@ abstract class AggregatingMetricsHandlerTestBase<
                         rpcServiceAddress -> null,
                         Executors.directExecutor(),
                         TestingUtils.TIMEOUT,
-                        MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue());
+                        MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue().toMillis());
         store = fetcher.getMetricStore();
 
         Collection<MetricDump> metricDumps = getMetricDumps();

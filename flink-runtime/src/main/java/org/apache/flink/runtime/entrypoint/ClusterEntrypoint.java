@@ -487,7 +487,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
     protected CompletableFuture<Void> stopClusterServices(boolean cleanupHaData) {
         final long shutdownTimeout =
-                configuration.get(ClusterOptions.CLUSTER_SERVICES_SHUTDOWN_TIMEOUT);
+                configuration.get(ClusterOptions.CLUSTER_SERVICES_SHUTDOWN_TIMEOUT).toMillis();
 
         synchronized (lock) {
             Throwable exception = null;

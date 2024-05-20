@@ -26,6 +26,7 @@ import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.InlineElement;
 
+import java.time.Duration;
 import java.util.List;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
@@ -135,14 +136,14 @@ public class YarnConfigOptions {
      * The heartbeat interval between the Application Master and the YARN Resource Manager if Flink
      * is requesting containers.
      */
-    public static final ConfigOption<Integer> CONTAINER_REQUEST_HEARTBEAT_INTERVAL_MILLISECONDS =
+    public static final ConfigOption<Duration> CONTAINER_REQUEST_HEARTBEAT_INTERVAL_MILLISECONDS =
             key("yarn.heartbeat.container-request-interval")
-                    .intType()
-                    .defaultValue(500)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(500))
                     .withDescription(
                             new Description.DescriptionBuilder()
                                     .text(
-                                            "Time between heartbeats with the ResourceManager in milliseconds if Flink requests containers:")
+                                            "Time between heartbeats with the ResourceManager if Flink requests containers:")
                                     .list(
                                             text(
                                                     "The lower this value is, the faster Flink will get notified about container allocations since requests and allocations are transmitted via heartbeats."),

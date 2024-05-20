@@ -327,7 +327,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         this.globalResourceCleaner =
                 resourceCleanerFactory.createGlobalResourceCleaner(this.getMainThreadExecutor());
 
-        this.webTimeout = Time.milliseconds(configuration.get(WebOptions.TIMEOUT));
+        this.webTimeout = Time.fromDuration(configuration.get(WebOptions.TIMEOUT));
 
         this.jobClientAlivenessCheckInterval =
                 configuration.get(CLIENT_ALIVENESS_CHECK_DURATION).toMillis();

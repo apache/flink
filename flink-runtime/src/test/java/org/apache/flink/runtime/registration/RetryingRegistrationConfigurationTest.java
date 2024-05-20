@@ -40,10 +40,16 @@ class RetryingRegistrationConfigurationTest {
         final long refusedRegistrationDelay = 3L;
         final long errorRegistrationDelay = 4L;
 
-        configuration.set(ClusterOptions.INITIAL_REGISTRATION_TIMEOUT, initialRegistrationTimeout);
-        configuration.set(ClusterOptions.MAX_REGISTRATION_TIMEOUT, maxRegistrationTimeout);
-        configuration.set(ClusterOptions.REFUSED_REGISTRATION_DELAY, refusedRegistrationDelay);
-        configuration.set(ClusterOptions.ERROR_REGISTRATION_DELAY, errorRegistrationDelay);
+        configuration.set(
+                ClusterOptions.INITIAL_REGISTRATION_TIMEOUT,
+                Duration.ofMillis(initialRegistrationTimeout));
+        configuration.set(
+                ClusterOptions.MAX_REGISTRATION_TIMEOUT, Duration.ofMillis(maxRegistrationTimeout));
+        configuration.set(
+                ClusterOptions.REFUSED_REGISTRATION_DELAY,
+                Duration.ofMillis(refusedRegistrationDelay));
+        configuration.set(
+                ClusterOptions.ERROR_REGISTRATION_DELAY, Duration.ofMillis(errorRegistrationDelay));
 
         final RetryingRegistrationConfiguration retryingRegistrationConfiguration =
                 RetryingRegistrationConfiguration.fromConfiguration(configuration);
@@ -76,10 +82,10 @@ class RetryingRegistrationConfigurationTest {
                 RetryingRegistrationConfiguration.fromConfiguration(configuration);
 
         assertThat(retryingRegistrationConfiguration.getInitialRegistrationTimeoutMillis())
-                .isEqualTo(ClusterOptions.INITIAL_REGISTRATION_TIMEOUT.defaultValue());
+                .isEqualTo(ClusterOptions.INITIAL_REGISTRATION_TIMEOUT.defaultValue().toMillis());
         assertThat(retryingRegistrationConfiguration.getRefusedDelayMillis())
-                .isEqualTo(ClusterOptions.REFUSED_REGISTRATION_DELAY.defaultValue());
+                .isEqualTo(ClusterOptions.REFUSED_REGISTRATION_DELAY.defaultValue().toMillis());
         assertThat(retryingRegistrationConfiguration.getMaxRegistrationTimeoutMillis())
-                .isEqualTo(ClusterOptions.MAX_REGISTRATION_TIMEOUT.defaultValue());
+                .isEqualTo(ClusterOptions.MAX_REGISTRATION_TIMEOUT.defaultValue().toMillis());
     }
 }
