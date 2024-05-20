@@ -101,7 +101,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.shaded.guava31.com.google.common.collect.Iterables.getOnlyElement;
-import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -682,7 +681,8 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         int tolerableCheckpointFailures = 0;
         private final DagCreator dagCreator;
         private int alignmentTimeout = 0;
-        private Duration checkpointTimeout = CHECKPOINTING_TIMEOUT.defaultValue();
+        private Duration checkpointTimeout =
+                CheckpointingOptions.CHECKPOINTING_TIMEOUT.defaultValue();
         private int failuresAfterSourceFinishes = 0;
         private ChannelType channelType = ChannelType.MIXED;
         private int buffersPerChannel = 1;

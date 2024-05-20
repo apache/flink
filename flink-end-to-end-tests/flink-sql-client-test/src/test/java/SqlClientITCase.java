@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.connector.testframe.container.FlinkContainers;
 import org.apache.flink.connector.testframe.container.FlinkContainersSettings;
 import org.apache.flink.connector.testframe.container.TestcontainersSettings;
 import org.apache.flink.connector.upserttest.sink.UpsertTestFileUtil;
-import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.test.resources.ResourceTestUtils;
 import org.apache.flink.test.util.SQLJobSubmission;
 import org.apache.flink.util.DockerImageVersions;
@@ -91,7 +91,7 @@ public class SqlClientITCase {
                                     .numTaskManagers(1)
                                     // enable checkpointing for the UpsertTestSink to write anything
                                     .setConfigOption(
-                                            ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL,
+                                            CheckpointingOptions.CHECKPOINTING_INTERVAL,
                                             Duration.ofMillis(500))
                                     .build())
                     .withTestcontainersSettings(

@@ -27,6 +27,7 @@ import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.api.connector.source.lib.util.IteratorSourceReader;
 import org.apache.flink.api.connector.source.lib.util.IteratorSourceSplit;
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.execution.CheckpointingMode;
@@ -84,11 +85,6 @@ import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_E
 import static org.apache.flink.runtime.jobgraph.SavepointRestoreSettings.forPath;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForCheckpoint;
-import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT;
-import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE;
-import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL;
-import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.ENABLE_UNALIGNED;
-import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.EXTERNALIZED_CHECKPOINT_RETENTION;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -213,11 +209,13 @@ public class ChangelogRescalingITCase extends TestLogger {
     private Configuration configureJob(int parallelism, File cpDir) {
         Configuration conf = new Configuration();
 
-        conf.set(EXTERNALIZED_CHECKPOINT_RETENTION, RETAIN_ON_CANCELLATION);
+        conf.set(CheckpointingOptions.EXTERNALIZED_CHECKPOINT_RETENTION, RETAIN_ON_CANCELLATION);
         conf.set(DEFAULT_PARALLELISM, parallelism);
         conf.set(ENABLE_STATE_CHANGE_LOG, true);
-        conf.set(CHECKPOINTING_CONSISTENCY_MODE, CheckpointingMode.EXACTLY_ONCE);
-        conf.set(CHECKPOINTING_INTERVAL, Duration.ofMillis(10));
+        conf.set(
+                CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE,
+                CheckpointingMode.EXACTLY_ONCE);
+        conf.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofMillis(10));
         conf.set(CHECKPOINT_STORAGE, "filesystem");
         conf.set(CHECKPOINTS_DIRECTORY, cpDir.toURI().toString());
         conf.set(STATE_BACKEND, "hashmap");
@@ -229,8 +227,10 @@ public class ChangelogRescalingITCase extends TestLogger {
         conf.set(FS_SMALL_FILE_THRESHOLD, MemorySize.ofMebiBytes(1));
         conf.set(OBJECT_REUSE, true);
 
-        conf.set(ENABLE_UNALIGNED, true); // speedup
-        conf.set(ALIGNED_CHECKPOINT_TIMEOUT, Duration.ZERO); // prevent randomization
+        conf.set(CheckpointingOptions.ENABLE_UNALIGNED, true); // speedup
+        conf.set(
+                CheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT,
+                Duration.ZERO); // prevent randomization
         conf.set(BUFFER_DEBLOAT_ENABLED, false); // prevent randomization
         conf.set(RESTART_STRATEGY, "none"); // not expecting any failures
         conf.set(

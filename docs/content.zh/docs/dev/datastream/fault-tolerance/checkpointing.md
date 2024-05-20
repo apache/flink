@@ -219,7 +219,7 @@ Flink 现在为没有迭代（iterations）的作业提供一致性的处理保�
 
 ```java
 Configuration config = new Configuration();
-config.set(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, false);
+config.set(CheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, false);
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 ```
 
