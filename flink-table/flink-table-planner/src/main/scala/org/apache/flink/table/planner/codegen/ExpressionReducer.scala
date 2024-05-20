@@ -26,7 +26,7 @@ import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.FunctionCodeGenerator.generateFunction
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable.{JSON_ARRAY, JSON_OBJECT}
-import org.apache.flink.table.planner.plan.utils.{AsyncUtil, ReducerUtil}
+import org.apache.flink.table.planner.plan.utils.{AsyncUtil, ConstantFoldingUtil}
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.planner.utils.Logging
@@ -263,7 +263,7 @@ class ExpressionReducer(
         // call async UDFs during optimization phase. They will be optimized during the runtime.
         case (_, e)
             if containsPythonCall(e) || AsyncUtil.containsAsyncCall(e) ||
-              !ReducerUtil.canReduceExpression(e) =>
+              !ConstantFoldingUtil.supportsConstantFolding(e) =>
           nonReducibleExprs += e
           None
 

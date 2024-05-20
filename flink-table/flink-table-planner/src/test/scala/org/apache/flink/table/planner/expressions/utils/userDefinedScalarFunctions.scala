@@ -62,7 +62,7 @@ object FuncNotReducible extends ScalarFunction {
     index + 1
   }
 
-  override def canReduceExpression: Boolean = false
+  override def supportsConstantFolding: Boolean = false
 }
 
 @SerialVersionUID(1L)

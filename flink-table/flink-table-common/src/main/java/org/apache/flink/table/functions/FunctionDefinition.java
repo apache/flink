@@ -77,12 +77,10 @@ public interface FunctionDefinition {
     }
 
     /**
-     * If the Expression Reducer should be run during planning time on calls to this function. If
-     * not, the expression will be left as-is and the call will be made during runtime.
-     *
-     * @return Whether invocations can be reduced during planning time
+     * If the constant-folding should be run during planning time on calls to this function. If not,
+     * the expression will be left as-is and the call will be made during runtime.
      */
-    default boolean canReduceExpression() {
+    default boolean supportsConstantFolding() {
         return true;
     }
 }

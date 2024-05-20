@@ -23,6 +23,7 @@ import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
 import org.apache.flink.table.planner.expressions.utils.{Func1, FuncNotReducible, RichFunc1}
 import org.apache.flink.table.planner.utils.TableTestBase
+
 import org.junit.jupiter.api.Test
 
 /** Test for [[org.apache.flink.table.planner.codegen.ExpressionReducer]]. */

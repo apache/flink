@@ -24,35 +24,35 @@ import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 
-/** Utility for deciding whether than expression can be reduced or not. */
-public class ReducerUtil {
+/** Utility for deciding whether than expression supports constant folding or not. */
+public class ConstantFoldingUtil {
 
     /**
-     * Checks whether it contains any function calls which don't want to be reduced.
+     * Checks whether it contains any function calls which don't support constant folding.
      *
      * @param node the RexNode to check
-     * @return true if it contains any non-reducible function calls in the specified node.
+     * @return true if it contains any unsupported function calls in the specified node.
      */
-    public static boolean canReduceExpression(RexNode node) {
-        return node.accept(new CanReduceExpressionVisitor());
+    public static boolean supportsConstantFolding(RexNode node) {
+        return node.accept(new CanConstantFoldExpressionVisitor());
     }
 
-    private static class CanReduceExpressionVisitor extends RexDefaultVisitor<Boolean> {
+    private static class CanConstantFoldExpressionVisitor extends RexDefaultVisitor<Boolean> {
 
         @Override
         public Boolean visitNode(RexNode rexNode) {
             return true;
         }
 
-        private boolean canReduceExpression(RexCall call) {
+        private boolean supportsConstantFolding(RexCall call) {
             FunctionDefinition definition = ShortcutUtils.unwrapFunctionDefinition(call);
-            return definition == null || definition.canReduceExpression();
+            return definition == null || definition.supportsConstantFolding();
         }
 
         @Override
         public Boolean visitCall(RexCall call) {
-            boolean canReduceExpression = canReduceExpression(call);
-            return canReduceExpression
+            boolean supportsConstantFolding = supportsConstantFolding(call);
+            return supportsConstantFolding
                     && (call.getOperands().stream().allMatch(node -> node.accept(this)));
         }
     }
