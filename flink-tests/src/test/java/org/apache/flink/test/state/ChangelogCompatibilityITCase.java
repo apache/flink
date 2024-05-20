@@ -137,9 +137,9 @@ public class ChangelogCompatibilityITCase {
 
     private StreamExecutionEnvironment initEnvironment() {
         Configuration conf = new Configuration();
-        conf.set(
-                FILE_MERGING_ENABLED, false); // TODO: remove file merging setting after FLINK-32085
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        // TODO:remove file-merging setting after FLINK-32085 & FLINK-32081 are resolved.
+        conf.set(FILE_MERGING_ENABLED, false);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(conf);
         env.enableChangelogStateBackend(testCase.startWithChangelog);
         if (testCase.restoreSource == RestoreSource.CHECKPOINT) {
             env.enableCheckpointing(50);
@@ -182,7 +182,10 @@ public class ChangelogCompatibilityITCase {
     }
 
     private void restoreAndValidate(String location) {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        Configuration conf = new Configuration();
+        // TODO:remove file-merging setting after FLINK-32085 & FLINK-32081 are resolved.
+        conf.set(FILE_MERGING_ENABLED, false);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(conf);
         env.enableChangelogStateBackend(testCase.restoreWithChangelog);
         JobGraph jobGraph = addGraph(env);
         jobGraph.setSavepointRestoreSettings(forPath(location));
