@@ -19,6 +19,7 @@
 package org.apache.flink.connector.testframe.container;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
@@ -309,7 +310,7 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
      *
      * <p><b>NOTE:</b> You should not use {@code '\t'}.
      */
-    public void submitSQLJob(SQLJobSubmission job) throws IOException, InterruptedException {
+    public JobID submitSQLJob(SQLJobSubmission job) throws IOException, InterruptedException {
         checkState(isStarted(), "SQL job submission is only applicable for a running cluster");
         // Create SQL script and copy it to JobManager
         final List<String> commands = new ArrayList<>();
@@ -336,6 +337,10 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
         if (execResult.getExitCode() != 0) {
             throw new AssertionError("Failed when submitting the SQL job.");
         }
+        final Pattern pattern = Pattern.compile("Job ID: (.*)");
+        final Matcher matcher = pattern.matcher(execResult.getStdout());
+        checkState(matcher.find(), "Cannot extract JobID from stdout.");
+        return JobID.fromHexString(matcher.group(1));
     }
 
     /**
@@ -400,6 +405,28 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
             throws IOException {
         final FlinkContainersOperations operations = new FlinkContainersOperations(this);
         return operations.getOutputFileContent(outputPath, fileNamePattern, isSorted);
+    }
+
+    /**
+     * Waits until {@code jobId} status is one of the input statuses.
+     *
+     * @param jobId job identifier
+     * @param statuses list of statuses to check
+     * @throws Exception an exception
+     */
+    public void waitUntilJobStatus(final JobID jobId, final JobStatus... statuses)
+            throws Exception {
+        org.apache.flink.runtime.testutils.CommonTestUtils.waitUntilCondition(
+                () -> {
+                    final JobStatus jobStatus =
+                            Objects.requireNonNull(restClusterClient).getJobStatus(jobId).get();
+                    for (final JobStatus status : statuses) {
+                        if (jobStatus == status) {
+                            return true;
+                        }
+                    }
+                    return false;
+                });
     }
 
     // ------------------------ JUnit 5 lifecycle management ------------------------

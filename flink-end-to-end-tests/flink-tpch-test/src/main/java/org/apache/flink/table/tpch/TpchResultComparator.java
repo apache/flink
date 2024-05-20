@@ -71,48 +71,7 @@ public class TpchResultComparator {
                                     + " columns.");
                     System.exit(1);
                 }
-                for (int i = 0; i < expected.length; i++) {
-                    boolean failed;
-                    try {
-                        long e = Long.valueOf(expected[i]);
-                        long a = Long.valueOf(actual[i]);
-                        failed = (e != a);
-                    } catch (NumberFormatException nfe) {
-                        try {
-                            double e = Double.valueOf(expected[i]);
-                            double a = Double.valueOf(actual[i]);
-                            if (e < 0 && a > 0 || e > 0 && a < 0) {
-                                failed = true;
-                            } else {
-                                if (e < 0) {
-                                    e = -e;
-                                    a = -a;
-                                }
-                                double t = round(a, 2);
-                                // defined in TPC-H standard specification v2.18.0 section 2.1.3.5
-                                failed = (e * 0.99 > t || e * 1.01 < t);
-                            }
-                        } catch (NumberFormatException nfe2) {
-                            failed =
-                                    !expected[i]
-                                            .trim()
-                                            .equals(actual[i].replaceAll("\"", "").trim());
-                        }
-                    }
-                    if (failed) {
-                        System.out.println(
-                                "Incorrect result on line "
-                                        + actualLineNum
-                                        + " column "
-                                        + (i + 1)
-                                        + "! Expecting "
-                                        + expected[i]
-                                        + ", but found "
-                                        + actual[i]
-                                        + ".");
-                        System.exit(1);
-                    }
-                }
+                validateColumns(expected, actual, actualLineNum);
             }
 
             while (expectedReader.readLine() != null) {
@@ -131,6 +90,59 @@ public class TpchResultComparator {
                 System.exit(1);
             }
         }
+    }
+
+    private static void validateColumns(String[] expected, String[] actual, int actualLineNum) {
+        for (int i = 0; i < expected.length; i++) {
+            if (!validateColumn(expected[i], actual[i])) {
+                System.out.println(
+                        "Incorrect result on line "
+                                + actualLineNum
+                                + " column "
+                                + (i + 1)
+                                + "! Expecting "
+                                + expected[i]
+                                + ", but found "
+                                + actual[i]
+                                + ".");
+                System.exit(1);
+            }
+        }
+    }
+
+    /**
+     * Validates two column values of table {@code csv} data.
+     *
+     * @param expectedColumn expected column value
+     * @param actualColumn actual column value
+     * @return {@code true} if they are equal, otherwise {@code false}
+     */
+    public static boolean validateColumn(final String expectedColumn, final String actualColumn) {
+        boolean failed;
+        try {
+            long e = Long.valueOf(expectedColumn);
+            long a = Long.valueOf(actualColumn);
+            failed = (e != a);
+        } catch (NumberFormatException nfe) {
+            try {
+                double e = Double.valueOf(expectedColumn);
+                double a = Double.valueOf(actualColumn);
+                if (e < 0 && a > 0 || e > 0 && a < 0) {
+                    failed = true;
+                } else {
+                    if (e < 0) {
+                        e = -e;
+                        a = -a;
+                    }
+                    double t = round(a, 2);
+                    // defined in TPC-H standard specification v2.18.0 section 2.1.3.5
+                    failed = (e * 0.99 > t || e * 1.01 < t);
+                }
+            } catch (NumberFormatException nfe2) {
+                failed = !expectedColumn.trim().equals(actualColumn.replaceAll("\"", "").trim());
+            }
+        }
+        return !failed;
     }
 
     /** Rounding function defined in TPC-H standard specification v2.18.0 chapter 10. */

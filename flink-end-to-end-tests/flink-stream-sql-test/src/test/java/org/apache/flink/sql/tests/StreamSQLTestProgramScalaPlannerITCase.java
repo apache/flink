@@ -23,8 +23,6 @@ import org.apache.flink.connector.testframe.container.FlinkContainersSettings;
 import org.apache.flink.connector.testframe.container.TestcontainersSettings;
 
 import org.junit.jupiter.api.AfterAll;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -36,8 +34,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 class StreamSQLTestProgramScalaPlannerITCase extends AbstractStreamSQLTestProgramITCase {
-    private static final Logger LOGGER =
-            LoggerFactory.getLogger(StreamSQLTestProgramScalaPlannerITCase.class);
     private static final String DIST_DIR = System.getProperty("distDir");
 
     @Override
@@ -49,7 +45,7 @@ class StreamSQLTestProgramScalaPlannerITCase extends AbstractStreamSQLTestProgra
                 .withFlinkContainersSettings(
                         FlinkContainersSettings.builder().numTaskManagers(4).build())
                 .withTestcontainersSettings(
-                        TestcontainersSettings.builder().network(NETWORK).logger(LOGGER).build())
+                        TestcontainersSettings.builder().network(NETWORK).build())
                 .build();
     }
 
