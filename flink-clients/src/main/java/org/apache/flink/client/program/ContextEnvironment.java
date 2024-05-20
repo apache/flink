@@ -119,8 +119,12 @@ public class ContextEnvironment extends ExecutionEnvironment {
                 clientHeartbeatService =
                         ClientUtils.reportHeartbeatPeriodically(
                                 jobClient,
-                                getConfiguration().get(ClientOptions.CLIENT_HEARTBEAT_INTERVAL),
-                                getConfiguration().get(ClientOptions.CLIENT_HEARTBEAT_TIMEOUT));
+                                getConfiguration()
+                                        .get(ClientOptions.CLIENT_HEARTBEAT_INTERVAL)
+                                        .toMillis(),
+                                getConfiguration()
+                                        .get(ClientOptions.CLIENT_HEARTBEAT_TIMEOUT)
+                                        .toMillis());
             }
 
             jobExecutionResult = jobExecutionResultFuture.get();

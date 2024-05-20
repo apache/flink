@@ -71,7 +71,7 @@ public class PipelineExecutorUtils {
         if (configuration.get(DeploymentOptions.ATTACHED)
                 && configuration.get(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
             jobGraph.setInitialClientHeartbeatTimeout(
-                    configuration.get(ClientOptions.CLIENT_HEARTBEAT_TIMEOUT));
+                    configuration.get(ClientOptions.CLIENT_HEARTBEAT_TIMEOUT).toMillis());
         }
 
         jobGraph.addJars(executionConfigAccessor.getJars());

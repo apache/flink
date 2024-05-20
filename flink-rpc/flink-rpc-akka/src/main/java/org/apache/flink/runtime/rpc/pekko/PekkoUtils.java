@@ -210,15 +210,11 @@ class PekkoUtils {
 
         final String startupTimeout =
                 TimeUtils.getStringInMillis(
-                        TimeUtils.parseDuration(
-                                configuration.get(
-                                        RpcOptions.STARTUP_TIMEOUT,
-                                        TimeUtils.getStringInMillis(
-                                                askTimeout.multipliedBy(10L)))));
+                        configuration.get(
+                                RpcOptions.STARTUP_TIMEOUT, askTimeout.multipliedBy(10L)));
 
         final String tcpTimeout =
-                TimeUtils.getStringInMillis(
-                        TimeUtils.parseDuration(configuration.get(RpcOptions.TCP_TIMEOUT)));
+                TimeUtils.getStringInMillis(configuration.get(RpcOptions.TCP_TIMEOUT));
 
         final String framesize = configuration.get(RpcOptions.FRAMESIZE);
 

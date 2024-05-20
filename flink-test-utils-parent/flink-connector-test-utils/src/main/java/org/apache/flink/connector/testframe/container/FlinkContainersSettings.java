@@ -28,6 +28,7 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -59,8 +60,8 @@ public class FlinkContainersSettings {
     // Defaults
     private static final long DEFAULT_METRIC_FETCHER_UPDATE_INTERVAL_MS = 1000L;
     private static final long DEFAULT_SLOT_REQUEST_TIMEOUT_MS = 10_000L;
-    private static final long DEFAULT_HEARTBEAT_TIMEOUT_MS = 5_000L;
-    private static final long DEFAULT_HEARTBEAT_INTERVAL_MS = 1000L;
+    private static final Duration DEFAULT_HEARTBEAT_TIMEOUT_MS = Duration.ofMillis(5_000L);
+    private static final Duration DEFAULT_HEARTBEAT_INTERVAL_MS = Duration.ofMillis(1000L);
     private static final MemorySize DEFAULT_TM_TOTAL_PROCESS_MEMORY = MemorySize.ofMebiBytes(1728);
     private static final MemorySize DEFAULT_JM_TOTAL_PROCESS_MEMORY = MemorySize.ofMebiBytes(1600);
 
@@ -365,8 +366,10 @@ public class FlinkContainersSettings {
             config.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, DEFAULT_JM_TOTAL_PROCESS_MEMORY);
             config.set(HEARTBEAT_INTERVAL, DEFAULT_HEARTBEAT_INTERVAL_MS);
             config.set(HEARTBEAT_TIMEOUT, DEFAULT_HEARTBEAT_TIMEOUT_MS);
-            config.set(SLOT_REQUEST_TIMEOUT, DEFAULT_SLOT_REQUEST_TIMEOUT_MS);
-            config.set(METRIC_FETCHER_UPDATE_INTERVAL, DEFAULT_METRIC_FETCHER_UPDATE_INTERVAL_MS);
+            config.set(SLOT_REQUEST_TIMEOUT, Duration.ofMillis(DEFAULT_SLOT_REQUEST_TIMEOUT_MS));
+            config.set(
+                    METRIC_FETCHER_UPDATE_INTERVAL,
+                    Duration.ofMillis(DEFAULT_METRIC_FETCHER_UPDATE_INTERVAL_MS));
             config.set(JobManagerOptions.ADDRESS, DEFAULT_JOB_MANAGER_HOSTNAME);
 
             config.set(RestOptions.BIND_ADDRESS, DEFAULT_BIND_ADDRESS);

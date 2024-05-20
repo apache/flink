@@ -73,7 +73,9 @@ public class MemoryLogger extends Thread {
 
         new MemoryLogger(
                         logger,
-                        configuration.get(TaskManagerOptions.DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS),
+                        configuration
+                                .get(TaskManagerOptions.DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS)
+                                .toMillis(),
                         taskManagerTerminationFuture)
                 .start();
     }

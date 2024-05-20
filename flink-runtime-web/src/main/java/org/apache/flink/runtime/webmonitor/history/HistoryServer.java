@@ -195,7 +195,7 @@ public class HistoryServer {
         webAddress = config.get(HistoryServerOptions.HISTORY_SERVER_WEB_ADDRESS);
         webPort = config.get(HistoryServerOptions.HISTORY_SERVER_WEB_PORT);
         webRefreshIntervalMillis =
-                config.get(HistoryServerOptions.HISTORY_SERVER_WEB_REFRESH_INTERVAL);
+                config.get(HistoryServerOptions.HISTORY_SERVER_WEB_REFRESH_INTERVAL).toMillis();
 
         String webDirectory = config.get(HistoryServerOptions.HISTORY_SERVER_WEB_DIR);
         if (webDirectory == null) {
@@ -237,7 +237,7 @@ public class HistoryServer {
         }
 
         refreshIntervalMillis =
-                config.get(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL);
+                config.get(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL).toMillis();
         int maxHistorySize = config.get(HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS);
         if (maxHistorySize == 0 || maxHistorySize < -1) {
             throw new IllegalConfigurationException(

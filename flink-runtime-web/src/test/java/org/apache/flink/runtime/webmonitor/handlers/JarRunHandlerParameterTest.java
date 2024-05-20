@@ -55,6 +55,7 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -85,7 +86,7 @@ class JarRunHandlerParameterTest
 
     private static final Configuration FLINK_CONFIGURATION =
             new Configuration()
-                    .set(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 120000L)
+                    .set(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, Duration.ofMillis(120000L))
                     .set(CoreOptions.DEFAULT_PARALLELISM, 57)
                     .set(StateRecoveryOptions.SAVEPOINT_PATH, "/foo/bar/test")
                     .set(StateRecoveryOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE, false)
@@ -331,7 +332,10 @@ class JarRunHandlerParameterTest
         assertThat(executionConfig.getParallelism())
                 .isEqualTo(FLINK_CONFIGURATION.get(CoreOptions.DEFAULT_PARALLELISM));
         assertThat(executionConfig.getTaskCancellationTimeout())
-                .isEqualTo(FLINK_CONFIGURATION.get(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT));
+                .isEqualTo(
+                        FLINK_CONFIGURATION
+                                .get(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT)
+                                .toMillis());
 
         final SavepointRestoreSettings savepointRestoreSettings =
                 jobGraph.getSavepointRestoreSettings();

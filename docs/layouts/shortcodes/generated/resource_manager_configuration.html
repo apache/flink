@@ -10,8 +10,8 @@
     <tbody>
         <tr>
             <td><h5>resourcemanager.job.timeout</h5></td>
-            <td style="word-wrap: break-word;">"5 minutes"</td>
-            <td>String</td>
+            <td style="word-wrap: break-word;">5 min</td>
+            <td>Duration</td>
             <td>Timeout for jobs which don't have a job manager as leader assigned.</td>
         </tr>
         <tr>
@@ -28,9 +28,9 @@
         </tr>
         <tr>
             <td><h5>resourcemanager.standalone.start-up-time</h5></td>
-            <td style="word-wrap: break-word;">-1</td>
-            <td>Long</td>
-            <td>Time in milliseconds of the start-up period of a standalone cluster. During this time, resource manager of the standalone cluster expects new task executors to be registered, and will not fail slot requests that can not be satisfied by any current registered slots. After this time, it will fail pending and new coming requests immediately that can not be satisfied by registered slots. If not set, <code class="highlighter-rouge">slot.request.timeout</code> will be used by default.</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Duration</td>
+            <td>Time of the start-up period of a standalone cluster. During this time, resource manager of the standalone cluster expects new task executors to be registered, and will not fail slot requests that can not be satisfied by any current registered slots. After this time, it will fail pending and new coming requests immediately that can not be satisfied by registered slots. If not set, <code class="highlighter-rouge">slot.request.timeout</code> will be used by default.</td>
         </tr>
         <tr>
             <td><h5>resourcemanager.start-worker.max-failure-rate</h5></td>
@@ -52,8 +52,8 @@
         </tr>
         <tr>
             <td><h5>resourcemanager.taskmanager-timeout</h5></td>
-            <td style="word-wrap: break-word;">30000</td>
-            <td>Long</td>
+            <td style="word-wrap: break-word;">30 s</td>
+            <td>Duration</td>
             <td>The timeout for an idle task manager to be released.</td>
         </tr>
         <tr>

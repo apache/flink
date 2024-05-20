@@ -77,7 +77,7 @@ public class AccumulatorLiveITCase extends TestLogger {
     // name of user accumulator
     private static final String ACCUMULATOR_NAME = "test";
 
-    private static final long HEARTBEAT_INTERVAL = 50L;
+    private static final Duration HEARTBEAT_INTERVAL = Duration.ofMillis(50L);
 
     // number of heartbeat intervals to check
     private static final int NUM_ITERATIONS = 5;

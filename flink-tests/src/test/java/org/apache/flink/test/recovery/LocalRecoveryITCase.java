@@ -84,8 +84,8 @@ class LocalRecoveryITCase {
         configuration.set(JobManagerOptions.ADDRESS, "localhost");
         configuration.set(JobManagerOptions.PORT, 0);
         configuration.set(RestOptions.BIND_PORT, "0");
-        configuration.set(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT, 10000L);
-        configuration.set(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, 1000L);
+        configuration.set(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT, Duration.ofMillis(10000L));
+        configuration.set(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, Duration.ofMillis(1000L));
         configuration.set(HeartbeatManagerOptions.HEARTBEAT_RPC_FAILURE_THRESHOLD, 1);
         configuration.set(ClusterOptions.PROCESS_WORKING_DIR_BASE, tmpDirectory.getAbsolutePath());
         configuration.set(StateRecoveryOptions.LOCAL_RECOVERY, true);

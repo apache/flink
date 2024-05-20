@@ -431,22 +431,21 @@ public class JobManagerOptions {
 
     /** The timeout in milliseconds for requesting a slot from Slot Pool. */
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
-    public static final ConfigOption<Long> SLOT_REQUEST_TIMEOUT =
+    public static final ConfigOption<Duration> SLOT_REQUEST_TIMEOUT =
             key("slot.request.timeout")
-                    .longType()
-                    .defaultValue(5L * 60L * 1000L)
-                    .withDescription(
-                            "The timeout in milliseconds for requesting a slot from Slot Pool.");
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(5L * 60L * 1000L))
+                    .withDescription("The timeout for requesting a slot from Slot Pool.");
 
     /** The timeout in milliseconds for a idle slot in Slot Pool. */
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
-    public static final ConfigOption<Long> SLOT_IDLE_TIMEOUT =
+    public static final ConfigOption<Duration> SLOT_IDLE_TIMEOUT =
             key("slot.idle.timeout")
-                    .longType()
+                    .durationType()
                     // default matches heartbeat.timeout so that sticky allocation is not lost on
                     // timeouts for local recovery
                     .defaultValue(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT.defaultValue())
-                    .withDescription("The timeout in milliseconds for a idle slot in Slot Pool.");
+                    .withDescription("The timeout for a idle slot in Slot Pool.");
 
     /** Config parameter determining the scheduler implementation. */
     @Documentation.Section({

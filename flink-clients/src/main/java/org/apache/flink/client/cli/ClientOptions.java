@@ -49,10 +49,10 @@ public class ClientOptions {
                                     + "commands through the CLI or Flink's clients, wherever retry is supported (default 2sec).");
 
     /** Timeout for job client to report its heartbeat. */
-    public static final ConfigOption<Long> CLIENT_HEARTBEAT_TIMEOUT =
+    public static final ConfigOption<Duration> CLIENT_HEARTBEAT_TIMEOUT =
             key("client.heartbeat.timeout")
-                    .longType()
-                    .defaultValue(180000L)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(180000L))
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -64,10 +64,10 @@ public class ClientOptions {
                                     .build());
 
     /** Time interval for job client to report its heartbeat. */
-    public static final ConfigOption<Long> CLIENT_HEARTBEAT_INTERVAL =
+    public static final ConfigOption<Duration> CLIENT_HEARTBEAT_INTERVAL =
             key("client.heartbeat.interval")
-                    .longType()
-                    .defaultValue(30000L)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(30000L))
                     .withDescription(
                             Description.builder()
                                     .text(

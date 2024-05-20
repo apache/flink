@@ -127,7 +127,7 @@ class SubtaskExecutionAttemptDetailsHandlerTest {
                         address -> null,
                         Executors.directExecutor(),
                         Time.milliseconds(1000L),
-                        MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue());
+                        MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue().toMillis());
 
         // Instance the handler.
         final RestHandlerConfiguration restHandlerConfiguration =

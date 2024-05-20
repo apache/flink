@@ -79,19 +79,19 @@ public class RpcOptions {
                                     + " timeout value requires a time-unit specifier (ms/s/min/h/d).");
 
     /** The Pekko tcp connection timeout. */
-    public static final ConfigOption<String> TCP_TIMEOUT =
+    public static final ConfigOption<Duration> TCP_TIMEOUT =
             ConfigOptions.key("pekko.tcp.timeout")
-                    .stringType()
-                    .defaultValue("20 s")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(20))
                     .withDeprecatedKeys("akka.tcp.timeout")
                     .withDescription(
                             "Timeout for all outbound connections. If you should experience problems with connecting to a"
                                     + " TaskManager due to a slow network, you should increase this value.");
 
     /** Timeout for the startup of the actor system. */
-    public static final ConfigOption<String> STARTUP_TIMEOUT =
+    public static final ConfigOption<Duration> STARTUP_TIMEOUT =
             ConfigOptions.key("pekko.startup-timeout")
-                    .stringType()
+                    .durationType()
                     .noDefaultValue()
                     .withDeprecatedKeys("akka.startup-timeout")
                     .withDescription(

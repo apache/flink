@@ -21,6 +21,8 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.description.Description;
 
+import java.time.Duration;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.code;
 
@@ -32,12 +34,11 @@ public class HistoryServerOptions {
      * The interval at which the HistoryServer polls {@link
      * HistoryServerOptions#HISTORY_SERVER_ARCHIVE_DIRS} for new archives.
      */
-    public static final ConfigOption<Long> HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL =
+    public static final ConfigOption<Duration> HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL =
             key("historyserver.archive.fs.refresh-interval")
-                    .longType()
-                    .defaultValue(10000L)
-                    .withDescription(
-                            "Interval in milliseconds for refreshing the archived job directories.");
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(10000L))
+                    .withDescription("Interval for refreshing the archived job directories.");
 
     /** Comma-separated list of directories which the HistoryServer polls for new archives. */
     public static final ConfigOption<String> HISTORY_SERVER_ARCHIVE_DIRS =
@@ -107,12 +108,11 @@ public class HistoryServerOptions {
                     .withDescription("Port of the HistoryServers's web interface.");
 
     /** The refresh interval for the HistoryServer web-frontend in milliseconds. */
-    public static final ConfigOption<Long> HISTORY_SERVER_WEB_REFRESH_INTERVAL =
+    public static final ConfigOption<Duration> HISTORY_SERVER_WEB_REFRESH_INTERVAL =
             key("historyserver.web.refresh-interval")
-                    .longType()
-                    .defaultValue(10000L)
-                    .withDescription(
-                            "The refresh interval for the HistoryServer web-frontend in milliseconds.");
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(10000L))
+                    .withDescription("The refresh interval for the HistoryServer web-frontend.");
 
     /**
      * Enables/Disables SSL support for the HistoryServer web-frontend. Only relevant if {@link

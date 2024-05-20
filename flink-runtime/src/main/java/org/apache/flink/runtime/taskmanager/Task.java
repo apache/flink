@@ -369,8 +369,10 @@ public class Task
         this.serializedExecutionConfig = jobInformation.getSerializedExecutionConfig();
 
         Configuration tmConfig = taskManagerConfig.getConfiguration();
-        this.taskCancellationInterval = tmConfig.get(TaskManagerOptions.TASK_CANCELLATION_INTERVAL);
-        this.taskCancellationTimeout = tmConfig.get(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT);
+        this.taskCancellationInterval =
+                tmConfig.get(TaskManagerOptions.TASK_CANCELLATION_INTERVAL).toMillis();
+        this.taskCancellationTimeout =
+                tmConfig.get(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT).toMillis();
 
         this.memoryManager = Preconditions.checkNotNull(memManager);
         this.sharedResources = Preconditions.checkNotNull(sharedResources);
@@ -641,13 +643,15 @@ public class Task
             taskCancellationInterval =
                     executionConfigConfiguration
                             .getOptional(TaskManagerOptions.TASK_CANCELLATION_INTERVAL)
-                            .orElse(taskCancellationInterval);
+                            .orElse(Duration.ofMillis(taskCancellationInterval))
+                            .toMillis();
 
             // override task cancellation timeout from Flink config if set in ExecutionConfig
             taskCancellationTimeout =
                     executionConfigConfiguration
                             .getOptional(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT)
-                            .orElse(taskCancellationTimeout);
+                            .orElse(Duration.ofMillis(taskCancellationTimeout))
+                            .toMillis();
 
             if (isCanceledOrFailed()) {
                 throw new CancelTaskException();

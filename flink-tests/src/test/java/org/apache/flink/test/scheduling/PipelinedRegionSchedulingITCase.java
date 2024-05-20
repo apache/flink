@@ -47,6 +47,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -105,7 +106,7 @@ public class PipelinedRegionSchedulingITCase extends TestLogger {
 
     private JobResult executeSchedulingTest(
             JobGraph jobGraph, int numSlots, Configuration configuration) throws Exception {
-        configuration.set(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 30000L);
+        configuration.set(JobManagerOptions.SLOT_REQUEST_TIMEOUT, Duration.ofMillis(30000L));
         configuration.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Default);
 
         final MiniClusterConfiguration miniClusterConfiguration =

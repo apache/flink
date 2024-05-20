@@ -287,13 +287,13 @@ public class TaskManagerOptions {
                             "Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.");
 
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
-    public static final ConfigOption<Long> DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS =
+    public static final ConfigOption<Duration> DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS =
             key("taskmanager.debug.memory.log-interval")
-                    .longType()
-                    .defaultValue(5000L)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(5000L))
                     .withDeprecatedKeys("taskmanager.debug.memory.logIntervalMs")
                     .withDescription(
-                            "The interval (in ms) for the log thread to log the current memory usage.");
+                            "The interval for the log thread to log the current memory usage.");
 
     // ------------------------------------------------------------------------
     //  Managed Memory Options
@@ -683,13 +683,13 @@ public class TaskManagerOptions {
 
     /** Time interval in milliseconds between two successive task cancellation attempts. */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
-    public static final ConfigOption<Long> TASK_CANCELLATION_INTERVAL =
+    public static final ConfigOption<Duration> TASK_CANCELLATION_INTERVAL =
             key("task.cancellation.interval")
-                    .longType()
-                    .defaultValue(30000L)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(30000L))
                     .withDeprecatedKeys("task.cancellation-interval")
                     .withDescription(
-                            "Time interval between two successive task cancellation attempts in milliseconds.");
+                            "Time interval between two successive task cancellation attempts.");
 
     /**
      * Timeout in milliseconds after which a task cancellation times out and leads to a fatal
@@ -699,12 +699,12 @@ public class TaskManagerOptions {
      * by a task failure or a clean shutdown.
      */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
-    public static final ConfigOption<Long> TASK_CANCELLATION_TIMEOUT =
+    public static final ConfigOption<Duration> TASK_CANCELLATION_TIMEOUT =
             key("task.cancellation.timeout")
-                    .longType()
-                    .defaultValue(180000L)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(180000L))
                     .withDescription(
-                            "Timeout in milliseconds after which a task cancellation times out and"
+                            "Timeout after which a task cancellation times out and"
                                     + " leads to a fatal TaskManager error. A value of 0 deactivates"
                                     + " the watch dog. Notice that a task cancellation is different from"
                                     + " both a task failure and a clean shutdown. "
@@ -715,13 +715,13 @@ public class TaskManagerOptions {
      * threads when the stream task is cancelled.
      */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
-    public static final ConfigOption<Long> TASK_CANCELLATION_TIMEOUT_TIMERS =
+    public static final ConfigOption<Duration> TASK_CANCELLATION_TIMEOUT_TIMERS =
             ConfigOptions.key("task.cancellation.timers.timeout")
-                    .longType()
-                    .defaultValue(7500L)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(7500L))
                     .withDeprecatedKeys("timerservice.exceptional.shutdown.timeout")
                     .withDescription(
-                            "Time we wait for the timers in milliseconds to finish all pending timer threads"
+                            "Time we wait for the timers to finish all pending timer threads"
                                     + " when the stream task is cancelled.");
 
     /** This configures how to redirect the {@link System#out} and {@link System#err}. */

@@ -43,6 +43,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.time.Duration;
+
 /** Tests for the manual rescaling of Flink jobs using the REST API. */
 @ExtendWith(TestLoggerExtension.class)
 public class UpdateJobResourceRequirementsITCase {
@@ -64,8 +66,8 @@ public class UpdateJobResourceRequirementsITCase {
         // speed the test suite up
         // - lower refresh interval -> controls how fast we invalidate ExecutionGraphCache
         // - lower slot idle timeout -> controls how fast we return idle slots to TM
-        configuration.set(WebOptions.REFRESH_INTERVAL, 50L);
-        configuration.set(JobManagerOptions.SLOT_IDLE_TIMEOUT, 50L);
+        configuration.set(WebOptions.REFRESH_INTERVAL, Duration.ofMillis(50L));
+        configuration.set(JobManagerOptions.SLOT_IDLE_TIMEOUT, Duration.ofMillis(50L));
 
         return configuration;
     }

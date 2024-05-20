@@ -45,6 +45,7 @@ import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -95,7 +96,8 @@ class StreamSourceOperatorLatencyMetricsTest {
                 (int) (maxProcessingTime / latencyMarkInterval) + 1,
                 (operator, timeProvider) -> {
                     Configuration tmConfig = new Configuration();
-                    tmConfig.set(MetricOptions.LATENCY_INTERVAL, latencyMarkInterval);
+                    tmConfig.set(
+                            MetricOptions.LATENCY_INTERVAL, Duration.ofMillis(latencyMarkInterval));
 
                     Environment env =
                             MockEnvironment.builder()
@@ -120,7 +122,7 @@ class StreamSourceOperatorLatencyMetricsTest {
                     executionConfig.setLatencyTrackingInterval(latencyMarkInterval);
 
                     Configuration tmConfig = new Configuration();
-                    tmConfig.set(MetricOptions.LATENCY_INTERVAL, 0L);
+                    tmConfig.set(MetricOptions.LATENCY_INTERVAL, Duration.ofMillis(0L));
 
                     Environment env =
                             MockEnvironment.builder()
@@ -142,7 +144,8 @@ class StreamSourceOperatorLatencyMetricsTest {
                 0,
                 (operator, timeProvider) -> {
                     Configuration tmConfig = new Configuration();
-                    tmConfig.set(MetricOptions.LATENCY_INTERVAL, latencyMarkInterval);
+                    tmConfig.set(
+                            MetricOptions.LATENCY_INTERVAL, Duration.ofMillis(latencyMarkInterval));
 
                     Environment env =
                             MockEnvironment.builder()
