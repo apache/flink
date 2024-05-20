@@ -18,13 +18,12 @@
 package org.apache.flink.changelog.fs;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.MemorySize;
 
 import java.time.Duration;
-
-import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT;
 
 /** {@link ConfigOptions} for {@link FsStateChangelogStorage}. */
 @Experimental
@@ -139,7 +138,7 @@ public class FsStateChangelogOptions {
                                     + RETRY_POLICY.key()
                                     + " is fixed. "
                                     + "Please note that timeout * max_attempts should be less than "
-                                    + CHECKPOINTING_TIMEOUT.key());
+                                    + CheckpointingOptions.CHECKPOINTING_TIMEOUT.key());
     public static final ConfigOption<Integer> RETRY_MAX_ATTEMPTS =
             ConfigOptions.key("state.changelog.dstl.dfs.upload.max-attempts")
                     .intType()

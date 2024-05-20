@@ -133,7 +133,7 @@ parallelism:
 # The backend that will be used to store operator state checkpoints if
 # checkpointing is enabled. Checkpointing is enabled when execution.checkpointing.interval > 0.
 
-# # Execution checkpointing related parameters. Please refer to CheckpointConfig and ExecutionCheckpointingOptions for more details.
+# # Execution checkpointing related parameters. Please refer to CheckpointConfig and CheckpointingOptions for more details.
 # execution:
 #   checkpointing:
 #     interval: 3min

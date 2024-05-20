@@ -28,6 +28,7 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.hybrid.HybridSource;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
@@ -54,13 +55,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
-import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL;
-import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL_DURING_BACKLOG;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * A test suite that verifies the correctness of the configuration {@link
- * org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions#CHECKPOINTING_INTERVAL_DURING_BACKLOG}.
+ * org.apache.flink.configuration.CheckpointingOptions#CHECKPOINTING_INTERVAL_DURING_BACKLOG}.
  */
 public class CheckpointIntervalDuringBacklogITCase {
     private static final int NUM_SPLITS = 2;
@@ -76,8 +75,9 @@ public class CheckpointIntervalDuringBacklogITCase {
     @Test
     public void testCheckpoint() throws Exception {
         Configuration configuration = new Configuration();
-        configuration.set(CHECKPOINTING_INTERVAL, Duration.ofMillis(100));
-        configuration.set(CHECKPOINTING_INTERVAL_DURING_BACKLOG, Duration.ofMillis(200));
+        configuration.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofMillis(100));
+        configuration.set(
+                CheckpointingOptions.CHECKPOINTING_INTERVAL_DURING_BACKLOG, Duration.ofMillis(200));
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
         env.setParallelism(1);
@@ -102,7 +102,7 @@ public class CheckpointIntervalDuringBacklogITCase {
     @Test
     public void testDefaultCheckpointIntervalDuringBacklog() throws Exception {
         Configuration configuration = new Configuration();
-        configuration.set(CHECKPOINTING_INTERVAL, Duration.ofMillis(100));
+        configuration.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofMillis(100));
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
         env.setParallelism(1);
@@ -125,8 +125,9 @@ public class CheckpointIntervalDuringBacklogITCase {
     @Test
     public void testNoCheckpointDuringBacklog() throws Exception {
         Configuration configuration = new Configuration();
-        configuration.set(CHECKPOINTING_INTERVAL, Duration.ofMillis(100));
-        configuration.set(CHECKPOINTING_INTERVAL_DURING_BACKLOG, Duration.ofMillis(0));
+        configuration.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofMillis(100));
+        configuration.set(
+                CheckpointingOptions.CHECKPOINTING_INTERVAL_DURING_BACKLOG, Duration.ofMillis(0));
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
         env.setParallelism(1);
@@ -146,8 +147,9 @@ public class CheckpointIntervalDuringBacklogITCase {
     @Test
     public void testExcludeFinishedOperatorBacklogStatus() throws Exception {
         Configuration configuration = new Configuration();
-        configuration.set(CHECKPOINTING_INTERVAL, Duration.ofMillis(100));
-        configuration.set(CHECKPOINTING_INTERVAL_DURING_BACKLOG, Duration.ofMillis(0));
+        configuration.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofMillis(100));
+        configuration.set(
+                CheckpointingOptions.CHECKPOINTING_INTERVAL_DURING_BACKLOG, Duration.ofMillis(0));
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
         env.setParallelism(1);

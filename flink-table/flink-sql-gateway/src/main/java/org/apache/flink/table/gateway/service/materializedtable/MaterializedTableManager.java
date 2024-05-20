@@ -21,6 +21,7 @@ package org.apache.flink.table.gateway.service.materializedtable;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
@@ -73,7 +74,6 @@ import static org.apache.flink.configuration.DeploymentOptions.TARGET;
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.configuration.PipelineOptions.NAME;
 import static org.apache.flink.configuration.StateRecoveryOptions.SAVEPOINT_PATH;
-import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL;
 import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.DATE_FORMATTER;
 import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.PARTITION_FIELDS;
 import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.SCHEDULE_TIME_DATE_FORMATTER_DEFAULT;
@@ -255,7 +255,9 @@ public class MaterializedTableManager {
                         materializedTableIdentifier.asSerializableString());
         customConfig.set(NAME, jobName);
         customConfig.set(RUNTIME_MODE, STREAMING);
-        customConfig.set(CHECKPOINTING_INTERVAL, catalogMaterializedTable.getFreshness());
+        customConfig.set(
+                CheckpointingOptions.CHECKPOINTING_INTERVAL,
+                catalogMaterializedTable.getFreshness());
         restorePath.ifPresent(s -> customConfig.set(SAVEPOINT_PATH, s));
 
         String insertStatement =

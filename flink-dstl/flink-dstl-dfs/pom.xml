@@ -49,7 +49,7 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
-        <!-- needed for ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT -->
+        <!-- needed for CheckpointingOptions.CHECKPOINTING_TIMEOUT -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java</artifactId>

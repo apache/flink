@@ -427,7 +427,7 @@ Flink is capable to upload and fetch local user artifacts in Application Mode. A
 
 ### Checkpointing
 
-{{< generated/execution_checkpointing_configuration >}}
+{{< generated/checkpointing_configuration >}}
 
 ### Recovery
 
