@@ -79,7 +79,11 @@ public class ConfigurationOptionLocator {
                 new OptionsClassLocation(
                         "flink-dstl/flink-dstl-dfs", "org.apache.flink.changelog.fs"),
                 new OptionsClassLocation(
-                        "flink-table/flink-sql-gateway", "org.apache.flink.table.gateway.rest.util")
+                        "flink-table/flink-sql-gateway",
+                        "org.apache.flink.table.gateway.rest.util"),
+                new OptionsClassLocation(
+                        "flink-external-resources/flink-external-resource-gpu",
+                        "org.apache.flink.externalresource.gpu")
             };
 
     private static final Set<String> EXCLUSIONS =
