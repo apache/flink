@@ -1755,7 +1755,7 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f0").split(""),
                                 "SPLIT(f0, '')",
-                                new String[] {"123,123,23"},
+                                new String[] {"1", "2", "3", ",", "1", "2", "3", ",", "2", "3"},
                                 DataTypes.ARRAY(DataTypes.STRING()).notNull())
                         .testResult(
                                 $("f1").split(","),

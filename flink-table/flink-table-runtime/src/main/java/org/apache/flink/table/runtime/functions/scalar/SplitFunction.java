@@ -31,6 +31,9 @@ import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /** Implementation of {@link BuiltInFunctionDefinitions#SPLIT}. */
 @Internal
 public class SplitFunction extends BuiltInScalarFunction {
@@ -42,6 +45,13 @@ public class SplitFunction extends BuiltInScalarFunction {
         try {
             if (string == null || delimiter == null) {
                 return null;
+            }
+            if (delimiter.toString().isEmpty()) {
+                List<StringData> res = new ArrayList<>();
+                for (int i = 0; i < string.toString().length(); ++i) {
+                    res.add(StringData.fromString(String.valueOf(string.toString().charAt(i))));
+                }
+                return new GenericArrayData(res.toArray());
             }
             BinaryStringData[] binaryStringData =
                     BinaryStringDataUtil.splitByWholeSeparatorPreserveAllTokens(
