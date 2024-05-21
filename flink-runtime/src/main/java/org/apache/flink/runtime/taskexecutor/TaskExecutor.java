@@ -104,6 +104,7 @@ import org.apache.flink.runtime.shuffle.DefaultPartitionWithMetrics;
 import org.apache.flink.runtime.shuffle.PartitionWithMetrics;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
+import org.apache.flink.runtime.state.FileMergingSnapshotManagerClosableWrapper;
 import org.apache.flink.runtime.state.TaskExecutorChannelStateExecutorFactoryManager;
 import org.apache.flink.runtime.state.TaskExecutorFileMergingManager;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
@@ -776,10 +777,20 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             jobInformation.getJobConfiguration());
 
             final FileMergingSnapshotManager fileMergingSnapshotManager =
-                    fileMergingManager.fileMergingSnapshotManagerForJob(
+                    fileMergingManager.fileMergingSnapshotManagerForTask(
                             jobId,
+                            tdd.getExecutionAttemptId(),
                             taskManagerConfiguration.getConfiguration(),
                             jobInformation.getJobConfiguration());
+
+            final FileMergingSnapshotManagerClosableWrapper fileMergingSnapshotManagerClosable =
+                    fileMergingSnapshotManager == null
+                            ? null
+                            : FileMergingSnapshotManagerClosableWrapper.of(
+                                    fileMergingSnapshotManager,
+                                    () ->
+                                            fileMergingManager.releaseMergingSnapshotManagerForTask(
+                                                    jobId, tdd.getExecutionAttemptId()));
 
             // TODO: Pass config value from user program and do overriding here.
             final StateChangelogStorage<?> changelogStorage;
@@ -801,7 +812,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             jobId,
                             tdd.getExecutionAttemptId(),
                             localStateStore,
-                            fileMergingSnapshotManager,
+                            fileMergingSnapshotManagerClosable,
                             changelogStorage,
                             changelogStoragesManager,
                             taskRestore,
