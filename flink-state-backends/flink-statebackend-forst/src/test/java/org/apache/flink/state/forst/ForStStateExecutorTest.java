@@ -57,7 +57,7 @@ public class ForStStateExecutorTest extends ForStDBOperationTestBase {
                     buildStateRequest(state, StateRequestType.VALUE_UPDATE, i, "test-" + i, i * 2));
         }
 
-        forStStateExecutor.executeBatchRequests(stateRequestContainer);
+        forStStateExecutor.executeBatchRequests(stateRequestContainer).get();
 
         List<StateRequest<?, ?, ?>> checkList = new ArrayList<>();
         stateRequestContainer = forStStateExecutor.createStateRequestContainer();
@@ -99,7 +99,7 @@ public class ForStStateExecutorTest extends ForStDBOperationTestBase {
             stateRequestContainer.offer(
                     buildStateRequest(state, StateRequestType.VALUE_UPDATE, i, null, i * 2));
         }
-        forStStateExecutor.executeBatchRequests(stateRequestContainer);
+        forStStateExecutor.executeBatchRequests(stateRequestContainer).get();
 
         // 5. Check that the deleted value is null :  keyRange [keyNum - 100, keyNum + 100)
         stateRequestContainer = forStStateExecutor.createStateRequestContainer();
@@ -111,7 +111,7 @@ public class ForStStateExecutorTest extends ForStDBOperationTestBase {
             stateRequestContainer.offer(getRequest);
             checkList.add(getRequest);
         }
-        forStStateExecutor.executeBatchRequests(stateRequestContainer);
+        forStStateExecutor.executeBatchRequests(stateRequestContainer).get();
         for (StateRequest<?, ?, ?> getRequest : checkList) {
             assertThat(getRequest.getRequestType()).isEqualTo(StateRequestType.VALUE_GET);
             assertThat(((TestStateFuture<String>) getRequest.getFuture()).getCompletedResult())
