@@ -2146,7 +2146,7 @@ public class TypeExtractorTest {
         ti =
                 TypeExtractor.getMapReturnTypes(
                         (MapFunction) function, TypeInformation.of(new TypeHint<int[][][]>() {}));
-        assertThat(ti.toString()).isEqualTo("ObjectArrayTypeInfo<ObjectArrayTypeInfo<int[]>>");
+        assertThat(ti).hasToString("ObjectArrayTypeInfo<ObjectArrayTypeInfo<int[]>>");
 
         // basic array
         function =

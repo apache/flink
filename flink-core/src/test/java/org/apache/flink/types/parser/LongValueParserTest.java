@@ -20,7 +20,7 @@ package org.apache.flink.types.parser;
 
 import org.apache.flink.types.LongValue;
 
-public class LongValueParserTest extends ParserTestBase<LongValue> {
+class LongValueParserTest extends ParserTestBase<LongValue> {
 
     @Override
     public String[] getValidTestValues() {
@@ -45,8 +45,8 @@ public class LongValueParserTest extends ParserTestBase<LongValue> {
             new LongValue(1L),
             new LongValue(576L),
             new LongValue(-877678L),
-            new LongValue((long) Integer.MAX_VALUE),
-            new LongValue((long) Integer.MIN_VALUE),
+            new LongValue(Integer.MAX_VALUE),
+            new LongValue(Integer.MIN_VALUE),
             new LongValue(Long.MAX_VALUE),
             new LongValue(Long.MIN_VALUE),
             new LongValue(7656L),
@@ -61,8 +61,8 @@ public class LongValueParserTest extends ParserTestBase<LongValue> {
             "1569a86",
             "-57-6",
             "7-877678",
-            String.valueOf(Long.MAX_VALUE) + "0",
-            String.valueOf(Long.MIN_VALUE) + "0",
+            Long.MAX_VALUE + "0",
+            Long.MIN_VALUE + "0",
             "9223372036854775808",
             "-9223372036854775809",
             " 1",
