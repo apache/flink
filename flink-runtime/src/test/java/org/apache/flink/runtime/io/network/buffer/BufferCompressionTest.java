@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -60,30 +61,30 @@ class BufferCompressionTest {
     public static Collection<Object[]> parameters() {
         return Arrays.asList(
                 new Object[][] {
-                    {true, "LZ4", true, false},
-                    {true, "LZ4", false, true},
-                    {true, "LZ4", false, false},
-                    {false, "LZ4", true, false},
-                    {false, "LZ4", false, true},
-                    {false, "LZ4", false, false},
-                    {true, "ZSTD", true, false},
-                    {true, "ZSTD", false, true},
-                    {true, "ZSTD", false, false},
-                    {false, "ZSTD", true, false},
-                    {false, "ZSTD", false, true},
-                    {false, "ZSTD", false, false},
-                    {true, "LZO", true, false},
-                    {true, "LZO", false, true},
-                    {true, "LZO", false, false},
-                    {false, "LZO", true, false},
-                    {false, "LZO", false, true},
-                    {false, "LZO", false, false}
+                    {true, CompressionCodec.LZ4, true, false},
+                    {true, CompressionCodec.LZ4, false, true},
+                    {true, CompressionCodec.LZ4, false, false},
+                    {false, CompressionCodec.LZ4, true, false},
+                    {false, CompressionCodec.LZ4, false, true},
+                    {false, CompressionCodec.LZ4, false, false},
+                    {true, CompressionCodec.ZSTD, true, false},
+                    {true, CompressionCodec.ZSTD, false, true},
+                    {true, CompressionCodec.ZSTD, false, false},
+                    {false, CompressionCodec.ZSTD, true, false},
+                    {false, CompressionCodec.ZSTD, false, true},
+                    {false, CompressionCodec.ZSTD, false, false},
+                    {true, CompressionCodec.LZO, true, false},
+                    {true, CompressionCodec.LZO, false, true},
+                    {true, CompressionCodec.LZO, false, false},
+                    {false, CompressionCodec.LZO, true, false},
+                    {false, CompressionCodec.LZO, false, true},
+                    {false, CompressionCodec.LZO, false, false}
                 });
     }
 
     public BufferCompressionTest(
             boolean isDirect,
-            String compressionCodec,
+            CompressionCodec compressionCodec,
             boolean compressToOriginalBuffer,
             boolean decompressToOriginalBuffer) {
         this.compressToOriginalBuffer = compressToOriginalBuffer;

@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.partition.BoundedBlockingSubpartitionType;
@@ -101,7 +102,7 @@ public class NettyShuffleEnvironmentConfiguration {
 
     private final boolean batchShuffleCompressionEnabled;
 
-    private final String compressionCodec;
+    private final CompressionCodec compressionCodec;
 
     private final int maxBuffersPerChannel;
 
@@ -135,7 +136,7 @@ public class NettyShuffleEnvironmentConfiguration {
             String[] tempDirs,
             BoundedBlockingSubpartitionType blockingSubpartitionType,
             boolean batchShuffleCompressionEnabled,
-            String compressionCodec,
+            CompressionCodec compressionCodec,
             int maxBuffersPerChannel,
             long batchShuffleReadMemoryBytes,
             int sortShuffleMinBuffers,
@@ -259,7 +260,7 @@ public class NettyShuffleEnvironmentConfiguration {
         return nettyConfig != null && nettyConfig.getSSLEnabled();
     }
 
-    public String getCompressionCodec() {
+    public CompressionCodec getCompressionCodec() {
         return compressionCodec;
     }
 
@@ -377,7 +378,7 @@ public class NettyShuffleEnvironmentConfiguration {
 
         boolean batchShuffleCompressionEnabled =
                 configuration.get(NettyShuffleEnvironmentOptions.BATCH_SHUFFLE_COMPRESSION_ENABLED);
-        String compressionCodec =
+        CompressionCodec compressionCodec =
                 configuration.get(NettyShuffleEnvironmentOptions.SHUFFLE_COMPRESSION_CODEC);
 
         int maxNumConnections =

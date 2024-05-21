@@ -18,9 +18,8 @@
 package org.apache.flink.table.planner.plan.batch.sql.agg
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
+import org.apache.flink.table.api.config.{AggregatePhaseStrategy, ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.plan.utils.OperatorType
-import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -40,7 +39,7 @@ class HashAggregateTest(aggStrategy: AggregatePhaseStrategy) extends AggregateTe
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, OperatorType.SortAgg.toString)
     util.tableEnv.getConfig
-      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, aggStrategy.toString)
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, aggStrategy)
   }
 
   @TestTemplate

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.testutils.CheckedThread;
@@ -62,7 +63,7 @@ class BoundedBlockingSubpartitionWriteReadTest {
 
     private static final int BUFFER_SIZE = 1024 * 1024;
 
-    private static final String COMPRESSION_CODEC = "LZ4";
+    private static final CompressionCodec COMPRESSION_CODEC = CompressionCodec.LZ4;
 
     private static final BufferDecompressor decompressor =
             new BufferDecompressor(BUFFER_SIZE, COMPRESSION_CODEC);

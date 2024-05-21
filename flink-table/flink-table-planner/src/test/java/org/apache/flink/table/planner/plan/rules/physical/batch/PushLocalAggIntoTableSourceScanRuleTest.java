@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.batch;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.config.AggregatePhaseStrategy;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.utils.BatchTableTestUtil;
@@ -274,7 +275,9 @@ class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
         // enable two-phase aggregate, otherwise there is no local aggregate
         util.getTableEnv()
                 .getConfig()
-                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE");
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
+                        AggregatePhaseStrategy.TWO_PHASE);
 
         util.verifyRelPlan(
                 "SELECT\n"

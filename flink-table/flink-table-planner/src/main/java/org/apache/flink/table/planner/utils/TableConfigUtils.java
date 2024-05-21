@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.config.AggregatePhaseStrategy;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
@@ -73,12 +74,7 @@ public class TableConfigUtils {
      * @return the aggregate phase strategy
      */
     public static AggregatePhaseStrategy getAggPhaseStrategy(ReadableConfig tableConfig) {
-        String aggPhaseConf = tableConfig.get(TABLE_OPTIMIZER_AGG_PHASE_STRATEGY).trim();
-        if (aggPhaseConf.isEmpty()) {
-            return AggregatePhaseStrategy.AUTO;
-        } else {
-            return AggregatePhaseStrategy.valueOf(aggPhaseConf);
-        }
+        return tableConfig.get(TABLE_OPTIMIZER_AGG_PHASE_STRATEGY);
     }
 
     /**

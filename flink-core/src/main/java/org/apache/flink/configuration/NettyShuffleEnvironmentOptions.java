@@ -107,10 +107,10 @@ public class NettyShuffleEnvironmentOptions {
     /** The codec to be used when compressing shuffle data. */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     @Experimental
-    public static final ConfigOption<String> SHUFFLE_COMPRESSION_CODEC =
+    public static final ConfigOption<CompressionCodec> SHUFFLE_COMPRESSION_CODEC =
             key("taskmanager.network.compression.codec")
-                    .stringType()
-                    .defaultValue("LZ4")
+                    .enumType(CompressionCodec.class)
+                    .defaultValue(CompressionCodec.LZ4)
                     .withDescription(
                             "The codec to be used when compressing shuffle data, only \"LZ4\", \"LZO\" "
                                     + "and \"ZSTD\" are supported now. Through tpc-ds test of these "
@@ -120,6 +120,13 @@ public class NettyShuffleEnvironmentOptions {
                                     + "compression ratio, but the compression and decompression "
                                     + "speed is the slowest, and LZO is between the two. Also note "
                                     + "that this option is experimental and might be changed in the future.");
+
+    /** Supported compression codec. */
+    public enum CompressionCodec {
+        LZ4,
+        LZO,
+        ZSTD
+    }
 
     /**
      * Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue

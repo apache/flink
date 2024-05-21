@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.compression.BlockCompressionFactory;
@@ -40,7 +41,7 @@ public class BufferDecompressor {
     /** The backup array of intermediate buffer. */
     private final byte[] internalBufferArray;
 
-    public BufferDecompressor(int bufferSize, String factoryName) {
+    public BufferDecompressor(int bufferSize, CompressionCodec factoryName) {
         checkArgument(bufferSize > 0);
         checkNotNull(factoryName);
 

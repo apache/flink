@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
@@ -69,7 +70,7 @@ public class ResultPartitionFactory {
 
     private final boolean batchShuffleCompressionEnabled;
 
-    private final String compressionCodec;
+    private final CompressionCodec compressionCodec;
 
     private final int maxBuffersPerChannel;
 
@@ -98,7 +99,7 @@ public class ResultPartitionFactory {
             int floatingNetworkBuffersPerGate,
             int networkBufferSize,
             boolean batchShuffleCompressionEnabled,
-            String compressionCodec,
+            CompressionCodec compressionCodec,
             int maxBuffersPerChannel,
             int sortShuffleMinBuffers,
             int sortShuffleMinParallelism,

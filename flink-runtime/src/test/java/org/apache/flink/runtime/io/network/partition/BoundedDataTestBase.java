@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
@@ -50,7 +51,7 @@ abstract class BoundedDataTestBase {
      */
     protected static final int BUFFER_SIZE = 1024 * 1024; // 1 MiByte
 
-    private static final String COMPRESSION_CODEC = "LZ4";
+    private static final CompressionCodec COMPRESSION_CODEC = CompressionCodec.LZ4;
 
     private static final BufferCompressor COMPRESSOR =
             new BufferCompressor(BUFFER_SIZE, COMPRESSION_CODEC);

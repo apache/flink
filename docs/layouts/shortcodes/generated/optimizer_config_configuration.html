@@ -10,12 +10,12 @@
     <tbody>
         <tr>
             <td><h5>table.optimizer.agg-phase-strategy</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
-            <td style="word-wrap: break-word;">"AUTO"</td>
-            <td>String</td>
+            <td style="word-wrap: break-word;">AUTO</td>
+            <td><p>Enum</p></td>
             <td>Strategy for aggregate phase. Only AUTO, TWO_PHASE or ONE_PHASE can be set.
 AUTO: No special enforcer for aggregate stage. Whether to choose two stage aggregate or one stage aggregate depends on cost. 
 TWO_PHASE: Enforce to use two stage aggregate which has localAggregate and globalAggregate. Note that if aggregate call does not support optimize into two phase, we will still use one stage aggregate.
-ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggregate.</td>
+ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggregate.<br /><br />Possible values:<ul><li>"AUTO"</li><li>"ONE_PHASE"</li><li>"TWO_PHASE"</li></ul></td>
         </tr>
         <tr>
             <td><h5>table.optimizer.bushy-join-reorder-threshold</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>

@@ -21,10 +21,10 @@ package org.apache.flink.table.planner.analyze;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.config.AggregatePhaseStrategy;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions;
-import org.apache.flink.table.planner.utils.AggregatePhaseStrategy;
 import org.apache.flink.table.planner.utils.PlanKind;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
@@ -73,7 +73,7 @@ class GroupAggregationAnalyzerTest extends TableTestBase {
         util.getTableEnv()
                 .getConfig()
                 .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, isMiniBatchEnabled)
-                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, strategy.toString())
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, strategy)
                 .set(
                         ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY,
                         Duration.ofSeconds(miniBatchLatency))
