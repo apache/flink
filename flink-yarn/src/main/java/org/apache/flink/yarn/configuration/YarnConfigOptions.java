@@ -90,9 +90,9 @@ public class YarnConfigOptions {
      * <p>>Note: This option returns a String since Integer options must have a static default
      * value.
      */
-    public static final ConfigOption<String> APPLICATION_ATTEMPTS =
+    public static final ConfigOption<Integer> APPLICATION_ATTEMPTS =
             key("yarn.application-attempts")
-                    .stringType()
+                    .intType()
                     .noDefaultValue()
                     .withDescription(
                             Description.builder()
