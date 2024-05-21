@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.optimize.program;
 
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.config.AggregatePhaseStrategy;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.CatalogPartitionImpl;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
@@ -229,7 +230,9 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
                 .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1L);
         util.getTableEnv()
                 .getConfig()
-                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "ONE_PHASE");
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
+                        AggregatePhaseStrategy.ONE_PHASE);
 
         String query =
                 "select * from fact join (select * from "
@@ -276,7 +279,9 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
                 .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1L);
         util.getTableEnv()
                 .getConfig()
-                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "ONE_PHASE");
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
+                        AggregatePhaseStrategy.ONE_PHASE);
 
         setupSuitableTableStatistics();
         String query =
@@ -297,7 +302,9 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
                 .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1L);
         util.getTableEnv()
                 .getConfig()
-                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "ONE_PHASE");
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
+                        AggregatePhaseStrategy.ONE_PHASE);
         setupSuitableTableStatistics();
         String query =
                 "select * from fact join"
@@ -418,7 +425,9 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
         setupTableRowCount("fact", 1024L * SUITABLE_FACT_ROW_COUNT);
         util.getTableEnv()
                 .getConfig()
-                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "ONE_PHASE");
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
+                        AggregatePhaseStrategy.ONE_PHASE);
         String query =
                 "select * from dim join"
                         + " (select id, fact_date_sk, sum(fact.price) from fact group by (id, fact_date_sk)) factSide"
@@ -432,7 +441,9 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
         setupTableRowCount("fact", 1024L * SUITABLE_FACT_ROW_COUNT);
         util.getTableEnv()
                 .getConfig()
-                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "ONE_PHASE");
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
+                        AggregatePhaseStrategy.ONE_PHASE);
         String query =
                 "select * from dim join"
                         + " (select id, fact_date_sk, sum(fact.price) as sum_price from fact group by (id, fact_date_sk)) factSide"

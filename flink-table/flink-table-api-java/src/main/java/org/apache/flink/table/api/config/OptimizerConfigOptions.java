@@ -39,10 +39,10 @@ public class OptimizerConfigOptions {
     //  Optimizer Options
     // ------------------------------------------------------------------------
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
-    public static final ConfigOption<String> TABLE_OPTIMIZER_AGG_PHASE_STRATEGY =
+    public static final ConfigOption<AggregatePhaseStrategy> TABLE_OPTIMIZER_AGG_PHASE_STRATEGY =
             key("table.optimizer.agg-phase-strategy")
-                    .stringType()
-                    .defaultValue("AUTO")
+                    .enumType(AggregatePhaseStrategy.class)
+                    .defaultValue(AggregatePhaseStrategy.AUTO)
                     .withDescription(
                             "Strategy for aggregate phase. Only AUTO, TWO_PHASE or ONE_PHASE can be set.\n"
                                     + "AUTO: No special enforcer for aggregate stage. Whether to choose two stage aggregate or one"

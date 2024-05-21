@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.NoOpFileChannelManager;
@@ -81,7 +82,7 @@ public class ResultPartitionBuilder {
 
     private boolean sslEnabled = false;
 
-    private String compressionCodec = "LZ4";
+    private CompressionCodec compressionCodec = CompressionCodec.LZ4;
 
     private int maxOverdraftBuffersPerGate = 5;
 
@@ -195,7 +196,7 @@ public class ResultPartitionBuilder {
         return this;
     }
 
-    public ResultPartitionBuilder setCompressionCodec(String compressionCodec) {
+    public ResultPartitionBuilder setCompressionCodec(CompressionCodec compressionCodec) {
         this.compressionCodec = compressionCodec;
         return this;
     }

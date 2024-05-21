@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
@@ -208,8 +209,10 @@ class CreditBasedPartitionRequestClientHandlerTest {
     @ValueSource(strings = {"LZ4", "LZO", "ZSTD"})
     void testReceiveCompressedBuffer(final String compressionCodec) throws Exception {
         int bufferSize = 1024;
-        BufferCompressor compressor = new BufferCompressor(bufferSize, compressionCodec);
-        BufferDecompressor decompressor = new BufferDecompressor(bufferSize, compressionCodec);
+        BufferCompressor compressor =
+                new BufferCompressor(bufferSize, CompressionCodec.valueOf(compressionCodec));
+        BufferDecompressor decompressor =
+                new BufferDecompressor(bufferSize, CompressionCodec.valueOf(compressionCodec));
         NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, bufferSize);
         SingleInputGate inputGate =
                 new SingleInputGateBuilder()

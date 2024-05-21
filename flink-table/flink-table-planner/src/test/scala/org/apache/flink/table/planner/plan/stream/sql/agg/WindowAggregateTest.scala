@@ -19,12 +19,12 @@ package org.apache.flink.table.planner.plan.stream.sql.agg
 
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.{ExplainDetail, TableException, ValidationException}
-import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.api.config.{AggregatePhaseStrategy, OptimizerConfigOptions}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{WeightedAvg, WeightedAvgWithMerge}
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_EARLY_FIRE_DELAY, TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, TABLE_EXEC_EMIT_LATE_FIRE_DELAY, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.TestPythonAggregateFunction
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.JavaTableFunc1
-import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, TableTestBase}
+import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -101,7 +101,7 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
 
     // set agg-phase strategy
     util.tableEnv.getConfig
-      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, aggPhaseEnforcer.toString)
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, aggPhaseEnforcer)
   }
 
   @TestTemplate

@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.runtime.batch.sql;
 import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.config.AggregatePhaseStrategy;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -151,7 +152,9 @@ class RuntimeFilterITCase extends BatchTestBase {
         // Exchange)
         tEnv.getConfig().set(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1L);
         tEnv.getConfig()
-                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "ONE_PHASE");
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
+                        AggregatePhaseStrategy.ONE_PHASE);
 
         String sql =
                 "select * from fact join (select x, sum(z) from dim where z = 2 group by x) dimSide on x = a";

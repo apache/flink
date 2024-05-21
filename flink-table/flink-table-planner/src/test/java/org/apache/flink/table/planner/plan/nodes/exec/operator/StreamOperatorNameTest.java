@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.operator;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.config.AggregatePhaseStrategy;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.functions.TemporalTableFunction;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -273,7 +274,9 @@ class StreamOperatorNameTest extends OperatorNameTestBase {
     @TestTemplate
     void testWindowAggregate() {
         tEnv.getConfig()
-                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "ONE_PHASE");
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
+                        AggregatePhaseStrategy.ONE_PHASE);
         createSourceWithTimeAttribute();
         verifyQuery(
                 "SELECT\n"

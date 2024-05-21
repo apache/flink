@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.io.compression;
 
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
+
 import io.airlift.compress.lzo.LzoCompressor;
 import io.airlift.compress.lzo.LzoDecompressor;
 import io.airlift.compress.zstd.ZstdCompressor;
@@ -35,24 +37,14 @@ public interface BlockCompressionFactory {
 
     BlockDecompressor getDecompressor();
 
-    /** Name of {@link BlockCompressionFactory}. */
-    enum CompressionFactoryName {
-        LZ4,
-        LZO,
-        ZSTD
-    }
-
     /**
      * Creates {@link BlockCompressionFactory} according to the configuration.
      *
-     * @param compressionFactoryName supported compression codecs.
+     * @param compressionName supported compression codecs.
      */
-    static BlockCompressionFactory createBlockCompressionFactory(String compressionFactoryName) {
+    static BlockCompressionFactory createBlockCompressionFactory(CompressionCodec compressionName) {
 
-        checkNotNull(compressionFactoryName);
-
-        CompressionFactoryName compressionName =
-                CompressionFactoryName.valueOf(compressionFactoryName.toUpperCase());
+        checkNotNull(compressionName);
 
         BlockCompressionFactory blockCompressionFactory;
         switch (compressionName) {

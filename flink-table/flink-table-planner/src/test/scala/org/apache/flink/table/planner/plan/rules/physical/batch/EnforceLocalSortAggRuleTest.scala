@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.configuration.ReadableConfig
-import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
+import org.apache.flink.table.api.config.{AggregatePhaseStrategy, ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.calcite.CalciteConfig
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram
@@ -58,7 +58,9 @@ class EnforceLocalSortAggRuleTest extends EnforceLocalAggRuleTestBase {
     // only enabled SortAgg
     util.tableEnv.getConfig.set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg")
     util.tableEnv.getConfig
-      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
+      .set(
+        OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
+        AggregatePhaseStrategy.TWO_PHASE)
   }
 
   @Test

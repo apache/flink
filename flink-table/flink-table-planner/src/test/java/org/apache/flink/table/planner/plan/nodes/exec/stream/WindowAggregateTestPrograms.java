@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.api.config.AggregatePhaseStrategy;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
-import org.apache.flink.table.planner.utils.AggregatePhaseStrategy;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
@@ -517,7 +517,8 @@ public class WindowAggregateTestPrograms {
         }
 
         return builder.setupConfig(
-                        OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, aggPhaseStrategy)
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
+                        AggregatePhaseStrategy.valueOf(aggPhaseStrategy))
                 .setupTableSource(SOURCE)
                 .setupTableSource(CDC_SOURCE)
                 .setupTableSink(

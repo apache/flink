@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.shuffle;
 
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
@@ -241,7 +242,7 @@ class TieredResultPartitionTest {
                         numSubpartitions,
                         numSubpartitions,
                         new ResultPartitionManager(),
-                        new BufferCompressor(NETWORK_BUFFER_SIZE, "LZ4"),
+                        new BufferCompressor(NETWORK_BUFFER_SIZE, CompressionCodec.LZ4),
                         () -> bufferPool,
                         new TieredStorageProducerClient(
                                 numSubpartitions,
@@ -287,7 +288,7 @@ class TieredResultPartitionTest {
                         numSubpartitions,
                         isBroadcastOnly,
                         new ResultPartitionManager(),
-                        new BufferCompressor(NETWORK_BUFFER_SIZE, "LZ4"),
+                        new BufferCompressor(NETWORK_BUFFER_SIZE, CompressionCodec.LZ4),
                         () -> bufferPool,
                         fileChannelManager,
                         readBufferPool,

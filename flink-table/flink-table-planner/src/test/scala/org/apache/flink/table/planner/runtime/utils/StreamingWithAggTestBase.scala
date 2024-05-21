@@ -18,11 +18,10 @@
 package org.apache.flink.table.planner.runtime.utils
 
 import org.apache.flink.api.common.time.Time
-import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.api.config.{AggregatePhaseStrategy, OptimizerConfigOptions}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithAggTestBase._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
-import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters
 
 import org.junit.jupiter.api.BeforeEach
@@ -46,11 +45,11 @@ class StreamingWithAggTestBase(
     if (aggMode.isLocalAggEnabled) {
       tEnv.getConfig.set(
         OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
-        AggregatePhaseStrategy.TWO_PHASE.toString)
+        AggregatePhaseStrategy.TWO_PHASE)
     } else {
       tEnv.getConfig.set(
         OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
-        AggregatePhaseStrategy.ONE_PHASE.toString)
+        AggregatePhaseStrategy.ONE_PHASE)
     }
   }
 }
