@@ -113,15 +113,14 @@ public class ForStKeyedStateBackendBuilder<K>
         int keyGroupPrefixBytes =
                 CompositeKeySerializationUtils.computeRequiredBytesInKeyGroupPrefix(
                         numberOfKeyGroups);
-        // it is important that we only create the key builder after the restore, and not
-        // before;
-        // restore operations may reconfigure the key serializer, so accessing the key
-        // serializer
+        // it is important that we only create the key builder after the restore, and not before;
+        // restore operations may reconfigure the key serializer, so accessing the key serializer
         // only now we can be certain that the key serializer used in the builder is final.
         Supplier<SerializedCompositeKeyBuilder<K>> serializedKeyBuilder =
                 () ->
                         new SerializedCompositeKeyBuilder<>(
-                                keySerializerProvider.currentSchemaSerializer(),
+                                // must create new copy for each SerializedCompositeKeyBuilder
+                                keySerializerProvider.currentSchemaSerializer().duplicate(),
                                 keyGroupPrefixBytes,
                                 KEY_SERIALIZER_BUFFER_START_SIZE);
         Supplier<DataOutputSerializer> valueSerializerView =
