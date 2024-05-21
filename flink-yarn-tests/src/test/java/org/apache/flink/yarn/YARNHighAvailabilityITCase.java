@@ -329,7 +329,7 @@ class YARNHighAvailabilityITCase extends YarnTestBase {
         final Configuration flinkConfiguration = new Configuration();
         flinkConfiguration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(768));
         flinkConfiguration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
-        flinkConfiguration.set(YarnConfigOptions.APPLICATION_ATTEMPTS, "10");
+        flinkConfiguration.set(YarnConfigOptions.APPLICATION_ATTEMPTS, 10);
         flinkConfiguration.set(HighAvailabilityOptions.HA_MODE, "zookeeper");
         flinkConfiguration.set(HighAvailabilityOptions.HA_STORAGE_PATH, storageDir);
         flinkConfiguration.set(
