@@ -92,14 +92,18 @@ class RawToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Object,
         if (context.legacyBehaviour()
                 || !(couldTrim(targetLength) || (couldPad(targetLogicalType, targetLength)))) {
             return new CastRuleUtils.CodeWriter()
-                    .assignStmt(returnVariable, methodCall(inputTerm, "toBytes", typeSerializer))
+                    .assignStmt(
+                            returnVariable,
+                            methodCall(
+                                    inputTerm, "toBytes", typeSerializer + ".getInnerSerializer()"))
                     .toString();
         } else {
             return new CastRuleUtils.CodeWriter()
                     .declStmt(
                             byte[].class,
                             deserializedByteArrayTerm,
-                            methodCall(inputTerm, "toBytes", typeSerializer))
+                            methodCall(
+                                    inputTerm, "toBytes", typeSerializer + ".getInnerSerializer()"))
                     .ifStmt(
                             arrayLength(deserializedByteArrayTerm) + " <= " + targetLength,
                             thenWriter -> {

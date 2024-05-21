@@ -18,13 +18,16 @@
 
 package org.apache.flink.table.planner.functions;
 
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
+import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.types.Row;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -192,6 +195,17 @@ class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 new byte[] {0, 1, -30, 64, 0, 70, 0, 108, 0, 105, 0, 110, 0, 107},
                                 VARBINARY(50)),
                 TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.CAST,
+                                "cast from RAW(LocalDateTime) to BINARY(13)")
+                        .onFieldsWithData("2020-11-11T18:08:01.123")
+                        .andDataTypes(STRING())
+                        .withFunction(LocalDateTimeToRaw.class)
+                        .testTableApiResult(
+                                call("LocalDateTimeToRaw", $("f0")).cast(BINARY(13)),
+                                serializeLocalDateTime(
+                                        LocalDateTime.parse("2020-11-11T18:08:01.123")),
+                                BINARY(13)),
+                TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST, "test the x'....' binary syntax")
                         .onFieldsWithData("foo")
                         .testSqlResult(
@@ -223,6 +237,13 @@ class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 call("CreateMultiset", $("f0")).cast(STRING()),
                                 "{a=1, b=2}",
                                 STRING()),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.CAST, "cast RAW(Integer) to STRING")
+                        .onFieldsWithData(123456)
+                        .andDataTypes(INT())
+                        .withFunction(IntegerToRaw.class)
+                        .testTableApiResult(
+                                call("IntegerToRaw", $("f0")).cast(STRING()), "123456", STRING()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.CAST, "cast RAW to STRING")
                         .onFieldsWithData("2020-11-11T18:08:01.123")
                         .andDataTypes(STRING())
@@ -354,7 +375,12 @@ class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
     /** Test Raw with built-in Java class. */
     public static class IntegerToRaw extends ScalarFunction {
 
-        public @DataTypeHint(value = "RAW", bridgedTo = byte[].class) byte[] eval(Integer i) {
+        public @DataTypeHint(
+                value = "RAW",
+                bridgedTo = byte[].class,
+                rawSerializer = IntSerializer.class) byte[] eval(Integer i) {
+            // the behaviour of this function is similar to IntSerializer.serialize()
+            // so we should use IntSerializer instant of the default Kyro serializer.
             ByteBuffer b = ByteBuffer.allocate(4);
             b.putInt(i);
             return b.array();
@@ -383,5 +409,16 @@ class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                 rawSerializer = LocalDateTimeSerializer.class) LocalDateTime eval(String str) {
             return LocalDateTime.parse(str);
         }
+    }
+
+    public static byte[] serializeLocalDateTime(LocalDateTime localDateTime) {
+        DataOutputSerializer dos = new DataOutputSerializer(16);
+        LocalDateTimeSerializer serializer = new LocalDateTimeSerializer();
+        try {
+            serializer.serialize(localDateTime, dos);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return dos.getCopyOfBuffer();
     }
 }
