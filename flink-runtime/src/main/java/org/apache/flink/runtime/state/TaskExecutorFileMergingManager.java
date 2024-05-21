@@ -17,12 +17,14 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManagerBuilder;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingType;
 import org.apache.flink.runtime.checkpoint.filemerging.PhysicalFilePool;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.util.ShutdownHookUtil;
 
 import org.slf4j.Logger;
@@ -33,7 +35,9 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import static org.apache.flink.configuration.CheckpointingOptions.FILE_MERGING_ACROSS_BOUNDARY;
 import static org.apache.flink.configuration.CheckpointingOptions.FILE_MERGING_ENABLED;
@@ -53,7 +57,8 @@ public class TaskExecutorFileMergingManager {
      * manager(executor).
      */
     @GuardedBy("lock")
-    private final Map<JobID, FileMergingSnapshotManager> fileMergingSnapshotManagerByJobId;
+    private final Map<JobID, Tuple2<FileMergingSnapshotManager, Set<ExecutionAttemptID>>>
+            fileMergingSnapshotManagerByJobId;
 
     @GuardedBy("lock")
     private boolean closed;
@@ -74,8 +79,9 @@ public class TaskExecutorFileMergingManager {
      * Initialize file merging snapshot manager for each job according configurations when {@link
      * org.apache.flink.runtime.taskexecutor.TaskExecutor#submitTask}.
      */
-    public @Nullable FileMergingSnapshotManager fileMergingSnapshotManagerForJob(
+    public @Nullable FileMergingSnapshotManager fileMergingSnapshotManagerForTask(
             @Nonnull JobID jobId,
+            @Nonnull ExecutionAttemptID executionAttemptID,
             Configuration clusterConfiguration,
             Configuration jobConfiguration) {
         boolean mergingEnabled =
@@ -91,9 +97,10 @@ public class TaskExecutorFileMergingManager {
             if (!mergingEnabled) {
                 return null;
             }
-            FileMergingSnapshotManager fileMergingSnapshotManager =
-                    fileMergingSnapshotManagerByJobId.get(jobId);
-            if (fileMergingSnapshotManager == null) {
+            Tuple2<FileMergingSnapshotManager, Set<ExecutionAttemptID>>
+                    fileMergingSnapshotManagerAndRetainedExecutions =
+                            fileMergingSnapshotManagerByJobId.get(jobId);
+            if (fileMergingSnapshotManagerAndRetainedExecutions == null) {
                 FileMergingType fileMergingType =
                         jobConfiguration
                                         .getOptional(FILE_MERGING_ACROSS_BOUNDARY)
@@ -111,28 +118,52 @@ public class TaskExecutorFileMergingManager {
                                 .getOptional(FILE_MERGING_POOL_BLOCKING)
                                 .orElse(clusterConfiguration.get(FILE_MERGING_POOL_BLOCKING));
 
-                fileMergingSnapshotManager =
-                        new FileMergingSnapshotManagerBuilder(jobId.toString(), fileMergingType)
-                                .setMaxFileSize(maxFileSize.getBytes())
-                                .setFilePoolType(
-                                        usingBlockingPool
-                                                ? PhysicalFilePool.Type.BLOCKING
-                                                : PhysicalFilePool.Type.NON_BLOCKING)
-                                .build();
-                fileMergingSnapshotManagerByJobId.put(jobId, fileMergingSnapshotManager);
+                fileMergingSnapshotManagerAndRetainedExecutions =
+                        Tuple2.of(
+                                new FileMergingSnapshotManagerBuilder(
+                                                jobId.toString(), fileMergingType)
+                                        .setMaxFileSize(maxFileSize.getBytes())
+                                        .setFilePoolType(
+                                                usingBlockingPool
+                                                        ? PhysicalFilePool.Type.BLOCKING
+                                                        : PhysicalFilePool.Type.NON_BLOCKING)
+                                        .build(),
+                                new HashSet<>());
+                fileMergingSnapshotManagerByJobId.put(
+                        jobId, fileMergingSnapshotManagerAndRetainedExecutions);
                 LOG.info("Registered new file merging snapshot manager for job {}.", jobId);
             }
-            return fileMergingSnapshotManager;
+            fileMergingSnapshotManagerAndRetainedExecutions.f1.add(executionAttemptID);
+            return fileMergingSnapshotManagerAndRetainedExecutions.f0;
+        }
+    }
+
+    public void releaseMergingSnapshotManagerForTask(
+            @Nonnull JobID jobId, @Nonnull ExecutionAttemptID executionAttemptID) {
+        synchronized (lock) {
+            Tuple2<FileMergingSnapshotManager, Set<ExecutionAttemptID>>
+                    fileMergingSnapshotManagerAndRetainedExecutions =
+                            fileMergingSnapshotManagerByJobId.get(jobId);
+            if (fileMergingSnapshotManagerAndRetainedExecutions != null) {
+                LOG.debug(
+                        "Releasing file merging snapshot manager under job id {} and attempt {}.",
+                        jobId,
+                        executionAttemptID);
+                fileMergingSnapshotManagerAndRetainedExecutions.f1.remove(executionAttemptID);
+                if (fileMergingSnapshotManagerAndRetainedExecutions.f1.isEmpty()) {
+                    releaseMergingSnapshotManagerForJob(jobId);
+                }
+            }
         }
     }
 
     /**
-     * Release file merging snapshot manager of one job when {@link
+     * Release file merging snapshot manager of one job when {@code
      * org.apache.flink.runtime.taskexecutor.TaskExecutor#releaseJobResources} called.
      */
     public void releaseMergingSnapshotManagerForJob(@Nonnull JobID jobId) {
         LOG.debug("Releasing file merging snapshot manager under job id {}.", jobId);
-        FileMergingSnapshotManager toRelease = null;
+        Tuple2<FileMergingSnapshotManager, Set<ExecutionAttemptID>> toRelease = null;
         synchronized (lock) {
             if (closed) {
                 return;
@@ -141,8 +172,13 @@ public class TaskExecutorFileMergingManager {
         }
 
         if (toRelease != null) {
+            if (!toRelease.f1.isEmpty()) {
+                LOG.warn(
+                        "The file merging snapshot manager for job {} is released before all tasks are released.",
+                        jobId);
+            }
             try {
-                toRelease.close();
+                toRelease.f0.close();
             } catch (Exception e) {
                 LOG.warn(
                         "Exception while closing TaskExecutorFileMergingManager for job {}.",
@@ -153,9 +189,9 @@ public class TaskExecutorFileMergingManager {
     }
 
     public void shutdown() {
-        HashMap<JobID, FileMergingSnapshotManager> toRelease =
-                new HashMap<>(fileMergingSnapshotManagerByJobId);
+        Map<JobID, Tuple2<FileMergingSnapshotManager, Set<ExecutionAttemptID>>> toRelease = null;
         synchronized (lock) {
+            toRelease = new HashMap<>(fileMergingSnapshotManagerByJobId);
             if (closed) {
                 return;
             }
@@ -167,10 +203,11 @@ public class TaskExecutorFileMergingManager {
 
         ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
 
-        for (Map.Entry<JobID, FileMergingSnapshotManager> entry : toRelease.entrySet()) {
+        for (Map.Entry<JobID, Tuple2<FileMergingSnapshotManager, Set<ExecutionAttemptID>>> entry :
+                toRelease.entrySet()) {
             if (entry.getValue() != null) {
                 try {
-                    entry.getValue().close();
+                    entry.getValue().f0.close();
                 } catch (Exception e) {
                     LOG.warn(
                             "Exception while closing TaskExecutorFileMergingManager for job {}.",
