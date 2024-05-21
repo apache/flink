@@ -601,18 +601,36 @@ public abstract class FileMergingSnapshotManagerTestBase {
     FileMergingCheckpointStateOutputStream writeCheckpointAndGetStream(
             long checkpointId, FileMergingSnapshotManager fmsm, CloseableRegistry closeableRegistry)
             throws IOException {
-        return writeCheckpointAndGetStream(checkpointId, fmsm, closeableRegistry, 32);
+        return writeCheckpointAndGetStream(
+                subtaskKey1,
+                checkpointId,
+                CheckpointedStateScope.EXCLUSIVE,
+                fmsm,
+                closeableRegistry,
+                32);
     }
 
     FileMergingCheckpointStateOutputStream writeCheckpointAndGetStream(
+            SubtaskKey subtaskKey,
             long checkpointId,
+            CheckpointedStateScope scope,
+            FileMergingSnapshotManager fmsm,
+            CloseableRegistry closeableRegistry)
+            throws IOException {
+        return writeCheckpointAndGetStream(
+                subtaskKey, checkpointId, scope, fmsm, closeableRegistry, 32);
+    }
+
+    FileMergingCheckpointStateOutputStream writeCheckpointAndGetStream(
+            SubtaskKey subtaskKey,
+            long checkpointId,
+            CheckpointedStateScope scope,
             FileMergingSnapshotManager fmsm,
             CloseableRegistry closeableRegistry,
             int numBytes)
             throws IOException {
         FileMergingCheckpointStateOutputStream stream =
-                fmsm.createCheckpointStateOutputStream(
-                        subtaskKey1, checkpointId, CheckpointedStateScope.EXCLUSIVE);
+                fmsm.createCheckpointStateOutputStream(subtaskKey, checkpointId, scope);
         closeableRegistry.registerCloseable(stream);
         for (int i = 0; i < numBytes; i++) {
             stream.write(i);

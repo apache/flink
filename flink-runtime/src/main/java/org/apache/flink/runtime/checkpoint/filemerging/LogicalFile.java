@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.checkpoint.filemerging;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.StringBasedID;
 
 import javax.annotation.Nonnull;
@@ -40,10 +39,6 @@ public class LogicalFile {
 
         public LogicalFileId(String keyString) {
             super(keyString);
-        }
-
-        public Path getFilePath() {
-            return new Path(getKeyString());
         }
 
         public static LogicalFileId generateRandomId() {
