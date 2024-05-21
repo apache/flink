@@ -1620,12 +1620,12 @@ class Expression(Generic[T]):
 
     def split(self, delimiter) -> 'Expression':
         """
-        Splits a string into an array of substrings based on a delimiter. If the delimiter is not
-        found, then the original string is returned as the only element in the array.
-        If the delimiter is empty, return entire string.
-        If either, string or delimiter, are NULL, then a NULL value is returned.
-        If the delimiter is found at the beginning or end of the string,
-        or there are contiguous delimiters, then an empty space is added to the array.
+        Returns an array of substrings by splitting the input string based on the given delimiter.
+        If the delimiter is not found in the string, the original string is returned as the only
+        element in the array. If the delimiter is empty, every character in the string is split.
+        If the string or delimiter is null, a null value is returned. If the delimiter is found a
+        t the beginning or end of the string, or there are contiguous delimiters, then an empty
+        string is added to the array.
         """
         return _binary_op("split")(self, delimiter)
 
