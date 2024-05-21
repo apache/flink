@@ -47,9 +47,10 @@ public class SplitFunction extends BuiltInScalarFunction {
                 return null;
             }
             if (delimiter.toString().isEmpty()) {
+                String str = string.toString();
                 List<StringData> res = new ArrayList<>();
-                for (char c : string.toString().toCharArray()) {
-                    res.add(StringData.fromString(String.valueOf(c)));
+                for (int i = 0; i < str.length(); i++) {
+                    res.add(StringData.fromString(String.valueOf(str.charAt(i))));
                 }
                 return new GenericArrayData(res.toArray());
             }
