@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.eventtime;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.watermark.TimestampWatermark;
 
 import java.time.Duration;
 
@@ -66,6 +67,6 @@ public class BoundedOutOfOrdernessWatermarks<T> implements WatermarkGenerator<T>
 
     @Override
     public void onPeriodicEmit(WatermarkOutput output) {
-        output.emitWatermark(new Watermark(maxTimestamp - outOfOrdernessMillis - 1));
+        output.emitWatermark(new TimestampWatermark(maxTimestamp - outOfOrdernessMillis - 1));
     }
 }

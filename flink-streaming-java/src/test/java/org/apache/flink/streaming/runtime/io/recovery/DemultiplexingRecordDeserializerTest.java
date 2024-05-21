@@ -33,10 +33,10 @@ import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
 
@@ -191,7 +191,8 @@ class DemultiplexingRecordDeserializerTest {
             try (BufferBuilder bufferBuilder = createBufferBuilder(memorySegment)) {
                 final long ts =
                         42L + selector.getInputSubtaskIndex() + selector.getOutputSubtaskIndex();
-                Buffer buffer = write(bufferBuilder, new Watermark(ts));
+                Buffer buffer =
+                        write(bufferBuilder, WatermarkUtils.createWatermarkEventFromTimestamp(ts));
 
                 deserializer.select(selector);
                 deserializer.setNextBuffer(buffer);
@@ -201,7 +202,8 @@ class DemultiplexingRecordDeserializerTest {
                 assertThat(read(deserializer)).isEmpty();
             } else {
                 // last channel, min should be 42 + 0 + 0
-                assertThat(read(deserializer)).containsExactly(new Watermark(42));
+                assertThat(read(deserializer))
+                        .containsExactly(WatermarkUtils.createWatermarkEventFromTimestamp(42));
             }
 
             assertThat(memorySegment.isFreed()).isTrue();

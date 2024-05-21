@@ -20,10 +20,10 @@ package org.apache.flink.table.runtime.operators.window.groupwindow.operator;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
@@ -196,7 +196,7 @@ public class WindowOperatorTest {
         testHarness.processElement(insertRecord("key2", 1, 1999L));
         testHarness.processElement(insertRecord("key2", 1, 1000L));
 
-        testHarness.processWatermark(new Watermark(999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(999));
         expectedOutput.addAll(
                 doubleRecord(
                         isTableAggregate,
@@ -207,11 +207,11 @@ public class WindowOperatorTest {
                                 localMills(-2000L),
                                 localMills(1000L),
                                 localMills(999L))));
-        expectedOutput.add(new Watermark(999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(999));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(1999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(1999));
         expectedOutput.addAll(
                 doubleRecord(
                         isTableAggregate,
@@ -232,11 +232,11 @@ public class WindowOperatorTest {
                                 localMills(-1000L),
                                 localMills(2000L),
                                 localMills(1999L))));
-        expectedOutput.add(new Watermark(1999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(1999));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(2999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(2999));
         expectedOutput.addAll(
                 doubleRecord(
                         isTableAggregate,
@@ -257,7 +257,7 @@ public class WindowOperatorTest {
                                 localMills(0L),
                                 localMills(3000L),
                                 localMills(2999L))));
-        expectedOutput.add(new Watermark(2999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(2999));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -271,7 +271,7 @@ public class WindowOperatorTest {
         testHarness.initializeState(snapshot);
         testHarness.open();
 
-        testHarness.processWatermark(new Watermark(3999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(3999));
         expectedOutput.addAll(
                 doubleRecord(
                         isTableAggregate,
@@ -282,11 +282,11 @@ public class WindowOperatorTest {
                                 localMills(1000L),
                                 localMills(4000L),
                                 localMills(3999L))));
-        expectedOutput.add(new Watermark(3999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(3999));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(4999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(4999));
         expectedOutput.addAll(
                 doubleRecord(
                         isTableAggregate,
@@ -297,11 +297,11 @@ public class WindowOperatorTest {
                                 localMills(2000L),
                                 localMills(5000L),
                                 localMills(4999L))));
-        expectedOutput.add(new Watermark(4999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(4999));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(5999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(5999));
         expectedOutput.addAll(
                 doubleRecord(
                         isTableAggregate,
@@ -312,15 +312,15 @@ public class WindowOperatorTest {
                                 localMills(3000L),
                                 localMills(6000L),
                                 localMills(5999L))));
-        expectedOutput.add(new Watermark(5999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(5999));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         // those don't have any effect...
-        testHarness.processWatermark(new Watermark(6999));
-        testHarness.processWatermark(new Watermark(7999));
-        expectedOutput.add(new Watermark(6999));
-        expectedOutput.add(new Watermark(7999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(6999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(7999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(6999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(7999));
 
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -512,7 +512,7 @@ public class WindowOperatorTest {
         testHarness.processElement(insertRecord("key2", 1, 1999L));
         testHarness.processElement(insertRecord("key2", 1, 1000L));
 
-        testHarness.processWatermark(new Watermark(999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(999));
         expectedOutput.addAll(
                 doubleRecord(
                         isTableAggregate,
@@ -523,11 +523,11 @@ public class WindowOperatorTest {
                                 localMills(0L),
                                 localMills(1000L),
                                 localMills(999L))));
-        expectedOutput.add(new Watermark(999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(999));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(1999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(1999));
         expectedOutput.addAll(
                 doubleRecord(
                         isTableAggregate,
@@ -548,11 +548,11 @@ public class WindowOperatorTest {
                                 localMills(0L),
                                 localMills(2000L),
                                 localMills(1999L))));
-        expectedOutput.add(new Watermark(1999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(1999));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(2999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(2999));
         expectedOutput.addAll(
                 doubleRecord(
                         isTableAggregate,
@@ -573,7 +573,7 @@ public class WindowOperatorTest {
                                 localMills(0L),
                                 localMills(3000L),
                                 localMills(2999L))));
-        expectedOutput.add(new Watermark(2999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(2999));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -587,7 +587,7 @@ public class WindowOperatorTest {
         testHarness.initializeState(snapshot);
         testHarness.open();
 
-        testHarness.processWatermark(new Watermark(3999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(3999));
         expectedOutput.addAll(
                 doubleRecord(
                         isTableAggregate,
@@ -598,11 +598,11 @@ public class WindowOperatorTest {
                                 localMills(3000L),
                                 localMills(4000L),
                                 localMills(3999L))));
-        expectedOutput.add(new Watermark(3999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(3999));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(4999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(4999));
         expectedOutput.addAll(
                 doubleRecord(
                         isTableAggregate,
@@ -613,11 +613,11 @@ public class WindowOperatorTest {
                                 localMills(3000L),
                                 localMills(5000L),
                                 localMills(4999L))));
-        expectedOutput.add(new Watermark(4999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(4999));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(5999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(5999));
         expectedOutput.addAll(
                 doubleRecord(
                         isTableAggregate,
@@ -628,15 +628,15 @@ public class WindowOperatorTest {
                                 localMills(3000L),
                                 localMills(6000L),
                                 localMills(5999L))));
-        expectedOutput.add(new Watermark(5999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(5999));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         // those don't have any effect...
-        testHarness.processWatermark(new Watermark(6999));
-        testHarness.processWatermark(new Watermark(7999));
-        expectedOutput.add(new Watermark(6999));
-        expectedOutput.add(new Watermark(7999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(6999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(7999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(6999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(7999));
 
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -672,23 +672,23 @@ public class WindowOperatorTest {
         testHarness.open();
 
         testHarness.processElement(insertRecord("key2", 1, 500L));
-        testHarness.processWatermark(new Watermark(1500));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(1500));
 
         expectedOutput.add(
                 insertRecord("key2", 1L, 1L, localMills(0L), localMills(1000L), localMills(999L)));
-        expectedOutput.add(new Watermark(1500));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(1500));
 
         testHarness.processElement(insertRecord("key2", 1, 1300L));
-        testHarness.processWatermark(new Watermark(2300));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(2300));
 
         expectedOutput.add(
                 insertRecord("key2", 2L, 2L, localMills(0L), localMills(2000L), localMills(1999L)));
-        expectedOutput.add(new Watermark(2300));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(2300));
 
         // this will not be dropped because window.maxTimestamp() + allowedLateness >
         // currentWatermark
         testHarness.processElement(insertRecord("key2", 1, 1997L));
-        testHarness.processWatermark(new Watermark(6000));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(6000));
 
         // this is 1 and not 3 because the trigger fires and purges
         expectedOutput.add(
@@ -699,13 +699,13 @@ public class WindowOperatorTest {
                         "key2", 3L, 3L, localMills(0L), localMills(2000L), localMills(1999L)));
         expectedOutput.add(
                 insertRecord("key2", 3L, 3L, localMills(0L), localMills(3000L), localMills(2999L)));
-        expectedOutput.add(new Watermark(6000));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(6000));
 
         // this will be dropped because window.maxTimestamp() + allowedLateness < currentWatermark
         testHarness.processElement(insertRecord("key2", 1, 1998L));
-        testHarness.processWatermark(new Watermark(7000));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(7000));
 
-        expectedOutput.add(new Watermark(7000));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(7000));
 
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -916,13 +916,13 @@ public class WindowOperatorTest {
         testHarness.processElement(insertRecord("key2", 1, 1999L));
         testHarness.processElement(insertRecord("key2", 1, 1000L));
 
-        testHarness.processWatermark(new Watermark(999));
-        expectedOutput.add(new Watermark(999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(999));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(1999));
-        expectedOutput.add(new Watermark(1999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(1999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(1999));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -936,7 +936,7 @@ public class WindowOperatorTest {
         testHarness.initializeState(snapshot);
         testHarness.open();
 
-        testHarness.processWatermark(new Watermark(2999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(2999));
         expectedOutput.addAll(
                 doubleRecord(
                         isTableAggregate,
@@ -957,21 +957,21 @@ public class WindowOperatorTest {
                                 localMills(0L),
                                 localMills(3000L),
                                 localMills(2999L))));
-        expectedOutput.add(new Watermark(2999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(2999));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(3999));
-        expectedOutput.add(new Watermark(3999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(3999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(3999));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(4999));
-        expectedOutput.add(new Watermark(4999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(4999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(4999));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(5999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(5999));
         expectedOutput.addAll(
                 doubleRecord(
                         isTableAggregate,
@@ -982,15 +982,15 @@ public class WindowOperatorTest {
                                 localMills(3000L),
                                 localMills(6000L),
                                 localMills(5999L))));
-        expectedOutput.add(new Watermark(5999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(5999));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         // those don't have any effect...
-        testHarness.processWatermark(new Watermark(6999));
-        testHarness.processWatermark(new Watermark(7999));
-        expectedOutput.add(new Watermark(6999));
-        expectedOutput.add(new Watermark(7999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(6999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(7999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(6999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(7999));
 
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -1051,8 +1051,8 @@ public class WindowOperatorTest {
         expectedOutput.add(
                 insertRecord(
                         "key2", 2L, 2L, localMills(3000L), localMills(6000L), localMills(5999L)));
-        testHarness.processWatermark(new Watermark(999));
-        expectedOutput.add(new Watermark(999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(999));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -1062,9 +1062,9 @@ public class WindowOperatorTest {
         expectedOutput.add(
                 insertRecord("key2", 3L, 3L, localMills(0L), localMills(3000L), localMills(2999L)));
 
-        testHarness.processWatermark(new Watermark(1999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(1999));
         testHarness.setProcessingTime(2001);
-        expectedOutput.add(new Watermark(1999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(1999));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -1080,17 +1080,17 @@ public class WindowOperatorTest {
         testHarness.open();
 
         testHarness.setProcessingTime(3001);
-        testHarness.processWatermark(new Watermark(2999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(2999));
         // on time fire key1 & key2 [0 ~ 3000) window, but because of early firing, on time result
         // is ignored
-        expectedOutput.add(new Watermark(2999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(2999));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         testHarness.processElement(insertRecord("key2", 1, 4999L));
-        testHarness.processWatermark(new Watermark(3999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(3999));
         testHarness.setProcessingTime(4001);
-        expectedOutput.add(new Watermark(3999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(3999));
         expectedOutput.add(
                 updateBeforeRecord(
                         "key2", 2L, 2L, localMills(3000L), localMills(6000L), localMills(5999L)));
@@ -1109,19 +1109,19 @@ public class WindowOperatorTest {
 
         testHarness.setProcessingTime(5100);
         testHarness.processElement(insertRecord("key2", 1, 5122L));
-        testHarness.processWatermark(new Watermark(4999));
-        expectedOutput.add(new Watermark(4999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(4999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(4999));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(5999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(5999));
         expectedOutput.add(
                 updateBeforeRecord(
                         "key2", 3L, 3L, localMills(3000L), localMills(6000L), localMills(5999L)));
         expectedOutput.add(
                 updateAfterRecord(
                         "key2", 4L, 4L, localMills(3000L), localMills(6000L), localMills(5999L)));
-        expectedOutput.add(new Watermark(5999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(5999));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -1130,10 +1130,10 @@ public class WindowOperatorTest {
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         // those don't have any effect...
-        testHarness.processWatermark(new Watermark(6999));
-        testHarness.processWatermark(new Watermark(7999));
-        expectedOutput.add(new Watermark(6999));
-        expectedOutput.add(new Watermark(7999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(6999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(7999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(6999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(7999));
 
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -1201,8 +1201,8 @@ public class WindowOperatorTest {
         expectedOutput.add(
                 insertRecord(
                         "key2", 2L, 2L, localMills(3000L), localMills(6000L), localMills(5999L)));
-        testHarness.processWatermark(new Watermark(999));
-        expectedOutput.add(new Watermark(999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(999));
 
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -1213,9 +1213,9 @@ public class WindowOperatorTest {
         expectedOutput.add(
                 insertRecord("key2", 3L, 3L, localMills(0L), localMills(3000L), localMills(2999L)));
 
-        testHarness.processWatermark(new Watermark(1999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(1999));
         testHarness.setProcessingTime(2001);
-        expectedOutput.add(new Watermark(1999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(1999));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -1231,17 +1231,17 @@ public class WindowOperatorTest {
         testHarness.open();
 
         testHarness.setProcessingTime(3001);
-        testHarness.processWatermark(new Watermark(2999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(2999));
         // on time fire key1 & key2 [0 ~ 3000) window, but because of early firing, on time result
         // is ignored
-        expectedOutput.add(new Watermark(2999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(2999));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         testHarness.processElement(insertRecord("key2", 1, 4999L));
-        testHarness.processWatermark(new Watermark(3999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(3999));
         testHarness.setProcessingTime(4001);
-        expectedOutput.add(new Watermark(3999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(3999));
         expectedOutput.add(
                 updateBeforeRecord(
                         "key2", 2L, 2L, localMills(3000L), localMills(6000L), localMills(5999L)));
@@ -1275,19 +1275,19 @@ public class WindowOperatorTest {
 
         testHarness.setProcessingTime(5100);
         testHarness.processElement(insertRecord("key2", 1, 5122L));
-        testHarness.processWatermark(new Watermark(4999));
-        expectedOutput.add(new Watermark(4999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(4999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(4999));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(5999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(5999));
         expectedOutput.add(
                 updateBeforeRecord(
                         "key2", 3L, 3L, localMills(3000L), localMills(6000L), localMills(5999L)));
         expectedOutput.add(
                 updateAfterRecord(
                         "key2", 4L, 4L, localMills(3000L), localMills(6000L), localMills(5999L)));
-        expectedOutput.add(new Watermark(5999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(5999));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -1296,10 +1296,10 @@ public class WindowOperatorTest {
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         // those don't have any effect...
-        testHarness.processWatermark(new Watermark(6999));
-        testHarness.processWatermark(new Watermark(7999));
-        expectedOutput.add(new Watermark(6999));
-        expectedOutput.add(new Watermark(7999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(6999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(7999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(6999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(7999));
 
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -1453,7 +1453,7 @@ public class WindowOperatorTest {
         testHarness.processElement(insertRecord("key2", 5, 6000L));
         testHarness.processElement(insertRecord("key2", 6, 6050L));
 
-        testHarness.processWatermark(new Watermark(12000));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(12000));
 
         expectedOutput.addAll(
                 doubleRecord(
@@ -1486,14 +1486,14 @@ public class WindowOperatorTest {
                                 localMills(5501L),
                                 localMills(9050L),
                                 localMills(9049L))));
-        expectedOutput.add(new Watermark(12000));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(12000));
 
         // add a late data
         testHarness.processElement(insertRecord("key1", 3, 4000L));
         testHarness.processElement(insertRecord("key2", 10, 15000L));
         testHarness.processElement(insertRecord("key2", 20, 15000L));
 
-        testHarness.processWatermark(new Watermark(17999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(17999));
 
         expectedOutput.addAll(
                 doubleRecord(
@@ -1505,7 +1505,7 @@ public class WindowOperatorTest {
                                 localMills(15000L),
                                 localMills(18000L),
                                 localMills(17999L))));
-        expectedOutput.add(new Watermark(17999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(17999));
 
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -1658,7 +1658,7 @@ public class WindowOperatorTest {
         testHarness.processElement(insertRecord("key1", 2, 1000L));
         testHarness.processElement(insertRecord("key1", 33, 2500L));
 
-        testHarness.processWatermark(new Watermark(12000));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(12000));
 
         expectedOutput.addAll(
                 doubleRecord(
@@ -1680,7 +1680,7 @@ public class WindowOperatorTest {
                                 localMills(0L),
                                 localMills(3000L),
                                 localMills(2999L))));
-        expectedOutput.add(new Watermark(12000));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(12000));
 
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -1716,21 +1716,21 @@ public class WindowOperatorTest {
         testHarness.open();
 
         testHarness.processElement(insertRecord("key2", 1, 500L));
-        testHarness.processWatermark(new Watermark(1500));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(1500));
 
-        expectedOutput.add(new Watermark(1500));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(1500));
 
         testHarness.processElement(insertRecord("key2", 1, 1300L));
-        testHarness.processWatermark(new Watermark(2300));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(2300));
 
         expectedOutput.add(
                 insertRecord("key2", 2L, 2L, localMills(0L), localMills(2000L), localMills(1999L)));
-        expectedOutput.add(new Watermark(2300));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(2300));
 
         // this will not be dropped because window.maxTimestamp() + allowedLateness >
         // currentWatermark
         testHarness.processElement(insertRecord("key2", 1, 1997L));
-        testHarness.processWatermark(new Watermark(6000));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(6000));
 
         // this is 1 and not 3 because the trigger fires and purges
         expectedOutput.add(
@@ -1739,13 +1739,13 @@ public class WindowOperatorTest {
         expectedOutput.add(
                 updateAfterRecord(
                         "key2", 3L, 3L, localMills(0L), localMills(2000L), localMills(1999L)));
-        expectedOutput.add(new Watermark(6000));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(6000));
 
         // this will be dropped because window.maxTimestamp() + allowedLateness < currentWatermark
         testHarness.processElement(insertRecord("key2", 1, 1998L));
-        testHarness.processWatermark(new Watermark(7000));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(7000));
 
-        expectedOutput.add(new Watermark(7000));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(7000));
 
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -1784,17 +1784,20 @@ public class WindowOperatorTest {
 
         // normal element
         testHarness.processElement(insertRecord("key2", 1, 1000L));
-        testHarness.processWatermark(new Watermark(1599));
-        testHarness.processWatermark(new Watermark(1999));
-        testHarness.processWatermark(new Watermark(2000));
-        testHarness.processWatermark(new Watermark(5000));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(1599));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(1999));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(2000));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(5000));
 
-        expected.add(new Watermark(1599));
+        expected.add(WatermarkUtils.createWatermarkEventFromTimestamp(1599));
         expected.add(
                 insertRecord("key2", 1L, 1L, localMills(0L), localMills(2000L), localMills(1999L)));
-        expected.add(new Watermark(1999)); // here it fires and purges
-        expected.add(new Watermark(2000)); // here is the cleanup timer
-        expected.add(new Watermark(5000));
+        expected.add(
+                WatermarkUtils.createWatermarkEventFromTimestamp(1999)); // here it fires and purges
+        expected.add(
+                WatermarkUtils.createWatermarkEventFromTimestamp(
+                        2000)); // here is the cleanup timer
+        expected.add(WatermarkUtils.createWatermarkEventFromTimestamp(5000));
 
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expected, testHarness.getOutput());
@@ -1849,20 +1852,22 @@ public class WindowOperatorTest {
         // if we don't correctly prevent wrap-around in the garbage collection
         // timers this watermark will clean our window state for the just-added
         // element/window
-        testHarness.processWatermark(new Watermark(Long.MAX_VALUE - 1500));
+        testHarness.processWatermark(
+                WatermarkUtils.createWatermarkEventFromTimestamp(Long.MAX_VALUE - 1500));
 
         // this watermark is before the end timestamp of our only window
         assertThat(Long.MAX_VALUE - 1500).isLessThan(window.maxTimestamp());
         assertThat(window.maxTimestamp()).isLessThan(Long.MAX_VALUE);
 
         // push in a watermark that will trigger computation of our window
-        testHarness.processWatermark(new Watermark(window.maxTimestamp()));
+        testHarness.processWatermark(
+                WatermarkUtils.createWatermarkEventFromTimestamp(window.maxTimestamp()));
 
-        expected.add(new Watermark(Long.MAX_VALUE - 1500));
+        expected.add(WatermarkUtils.createWatermarkEventFromTimestamp(Long.MAX_VALUE - 1500));
         expected.add(
                 insertRecord(
                         "key2", 1L, 1L, window.getStart(), window.getEnd(), window.maxTimestamp()));
-        expected.add(new Watermark(window.maxTimestamp()));
+        expected.add(WatermarkUtils.createWatermarkEventFromTimestamp(window.maxTimestamp()));
 
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expected, testHarness.getOutput());
@@ -1903,10 +1908,10 @@ public class WindowOperatorTest {
         testHarness.processElement(insertRecord("key1", 1, 10L));
         testHarness.processElement(insertRecord("key1", 2, 1000L));
 
-        testHarness.processWatermark(new Watermark(12000));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(12000));
         testHarness.setProcessingTime(12000L);
         expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 6L, 3L, 0L)));
-        expectedOutput.add(new Watermark(12000));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(12000));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -1990,10 +1995,10 @@ public class WindowOperatorTest {
         testHarness.processElement(insertRecord("key1", 1, 10L));
         testHarness.processElement(insertRecord("key1", 2, 1000L));
 
-        testHarness.processWatermark(new Watermark(12000));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(12000));
         testHarness.setProcessingTime(12000L);
         expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 15L, 5L, 0L)));
-        expectedOutput.add(new Watermark(12000));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(12000));
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 

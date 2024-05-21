@@ -90,7 +90,8 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
                         this::setCurrentKey,
                         getProcessingTimeManager(),
                         operatorContext,
-                        operatorStateStore);
+                        operatorStateStore,
+                        null); // TODO JEYHUN fix later
         this.nonPartitionedContext = getNonPartitionedContext();
     }
 

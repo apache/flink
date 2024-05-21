@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.operators.sort;
 
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
@@ -51,7 +51,7 @@ final class CollectionDataInput<E> implements StreamTaskInput<E> {
             StreamElement streamElement = elementsIterator.next();
             if (streamElement instanceof StreamRecord) {
                 output.emitRecord(streamElement.asRecord());
-            } else if (streamElement instanceof Watermark) {
+            } else if (streamElement instanceof WatermarkEvent) {
                 output.emitWatermark(streamElement.asWatermark());
             } else if (streamElement.isRecordAttributes()) {
                 output.emitRecordAttributes(streamElement.asRecordAttributes());

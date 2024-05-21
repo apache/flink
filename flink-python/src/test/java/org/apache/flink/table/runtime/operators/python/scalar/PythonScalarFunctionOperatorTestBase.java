@@ -29,9 +29,9 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
@@ -207,7 +207,7 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN> {
         testHarness.prepareSnapshotPreBarrier(0L);
 
         expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L)));
-        expectedOutput.add(new Watermark(initialTime + 2));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 2));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 

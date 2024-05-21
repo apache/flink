@@ -37,6 +37,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link KeyedProcessOperator}. */
 class KeyedProcessOperatorTest {
+
     @Test
     void testProcessRecord() throws Exception {
         KeyedProcessOperator<Integer, Integer, Integer> processOperator =

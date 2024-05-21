@@ -39,7 +39,7 @@ import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Triggerable;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.checkpointing.utils.MigrationTestUtils;
 import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase;
@@ -386,7 +386,7 @@ public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBas
         public void onProcessingTime(InternalTimer<Long, Long> timer) {}
 
         @Override
-        public void processWatermark(Watermark mark) {
+        public void processWatermark(WatermarkEvent mark) {
             output.emitWatermark(mark);
         }
     }

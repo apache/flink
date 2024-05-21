@@ -20,8 +20,12 @@ package org.apache.flink.datastream.api;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.common.watermark.WatermarkDeclaration;
 import org.apache.flink.api.connector.dsv2.Source;
 import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream;
+
+import java.util.Collections;
+import java.util.Set;
 
 /**
  * This is the context in which a program is executed.
@@ -51,5 +55,10 @@ public interface ExecutionEnvironment {
     /** Set the execution mode for this environment. */
     ExecutionEnvironment setExecutionMode(RuntimeExecutionMode runtimeMode);
 
-    <OUT> NonKeyedPartitionStream<OUT> fromSource(Source<OUT> source, String sourceName);
+    default <OUT> NonKeyedPartitionStream<OUT> fromSource(Source<OUT> source, String sourceName) {
+        return fromSource(source, sourceName, Collections.emptySet());
+    }
+
+    <OUT> NonKeyedPartitionStream<OUT> fromSource(
+            Source<OUT> source, String sourceName, Set<WatermarkDeclaration> watermarkDeclarations);
 }

@@ -26,6 +26,7 @@ import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.watermark.TimestampWatermark;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputView;
@@ -323,13 +324,16 @@ final class TestValuesRuntimeFunctions {
 
             @Override
             public void emitWatermark(Watermark watermark) {
-                ctx.emitWatermark(
-                        new org.apache.flink.streaming.api.watermark.Watermark(
-                                watermark.getTimestamp()));
-                synchronized (LOCK) {
-                    watermarkHistory
-                            .computeIfAbsent(tableName, k -> new LinkedList<>())
-                            .add(watermark);
+                if (watermark instanceof TimestampWatermark) {
+                    ctx.emitWatermark(
+                            new org.apache.flink.streaming.api.watermark.WatermarkEvent(
+                                    new TimestampWatermark(
+                                            ((TimestampWatermark) watermark).getTimestamp())));
+                    synchronized (LOCK) {
+                        watermarkHistory
+                                .computeIfAbsent(tableName, k -> new LinkedList<>())
+                                .add(watermark);
+                    }
                 }
             }
 

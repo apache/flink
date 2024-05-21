@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.operators.multipleinput.input;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessing;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -44,7 +44,7 @@ public class SecondInputOfTwoInput extends InputBase implements AsyncStateProces
     }
 
     @Override
-    public void processWatermark(Watermark mark) throws Exception {
+    public void processWatermark(WatermarkEvent mark) throws Exception {
         operator.processWatermark2(mark);
     }
 

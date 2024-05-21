@@ -25,7 +25,7 @@ import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 
@@ -81,16 +81,16 @@ public interface InternalTimeServiceManager<K> {
      * Advances the Watermark of all managed {@link InternalTimerService timer services},
      * potentially firing event time timers.
      */
-    void advanceWatermark(Watermark watermark) throws Exception;
+    void advanceWatermark(WatermarkEvent watermark) throws Exception;
 
     /**
-     * Try to {@link #advanceWatermark(Watermark)}, but if {@link ShouldStopAdvancingFn} returns
-     * {@code true}, stop the advancement and return as soon as possible.
+     * Try to {@link #advanceWatermark(WatermarkEvent)}, but if {@link ShouldStopAdvancingFn}
+     * returns {@code true}, stop the advancement and return as soon as possible.
      *
-     * @return true if {@link Watermark} has been fully processed, false otherwise.
+     * @return true if {@link WatermarkEvent} has been fully processed, false otherwise.
      */
-    boolean tryAdvanceWatermark(Watermark watermark, ShouldStopAdvancingFn shouldStopAdvancingFn)
-            throws Exception;
+    boolean tryAdvanceWatermark(
+            WatermarkEvent watermark, ShouldStopAdvancingFn shouldStopAdvancingFn) throws Exception;
 
     /**
      * Snapshots the timers to raw keyed state.

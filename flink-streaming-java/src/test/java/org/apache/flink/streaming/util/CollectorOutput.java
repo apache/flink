@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
@@ -41,7 +41,7 @@ public class CollectorOutput<T> implements Output<StreamRecord<T>> {
     }
 
     @Override
-    public void emitWatermark(Watermark mark) {
+    public void emitWatermark(WatermarkEvent mark) {
         list.add(mark);
     }
 

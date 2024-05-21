@@ -28,13 +28,15 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionKeyedStateBackend;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingRuntimeException;
 
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
 
 import static org.apache.flink.python.PythonOptions.MAX_BUNDLE_SIZE;
@@ -160,7 +162,13 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
     }
 
     @Override
-    public void processWatermark(Watermark mark) throws Exception {
+    public void processWatermark(WatermarkEvent mark) throws Exception {
+        Optional<Long> maybeTimestampWatermark = WatermarkUtils.getTimestamp(mark);
+        // fast forward
+        if (!maybeTimestampWatermark.isPresent()) {
+            output.emitWatermark(mark);
+            return;
+        }
         // Due to the asynchronous communication with the SDK harness,
         // a bundle might still be in progress and not all items have
         // yet been received from the SDK harness. If we just set this
@@ -185,7 +193,7 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
         // gives better throughput due to the bundle not getting cut on
         // every watermark. So we have implemented 2) below.
 
-        if (mark.getTimestamp() == Long.MAX_VALUE) {
+        if (maybeTimestampWatermark.get() == Long.MAX_VALUE) {
             invokeFinishBundle();
             processElementsOfCurrentKeyIfNeeded(null);
             advanceWatermark(mark);
@@ -274,7 +282,7 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
      * Advances the watermark of all managed timer services, potentially firing event time timers.
      * It also ensures that the fired timers are processed in the Python user-defined functions.
      */
-    private void advanceWatermark(Watermark watermark) throws Exception {
+    private void advanceWatermark(WatermarkEvent watermark) throws Exception {
         if (getTimeServiceManager().isPresent()) {
             InternalTimeServiceManager<?> timeServiceManager = getTimeServiceManager().get();
             timeServiceManager.advanceWatermark(watermark);

@@ -21,7 +21,7 @@ package org.apache.flink.streaming.api.operators.async.queue;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.CollectionUtil;
@@ -79,7 +79,7 @@ public final class UnorderedStreamElementQueue<OUT> implements StreamElementQueu
             if (streamElement.isRecord()) {
                 queueEntry = addRecord((StreamRecord<?>) streamElement);
             } else if (streamElement.isWatermark()) {
-                queueEntry = addWatermark((Watermark) streamElement);
+                queueEntry = addWatermark((WatermarkEvent) streamElement);
             } else {
                 throw new UnsupportedOperationException("Cannot enqueue " + streamElement);
             }
@@ -126,7 +126,7 @@ public final class UnorderedStreamElementQueue<OUT> implements StreamElementQueu
         return newSegment;
     }
 
-    private StreamElementQueueEntry<OUT> addWatermark(Watermark watermark) {
+    private StreamElementQueueEntry<OUT> addWatermark(WatermarkEvent watermark) {
         Segment<OUT> watermarkSegment;
         if (!segments.isEmpty() && segments.getLast().isEmpty()) {
             // reuse already existing segment if possible (completely drained) or the new segment

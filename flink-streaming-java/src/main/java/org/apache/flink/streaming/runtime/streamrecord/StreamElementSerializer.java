@@ -19,21 +19,26 @@
 package org.apache.flink.streaming.runtime.streamrecord;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.streaming.api.watermark.InternalWatermark;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+import org.apache.flink.watermark.InternalWatermarkDeclaration;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
 /**
- * Serializer for {@link StreamRecord}, {@link Watermark}, {@link LatencyMarker}, and {@link
+ * Serializer for {@link StreamRecord}, {@link WatermarkEvent}, {@link LatencyMarker}, and {@link
  * WatermarkStatus}.
  *
  * <p>This does not behave like a normal {@link TypeSerializer}, instead, this is only used at the
@@ -52,17 +57,39 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
     private static final int TAG_LATENCY_MARKER = 3;
     private static final int TAG_STREAM_STATUS = 4;
     private static final int TAG_RECORD_ATTRIBUTES = 5;
-    private static final int TAG_INTERNAL_WATERMARK = 6;
+    //    private static final int TAG_INTERNAL_WATERMARK = 6;
 
     private final TypeSerializer<T> typeSerializer;
 
+    private final Map<
+                    String, org.apache.flink.watermark.InternalWatermarkDeclaration.WatermarkSerde>
+            watermarkDeclarationMap;
+
     public StreamElementSerializer(TypeSerializer<T> serializer) {
+        this(serializer, InternalWatermarkDeclaration.WatermarkSerde.SYSTEM_DEFINED_DECLARATIONS);
+    }
+
+    public StreamElementSerializer(
+            TypeSerializer<T> serializer,
+            List<InternalWatermarkDeclaration.WatermarkSerde> watermarkDeclarationSet) {
         if (serializer instanceof StreamElementSerializer) {
             throw new RuntimeException(
                     "StreamRecordSerializer given to StreamRecordSerializer as value TypeSerializer: "
                             + serializer);
         }
         this.typeSerializer = requireNonNull(serializer);
+        this.watermarkDeclarationMap = new HashMap<>();
+
+        List<InternalWatermarkDeclaration.WatermarkSerde> allDeclarations = new ArrayList<>();
+        allDeclarations.addAll(watermarkDeclarationSet);
+        allDeclarations.addAll(
+                InternalWatermarkDeclaration.WatermarkSerde.SYSTEM_DEFINED_DECLARATIONS);
+        for (InternalWatermarkDeclaration.WatermarkSerde genericWatermarkDeclaration :
+                allDeclarations) {
+            this.watermarkDeclarationMap.put(
+                    genericWatermarkDeclaration.watermarkClass().getName(),
+                    genericWatermarkDeclaration);
+        }
     }
 
     public TypeSerializer<T> getContainedTypeSerializer() {
@@ -141,11 +168,18 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
         } else if (tag == TAG_REC_WITHOUT_TIMESTAMP) {
             typeSerializer.copy(source, target);
         } else if (tag == TAG_WATERMARK) {
-            target.writeLong(source.readLong());
-        } else if (tag == TAG_INTERNAL_WATERMARK) {
-            target.writeInt(source.readInt());
-            target.writeLong(source.readLong());
-        } else if (tag == TAG_STREAM_STATUS) {
+            String watermarkClazz = source.readUTF();
+            InternalWatermarkDeclaration.WatermarkSerde watermarkSerde =
+                    watermarkDeclarationMap.get(watermarkClazz);
+            Watermark watermark = watermarkSerde.deserialize(source);
+            target.writeUTF(watermarkClazz);
+            watermarkSerde.serialize(watermark, target);
+        }
+        //        else if (tag == TAG_INTERNAL_WATERMARK) {
+        //            target.writeInt(source.readInt());
+        //            target.writeLong(source.readLong());
+        //        }
+        else if (tag == TAG_STREAM_STATUS) {
             target.writeInt(source.readInt());
         } else if (tag == TAG_LATENCY_MARKER) {
             target.writeLong(source.readLong());
@@ -172,13 +206,13 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
             }
             typeSerializer.serialize(record.getValue(), target);
         } else if (value.isWatermark()) {
-            if (value instanceof InternalWatermark) {
-                target.write(TAG_INTERNAL_WATERMARK);
-                target.writeInt(((InternalWatermark) value).getSubpartitionIndex());
-            } else {
-                target.write(TAG_WATERMARK);
-            }
-            target.writeLong(value.asWatermark().getTimestamp());
+            target.write(TAG_WATERMARK);
+            Watermark genericWatermark = value.asWatermark().getWatermark();
+            String identifier = genericWatermark.getClass().getName();
+            target.writeUTF(identifier);
+            watermarkDeclarationMap.get(identifier).serialize(genericWatermark, target);
+
+            // TODOJEY
         } else if (value.isWatermarkStatus()) {
             target.write(TAG_STREAM_STATUS);
             target.writeInt(value.asWatermarkStatus().getStatus());
@@ -205,10 +239,15 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
         } else if (tag == TAG_REC_WITHOUT_TIMESTAMP) {
             return new StreamRecord<T>(typeSerializer.deserialize(source));
         } else if (tag == TAG_WATERMARK) {
-            return new Watermark(source.readLong());
-        } else if (tag == TAG_INTERNAL_WATERMARK) {
-            int subpartitionIndex = source.readInt();
-            return new InternalWatermark(source.readLong(), subpartitionIndex);
+            String identifier = source.readUTF();
+            Watermark watermark = watermarkDeclarationMap.get(identifier).deserialize(source);
+            return new WatermarkEvent(watermark);
+            // TODOJEY
+            //            throw new IOException("BBBBB");
+            //            return new Watermark(source.readLong());
+            //        } else if (tag == TAG_INTERNAL_WATERMARK) {
+            //            int subpartitionIndex = source.readInt();
+            //            return new InternalWatermark(source.readLong(), subpartitionIndex);
         } else if (tag == TAG_STREAM_STATUS) {
             return new WatermarkStatus(source.readInt());
         } else if (tag == TAG_LATENCY_MARKER) {
@@ -238,10 +277,12 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
             reuseRecord.replace(value);
             return reuseRecord;
         } else if (tag == TAG_WATERMARK) {
-            return new Watermark(source.readLong());
-        } else if (tag == TAG_INTERNAL_WATERMARK) {
-            int subpartitionIndex = source.readInt();
-            return new InternalWatermark(source.readLong(), subpartitionIndex);
+            // TODOJEY
+            throw new IOException("CCCCC");
+            //            return new Watermark(source.readLong());
+            //        } else if (tag == TAG_INTERNAL_WATERMARK) {
+            //            int subpartitionIndex = source.readInt();
+            //            return new InternalWatermark(source.readLong(), subpartitionIndex);
         } else if (tag == TAG_LATENCY_MARKER) {
             return new LatencyMarker(
                     source.readLong(),

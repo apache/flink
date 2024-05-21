@@ -24,9 +24,10 @@ import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -72,8 +73,8 @@ public abstract class TableStreamOperator<OUT> extends AbstractStreamOperator<OU
     }
 
     @Override
-    public void processWatermark(Watermark mark) throws Exception {
-        currentWatermark = mark.getTimestamp();
+    public void processWatermark(WatermarkEvent mark) throws Exception {
+        WatermarkUtils.getTimestamp(mark).ifPresent(ts -> currentWatermark = ts);
         super.processWatermark(mark);
     }
 

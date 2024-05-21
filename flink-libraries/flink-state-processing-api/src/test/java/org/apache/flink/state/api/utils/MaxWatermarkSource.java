@@ -19,7 +19,7 @@
 package org.apache.flink.state.api.utils;
 
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 /**
  * A simple source that emits a max watermark and then immediately returns. This provides an easy
@@ -31,7 +31,7 @@ public class MaxWatermarkSource<T> implements SourceFunction<T> {
 
     @Override
     public void run(SourceContext<T> ctx) {
-        ctx.emitWatermark(Watermark.MAX_WATERMARK);
+        ctx.emitWatermark(WatermarkUtils.MAX_TIMESTAMP_WATEMMARK_EVENT);
     }
 
     @Override

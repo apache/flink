@@ -25,8 +25,8 @@ import java.io.IOException;
 
 /**
  * This interface defines a view over some memory that can be used to sequentially write contents to
- * the memory. The view is typically backed by one or more {@link
- * org.apache.flink.core.memory.MemorySegment}.
+ * the memory. The view is typically backed by one or more
+ * org.apache.flink.core.memory.MemorySegment.
  */
 @Public
 public interface DataOutputView extends DataOutput {

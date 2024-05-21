@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.io.checkpointing;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimer;
@@ -30,11 +31,12 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.operators.YieldingOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarnessBuilder;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
@@ -120,13 +122,13 @@ class UnalignedCheckpointsInterruptibleTimersTest {
             harness.processElement(asWatermark(firstWindowEnd));
             harness.processElement(asWatermark(secondWindowEnd));
 
-            final List<Watermark> seenWatermarks = new ArrayList<>();
+            final List<WatermarkEvent> seenWatermarks = new ArrayList<>();
             while (seenWatermarks.size() < 2) {
                 harness.processSingleStep();
                 Object outputElement;
                 while ((outputElement = harness.getOutput().poll()) != null) {
-                    if (outputElement instanceof Watermark) {
-                        seenWatermarks.add((Watermark) outputElement);
+                    if (outputElement instanceof WatermarkEvent) {
+                        seenWatermarks.add((WatermarkEvent) outputElement);
                     }
                 }
             }
@@ -135,8 +137,8 @@ class UnalignedCheckpointsInterruptibleTimersTest {
         }
     }
 
-    private static Watermark asWatermark(Instant timestamp) {
-        return new Watermark(timestamp.toEpochMilli());
+    private static WatermarkEvent asWatermark(Instant timestamp) {
+        return WatermarkUtils.createWatermarkEventFromTimestamp(timestamp.toEpochMilli());
     }
 
     private static StreamRecord<String> asFiredRecord(String key) {
@@ -203,7 +205,7 @@ class UnalignedCheckpointsInterruptibleTimersTest {
         }
 
         @Override
-        public void processWatermark(Watermark mark) throws Exception {
+        public void processWatermark(WatermarkEvent mark) throws Exception {
             if (watermarkProcessor == null) {
                 super.processWatermark(mark);
             } else {
