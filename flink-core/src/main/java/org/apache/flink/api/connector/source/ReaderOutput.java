@@ -19,8 +19,8 @@
 package org.apache.flink.api.connector.source;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.eventtime.GenericWatermark;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
-import org.apache.flink.api.common.eventtime.Watermark;
 
 /**
  * The interface provided by the Flink runtime to the {@link SourceReader} to emit records, and
@@ -82,7 +82,7 @@ public interface ReaderOutput<T> extends SourceOutput<T> {
      * marked idleness.
      */
     @Override
-    void emitWatermark(Watermark watermark);
+    void emitWatermark(GenericWatermark watermark);
 
     /**
      * Marks this output as idle, meaning that downstream operations do not wait for watermarks from

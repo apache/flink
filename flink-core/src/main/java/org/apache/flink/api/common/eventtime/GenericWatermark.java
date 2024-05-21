@@ -19,10 +19,14 @@ limitations under the License.
 package org.apache.flink.api.common.eventtime;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Optional;
 
 /**
  * Watermarks are the progress indicators in the data streams. A watermark signifies that no events
@@ -43,59 +47,29 @@ import java.util.Date;
  * records in the stream with a timestamp of {@code Long.MIN_VALUE} are immediately late.
  */
 @Public
-public final class Watermark implements Serializable {
+public interface GenericWatermark extends Serializable {
 
-    private static final long serialVersionUID = 1L;
-
-    /** Thread local formatter for stringifying the timestamps. */
-    private static final ThreadLocal<SimpleDateFormat> TS_FORMATTER =
-            ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS"));
-
-    // ------------------------------------------------------------------------
-
-    /** The watermark that signifies end-of-event-time. */
-    public static final Watermark MAX_WATERMARK = new Watermark(Long.MAX_VALUE);
-
-    // ------------------------------------------------------------------------
-
-    /** The timestamp of the watermark in milliseconds. */
-    private final long timestamp;
-
-    /** Creates a new watermark with the given timestamp in milliseconds. */
-    public Watermark(long timestamp) {
-        this.timestamp = timestamp;
-    }
-
-    /** Returns the timestamp associated with this Watermark. */
-    public long getTimestamp() {
-        return timestamp;
-    }
 
     /**
-     * Formats the timestamp of this watermark, assuming it is a millisecond timestamp. The returned
-     * format is "yyyy-MM-dd HH:mm:ss.SSS".
+     * Compares this watermark with another watermark.
+     *
+     * @param laterWatermark The watermark to compare with. Can be null.
+     * @return An Integer containing the comparison result:
+     *         - A positive integer if this watermark is later.
+     *         - A negative integer if this watermark is earlier.
+     *         - Zero if both are equal.
      */
-    public String getFormattedTimestamp() {
-        return TS_FORMATTER.get().format(new Date(timestamp));
-    }
+    int checkUpdated(GenericWatermark laterWatermark);
 
-    // ------------------------------------------------------------------------
+    boolean isComparable();
+    /**
+     * Creates a copy of this watermark.
+     *
+     * @return A new instance that is a copy of this watermark.
+     */
+    GenericWatermark copy();
 
-    @Override
-    public boolean equals(Object o) {
-        return this == o
-                || o != null
-                        && o.getClass() == Watermark.class
-                        && ((Watermark) o).timestamp == this.timestamp;
-    }
+    void serialize(DataOutputView target) throws IOException;
 
-    @Override
-    public int hashCode() {
-        return Long.hashCode(timestamp);
-    }
-
-    @Override
-    public String toString() {
-        return "Watermark @ " + timestamp + " (" + getFormattedTimestamp() + ')';
-    }
+    GenericWatermark deserialize(DataInputView inputView) throws IOException;
 }

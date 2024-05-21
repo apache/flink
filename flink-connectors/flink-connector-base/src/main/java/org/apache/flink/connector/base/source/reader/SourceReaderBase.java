@@ -19,7 +19,7 @@
 package org.apache.flink.connector.base.source.reader;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.GenericWatermark;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceOutput;
@@ -431,7 +431,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
         }
 
         @Override
-        public void emitWatermark(Watermark watermark) {
+        public void emitWatermark(GenericWatermark watermark) {
             sourceOutput.emitWatermark(watermark);
         }
 

@@ -19,8 +19,8 @@
 package org.apache.flink.streaming.api.operators.source;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.eventtime.GenericWatermark;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
-import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
@@ -319,7 +319,7 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
             }
 
             @Override
-            public void emitWatermark(Watermark watermark) {
+            public void emitWatermark(GenericWatermark watermark) {
                 underlyingOutput.emitWatermark(watermark);
                 isIdle = false;
             }

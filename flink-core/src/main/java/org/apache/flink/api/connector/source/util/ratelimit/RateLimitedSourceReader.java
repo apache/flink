@@ -19,11 +19,15 @@
 package org.apache.flink.api.connector.source.util.ratelimit;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.common.eventtime.GenericWatermark;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.core.io.InputStatus;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -67,6 +71,7 @@ public class RateLimitedSourceReader<E, SplitT extends SourceSplit>
         // reset future because the next record may hit the rate limit
         availabilityFuture = null;
         final InputStatus inputStatus = sourceReader.pollNext(output);
+
         if (inputStatus == InputStatus.MORE_AVAILABLE) {
             // force another go through isAvailable() to evaluate rate-limiting
             return InputStatus.NOTHING_AVAILABLE;

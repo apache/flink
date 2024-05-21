@@ -113,7 +113,10 @@ public class TopSpeedWindowing {
             carData =
                     env.fromSource(
                             carGeneratorSource,
-                            WatermarkStrategy.noWatermarks(),
+                            WatermarkStrategy
+                                    .<Tuple4<Integer, Integer, Double, Long>>
+                                            forMonotonousTimestamps()
+                                    .withTimestampAssigner((car, ts) -> car.f3),
                             "Car data generator source");
             carData.setParallelism(1);
         }
@@ -121,11 +124,7 @@ public class TopSpeedWindowing {
         int evictionSec = 10;
         double triggerMeters = 50;
         DataStream<Tuple4<Integer, Integer, Double, Long>> topSpeeds =
-                carData.assignTimestampsAndWatermarks(
-                                WatermarkStrategy
-                                        .<Tuple4<Integer, Integer, Double, Long>>
-                                                forMonotonousTimestamps()
-                                        .withTimestampAssigner((car, ts) -> car.f3))
+                carData
                         .keyBy(value -> value.f0)
                         .window(GlobalWindows.create())
                         .evictor(TimeEvictor.of(Duration.ofSeconds(evictionSec)))

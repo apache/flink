@@ -19,8 +19,8 @@
 package org.apache.flink.streaming.api.operators.source;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.eventtime.GenericWatermark;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
-import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.connector.source.SourceOutput;
@@ -126,7 +126,7 @@ public class SourceOutputWithWatermarks<T> implements SourceOutput<T> {
     // ------------------------------------------------------------------------
 
     @Override
-    public final void emitWatermark(Watermark watermark) {
+    public final void emitWatermark(GenericWatermark watermark) {
         onEventWatermarkOutput.emitWatermark(watermark);
     }
 

@@ -30,7 +30,7 @@ public interface WatermarkOutput {
      * <p>Emitting a watermark also implicitly marks the stream as <i>active</i>, ending previously
      * marked idleness.
      */
-    void emitWatermark(Watermark watermark);
+    void emitWatermark(GenericWatermark watermark);
 
     /**
      * Marks this output as idle, meaning that downstream operations do not wait for watermarks from

@@ -19,8 +19,8 @@
 package org.apache.flink.streaming.api.operators.source;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.eventtime.GenericWatermark;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
-import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
@@ -111,7 +111,7 @@ public class NoOpTimestampsAndWatermarks<T> implements TimestampsAndWatermarks<T
         }
 
         @Override
-        public void emitWatermark(Watermark watermark) {
+        public void emitWatermark(GenericWatermark watermark) {
             // do nothing, this does not forward any watermarks manually emitted by the source
             // directly
         }

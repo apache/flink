@@ -21,7 +21,7 @@ package org.apache.flink.runtime.source.coordinator;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.connector.source.DynamicFilteringInfo;
 import org.apache.flink.api.connector.source.DynamicParallelismInference;
@@ -63,6 +63,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -168,12 +169,12 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         checkState(
                 watermarkAlignmentParams != WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED);
 
-        Watermark globalCombinedWatermark =
+        TimestampWatermark globalCombinedWatermark =
                 coordinatorStore.apply(
                         watermarkAlignmentParams.getWatermarkGroup(),
                         (value) -> {
                             WatermarkAggregator aggregator = (WatermarkAggregator) value;
-                            return new Watermark(
+                            return new TimestampWatermark(
                                     aggregator.getAggregatedWatermark().getTimestamp());
                         });
 
@@ -186,7 +187,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         } catch (ArithmeticException e) {
             // when the source is idle, globalCombinedWatermark.getTimestamp() is Long.MAX_VALUE,
             // and maxAllowedWatermark arithmetic overflow
-            maxAllowedWatermark = Watermark.MAX_WATERMARK.getTimestamp();
+            maxAllowedWatermark = TimestampWatermark.MAX_WATERMARK.getTimestamp();
         }
 
         Set<Integer> subTaskIds = combinedWatermark.keySet();
@@ -310,7 +311,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                     } else if (event instanceof ReportedWatermarkEvent) {
                         handleReportedWatermark(
                                 subtask,
-                                new Watermark(((ReportedWatermarkEvent) event).getWatermark()));
+                                new TimestampWatermark(((ReportedWatermarkEvent) event).getWatermark()));
                     } else {
                         throw new FlinkException("Unrecognized Operator Event: " + event);
                     }
@@ -675,7 +676,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         }
     }
 
-    private void handleReportedWatermark(int subtask, Watermark watermark) throws FlinkException {
+    private void handleReportedWatermark(int subtask, TimestampWatermark watermark) throws FlinkException {
         if (context.isConcurrentExecutionAttemptsSupported()) {
             throw new FlinkException(
                     "ReportedWatermarkEvent is not supported in concurrent execution attempts "
@@ -769,9 +770,9 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
     public static class WatermarkElement extends AbstractHeapPriorityQueueElement
             implements PriorityComparable<WatermarkElement> {
 
-        private final Watermark watermark;
+        private final TimestampWatermark watermark;
 
-        public WatermarkElement(Watermark watermark) {
+        public WatermarkElement(TimestampWatermark watermark) {
             this.watermark = watermark;
         }
 
@@ -805,16 +806,16 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         private final HeapPriorityQueue<WatermarkElement> orderedWatermarks =
                 new HeapPriorityQueue<>(PriorityComparator.forPriorityComparableObjects(), 10);
 
-        private static final Watermark DEFAULT_WATERMARK = new Watermark(Long.MIN_VALUE);
+        private static final TimestampWatermark DEFAULT_WATERMARK = new TimestampWatermark(Long.MIN_VALUE);
 
         /**
-         * Update the {@link Watermark} for the given {@code key)}.
+         * Update the {@link TimestampWatermark} for the given {@code key)}.
          *
-         * @return the new updated combined {@link Watermark} if the value has changed. {@code
+         * @return the new updated combined {@link TimestampWatermark} if the value has changed. {@code
          *     Optional.empty()} otherwise.
          */
-        public Optional<Watermark> aggregate(T key, Watermark watermark) {
-            Watermark oldAggregatedWatermark = getAggregatedWatermark();
+        public Optional<TimestampWatermark> aggregate(T key, TimestampWatermark watermark) {
+            TimestampWatermark oldAggregatedWatermark = getAggregatedWatermark();
 
             WatermarkElement watermarkElement = new WatermarkElement(watermark);
             WatermarkElement oldWatermarkElement = watermarks.put(key, watermarkElement);
@@ -823,7 +824,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
             }
             orderedWatermarks.add(watermarkElement);
 
-            Watermark newAggregatedWatermark = getAggregatedWatermark();
+            TimestampWatermark newAggregatedWatermark = getAggregatedWatermark();
             if (newAggregatedWatermark.equals(oldAggregatedWatermark)) {
                 return Optional.empty();
             }
@@ -834,7 +835,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
             return watermarks.keySet();
         }
 
-        public Watermark getAggregatedWatermark() {
+        public TimestampWatermark getAggregatedWatermark() {
             WatermarkElement aggregatedWatermarkElement = orderedWatermarks.peek();
             return aggregatedWatermarkElement == null
                     ? DEFAULT_WATERMARK
