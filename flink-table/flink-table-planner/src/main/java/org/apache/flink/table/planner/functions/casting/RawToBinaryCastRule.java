@@ -53,7 +53,7 @@ class RawToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Object,
     // legacy behavior
     isNull$290 = isNull$289;
     if (!isNull$290) {
-        result$291 = result$289.toBytes(typeSerializer$292);
+        result$291 = result$289.toBytes(typeSerializer$292.getInnerSerializer());
         isNull$290 = result$291 == null;
     } else {
         result$291 = null;
@@ -62,7 +62,7 @@ class RawToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Object,
     // new behavior
     isNull$290 = isNull$289;
     if (!isNull$290) {
-        byte[] deserializedByteArray$76 = result$289.toBytes(typeSerializer$292);
+        byte[] deserializedByteArray$76 = result$289.toBytes(typeSerializer$292.getInnerSerializer());
         if (deserializedByteArray$76.length <= 3) {
             result$291 = deserializedByteArray$76;
         } else {
