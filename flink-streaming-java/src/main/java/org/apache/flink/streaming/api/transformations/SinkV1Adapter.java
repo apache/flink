@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.api.transformations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.GenericWatermark;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.api.common.serialization.SerializationSchema.InitializationContext;
@@ -164,7 +164,7 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
         }
 
         @Override
-        public void writeWatermark(Watermark watermark) throws IOException, InterruptedException {
+        public void writeWatermark(GenericWatermark watermark) throws IOException, InterruptedException {
             writer.writeWatermark(watermark);
         }
     }

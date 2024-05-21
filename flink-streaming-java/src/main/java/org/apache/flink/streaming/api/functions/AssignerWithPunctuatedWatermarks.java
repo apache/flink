@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.functions;
 
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 
 import javax.annotation.Nullable;
 
@@ -60,7 +60,7 @@ import javax.annotation.Nullable;
  * will occur any more.
  *
  * @param <T> The type of the elements to which this assigner assigns timestamps.
- * @see org.apache.flink.streaming.api.watermark.Watermark
+ * @see org.apache.flink.streaming.api.watermark.WatermarkEvent
  */
 @Deprecated
 public interface AssignerWithPunctuatedWatermarks<T> extends TimestampAssigner<T> {
@@ -80,5 +80,5 @@ public interface AssignerWithPunctuatedWatermarks<T> extends TimestampAssigner<T
      * @return {@code Null}, if no watermark should be emitted, or the next watermark to emit.
      */
     @Nullable
-    Watermark checkAndGetNextWatermark(T lastElement, long extractedTimestamp);
+    WatermarkEvent checkAndGetNextWatermark(T lastElement, long extractedTimestamp);
 }

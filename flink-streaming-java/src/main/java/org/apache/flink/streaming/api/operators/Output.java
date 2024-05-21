@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -39,13 +39,13 @@ import org.apache.flink.util.OutputTag;
 public interface Output<T> extends Collector<T> {
 
     /**
-     * Emits a {@link Watermark} from an operator. This watermark is broadcast to all downstream
+     * Emits a {@link WatermarkEvent} from an operator. This watermark is broadcast to all downstream
      * operators.
      *
      * <p>A watermark specifies that no element with a timestamp lower or equal to the watermark
      * timestamp will be emitted in the future.
      */
-    void emitWatermark(Watermark mark);
+    void emitWatermark(WatermarkEvent mark);
 
     void emitWatermarkStatus(WatermarkStatus watermarkStatus);
 

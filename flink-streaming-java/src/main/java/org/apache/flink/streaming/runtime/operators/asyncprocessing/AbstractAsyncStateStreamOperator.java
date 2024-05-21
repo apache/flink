@@ -39,7 +39,7 @@ import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
@@ -262,7 +262,7 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
     }
 
     @Override
-    public void processWatermark(Watermark mark) throws Exception {
+    public void processWatermark(WatermarkEvent mark) throws Exception {
         if (!isAsyncStateProcessingEnabled()) {
             // If async state processing is disabled, fallback to the super class.
             super.processWatermark(mark);

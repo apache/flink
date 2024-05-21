@@ -19,8 +19,9 @@
 package org.apache.flink.streaming.api.functions.timestamps;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,9 +82,9 @@ public abstract class AscendingTimestampExtractor<T> implements AssignerWithPeri
     }
 
     @Override
-    public final Watermark getCurrentWatermark() {
-        return new Watermark(
-                currentTimestamp == Long.MIN_VALUE ? Long.MIN_VALUE : currentTimestamp - 1);
+    public final WatermarkEvent getCurrentWatermark() {
+        return new WatermarkEvent(new TimestampWatermark(
+                currentTimestamp == Long.MIN_VALUE ? Long.MIN_VALUE : currentTimestamp - 1));
     }
 
     // ------------------------------------------------------------------------

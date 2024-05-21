@@ -20,6 +20,8 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
@@ -35,7 +37,7 @@ import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.sort.MultiInputSortingDataInput;
 import org.apache.flink.streaming.api.operators.sort.MultiInputSortingDataInput.SelectableSortingInputs;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
@@ -255,8 +257,11 @@ public class StreamTwoInputProcessorFactory {
         }
 
         @Override
-        public void emitWatermark(Watermark watermark) throws Exception {
-            inputWatermarkGauge.setCurrentWatermark(watermark.getTimestamp());
+        public void emitWatermark(WatermarkEvent watermark) throws Exception {
+            GenericWatermark genericWatermark = watermark.getGenericWatermark();
+            if (genericWatermark instanceof TimestampWatermark) {
+                inputWatermarkGauge.setCurrentWatermark(((TimestampWatermark) genericWatermark).getTimestamp());
+            }
             if (inputIndex == 0) {
                 if (watermarkBypass == null) {
                     operator.processWatermark1(watermark);
@@ -310,18 +315,22 @@ public class StreamTwoInputProcessorFactory {
             this.streamOutputs = streamOutputs;
         }
 
-        public void processWatermark1(Watermark watermark) {
+        public void processWatermark1(WatermarkEvent watermark) {
             receivedFirstMaxWatermark = true;
             checkAndForward(watermark);
         }
 
-        public void processWatermark2(Watermark watermark) {
+        public void processWatermark2(WatermarkEvent watermark) {
             receivedSecondMaxWatermark = true;
             checkAndForward(watermark);
         }
 
-        private void checkAndForward(Watermark watermark) {
-            if (watermark.getTimestamp() != Watermark.MAX_WATERMARK.getTimestamp()) {
+        private void checkAndForward(WatermarkEvent watermark) {
+            GenericWatermark genericWatermark = watermark.getGenericWatermark();
+            if (!(genericWatermark instanceof TimestampWatermark)) {
+                return;
+            }
+            if (((TimestampWatermark) genericWatermark).getTimestamp() != TimestampWatermark.MAX_WATERMARK.getTimestamp()) {
                 throw new IllegalStateException(
                         String.format(
                                 "We should not receive any watermarks [%s] other than the MAX_WATERMARK if finished on restore",

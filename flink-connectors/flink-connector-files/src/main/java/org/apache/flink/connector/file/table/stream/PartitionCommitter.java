@@ -19,6 +19,8 @@
 package org.apache.flink.connector.file.table.stream;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.table.EmptyMetaStoreFactory;
@@ -32,7 +34,7 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
@@ -183,9 +185,12 @@ public class PartitionCommitter extends AbstractStreamOperator<Void>
     }
 
     @Override
-    public void processWatermark(Watermark mark) throws Exception {
+    public void processWatermark(WatermarkEvent mark) throws Exception {
         super.processWatermark(mark);
-        this.currentWatermark = mark.getTimestamp();
+        GenericWatermark genericWatermark = mark.getGenericWatermark();
+        if (genericWatermark instanceof TimestampWatermark) {
+            this.currentWatermark = ((TimestampWatermark) genericWatermark).getTimestamp();
+        }
     }
 
     @Override

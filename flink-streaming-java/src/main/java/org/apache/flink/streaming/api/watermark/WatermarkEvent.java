@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.watermark;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.eventtime.GenericWatermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 
 /**
@@ -38,25 +39,16 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
  * When an operator receives this it will know that no more input will be arriving in the future.
  */
 @PublicEvolving
-public class Watermark extends StreamElement {
+public final class WatermarkEvent extends StreamElement {
 
-    /** The watermark that signifies end-of-event-time. */
-    public static final Watermark MAX_WATERMARK = new Watermark(Long.MAX_VALUE);
-    /** The watermark that signifies is used before any actual watermark has been generated. */
-    public static final Watermark UNINITIALIZED = new Watermark(Long.MIN_VALUE);
+    private final GenericWatermark genericWatermark;
 
-    // ------------------------------------------------------------------------
-
-    /** The timestamp of the watermark in milliseconds. */
-    protected final long timestamp;
-    /** Creates a new watermark with the given timestamp in milliseconds. */
-    public Watermark(long timestamp) {
-        this.timestamp = timestamp;
+    public WatermarkEvent(GenericWatermark genericWatermark) {
+        this.genericWatermark = genericWatermark;
     }
 
-    /** Returns the timestamp associated with this {@link Watermark} in milliseconds. */
-    public long getTimestamp() {
-        return timestamp;
+    public GenericWatermark getGenericWatermark() {
+        return genericWatermark;
     }
 
     // ------------------------------------------------------------------------
@@ -66,16 +58,16 @@ public class Watermark extends StreamElement {
         return this == o
                 || o != null
                         && o.getClass() == this.getClass()
-                        && ((Watermark) o).timestamp == timestamp;
+                        && ((WatermarkEvent) o).genericWatermark.equals(this.getGenericWatermark());
     }
 
-    @Override
-    public int hashCode() {
-        return (int) (timestamp ^ (timestamp >>> 32));
-    }
-
-    @Override
-    public String toString() {
-        return "Watermark @ " + timestamp;
-    }
+//    @Override
+//    public int hashCode() {
+//        return (int) (timestamp ^ (timestamp >>> 32));
+//    }
+//
+//    @Override
+//    public String toString() {
+//        return "Watermark @ " + timestamp;
+//    }
 }

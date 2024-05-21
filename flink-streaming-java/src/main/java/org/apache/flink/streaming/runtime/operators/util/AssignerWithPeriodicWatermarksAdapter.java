@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.operators.util;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.eventtime.GenericWatermark;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.TimestampAssignerSupplier;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
@@ -48,9 +49,12 @@ public final class AssignerWithPeriodicWatermarksAdapter<T> implements Watermark
 
     @Override
     public void onPeriodicEmit(WatermarkOutput output) {
-        final org.apache.flink.streaming.api.watermark.Watermark next = wms.getCurrentWatermark();
+        final org.apache.flink.streaming.api.watermark.WatermarkEvent next = wms.getCurrentWatermark();
         if (next != null) {
-            output.emitWatermark(new TimestampWatermark(next.getTimestamp()));
+            GenericWatermark genericWatermark = next.getGenericWatermark();
+            if (genericWatermark instanceof TimestampWatermark) {
+                output.emitWatermark(genericWatermark);
+            }
         }
     }
 

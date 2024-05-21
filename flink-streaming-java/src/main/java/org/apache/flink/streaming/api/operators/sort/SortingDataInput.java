@@ -19,6 +19,8 @@
 package org.apache.flink.streaming.api.operators.sort;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -35,7 +37,7 @@ import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.sort.ExternalSorter;
 import org.apache.flink.runtime.operators.sort.PushSorter;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
@@ -175,8 +177,12 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
         }
 
         @Override
-        public void emitWatermark(Watermark watermark) {
-            watermarkSeen = Math.max(watermarkSeen, watermark.getTimestamp());
+        public void emitWatermark(WatermarkEvent watermark) {
+            GenericWatermark genericWatermark = watermark.getGenericWatermark();
+            if (!(genericWatermark instanceof TimestampWatermark)) {
+                return;
+            }
+            watermarkSeen = Math.max(watermarkSeen, ((TimestampWatermark) genericWatermark).getTimestamp());
         }
 
         @Override
@@ -220,7 +226,7 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
         } else {
             emittedLast = true;
             if (watermarkSeen > Long.MIN_VALUE) {
-                output.emitWatermark(new Watermark(watermarkSeen));
+                output.emitWatermark(new WatermarkEvent(new TimestampWatermark(watermarkSeen)));
             }
             return DataInputStatus.END_OF_DATA;
         }

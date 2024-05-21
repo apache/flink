@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.api.operators.sorted.state;
 
+import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
@@ -29,7 +31,7 @@ import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.KeyContext;
 import org.apache.flink.streaming.api.operators.Triggerable;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 import org.apache.flink.util.WrappingRuntimeException;
@@ -85,8 +87,13 @@ public class BatchExecutionInternalTimeServiceManager<K>
     }
 
     @Override
-    public void advanceWatermark(Watermark watermark) {
-        if (watermark.getTimestamp() == Long.MAX_VALUE) {
+    public void advanceWatermark(WatermarkEvent watermark) {
+        GenericWatermark genericWatermark = watermark.getGenericWatermark();
+        if (!(genericWatermark instanceof TimestampWatermark)) {
+            return;
+        }
+
+        if (((TimestampWatermark) genericWatermark).getTimestamp() == Long.MAX_VALUE) {
             keySelected(null);
         }
     }

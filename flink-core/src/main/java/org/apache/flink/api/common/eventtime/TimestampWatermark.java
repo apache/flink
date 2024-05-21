@@ -47,7 +47,7 @@ import java.util.Optional;
  * records in the stream with a timestamp of {@code Long.MIN_VALUE} are immediately late.
  */
 @Public
-public final class TimestampWatermark implements GenericWatermark {
+public class TimestampWatermark implements GenericWatermark {
 
     private static final long serialVersionUID = 1L;
 
@@ -59,6 +59,8 @@ public final class TimestampWatermark implements GenericWatermark {
 
     /** The watermark that signifies end-of-event-time. */
     public static final TimestampWatermark MAX_WATERMARK = new TimestampWatermark(Long.MAX_VALUE);
+    /** The watermark that signifies is used before any actual watermark has been generated. */
+    public static final TimestampWatermark UNINITIALIZED = new TimestampWatermark(Long.MIN_VALUE);
 
     // ------------------------------------------------------------------------
 

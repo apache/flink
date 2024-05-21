@@ -23,7 +23,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.eventtime.GenericWatermark;
 import org.apache.flink.api.common.eventtime.IndexedCombinedWatermarkStatus;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
@@ -49,7 +51,7 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamOperatorStateHandler.CheckpointedStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributesBuilder;
@@ -617,24 +619,25 @@ public abstract class AbstractStreamOperator<OUT>
                 name, keyedStateBackend.getKeySerializer(), namespaceSerializer, triggerable);
     }
 
-    public void processWatermark(Watermark mark) throws Exception {
-        if (timeServiceManager != null) {
+    public void processWatermark(WatermarkEvent mark) throws Exception {
+        if (timeServiceManager != null && (mark.getGenericWatermark() instanceof TimestampWatermark)) {
             timeServiceManager.advanceWatermark(mark);
         }
         output.emitWatermark(mark);
     }
 
-    private void processWatermark(Watermark mark, int index) throws Exception {
-        if (combinedWatermark.updateWatermark(index, mark.getTimestamp())) {
-            processWatermark(new Watermark(combinedWatermark.getCombinedWatermark()));
+    private void processWatermark(WatermarkEvent mark, int index) throws Exception {
+        GenericWatermark genericWatermark = mark.getGenericWatermark();
+        if ((genericWatermark instanceof TimestampWatermark) && combinedWatermark.updateWatermark(index, ((TimestampWatermark) genericWatermark).getTimestamp())) {
+            processWatermark(new WatermarkEvent(new TimestampWatermark(combinedWatermark.getCombinedWatermark())));
         }
     }
 
-    public void processWatermark1(Watermark mark) throws Exception {
+    public void processWatermark1(WatermarkEvent mark) throws Exception {
         processWatermark(mark, 0);
     }
 
-    public void processWatermark2(Watermark mark) throws Exception {
+    public void processWatermark2(WatermarkEvent mark) throws Exception {
         processWatermark(mark, 1);
     }
 
@@ -646,7 +649,7 @@ public abstract class AbstractStreamOperator<OUT>
             throws Exception {
         boolean wasIdle = combinedWatermark.isIdle();
         if (combinedWatermark.updateStatus(index, watermarkStatus.isIdle())) {
-            processWatermark(new Watermark(combinedWatermark.getCombinedWatermark()));
+            processWatermark(new WatermarkEvent(new TimestampWatermark(combinedWatermark.getCombinedWatermark())));
         }
         if (wasIdle != combinedWatermark.isIdle()) {
             output.emitWatermarkStatus(watermarkStatus);

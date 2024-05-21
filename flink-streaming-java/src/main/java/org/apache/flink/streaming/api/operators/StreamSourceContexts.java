@@ -17,10 +17,12 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
@@ -116,7 +118,7 @@ public class StreamSourceContexts {
         }
 
         @Override
-        public void emitWatermark(Watermark mark) {
+        public void emitWatermark(WatermarkEvent mark) {
             nestedContext.emitWatermark(mark);
         }
 
@@ -156,7 +158,7 @@ public class StreamSourceContexts {
         }
 
         @Override
-        public void emitWatermark(Watermark mark) {
+        public void emitWatermark(WatermarkEvent mark) {
             throwException();
         }
 
@@ -212,7 +214,7 @@ public class StreamSourceContexts {
         }
 
         @Override
-        public void emitWatermark(Watermark mark) {
+        public void emitWatermark(WatermarkEvent mark) {
             // do nothing
         }
 
@@ -286,7 +288,7 @@ public class StreamSourceContexts {
                 // in case we jumped some watermarks, recompute the next watermark time
                 final long watermarkTime = lastRecordTime - (lastRecordTime % watermarkInterval);
                 nextWatermarkTime = watermarkTime + watermarkInterval;
-                output.emitWatermark(new Watermark(watermarkTime));
+                output.emitWatermark(new WatermarkEvent(new TimestampWatermark(watermarkTime)));
 
                 // we do not need to register another timer here
                 // because the emitting task will do so.
@@ -299,15 +301,21 @@ public class StreamSourceContexts {
         }
 
         @Override
-        protected boolean allowWatermark(Watermark mark) {
+        protected boolean allowWatermark(WatermarkEvent mark) {
             // allow Long.MAX_VALUE since this is the special end-watermark that for example the
             // Kafka source emits
-            return mark.getTimestamp() == Long.MAX_VALUE && nextWatermarkTime != Long.MAX_VALUE;
+            // TODOJEY
+            GenericWatermark genericWatermark = mark.getGenericWatermark();
+            if (!(genericWatermark instanceof TimestampWatermark)) {
+                return false;
+            }
+            long ts = ((TimestampWatermark) genericWatermark).getTimestamp();
+            return ts == Long.MAX_VALUE && nextWatermarkTime != Long.MAX_VALUE;
         }
 
         /** This will only be called if allowWatermark returned {@code true}. */
         @Override
-        protected void processAndEmitWatermark(Watermark mark) {
+        protected void processAndEmitWatermark(WatermarkEvent mark) {
             nextWatermarkTime = Long.MAX_VALUE;
             output.emitWatermark(mark);
 
@@ -376,7 +384,7 @@ public class StreamSourceContexts {
                             final long watermarkTime =
                                     currentTime - (currentTime % watermarkInterval);
 
-                            output.emitWatermark(new Watermark(watermarkTime));
+                            output.emitWatermark(new WatermarkEvent(new TimestampWatermark(watermarkTime)));
                             nextWatermarkTime = watermarkTime + watermarkInterval;
                         }
                     }
@@ -431,7 +439,7 @@ public class StreamSourceContexts {
         }
 
         @Override
-        protected void processAndEmitWatermark(Watermark mark) {
+        protected void processAndEmitWatermark(WatermarkEvent mark) {
             output.emitWatermark(mark);
         }
 
@@ -444,14 +452,19 @@ public class StreamSourceContexts {
         }
 
         @Override
-        protected boolean allowWatermark(Watermark mark) {
-            return emitProgressiveWatermarks || mark.getTimestamp() == Long.MAX_VALUE;
+        protected boolean allowWatermark(WatermarkEvent mark) {
+            GenericWatermark genericWatermark = mark.getGenericWatermark();
+            if (!(genericWatermark instanceof TimestampWatermark)) {
+                return false;
+            }
+            long ts = ((TimestampWatermark) genericWatermark).getTimestamp();
+            return emitProgressiveWatermarks || ts == Long.MAX_VALUE;
         }
     }
 
     /**
      * An abstract {@link SourceFunction.SourceContext} that should be used as the base for stream
-     * source contexts that are relevant with {@link Watermark}s.
+     * source contexts that are relevant with {@link WatermarkEvent}s.
      *
      * <p>Stream source contexts that are relevant with watermarks are responsible of manipulating
      * the current {@link WatermarkStatus}, so that watermark status can be correctly propagated
@@ -537,7 +550,7 @@ public class StreamSourceContexts {
         }
 
         @Override
-        public final void emitWatermark(Watermark mark) {
+        public final void emitWatermark(WatermarkEvent mark) {
             if (allowWatermark(mark)) {
                 synchronized (checkpointLock) {
                     processAndEmitWatermarkStatus(WatermarkStatus.ACTIVE);
@@ -619,13 +632,13 @@ public class StreamSourceContexts {
         protected abstract void processAndCollectWithTimestamp(T element, long timestamp);
 
         /** Whether or not a watermark should be allowed. */
-        protected abstract boolean allowWatermark(Watermark mark);
+        protected abstract boolean allowWatermark(WatermarkEvent mark);
 
         /**
          * Process and emit watermark. Only called if {@link
-         * WatermarkContext#allowWatermark(Watermark)} returns {@code true}.
+         * WatermarkContext#allowWatermark(WatermarkEvent)} returns {@code true}.
          */
-        protected abstract void processAndEmitWatermark(Watermark mark);
+        protected abstract void processAndEmitWatermark(WatermarkEvent mark);
 
         protected abstract void processAndEmitWatermarkStatus(WatermarkStatus watermarkStatus);
     }

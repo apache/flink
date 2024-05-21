@@ -18,13 +18,15 @@
 package org.apache.flink.streaming.runtime.io.recovery;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.SubtaskConnectionDescriptor;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
@@ -62,7 +64,7 @@ class DemultiplexingRecordDeserializer<T>
     static class VirtualChannel<T> {
         private final RecordDeserializer<DeserializationDelegate<StreamElement>> deserializer;
         private final Predicate<StreamRecord<T>> recordFilter;
-        Watermark lastWatermark = Watermark.UNINITIALIZED;
+        WatermarkEvent lastWatermark = new WatermarkEvent(TimestampWatermark.UNINITIALIZED);
         WatermarkStatus watermarkStatus = WatermarkStatus.ACTIVE;
         private DeserializationResult lastResult;
 
@@ -159,19 +161,21 @@ class DemultiplexingRecordDeserializer<T>
                     return result;
                 } else if (element.isWatermark()) {
                     // basically, do not emit a watermark if not all virtual channel are past it
-                    final Watermark minWatermark =
+                    final GenericWatermark minWatermark =
                             channels.values().stream()
-                                    .map(virtualChannel -> virtualChannel.lastWatermark)
-                                    .min(Comparator.comparing(Watermark::getTimestamp))
+                                    .map(virtualChannel -> virtualChannel.lastWatermark.getGenericWatermark())
+                                    .filter(w -> w instanceof TimestampWatermark)
+                                    .map(w -> (TimestampWatermark) w)
+                                    .min(Comparator.comparing(TimestampWatermark::getTimestamp))
                                     .orElseThrow(
                                             () ->
                                                     new IllegalStateException(
                                                             "Should always have a watermark"));
                     // at least one virtual channel has no watermark, don't emit any watermark yet
-                    if (minWatermark.equals(Watermark.UNINITIALIZED)) {
+                    if (minWatermark.equals(TimestampWatermark.UNINITIALIZED)) {
                         continue;
                     }
-                    delegate.setInstance(minWatermark);
+                    delegate.setInstance(new WatermarkEvent(minWatermark));
                     return result;
                 } else if (element.isWatermarkStatus()) {
                     // summarize statuses across all virtual channels

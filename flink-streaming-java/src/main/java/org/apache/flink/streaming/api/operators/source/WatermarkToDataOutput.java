@@ -71,10 +71,17 @@ public final class WatermarkToDataOutput implements WatermarkOutput {
     @Override
     public void emitWatermark(GenericWatermark watermark) {
         if (!(watermark instanceof TimestampWatermark)) {
-            throw new ExceptionInChainedOperatorException(new IOException("ASDSDSADASDSA"));
+            try {
+                output.emitWatermark(
+                        new org.apache.flink.streaming.api.watermark.WatermarkEvent(watermark));
+            } catch (ExceptionInChainedOperatorException e) {
+                throw e;
+            } catch (Exception e) {
+                throw new ExceptionInChainedOperatorException(e);
+            }
+            return;
         }
 
-        assert (watermark instanceof TimestampWatermark);
 
         final long newWatermark = ((TimestampWatermark) watermark).getTimestamp();
         if (newWatermark <= maxWatermarkSoFar) {
@@ -88,7 +95,7 @@ public final class WatermarkToDataOutput implements WatermarkOutput {
             markActiveInternally();
 
             output.emitWatermark(
-                    new org.apache.flink.streaming.api.watermark.Watermark(newWatermark));
+                    new org.apache.flink.streaming.api.watermark.WatermarkEvent(new TimestampWatermark(newWatermark)));
         } catch (ExceptionInChainedOperatorException e) {
             throw e;
         } catch (Exception e) {

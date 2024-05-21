@@ -20,6 +20,8 @@ package org.apache.flink.streaming.api.operators.co;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReadOnlyBroadcastState;
@@ -29,7 +31,7 @@ import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.CollectionUtil;
@@ -121,9 +123,13 @@ public class CoBroadcastWithNonKeyedOperator<IN1, IN2, OUT>
     }
 
     @Override
-    public void processWatermark(Watermark mark) throws Exception {
+    public void processWatermark(WatermarkEvent mark) throws Exception {
+        GenericWatermark genericWatermark = mark.getGenericWatermark();
+        if (!(genericWatermark instanceof TimestampWatermark)) {
+            return;
+        }
         super.processWatermark(mark);
-        currentWatermark = mark.getTimestamp();
+        currentWatermark = ((TimestampWatermark) genericWatermark).getTimestamp();
     }
 
     private class ReadWriteContextImpl extends Context {

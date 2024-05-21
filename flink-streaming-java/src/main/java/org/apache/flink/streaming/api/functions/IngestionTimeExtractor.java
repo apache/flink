@@ -18,7 +18,8 @@
 
 package org.apache.flink.streaming.api.functions;
 
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 
 /**
  * A timestamp assigner that assigns timestamps based on the machine's wall clock.
@@ -42,10 +43,10 @@ public class IngestionTimeExtractor<T> implements AssignerWithPeriodicWatermarks
     }
 
     @Override
-    public Watermark getCurrentWatermark() {
+    public WatermarkEvent getCurrentWatermark() {
         // make sure timestamps are monotonously increasing, even when the system clock re-syncs
         final long now = Math.max(System.currentTimeMillis(), maxTimestamp);
         maxTimestamp = now;
-        return new Watermark(now - 1);
+        return new WatermarkEvent(new TimestampWatermark(now - 1));
     }
 }

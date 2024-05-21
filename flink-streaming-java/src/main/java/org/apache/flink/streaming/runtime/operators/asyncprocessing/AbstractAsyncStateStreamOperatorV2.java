@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.operators.asyncprocessing;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
@@ -37,7 +38,7 @@ import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.Triggerable;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -191,7 +192,7 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
     }
 
     @Override
-    public void processWatermark(Watermark mark) throws Exception {
+    public void processWatermark(WatermarkEvent mark) throws Exception {
         if (!isAsyncStateProcessingEnabled()) {
             super.processWatermark(mark);
             return;
@@ -211,7 +212,7 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
                     boolean wasIdle = combinedWatermark.isIdle();
                     if (combinedWatermark.updateStatus(inputId - 1, watermarkStatus.isIdle())) {
                         super.processWatermark(
-                                new Watermark(combinedWatermark.getCombinedWatermark()));
+                                new WatermarkEvent(new TimestampWatermark(combinedWatermark.getCombinedWatermark())));
                     }
                     if (wasIdle != combinedWatermark.isIdle()) {
                         output.emitWatermarkStatus(watermarkStatus);

@@ -18,8 +18,9 @@
 
 package org.apache.flink.streaming.api.functions.timestamps;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.api.windowing.time.Time;
 
 import java.time.Duration;
@@ -83,13 +84,13 @@ public abstract class BoundedOutOfOrdernessTimestampExtractor<T>
     public abstract long extractTimestamp(T element);
 
     @Override
-    public final Watermark getCurrentWatermark() {
+    public final WatermarkEvent getCurrentWatermark() {
         // this guarantees that the watermark never goes backwards.
         long potentialWM = currentMaxTimestamp - maxOutOfOrderness;
         if (potentialWM >= lastEmittedWatermark) {
             lastEmittedWatermark = potentialWM;
         }
-        return new Watermark(lastEmittedWatermark);
+        return new WatermarkEvent(new TimestampWatermark(lastEmittedWatermark));
     }
 
     @Override

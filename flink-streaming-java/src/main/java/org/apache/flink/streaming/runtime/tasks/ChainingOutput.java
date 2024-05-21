@@ -17,12 +17,14 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.streaming.api.operators.Input;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.io.RecordProcessorUtils;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
@@ -113,12 +115,22 @@ class ChainingOutput<T>
     }
 
     @Override
-    public void emitWatermark(Watermark mark) {
+    public void emitWatermark(WatermarkEvent mark) {
+        GenericWatermark genericWatermark = mark.getGenericWatermark();
+        if (!(genericWatermark instanceof TimestampWatermark)) {
+            try {
+                input.processWatermark(mark);
+            } catch (Exception e) {
+                throw new ExceptionInChainedOperatorException(e);
+            }
+            return;
+        }
+
         if (announcedStatus.isIdle()) {
             return;
         }
         try {
-            watermarkGauge.setCurrentWatermark(mark.getTimestamp());
+            watermarkGauge.setCurrentWatermark(((TimestampWatermark) genericWatermark).getTimestamp());
             input.processWatermark(mark);
         } catch (Exception e) {
             throw new ExceptionInChainedOperatorException(e);

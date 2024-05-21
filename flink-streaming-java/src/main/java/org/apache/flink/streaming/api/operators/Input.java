@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -41,12 +41,12 @@ public interface Input<IN> {
     void processElement(StreamRecord<IN> element) throws Exception;
 
     /**
-     * Processes a {@link Watermark} that arrived on the first input of this two-input operator.
+     * Processes a {@link WatermarkEvent} that arrived on the first input of this two-input operator.
      * This method is guaranteed to not be called concurrently with other methods of the operator.
      *
-     * @see org.apache.flink.streaming.api.watermark.Watermark
+     * @see org.apache.flink.streaming.api.watermark.WatermarkEvent
      */
-    void processWatermark(Watermark mark) throws Exception;
+    void processWatermark(WatermarkEvent mark) throws Exception;
 
     /**
      * Processes a {@link WatermarkStatus} that arrived on this input of the {@link

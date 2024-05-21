@@ -20,7 +20,7 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.PullingAsyncDataInput;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -51,7 +51,7 @@ public interface PushingAsyncDataInput<T> extends AvailabilityProvider {
 
         void emitRecord(StreamRecord<T> streamRecord) throws Exception;
 
-        void emitWatermark(Watermark watermark) throws Exception;
+        void emitWatermark(WatermarkEvent watermark) throws Exception;
 
         void emitWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception;
 

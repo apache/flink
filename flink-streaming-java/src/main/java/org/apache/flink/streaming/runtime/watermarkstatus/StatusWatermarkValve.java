@@ -20,9 +20,11 @@ package org.apache.flink.streaming.runtime.watermarkstatus;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.InternalWatermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
-import org.apache.flink.streaming.api.watermark.InternalWatermark;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.watermarkstatus.HeapPriorityQueue.HeapPriorityQueueElement;
@@ -37,7 +39,7 @@ import java.util.Map;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * A {@code StatusWatermarkValve} embodies the logic of how {@link Watermark} and {@link
+ * A {@code StatusWatermarkValve} embodies the logic of how {@link WatermarkEvent} and {@link
  * WatermarkStatus} are propagated to downstream outputs, given a set of one or multiple
  * subpartitions that continuously receive them. Usages of this class need to define the number of
  * subpartitions that the valve needs to handle, as well as provide a implementation of {@link
@@ -142,19 +144,20 @@ public class StatusWatermarkValve {
     }
 
     /**
-     * Feed a {@link Watermark} into the valve. If the input triggers the valve to output a new
-     * Watermark, {@link DataOutput#emitWatermark(Watermark)} will be called to process the new
+     * Feed a {@link WatermarkEvent} into the valve. If the input triggers the valve to output a new
+     * Watermark, {@link DataOutput#emitWatermark(WatermarkEvent)} will be called to process the new
      * Watermark.
      *
      * @param watermark the watermark to feed to the valve
      * @param channelIndex the index of the channel that the fed watermark belongs to (index
      *     starting from 0)
      */
-    public void inputWatermark(Watermark watermark, int channelIndex, DataOutput<?> output)
+    public void inputWatermark(WatermarkEvent watermark, int channelIndex, DataOutput<?> output)
             throws Exception {
         final SubpartitionStatus subpartitionStatus;
-        if (watermark instanceof InternalWatermark) {
-            int subpartitionStatusIndex = ((InternalWatermark) watermark).getSubpartitionIndex();
+        GenericWatermark genericWatermark = watermark.getGenericWatermark();
+        if (genericWatermark instanceof InternalWatermark) {
+            int subpartitionStatusIndex = ((InternalWatermark) genericWatermark).getSubpartitionIndex();
             subpartitionStatus =
                     subpartitionStatuses.get(channelIndex).get(subpartitionStatusIndex);
         } else {
@@ -164,8 +167,8 @@ public class StatusWatermarkValve {
 
         // ignore the input watermark if its subpartition, or all subpartitions are idle (i.e.
         // overall the valve is idle).
-        if (lastOutputWatermarkStatus.isActive() && subpartitionStatus.watermarkStatus.isActive()) {
-            long watermarkMillis = watermark.getTimestamp();
+        if (genericWatermark instanceof TimestampWatermark && lastOutputWatermarkStatus.isActive() && subpartitionStatus.watermarkStatus.isActive()) {
+            long watermarkMillis = ((TimestampWatermark) genericWatermark).getTimestamp();
 
             // if the input watermark's value is less than the last received watermark for its
             // subpartition, ignore it also.
@@ -189,8 +192,8 @@ public class StatusWatermarkValve {
     /**
      * Feed a {@link WatermarkStatus} into the valve. This may trigger the valve to output either a
      * new Watermark Status, for which {@link DataOutput#emitWatermarkStatus(WatermarkStatus)} will
-     * be called, or a new Watermark, for which {@link DataOutput#emitWatermark(Watermark)} will be
-     * called.
+     * be called, or a new Watermark, for which {@link DataOutput#emitWatermark(WatermarkEvent)}
+     * will be called.
      *
      * @param watermarkStatus the watermark status to feed to the valve
      * @param channelIndex the index of the channel that the fed watermark status belongs to (index
@@ -280,7 +283,7 @@ public class StatusWatermarkValve {
         if (hasAlignedSubpartitions
                 && alignedSubpartitionStatuses.peek().watermark > lastOutputWatermark) {
             lastOutputWatermark = alignedSubpartitionStatuses.peek().watermark;
-            output.emitWatermark(new Watermark(lastOutputWatermark));
+            output.emitWatermark(new WatermarkEvent(new TimestampWatermark(lastOutputWatermark)));
         }
     }
 
@@ -334,7 +337,7 @@ public class StatusWatermarkValve {
 
         if (maxWatermark > lastOutputWatermark) {
             lastOutputWatermark = maxWatermark;
-            output.emitWatermark(new Watermark(lastOutputWatermark));
+            output.emitWatermark(new WatermarkEvent(new TimestampWatermark(lastOutputWatermark)));
         }
     }
 

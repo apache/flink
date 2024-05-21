@@ -25,7 +25,7 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 
 import java.io.Serializable;
 
@@ -91,7 +91,7 @@ import java.io.Serializable;
  *
  * <p>Sources may assign timestamps to elements and may manually emit watermarks via the methods
  * {@link SourceContext#collectWithTimestamp(Object, long)} and {@link
- * SourceContext#emitWatermark(Watermark)}.
+ * SourceContext#emitWatermark(WatermarkEvent)}.
  *
  * @param <T> The type of the elements produced by this source.
  * @deprecated This interface will be removed in future versions. Use the new {@link
@@ -187,14 +187,14 @@ public interface SourceFunction<T> extends Function, Serializable {
         void collectWithTimestamp(T element, long timestamp);
 
         /**
-         * Emits the given {@link Watermark}. A Watermark of value {@code t} declares that no
+         * Emits the given {@link WatermarkEvent}. A Watermark of value {@code t} declares that no
          * elements with a timestamp {@code t' <= t} will occur any more. If further such elements
          * will be emitted, those elements are considered <i>late</i>.
          *
          * @param mark The Watermark to emit
          */
         @PublicEvolving
-        void emitWatermark(Watermark mark);
+        void emitWatermark(WatermarkEvent mark);
 
         /**
          * Marks the source to be temporarily idle. This tells the system that this source will
@@ -203,7 +203,7 @@ public interface SourceFunction<T> extends Function, Serializable {
          * <p>Source functions should make a best effort to call this method as soon as they
          * acknowledge themselves to be idle. The system will consider the source to resume activity
          * again once {@link SourceContext#collect(T)}, {@link SourceContext#collectWithTimestamp(T,
-         * long)}, or {@link SourceContext#emitWatermark(Watermark)} is called to emit elements or
+         * long)}, or {@link SourceContext#emitWatermark(WatermarkEvent)} is called to emit elements or
          * watermarks from the source.
          */
         @PublicEvolving

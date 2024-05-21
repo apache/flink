@@ -27,7 +27,7 @@ import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.tasks.StreamTask.CanEmitBatchOfRecordsChecker;
@@ -45,9 +45,9 @@ import static java.util.stream.Collectors.toMap;
  * Implementation of {@link StreamTaskInput} that wraps an input from network taken from {@link
  * CheckpointedInputGate}.
  *
- * <p>This internally uses a {@link StatusWatermarkValve} to keep track of {@link Watermark} and
+ * <p>This internally uses a {@link StatusWatermarkValve} to keep track of {@link WatermarkEvent} and
  * {@link WatermarkStatus} events, and forwards them to event subscribers once the {@link
- * StatusWatermarkValve} determines the {@link Watermark} from all inputs has advanced, or that a
+ * StatusWatermarkValve} determines the {@link WatermarkEvent} from all inputs has advanced, or that a
  * {@link WatermarkStatus} needs to be propagated downstream to denote a status change.
  *
  * <p>Forwarding elements, watermarks, or status elements must be protected by synchronizing on the

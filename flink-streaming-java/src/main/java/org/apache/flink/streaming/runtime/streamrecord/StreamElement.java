@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.runtime.streamrecord;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 /** An element in a data stream. Can be a record, a Watermark, or a RecordAttributes. */
@@ -32,7 +32,7 @@ public abstract class StreamElement {
      * @return True, if this element is a watermark, false otherwise.
      */
     public final boolean isWatermark() {
-        return this instanceof Watermark;
+        return this instanceof WatermarkEvent;
     }
 
     /**
@@ -88,8 +88,8 @@ public abstract class StreamElement {
      * @return This element as a Watermark.
      * @throws java.lang.ClassCastException Thrown, if this element is actually not a Watermark.
      */
-    public final Watermark asWatermark() {
-        return (Watermark) this;
+    public final WatermarkEvent asWatermark() {
+        return (WatermarkEvent) this;
     }
 
     /**

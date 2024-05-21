@@ -20,6 +20,8 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -32,7 +34,7 @@ import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.KeyGroupsList;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.PriorityQueueSetFactory;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 import org.apache.flink.util.Preconditions;
@@ -239,9 +241,12 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
     }
 
     @Override
-    public void advanceWatermark(Watermark watermark) throws Exception {
+    public void advanceWatermark(WatermarkEvent watermark) throws Exception {
         for (InternalTimerServiceImpl<?, ?> service : timerServices.values()) {
-            service.advanceWatermark(watermark.getTimestamp());
+            GenericWatermark genericWatermark = watermark.getGenericWatermark();
+            if (genericWatermark instanceof TimestampWatermark) {
+                service.advanceWatermark(((TimestampWatermark) genericWatermark).getTimestamp());
+            }
         }
     }
 

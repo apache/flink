@@ -19,6 +19,8 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.connector.source.ExternallyInducedSourceReader;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -31,7 +33,7 @@ import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.SourceOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
 import org.apache.flink.streaming.runtime.io.StreamOneInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamTaskExternallyInducedSourceInput;
@@ -210,7 +212,7 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
 
     @Override
     protected void advanceToEndOfEventTime() {
-        output.emitWatermark(Watermark.MAX_WATERMARK);
+        output.emitWatermark(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
     }
 
     @Override
@@ -321,12 +323,15 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
         }
 
         @Override
-        public void emitWatermark(Watermark watermark) {
-            long watermarkTimestamp = watermark.getTimestamp();
-            if (inputWatermarkGauge != null) {
-                inputWatermarkGauge.setCurrentWatermark(watermarkTimestamp);
+        public void emitWatermark(WatermarkEvent watermark) {
+            GenericWatermark genericWatermark = watermark.getGenericWatermark();
+            if (genericWatermark instanceof TimestampWatermark) {
+                long watermarkTimestamp = ((TimestampWatermark) genericWatermark).getTimestamp();
+                if (inputWatermarkGauge != null) {
+                    inputWatermarkGauge.setCurrentWatermark(watermarkTimestamp);
+                }
+                metricGroup.watermarkEmitted(watermarkTimestamp);
             }
-            metricGroup.watermarkEmitted(watermarkTimestamp);
             output.emitWatermark(watermark);
         }
 
