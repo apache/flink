@@ -260,18 +260,18 @@ public class SqlJsonUtils {
                         case STRING:
                             return jsonize(value);
                         case ARRAY:
-                            return new GenericArrayData(
-                                    ((List<Object>) value)
-                                            .stream()
-                                                    .map(
-                                                            o ->
-                                                                    o != null
-                                                                            ? StringData.fromString(
-                                                                                    o.toString())
-                                                                            : null)
-                                                    .toArray(StringData[]::new));
+                            final List<Object> list = (List<Object>) value;
+                            final Object[] arr = new Object[list.size()];
+                            for (int i = 0; i < list.size(); i++) {
+                                final Object el = list.get(i);
+                                if (el != null) {
+                                    arr[i] = StringData.fromString(el.toString());
+                                }
+                            }
+
+                            return new GenericArrayData(arr);
                         default:
-                            throw new RuntimeException("illegal return type");
+                            throw new TableRuntimeException("illegal return type");
                     }
                 } catch (Exception e) {
                     exc = e;
@@ -321,7 +321,7 @@ public class SqlJsonUtils {
                     case STRING:
                         return "[]";
                     default:
-                        throw new RuntimeException("illegal return type");
+                        throw new TableRuntimeException("illegal return type");
                 }
             case EMPTY_OBJECT:
                 if (Objects.requireNonNull(returnType) == JsonQueryReturnType.STRING) {
