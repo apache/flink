@@ -29,8 +29,8 @@ import org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 
 /** Message headers for completing a statement. */
 public class CompleteStatementHeaders
@@ -81,7 +81,7 @@ public class CompleteStatementHeaders
 
     @Override
     public Collection<? extends RestAPIVersion<?>> getSupportedAPIVersions() {
-        return Collections.singleton(SqlGatewayRestAPIVersion.V2);
+        return Arrays.asList(SqlGatewayRestAPIVersion.V2, SqlGatewayRestAPIVersion.V3);
     }
 
     public static CompleteStatementHeaders getInstance() {
