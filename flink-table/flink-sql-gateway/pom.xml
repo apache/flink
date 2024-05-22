@@ -64,6 +64,13 @@
             <version>${project.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.quartz-scheduler</groupId>
+            <artifactId>quartz</artifactId>
+            <version>${quartz.version}</version>
+            <optional>${flink.markBundledAsOptional}</optional>
+        </dependency>
+
         <!-- Test dependencies -->
         <dependency>
             <groupId>org.apache.flink</groupId>
@@ -153,8 +160,27 @@
                         <artifactSet>
                             <includes combine.children="append">
                                 <include>org.apache.flink:flink-sql-gateway-api</include>
+                                <include>org.quartz-scheduler:quartz</include>
                             </includes>
                         </artifactSet>
+                        <filters>
+                            <filter>
+                                <artifact>org.quartz-scheduler:quartz</artifact>
+                                <excludes>
+                                    <exclude>**/checkstyle.xml</exclude>
+                                </excludes>
+                            </filter>
+                        </filters>
+                        <relocations>
+                            <relocation>
+                                <pattern>org.quartz</pattern>
+                                <shadedPattern>org.apache.flink.table.shaded.org.quartz</shadedPattern>
+                            </relocation>
+                            <relocation>
+                                <pattern>org.terracotta.quartz</pattern>
+                                <shadedPattern>org.apache.flink.table.shaded.org.terracotta.quartz</shadedPattern>
+                            </relocation>
+                        </relocations>
                     </configuration>
                 </execution>
             </executions>
