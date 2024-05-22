@@ -16,25 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.workflow;
+package org.apache.flink.table.gateway.workflow;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.util.FlinkException;
+import org.junit.jupiter.api.Test;
 
-/**
- * A workflow-related operation exception to materialized table, including create, suspend, resume,
- * drop workflow operation, etc.
- */
-@PublicEvolving
-public class WorkflowException extends FlinkException {
+import static org.assertj.core.api.Assertions.assertThat;
 
-    private static final long serialVersionUID = 1L;
+/** Tests for {@link EmbeddedRefreshHandler} and {@link EmbeddedRefreshHandlerSerializer}. */
+public class EmbeddedRefreshHandlerTest {
 
-    public WorkflowException(String message) {
-        super(message);
-    }
+    @Test
+    void testSerDe() throws Exception {
+        EmbeddedRefreshHandler expected = new EmbeddedRefreshHandler("a", "b");
 
-    public WorkflowException(String message, Throwable cause) {
-        super(message, cause);
+        byte[] serBytes = EmbeddedRefreshHandlerSerializer.INSTANCE.serialize(expected);
+        EmbeddedRefreshHandler actual =
+                EmbeddedRefreshHandlerSerializer.INSTANCE.deserialize(
+                        serBytes, this.getClass().getClassLoader());
+
+        assertThat(actual).isEqualTo(expected);
     }
 }

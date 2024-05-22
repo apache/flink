@@ -46,7 +46,7 @@ import static org.apache.flink.table.gateway.rest.util.TestingRestClient.getTest
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** The base class for Rest API IT test. */
-abstract class RestAPIITCaseBase {
+public abstract class RestAPIITCaseBase {
 
     @RegisterExtension
     @Order(1)
@@ -58,10 +58,10 @@ abstract class RestAPIITCaseBase {
             new SqlGatewayServiceExtension(MINI_CLUSTER::getClientConfiguration);
 
     @Nullable private static TestingRestClient restClient = null;
-    @Nullable private static String targetAddress = null;
+    @Nullable protected static String targetAddress = null;
     @Nullable private static SqlGatewayRestEndpoint sqlGatewayRestEndpoint = null;
 
-    private static int port = 0;
+    protected static int port = 0;
 
     @BeforeAll
     static void start() throws Exception {

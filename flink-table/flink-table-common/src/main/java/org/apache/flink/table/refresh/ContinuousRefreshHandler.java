@@ -29,6 +29,8 @@ import java.util.Optional;
 @Internal
 public class ContinuousRefreshHandler implements RefreshHandler, Serializable {
 
+    private static final long serialVersionUID = 1L;
+
     // TODO: add clusterId for yarn and k8s resource manager
     private final String executionTarget;
     private final String jobId;
