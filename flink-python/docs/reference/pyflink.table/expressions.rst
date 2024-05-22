@@ -243,6 +243,7 @@ advanced type helper functions
     Expression.map_union
     Expression.map_values
     Expression.array_except
+    Expression.split
 
 
 time definition functions
