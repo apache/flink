@@ -32,10 +32,9 @@ import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nullable;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 /** Implementation of {@link BuiltInFunctionDefinitions#ARRAY_EXCEPT}. */
 @Internal
@@ -64,23 +63,21 @@ public class ArrayExceptFunction extends BuiltInScalarFunction {
                 return null;
             }
 
-            List<Object> list = new ArrayList<>();
-            Map<ObjectContainer, Integer> map = new HashMap<>();
+            Set<Object> resultSet = new LinkedHashSet<>();
+            Set<ObjectContainer> set = new HashSet<>();
             for (int pos = 0; pos < arrayTwo.size(); pos++) {
                 final Object element = elementGetter.getElementOrNull(arrayTwo, pos);
                 final ObjectContainer objectContainer = createObjectContainer(element);
-                map.merge(objectContainer, 1, (k, v) -> v + 1);
+                set.add(objectContainer);
             }
             for (int pos = 0; pos < arrayOne.size(); pos++) {
                 final Object element = elementGetter.getElementOrNull(arrayOne, pos);
                 final ObjectContainer objectContainer = createObjectContainer(element);
-                if (map.containsKey(objectContainer)) {
-                    map.compute(objectContainer, (k, v) -> v == null || v == 1 ? null : v - 1);
-                } else {
-                    list.add(element);
+                if (!set.contains(objectContainer)) {
+                    resultSet.add(element);
                 }
             }
-            return new GenericArrayData(list.toArray());
+            return new GenericArrayData(resultSet.toArray());
         } catch (Throwable t) {
             throw new FlinkRuntimeException(t);
         }

@@ -1614,7 +1614,8 @@ class Expression(Generic[T]):
         Returns an ARRAY that contains the elements from array1 that are not in array2.
         If no elements remain after excluding the elements in array2 from array1,
         the function returns an empty ARRAY. If one or both arguments are NULL,
-        the function returns NULL. The order of the elements from array1 is kept.
+        the function returns NULL. The order of the elements from array1 is kept
+        however the duplicates are removed.
         """
         return _binary_op("arrayExcept")(self, array)
 
