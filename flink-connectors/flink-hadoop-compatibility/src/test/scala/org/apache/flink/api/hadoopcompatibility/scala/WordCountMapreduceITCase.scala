@@ -40,7 +40,6 @@ class WordCountMapreduceITCase extends JavaProgramTestBase {
   def checkOperatingSystem() {
     // FLINK-5164 - see https://wiki.apache.org/hadoop/WindowsProblems
     assumeThat(OperatingSystem.isWindows)
-      .as("This test can't run successfully on Windows.")
       .isFalse()
   }
 
