@@ -25,6 +25,7 @@ import org.apache.flink.sql.parser.ddl.SqlAlterTable;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableCompact;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropColumn;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropConstraint;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableDropDistribution;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropPrimaryKey;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropWatermark;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableOptions;
@@ -447,6 +448,9 @@ public class SqlNodeToOperationConversion {
         } else if (sqlAlterTable instanceof SqlAlterTableDropColumn) {
             return alterSchemaConverter.convertAlterSchema(
                     (SqlAlterTableDropColumn) sqlAlterTable, resolvedCatalogTable);
+        } else if (sqlAlterTable instanceof SqlAlterTableDropDistribution) {
+            return alterSchemaConverter.convertAlterSchema(
+                    (SqlAlterTableDropDistribution) sqlAlterTable, resolvedCatalogTable);
         } else if (sqlAlterTable instanceof SqlAlterTableDropPrimaryKey) {
             return alterSchemaConverter.convertAlterSchema(
                     (SqlAlterTableDropPrimaryKey) sqlAlterTable, resolvedCatalogTable);

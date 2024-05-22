@@ -257,7 +257,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
         tableName.unparse(writer, leftPrec, rightPrec);
         if (columnList.size() > 0 || tableConstraints.size() > 0 || watermark != null) {
             SqlUnparseUtils.unparseTableSchema(
-                    writer, leftPrec, rightPrec, columnList, tableConstraints, watermark);
+                    writer, leftPrec, rightPrec, columnList, tableConstraints, watermark, null);
         }
 
         if (comment != null) {
@@ -296,6 +296,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
         public List<SqlNode> columnList = new ArrayList<>();
         public List<SqlTableConstraint> constraints = new ArrayList<>();
         @Nullable public SqlWatermark watermark;
+        @Nullable public SqlDistribution distribution;
     }
 
     public String[] fullTableName() {

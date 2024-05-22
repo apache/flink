@@ -612,6 +612,70 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testAlterTableAddDistribution() {
+        sql("alter table t1 add (DISTRIBUTION BY HASH(a, h) INTO 6 BUCKETS\n)")
+                .ok("ALTER TABLE `T1` ADD (\n  DISTRIBUTION BY HASH(`A`, `H`) INTO 6 BUCKETS\n)");
+
+        sql("alter table t1 add DISTRIBUTION BY HASH(a, h) INTO 6 BUCKETS\n")
+                .ok("ALTER TABLE `T1` ADD (\n  DISTRIBUTION BY HASH(`A`, `H`) INTO 6 BUCKETS\n)");
+
+        sql("alter table tbl1 add DISTRIBUTION BY HASH(a, h) INTO 6 BUCKETS\n")
+                .ok("ALTER TABLE `TBL1` ADD (\n  DISTRIBUTION BY HASH(`A`, `H`) INTO 6 BUCKETS\n)");
+
+        sql("alter table tbl1 add DISTRIBUTION BY RANGE(a, h) INTO 6 BUCKETS\n")
+                .ok(
+                        "ALTER TABLE `TBL1` ADD (\n  DISTRIBUTION BY RANGE(`A`, `H`) INTO 6 BUCKETS\n)");
+
+        sql("alter table tbl1 add DISTRIBUTION BY ^RANDOM^(a, h) INTO 6 BUCKETS\n")
+                .fails("(?s).*Encountered \"RANDOM\" at line 1, column 38.*");
+
+        sql("alter table tbl1 add DISTRIBUTION BY (a, h) INTO 6 BUCKETS\n")
+                .ok("ALTER TABLE `TBL1` ADD (\n  DISTRIBUTION BY (`A`, `H`) INTO 6 BUCKETS\n)");
+
+        sql("alter table tbl1 add DISTRIBUTION BY RANGE(a, h)\n")
+                .ok("ALTER TABLE `TBL1` ADD (\n  DISTRIBUTION BY RANGE(`A`, `H`)\n)");
+
+        sql("alter table tbl1 add DISTRIBUTION BY (a, h)\n")
+                .ok("ALTER TABLE `TBL1` ADD (\n  DISTRIBUTION BY (`A`, `H`)\n)");
+    }
+
+    @Test
+    void testAlterTableModifyDistribution() {
+        sql("alter table t1 modify (DISTRIBUTION BY HASH(a, h) INTO 6 BUCKETS\n)")
+                .ok(
+                        "ALTER TABLE `T1` MODIFY (\n  DISTRIBUTION BY HASH(`A`, `H`) INTO 6 BUCKETS\n)");
+
+        sql("alter table t1 modify DISTRIBUTION BY HASH(a, h) INTO 6 BUCKETS\n")
+                .ok(
+                        "ALTER TABLE `T1` MODIFY (\n  DISTRIBUTION BY HASH(`A`, `H`) INTO 6 BUCKETS\n)");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY HASH(a, h) INTO 6 BUCKETS\n")
+                .ok(
+                        "ALTER TABLE `TBL1` MODIFY (\n  DISTRIBUTION BY HASH(`A`, `H`) INTO 6 BUCKETS\n)");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY RANGE(a, h) INTO 6 BUCKETS\n")
+                .ok(
+                        "ALTER TABLE `TBL1` MODIFY (\n  DISTRIBUTION BY RANGE(`A`, `H`) INTO 6 BUCKETS\n)");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY ^RANDOM^(a, h) INTO 6 BUCKETS\n")
+                .fails("(?s).*Encountered \"RANDOM\" at line 1, column 41.*");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY (a, h) INTO 6 BUCKETS\n")
+                .ok("ALTER TABLE `TBL1` MODIFY (\n  DISTRIBUTION BY (`A`, `H`) INTO 6 BUCKETS\n)");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY RANGE(a, h)\n")
+                .ok("ALTER TABLE `TBL1` MODIFY (\n  DISTRIBUTION BY RANGE(`A`, `H`)\n)");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY (a, h)\n")
+                .ok("ALTER TABLE `TBL1` MODIFY (\n  DISTRIBUTION BY (`A`, `H`)\n)");
+    }
+
+    @Test
+    void testAlterTableDropDistribution() {
+        sql("alter table t1 drop DISTRIBUTION").ok("ALTER TABLE `T1` DROP DISTRIBUTION");
+    }
+
+    @Test
     void testAlterTableAddMultipleColumn() {
         final String sql1 =
                 "alter table t1 add (\n"

@@ -57,8 +57,9 @@ public class SqlAlterTableAdd extends SqlAlterTableSchema {
             SqlNodeList addedColumns,
             List<SqlTableConstraint> constraint,
             @Nullable SqlWatermark sqlWatermark,
+            @Nullable SqlDistribution distribution,
             boolean ifTableExists) {
-        super(pos, tableName, addedColumns, constraint, sqlWatermark, ifTableExists);
+        super(pos, tableName, addedColumns, constraint, sqlWatermark, distribution, ifTableExists);
     }
 
     @Override
@@ -67,6 +68,6 @@ public class SqlAlterTableAdd extends SqlAlterTableSchema {
         writer.keyword("ADD");
         // unparse table schema
         SqlUnparseUtils.unparseTableSchema(
-                writer, leftPrec, rightPrec, columnList, constraints, watermark);
+                writer, leftPrec, rightPrec, columnList, constraints, watermark, distribution);
     }
 }

@@ -22,11 +22,13 @@ import org.apache.flink.sql.parser.ddl.SqlAlterTable;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableAdd;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropColumn;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropConstraint;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableDropDistribution;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropPrimaryKey;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropWatermark;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableModify;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableRenameColumn;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableSchema;
+import org.apache.flink.sql.parser.ddl.SqlDistribution;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
 import org.apache.flink.sql.parser.ddl.SqlWatermark;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
@@ -41,6 +43,7 @@ import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.SchemaResolver;
 import org.apache.flink.table.catalog.TableChange;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.expressions.SqlCallExpression;
@@ -110,6 +113,7 @@ public class AlterSchemaConverter {
         SchemaConverter converter = createSchemaConverter(alterTableSchema, oldTable);
         converter.updateColumn(alterTableSchema.getColumnPositions().getList());
         alterTableSchema.getWatermark().ifPresent(converter::updateWatermark);
+        alterTableSchema.getDistribution().ifPresent(converter::updateDistribution);
         alterTableSchema.getFullConstraint().ifPresent(converter::updatePrimaryKey);
 
         return buildAlterTableChangeOperation(
@@ -206,6 +210,24 @@ public class AlterSchemaConverter {
                 dropColumn, tableChanges, schemaBuilder.build(), oldTable);
     }
 
+    /** Convert ALTER TABLE DROP DISTRIBUTION to generate an updated Schema. */
+    public Operation convertAlterSchema(
+            SqlAlterTableDropDistribution dropDistribution, ResolvedCatalogTable oldTable) {
+        Optional<TableDistribution> oldTableDistribution = oldTable.getDistribution();
+        if (!oldTableDistribution.isPresent()) {
+            throw new ValidationException(
+                    String.format(
+                            "%sThe base table does not define an existing distribution.",
+                            EX_MSG_PREFIX));
+        }
+
+        return buildAlterTableChangeOperation(
+                dropDistribution,
+                Collections.singletonList(TableChange.dropDistribution()),
+                oldTable.getUnresolvedSchema(),
+                oldTable);
+    }
+
     /** Convert ALTER TABLE DROP PRIMARY KEY to generate an updated Schema. */
     public Operation convertAlterSchema(
             SqlAlterTableDropPrimaryKey dropPrimaryKey, ResolvedCatalogTable oldTable) {
@@ -296,6 +318,7 @@ public class AlterSchemaConverter {
         Set<String> alterColNames = new HashSet<>();
         Map<String, Schema.UnresolvedColumn> columns = new HashMap<>();
         @Nullable Schema.UnresolvedWatermarkSpec watermarkSpec = null;
+        @Nullable TableDistribution distribution = null;
         @Nullable Schema.UnresolvedPrimaryKey primaryKey = null;
 
         Function<SqlNode, String> escapeExpressions;
@@ -307,6 +330,7 @@ public class AlterSchemaConverter {
         List<Function<ResolvedSchema, List<TableChange>>> changeBuilders = new ArrayList<>();
 
         SchemaConverter(
+                ResolvedCatalogTable oldTable,
                 Schema oldSchema,
                 FlinkTypeFactory typeFactory,
                 SqlValidator sqlValidator,
@@ -320,6 +344,7 @@ public class AlterSchemaConverter {
             populateColumnsFromSourceTable(oldSchema);
             populatePrimaryKeyFromSourceTable(oldSchema);
             populateWatermarkFromSourceTable(oldSchema);
+            populateDistribution(oldTable);
         }
 
         private void populateColumnsFromSourceTable(Schema oldSchema) {
@@ -337,6 +362,10 @@ public class AlterSchemaConverter {
             if (oldSchema.getPrimaryKey().isPresent()) {
                 primaryKey = oldSchema.getPrimaryKey().get();
             }
+        }
+
+        private void populateDistribution(ResolvedCatalogTable oldTable) {
+            oldTable.getDistribution().ifPresent(distribution -> this.distribution = distribution);
         }
 
         private void populateWatermarkFromSourceTable(Schema oldSchema) {
@@ -414,6 +443,14 @@ public class AlterSchemaConverter {
                             new SqlCallExpression(
                                     escapeExpressions.apply(
                                             alterWatermarkSpec.getWatermarkStrategy())));
+        }
+
+        private void updateDistribution(SqlDistribution distribution) {
+            TableDistribution tableDistribution =
+                    OperationConverterUtils.getDistributionFromSqlDistribution(distribution);
+            checkAndCollectDistributionChange(tableDistribution);
+            this.distribution =
+                    OperationConverterUtils.getDistributionFromSqlDistribution(distribution);
         }
 
         Schema.UnresolvedPhysicalColumn convertPhysicalColumn(
@@ -533,18 +570,27 @@ public class AlterSchemaConverter {
 
         abstract void checkAndCollectPrimaryKeyChange();
 
+        abstract void checkAndCollectDistributionChange(TableDistribution distribution);
+
         abstract void checkAndCollectWatermarkChange();
     }
 
     private class AddSchemaConverter extends SchemaConverter {
 
         AddSchemaConverter(
+                ResolvedCatalogTable oldTable,
                 Schema oldSchema,
                 FlinkTypeFactory typeFactory,
                 SqlValidator sqlValidator,
                 Function<SqlNode, String> escapeExpressions,
                 SchemaResolver schemaResolver) {
-            super(oldSchema, typeFactory, sqlValidator, escapeExpressions, schemaResolver);
+            super(
+                    oldTable,
+                    oldSchema,
+                    typeFactory,
+                    sqlValidator,
+                    escapeExpressions,
+                    schemaResolver);
         }
 
         @Override
@@ -562,6 +608,18 @@ public class AlterSchemaConverter {
                     schema ->
                             Collections.singletonList(
                                     TableChange.add(unwrap(schema.getPrimaryKey()))));
+        }
+
+        @Override
+        void checkAndCollectDistributionChange(TableDistribution newDistribution) {
+            if (distribution != null) {
+                throw new ValidationException(
+                        String.format(
+                                "%sThe base table has already defined the distribution `%s`. "
+                                        + "You can modify it or drop it before adding a new one.",
+                                EX_MSG_PREFIX, distribution));
+            }
+            changesCollector.add(TableChange.add(newDistribution));
         }
 
         @Override
@@ -630,6 +688,7 @@ public class AlterSchemaConverter {
                 Function<SqlNode, String> escapeExpressions,
                 SchemaResolver schemaResolver) {
             super(
+                    oldTable,
                     oldTable.getUnresolvedSchema(),
                     typeFactory,
                     sqlValidator,
@@ -691,6 +750,18 @@ public class AlterSchemaConverter {
                     schema ->
                             Collections.singletonList(
                                     TableChange.modify(unwrap(schema.getPrimaryKey()))));
+        }
+
+        @Override
+        void checkAndCollectDistributionChange(TableDistribution newDistribution) {
+            if (distribution == null) {
+                throw new ValidationException(
+                        String.format(
+                                "%sThe base table does not define any distribution. You might "
+                                        + "want to add a new one.",
+                                EX_MSG_PREFIX));
+            }
+            changesCollector.add(TableChange.modify(newDistribution));
         }
 
         @Override
@@ -916,15 +987,29 @@ public class AlterSchemaConverter {
             List<TableChange> tableChanges,
             Schema newSchema,
             ResolvedCatalogTable oldTable) {
+        CatalogTable.Builder builder =
+                CatalogTable.newBuilder()
+                        .schema(newSchema)
+                        .comment(oldTable.getComment())
+                        .partitionKeys(oldTable.getPartitionKeys())
+                        .options(oldTable.getOptions());
+
+        if (alterTable instanceof SqlAlterTableSchema) {
+            ((SqlAlterTableSchema) alterTable)
+                    .getDistribution()
+                    .ifPresent(
+                            distribution ->
+                                    builder.distribution(
+                                            OperationConverterUtils
+                                                    .getDistributionFromSqlDistribution(
+                                                            distribution)));
+        }
+
         return new AlterTableChangeOperation(
                 catalogManager.qualifyIdentifier(
                         UnresolvedIdentifier.of(alterTable.fullTableName())),
                 tableChanges,
-                CatalogTable.of(
-                        newSchema,
-                        oldTable.getComment(),
-                        oldTable.getPartitionKeys(),
-                        oldTable.getOptions()),
+                builder.build(),
                 alterTable.ifTableExists());
     }
 
@@ -942,6 +1027,7 @@ public class AlterSchemaConverter {
             SqlAlterTableSchema alterTableSchema, ResolvedCatalogTable oldTable) {
         if (alterTableSchema instanceof SqlAlterTableAdd) {
             return new AddSchemaConverter(
+                    oldTable,
                     oldTable.getUnresolvedSchema(),
                     (FlinkTypeFactory) sqlValidator.getTypeFactory(),
                     sqlValidator,

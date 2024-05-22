@@ -1361,16 +1361,27 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                                 .getUnresolvedSchema()
                                 .getPrimaryKey())
                 .isNotPresent();
+    }
 
-        operation = parse("alter table tb1 drop primary key");
+    @Test
+    public void testAlterTableDropDistribution() throws Exception {
+        prepareNonManagedTableWithDistribution();
+        String expectedSummaryString = "ALTER TABLE cat1.db1.tb1\n  DROP DISTRIBUTION";
+
+        Operation operation = parse("alter table tb1 drop distribution");
         assertThat(operation).isInstanceOf(AlterTableChangeOperation.class);
         assertThat(operation.asSummaryString()).isEqualTo(expectedSummaryString);
-        assertThat(
-                        ((AlterTableChangeOperation) operation)
-                                .getNewTable()
-                                .getUnresolvedSchema()
-                                .getPrimaryKey())
+        assertThat(((AlterTableChangeOperation) operation).getNewTable().getDistribution())
                 .isNotPresent();
+    }
+
+    @Test
+    public void testFailedToAlterTableDropDistribution() throws Exception {
+        prepareNonManagedTable("tb1", false);
+        assertThatThrownBy(() -> parse("alter table tb1 drop distribution"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("The base table does not define an existing distribution.");
+        checkAlterNonExistTable("alter table %s nonexistent drop watermark");
     }
 
     @Test
@@ -2209,6 +2220,59 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
+    public void testAlterTableAddDistribution() throws Exception {
+        prepareNonManagedTable("tb1", false);
+
+        Operation operation = parse("alter table tb1 add distribution by hash(a) into 12 buckets");
+        ObjectIdentifier tableIdentifier = ObjectIdentifier.of("cat1", "db1", "tb1");
+        assertAlterTableDistribution(
+                operation,
+                tableIdentifier,
+                TableDistribution.ofHash(Collections.singletonList("a"), 12),
+                "ALTER TABLE cat1.db1.tb1\n" + "  ADD DISTRIBUTED BY HASH(`a`) INTO 12 BUCKETS\n");
+    }
+
+    @Test
+    public void testFailedToAlterTableAddDistribution() throws Exception {
+        prepareNonManagedTableWithDistribution();
+
+        // modify watermark on a table without watermark
+        assertThatThrownBy(
+                        () -> parse("alter table tb1 add distribution by hash(a) into 12 buckets"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("You can modify it or drop it before adding a new one.");
+    }
+
+    @Test
+    public void testFailedToAlterTableModifyDistribution() throws Exception {
+        prepareNonManagedTable("tb2", false);
+
+        // modify watermark on a table without watermark
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "alter table tb2 modify distribution by hash(a) into 12 buckets"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "The base table does not define any distribution. You might want to add a new one.");
+    }
+
+    @Test
+    public void testAlterTableModifyDistribution() throws Exception {
+        prepareNonManagedTableWithDistribution();
+
+        Operation operation =
+                parse("alter table tb1 modify distribution by hash(a) into 12 buckets");
+        ObjectIdentifier tableIdentifier = ObjectIdentifier.of("cat1", "db1", "tb1");
+        assertAlterTableDistribution(
+                operation,
+                tableIdentifier,
+                TableDistribution.ofHash(Collections.singletonList("a"), 12),
+                "ALTER TABLE cat1.db1.tb1\n"
+                        + "  MODIFY DISTRIBUTED BY HASH(`a`) INTO 12 BUCKETS\n");
+    }
+
+    @Test
     public void testFailedToAlterTableModifyWatermark() throws Exception {
         prepareNonManagedTable("tb1", false);
 
@@ -2485,12 +2549,30 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         prepareTable("tb1", true, hasPartition, false, 0);
     }
 
+    private void prepareNonManagedTableWithDistribution() throws Exception {
+        TableDistribution distribution =
+                TableDistribution.of(
+                        TableDistribution.Kind.HASH, 6, Collections.singletonList("a"));
+        prepareTable("tb1", false, false, false, 0, distribution);
+    }
+
     private void prepareTable(
             String tableName,
             boolean managedTable,
             boolean hasPartition,
             boolean hasWatermark,
             int numOfPkFields)
+            throws Exception {
+        prepareTable(tableName, managedTable, hasPartition, hasWatermark, numOfPkFields, null);
+    }
+
+    private void prepareTable(
+            String tableName,
+            boolean managedTable,
+            boolean hasPartition,
+            boolean hasWatermark,
+            int numOfPkFields,
+            TableDistribution tableDistribution)
             throws Exception {
         Catalog catalog = new GenericInMemoryCatalog("default", "default");
         if (!catalogManager.getCatalog("cat1").isPresent()) {
@@ -2538,12 +2620,22 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         if (hasWatermark) {
             builder.watermark("ts", "ts - interval '5' seconds");
         }
-        CatalogTable catalogTable =
-                CatalogTable.of(
-                        builder.build(),
-                        "a table",
-                        hasPartition ? Arrays.asList("b", "c") : Collections.emptyList(),
-                        Collections.unmodifiableMap(options));
+        CatalogTable.Builder tableBuilder =
+                CatalogTable.newBuilder()
+                        .schema(builder.build())
+                        .comment("a table")
+                        .partitionKeys(
+                                hasPartition ? Arrays.asList("b", "c") : Collections.emptyList())
+                        .options(Collections.unmodifiableMap(options));
+
+        if (tableDistribution != null) {
+            tableBuilder.distribution(tableDistribution);
+        }
+        //        .distribution(TableDistribution.of(TableDistribution.Kind.HASH, 6,
+        // Collections.singletonList("a"))).build();
+
+        CatalogTable catalogTable = tableBuilder.build();
+
         catalogManager.setCurrentCatalog("cat1");
         catalogManager.setCurrentDatabase("db1");
         ObjectIdentifier tableIdentifier = ObjectIdentifier.of("cat1", "db1", tableName);
@@ -2574,6 +2666,20 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         assertThat(alterTableChangeOperation.getTableIdentifier()).isEqualTo(expectedIdentifier);
         assertThat(alterTableChangeOperation.getNewTable().getUnresolvedSchema())
                 .isEqualTo(expectedSchema);
+    }
+
+    private void assertAlterTableDistribution(
+            Operation operation,
+            ObjectIdentifier expectedIdentifier,
+            TableDistribution distribution,
+            String expectedSummaryString) {
+        assertThat(operation).isInstanceOf(AlterTableChangeOperation.class);
+        final AlterTableChangeOperation alterTableChangeOperation =
+                (AlterTableChangeOperation) operation;
+        assertThat(alterTableChangeOperation.getTableIdentifier()).isEqualTo(expectedIdentifier);
+        assertThat(alterTableChangeOperation.getNewTable().getDistribution())
+                .contains(distribution);
+        assertThat(operation.asSummaryString()).isEqualTo(expectedSummaryString);
     }
 
     private void checkAlterNonExistTable(String sqlTemplate) {

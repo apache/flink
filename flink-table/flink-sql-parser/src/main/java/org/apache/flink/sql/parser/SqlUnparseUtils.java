@@ -18,6 +18,7 @@
 
 package org.apache.flink.sql.parser;
 
+import org.apache.flink.sql.parser.ddl.SqlDistribution;
 import org.apache.flink.sql.parser.ddl.SqlWatermark;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 
@@ -40,7 +41,8 @@ public class SqlUnparseUtils {
             int rightPrec,
             SqlNodeList columnList,
             List<SqlTableConstraint> constraints,
-            @Nullable SqlWatermark watermark) {
+            @Nullable SqlWatermark watermark,
+            @Nullable SqlDistribution distribution) {
         SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.create("sds"), "(", ")");
         for (SqlNode column : columnList) {
             printIndent(writer);
@@ -55,6 +57,11 @@ public class SqlUnparseUtils {
         if (watermark != null) {
             printIndent(writer);
             watermark.unparse(writer, leftPrec, rightPrec);
+        }
+
+        if (distribution != null) {
+            printIndent(writer);
+            distribution.unparseAlter(writer, leftPrec, rightPrec);
         }
 
         writer.newlineAndIndent();

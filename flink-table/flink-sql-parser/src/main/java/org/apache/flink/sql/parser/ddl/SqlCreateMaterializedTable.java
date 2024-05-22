@@ -153,6 +153,7 @@ public class SqlCreateMaterializedTable extends SqlCreate {
                     rightPrec,
                     SqlNodeList.EMPTY,
                     Collections.singletonList(tableConstraint),
+                    null,
                     null);
         }
 

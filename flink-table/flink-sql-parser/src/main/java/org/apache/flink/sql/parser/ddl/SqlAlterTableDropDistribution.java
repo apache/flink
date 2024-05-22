@@ -18,59 +18,39 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.flink.sql.parser.SqlUnparseUtils;
-
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 /**
- * SqlNode to describe ALTER TABLE [IF EXISTS] table_name DROP column clause.
+ * SqlNode to describe ALTER TABLE [IF EXISTS] table_name DROP DISTRIBUTION clause.
  *
- * <p>Example: DDL like the below for drop column.
+ * <p>Example: DDL like the below for drop distribution.
  *
  * <pre>{@code
- * -- drop single column
- * ALTER TABLE prod.db.sample DROP col1;
- *
- * -- drop multiple columns
- * ALTER TABLE prod.db.sample DROP (col1, col2, col3);
+ * -- drop distribution
+ *  ALTER TABLE prod.db.sample DROP DISTRIBUTION;
  * }</pre>
  */
-public class SqlAlterTableDropColumn extends SqlAlterTable {
+public class SqlAlterTableDropDistribution extends SqlAlterTable {
 
-    private final SqlNodeList columnList;
-
-    public SqlAlterTableDropColumn(
-            SqlParserPos pos,
-            SqlIdentifier tableName,
-            SqlNodeList columnList,
-            boolean ifTableExists) {
+    public SqlAlterTableDropDistribution(
+            SqlParserPos pos, SqlIdentifier tableName, boolean ifTableExists) {
         super(pos, tableName, ifTableExists);
-        this.columnList = columnList;
     }
 
     @Override
     public List<SqlNode> getOperandList() {
-        return Arrays.asList(tableIdentifier, columnList);
-    }
-
-    public SqlNodeList getColumnList() {
-        return columnList;
+        return Collections.emptyList();
     }
 
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         super.unparse(writer, leftPrec, rightPrec);
-        writer.keyword("DROP");
-        // unparse table column
-        SqlUnparseUtils.unparseTableSchema(
-                writer, leftPrec, rightPrec, columnList, Collections.emptyList(), null, null);
+        writer.keyword("DROP DISTRIBUTION");
     }
 }

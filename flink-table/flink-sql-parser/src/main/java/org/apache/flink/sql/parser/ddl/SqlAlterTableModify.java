@@ -57,8 +57,9 @@ public class SqlAlterTableModify extends SqlAlterTableSchema {
             SqlNodeList modifiedColumns,
             List<SqlTableConstraint> constraints,
             @Nullable SqlWatermark watermark,
+            @Nullable SqlDistribution distribution,
             boolean ifTableExists) {
-        super(pos, tableName, modifiedColumns, constraints, watermark, ifTableExists);
+        super(pos, tableName, modifiedColumns, constraints, watermark, distribution, ifTableExists);
     }
 
     @Override
@@ -67,6 +68,6 @@ public class SqlAlterTableModify extends SqlAlterTableSchema {
         writer.keyword("MODIFY");
         // unparse table schema
         SqlUnparseUtils.unparseTableSchema(
-                writer, leftPrec, rightPrec, columnList, constraints, watermark);
+                writer, leftPrec, rightPrec, columnList, constraints, watermark, distribution);
     }
 }

@@ -42,6 +42,7 @@ public abstract class SqlAlterTableSchema extends SqlAlterTable implements Exten
 
     protected final SqlNodeList columnList;
     @Nullable protected final SqlWatermark watermark;
+    @Nullable protected final SqlDistribution distribution;
     protected final List<SqlTableConstraint> constraints;
 
     public SqlAlterTableSchema(
@@ -50,10 +51,12 @@ public abstract class SqlAlterTableSchema extends SqlAlterTable implements Exten
             SqlNodeList columnList,
             List<SqlTableConstraint> constraints,
             @Nullable SqlWatermark sqlWatermark,
+            @Nullable SqlDistribution distribution,
             boolean ifTableExists) {
         super(pos, tableName, ifTableExists);
         this.columnList = columnList;
         this.constraints = constraints;
+        this.distribution = distribution;
         this.watermark = sqlWatermark;
     }
 
@@ -78,6 +81,10 @@ public abstract class SqlAlterTableSchema extends SqlAlterTable implements Exten
 
     public Optional<SqlWatermark> getWatermark() {
         return Optional.ofNullable(watermark);
+    }
+
+    public Optional<SqlDistribution> getDistribution() {
+        return Optional.ofNullable(distribution);
     }
 
     public List<SqlTableConstraint> getConstraints() {
