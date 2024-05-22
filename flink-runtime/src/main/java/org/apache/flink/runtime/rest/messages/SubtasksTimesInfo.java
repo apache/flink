@@ -22,6 +22,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.rest.handler.job.SubtasksTimesHandler;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
@@ -60,6 +61,26 @@ public class SubtasksTimesInfo implements ResponseBody {
         this.name = checkNotNull(name);
         this.now = now;
         this.subtasks = checkNotNull(subtasks);
+    }
+
+    @JsonIgnore
+    public String getId() {
+        return id;
+    }
+
+    @JsonIgnore
+    public String getName() {
+        return name;
+    }
+
+    @JsonIgnore
+    public long getNow() {
+        return now;
+    }
+
+    @JsonIgnore
+    public List<SubtaskTimeInfo> getSubtasks() {
+        return subtasks;
     }
 
     @Override
@@ -123,6 +144,31 @@ public class SubtasksTimesInfo implements ResponseBody {
             this.endpoint = checkNotNull(endpoint);
             this.duration = duration;
             this.timestamps = checkNotNull(timestamps);
+        }
+
+        @JsonIgnore
+        public int getSubtask() {
+            return subtask;
+        }
+
+        @JsonIgnore
+        public String getHost() {
+            return host;
+        }
+
+        @JsonIgnore
+        public String getEndpoint() {
+            return endpoint;
+        }
+
+        @JsonIgnore
+        public long getDuration() {
+            return duration;
+        }
+
+        @JsonIgnore
+        public Map<ExecutionState, Long> getTimestamps() {
+            return timestamps;
         }
 
         @Override
