@@ -349,8 +349,10 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .andDataTypes(STRING())
                         .testResult($("f0").jsonQuery("$"), "JSON_QUERY(f0, '$')", null, STRING()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_QUERY)
-                        .onFieldsWithData("{ \"a\": \"[1,2]\", \"b\": [1,2]}")
-                        .andDataTypes(STRING())
+                        .onFieldsWithData(
+                                "{ \"a\": \"[1,2]\", \"b\": [1,2]}",
+                                "{\"a\":[{\"c\":null},{\"c\":\"c2\"}]}")
+                        .andDataTypes(STRING(), STRING())
                         .testResult(
                                 $("f0").jsonQuery("$.b"),
                                 "JSON_QUERY(f0, '$.b')",
@@ -366,6 +368,16 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_QUERY(f0, '$.b' WITH CONDITIONAL WRAPPER)",
                                 "[1,2]",
                                 DataTypes.STRING())
+                        .testResult(
+                                $("f1").jsonQuery(
+                                                "lax $.a[*].c",
+                                                DataTypes.ARRAY(DataTypes.STRING()),
+                                                CONDITIONAL_ARRAY,
+                                                ERROR,
+                                                ERROR),
+                                "JSON_QUERY(f1, 'lax $.a[*].c' RETURNING ARRAY<STRING> ERROR ON ERROR ERROR ON EMPTY)",
+                                new String[] {null, "c2"},
+                                DataTypes.ARRAY(DataTypes.STRING()))
                         .testResult(
                                 $("f0").jsonQuery(
                                                 "$.b",
@@ -403,9 +415,28 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testSqlRuntimeError(
                                 "JSON_QUERY(f0, '$.a' RETURNING ARRAY<STRING> WITHOUT WRAPPER ERROR ON ERROR)",
                                 "Strict jsonpath mode requires array or object value, and the actual value is: ''[1,2]''")
-                        .testSqlRuntimeError(
+                        .testSqlValidationError(
                                 "JSON_QUERY(f0, '$.a' RETURNING ARRAY<STRING> WITHOUT WRAPPER EMPTY OBJECT ON ERROR)",
-                                "Illegal error behavior ''EMPTY_OBJECT'' specified in JSON_QUERY function")
+                                "Illegal on error behavior 'EMPTY OBJECT' for return type: VARCHAR(2147483647) ARRAY")
+                        .testSqlValidationError(
+                                "JSON_QUERY(f0, '$.a' RETURNING ARRAY<STRING> WITHOUT WRAPPER EMPTY OBJECT ON EMPTY)",
+                                "Illegal on empty behavior 'EMPTY OBJECT' for return type: VARCHAR(2147483647) ARRAY")
+                        .testTableApiValidationError(
+                                $("f0").jsonQuery(
+                                                "$.a",
+                                                DataTypes.ARRAY(DataTypes.STRING()),
+                                                CONDITIONAL_ARRAY,
+                                                EMPTY_OBJECT,
+                                                EMPTY_ARRAY),
+                                "Illegal on empty behavior 'EMPTY OBJECT' for return type: ARRAY<STRING>")
+                        .testTableApiValidationError(
+                                $("f0").jsonQuery(
+                                                "$.a",
+                                                DataTypes.ARRAY(DataTypes.STRING()),
+                                                CONDITIONAL_ARRAY,
+                                                EMPTY_ARRAY,
+                                                EMPTY_OBJECT),
+                                "Illegal on error behavior 'EMPTY OBJECT' for return type: ARRAY<STRING>")
                         .testResult(
                                 $("f0").jsonQuery(
                                                 "$.a",

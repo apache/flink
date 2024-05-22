@@ -23,7 +23,6 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.JsonExistsOnError;
 import org.apache.flink.table.api.JsonOnNull;
-import org.apache.flink.table.api.JsonQueryOnEmptyOrError;
 import org.apache.flink.table.api.JsonQueryWrapper;
 import org.apache.flink.table.api.JsonType;
 import org.apache.flink.table.api.JsonValueOnEmptyOrError;
@@ -2364,8 +2363,9 @@ public final class BuiltInFunctionDefinitions {
                                     and(logical(LogicalTypeFamily.CHARACTER_STRING), LITERAL),
                                     TYPE_LITERAL,
                                     symbol(JsonQueryWrapper.class),
-                                    symbol(JsonQueryOnEmptyOrError.class),
-                                    symbol(JsonQueryOnEmptyOrError.class)))
+                                    SpecificInputTypeStrategies.JSON_QUERY_ON_EMPTY_ERROR_BEHAVIOUR,
+                                    SpecificInputTypeStrategies
+                                            .JSON_QUERY_ON_EMPTY_ERROR_BEHAVIOUR))
                     .outputTypeStrategy(forceNullable(argument(2)))
                     .runtimeDeferred()
                     .build();

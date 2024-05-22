@@ -263,8 +263,12 @@ public class SqlJsonUtils {
                             return new GenericArrayData(
                                     ((List<Object>) value)
                                             .stream()
-                                                    .map(Object::toString)
-                                                    .map(StringData::fromString)
+                                                    .map(
+                                                            o ->
+                                                                    o != null
+                                                                            ? StringData.fromString(
+                                                                                    o.toString())
+                                                                            : null)
                                                     .toArray(StringData[]::new));
                         default:
                             throw new RuntimeException("illegal return type");
