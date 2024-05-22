@@ -46,7 +46,8 @@ import static java.util.Objects.requireNonNull;
  * The <code>JSON_QUERY</code> function.
  *
  * <p>This class was copied over from Calcite to support RETURNING clause in JSON_QUERY
- * (CALCITE-6365).
+ * (CALCITE-6365). When upgrading to Calcite version that has the change, please remove the entire
+ * class.
  */
 public class SqlJsonQueryFunction extends SqlFunction {
 

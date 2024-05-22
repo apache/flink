@@ -99,8 +99,7 @@ import static org.apache.calcite.sql.type.NonNullableAccessors.getComponentTypeO
 /**
  * Standard implementation of {@link SqlRexConvertletTable}.
  *
- * <p>This class was copied over from Calcite to support RETURNING clause in JSON_QUERY
- * (CALCITE-6365).
+ * <p>Lines 691-736 implement supporting RETURNING clause in JSON_QUERY (CALCITE-6365).
  */
 public class StandardConvertletTable extends ReflectiveConvertletTable {
 
