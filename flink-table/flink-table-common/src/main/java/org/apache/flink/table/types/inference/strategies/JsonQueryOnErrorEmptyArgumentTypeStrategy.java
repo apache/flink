@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.types.inference.strategies;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.JsonQueryOnEmptyOrError;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -35,6 +36,7 @@ import java.util.Optional;
  * Argument strategy for {@link BuiltInFunctionDefinitions#JSON_QUERY} to check the `ON EMPTY`
  * and/or `ON ERROR` behaviour in combination with the return type.
  */
+@Internal
 public class JsonQueryOnErrorEmptyArgumentTypeStrategy implements ArgumentTypeStrategy {
 
     private final SymbolArgumentTypeStrategy<JsonQueryOnEmptyOrError> symbolStrategy =
