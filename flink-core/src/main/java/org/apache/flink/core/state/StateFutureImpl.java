@@ -181,9 +181,18 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
         callbackRegistered();
         if (completableFuture.isDone()) {
             // this branch must be invoked in task thread when expected
+            T t;
+            try {
+                t = completableFuture.get();
+            } catch (Throwable e) {
+                exceptionHandler.handleException(
+                        "Caught exception when submitting StateFuture's callback.", e);
+                return null;
+            }
+
             return other.thenCompose(
                     (u) -> {
-                        V v = fn.apply(completableFuture.get(), u);
+                        V v = fn.apply(t, u);
                         callbackFinished();
                         return StateFutureUtils.completedFuture(v);
                     });
@@ -226,8 +235,16 @@ public class StateFutureImpl<T> implements InternalStateFuture<T> {
 
     @Override
     public void complete(T result) {
+        if (completableFuture.isCompletedExceptionally()) {
+            throw new IllegalStateException("StateFuture already failed !");
+        }
         completableFuture.complete(result);
         postComplete(false);
+    }
+
+    @Override
+    public void completeExceptionally(String message, Throwable ex) {
+        exceptionHandler.handleException(message, ex);
     }
 
     private void completeInCallbackRunner(T result) {
