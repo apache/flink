@@ -261,11 +261,11 @@ public class ExpressionSerializationTest {
                 TestSpec.forExpr($("f0").jsonQuery("$.a"))
                         .withField("f0", DataTypes.STRING())
                         .expectStr(
-                                "JSON_QUERY(`f0`, '$.a' WITHOUT ARRAY WRAPPER NULL ON EMPTY NULL ON ERROR)"),
+                                "JSON_QUERY(`f0`, '$.a' RETURNING VARCHAR(2147483647) WITHOUT ARRAY WRAPPER NULL ON EMPTY NULL ON ERROR)"),
                 TestSpec.forExpr($("f0").jsonQuery("$.a", JsonQueryWrapper.UNCONDITIONAL_ARRAY))
                         .withField("f0", DataTypes.STRING())
                         .expectStr(
-                                "JSON_QUERY(`f0`, '$.a' WITH UNCONDITIONAL ARRAY WRAPPER NULL ON EMPTY NULL ON ERROR)"),
+                                "JSON_QUERY(`f0`, '$.a' RETURNING VARCHAR(2147483647) WITH UNCONDITIONAL ARRAY WRAPPER NULL ON EMPTY NULL ON ERROR)"),
                 TestSpec.forExpr(
                                 $("f0").jsonQuery(
                                                 "$.a",
@@ -274,7 +274,7 @@ public class ExpressionSerializationTest {
                                                 JsonQueryOnEmptyOrError.EMPTY_ARRAY))
                         .withField("f0", DataTypes.STRING())
                         .expectStr(
-                                "JSON_QUERY(`f0`, '$.a' WITH CONDITIONAL ARRAY WRAPPER EMPTY OBJECT ON EMPTY EMPTY ARRAY ON ERROR)"),
+                                "JSON_QUERY(`f0`, '$.a' RETURNING VARCHAR(2147483647) WITH CONDITIONAL ARRAY WRAPPER EMPTY OBJECT ON EMPTY EMPTY ARRAY ON ERROR)"),
                 TestSpec.forExpr(
                                 Expressions.jsonObject(JsonOnNull.ABSENT, "k1", $("f0"), "k2", 123))
                         .withField("f0", DataTypes.STRING())

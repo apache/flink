@@ -86,6 +86,10 @@ public final class SpecificInputTypeStrategies {
                     logical(LogicalTypeRoot.BOOLEAN),
                     logical(LogicalTypeFamily.NUMERIC));
 
+    /** See {@link JsonQueryOnErrorEmptyArgumentTypeStrategy}. */
+    public static final ArgumentTypeStrategy JSON_QUERY_ON_EMPTY_ERROR_BEHAVIOUR =
+            new JsonQueryOnErrorEmptyArgumentTypeStrategy();
+
     /** Argument type derived from the array element type. */
     public static final ArgumentTypeStrategy ARRAY_ELEMENT_ARG =
             new ArrayElementArgumentTypeStrategy();

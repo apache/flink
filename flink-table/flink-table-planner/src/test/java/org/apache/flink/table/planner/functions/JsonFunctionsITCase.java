@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.JsonExistsOnError;
 import org.apache.flink.table.api.JsonOnNull;
 import org.apache.flink.table.api.JsonType;
@@ -347,6 +348,105 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .onFieldsWithData((String) null)
                         .andDataTypes(STRING())
                         .testResult($("f0").jsonQuery("$"), "JSON_QUERY(f0, '$')", null, STRING()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_QUERY)
+                        .onFieldsWithData(
+                                "{ \"a\": \"[1,2]\", \"b\": [1,2]}",
+                                "{\"a\":[{\"c\":null},{\"c\":\"c2\"}]}")
+                        .andDataTypes(STRING(), STRING())
+                        .testResult(
+                                $("f0").jsonQuery("$.b"),
+                                "JSON_QUERY(f0, '$.b')",
+                                "[1,2]",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f0").jsonQuery("$.b", DataTypes.ARRAY(DataTypes.STRING())),
+                                "JSON_QUERY(f0, '$.b' RETURNING ARRAY<STRING>)",
+                                new String[] {"1", "2"},
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        .testResult(
+                                $("f0").jsonQuery("$.b", CONDITIONAL_ARRAY),
+                                "JSON_QUERY(f0, '$.b' WITH CONDITIONAL WRAPPER)",
+                                "[1,2]",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f1").jsonQuery(
+                                                "lax $.a[*].c",
+                                                DataTypes.ARRAY(DataTypes.STRING()),
+                                                CONDITIONAL_ARRAY,
+                                                ERROR,
+                                                ERROR),
+                                "JSON_QUERY(f1, 'lax $.a[*].c' RETURNING ARRAY<STRING> ERROR ON ERROR ERROR ON EMPTY)",
+                                new String[] {null, "c2"},
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        .testResult(
+                                $("f0").jsonQuery(
+                                                "$.b",
+                                                DataTypes.ARRAY(DataTypes.STRING()),
+                                                CONDITIONAL_ARRAY),
+                                "JSON_QUERY(f0, '$.b' RETURNING ARRAY<STRING> WITH CONDITIONAL WRAPPER)",
+                                new String[] {"1", "2"},
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        .testSqlValidationError(
+                                "JSON_QUERY(f0, '$.b' RETURNING ARRAY<INTEGER>  WITH CONDITIONAL WRAPPER ERROR ON ERROR)",
+                                " Unsupported array element type 'INTEGER' for RETURNING ARRAY in JSON_QUERY()")
+                        .testResult(
+                                $("f0").jsonQuery("$.a"),
+                                "JSON_QUERY(f0, '$.a')",
+                                null,
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f0").jsonQuery("$.a", DataTypes.ARRAY(DataTypes.STRING())),
+                                "JSON_QUERY(f0, '$.a' RETURNING ARRAY<STRING>)",
+                                null,
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        .testResult(
+                                $("f0").jsonQuery("$.a", CONDITIONAL_ARRAY),
+                                "JSON_QUERY(f0, '$.a' WITH CONDITIONAL WRAPPER)",
+                                "[\"[1,2]\"]",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f0").jsonQuery(
+                                                "$.a",
+                                                DataTypes.ARRAY(DataTypes.STRING()),
+                                                CONDITIONAL_ARRAY),
+                                "JSON_QUERY(f0, '$.a' RETURNING ARRAY<STRING> WITH CONDITIONAL WRAPPER)",
+                                new String[] {"[1,2]"},
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        .testSqlRuntimeError(
+                                "JSON_QUERY(f0, '$.a' RETURNING ARRAY<STRING> WITHOUT WRAPPER ERROR ON ERROR)",
+                                "Strict jsonpath mode requires array or object value, and the actual value is: ''[1,2]''")
+                        .testSqlValidationError(
+                                "JSON_QUERY(f0, '$.a' RETURNING ARRAY<STRING> WITHOUT WRAPPER EMPTY OBJECT ON ERROR)",
+                                "Illegal on error behavior 'EMPTY OBJECT' for return type: VARCHAR(2147483647) ARRAY")
+                        .testSqlValidationError(
+                                "JSON_QUERY(f0, '$.a' RETURNING ARRAY<STRING> WITHOUT WRAPPER EMPTY OBJECT ON EMPTY)",
+                                "Illegal on empty behavior 'EMPTY OBJECT' for return type: VARCHAR(2147483647) ARRAY")
+                        .testTableApiValidationError(
+                                $("f0").jsonQuery(
+                                                "$.a",
+                                                DataTypes.ARRAY(DataTypes.STRING()),
+                                                CONDITIONAL_ARRAY,
+                                                EMPTY_OBJECT,
+                                                EMPTY_ARRAY),
+                                "Illegal on empty behavior 'EMPTY OBJECT' for return type: ARRAY<STRING>")
+                        .testTableApiValidationError(
+                                $("f0").jsonQuery(
+                                                "$.a",
+                                                DataTypes.ARRAY(DataTypes.STRING()),
+                                                CONDITIONAL_ARRAY,
+                                                EMPTY_ARRAY,
+                                                EMPTY_OBJECT),
+                                "Illegal on error behavior 'EMPTY OBJECT' for return type: ARRAY<STRING>")
+                        .testResult(
+                                $("f0").jsonQuery(
+                                                "$.a",
+                                                DataTypes.ARRAY(DataTypes.STRING()),
+                                                WITHOUT_ARRAY,
+                                                EMPTY_ARRAY,
+                                                EMPTY_ARRAY),
+                                "JSON_QUERY(f0, '$.a' RETURNING ARRAY<STRING> WITHOUT WRAPPER EMPTY ARRAY ON ERROR)",
+                                new String[] {},
+                                DataTypes.ARRAY(DataTypes.STRING())),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_QUERY)
                         .onFieldsWithData(jsonValue)
                         .andDataTypes(STRING())
