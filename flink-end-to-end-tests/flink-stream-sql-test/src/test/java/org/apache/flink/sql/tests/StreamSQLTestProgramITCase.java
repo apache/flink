@@ -22,11 +22,12 @@ import org.apache.flink.connector.testframe.container.FlinkContainers;
 import org.apache.flink.connector.testframe.container.FlinkContainersSettings;
 import org.apache.flink.connector.testframe.container.TestcontainersSettings;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 class StreamSQLTestProgramITCase extends AbstractStreamSQLTestProgramITCase {
-    private static final Logger LOGGER = LoggerFactory.getLogger(StreamSQLTestProgramITCase.class);
+
+    @Override
+    protected String getPlannerJarName() {
+        return "flink-table-planner-loader";
+    }
 
     @Override
     protected FlinkContainers createFlinkContainers() {
@@ -34,7 +35,7 @@ class StreamSQLTestProgramITCase extends AbstractStreamSQLTestProgramITCase {
                 .withFlinkContainersSettings(
                         FlinkContainersSettings.builder().numTaskManagers(4).build())
                 .withTestcontainersSettings(
-                        TestcontainersSettings.builder().network(NETWORK).logger(LOGGER).build())
+                        TestcontainersSettings.builder().network(NETWORK).build())
                 .build();
     }
 }

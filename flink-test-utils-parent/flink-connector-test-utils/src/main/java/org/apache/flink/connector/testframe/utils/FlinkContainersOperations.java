@@ -74,11 +74,12 @@ public class FlinkContainersOperations {
     }
 
     private String sortLines(final String input) throws IOException {
-        final BufferedReader bufferedReader = new BufferedReader(new StringReader(input));
         final List<String> lines = new ArrayList<>();
         String inputLine;
-        while ((inputLine = bufferedReader.readLine()) != null) {
-            lines.add(inputLine);
+        try (final BufferedReader bufferedReader = new BufferedReader(new StringReader(input))) {
+            while ((inputLine = bufferedReader.readLine()) != null) {
+                lines.add(inputLine);
+            }
         }
         Collections.sort(lines);
         final StringBuilder sb = new StringBuilder();

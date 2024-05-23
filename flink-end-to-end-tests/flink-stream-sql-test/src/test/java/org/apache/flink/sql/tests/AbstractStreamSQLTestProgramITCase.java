@@ -28,6 +28,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.Container;
 import org.testcontainers.containers.Network;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -49,6 +50,8 @@ abstract class AbstractStreamSQLTestProgramITCase {
             ResourceTestUtils.getResource(".*/StreamSQLTestProgram\\.jar");
 
     FlinkContainers flink = createFlinkContainers();
+
+    protected abstract String getPlannerJarName();
 
     protected abstract FlinkContainers createFlinkContainers();
 
@@ -74,14 +77,21 @@ abstract class AbstractStreamSQLTestProgramITCase {
                         .addArgument("--outputPath", outputPath) //
                         .build();
         final JobID jobId = flink.submitJob(job);
-        final String result = flink.getOutputPathContent(outputPath + "/20/", "part-*", true);
-        assertThat(result)
+        final String content = flink.getOutputPathContent(outputPath + "/20/", "part-*", true);
+        assertThat(content)
                 .isEqualTo(
                         "+I[20, 1970-01-01 00:00:00.0]\n" //
                                 + "+I[20, 1970-01-01 00:00:20.0]\n" //
                                 + "+I[20, 1970-01-01 00:00:40.0]\n" //
                         );
-        assertThat(getMD5Hash(result)).isEqualTo("a88cc1dc7e7c2c2adc75bd23454ef4da");
+        assertThat(getMD5Hash(content)).isEqualTo("a88cc1dc7e7c2c2adc75bd23454ef4da");
+
+        // Check uses correct planner jar
+        Container.ExecResult result =
+                flink.getJobManager()
+                        .execInContainer("bash", "-c", "cat log/flink--standalone*.log");
+        assertThat(result.getExitCode()).isZero();
+        assertThat(result.getStdout()).contains(getPlannerJarName());
     }
 
     private String getMD5Hash(final String input) throws NoSuchAlgorithmException {
