@@ -133,19 +133,19 @@ class FlinkImageBuilderTest {
 
     @Test
     void testJobManagerWithBaseImage() throws ImageBuildException {
-        final FlinkContainersSettings settings =
+        final FlinkContainersSettings baseImageSettings =
                 FlinkContainersSettings.builder()
                         .numTaskManagers(2)
                         .baseImage("flink:1.19.0-scala_2.12-java11")
                         .build();
-        final Configuration conf = settings.getFlinkConfig();
+        final Configuration baseImageConf = baseImageSettings.getFlinkConfig();
 
         ImageFromDockerfile image =
                 new FlinkImageBuilder()
                         .setTempDirectory(tempDir)
-                        .setConfiguration(conf)
-                        .setLogProperties(settings.getLogProperties())
-                        .setBaseImage(settings.getBaseImage())
+                        .setConfiguration(baseImageConf)
+                        .setLogProperties(baseImageSettings.getLogProperties())
+                        .setBaseImage(baseImageSettings.getBaseImage())
                         .asJobManager()
                         .build();
         try (final GenericContainer<?> container = new GenericContainer<>(image)) {
