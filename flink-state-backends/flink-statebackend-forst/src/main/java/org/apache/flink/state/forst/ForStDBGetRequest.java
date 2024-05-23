@@ -59,6 +59,10 @@ public class ForStDBGetRequest<K, V> {
         future.complete(value);
     }
 
+    public void completeStateFutureExceptionally(String message, Throwable ex) {
+        future.completeExceptionally(message, ex);
+    }
+
     static <K, V> ForStDBGetRequest<K, V> of(
             K key, ForStInnerTable<K, V> table, InternalStateFuture<V> future) {
         return new ForStDBGetRequest<>(key, table, future);

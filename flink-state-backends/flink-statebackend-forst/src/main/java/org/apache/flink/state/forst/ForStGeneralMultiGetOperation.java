@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * The general-purpose multiGet operation implementation for ForStDB, which simulates multiGet by
@@ -50,21 +51,31 @@ public class ForStGeneralMultiGetOperation implements ForStDBOperation {
 
     @Override
     public CompletableFuture<Void> process() {
+        // TODO: Use MultiGet to optimize this implement
 
         CompletableFuture<Void> future = new CompletableFuture<>();
 
+        AtomicReference<Exception> error = new AtomicReference<>();
         AtomicInteger counter = new AtomicInteger(batchRequest.size());
         for (int i = 0; i < batchRequest.size(); i++) {
             ForStDBGetRequest<?, ?> request = batchRequest.get(i);
             executor.execute(
                     () -> {
                         try {
-                            byte[] key = request.buildSerializedKey();
-                            byte[] value = db.get(request.getColumnFamilyHandle(), key);
-                            request.completeStateFuture(value);
+                            if (error.get() == null) {
+                                byte[] key = request.buildSerializedKey();
+                                byte[] value = db.get(request.getColumnFamilyHandle(), key);
+                                request.completeStateFuture(value);
+                            } else {
+                                request.completeStateFutureExceptionally(
+                                        "Error already occurred in other state request of the same "
+                                                + "group, failed the state request directly",
+                                        error.get());
+                            }
                         } catch (Exception e) {
-                            LOG.warn(
-                                    "Error when process general multiGet operation for forStDB", e);
+                            error.set(e);
+                            request.completeStateFutureExceptionally(
+                                    "Error when execute ForStDb get operation", e);
                             future.completeExceptionally(e);
                         } finally {
                             if (counter.decrementAndGet() == 0
