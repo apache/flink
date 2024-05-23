@@ -67,13 +67,19 @@ public final class MailboxExecutorImpl implements MailboxExecutor {
 
     @Override
     public void execute(
+            MailOptions mailOptions,
             final ThrowingRunnable<? extends Exception> command,
             final String descriptionFormat,
             final Object... descriptionArgs) {
         try {
             mailbox.put(
                     new Mail(
-                            command, priority, actionExecutor, descriptionFormat, descriptionArgs));
+                            mailOptions,
+                            command,
+                            priority,
+                            actionExecutor,
+                            descriptionFormat,
+                            descriptionArgs));
         } catch (MailboxClosedException mbex) {
             throw new RejectedExecutionException(mbex);
         }

@@ -235,6 +235,7 @@ class PrintSinkTest {
 
         @Override
         public void execute(
+                MailOptions mailOptions,
                 ThrowingRunnable<? extends Exception> command,
                 String descriptionFormat,
                 Object... descriptionArgs) {}
