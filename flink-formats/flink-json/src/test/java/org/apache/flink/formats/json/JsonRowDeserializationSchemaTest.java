@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
+import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.formats.utils.DeserializationSchemaMatcher.whenDeserializedWith;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -233,10 +234,11 @@ public class JsonRowDeserializationSchemaTest {
                 new JsonRowDeserializationSchema.Builder(rowTypeInformation)
                         .failOnMissingField()
                         .build();
-        final JsonRowDeserializationSchema errorDs = deserializationSchema;
-        assertThatThrownBy(() -> errorDs.deserialize(serializedJson))
-                .isInstanceOf(Exception.class)
-                .hasMessageContaining("Failed to deserialize JSON");
+        assertThat(
+                        whenDeserializedWith(deserializationSchema)
+                                .failsWithException(containsCause(JsonSchemaException.class))
+                                .matches(serializedJson))
+                .isTrue();
 
         // ignore-parse-errors ignores missing field exception too
         deserializationSchema =
@@ -258,6 +260,60 @@ public class JsonRowDeserializationSchemaTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(
                         "JSON format doesn't support failOnMissingField and ignoreParseErrors are both true");
+    }
+
+    /** Tests deserialization with unknown field. */
+    @Test
+    public void testUnknownNode() throws Exception {
+        // Root
+        ObjectNode root = OBJECT_MAPPER.createObjectNode();
+        root.put("id", 123123123);
+        root.put("name", "gg");
+        byte[] serializedJson = OBJECT_MAPPER.writeValueAsBytes(root);
+
+        TypeInformation<Row> rowTypeInformation = Types.ROW_NAMED(new String[] {"id"}, Types.INT);
+
+        JsonRowDeserializationSchema deserializationSchema =
+                new JsonRowDeserializationSchema.Builder(rowTypeInformation).build();
+
+        Row row = new Row(1);
+        row.setField(0, 123123123);
+        assertThat(
+                        whenDeserializedWith(deserializationSchema)
+                                .equalsTo(row)
+                                .matches(serializedJson))
+                .isTrue();
+
+        deserializationSchema =
+                new JsonRowDeserializationSchema.Builder(rowTypeInformation)
+                        .failOnUnknownField()
+                        .build();
+        assertThat(
+                        whenDeserializedWith(deserializationSchema)
+                                .failsWithException(containsCause(JsonSchemaException.class))
+                                .matches(serializedJson))
+                .isTrue();
+
+        // ignore-parse-errors ignores unknown field exception too
+        deserializationSchema =
+                new JsonRowDeserializationSchema.Builder(rowTypeInformation)
+                        .ignoreParseErrors()
+                        .build();
+        assertThat(
+                        whenDeserializedWith(deserializationSchema)
+                                .equalsTo(row)
+                                .matches(serializedJson))
+                .isTrue();
+
+        assertThatThrownBy(
+                        () ->
+                                new JsonRowDeserializationSchema.Builder(rowTypeInformation)
+                                        .failOnUnknownField()
+                                        .ignoreParseErrors()
+                                        .build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(
+                        "JSON format doesn't support failOnUnknownField and ignoreParseErrors are both true");
     }
 
     /** Tests that number of field names and types has to match. */

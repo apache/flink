@@ -85,7 +85,14 @@ Format 参数
       <td>可选</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-      <td>当解析字段缺失时，是跳过当前字段或行，还是抛出错误失败（默认为 false，即抛出错误失败）。</td>
+      <td>当解析字段缺失时，是跳过当前字段或行，还是抛出错误失败（默认为 false，即跳过当前字段或行）。</td>
+    </tr>
+    <tr>
+      <td><h5>json.fail-on-unknown-field</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>当解析到未知字段时，是跳过当前字段或行，还是抛出错误失败（默认为 false，即跳过当前字段或行）。</td>
     </tr>
     <tr>
       <td><h5>json.ignore-parse-errors</h5></td>

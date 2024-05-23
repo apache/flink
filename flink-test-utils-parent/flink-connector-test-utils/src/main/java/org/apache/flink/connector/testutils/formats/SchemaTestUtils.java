@@ -20,6 +20,9 @@ package org.apache.flink.connector.testutils.formats;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 
+import static org.apache.flink.util.InstantiationUtil.deserializeObject;
+import static org.apache.flink.util.InstantiationUtil.serializeObject;
+
 /** Test utilities for schemas. */
 public class SchemaTestUtils {
 
@@ -30,6 +33,13 @@ public class SchemaTestUtils {
      * @throws RuntimeException if the schema throws an exception
      */
     public static void open(SerializationSchema<?> schema) {
+        try {
+            deserializeObject(
+                    serializeObject(schema), Thread.currentThread().getContextClassLoader());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
         try {
             schema.open(new DummyInitializationContext());
         } catch (Exception e) {
@@ -44,6 +54,13 @@ public class SchemaTestUtils {
      * @throws RuntimeException if the schema throws an exception
      */
     public static void open(DeserializationSchema<?> schema) {
+        try {
+            deserializeObject(
+                    serializeObject(schema), Thread.currentThread().getContextClassLoader());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
         try {
             schema.open(new DummyInitializationContext());
         } catch (Exception e) {

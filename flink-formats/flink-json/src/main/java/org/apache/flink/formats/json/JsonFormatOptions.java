@@ -33,6 +33,13 @@ public class JsonFormatOptions {
                     .withDescription(
                             "Optional flag to specify whether to fail if a field is missing or not, false by default.");
 
+    public static final ConfigOption<Boolean> FAIL_ON_UNKNOWN_FIELD =
+            ConfigOptions.key("fail-on-unknown-field")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Optional flag to specify whether to fail if a field is unknown or not, false by default.");
+
     public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS =
             ConfigOptions.key("ignore-parse-errors")
                     .booleanType()

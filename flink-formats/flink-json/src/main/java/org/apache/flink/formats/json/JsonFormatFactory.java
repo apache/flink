@@ -48,6 +48,7 @@ import static org.apache.flink.formats.json.JsonFormatOptions.DECODE_JSON_PARSER
 import static org.apache.flink.formats.json.JsonFormatOptions.ENCODE_DECIMAL_AS_PLAIN_NUMBER;
 import static org.apache.flink.formats.json.JsonFormatOptions.ENCODE_IGNORE_NULL_FIELDS;
 import static org.apache.flink.formats.json.JsonFormatOptions.FAIL_ON_MISSING_FIELD;
+import static org.apache.flink.formats.json.JsonFormatOptions.FAIL_ON_UNKNOWN_FIELD;
 import static org.apache.flink.formats.json.JsonFormatOptions.IGNORE_PARSE_ERRORS;
 import static org.apache.flink.formats.json.JsonFormatOptions.MAP_NULL_KEY_LITERAL;
 import static org.apache.flink.formats.json.JsonFormatOptions.MAP_NULL_KEY_MODE;
@@ -69,6 +70,7 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
         JsonFormatOptionsUtil.validateDecodingFormatOptions(formatOptions);
 
         final boolean failOnMissingField = formatOptions.get(FAIL_ON_MISSING_FIELD);
+        final boolean failOnUnknownField = formatOptions.get(FAIL_ON_UNKNOWN_FIELD);
         final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
         final boolean jsonParserEnabled = formatOptions.get(DECODE_JSON_PARSER_ENABLED);
         TimestampFormat timestampOption = JsonFormatOptionsUtil.getTimestampFormat(formatOptions);
@@ -89,6 +91,7 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
                             rowType,
                             rowDataTypeInfo,
                             failOnMissingField,
+                            failOnUnknownField,
                             ignoreParseErrors,
                             timestampOption,
                             toProjectedNames(
@@ -98,6 +101,7 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
                             rowType,
                             rowDataTypeInfo,
                             failOnMissingField,
+                            failOnUnknownField,
                             ignoreParseErrors,
                             timestampOption);
                 }
@@ -185,6 +189,7 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
     public Set<ConfigOption<?>> optionalOptions() {
         Set<ConfigOption<?>> options = new HashSet<>();
         options.add(FAIL_ON_MISSING_FIELD);
+        options.add(FAIL_ON_UNKNOWN_FIELD);
         options.add(IGNORE_PARSE_ERRORS);
         options.add(TIMESTAMP_FORMAT);
         options.add(MAP_NULL_KEY_MODE);

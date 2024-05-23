@@ -31,6 +31,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.formats.json.JsonFormatOptions.FAIL_ON_MISSING_FIELD;
+import static org.apache.flink.formats.json.JsonFormatOptions.FAIL_ON_UNKNOWN_FIELD;
 import static org.apache.flink.formats.json.JsonFormatOptions.IGNORE_PARSE_ERRORS;
 import static org.apache.flink.formats.json.JsonFormatOptions.MAP_NULL_KEY_MODE;
 import static org.apache.flink.formats.json.JsonFormatOptions.TIMESTAMP_FORMAT;
@@ -103,13 +104,19 @@ public class JsonFormatOptionsUtil {
     /** Validator for json decoding format. */
     public static void validateDecodingFormatOptions(ReadableConfig tableOptions) {
         boolean failOnMissingField = tableOptions.get(FAIL_ON_MISSING_FIELD);
+        boolean failOnUnknownField = tableOptions.get(FAIL_ON_UNKNOWN_FIELD);
         boolean ignoreParseErrors = tableOptions.get(IGNORE_PARSE_ERRORS);
         if (ignoreParseErrors && failOnMissingField) {
             throw new ValidationException(
-                    FAIL_ON_MISSING_FIELD.key()
-                            + " and "
-                            + IGNORE_PARSE_ERRORS.key()
-                            + " shouldn't both be true.");
+                    String.format(
+                            "%s and %s shouldn't both be true.",
+                            FAIL_ON_MISSING_FIELD.key(), IGNORE_PARSE_ERRORS.key()));
+        }
+        if (ignoreParseErrors && failOnUnknownField) {
+            throw new ValidationException(
+                    String.format(
+                            "%s and %s shouldn't both be true.",
+                            FAIL_ON_UNKNOWN_FIELD.key(), IGNORE_PARSE_ERRORS.key()));
         }
         validateTimestampFormat(tableOptions);
     }

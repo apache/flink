@@ -32,6 +32,7 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
+import org.apache.flink.shaded.guava32.com.google.common.collect.Sets;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
@@ -56,11 +57,14 @@ import java.time.temporal.TemporalAccessor;
 import java.time.temporal.TemporalQueries;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -94,6 +98,8 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 
     private boolean failOnMissingField;
 
+    private final boolean failOnUnknownField;
+
     private final boolean hasDecimalType;
 
     /** Object mapper for parsing the JSON. */
@@ -105,15 +111,23 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
     private final boolean ignoreParseErrors;
 
     private JsonRowDeserializationSchema(
-            TypeInformation<Row> typeInfo, boolean failOnMissingField, boolean ignoreParseErrors) {
+            TypeInformation<Row> typeInfo,
+            boolean failOnMissingField,
+            boolean failOnUnknownField,
+            boolean ignoreParseErrors) {
         checkNotNull(typeInfo, "Type information");
         checkArgument(typeInfo instanceof RowTypeInfo, "Only RowTypeInfo is supported");
         if (ignoreParseErrors && failOnMissingField) {
             throw new IllegalArgumentException(
                     "JSON format doesn't support failOnMissingField and ignoreParseErrors are both true.");
         }
+        if (ignoreParseErrors && failOnUnknownField) {
+            throw new IllegalArgumentException(
+                    "JSON format doesn't support failOnUnknownField and ignoreParseErrors are both true.");
+        }
         this.typeInfo = (RowTypeInfo) typeInfo;
         this.failOnMissingField = failOnMissingField;
+        this.failOnUnknownField = failOnUnknownField;
         this.runtimeConverter = createConverter(this.typeInfo);
         this.ignoreParseErrors = ignoreParseErrors;
         RowType rowType = (RowType) fromLegacyInfoToDataType(this.typeInfo).getLogicalType();
@@ -131,13 +145,13 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
     /** @deprecated Use the provided {@link Builder} instead. */
     @Deprecated
     public JsonRowDeserializationSchema(TypeInformation<Row> typeInfo) {
-        this(typeInfo, false, false);
+        this(typeInfo, false, false, false);
     }
 
     /** @deprecated Use the provided {@link Builder} instead. */
     @Deprecated
     public JsonRowDeserializationSchema(String jsonSchema) {
-        this(JsonRowSchemaConverter.convert(checkNotNull(jsonSchema)), false, false);
+        this(JsonRowSchemaConverter.convert(checkNotNull(jsonSchema)), false, false, false);
     }
 
     /** @deprecated Use the provided {@link Builder} instead. */
@@ -177,6 +191,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 
         private final RowTypeInfo typeInfo;
         private boolean failOnMissingField = false;
+        private boolean failOnUnknownField = false;
         private boolean ignoreParseErrors = false;
 
         /**
@@ -211,6 +226,16 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
         }
 
         /**
+         * Configures schema to fail if a JSON field is unknown.
+         *
+         * <p>By default, an unknown field is ignored.
+         */
+        public Builder failOnUnknownField() {
+            this.failOnUnknownField = true;
+            return this;
+        }
+
+        /**
          * Configures schema to fail when parsing json failed.
          *
          * <p>By default, an exception will be thrown when parsing json fails.
@@ -222,7 +247,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 
         public JsonRowDeserializationSchema build() {
             return new JsonRowDeserializationSchema(
-                    typeInfo, failOnMissingField, ignoreParseErrors);
+                    typeInfo, failOnMissingField, failOnUnknownField, ignoreParseErrors);
         }
     }
 
@@ -237,12 +262,13 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
         final JsonRowDeserializationSchema that = (JsonRowDeserializationSchema) o;
         return Objects.equals(typeInfo, that.typeInfo)
                 && Objects.equals(failOnMissingField, that.failOnMissingField)
+                && Objects.equals(failOnUnknownField, that.failOnUnknownField)
                 && Objects.equals(ignoreParseErrors, that.ignoreParseErrors);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(typeInfo, failOnMissingField, ignoreParseErrors);
+        return Objects.hash(typeInfo, failOnMissingField, failOnUnknownField, ignoreParseErrors);
     }
 
     /*
@@ -283,6 +309,36 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
                 return null;
             }
         };
+    }
+
+    private DeserializationRuntimeConverter wrapInUnknownFieldCheck(
+            String[] fieldNames, DeserializationRuntimeConverter converter) {
+        Consumer<JsonNode> checker = unknownFieldChecker(fieldNames);
+
+        return (mapper, jsonNode) -> {
+            checker.accept(jsonNode);
+            return converter.convert(mapper, jsonNode);
+        };
+    }
+
+    private Consumer<JsonNode> unknownFieldChecker(String[] fieldNames) {
+        HashSet<String> knownFields = Sets.newHashSet(fieldNames);
+        return (Consumer<JsonNode> & Serializable)
+                (jsonNode) -> {
+                    Set<String> unknownFields = Sets.newHashSet();
+                    jsonNode.fieldNames()
+                            .forEachRemaining(
+                                    fieldName -> {
+                                        if (!knownFields.contains(fieldName)) {
+                                            unknownFields.add(fieldName);
+                                        }
+                                    });
+
+                    if (!unknownFields.isEmpty()) {
+                        throw new JsonSchemaException(
+                                String.format("Find unknown fields with name: %s.", unknownFields));
+                    }
+                };
     }
 
     private Optional<DeserializationRuntimeConverter> createContainerConverter(
@@ -351,6 +407,12 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
                 Arrays.stream(typeInfo.getFieldTypes())
                         .map(this::createConverter)
                         .collect(Collectors.toList());
+
+        if (failOnUnknownField) {
+            return wrapInUnknownFieldCheck(
+                    typeInfo.getFieldNames(),
+                    assembleRowConverter(typeInfo.getFieldNames(), fieldConverters));
+        }
 
         return assembleRowConverter(typeInfo.getFieldNames(), fieldConverters);
     }
@@ -549,7 +611,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
             JsonNode field) {
         if (field == null) {
             if (failOnMissingField) {
-                throw new IllegalStateException(
+                throw new JsonSchemaException(
                         "Could not find field with name '" + fieldName + "'.");
             } else {
                 return null;
@@ -574,14 +636,5 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 
             return array;
         };
-    }
-
-    /** Exception which refers to parse errors in converters. */
-    private static final class JsonParseException extends RuntimeException {
-        private static final long serialVersionUID = 1L;
-
-        public JsonParseException(String message, Throwable cause) {
-            super(message, cause);
-        }
     }
 }

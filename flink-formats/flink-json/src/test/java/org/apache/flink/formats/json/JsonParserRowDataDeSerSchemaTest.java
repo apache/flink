@@ -51,6 +51,7 @@ import static org.apache.flink.table.api.DataTypes.SMALLINT;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link JsonParserRowDataDeserializationSchema}. */
 public class JsonParserRowDataDeSerSchemaTest {
@@ -109,25 +110,49 @@ public class JsonParserRowDataDeSerSchemaTest {
                         FIELD("tinyint", TINYINT()),
                         FIELD("smallint", SMALLINT()),
                         FIELD("int", INT()),
-                        FIELD("map2map", MAP(STRING(), MAP(STRING(), INT()))));
+                        FIELD("map2map", MAP(STRING(), MAP(STRING(), INT()))),
+                        FIELD("missing", INT()));
         RowType schema = (RowType) dataType.getLogicalType();
         TypeInformation<RowData> resultTypeInfo = InternalTypeInfo.of(schema);
 
         DeserializationSchema<RowData> deserializationSchema =
                 new JsonParserRowDataDeserializationSchema(
-                        schema, resultTypeInfo, false, false, TimestampFormat.ISO_8601);
+                        schema, resultTypeInfo, false, false, false, TimestampFormat.ISO_8601);
         open(deserializationSchema);
 
-        Row expected = new Row(5);
+        Row expected = new Row(6);
         expected.setField(0, true);
         expected.setField(1, tinyint);
         expected.setField(2, smallint);
         expected.setField(3, intValue);
         expected.setField(4, nestedMap);
+        expected.setField(5, null);
 
         RowData rowData = deserializationSchema.deserialize(serializedJson);
         Row actual = convertToExternal(rowData, dataType);
         assertThat(actual).isEqualTo(expected);
+
+        // fail on missing field
+        deserializationSchema =
+                new JsonParserRowDataDeserializationSchema(
+                        schema, resultTypeInfo, true, false, false, TimestampFormat.ISO_8601);
+        open(deserializationSchema);
+
+        DeserializationSchema<RowData> errorDeserializationSchema1 = deserializationSchema;
+        assertThatThrownBy(() -> errorDeserializationSchema1.deserialize(serializedJson))
+                .hasMessageContaining("Failed to deserialize JSON")
+                .hasRootCauseInstanceOf(JsonSchemaException.class);
+
+        // fail on unknown field
+        deserializationSchema =
+                new JsonParserRowDataDeserializationSchema(
+                        schema, resultTypeInfo, false, true, false, TimestampFormat.ISO_8601);
+        open(deserializationSchema);
+
+        DeserializationSchema<RowData> errorDeserializationSchema2 = deserializationSchema;
+        assertThatThrownBy(() -> errorDeserializationSchema2.deserialize(serializedJson))
+                .hasMessageContaining("Failed to deserialize JSON")
+                .hasRootCauseInstanceOf(JsonSchemaException.class);
     }
 
     @Test
@@ -166,6 +191,7 @@ public class JsonParserRowDataDeSerSchemaTest {
                 new JsonParserRowDataDeserializationSchema(
                         schema,
                         resultTypeInfo,
+                        false,
                         false,
                         false,
                         TimestampFormat.ISO_8601,
@@ -261,6 +287,7 @@ public class JsonParserRowDataDeSerSchemaTest {
                         resultTypeInfo,
                         false,
                         false,
+                        false,
                         TimestampFormat.ISO_8601,
                         new String[][] {
                             new String[] {"f1"},
@@ -326,6 +353,7 @@ public class JsonParserRowDataDeSerSchemaTest {
                 new JsonParserRowDataDeserializationSchema(
                         schema,
                         resultTypeInfo,
+                        false,
                         false,
                         false,
                         TimestampFormat.ISO_8601,

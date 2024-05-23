@@ -38,6 +38,7 @@ import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 
+import org.apache.flink.shaded.guava32.com.google.common.collect.Sets;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
@@ -54,8 +55,11 @@ import java.time.ZoneOffset;
 import java.time.temporal.TemporalAccessor;
 import java.time.temporal.TemporalQueries;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Consumer;
 
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.apache.flink.formats.common.TimeFormats.ISO8601_TIMESTAMP_FORMAT;
@@ -73,6 +77,9 @@ public class JsonToRowDataConverters implements Serializable {
     /** Flag indicating whether to fail if a field is missing. */
     private final boolean failOnMissingField;
 
+    /** Flag indicating whether to fail if a field is unknown. */
+    private final boolean failOnUnknownField;
+
     /** Flag indicating whether to ignore invalid fields/rows (default: throw an exception). */
     private final boolean ignoreParseErrors;
 
@@ -81,9 +88,11 @@ public class JsonToRowDataConverters implements Serializable {
 
     public JsonToRowDataConverters(
             boolean failOnMissingField,
+            boolean failOnUnknownField,
             boolean ignoreParseErrors,
             TimestampFormat timestampFormat) {
         this.failOnMissingField = failOnMissingField;
+        this.failOnUnknownField = failOnUnknownField;
         this.ignoreParseErrors = ignoreParseErrors;
         this.timestampFormat = timestampFormat;
     }
@@ -339,7 +348,11 @@ public class JsonToRowDataConverters implements Serializable {
                         .toArray(JsonToRowDataConverter[]::new);
         final String[] fieldNames = rowType.getFieldNames().toArray(new String[0]);
 
+        Consumer<JsonNode> checker = unknownFieldChecker(fieldNames);
+
         return jsonNode -> {
+            checker.accept(jsonNode);
+
             ObjectNode node = (ObjectNode) jsonNode;
             int arity = fieldNames.length;
             GenericRowData row = new GenericRowData(arity);
@@ -362,7 +375,8 @@ public class JsonToRowDataConverters implements Serializable {
             JsonToRowDataConverter fieldConverter, String fieldName, JsonNode field) {
         if (field == null) {
             if (failOnMissingField) {
-                throw new JsonParseException("Could not find field with name '" + fieldName + "'.");
+                throw new JsonSchemaException(
+                        "Could not find field with name '" + fieldName + "'.");
             } else {
                 return null;
             }
@@ -385,5 +399,29 @@ public class JsonToRowDataConverters implements Serializable {
                 return null;
             }
         };
+    }
+
+    private Consumer<JsonNode> unknownFieldChecker(String[] fieldNames) {
+        if (!failOnUnknownField) {
+            return (Consumer<JsonNode> & Serializable) (jsonNode) -> {};
+        }
+
+        HashSet<String> knownFields = Sets.newHashSet(fieldNames);
+        return (Consumer<JsonNode> & Serializable)
+                (jsonNode) -> {
+                    Set<String> unknownFields = Sets.newHashSet();
+                    jsonNode.fieldNames()
+                            .forEachRemaining(
+                                    fieldName -> {
+                                        if (!knownFields.contains(fieldName)) {
+                                            unknownFields.add(fieldName);
+                                        }
+                                    });
+
+                    if (!unknownFields.isEmpty()) {
+                        throw new JsonSchemaException(
+                                String.format("Find unknown fields with name: %s.", unknownFields));
+                    }
+                };
     }
 }

@@ -69,6 +69,18 @@ class JsonFormatFactoryTest {
     }
 
     @Test
+    void testFailOnUnknownField() {
+        final Map<String, String> tableOptions =
+                getModifyOptions(options -> options.put("json.fail-on-unknown-field", "true"));
+
+        assertThatCreateRuntimeDecoder(tableOptions)
+                .satisfies(
+                        anyCauseMatches(
+                                ValidationException.class,
+                                "fail-on-unknown-field and ignore-parse-errors shouldn't both be true."));
+    }
+
+    @Test
     void testInvalidOptionForIgnoreParseErrors() {
         final Map<String, String> tableOptions =
                 getModifyOptions(options -> options.put("json.ignore-parse-errors", "abc"));
@@ -156,6 +168,7 @@ class JsonFormatFactoryTest {
                         PHYSICAL_TYPE,
                         InternalTypeInfo.of(PHYSICAL_TYPE),
                         false,
+                        false,
                         true,
                         TimestampFormat.ISO_8601);
 
@@ -223,6 +236,7 @@ class JsonFormatFactoryTest {
 
         options.put("format", JsonFormatFactory.IDENTIFIER);
         options.put("json.fail-on-missing-field", "false");
+        options.put("json.fail-on-unknown-field", "false");
         options.put("json.ignore-parse-errors", "true");
         options.put("json.timestamp-format.standard", "ISO-8601");
         options.put("json.map-null-key.mode", "LITERAL");

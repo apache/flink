@@ -75,6 +75,9 @@ public class JsonParserToRowDataConverters implements Serializable {
     /** Flag indicating whether to fail if a field is missing. */
     private final boolean failOnMissingField;
 
+    /** Flag indicating whether to fail if a field is unknown. */
+    private final boolean failOnUnknownField;
+
     /** Flag indicating whether to ignore invalid fields/rows (default: throw an exception). */
     private final boolean ignoreParseErrors;
 
@@ -83,9 +86,11 @@ public class JsonParserToRowDataConverters implements Serializable {
 
     public JsonParserToRowDataConverters(
             boolean failOnMissingField,
+            boolean failOnUnknownField,
             boolean ignoreParseErrors,
             TimestampFormat timestampFormat) {
         this.failOnMissingField = failOnMissingField;
+        this.failOnUnknownField = failOnUnknownField;
         this.ignoreParseErrors = ignoreParseErrors;
         this.timestampFormat = timestampFormat;
     }
@@ -404,6 +409,10 @@ public class JsonParserToRowDataConverters implements Serializable {
             jp.nextToken();
             while (jp.currentToken() != JsonToken.END_OBJECT) {
                 if (cnt >= arity) {
+                    if (failOnUnknownField) {
+                        throw new JsonSchemaException(
+                                "Find unknown field with name: " + jp.getText());
+                    }
                     skipToNextField(jp);
                     continue;
                 }
@@ -421,11 +430,14 @@ public class JsonParserToRowDataConverters implements Serializable {
                     jp.nextToken();
                     cnt++;
                 } else {
+                    if (failOnUnknownField) {
+                        throw new JsonSchemaException("Find unknown field with name: " + fieldName);
+                    }
                     skipToNextField(jp);
                 }
             }
             if (cnt < arity && failOnMissingField) {
-                throw new JsonParseException("Some field is missing in the JSON data.");
+                throw new JsonSchemaException("Some field is missing in the JSON data.");
             }
             return row;
         };
@@ -619,7 +631,7 @@ public class JsonParserToRowDataConverters implements Serializable {
                 }
             }
             if (cnt < arity && failOnMissingField) {
-                throw new JsonParseException("Some field is missing in the Json data.");
+                throw new JsonSchemaException("Some field is missing in the Json data.");
             }
         }
     }
