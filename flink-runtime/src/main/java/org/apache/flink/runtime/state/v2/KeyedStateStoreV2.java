@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state.v2;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.state.v2.AggregatingState;
 import org.apache.flink.api.common.state.v2.ListState;
 import org.apache.flink.api.common.state.v2.MapState;
 import org.apache.flink.api.common.state.v2.ReducingState;
@@ -86,4 +87,19 @@ public interface KeyedStateStoreV2 {
      *     function (function is not part of a KeyedStream).
      */
     <T> ReducingState<T> getReducingState(@Nonnull ReducingStateDescriptor<T> stateProperties);
+
+    /**
+     * Gets a handle to the system's key/value aggregating state. This state is only accessible if
+     * the function is executed on a KeyedStream.
+     *
+     * @param stateProperties The descriptor defining the properties of the stats.
+     * @param <IN> The type of the values that are added to the state.
+     * @param <ACC> The type of the accumulator (intermediate aggregation state).
+     * @param <OUT> The type of the values that are returned from the state.
+     * @return The partitioned state object.
+     * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
+     *     function (function is not part of a KeyedStream).
+     */
+    <IN, ACC, OUT> AggregatingState<IN, OUT> getAggregatingState(
+            @Nonnull AggregatingStateDescriptor<IN, ACC, OUT> stateProperties);
 }
