@@ -35,6 +35,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -43,6 +44,7 @@ class MailboxWatermarkProcessorTest {
 
     @Test
     void testEmitWatermarkInsideMailbox() throws Exception {
+        int priority = 42;
         final List<StreamElement> emittedElements = new ArrayList<>();
         final TaskMailboxImpl mailbox = new TaskMailboxImpl();
         final InternalTimeServiceManager<?> timerService = new NoOpInternalTimeServiceManager();
@@ -50,7 +52,8 @@ class MailboxWatermarkProcessorTest {
         final MailboxWatermarkProcessor<StreamRecord<String>> watermarkProcessor =
                 new MailboxWatermarkProcessor<>(
                         new CollectorOutput<>(emittedElements),
-                        new MailboxExecutorImpl(mailbox, 0, StreamTaskActionExecutor.IMMEDIATE),
+                        new MailboxExecutorImpl(
+                                mailbox, priority, StreamTaskActionExecutor.IMMEDIATE),
                         timerService);
         final List<Watermark> expectedOutput = new ArrayList<>();
         watermarkProcessor.emitWatermarkInsideMailbox(new Watermark(1));
@@ -67,6 +70,10 @@ class MailboxWatermarkProcessorTest {
         watermarkProcessor.emitWatermarkInsideMailbox(new Watermark(4));
         watermarkProcessor.emitWatermarkInsideMailbox(new Watermark(5));
 
+        assertThat(emittedElements).containsExactlyElementsOf(expectedOutput);
+
+        // FLINK-35528: do not allow yielding to continuation mails
+        assertThat(mailbox.tryTake(priority)).isEqualTo(Optional.empty());
         assertThat(emittedElements).containsExactlyElementsOf(expectedOutput);
 
         while (mailbox.hasMail()) {

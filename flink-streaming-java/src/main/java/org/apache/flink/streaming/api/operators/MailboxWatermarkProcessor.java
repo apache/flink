@@ -77,6 +77,7 @@ public class MailboxWatermarkProcessor<OUT> {
             progressWatermarkScheduled = true;
             // We still have work to do, but we need to let other mails to be processed first.
             mailboxExecutor.execute(
+                    MailboxExecutor.MailOptions.deferrable(),
                     () -> {
                         progressWatermarkScheduled = false;
                         emitWatermarkInsideMailbox();
