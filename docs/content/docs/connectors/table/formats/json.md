@@ -93,6 +93,14 @@ Format Options
       <td>Whether to fail if a field is missing or not.</td>
     </tr>
     <tr>
+      <td><h5>json.fail-on-unknown-field</h5></td>
+      <td>optional</td>
+      <td>no</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Whether to fail if a field is unknown or not.</td>
+    </tr>
+    <tr>
       <td><h5>json.ignore-parse-errors</h5></td>
       <td>optional</td>
       <td>no</td>

@@ -44,14 +44,18 @@ import static org.apache.flink.util.InstantiationUtil.serializeObject;
  * Row expectedRow = ...
  * final JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(rowSchema);
  *
- * assertThat(jsonBytes, whenDeserializedWith(deserializationSchema)
- *     .matches(expectedRow));
+ * assertThat(
+ *     whenDeserializedWith(deserializationSchema)
+ *         .equalsTo(expectedRow)
+ *         .matches(jsonBytes))
+ *     .isTrue();
  * }</pre>
  *   <li>to check if an exception is thrown during serialization:
  *       <pre>{@code
- * assertThat(serializedJson,
+ * assertThat(
  *     whenDeserializedWith(deserializationSchema)
- *         .failsWithException(hasCause(instanceOf(IllegalStateException.class))));
+ *         .failsWithException(containsCause(new IllegalStateException(...))))
+ *     .isTrue();
  * }</pre>
  * </ul>
  */

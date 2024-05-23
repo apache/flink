@@ -62,7 +62,7 @@ public class ResultInfoDeserializer extends StdDeserializer<ResultInfo> {
     }
 
     private static final JsonToRowDataConverters TO_ROW_DATA_CONVERTERS =
-            new JsonToRowDataConverters(false, false, TimestampFormat.ISO_8601);
+            new JsonToRowDataConverters(false, false, false, TimestampFormat.ISO_8601);
 
     @Override
     public ResultInfo deserialize(JsonParser jsonParser, DeserializationContext ctx)
