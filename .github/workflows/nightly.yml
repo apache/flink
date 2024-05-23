@@ -96,7 +96,7 @@ jobs:
       s3_secret_key: ${{ secrets.IT_CASE_S3_SECRET_KEY }}
 
   build_python_wheels:
-    name: "Build Python Wheels on ${{ matrix.os }}"
+    name: "Build Python Wheels on ${{ matrix.os_name }}"
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -104,37 +104,40 @@ jobs:
         include:
           - os: ubuntu-latest
             os_name: linux
-            python-version: 3.9
           - os: macos-latest
             os_name: macos
-            python-version: 3.9
     steps:
       - name: "Checkout the repository"
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: "Install python"
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
       - name: "Stringify workflow name"
         uses: "./.github/actions/stringify"
         id: stringify_workflow
         with:
           value: ${{ github.workflow }}
+      # Used to host cibuildwheel
+      - name: "Setup Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: "Install cibuildwheel"
+        run: python -m pip install cibuildwheel==2.16.5
       - name: "Build python wheels for ${{ matrix.os_name }}"
-        if: matrix.os_name == 'linux'
-        run: |
-          cd flink-python
-          bash dev/build-wheels.sh
-      - name: "Build python wheels for ${{ matrix.os }}"
-        if: matrix.os_name == 'macos'
-        run: |
-          cd flink-python
-          python -m pip install --upgrade pip
-          pip install cibuildwheel==2.8.0
-          cibuildwheel --platform macos --output-dir dist .
+        run: python -m cibuildwheel --output-dir flink-python/dist flink-python
+        env:
+          # Skip -musllinux on Linux builds
+          CIBW_SKIP: "*-musllinux*"
+          # Use manylinux2014 on Linux
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
+          CIBW_BEFORE_ALL_LINUX: pip install patchelf
+          CIBW_BEFORE_BUILD_LINUX: pip install -r flink-python/dev/dev-requirements.txt
+          CIBW_ENVIRONMENT_LINUX: CFLAGS="-I. -include ./dev/glibc_version_fix.h"
+          # Run auditwheel repair on Linux
+          CIBW_REPAIR_WHEEL_COMMAND_LINUX: "auditwheel repair -w {dest_dir} {wheel}"
+          # Skip repair on MacOS
+          CIBW_REPAIR_WHEEL_COMMAND_MACOS: ""
       - name: "Tar python artifact"
         run: tar -czvf python-wheel-${{ matrix.os_name }}.tar.gz -C flink-python/dist .
       - name: "Upload python artifact"
