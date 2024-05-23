@@ -32,6 +32,14 @@ public interface InternalStateFuture<T> extends StateFuture<T> {
     void complete(T result);
 
     /**
+     * Fail this future and pass the given exception to the runtime.
+     *
+     * @param message the description of this exception
+     * @param ex the exception
+     */
+    void completeExceptionally(String message, Throwable ex);
+
+    /**
      * Accept the action in the same thread with the one of complete (or current thread if it has
      * been completed).
      *

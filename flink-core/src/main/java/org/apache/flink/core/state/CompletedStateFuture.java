@@ -70,6 +70,11 @@ public class CompletedStateFuture<T> implements InternalStateFuture<T> {
     }
 
     @Override
+    public void completeExceptionally(String message, Throwable ex) {
+        throw new UnsupportedOperationException("This state future has already been completed.");
+    }
+
+    @Override
     public void thenSyncAccept(ThrowingConsumer<? super T, ? extends Exception> action) {
         ThrowingConsumer.unchecked(action).accept(result);
     }

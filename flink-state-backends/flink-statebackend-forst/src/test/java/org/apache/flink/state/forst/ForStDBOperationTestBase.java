@@ -122,6 +122,11 @@ public class ForStDBOperationTestBase {
         }
 
         @Override
+        public void completeExceptionally(String message, Throwable ex) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public void thenSyncAccept(ThrowingConsumer<? super T, ? extends Exception> action) {
             throw new UnsupportedOperationException();
         }
