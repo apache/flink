@@ -124,9 +124,8 @@ public class TestSinkInitContext implements WriterInitContext {
             @Override
             public ScheduledFuture<?> registerTimer(
                     long time, ProcessingTimeCallback processingTimerCallback) {
-                processingTimeService.registerTimer(
+                return processingTimeService.registerTimer(
                         time, processingTimerCallback::onProcessingTime);
-                return null;
             }
         };
     }
