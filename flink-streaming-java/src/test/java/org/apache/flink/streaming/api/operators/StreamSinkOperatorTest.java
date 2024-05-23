@@ -18,9 +18,10 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
@@ -51,15 +52,15 @@ class StreamSinkOperatorTest {
         testHarness.setup();
         testHarness.open();
 
-        testHarness.processWatermark(new Watermark(17));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(17)));
         testHarness.setProcessingTime(12);
         testHarness.processElement(new StreamRecord<>("Hello", 12L));
 
-        testHarness.processWatermark(new Watermark(42));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(42)));
         testHarness.setProcessingTime(15);
         testHarness.processElement(new StreamRecord<>("Ciao", 13L));
 
-        testHarness.processWatermark(new Watermark(42));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(42)));
         testHarness.setProcessingTime(15);
         testHarness.processElement(new StreamRecord<>("Ciao"));
 
@@ -75,9 +76,9 @@ class StreamSinkOperatorTest {
 
         assertThat(bufferingSink.watermarks)
                 .contains(
-                        new org.apache.flink.api.common.eventtime.Watermark(17L),
-                        new org.apache.flink.api.common.eventtime.Watermark(42L),
-                        new org.apache.flink.api.common.eventtime.Watermark(42L));
+                        new org.apache.flink.api.common.eventtime.TimestampWatermark(17L),
+                        new org.apache.flink.api.common.eventtime.TimestampWatermark(42L),
+                        new org.apache.flink.api.common.eventtime.TimestampWatermark(42L));
 
         testHarness.close();
     }
@@ -87,7 +88,7 @@ class StreamSinkOperatorTest {
         // watermark, processing-time, timestamp, event
         private final List<Tuple4<Long, Long, Long, T>> data;
 
-        private final List<org.apache.flink.api.common.eventtime.Watermark> watermarks;
+        private final List<org.apache.flink.api.common.eventtime.GenericWatermark> watermarks;
 
         public BufferingQueryingSink() {
             data = new ArrayList<>();
@@ -115,7 +116,7 @@ class StreamSinkOperatorTest {
         }
 
         @Override
-        public void writeWatermark(org.apache.flink.api.common.eventtime.Watermark watermark)
+        public void writeWatermark(org.apache.flink.api.common.eventtime.GenericWatermark watermark)
                 throws Exception {
             watermarks.add(watermark);
         }

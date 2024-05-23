@@ -260,7 +260,8 @@ public class StreamTwoInputProcessorFactory {
         public void emitWatermark(WatermarkEvent watermark) throws Exception {
             GenericWatermark genericWatermark = watermark.getGenericWatermark();
             if (genericWatermark instanceof TimestampWatermark) {
-                inputWatermarkGauge.setCurrentWatermark(((TimestampWatermark) genericWatermark).getTimestamp());
+                inputWatermarkGauge.setCurrentWatermark(
+                        ((TimestampWatermark) genericWatermark).getTimestamp());
             }
             if (inputIndex == 0) {
                 if (watermarkBypass == null) {
@@ -330,7 +331,8 @@ public class StreamTwoInputProcessorFactory {
             if (!(genericWatermark instanceof TimestampWatermark)) {
                 return;
             }
-            if (((TimestampWatermark) genericWatermark).getTimestamp() != TimestampWatermark.MAX_WATERMARK.getTimestamp()) {
+            if (((TimestampWatermark) genericWatermark).getTimestamp()
+                    != TimestampWatermark.MAX_WATERMARK.getTimestamp()) {
                 throw new IllegalStateException(
                         String.format(
                                 "We should not receive any watermarks [%s] other than the MAX_WATERMARK if finished on restore",

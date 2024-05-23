@@ -20,7 +20,7 @@ package org.apache.flink.streaming.util;
 
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -82,7 +82,7 @@ public class BlockingSourceContext<T> implements SourceFunction.SourceContext<T>
     }
 
     @Override
-    public void emitWatermark(Watermark mark) {
+    public void emitWatermark(WatermarkEvent mark) {
         throw new UnsupportedOperationException();
     }
 

@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.KeyedStateStore;
@@ -28,7 +29,7 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
@@ -2814,7 +2815,7 @@ abstract class WindowOperatorContractTest {
         shouldFireOnElement(mockTrigger);
 
         // 20 is just at the limit, window.maxTime() is 1 and allowed lateness is 20
-        testHarness.processWatermark(new Watermark(20));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(20)));
 
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
@@ -2856,7 +2857,7 @@ abstract class WindowOperatorContractTest {
         shouldFireOnElement(mockTrigger);
 
         // window.maxTime() == 1 plus 20L of allowed lateness
-        testHarness.processWatermark(new Watermark(21));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(21)));
 
         testHarness.processElement(new StreamRecord<>(0, 0L));
 
@@ -2957,7 +2958,7 @@ abstract class WindowOperatorContractTest {
 
         verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
 
-        testHarness.processWatermark(new Watermark(20L));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(20L)));
 
         verify(mockTrigger, times(2)).clear(anyTimeWindow(), anyTriggerContext());
 
@@ -3413,7 +3414,7 @@ abstract class WindowOperatorContractTest {
 
         public void advanceTime(OneInputStreamOperatorTestHarness testHarness, long timestamp)
                 throws Exception {
-            testHarness.processWatermark(new Watermark(timestamp));
+            testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(timestamp)));
         }
 
         @Override

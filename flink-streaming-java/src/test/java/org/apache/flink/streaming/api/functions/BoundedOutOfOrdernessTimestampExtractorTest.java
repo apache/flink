@@ -18,8 +18,10 @@
 
 package org.apache.flink.streaming.api.functions;
 
+import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.api.windowing.time.Time;
 
 import org.junit.jupiter.api.Test;
@@ -45,7 +47,10 @@ class BoundedOutOfOrdernessTimestampExtractorTest {
     void testInitialFinalAndWatermarkUnderflow() {
         BoundedOutOfOrdernessTimestampExtractor<Long> extractor =
                 new LongExtractor(Time.milliseconds(10L));
-        assertThat(extractor.getCurrentWatermark().getTimestamp()).isEqualTo(Long.MIN_VALUE);
+        GenericWatermark genericWatermark = extractor.getCurrentWatermark().getGenericWatermark();
+        assertThat(genericWatermark).isInstanceOf(TimestampWatermark.class);
+        assertThat(((TimestampWatermark) genericWatermark).getTimestamp())
+                .isEqualTo(Long.MIN_VALUE);
 
         extractor.extractTimestamp(Long.MIN_VALUE, -1L);
 
@@ -56,33 +61,44 @@ class BoundedOutOfOrdernessTimestampExtractorTest {
         // would lead to underflow.
 
         extractor.extractTimestamp(Long.MIN_VALUE + 2, -1);
-        assertThat(extractor.getCurrentWatermark().getTimestamp()).isEqualTo(Long.MIN_VALUE);
+
+        genericWatermark = extractor.getCurrentWatermark().getGenericWatermark();
+        assertThat(genericWatermark).isInstanceOf(TimestampWatermark.class);
+        assertThat(((TimestampWatermark) genericWatermark).getTimestamp())
+                .isEqualTo(Long.MIN_VALUE);
 
         extractor.extractTimestamp(Long.MAX_VALUE, -1L);
-        assertThat(extractor.getCurrentWatermark().getTimestamp()).isEqualTo(Long.MAX_VALUE - 10);
+        genericWatermark = extractor.getCurrentWatermark().getGenericWatermark();
+        assertThat(genericWatermark).isInstanceOf(TimestampWatermark.class);
+        assertThat(((TimestampWatermark) genericWatermark).getTimestamp())
+                .isEqualTo(Long.MAX_VALUE - 10);
     }
 
     // ------------------------------------------------------------------------
 
     private void runValidTests(BoundedOutOfOrdernessTimestampExtractor<Long> extractor) {
-        assertThat(extractor.getCurrentWatermark()).isEqualTo(Watermark.UNINITIALIZED);
+        assertThat(extractor.getCurrentWatermark())
+                .isEqualTo(new WatermarkEvent(TimestampWatermark.UNINITIALIZED));
 
         assertThat(extractor.extractTimestamp(13L, 0L)).isEqualTo(13L);
         assertThat(extractor.extractTimestamp(13L, 0L)).isEqualTo(13L);
         assertThat(extractor.extractTimestamp(14L, 0L)).isEqualTo(14L);
         assertThat(extractor.extractTimestamp(20L, 0L)).isEqualTo(20L);
 
-        assertThat(extractor.getCurrentWatermark()).isEqualTo(new Watermark(10L));
+        assertThat(extractor.getCurrentWatermark())
+                .isEqualTo(new WatermarkEvent(new TimestampWatermark(10L)));
 
         assertThat(extractor.extractTimestamp(20L, 0L)).isEqualTo(20L);
         assertThat(extractor.extractTimestamp(20L, 0L)).isEqualTo(20L);
         assertThat(extractor.extractTimestamp(500L, 0L)).isEqualTo(500L);
 
-        assertThat(extractor.getCurrentWatermark()).isEqualTo(new Watermark(490L));
+        assertThat(extractor.getCurrentWatermark())
+                .isEqualTo(new WatermarkEvent(new TimestampWatermark(490L)));
 
         assertThat(extractor.extractTimestamp(Long.MAX_VALUE - 1, 0L))
                 .isEqualTo(Long.MAX_VALUE - 1);
-        assertThat(extractor.getCurrentWatermark()).isEqualTo(new Watermark(Long.MAX_VALUE - 11));
+        assertThat(extractor.getCurrentWatermark())
+                .isEqualTo(new WatermarkEvent(new TimestampWatermark(Long.MAX_VALUE - 11)));
     }
 
     // ------------------------------------------------------------------------

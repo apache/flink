@@ -17,8 +17,8 @@
 
 package org.apache.flink.test.streaming.api;
 
+import org.apache.flink.api.common.eventtime.GenericWatermark;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
-import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -100,7 +100,7 @@ public class FileReadingWatermarkITCase extends TestLogger {
             }
 
             @Override
-            public void writeWatermark(Watermark watermark) {
+            public void writeWatermark(GenericWatermark watermark) {
                 LOG.info("Sink received watermark {}", watermark);
                 latch.get().countDown();
             }

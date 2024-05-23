@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -25,7 +26,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.streaming.api.datastream.StreamProjection;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
@@ -91,7 +92,7 @@ class StreamProjectTest {
                 new StreamRecord<Tuple5<Integer, String, Integer, String, Integer>>(
                         new Tuple5<Integer, String, Integer, String, Integer>(2, "a", 3, "c", 2),
                         initialTime + 3));
-        testHarness.processWatermark(new Watermark(initialTime + 2));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(initialTime + 2)));
         testHarness.processElement(
                 new StreamRecord<Tuple5<Integer, String, Integer, String, Integer>>(
                         new Tuple5<Integer, String, Integer, String, Integer>(2, "a", 3, "a", 7),
@@ -106,7 +107,7 @@ class StreamProjectTest {
         expectedOutput.add(
                 new StreamRecord<Tuple3<Integer, Integer, String>>(
                         new Tuple3<Integer, Integer, String>(2, 2, "c"), initialTime + 3));
-        expectedOutput.add(new Watermark(initialTime + 2));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(initialTime + 2)));
         expectedOutput.add(
                 new StreamRecord<Tuple3<Integer, Integer, String>>(
                         new Tuple3<Integer, Integer, String>(7, 7, "a"), initialTime + 4));

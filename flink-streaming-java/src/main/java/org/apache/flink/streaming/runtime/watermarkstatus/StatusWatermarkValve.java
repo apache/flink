@@ -157,7 +157,8 @@ public class StatusWatermarkValve {
         final SubpartitionStatus subpartitionStatus;
         GenericWatermark genericWatermark = watermark.getGenericWatermark();
         if (genericWatermark instanceof InternalWatermark) {
-            int subpartitionStatusIndex = ((InternalWatermark) genericWatermark).getSubpartitionIndex();
+            int subpartitionStatusIndex =
+                    ((InternalWatermark) genericWatermark).getSubpartitionIndex();
             subpartitionStatus =
                     subpartitionStatuses.get(channelIndex).get(subpartitionStatusIndex);
         } else {
@@ -167,7 +168,9 @@ public class StatusWatermarkValve {
 
         // ignore the input watermark if its subpartition, or all subpartitions are idle (i.e.
         // overall the valve is idle).
-        if (genericWatermark instanceof TimestampWatermark && lastOutputWatermarkStatus.isActive() && subpartitionStatus.watermarkStatus.isActive()) {
+        if (genericWatermark instanceof TimestampWatermark
+                && lastOutputWatermarkStatus.isActive()
+                && subpartitionStatus.watermarkStatus.isActive()) {
             long watermarkMillis = ((TimestampWatermark) genericWatermark).getTimestamp();
 
             // if the input watermark's value is less than the last received watermark for its

@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
-import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -276,14 +276,16 @@ class TimestampsAndWatermarksOperatorTest {
         return (StreamRecord<T>) testHarness.getOutput().poll();
     }
 
-    private static org.apache.flink.streaming.api.watermark.Watermark pollNextLegacyWatermark(
+    private static org.apache.flink.streaming.api.watermark.WatermarkEvent pollNextLegacyWatermark(
             OneInputStreamOperatorTestHarness<?, ?> testHarness) {
-        return (org.apache.flink.streaming.api.watermark.Watermark) testHarness.getOutput().poll();
+        return (org.apache.flink.streaming.api.watermark.WatermarkEvent)
+                testHarness.getOutput().poll();
     }
 
-    private static org.apache.flink.streaming.api.watermark.Watermark createLegacyWatermark(
+    private static org.apache.flink.streaming.api.watermark.WatermarkEvent createLegacyWatermark(
             long timestamp) {
-        return new org.apache.flink.streaming.api.watermark.Watermark(timestamp);
+        return new org.apache.flink.streaming.api.watermark.WatermarkEvent(
+                new TimestampWatermark(timestamp));
     }
 
     private static class LongExtractor implements TimestampAssigner<Long> {
@@ -319,7 +321,7 @@ class TimestampsAndWatermarksOperatorTest {
         public void onPeriodicEmit(WatermarkOutput output) {
             long effectiveWatermark =
                     currentWatermark == Long.MIN_VALUE ? Long.MIN_VALUE : currentWatermark - 1;
-            output.emitWatermark(new Watermark(effectiveWatermark));
+            output.emitWatermark(new TimestampWatermark(effectiveWatermark));
         }
     }
 
@@ -334,7 +336,7 @@ class TimestampsAndWatermarksOperatorTest {
         public void onEvent(
                 Tuple2<Boolean, Long> event, long eventTimestamp, WatermarkOutput output) {
             if (event.f0) {
-                output.emitWatermark(new Watermark(event.f1));
+                output.emitWatermark(new TimestampWatermark(event.f1));
             }
         }
 

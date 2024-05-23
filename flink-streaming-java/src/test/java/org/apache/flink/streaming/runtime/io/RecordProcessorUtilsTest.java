@@ -31,7 +31,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskITCase;
@@ -275,7 +275,7 @@ class RecordProcessorUtilsTest {
         }
 
         @Override
-        public void processWatermark(Watermark mark) throws Exception {}
+        public void processWatermark(WatermarkEvent mark) throws Exception {}
 
         @Override
         public void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {}
@@ -356,10 +356,10 @@ class RecordProcessorUtilsTest {
         }
 
         @Override
-        public void processWatermark1(Watermark mark) throws Exception {}
+        public void processWatermark1(WatermarkEvent mark) throws Exception {}
 
         @Override
-        public void processWatermark2(Watermark mark) throws Exception {}
+        public void processWatermark2(WatermarkEvent mark) throws Exception {}
 
         @Override
         public void processLatencyMarker1(LatencyMarker latencyMarker) throws Exception {}

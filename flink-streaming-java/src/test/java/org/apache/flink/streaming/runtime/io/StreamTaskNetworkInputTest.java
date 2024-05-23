@@ -43,7 +43,7 @@ import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.operators.source.CollectingDataOutput;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierTracker;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
@@ -443,7 +443,7 @@ class StreamTaskNetworkInputTest {
         public void emitRecord(StreamRecord<T> record) {}
 
         @Override
-        public void emitWatermark(Watermark watermark) {}
+        public void emitWatermark(WatermarkEvent watermark) {}
 
         @Override
         public void emitWatermarkStatus(WatermarkStatus watermarkStatus) {}

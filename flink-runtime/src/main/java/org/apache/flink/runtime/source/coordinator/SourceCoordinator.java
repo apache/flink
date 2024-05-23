@@ -63,7 +63,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -311,7 +310,8 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                     } else if (event instanceof ReportedWatermarkEvent) {
                         handleReportedWatermark(
                                 subtask,
-                                new TimestampWatermark(((ReportedWatermarkEvent) event).getWatermark()));
+                                new TimestampWatermark(
+                                        ((ReportedWatermarkEvent) event).getWatermark()));
                     } else {
                         throw new FlinkException("Unrecognized Operator Event: " + event);
                     }
@@ -676,7 +676,8 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         }
     }
 
-    private void handleReportedWatermark(int subtask, TimestampWatermark watermark) throws FlinkException {
+    private void handleReportedWatermark(int subtask, TimestampWatermark watermark)
+            throws FlinkException {
         if (context.isConcurrentExecutionAttemptsSupported()) {
             throw new FlinkException(
                     "ReportedWatermarkEvent is not supported in concurrent execution attempts "
@@ -806,13 +807,14 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         private final HeapPriorityQueue<WatermarkElement> orderedWatermarks =
                 new HeapPriorityQueue<>(PriorityComparator.forPriorityComparableObjects(), 10);
 
-        private static final TimestampWatermark DEFAULT_WATERMARK = new TimestampWatermark(Long.MIN_VALUE);
+        private static final TimestampWatermark DEFAULT_WATERMARK =
+                new TimestampWatermark(Long.MIN_VALUE);
 
         /**
          * Update the {@link TimestampWatermark} for the given {@code key)}.
          *
-         * @return the new updated combined {@link TimestampWatermark} if the value has changed. {@code
-         *     Optional.empty()} otherwise.
+         * @return the new updated combined {@link TimestampWatermark} if the value has changed.
+         *     {@code Optional.empty()} otherwise.
          */
         public Optional<TimestampWatermark> aggregate(T key, TimestampWatermark watermark) {
             TimestampWatermark oldAggregatedWatermark = getAggregatedWatermark();

@@ -18,7 +18,9 @@
 
 package org.apache.flink.streaming.api.functions;
 
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 
 import org.junit.jupiter.api.Test;
 
@@ -36,15 +38,20 @@ class IngestionTimeExtractorTest {
 
         for (int i = 0; i < 1343; i++) {
             if (i % 7 == 1) {
-                Watermark mark = assigner.getCurrentWatermark();
+                WatermarkEvent mark = assigner.getCurrentWatermark();
                 assertThat(mark).isNotNull();
 
+                GenericWatermark genericWatermark = mark.getGenericWatermark();
+                assertThat(genericWatermark).isInstanceOf(TimestampWatermark.class);
+
                 // increasing watermarks
-                assertThat(mark.getTimestamp()).isGreaterThanOrEqualTo(maxWatermarkSoFar);
-                maxWatermarkSoFar = mark.getTimestamp();
+                assertThat(((TimestampWatermark) genericWatermark).getTimestamp())
+                        .isGreaterThanOrEqualTo(maxWatermarkSoFar);
+                maxWatermarkSoFar = ((TimestampWatermark) genericWatermark).getTimestamp();
 
                 // tight watermarks
-                assertThat(mark.getTimestamp()).isGreaterThanOrEqualTo(maxRecordSoFar - 1);
+                assertThat(((TimestampWatermark) genericWatermark).getTimestamp())
+                        .isGreaterThanOrEqualTo(maxRecordSoFar - 1);
             } else {
                 long next = assigner.extractTimestamp("a", Long.MIN_VALUE);
 

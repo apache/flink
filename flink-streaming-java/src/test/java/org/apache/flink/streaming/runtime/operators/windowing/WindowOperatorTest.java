@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
@@ -36,7 +37,7 @@ import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.api.windowing.assigners.DynamicEventTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.assigners.DynamicProcessingTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
@@ -126,29 +127,29 @@ class WindowOperatorTest {
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1999));
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
 
-        testHarness.processWatermark(new Watermark(999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(999)));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 3), 999));
-        expectedOutput.add(new Watermark(999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(999)));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
                 testHarness.getOutput(),
                 new Tuple2ResultSortComparator());
 
-        testHarness.processWatermark(new Watermark(1999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1999)));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 3), 1999));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 3), 1999));
-        expectedOutput.add(new Watermark(1999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(1999)));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
                 testHarness.getOutput(),
                 new Tuple2ResultSortComparator());
 
-        testHarness.processWatermark(new Watermark(2999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(2999)));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 3), 2999));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 3), 2999));
-        expectedOutput.add(new Watermark(2999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(2999)));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
@@ -165,27 +166,27 @@ class WindowOperatorTest {
         testHarness.initializeState(snapshot);
         testHarness.open();
 
-        testHarness.processWatermark(new Watermark(3999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3999)));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 5), 3999));
-        expectedOutput.add(new Watermark(3999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3999)));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
                 testHarness.getOutput(),
                 new Tuple2ResultSortComparator());
 
-        testHarness.processWatermark(new Watermark(4999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(4999)));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), 4999));
-        expectedOutput.add(new Watermark(4999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(4999)));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
                 testHarness.getOutput(),
                 new Tuple2ResultSortComparator());
 
-        testHarness.processWatermark(new Watermark(5999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(5999)));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), 5999));
-        expectedOutput.add(new Watermark(5999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(5999)));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
@@ -193,10 +194,10 @@ class WindowOperatorTest {
                 new Tuple2ResultSortComparator());
 
         // those don't have any effect...
-        testHarness.processWatermark(new Watermark(6999));
-        testHarness.processWatermark(new Watermark(7999));
-        expectedOutput.add(new Watermark(6999));
-        expectedOutput.add(new Watermark(7999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(6999)));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(7999)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(6999)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(7999)));
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
@@ -309,16 +310,16 @@ class WindowOperatorTest {
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1999));
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
 
-        testHarness.processWatermark(new Watermark(999));
-        expectedOutput.add(new Watermark(999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(999)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(999)));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
                 testHarness.getOutput(),
                 new Tuple2ResultSortComparator());
 
-        testHarness.processWatermark(new Watermark(1999));
-        expectedOutput.add(new Watermark(1999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1999)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(1999)));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
@@ -340,35 +341,35 @@ class WindowOperatorTest {
         testHarness.initializeState(snapshot);
         testHarness.open();
 
-        testHarness.processWatermark(new Watermark(2999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(2999)));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 3), 2999));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 3), 2999));
-        expectedOutput.add(new Watermark(2999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(2999)));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
                 testHarness.getOutput(),
                 new Tuple2ResultSortComparator());
 
-        testHarness.processWatermark(new Watermark(3999));
-        expectedOutput.add(new Watermark(3999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3999)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3999)));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
                 testHarness.getOutput(),
                 new Tuple2ResultSortComparator());
 
-        testHarness.processWatermark(new Watermark(4999));
-        expectedOutput.add(new Watermark(4999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(4999)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(4999)));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
                 testHarness.getOutput(),
                 new Tuple2ResultSortComparator());
 
-        testHarness.processWatermark(new Watermark(5999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(5999)));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), 5999));
-        expectedOutput.add(new Watermark(5999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(5999)));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
@@ -376,10 +377,10 @@ class WindowOperatorTest {
                 new Tuple2ResultSortComparator());
 
         // those don't have any effect...
-        testHarness.processWatermark(new Watermark(6999));
-        testHarness.processWatermark(new Watermark(7999));
-        expectedOutput.add(new Watermark(6999));
-        expectedOutput.add(new Watermark(7999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(6999)));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(7999)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(6999)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(7999)));
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
@@ -533,21 +534,21 @@ class WindowOperatorTest {
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 5), 6000));
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 6), 6050));
 
-        testHarness.processWatermark(new Watermark(12000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(12000)));
 
         expectedOutput.add(new StreamRecord<>(new Tuple3<>("key1-6", 10L, 5500L), 5499));
         expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-6", 0L, 5500L), 5499));
 
         expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-20", 5501L, 9050L), 9049));
-        expectedOutput.add(new Watermark(12000));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(12000)));
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 10), 15000));
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 20), 15000));
 
-        testHarness.processWatermark(new Watermark(17999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(17999)));
 
         expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-30", 15000L, 18000L), 17999));
-        expectedOutput.add(new Watermark(17999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(17999)));
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
@@ -627,21 +628,21 @@ class WindowOperatorTest {
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 5), 6000));
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 6), 6050));
 
-        testHarness.processWatermark(new Watermark(12000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(12000)));
 
         expectedOutput.add(new StreamRecord<>(new Tuple3<>("key1-6", 10L, 5500L), 5499));
         expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-6", 0L, 5500L), 5499));
 
         expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-20", 5501L, 9050L), 9049));
-        expectedOutput.add(new Watermark(12000));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(12000)));
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 10), 15000));
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 20), 15000));
 
-        testHarness.processWatermark(new Watermark(17999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(17999)));
 
         expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-30", 15000L, 18000L), 17999));
-        expectedOutput.add(new Watermark(17999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(17999)));
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
@@ -715,20 +716,20 @@ class WindowOperatorTest {
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 5), 6000));
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 6), 6050));
 
-        testHarness.processWatermark(new Watermark(12000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(12000)));
 
         expectedOutput.add(new StreamRecord<>(new Tuple3<>("key1-6", 10L, 5500L), 5499));
         expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-6", 0L, 5500L), 5499));
         expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-20", 5501L, 9050L), 9049));
-        expectedOutput.add(new Watermark(12000));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(12000)));
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 10), 15000));
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 20), 15000));
 
-        testHarness.processWatermark(new Watermark(17999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(17999)));
 
         expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-30", 15000L, 18000L), 17999));
-        expectedOutput.add(new Watermark(17999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(17999)));
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
@@ -802,20 +803,20 @@ class WindowOperatorTest {
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 5), 6000));
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 6), 6050));
 
-        testHarness.processWatermark(new Watermark(12000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(12000)));
 
         expectedOutput.add(new StreamRecord<>(new Tuple3<>("key1-6", 10L, 5500L), 5499));
         expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-6", 0L, 5500L), 5499));
         expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-20", 5501L, 9050L), 9049));
-        expectedOutput.add(new Watermark(12000));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(12000)));
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 10), 15000));
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 20), 15000));
 
-        testHarness.processWatermark(new Watermark(17999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(17999)));
 
         expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-30", 15000L, 18000L), 17999));
-        expectedOutput.add(new Watermark(17999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(17999)));
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
@@ -962,15 +963,15 @@ class WindowOperatorTest {
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 2), 1000));
 
         // triggers emit and next trigger time is 4000
-        testHarness.processWatermark(new Watermark(2500));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(2500)));
 
         expectedOutput.add(new StreamRecord<>(new Tuple3<>("key1-1", 1500L, 4500L), 4499));
         expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-6", 0L, 5500L), 5499));
-        expectedOutput.add(new Watermark(2500));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(2500)));
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 5), 4000));
-        testHarness.processWatermark(new Watermark(3000));
-        expectedOutput.add(new Watermark(3000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3000)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3000)));
 
         // do a snapshot, close and restore again
         OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0L);
@@ -991,11 +992,11 @@ class WindowOperatorTest {
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 2), 4000));
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 4), 3500));
         // triggers emit and next trigger time is 6000
-        testHarness.processWatermark(new Watermark(4000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(4000)));
 
         expectedOutput.add(new StreamRecord<>(new Tuple3<>("key1-3", 1500L, 7000L), 6999));
         expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-15", 0L, 7000L), 6999));
-        expectedOutput.add(new Watermark(4000));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(4000)));
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
@@ -1069,11 +1070,11 @@ class WindowOperatorTest {
             testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 2), 1000));
             testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 33), 2500));
 
-            testHarness.processWatermark(new Watermark(12000));
+            testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(12000)));
 
             expectedOutput.add(new StreamRecord<>(new Tuple3<>("key1-36", 10L, 4000L), 3999));
             expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-67", 0L, 3000L), 2999));
-            expectedOutput.add(new Watermark(12000));
+            expectedOutput.add(new WatermarkEvent(new TimestampWatermark(12000)));
 
             TestHarnessUtil.assertOutputEqualsSorted(
                     "Output was not correct.",
@@ -1148,53 +1149,53 @@ class WindowOperatorTest {
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1999));
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
 
-        testHarness.processWatermark(new Watermark(1000));
-        expectedOutput.add(new Watermark(1000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1000)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(1000)));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
                 testHarness.getOutput(),
                 new Tuple2ResultSortComparator());
 
-        testHarness.processWatermark(new Watermark(2000));
-        expectedOutput.add(new Watermark(2000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(2000)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(2000)));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
                 testHarness.getOutput(),
                 new Tuple2ResultSortComparator());
 
-        testHarness.processWatermark(new Watermark(3000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3000)));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 3), Long.MAX_VALUE));
-        expectedOutput.add(new Watermark(3000));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3000)));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
                 testHarness.getOutput(),
                 new Tuple2ResultSortComparator());
 
-        testHarness.processWatermark(new Watermark(4000));
-        expectedOutput.add(new Watermark(4000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(4000)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(4000)));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
                 testHarness.getOutput(),
                 new Tuple2ResultSortComparator());
 
-        testHarness.processWatermark(new Watermark(5000));
-        expectedOutput.add(new Watermark(5000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(5000)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(5000)));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
                 testHarness.getOutput(),
                 new Tuple2ResultSortComparator());
 
-        testHarness.processWatermark(new Watermark(6000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(6000)));
 
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 3), Long.MAX_VALUE));
 
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 5), Long.MAX_VALUE));
-        expectedOutput.add(new Watermark(6000));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(6000)));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
@@ -1202,10 +1203,10 @@ class WindowOperatorTest {
                 new Tuple2ResultSortComparator());
 
         // those don't have any effect...
-        testHarness.processWatermark(new Watermark(7000));
-        testHarness.processWatermark(new Watermark(8000));
-        expectedOutput.add(new Watermark(7000));
-        expectedOutput.add(new Watermark(8000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(7000)));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(8000)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(7000)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(8000)));
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
@@ -1381,12 +1382,12 @@ class WindowOperatorTest {
                 testHarness.getOutput(),
                 new Tuple2ResultSortComparator());
 
-        testHarness.processWatermark(Watermark.MAX_WATERMARK);
+        testHarness.processWatermark(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
 
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 3), Long.MAX_VALUE));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 5), Long.MAX_VALUE));
-        expectedOutput.add(Watermark.MAX_WATERMARK);
+        expectedOutput.add(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
@@ -1725,11 +1726,11 @@ class WindowOperatorTest {
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 4), 5000));
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 5), 6000));
 
-        testHarness.processWatermark(new Watermark(8999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(8999)));
 
         expectedOutput.add(new StreamRecord<>(new Tuple3<>("key1-3", 10L, 3010L), 3009));
         expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-9", 5000L, 8000L), 7999));
-        expectedOutput.add(new Watermark(8999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(8999)));
 
         // test gap when it produces an end time before current timeout
         // the furthest timeout is respected
@@ -1737,20 +1738,20 @@ class WindowOperatorTest {
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 2), 10000));
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 10), 10500));
 
-        testHarness.processWatermark(new Watermark(12999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(12999)));
 
         expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-13", 9000L, 12000L), 11999));
-        expectedOutput.add(new Watermark(12999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(12999)));
 
         // test gap when it produces an end time after current timeout
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 10), 13000));
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 10), 13500));
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 14000));
 
-        testHarness.processWatermark(new Watermark(16999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(16999)));
 
         expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-21", 13000L, 16000L), 15999));
-        expectedOutput.add(new Watermark(16999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(16999)));
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
@@ -1905,32 +1906,32 @@ class WindowOperatorTest {
         ConcurrentLinkedQueue<Object> lateExpected = new ConcurrentLinkedQueue<>();
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 500));
-        testHarness.processWatermark(new Watermark(1500));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1500)));
 
-        expected.add(new Watermark(1500));
+        expected.add(new WatermarkEvent(new TimestampWatermark(1500)));
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1300));
-        testHarness.processWatermark(new Watermark(2300));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(2300)));
 
         expected.add(new StreamRecord<>(new Tuple2<>("key2", 2), 1999));
-        expected.add(new Watermark(2300));
+        expected.add(new WatermarkEvent(new TimestampWatermark(2300)));
 
         // this will not be sideoutput because window.maxTimestamp() + allowedLateness >
         // currentWatermark
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1997));
-        testHarness.processWatermark(new Watermark(6000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(6000)));
 
         // this is 1 and not 3 because the trigger fires and purges
         expected.add(new StreamRecord<>(new Tuple2<>("key2", 1), 1999));
-        expected.add(new Watermark(6000));
+        expected.add(new WatermarkEvent(new TimestampWatermark(6000)));
 
         // this will be side output because window.maxTimestamp() + allowedLateness <
         // currentWatermark
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1998));
-        testHarness.processWatermark(new Watermark(7000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(7000)));
 
         lateExpected.add(new StreamRecord<>(new Tuple2<>("key2", 1), 1998));
-        expected.add(new Watermark(7000));
+        expected.add(new WatermarkEvent(new TimestampWatermark(7000)));
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
@@ -2013,17 +2014,19 @@ class WindowOperatorTest {
         // if we don't correctly prevent wrap-around in the garbage collection
         // timers this watermark will clean our window state for the just-added
         // element/window
-        testHarness.processWatermark(new Watermark(Long.MAX_VALUE - 1500));
+        testHarness.processWatermark(
+                new WatermarkEvent(new TimestampWatermark(Long.MAX_VALUE - 1500)));
 
         // this watermark is before the end timestamp of our only window
         assertThat(window.maxTimestamp()).isStrictlyBetween(Long.MAX_VALUE - 1500, Long.MAX_VALUE);
 
         // push in a watermark that will trigger computation of our window
-        testHarness.processWatermark(new Watermark(window.maxTimestamp()));
+        testHarness.processWatermark(
+                new WatermarkEvent(new TimestampWatermark(window.maxTimestamp())));
 
-        expected.add(new Watermark(Long.MAX_VALUE - 1500));
+        expected.add(new WatermarkEvent(new TimestampWatermark(Long.MAX_VALUE - 1500)));
         expected.add(new StreamRecord<>(new Tuple2<>("key2", 1), window.maxTimestamp()));
-        expected.add(new Watermark(window.maxTimestamp()));
+        expected.add(new WatermarkEvent(new TimestampWatermark(window.maxTimestamp())));
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
@@ -2075,31 +2078,31 @@ class WindowOperatorTest {
 
         // normal element
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
-        testHarness.processWatermark(new Watermark(1985));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1985)));
 
-        expected.add(new Watermark(1985));
+        expected.add(new WatermarkEvent(new TimestampWatermark(1985)));
 
         // this will not be dropped because window.maxTimestamp() + allowedLateness >
         // currentWatermark
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1980));
-        testHarness.processWatermark(new Watermark(1999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1999)));
 
         expected.add(new StreamRecord<>(new Tuple2<>("key2", 2), 1999));
-        expected.add(new Watermark(1999));
+        expected.add(new WatermarkEvent(new TimestampWatermark(1999)));
 
         // sideoutput as late, will reuse previous timestamp since only input tuple is sideoutputed
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1998));
         sideExpected.add(new StreamRecord<>(new Tuple2<>("key2", 1), 1998));
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 2001));
-        testHarness.processWatermark(new Watermark(2999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(2999)));
 
-        expected.add(new Watermark(2999));
+        expected.add(new WatermarkEvent(new TimestampWatermark(2999)));
 
-        testHarness.processWatermark(new Watermark(3999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3999)));
 
         expected.add(new StreamRecord<>(new Tuple2<>("key2", 1), 3999));
-        expected.add(new Watermark(3999));
+        expected.add(new WatermarkEvent(new TimestampWatermark(3999)));
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
@@ -2158,16 +2161,16 @@ class WindowOperatorTest {
         ConcurrentLinkedQueue<Object> sideExpected = new ConcurrentLinkedQueue<>();
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
-        testHarness.processWatermark(new Watermark(1999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1999)));
 
         expected.add(new StreamRecord<>(new Tuple2<>("key2", 1), 1999));
-        expected.add(new Watermark(1999));
+        expected.add(new WatermarkEvent(new TimestampWatermark(1999)));
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 2000));
-        testHarness.processWatermark(new Watermark(3000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3000)));
 
         expected.add(new StreamRecord<>(new Tuple2<>("key2", 2), 2999));
-        expected.add(new Watermark(3000));
+        expected.add(new WatermarkEvent(new TimestampWatermark(3000)));
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 3001));
 
@@ -2179,7 +2182,7 @@ class WindowOperatorTest {
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 2400));
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 3001));
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 3900));
-        testHarness.processWatermark(new Watermark(6000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(6000)));
 
         expected.add(new StreamRecord<>(new Tuple2<>("key2", 5), 3999));
         expected.add(new StreamRecord<>(new Tuple2<>("key1", 2), 3999));
@@ -2190,15 +2193,15 @@ class WindowOperatorTest {
         expected.add(new StreamRecord<>(new Tuple2<>("key2", 1), 5999));
         expected.add(new StreamRecord<>(new Tuple2<>("key1", 2), 5999));
 
-        expected.add(new Watermark(6000));
+        expected.add(new WatermarkEvent(new TimestampWatermark(6000)));
 
         // sideoutput element due to lateness
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 3001));
         sideExpected.add(new StreamRecord<>(new Tuple2<>("key1", 1), 3001));
 
-        testHarness.processWatermark(new Watermark(25000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(25000)));
 
-        expected.add(new Watermark(25000));
+        expected.add(new WatermarkEvent(new TimestampWatermark(25000)));
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
@@ -2253,14 +2256,14 @@ class WindowOperatorTest {
         ConcurrentLinkedQueue<Object> sideExpected = new ConcurrentLinkedQueue<>();
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
-        testHarness.processWatermark(new Watermark(1999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1999)));
 
-        expected.add(new Watermark(1999));
+        expected.add(new WatermarkEvent(new TimestampWatermark(1999)));
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 2000));
-        testHarness.processWatermark(new Watermark(4998));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(4998)));
 
-        expected.add(new Watermark(4998));
+        expected.add(new WatermarkEvent(new TimestampWatermark(4998)));
 
         // this will not be dropped because the session we're adding two has maxTimestamp
         // after the current watermark
@@ -2268,23 +2271,23 @@ class WindowOperatorTest {
 
         // new session
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 8500));
-        testHarness.processWatermark(new Watermark(7400));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(7400)));
 
-        expected.add(new Watermark(7400));
+        expected.add(new WatermarkEvent(new TimestampWatermark(7400)));
 
         // this will merge the two sessions into one
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 7000));
-        testHarness.processWatermark(new Watermark(11501));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(11501)));
 
         expected.add(new StreamRecord<>(new Tuple3<>("key2-5", 1000L, 11500L), 11499));
-        expected.add(new Watermark(11501));
+        expected.add(new WatermarkEvent(new TimestampWatermark(11501)));
 
         // new session
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 11600));
-        testHarness.processWatermark(new Watermark(14600));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(14600)));
 
         expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 11600L, 14600L), 14599));
-        expected.add(new Watermark(14600));
+        expected.add(new WatermarkEvent(new TimestampWatermark(14600)));
 
         // this is side output as late
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 10000));
@@ -2295,14 +2298,14 @@ class WindowOperatorTest {
         sideExpected.add(new StreamRecord<>(new Tuple2<>("key2", 1), 10100));
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 14500));
-        testHarness.processWatermark(new Watermark(20000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(20000)));
 
         expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 14500L, 17500L), 17499));
-        expected.add(new Watermark(20000));
+        expected.add(new WatermarkEvent(new TimestampWatermark(20000)));
 
-        testHarness.processWatermark(new Watermark(100000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(100000)));
 
-        expected.add(new Watermark(100000));
+        expected.add(new WatermarkEvent(new TimestampWatermark(100000)));
 
         ConcurrentLinkedQueue<Object> actual = testHarness.getOutput();
         ConcurrentLinkedQueue<StreamRecord<Tuple2<String, Integer>>> sideActual =
@@ -2359,14 +2362,14 @@ class WindowOperatorTest {
         ConcurrentLinkedQueue<Object> sideExpected = new ConcurrentLinkedQueue<>();
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
-        testHarness.processWatermark(new Watermark(1999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1999)));
 
-        expected.add(new Watermark(1999));
+        expected.add(new WatermarkEvent(new TimestampWatermark(1999)));
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 2000));
-        testHarness.processWatermark(new Watermark(4998));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(4998)));
 
-        expected.add(new Watermark(4998));
+        expected.add(new WatermarkEvent(new TimestampWatermark(4998)));
 
         // this will not be dropped because the session we're adding two has maxTimestamp
         // after the current watermark
@@ -2374,36 +2377,36 @@ class WindowOperatorTest {
 
         // new session
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 8500));
-        testHarness.processWatermark(new Watermark(7400));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(7400)));
 
-        expected.add(new Watermark(7400));
+        expected.add(new WatermarkEvent(new TimestampWatermark(7400)));
 
         // this will merge the two sessions into one
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 7000));
-        testHarness.processWatermark(new Watermark(11501));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(11501)));
 
         expected.add(new StreamRecord<>(new Tuple3<>("key2-5", 1000L, 11500L), 11499));
-        expected.add(new Watermark(11501));
+        expected.add(new WatermarkEvent(new TimestampWatermark(11501)));
 
         // new session
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 11600));
-        testHarness.processWatermark(new Watermark(14600));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(14600)));
 
         expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 11600L, 14600L), 14599));
-        expected.add(new Watermark(14600));
+        expected.add(new WatermarkEvent(new TimestampWatermark(14600)));
 
         // this is sideoutput as late, reuse last timestamp
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 10000));
         sideExpected.add(new StreamRecord<>(new Tuple2<>("key2", 1), 10000));
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 14500));
-        testHarness.processWatermark(new Watermark(20000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(20000)));
 
         expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 14500L, 17500L), 17499));
-        expected.add(new Watermark(20000));
+        expected.add(new WatermarkEvent(new TimestampWatermark(20000)));
 
-        testHarness.processWatermark(new Watermark(100000));
-        expected.add(new Watermark(100000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(100000)));
+        expected.add(new WatermarkEvent(new TimestampWatermark(100000)));
 
         ConcurrentLinkedQueue<Object> actual = testHarness.getOutput();
         ConcurrentLinkedQueue<StreamRecord<Tuple2<String, Integer>>> sideActual =
@@ -2461,14 +2464,14 @@ class WindowOperatorTest {
         ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
-        testHarness.processWatermark(new Watermark(1999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1999)));
 
-        expected.add(new Watermark(1999));
+        expected.add(new WatermarkEvent(new TimestampWatermark(1999)));
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 2000));
-        testHarness.processWatermark(new Watermark(4998));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(4998)));
 
-        expected.add(new Watermark(4998));
+        expected.add(new WatermarkEvent(new TimestampWatermark(4998)));
 
         // this will not be dropped because the session we're adding two has maxTimestamp
         // after the current watermark
@@ -2476,36 +2479,36 @@ class WindowOperatorTest {
 
         // new session
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 8500));
-        testHarness.processWatermark(new Watermark(7400));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(7400)));
 
-        expected.add(new Watermark(7400));
+        expected.add(new WatermarkEvent(new TimestampWatermark(7400)));
 
         // this will merge the two sessions into one
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 7000));
-        testHarness.processWatermark(new Watermark(11501));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(11501)));
 
         expected.add(new StreamRecord<>(new Tuple3<>("key2-5", 1000L, 11500L), 11499));
-        expected.add(new Watermark(11501));
+        expected.add(new WatermarkEvent(new TimestampWatermark(11501)));
 
         // new session
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 11600));
-        testHarness.processWatermark(new Watermark(14600));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(14600)));
 
         expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 11600L, 14600L), 14599));
-        expected.add(new Watermark(14600));
+        expected.add(new WatermarkEvent(new TimestampWatermark(14600)));
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 10000));
 
         expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 10000L, 14600L), 14599));
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 14500));
-        testHarness.processWatermark(new Watermark(20000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(20000)));
 
         expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 10000L, 17500L), 17499));
-        expected.add(new Watermark(20000));
+        expected.add(new WatermarkEvent(new TimestampWatermark(20000)));
 
-        testHarness.processWatermark(new Watermark(100000));
-        expected.add(new Watermark(100000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(100000)));
+        expected.add(new WatermarkEvent(new TimestampWatermark(100000)));
 
         ConcurrentLinkedQueue<Object> actual = testHarness.getOutput();
 
@@ -2558,14 +2561,14 @@ class WindowOperatorTest {
         ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
-        testHarness.processWatermark(new Watermark(1999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1999)));
 
-        expected.add(new Watermark(1999));
+        expected.add(new WatermarkEvent(new TimestampWatermark(1999)));
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 2000));
-        testHarness.processWatermark(new Watermark(4998));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(4998)));
 
-        expected.add(new Watermark(4998));
+        expected.add(new WatermarkEvent(new TimestampWatermark(4998)));
 
         // this will not be sideoutput because the session we're adding two has maxTimestamp
         // after the current watermark
@@ -2573,23 +2576,23 @@ class WindowOperatorTest {
 
         // new session
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 8500));
-        testHarness.processWatermark(new Watermark(7400));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(7400)));
 
-        expected.add(new Watermark(7400));
+        expected.add(new WatermarkEvent(new TimestampWatermark(7400)));
 
         // this will merge the two sessions into one
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 7000));
-        testHarness.processWatermark(new Watermark(11501));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(11501)));
 
         expected.add(new StreamRecord<>(new Tuple3<>("key2-5", 1000L, 11500L), 11499));
-        expected.add(new Watermark(11501));
+        expected.add(new WatermarkEvent(new TimestampWatermark(11501)));
 
         // new session
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 11600));
-        testHarness.processWatermark(new Watermark(14600));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(14600)));
 
         expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 11600L, 14600L), 14599));
-        expected.add(new Watermark(14600));
+        expected.add(new WatermarkEvent(new TimestampWatermark(14600)));
 
         // because of the small allowed lateness and because the trigger is accumulating
         // this will be merged into the session (11600-14600) and therefore will not
@@ -2611,14 +2614,14 @@ class WindowOperatorTest {
                 "Output was not correct.", expected, actual, new Tuple3ResultSortComparator());
         assertThat(sideActual).isNull();
 
-        testHarness.processWatermark(new Watermark(20000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(20000)));
 
         expected.add(new StreamRecord<>(new Tuple3<>("key2-3", 10000L, 17500L), 17499));
-        expected.add(new Watermark(20000));
+        expected.add(new WatermarkEvent(new TimestampWatermark(20000)));
 
-        testHarness.processWatermark(new Watermark(100000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(100000)));
 
-        expected.add(new Watermark(100000));
+        expected.add(new WatermarkEvent(new TimestampWatermark(100000)));
 
         actual = testHarness.getOutput();
         sideActual = testHarness.getSideOutput(lateOutputTag);
@@ -2669,14 +2672,14 @@ class WindowOperatorTest {
         ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
-        testHarness.processWatermark(new Watermark(1999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1999)));
 
-        expected.add(new Watermark(1999));
+        expected.add(new WatermarkEvent(new TimestampWatermark(1999)));
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 2000));
-        testHarness.processWatermark(new Watermark(4998));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(4998)));
 
-        expected.add(new Watermark(4998));
+        expected.add(new WatermarkEvent(new TimestampWatermark(4998)));
 
         // this will not be sideoutput because the session we're adding two has maxTimestamp
         // after the current watermark
@@ -2684,23 +2687,23 @@ class WindowOperatorTest {
 
         // new session
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 8500));
-        testHarness.processWatermark(new Watermark(7400));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(7400)));
 
-        expected.add(new Watermark(7400));
+        expected.add(new WatermarkEvent(new TimestampWatermark(7400)));
 
         // this will merge the two sessions into one
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 7000));
-        testHarness.processWatermark(new Watermark(11501));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(11501)));
 
         expected.add(new StreamRecord<>(new Tuple3<>("key2-5", 1000L, 11500L), 11499));
-        expected.add(new Watermark(11501));
+        expected.add(new WatermarkEvent(new TimestampWatermark(11501)));
 
         // new session
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 11600));
-        testHarness.processWatermark(new Watermark(14600));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(14600)));
 
         expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 11600L, 14600L), 14599));
-        expected.add(new Watermark(14600));
+        expected.add(new WatermarkEvent(new TimestampWatermark(14600)));
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 10000));
 
@@ -2714,14 +2717,14 @@ class WindowOperatorTest {
         assertThat(sideActual).isNull();
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 14500));
-        testHarness.processWatermark(new Watermark(20000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(20000)));
 
         expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 1000L, 17500L), 17499));
-        expected.add(new Watermark(20000));
+        expected.add(new WatermarkEvent(new TimestampWatermark(20000)));
 
-        testHarness.processWatermark(new Watermark(100000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(100000)));
 
-        expected.add(new Watermark(100000));
+        expected.add(new WatermarkEvent(new TimestampWatermark(100000)));
 
         actual = testHarness.getOutput();
         sideActual = testHarness.getSideOutput(lateOutputTag);
@@ -2771,14 +2774,14 @@ class WindowOperatorTest {
         ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
-        testHarness.processWatermark(new Watermark(1999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1999)));
 
-        expected.add(new Watermark(1999));
+        expected.add(new WatermarkEvent(new TimestampWatermark(1999)));
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 2000));
-        testHarness.processWatermark(new Watermark(4998));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(4998)));
 
-        expected.add(new Watermark(4998));
+        expected.add(new WatermarkEvent(new TimestampWatermark(4998)));
 
         // this will not be sideoutput because the session we're adding two has maxTimestamp
         // after the current watermark
@@ -2786,23 +2789,23 @@ class WindowOperatorTest {
 
         // new session
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 8500));
-        testHarness.processWatermark(new Watermark(7400));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(7400)));
 
-        expected.add(new Watermark(7400));
+        expected.add(new WatermarkEvent(new TimestampWatermark(7400)));
 
         // this will merge the two sessions into one
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 7000));
-        testHarness.processWatermark(new Watermark(11501));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(11501)));
 
         expected.add(new StreamRecord<>(new Tuple3<>("key2-5", 1000L, 11500L), 11499));
-        expected.add(new Watermark(11501));
+        expected.add(new WatermarkEvent(new TimestampWatermark(11501)));
 
         // new session
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 11600));
-        testHarness.processWatermark(new Watermark(14600));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(14600)));
 
         expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 11600L, 14600L), 14599));
-        expected.add(new Watermark(14600));
+        expected.add(new WatermarkEvent(new TimestampWatermark(14600)));
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 10000));
 
@@ -2818,13 +2821,13 @@ class WindowOperatorTest {
         assertThat(sideActual).isNull();
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 14500));
-        testHarness.processWatermark(new Watermark(20000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(20000)));
 
         expected.add(new StreamRecord<>(new Tuple3<>("key2-8", 1000L, 17500L), 17499));
-        expected.add(new Watermark(20000));
+        expected.add(new WatermarkEvent(new TimestampWatermark(20000)));
 
-        testHarness.processWatermark(new Watermark(100000));
-        expected.add(new Watermark(100000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(100000)));
+        expected.add(new WatermarkEvent(new TimestampWatermark(100000)));
 
         actual = testHarness.getOutput();
         sideActual = testHarness.getSideOutput(lateOutputTag);
@@ -2874,16 +2877,16 @@ class WindowOperatorTest {
 
         // normal element
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
-        testHarness.processWatermark(new Watermark(1599));
-        testHarness.processWatermark(new Watermark(1999));
-        testHarness.processWatermark(new Watermark(2100));
-        testHarness.processWatermark(new Watermark(5000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1599)));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1999)));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(2100)));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(5000)));
 
-        expected.add(new Watermark(1599));
+        expected.add(new WatermarkEvent(new TimestampWatermark(1599)));
         expected.add(new StreamRecord<>("GOT: (key2,1)", 1999));
-        expected.add(new Watermark(1999)); // here it fires and purges
-        expected.add(new Watermark(2100)); // here is the cleanup timer
-        expected.add(new Watermark(5000));
+        expected.add(new WatermarkEvent(new TimestampWatermark(1999))); // here it fires and purges
+        expected.add(new WatermarkEvent(new TimestampWatermark(2100))); // here is the cleanup timer
+        expected.add(new WatermarkEvent(new TimestampWatermark(5000)));
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
@@ -2946,16 +2949,16 @@ class WindowOperatorTest {
 
         // normal element
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
-        testHarness.processWatermark(new Watermark(1599));
-        testHarness.processWatermark(new Watermark(1999));
-        testHarness.processWatermark(new Watermark(2000));
-        testHarness.processWatermark(new Watermark(5000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1599)));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1999)));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(2000)));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(5000)));
 
-        expected.add(new Watermark(1599));
+        expected.add(new WatermarkEvent(new TimestampWatermark(1599)));
         expected.add(new StreamRecord<>(new Tuple2<>("key2", 1), 1999));
-        expected.add(new Watermark(1999)); // here it fires and purges
-        expected.add(new Watermark(2000)); // here is the cleanup timer
-        expected.add(new Watermark(5000));
+        expected.add(new WatermarkEvent(new TimestampWatermark(1999))); // here it fires and purges
+        expected.add(new WatermarkEvent(new TimestampWatermark(2000))); // here is the cleanup timer
+        expected.add(new WatermarkEvent(new TimestampWatermark(5000)));
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
@@ -3006,16 +3009,16 @@ class WindowOperatorTest {
 
         // normal element
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
-        testHarness.processWatermark(new Watermark(1599));
-        testHarness.processWatermark(new Watermark(1999));
-        testHarness.processWatermark(new Watermark(2000));
-        testHarness.processWatermark(new Watermark(5000));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1599)));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1999)));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(2000)));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(5000)));
 
-        expected.add(new Watermark(1599));
+        expected.add(new WatermarkEvent(new TimestampWatermark(1599)));
         expected.add(new StreamRecord<>(new Tuple2<>("key2", 1), 1999));
-        expected.add(new Watermark(1999)); // here it fires and purges
-        expected.add(new Watermark(2000)); // here is the cleanup timer
-        expected.add(new Watermark(5000));
+        expected.add(new WatermarkEvent(new TimestampWatermark(1999))); // here it fires and purges
+        expected.add(new WatermarkEvent(new TimestampWatermark(2000))); // here is the cleanup timer
+        expected.add(new WatermarkEvent(new TimestampWatermark(5000)));
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
@@ -3062,13 +3065,13 @@ class WindowOperatorTest {
         ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
-        testHarness.processWatermark(new Watermark(4998));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(4998)));
 
         expected.add(new StreamRecord<>(new Tuple2<>("key2", 1), 3999));
-        expected.add(new Watermark(4998));
+        expected.add(new WatermarkEvent(new TimestampWatermark(4998)));
 
-        testHarness.processWatermark(new Watermark(14600));
-        expected.add(new Watermark(14600));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(14600)));
+        expected.add(new WatermarkEvent(new TimestampWatermark(14600)));
 
         ConcurrentLinkedQueue<Object> actual = testHarness.getOutput();
         TestHarnessUtil.assertOutputEqualsSorted(
@@ -3116,13 +3119,13 @@ class WindowOperatorTest {
         ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
-        testHarness.processWatermark(new Watermark(4998));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(4998)));
 
         expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 1000L, 4000L), 3999));
-        expected.add(new Watermark(4998));
+        expected.add(new WatermarkEvent(new TimestampWatermark(4998)));
 
-        testHarness.processWatermark(new Watermark(14600));
-        expected.add(new Watermark(14600));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(14600)));
+        expected.add(new WatermarkEvent(new TimestampWatermark(14600)));
 
         ConcurrentLinkedQueue<Object> actual = testHarness.getOutput();
         TestHarnessUtil.assertOutputEqualsSorted(
@@ -3204,7 +3207,7 @@ class WindowOperatorTest {
     private static class Tuple2ResultSortComparator implements Comparator<Object>, Serializable {
         @Override
         public int compare(Object o1, Object o2) {
-            if (o1 instanceof Watermark || o2 instanceof Watermark) {
+            if (o1 instanceof WatermarkEvent || o2 instanceof WatermarkEvent) {
                 return 0;
             } else {
                 StreamRecord<Tuple2<String, Integer>> sr0 =
@@ -3228,7 +3231,7 @@ class WindowOperatorTest {
     private static class Tuple3ResultSortComparator implements Comparator<Object>, Serializable {
         @Override
         public int compare(Object o1, Object o2) {
-            if (o1 instanceof Watermark || o2 instanceof Watermark) {
+            if (o1 instanceof WatermarkEvent || o2 instanceof WatermarkEvent) {
                 return 0;
             } else {
                 StreamRecord<Tuple3<String, Long, Long>> sr0 =

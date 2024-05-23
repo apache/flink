@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -60,7 +61,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamSource;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -246,7 +247,7 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
                 expected,
                 new StreamRecord<>("Hello"),
                 new StreamRecord<>("[Source0]: End of input"),
-                Watermark.MAX_WATERMARK,
+                new WatermarkEvent(TimestampWatermark.MAX_WATERMARK),
                 new StreamRecord<>("[Source0]: Finish"),
                 new StreamRecord<>("[Operator1]: End of input"),
                 new StreamRecord<>("[Operator1]: Finish"));
@@ -650,7 +651,9 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
             harness.streamTask.getCompletionFuture().get();
 
             assertThat(output)
-                    .containsExactly(Watermark.MAX_WATERMARK, new EndOfData(StopMode.DRAIN));
+                    .containsExactly(
+                            new WatermarkEvent(TimestampWatermark.MAX_WATERMARK),
+                            new EndOfData(StopMode.DRAIN));
 
             LifeCycleMonitorSource source =
                     (LifeCycleMonitorSource)

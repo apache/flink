@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.co;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.typeinfo.TypeHint;
@@ -28,7 +29,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
@@ -323,22 +324,22 @@ class IntervalJoinOperatorTest {
 
             // process elements with first test harness
             testHarness.processElement1(createStreamRecord(1, "lhs"));
-            testHarness.processWatermark1(new Watermark(1));
+            testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(1)));
 
             testHarness.processElement2(createStreamRecord(1, "rhs"));
-            testHarness.processWatermark2(new Watermark(1));
+            testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(1)));
 
             testHarness.processElement1(createStreamRecord(2, "lhs"));
-            testHarness.processWatermark1(new Watermark(2));
+            testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(2)));
 
             testHarness.processElement2(createStreamRecord(2, "rhs"));
-            testHarness.processWatermark2(new Watermark(2));
+            testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(2)));
 
             testHarness.processElement1(createStreamRecord(3, "lhs"));
-            testHarness.processWatermark1(new Watermark(3));
+            testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(3)));
 
             testHarness.processElement2(createStreamRecord(3, "rhs"));
-            testHarness.processWatermark2(new Watermark(3));
+            testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(3)));
 
             // snapshot and validate output
             handles = testHarness.snapshot(0, 0);
@@ -369,10 +370,10 @@ class IntervalJoinOperatorTest {
 
             // process elements
             newTestHarness.processElement1(createStreamRecord(4, "lhs"));
-            newTestHarness.processWatermark1(new Watermark(4));
+            newTestHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(4)));
 
             newTestHarness.processElement2(createStreamRecord(4, "rhs"));
-            newTestHarness.processWatermark2(new Watermark(4));
+            newTestHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(4)));
 
             // assert expected output
             expectedOutput =
@@ -741,12 +742,12 @@ class IntervalJoinOperatorTest {
         }
 
         public JoinTestBuilder processWatermark1(int ts) throws Exception {
-            testHarness.processWatermark1(new Watermark(ts));
+            testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(ts)));
             return this;
         }
 
         public JoinTestBuilder processWatermark2(int ts) throws Exception {
-            testHarness.processWatermark2(new Watermark(ts));
+            testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(ts)));
             return this;
         }
 
@@ -755,25 +756,25 @@ class IntervalJoinOperatorTest {
                 // add to lhs
                 for (int i = from; i <= to; i++) {
                     testHarness.processElement1(createStreamRecord(i, "lhs"));
-                    testHarness.processWatermark1(new Watermark(i));
+                    testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(i)));
                 }
 
                 // add to rhs
                 for (int i = from; i <= to; i++) {
                     testHarness.processElement2(createStreamRecord(i, "rhs"));
-                    testHarness.processWatermark2(new Watermark(i));
+                    testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(i)));
                 }
             } else {
                 // add to rhs
                 for (int i = from; i <= to; i++) {
                     testHarness.processElement2(createStreamRecord(i, "rhs"));
-                    testHarness.processWatermark2(new Watermark(i));
+                    testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(i)));
                 }
 
                 // add to lhs
                 for (int i = from; i <= to; i++) {
                     testHarness.processElement1(createStreamRecord(i, "lhs"));
-                    testHarness.processWatermark1(new Watermark(i));
+                    testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(i)));
                 }
             }
 
@@ -926,25 +927,25 @@ class IntervalJoinOperatorTest {
             // add to lhs
             for (int i = 1; i <= 4; i++) {
                 testHarness.processElement1(createStreamRecord(i, "lhs"));
-                testHarness.processWatermark1(new Watermark(i));
+                testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(i)));
             }
 
             // add to rhs
             for (int i = 1; i <= 4; i++) {
                 testHarness.processElement2(createStreamRecord(i, "rhs"));
-                testHarness.processWatermark2(new Watermark(i));
+                testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(i)));
             }
         } else {
             // add to rhs
             for (int i = 1; i <= 4; i++) {
                 testHarness.processElement2(createStreamRecord(i, "rhs"));
-                testHarness.processWatermark2(new Watermark(i));
+                testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(i)));
             }
 
             // add to lhs
             for (int i = 1; i <= 4; i++) {
                 testHarness.processElement1(createStreamRecord(i, "lhs"));
-                testHarness.processWatermark1(new Watermark(i));
+                testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(i)));
             }
         }
     }

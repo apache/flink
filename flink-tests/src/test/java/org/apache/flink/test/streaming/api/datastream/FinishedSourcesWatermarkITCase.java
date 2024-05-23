@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.streaming.api.datastream;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -25,7 +26,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
@@ -45,7 +46,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class FinishedSourcesWatermarkITCase extends TestLogger {
 
     private static final AtomicLong CHECKPOINT_10_WATERMARK =
-            new AtomicLong(Watermark.MAX_WATERMARK.getTimestamp());
+            new AtomicLong(TimestampWatermark.MAX_WATERMARK.getTimestamp());
     private static final AtomicBoolean DOWNSTREAM_CHECKPOINT_10_WATERMARK_ACK = new AtomicBoolean();
 
     @Test
@@ -83,9 +84,13 @@ public class FinishedSourcesWatermarkITCase extends TestLogger {
 
     private static class SinkWaitingForWatermark implements SinkFunction<String> {
         @Override
-        public void writeWatermark(org.apache.flink.api.common.eventtime.Watermark watermark) {
-            if (watermark.getTimestamp() > CHECKPOINT_10_WATERMARK.get()) {
-                DOWNSTREAM_CHECKPOINT_10_WATERMARK_ACK.set(true);
+        public void writeWatermark(
+                org.apache.flink.api.common.eventtime.GenericWatermark watermark) {
+            if (watermark instanceof TimestampWatermark) {
+                if (((TimestampWatermark) watermark).getTimestamp()
+                        > CHECKPOINT_10_WATERMARK.get()) {
+                    DOWNSTREAM_CHECKPOINT_10_WATERMARK_ACK.set(true);
+                }
             }
         }
     }
@@ -101,7 +106,8 @@ public class FinishedSourcesWatermarkITCase extends TestLogger {
                 synchronized (sourceContext.getCheckpointLock()) {
                     lastEmittedWatermark =
                             Math.max(System.currentTimeMillis(), lastEmittedWatermark);
-                    sourceContext.emitWatermark(new Watermark(lastEmittedWatermark));
+                    sourceContext.emitWatermark(
+                            new WatermarkEvent(new TimestampWatermark(lastEmittedWatermark)));
                 }
                 Thread.sleep(1);
             }

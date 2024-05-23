@@ -203,8 +203,8 @@ public interface SourceFunction<T> extends Function, Serializable {
          * <p>Source functions should make a best effort to call this method as soon as they
          * acknowledge themselves to be idle. The system will consider the source to resume activity
          * again once {@link SourceContext#collect(T)}, {@link SourceContext#collectWithTimestamp(T,
-         * long)}, or {@link SourceContext#emitWatermark(WatermarkEvent)} is called to emit elements or
-         * watermarks from the source.
+         * long)}, or {@link SourceContext#emitWatermark(WatermarkEvent)} is called to emit elements
+         * or watermarks from the source.
          */
         @PublicEvolving
         void markAsTemporarilyIdle();

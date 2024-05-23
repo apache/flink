@@ -174,7 +174,9 @@ public class SourceStreamTask<
 
     @Override
     protected void advanceToEndOfEventTime() throws Exception {
-        operatorChain.getMainOperatorOutput().emitWatermark(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
+        operatorChain
+                .getMainOperatorOutput()
+                .emitWatermark(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
     }
 
     @Override

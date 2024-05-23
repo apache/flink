@@ -35,8 +35,6 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import java.sql.Time;
-
 /**
  * Operator for file system sink. It is a operator version of {@link StreamingFileSink}. It can send
  * file and bucket information to downstream.

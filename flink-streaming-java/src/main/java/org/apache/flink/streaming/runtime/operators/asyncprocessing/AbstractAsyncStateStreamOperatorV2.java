@@ -212,7 +212,9 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
                     boolean wasIdle = combinedWatermark.isIdle();
                     if (combinedWatermark.updateStatus(inputId - 1, watermarkStatus.isIdle())) {
                         super.processWatermark(
-                                new WatermarkEvent(new TimestampWatermark(combinedWatermark.getCombinedWatermark())));
+                                new WatermarkEvent(
+                                        new TimestampWatermark(
+                                                combinedWatermark.getCombinedWatermark())));
                     }
                     if (wasIdle != combinedWatermark.isIdle()) {
                         output.emitWatermarkStatus(watermarkStatus);

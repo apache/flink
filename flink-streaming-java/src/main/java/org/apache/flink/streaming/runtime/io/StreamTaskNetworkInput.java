@@ -45,10 +45,10 @@ import static java.util.stream.Collectors.toMap;
  * Implementation of {@link StreamTaskInput} that wraps an input from network taken from {@link
  * CheckpointedInputGate}.
  *
- * <p>This internally uses a {@link StatusWatermarkValve} to keep track of {@link WatermarkEvent} and
- * {@link WatermarkStatus} events, and forwards them to event subscribers once the {@link
- * StatusWatermarkValve} determines the {@link WatermarkEvent} from all inputs has advanced, or that a
- * {@link WatermarkStatus} needs to be propagated downstream to denote a status change.
+ * <p>This internally uses a {@link StatusWatermarkValve} to keep track of {@link WatermarkEvent}
+ * and {@link WatermarkStatus} events, and forwards them to event subscribers once the {@link
+ * StatusWatermarkValve} determines the {@link WatermarkEvent} from all inputs has advanced, or that
+ * a {@link WatermarkStatus} needs to be propagated downstream to denote a status change.
  *
  * <p>Forwarding elements, watermarks, or status elements must be protected by synchronizing on the
  * given lock object. This ensures that we don't call methods on a {@link StreamInputProcessor}

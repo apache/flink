@@ -18,8 +18,9 @@
 
 package org.apache.flink.streaming.api.operators.async.queue;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.junit.jupiter.api.Test;
@@ -39,10 +40,10 @@ class UnorderedStreamElementQueueTest {
 
         ResultFuture<Integer> record1 = putSuccessfully(queue, new StreamRecord<>(1, 0L));
         ResultFuture<Integer> record2 = putSuccessfully(queue, new StreamRecord<>(2, 1L));
-        putSuccessfully(queue, new Watermark(2L));
+        putSuccessfully(queue, new WatermarkEvent(new TimestampWatermark(2L)));
         ResultFuture<Integer> record3 = putSuccessfully(queue, new StreamRecord<>(3, 3L));
         ResultFuture<Integer> record4 = putSuccessfully(queue, new StreamRecord<>(4, 4L));
-        putSuccessfully(queue, new Watermark(5L));
+        putSuccessfully(queue, new WatermarkEvent(new TimestampWatermark(5L)));
         ResultFuture<Integer> record5 = putSuccessfully(queue, new StreamRecord<>(5, 6L));
         ResultFuture<Integer> record6 = putSuccessfully(queue, new StreamRecord<>(6, 7L));
 
@@ -77,10 +78,10 @@ class UnorderedStreamElementQueueTest {
         assertThat(popCompleted(queue))
                 .containsExactly(
                         new StreamRecord<>(11, 0L),
-                        new Watermark(2L),
+                        new WatermarkEvent(new TimestampWatermark(2L)),
                         new StreamRecord<>(13, 3L),
                         new StreamRecord<>(14, 4L),
-                        new Watermark(5L),
+                        new WatermarkEvent(new TimestampWatermark(5L)),
                         new StreamRecord<>(16, 7L));
         assertThat(queue.size()).isOne();
         assertThat(queue.isEmpty()).isFalse();

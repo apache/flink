@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -25,7 +26,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.transformations.SinkV1Adapter;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.sink.TestSink;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ExplainDetail;
@@ -449,8 +449,10 @@ class CommonExecSinkITCase {
                 new SinkFunction<RowData>() {
                     @Override
                     public void writeWatermark(
-                            org.apache.flink.api.common.eventtime.Watermark watermark) {
-                        addElement(watermarks, watermark.getTimestamp());
+                            org.apache.flink.api.common.eventtime.GenericWatermark watermark) {
+                        if (watermark instanceof TimestampWatermark) {
+                            addElement(watermarks, ((TimestampWatermark) watermark).getTimestamp());
+                        }
                     }
                 };
         final TableDescriptor sinkDescriptor =
@@ -481,7 +483,7 @@ class CommonExecSinkITCase {
         source.executeInsert(sinkDescriptor).await();
         assertThat(watermarks.get().size()).isEqualTo(env.getParallelism());
         for (Long watermark : watermarks.get()) {
-            assertThat(watermark).isEqualTo(Watermark.MAX_WATERMARK.getTimestamp());
+            assertThat(watermark).isEqualTo(TimestampWatermark.MAX_WATERMARK.getTimestamp());
         }
     }
 

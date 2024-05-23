@@ -19,14 +19,9 @@ limitations under the License.
 package org.apache.flink.api.common.eventtime;
 
 import org.apache.flink.annotation.Public;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
 
-import java.io.IOException;
-import java.io.Serializable;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.Optional;
 
 /**
  * Watermarks are the progress indicators in the data streams. A watermark signifies that no events

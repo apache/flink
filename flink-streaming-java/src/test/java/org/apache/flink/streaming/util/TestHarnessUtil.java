@@ -18,8 +18,10 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.util.ArrayList;
@@ -71,7 +73,7 @@ public class TestHarnessUtil {
         while (exIt.hasNext()) {
             Object nextEx = exIt.next();
             Object nextAct = actIt.next();
-            if (nextEx instanceof Watermark) {
+            if (nextEx instanceof WatermarkEvent) {
                 assertThat(nextAct).isEqualTo(nextEx);
             }
         }
@@ -111,8 +113,11 @@ public class TestHarnessUtil {
         long highestWatermark = Long.MIN_VALUE;
 
         for (Object elem : elements) {
-            if (elem instanceof Watermark) {
-                highestWatermark = ((Watermark) elem).asWatermark().getTimestamp();
+            if (elem instanceof WatermarkEvent) {
+                GenericWatermark genericWatermark =
+                        ((WatermarkEvent) elem).asWatermark().getGenericWatermark();
+                assertThat(genericWatermark).isInstanceOf(TimestampWatermark.class);
+                highestWatermark = ((TimestampWatermark) genericWatermark).getTimestamp();
             } else if (elem instanceof StreamRecord) {
                 boolean dataIsOnTime = highestWatermark < ((StreamRecord) elem).getTimestamp();
                 assertThat(dataIsOnTime).as("Late data was emitted after join").isTrue();

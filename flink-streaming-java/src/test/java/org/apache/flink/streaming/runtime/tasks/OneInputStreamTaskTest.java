@@ -19,6 +19,8 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -66,7 +68,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask.CanEmitBatchOfRecordsChecker;
@@ -179,20 +181,20 @@ class OneInputStreamTaskTest {
         testHarness.invoke();
         testHarness.waitForTaskRunning();
 
-        testHarness.processElement(new Watermark(initialTime), 0, 0);
-        testHarness.processElement(new Watermark(initialTime), 0, 1);
-        testHarness.processElement(new Watermark(initialTime), 1, 0);
+        testHarness.processElement(new WatermarkEvent(new TimestampWatermark(initialTime)), 0, 0);
+        testHarness.processElement(new WatermarkEvent(new TimestampWatermark(initialTime)), 0, 1);
+        testHarness.processElement(new WatermarkEvent(new TimestampWatermark(initialTime)), 1, 0);
 
         // now the output should still be empty
         testHarness.waitForInputProcessing();
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processElement(new Watermark(initialTime), 1, 1);
+        testHarness.processElement(new WatermarkEvent(new TimestampWatermark(initialTime)), 1, 1);
 
         // now the watermark should have propagated, Map simply forward Watermarks
         testHarness.waitForInputProcessing();
-        expectedOutput.add(new Watermark(initialTime));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(initialTime)));
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -202,46 +204,56 @@ class OneInputStreamTaskTest {
         expectedOutput.add(new StreamRecord<>("Hello", initialTime));
         expectedOutput.add(new StreamRecord<>("Ciao", initialTime));
 
-        testHarness.processElement(new Watermark(initialTime + 4), 0, 0);
-        testHarness.processElement(new Watermark(initialTime + 3), 0, 1);
-        testHarness.processElement(new Watermark(initialTime + 3), 1, 0);
-        testHarness.processElement(new Watermark(initialTime + 2), 1, 1);
+        testHarness.processElement(
+                new WatermarkEvent(new TimestampWatermark(initialTime + 4)), 0, 0);
+        testHarness.processElement(
+                new WatermarkEvent(new TimestampWatermark(initialTime + 3)), 0, 1);
+        testHarness.processElement(
+                new WatermarkEvent(new TimestampWatermark(initialTime + 3)), 1, 0);
+        testHarness.processElement(
+                new WatermarkEvent(new TimestampWatermark(initialTime + 2)), 1, 1);
 
         // check whether we get the minimum of all the watermarks, this must also only occur in
         // the output after the two StreamRecords
         testHarness.waitForInputProcessing();
-        expectedOutput.add(new Watermark(initialTime + 2));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(initialTime + 2)));
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         // advance watermark from one of the inputs, now we should get a new one since the
         // minimum increases
-        testHarness.processElement(new Watermark(initialTime + 4), 1, 1);
+        testHarness.processElement(
+                new WatermarkEvent(new TimestampWatermark(initialTime + 4)), 1, 1);
         testHarness.waitForInputProcessing();
-        expectedOutput.add(new Watermark(initialTime + 3));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(initialTime + 3)));
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         // advance the other two inputs, now we should get a new one since the
         // minimum increases again
-        testHarness.processElement(new Watermark(initialTime + 4), 0, 1);
-        testHarness.processElement(new Watermark(initialTime + 4), 1, 0);
+        testHarness.processElement(
+                new WatermarkEvent(new TimestampWatermark(initialTime + 4)), 0, 1);
+        testHarness.processElement(
+                new WatermarkEvent(new TimestampWatermark(initialTime + 4)), 1, 0);
         testHarness.waitForInputProcessing();
-        expectedOutput.add(new Watermark(initialTime + 4));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(initialTime + 4)));
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         // test whether idle input channels are acknowledged correctly when forwarding watermarks
         testHarness.processElement(WatermarkStatus.IDLE, 0, 1);
         testHarness.processElement(WatermarkStatus.IDLE, 1, 0);
-        testHarness.processElement(new Watermark(initialTime + 6), 0, 0);
         testHarness.processElement(
-                new Watermark(initialTime + 5), 1, 1); // this watermark should be advanced first
+                new WatermarkEvent(new TimestampWatermark(initialTime + 6)), 0, 0);
+        testHarness.processElement(
+                new WatermarkEvent(new TimestampWatermark(initialTime + 5)),
+                1,
+                1); // this watermark should be advanced first
         testHarness.processElement(WatermarkStatus.IDLE, 1, 1); // once this is acknowledged,
         // watermark (initial + 6) should be forwarded
         testHarness.waitForInputProcessing();
-        expectedOutput.add(new Watermark(initialTime + 5));
-        expectedOutput.add(new Watermark(initialTime + 6));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(initialTime + 5)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(initialTime + 6)));
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -319,7 +331,7 @@ class OneInputStreamTaskTest {
         // this watermark will be forwarded since the task is currently active,
         // but should not be in the final output because it should be blocked by the watermark
         // generator in the chain
-        testHarness.processElement(new Watermark(15));
+        testHarness.processElement(new WatermarkEvent(new TimestampWatermark(15)));
 
         testHarness.processElement(new StreamRecord<>("20"), 0, 0);
         testHarness.processElement(new StreamRecord<>("30"), 0, 0);
@@ -330,11 +342,11 @@ class OneInputStreamTaskTest {
                 new StreamRecord<>(
                         TriggerableFailOnWatermarkTestOperator.EXPECT_FORWARDED_WATERMARKS_MARKER));
         expectedOutput.add(new StreamRecord<>("10"));
-        expectedOutput.add(new Watermark(10));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(10)));
         expectedOutput.add(new StreamRecord<>("20"));
-        expectedOutput.add(new Watermark(20));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(20)));
         expectedOutput.add(new StreamRecord<>("30"));
-        expectedOutput.add(new Watermark(30));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(30)));
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -353,8 +365,10 @@ class OneInputStreamTaskTest {
         testHarness.processElement(new StreamRecord<>("50"), 0, 0);
         testHarness.processElement(new StreamRecord<>("60"), 0, 0);
         testHarness.processElement(
-                new Watermark(
-                        65)); // the test will fail if any of the operators were forwarded this
+                new WatermarkEvent(
+                        new TimestampWatermark(
+                                65))); // the test will fail if any of the operators were forwarded
+        // this
         testHarness.waitForInputProcessing();
 
         // the 40 - 60 watermarks should not be forwarded, only the watermark status toggle element
@@ -386,11 +400,11 @@ class OneInputStreamTaskTest {
                 new StreamRecord<>(
                         TriggerableFailOnWatermarkTestOperator.EXPECT_FORWARDED_WATERMARKS_MARKER));
         expectedOutput.add(new StreamRecord<>("70"));
-        expectedOutput.add(new Watermark(70));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(70)));
         expectedOutput.add(new StreamRecord<>("80"));
-        expectedOutput.add(new Watermark(80));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(80)));
         expectedOutput.add(new StreamRecord<>("90"));
-        expectedOutput.add(new Watermark(90));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(90)));
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -907,7 +921,7 @@ class OneInputStreamTaskTest {
         assertThat(chainedInputWatermarkGauge.getValue()).isEqualTo(Long.MIN_VALUE);
         assertThat(chainedOutputWatermarkGauge.getValue()).isEqualTo(Long.MIN_VALUE);
 
-        testHarness.processElement(new Watermark(1L));
+        testHarness.processElement(new WatermarkEvent(new TimestampWatermark(1L)));
         testHarness.waitForInputProcessing();
         assertThat(taskInputWatermarkGauge.getValue()).isOne();
         assertThat(headInputWatermarkGauge.getValue()).isOne();
@@ -915,7 +929,7 @@ class OneInputStreamTaskTest {
         assertThat(chainedInputWatermarkGauge.getValue()).isEqualTo(2L);
         assertThat(chainedOutputWatermarkGauge.getValue()).isEqualTo(4L);
 
-        testHarness.processElement(new Watermark(2L));
+        testHarness.processElement(new WatermarkEvent(new TimestampWatermark(2L)));
         testHarness.waitForInputProcessing();
         assertThat(taskInputWatermarkGauge.getValue()).isEqualTo(2L);
         assertThat(headInputWatermarkGauge.getValue()).isEqualTo(2L);
@@ -1106,8 +1120,13 @@ class OneInputStreamTaskTest {
         }
 
         @Override
-        public void processWatermark(Watermark mark) {
-            output.emitWatermark(new Watermark(mark.getTimestamp() * 2));
+        public void processWatermark(WatermarkEvent mark) {
+            GenericWatermark genericWatermark = mark.getGenericWatermark();
+            assertThat(genericWatermark).isInstanceOf(TimestampWatermark.class);
+            output.emitWatermark(
+                    new WatermarkEvent(
+                            new TimestampWatermark(
+                                    ((TimestampWatermark) genericWatermark).getTimestamp() * 2)));
         }
     }
 
@@ -1273,14 +1292,14 @@ class OneInputStreamTaskTest {
         protected void handleElement(StreamRecord<String> element) {
             long timestamp = Long.valueOf(element.getValue());
             if (timestamp > lastWatermark) {
-                output.emitWatermark(new Watermark(timestamp));
+                output.emitWatermark(new WatermarkEvent(new TimestampWatermark(timestamp)));
                 lastWatermark = timestamp;
             }
         }
 
         @Override
-        protected void handleWatermark(Watermark mark) {
-            if (mark.equals(Watermark.MAX_WATERMARK)) {
+        protected void handleWatermark(WatermarkEvent mark) {
+            if (mark.equals(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK))) {
                 output.emitWatermark(mark);
                 lastWatermark = Long.MAX_VALUE;
             }
@@ -1318,7 +1337,7 @@ class OneInputStreamTaskTest {
         }
 
         @Override
-        public void processWatermark(Watermark mark) throws Exception {
+        public void processWatermark(WatermarkEvent mark) throws Exception {
             if (!expectForwardedWatermarks) {
                 throw new Exception(
                         "Received a "
@@ -1333,7 +1352,7 @@ class OneInputStreamTaskTest {
             // do nothing
         }
 
-        protected void handleWatermark(Watermark mark) {
+        protected void handleWatermark(WatermarkEvent mark) {
             output.emitWatermark(mark);
         }
     }

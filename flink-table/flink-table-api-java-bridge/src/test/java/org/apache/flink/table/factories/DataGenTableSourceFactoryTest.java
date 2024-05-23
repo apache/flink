@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGeneratorSource;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGeneratorSourceTest;
 import org.apache.flink.streaming.api.operators.StreamSource;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
@@ -664,7 +664,7 @@ class DataGenTableSourceFactoryTest {
         public void collectWithTimestamp(RowData element, long timestamp) {}
 
         @Override
-        public void emitWatermark(Watermark mark) {}
+        public void emitWatermark(WatermarkEvent mark) {}
 
         @Override
         public void markAsTemporarilyIdle() {}

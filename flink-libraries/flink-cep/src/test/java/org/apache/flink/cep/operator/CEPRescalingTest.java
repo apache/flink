@@ -18,6 +18,8 @@
 
 package org.apache.flink.cep.operator;
 
+import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.cep.Event;
@@ -31,7 +33,7 @@ import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
@@ -134,12 +136,12 @@ public class CEPRescalingTest {
 
             // if element timestamps are not correctly checkpointed/restored this will lead to
             // a pruning time underflow exception in NFA
-            harness1.processWatermark(new Watermark(2));
+            harness1.processWatermark(new WatermarkEvent(new TimestampWatermark(2)));
 
             harness1.processElement(new StreamRecord<Event>(middleEvent1, 3)); // valid element
             harness1.processElement(new StreamRecord<>(endEvent1, 5)); // valid element
 
-            harness1.processWatermark(new Watermark(Long.MAX_VALUE));
+            harness1.processWatermark(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
 
             // watermarks and the result
             assertEquals(3, harness1.getOutput().size());
@@ -153,12 +155,12 @@ public class CEPRescalingTest {
             harness2.open();
 
             // now we move to the second parallel task
-            harness2.processWatermark(new Watermark(2));
+            harness2.processWatermark(new WatermarkEvent(new TimestampWatermark(2)));
 
             harness2.processElement(new StreamRecord<>(endEvent2, 5));
             harness2.processElement(new StreamRecord<>(new Event(42, "start", 1.0), 4));
 
-            harness2.processWatermark(new Watermark(Long.MAX_VALUE));
+            harness2.processWatermark(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
 
             assertEquals(3, harness2.getOutput().size());
             verifyWatermark(harness2.getOutput().poll(), 2);
@@ -342,14 +344,14 @@ public class CEPRescalingTest {
             harness5.open();
 
             harness5.processElement(new StreamRecord<>(endEvent2, 11));
-            harness5.processWatermark(new Watermark(12));
+            harness5.processWatermark(new WatermarkEvent(new TimestampWatermark(12)));
 
             verifyPattern(harness5.getOutput().poll(), startEvent2, middleEvent2, endEvent2);
             verifyWatermark(harness5.getOutput().poll(), 12);
 
             // if element timestamps are not correctly checkpointed/restored this will lead to
             // a pruning time underflow exception in NFA
-            harness4.processWatermark(new Watermark(12));
+            harness4.processWatermark(new WatermarkEvent(new TimestampWatermark(12)));
 
             assertEquals(2, harness4.getOutput().size());
             verifyPattern(harness4.getOutput().poll(), startEvent1, middleEvent1, endEvent1);
@@ -361,8 +363,8 @@ public class CEPRescalingTest {
             harness4.processElement(new StreamRecord<Event>(middleEvent1, 15)); // valid element
             harness4.processElement(new StreamRecord<>(endEvent1, 16)); // valid element
 
-            harness4.processWatermark(new Watermark(Long.MAX_VALUE));
-            harness5.processWatermark(new Watermark(Long.MAX_VALUE));
+            harness4.processWatermark(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
+            harness5.processWatermark(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
 
             // verify result
             assertEquals(3, harness4.getOutput().size());
@@ -396,8 +398,10 @@ public class CEPRescalingTest {
     }
 
     private void verifyWatermark(Object outputObject, long timestamp) {
-        assertTrue(outputObject instanceof Watermark);
-        assertEquals(timestamp, ((Watermark) outputObject).getTimestamp());
+        assertTrue(outputObject instanceof WatermarkEvent);
+        GenericWatermark genericWatermark = ((WatermarkEvent) outputObject).getGenericWatermark();
+        assertTrue(genericWatermark instanceof TimestampWatermark);
+        assertEquals(timestamp, ((TimestampWatermark) genericWatermark).getTimestamp());
     }
 
     private void verifyPattern(Object outputObject, Event start, SubEvent middle, Event end) {

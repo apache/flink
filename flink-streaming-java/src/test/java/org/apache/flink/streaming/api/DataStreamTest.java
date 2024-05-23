@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api;
 
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.FilterFunction;
@@ -67,7 +68,7 @@ import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -1269,8 +1270,8 @@ class DataStreamTest {
 
         @Nullable
         @Override
-        public Watermark checkAndGetNextWatermark(T lastElement, long extractedTimestamp) {
-            return new Watermark(extractedTimestamp);
+        public WatermarkEvent checkAndGetNextWatermark(T lastElement, long extractedTimestamp) {
+            return new WatermarkEvent(new TimestampWatermark(extractedTimestamp));
         }
     }
 

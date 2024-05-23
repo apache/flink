@@ -39,8 +39,8 @@ import org.apache.flink.util.OutputTag;
 public interface Output<T> extends Collector<T> {
 
     /**
-     * Emits a {@link WatermarkEvent} from an operator. This watermark is broadcast to all downstream
-     * operators.
+     * Emits a {@link WatermarkEvent} from an operator. This watermark is broadcast to all
+     * downstream operators.
      *
      * <p>A watermark specifies that no element with a timestamp lower or equal to the watermark
      * timestamp will be emitted in the future.

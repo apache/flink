@@ -28,7 +28,7 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperatorFactory;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
@@ -314,7 +314,7 @@ class ContinuousFileProcessingRescalingTest {
     private List<Object> collectOutput(HarnessWithFormat... in) {
         return Stream.of(in)
                 .flatMap(i -> i.getHarness().getOutput().stream())
-                .filter(output -> !(output instanceof Watermark))
+                .filter(output -> !(output instanceof WatermarkEvent))
                 .collect(Collectors.toList());
     }
 }

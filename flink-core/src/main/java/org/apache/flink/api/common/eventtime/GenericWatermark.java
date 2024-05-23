@@ -19,14 +19,8 @@ limitations under the License.
 package org.apache.flink.api.common.eventtime;
 
 import org.apache.flink.annotation.Public;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
 
-import java.io.IOException;
 import java.io.Serializable;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Optional;
 
 /**
  * Watermarks are the progress indicators in the data streams. A watermark signifies that no events
@@ -49,27 +43,24 @@ import java.util.Optional;
 @Public
 public interface GenericWatermark extends Serializable {
 
-
     /**
      * Compares this watermark with another watermark.
      *
      * @param laterWatermark The watermark to compare with. Can be null.
-     * @return An Integer containing the comparison result:
-     *         - A positive integer if this watermark is later.
-     *         - A negative integer if this watermark is earlier.
-     *         - Zero if both are equal.
+     * @return An Integer containing the comparison result: - A positive integer if this watermark
+     *     is later. - A negative integer if this watermark is earlier. - Zero if both are equal.
      */
-//    int checkUpdated(GenericWatermark laterWatermark);
-//
-//    boolean isComparable();
-//    /**
-//     * Creates a copy of this watermark.
-//     *
-//     * @return A new instance that is a copy of this watermark.
-//     */
-//    GenericWatermark copy();
-//
-//    void serialize(DataOutputView target) throws IOException;
-//
-//    GenericWatermark deserialize(DataInputView inputView) throws IOException;
+    //    int checkUpdated(GenericWatermark laterWatermark);
+    //
+    //    boolean isComparable();
+    //    /**
+    //     * Creates a copy of this watermark.
+    //     *
+    //     * @return A new instance that is a copy of this watermark.
+    //     */
+    //    GenericWatermark copy();
+    //
+    //    void serialize(DataOutputView target) throws IOException;
+    //
+    //    GenericWatermark deserialize(DataInputView inputView) throws IOException;
 }

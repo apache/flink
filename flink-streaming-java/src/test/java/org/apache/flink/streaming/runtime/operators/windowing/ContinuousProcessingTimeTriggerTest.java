@@ -18,12 +18,12 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.NullByteKeySelector;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.ProcessingTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
@@ -47,7 +47,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests for {@link ContinuousProcessingTimeTrigger}. */
 class ContinuousProcessingTimeTriggerTest {
 
-    private static final long NO_TIMESTAMP = Watermark.UNINITIALIZED.getTimestamp();
+    private static final long NO_TIMESTAMP = TimestampWatermark.UNINITIALIZED.getTimestamp();
 
     private static class WindowedInteger {
         private final TimeWindow window;

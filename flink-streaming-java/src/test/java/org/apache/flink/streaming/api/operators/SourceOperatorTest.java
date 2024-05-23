@@ -18,6 +18,7 @@ limitations under the License.
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.mocks.MockSourceReader;
@@ -33,7 +34,7 @@ import org.apache.flink.runtime.source.event.SourceEventWrapper;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.streaming.api.operators.source.CollectingDataOutput;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
@@ -227,10 +228,10 @@ class SourceOperatorTest {
         assertThat(outputStreamElements)
                 .containsExactly(
                         new StreamRecord<>(1, 1),
-                        new Watermark(0),
+                        new WatermarkEvent(new TimestampWatermark(0)),
                         new RecordAttributes(true),
                         new StreamRecord<>(1001, 1001),
-                        new Watermark(1000),
+                        new WatermarkEvent(new TimestampWatermark(1000)),
                         new RecordAttributes(false));
     }
 
@@ -248,7 +249,7 @@ class SourceOperatorTest {
         }
 
         @Override
-        public void emitWatermark(Watermark watermark) throws Exception {
+        public void emitWatermark(WatermarkEvent watermark) throws Exception {
             output.emitWatermark(watermark);
         }
 

@@ -384,7 +384,8 @@ public class StreamSourceContexts {
                             final long watermarkTime =
                                     currentTime - (currentTime % watermarkInterval);
 
-                            output.emitWatermark(new WatermarkEvent(new TimestampWatermark(watermarkTime)));
+                            output.emitWatermark(
+                                    new WatermarkEvent(new TimestampWatermark(watermarkTime)));
                             nextWatermarkTime = watermarkTime + watermarkInterval;
                         }
                     }

@@ -49,7 +49,8 @@ public final class AssignerWithPeriodicWatermarksAdapter<T> implements Watermark
 
     @Override
     public void onPeriodicEmit(WatermarkOutput output) {
-        final org.apache.flink.streaming.api.watermark.WatermarkEvent next = wms.getCurrentWatermark();
+        final org.apache.flink.streaming.api.watermark.WatermarkEvent next =
+                wms.getCurrentWatermark();
         if (next != null) {
             GenericWatermark genericWatermark = next.getGenericWatermark();
             if (genericWatermark instanceof TimestampWatermark) {

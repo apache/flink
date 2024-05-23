@@ -182,7 +182,8 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
             if (!(genericWatermark instanceof TimestampWatermark)) {
                 return;
             }
-            watermarkSeen = Math.max(watermarkSeen, ((TimestampWatermark) genericWatermark).getTimestamp());
+            watermarkSeen =
+                    Math.max(watermarkSeen, ((TimestampWatermark) genericWatermark).getTimestamp());
         }
 
         @Override

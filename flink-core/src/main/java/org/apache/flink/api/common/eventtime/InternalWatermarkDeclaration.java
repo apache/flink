@@ -30,7 +30,8 @@ public class InternalWatermarkDeclaration implements GenericWatermarkDeclaration
     }
 
     @Override
-    public void serialize(GenericWatermark genericWatermark, DataOutputView target) throws IOException {
+    public void serialize(GenericWatermark genericWatermark, DataOutputView target)
+            throws IOException {
         target.writeLong(((InternalWatermark) genericWatermark).getTimestamp());
         target.writeInt(((InternalWatermark) genericWatermark).getSubpartitionIndex());
     }

@@ -130,7 +130,8 @@ class ChainingOutput<T>
             return;
         }
         try {
-            watermarkGauge.setCurrentWatermark(((TimestampWatermark) genericWatermark).getTimestamp());
+            watermarkGauge.setCurrentWatermark(
+                    ((TimestampWatermark) genericWatermark).getTimestamp());
             input.processWatermark(mark);
         } catch (Exception e) {
             throw new ExceptionInChainedOperatorException(e);

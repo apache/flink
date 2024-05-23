@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
@@ -32,7 +33,7 @@ import org.apache.flink.streaming.api.functions.windowing.PassThroughWindowFunct
 import org.apache.flink.streaming.api.functions.windowing.ReduceApplyWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.delta.DeltaFunction;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.evictors.CountEvictor;
@@ -814,7 +815,7 @@ class EvictingWindowOperatorTest {
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 10));
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 100));
 
-        testHarness.processWatermark(new Watermark(1999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1999)));
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 1997));
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 1998));
@@ -827,13 +828,14 @@ class EvictingWindowOperatorTest {
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 2310));
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 2310));
 
-        testHarness.processWatermark(new Watermark(3999)); // now is the evictor
+        testHarness.processWatermark(
+                new WatermarkEvent(new TimestampWatermark(3999))); // now is the evictor
 
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-        expectedOutput.add(new Watermark(1999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(1999)));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 4), 3999));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), 3999));
-        expectedOutput.add(new Watermark(3999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3999)));
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
@@ -905,7 +907,7 @@ class EvictingWindowOperatorTest {
     private static class ResultSortComparator implements Comparator<Object> {
         @Override
         public int compare(Object o1, Object o2) {
-            if (o1 instanceof Watermark || o2 instanceof Watermark) {
+            if (o1 instanceof WatermarkEvent || o2 instanceof WatermarkEvent) {
                 return 0;
             } else {
                 StreamRecord<Tuple2<String, Integer>> sr0 =

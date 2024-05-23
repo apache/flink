@@ -56,7 +56,6 @@ import org.apache.flink.util.UserCodeClassLoader;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.sql.Time;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;

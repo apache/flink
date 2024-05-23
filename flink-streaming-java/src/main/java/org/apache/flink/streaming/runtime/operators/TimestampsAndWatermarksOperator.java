@@ -175,7 +175,9 @@ public class TimestampsAndWatermarksOperator<T> extends AbstractStreamOperator<T
 
             markActive();
 
-            output.emitWatermark(new org.apache.flink.streaming.api.watermark.WatermarkEvent(new TimestampWatermark(ts)));
+            output.emitWatermark(
+                    new org.apache.flink.streaming.api.watermark.WatermarkEvent(
+                            new TimestampWatermark(ts)));
         }
 
         @Override

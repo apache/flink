@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 
 import org.junit.jupiter.api.Test;
 
@@ -55,7 +55,7 @@ class FileMonitoringFunctionTest {
                             Tuple3<String, Long, Long> element, long timestamp) {}
 
                     @Override
-                    public void emitWatermark(Watermark mark) {}
+                    public void emitWatermark(WatermarkEvent mark) {}
 
                     @Override
                     public void markAsTemporarilyIdle() {}

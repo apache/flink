@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.MultiShotLatch;
@@ -32,7 +33,7 @@ import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -107,7 +108,9 @@ class SourceTaskTerminationTest {
             if (shouldTerminate) {
                 // if we are in TERMINATE mode, we expect the source task
                 // to emit MAX_WM before the SYNC_SAVEPOINT barrier.
-                verifyWatermark(srcTaskTestHarness.getOutput(), Watermark.MAX_WATERMARK);
+                verifyWatermark(
+                        srcTaskTestHarness.getOutput(),
+                        new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
             }
 
             verifyEvent(
@@ -152,7 +155,9 @@ class SourceTaskTerminationTest {
         runLoopStart.trigger();
         runLoopEnd.await();
         srcTaskTestHarness.processAll();
-        verifyWatermark(srcTaskTestHarness.getOutput(), new Watermark(expectedElement));
+        verifyWatermark(
+                srcTaskTestHarness.getOutput(),
+                new WatermarkEvent(new TimestampWatermark(expectedElement)));
         verifyNextElement(srcTaskTestHarness.getOutput(), expectedElement);
     }
 
@@ -164,9 +169,9 @@ class SourceTaskTerminationTest {
                 .isEqualTo(expectedElement);
     }
 
-    private void verifyWatermark(Queue<Object> output, Watermark expectedWatermark) {
+    private void verifyWatermark(Queue<Object> output, WatermarkEvent expectedWatermark) {
         Object next = output.remove();
-        assertThat(next).as("next element is not an event").isInstanceOf(Watermark.class);
+        assertThat(next).as("next element is not an event").isInstanceOf(WatermarkEvent.class);
         assertThat(next).as("wrong watermark").isEqualTo(expectedWatermark);
     }
 
@@ -199,7 +204,7 @@ class SourceTaskTerminationTest {
             while (isRunning) {
                 runLoopStart.await();
                 if (isRunning) {
-                    ctx.emitWatermark(new Watermark(element));
+                    ctx.emitWatermark(new WatermarkEvent(new TimestampWatermark(element)));
                     ctx.collect(element++);
                 }
                 runLoopEnd.trigger();

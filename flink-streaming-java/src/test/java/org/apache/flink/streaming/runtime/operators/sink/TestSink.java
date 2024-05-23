@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
-import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.GenericWatermark;
 import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.api.connector.sink.Sink;
@@ -234,7 +234,7 @@ public class TestSink<T> implements Sink<T, String, String, String> {
 
         protected List<String> elements;
 
-        protected List<Watermark> watermarks;
+        protected List<GenericWatermark> watermarks;
 
         protected ProcessingTimeService processingTimerService;
 
@@ -250,7 +250,7 @@ public class TestSink<T> implements Sink<T, String, String, String> {
         }
 
         @Override
-        public void writeWatermark(Watermark watermark) throws IOException {
+        public void writeWatermark(GenericWatermark watermark) throws IOException {
             watermarks.add(watermark);
         }
 

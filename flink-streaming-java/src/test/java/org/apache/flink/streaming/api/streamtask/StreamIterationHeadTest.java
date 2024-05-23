@@ -17,8 +17,9 @@
 
 package org.apache.flink.streaming.api.streamtask;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskTestHarness;
 
@@ -41,6 +42,7 @@ class StreamIterationHeadTest {
         harness.waitForTaskCompletion();
 
         assertThat(harness.getOutput()).hasSize(1);
-        assertThat(harness.getOutput().peek()).isEqualTo(new Watermark(Long.MAX_VALUE));
+        assertThat(harness.getOutput().peek())
+                .isEqualTo(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
     }
 }

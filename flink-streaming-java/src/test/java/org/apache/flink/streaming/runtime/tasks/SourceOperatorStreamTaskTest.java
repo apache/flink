@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
@@ -53,7 +54,7 @@ import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -133,7 +134,7 @@ class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
             triggerCheckpointWaitForFinish(testHarness, checkpointId, checkpointOptions);
 
             Queue<Object> expectedOutput = new LinkedList<>();
-            expectedOutput.add(Watermark.MAX_WATERMARK);
+            expectedOutput.add(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
             expectedOutput.add(new EndOfData(StopMode.DRAIN));
             expectedOutput.add(
                     new CheckpointBarrier(checkpointId, checkpointId, checkpointOptions));
@@ -149,7 +150,7 @@ class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
             testHarness.finishProcessing();
 
             Queue<Object> expectedOutput = new LinkedList<>();
-            expectedOutput.add(Watermark.MAX_WATERMARK);
+            expectedOutput.add(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
             expectedOutput.add(new EndOfData(StopMode.DRAIN));
             assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
         }
@@ -280,7 +281,9 @@ class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
             testHarness.getStreamTask().invoke();
             testHarness.processAll();
             assertThat(output)
-                    .containsExactly(Watermark.MAX_WATERMARK, new EndOfData(StopMode.DRAIN));
+                    .containsExactly(
+                            new WatermarkEvent(TimestampWatermark.MAX_WATERMARK),
+                            new EndOfData(StopMode.DRAIN));
 
             LifeCycleMonitorSourceReader sourceReader =
                     (LifeCycleMonitorSourceReader)

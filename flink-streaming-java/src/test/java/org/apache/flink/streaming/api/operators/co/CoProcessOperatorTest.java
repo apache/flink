@@ -18,8 +18,9 @@
 
 package org.apache.flink.streaming.api.operators.co;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
@@ -44,19 +45,19 @@ class CoProcessOperatorTest {
         testHarness.setup();
         testHarness.open();
 
-        testHarness.processWatermark1(new Watermark(17));
-        testHarness.processWatermark2(new Watermark(17));
+        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(17)));
+        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(17)));
         testHarness.processElement1(new StreamRecord<>(5, 12L));
 
-        testHarness.processWatermark1(new Watermark(42));
-        testHarness.processWatermark2(new Watermark(42));
+        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(42)));
+        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(42)));
         testHarness.processElement2(new StreamRecord<>("6", 13L));
 
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-        expectedOutput.add(new Watermark(17L));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(17L)));
         expectedOutput.add(new StreamRecord<>("5WM:17 TS:12", 12L));
-        expectedOutput.add(new Watermark(42L));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(42L)));
         expectedOutput.add(new StreamRecord<>("6WM:42 TS:13", 13L));
 
         TestHarnessUtil.assertOutputEquals(

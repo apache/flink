@@ -163,7 +163,10 @@ class DemultiplexingRecordDeserializer<T>
                     // basically, do not emit a watermark if not all virtual channel are past it
                     final GenericWatermark minWatermark =
                             channels.values().stream()
-                                    .map(virtualChannel -> virtualChannel.lastWatermark.getGenericWatermark())
+                                    .map(
+                                            virtualChannel ->
+                                                    virtualChannel.lastWatermark
+                                                            .getGenericWatermark())
                                     .filter(w -> w instanceof TimestampWatermark)
                                     .map(w -> (TimestampWatermark) w)
                                     .min(Comparator.comparing(TimestampWatermark::getTimestamp))

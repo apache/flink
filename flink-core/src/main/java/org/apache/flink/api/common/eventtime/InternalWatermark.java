@@ -18,10 +18,6 @@
 
 package org.apache.flink.api.common.eventtime;
 
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-
-import java.io.IOException;
 import java.util.Objects;
 
 public class InternalWatermark extends TimestampWatermark {

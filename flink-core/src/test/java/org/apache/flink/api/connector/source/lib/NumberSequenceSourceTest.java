@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.connector.source.lib;
 
-import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.GenericWatermark;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceOutput;
@@ -165,7 +165,7 @@ class NumberSequenceSourceTest {
         }
 
         @Override
-        public void emitWatermark(Watermark watermark) {
+        public void emitWatermark(GenericWatermark watermark) {
             throw new UnsupportedOperationException();
         }
 

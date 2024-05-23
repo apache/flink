@@ -46,7 +46,9 @@ public class FinishedOnRestoreInput<IN> implements Input<IN> {
     @Override
     public void processWatermark(WatermarkEvent watermark) {
         GenericWatermark genericWatermark = watermark.getGenericWatermark();
-        if (genericWatermark instanceof TimestampWatermark && ((TimestampWatermark) genericWatermark).getTimestamp() != TimestampWatermark.MAX_WATERMARK.getTimestamp()) {
+        if (genericWatermark instanceof TimestampWatermark
+                && ((TimestampWatermark) genericWatermark).getTimestamp()
+                        != TimestampWatermark.MAX_WATERMARK.getTimestamp()) {
             throw new IllegalStateException(
                     String.format(
                             "We should not receive any watermarks [%s] other than the MAX_WATERMARK if finished on restore",

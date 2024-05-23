@@ -424,7 +424,8 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
             if (!(genericWatermark instanceof TimestampWatermark)) {
                 return;
             }
-            seenWatermark = Math.max(seenWatermark, ((TimestampWatermark) genericWatermark).getTimestamp());
+            seenWatermark =
+                    Math.max(seenWatermark, ((TimestampWatermark) genericWatermark).getTimestamp());
         }
 
         @Override

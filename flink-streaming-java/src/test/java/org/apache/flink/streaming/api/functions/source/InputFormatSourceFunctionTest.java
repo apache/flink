@@ -37,7 +37,7 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 
 import org.junit.jupiter.api.Test;
 
@@ -240,7 +240,7 @@ class InputFormatSourceFunctionTest {
         }
 
         @Override
-        public void emitWatermark(Watermark mark) {
+        public void emitWatermark(WatermarkEvent mark) {
             throw new UnsupportedOperationException();
         }
 

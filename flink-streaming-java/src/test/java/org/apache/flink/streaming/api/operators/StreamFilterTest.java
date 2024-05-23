@@ -17,10 +17,11 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFilterFunction;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
@@ -66,7 +67,7 @@ class StreamFilterTest {
 
         testHarness.processElement(new StreamRecord<Integer>(1, initialTime + 1));
         testHarness.processElement(new StreamRecord<Integer>(2, initialTime + 2));
-        testHarness.processWatermark(new Watermark(initialTime + 2));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(initialTime + 2)));
         testHarness.processElement(new StreamRecord<Integer>(3, initialTime + 3));
         testHarness.processElement(new StreamRecord<Integer>(4, initialTime + 4));
         testHarness.processElement(new StreamRecord<Integer>(5, initialTime + 5));
@@ -74,7 +75,7 @@ class StreamFilterTest {
         testHarness.processElement(new StreamRecord<Integer>(7, initialTime + 7));
 
         expectedOutput.add(new StreamRecord<Integer>(2, initialTime + 2));
-        expectedOutput.add(new Watermark(initialTime + 2));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(initialTime + 2)));
         expectedOutput.add(new StreamRecord<Integer>(4, initialTime + 4));
         expectedOutput.add(new StreamRecord<Integer>(6, initialTime + 6));
 

@@ -50,7 +50,8 @@ class BroadcastingOutputCollector<T> implements WatermarkGaugeExposingOutput<Str
     public void emitWatermark(WatermarkEvent mark) {
         GenericWatermark genericWatermark = mark.getGenericWatermark();
         if (genericWatermark instanceof TimestampWatermark) {
-            watermarkGauge.setCurrentWatermark(((TimestampWatermark) genericWatermark).getTimestamp());
+            watermarkGauge.setCurrentWatermark(
+                    ((TimestampWatermark) genericWatermark).getTimestamp());
         }
         for (Output<StreamRecord<T>> output : outputs) {
             output.emitWatermark(mark);

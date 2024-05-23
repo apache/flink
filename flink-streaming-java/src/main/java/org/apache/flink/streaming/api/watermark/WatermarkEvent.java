@@ -61,13 +61,13 @@ public final class WatermarkEvent extends StreamElement {
                         && ((WatermarkEvent) o).genericWatermark.equals(this.getGenericWatermark());
     }
 
-//    @Override
-//    public int hashCode() {
-//        return (int) (timestamp ^ (timestamp >>> 32));
-//    }
-//
-//    @Override
-//    public String toString() {
-//        return "Watermark @ " + timestamp;
-//    }
+    //    @Override
+    //    public int hashCode() {
+    //        return (int) (timestamp ^ (timestamp >>> 32));
+    //    }
+    //
+    //    @Override
+    //    public String toString() {
+    //        return "Watermark @ " + timestamp;
+    //    }
 }

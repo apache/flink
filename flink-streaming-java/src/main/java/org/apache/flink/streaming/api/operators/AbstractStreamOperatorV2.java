@@ -491,8 +491,12 @@ public abstract class AbstractStreamOperatorV2<OUT>
 
     protected void reportWatermark(WatermarkEvent mark, int inputId) throws Exception {
         GenericWatermark genericWatermark = mark.getGenericWatermark();
-        if (genericWatermark instanceof TimestampWatermark && combinedWatermark.updateWatermark(inputId - 1, ((TimestampWatermark) genericWatermark).getTimestamp())) {
-            processWatermark(new WatermarkEvent(new TimestampWatermark(combinedWatermark.getCombinedWatermark())));
+        if (genericWatermark instanceof TimestampWatermark
+                && combinedWatermark.updateWatermark(
+                        inputId - 1, ((TimestampWatermark) genericWatermark).getTimestamp())) {
+            processWatermark(
+                    new WatermarkEvent(
+                            new TimestampWatermark(combinedWatermark.getCombinedWatermark())));
         }
     }
 
@@ -500,7 +504,9 @@ public abstract class AbstractStreamOperatorV2<OUT>
             throws Exception {
         boolean wasIdle = combinedWatermark.isIdle();
         if (combinedWatermark.updateStatus(inputId - 1, watermarkStatus.isIdle())) {
-            processWatermark(new WatermarkEvent(new TimestampWatermark(combinedWatermark.getCombinedWatermark())));
+            processWatermark(
+                    new WatermarkEvent(
+                            new TimestampWatermark(combinedWatermark.getCombinedWatermark())));
         }
         if (wasIdle != combinedWatermark.isIdle()) {
             output.emitWatermarkStatus(watermarkStatus);

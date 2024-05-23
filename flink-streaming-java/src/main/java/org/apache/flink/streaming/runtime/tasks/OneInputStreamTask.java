@@ -244,7 +244,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
         public void emitWatermark(WatermarkEvent watermark) throws Exception {
             GenericWatermark genericWatermark = watermark.getGenericWatermark();
             if (genericWatermark instanceof TimestampWatermark) {
-                watermarkGauge.setCurrentWatermark(((TimestampWatermark) genericWatermark).getTimestamp());
+                watermarkGauge.setCurrentWatermark(
+                        ((TimestampWatermark) genericWatermark).getTimestamp());
             }
             operator.processWatermark(watermark);
         }

@@ -30,7 +30,8 @@ public class TimestampWatermarkDeclaration implements GenericWatermarkDeclaratio
     }
 
     @Override
-    public void serialize(GenericWatermark genericWatermark, DataOutputView target) throws IOException {
+    public void serialize(GenericWatermark genericWatermark, DataOutputView target)
+            throws IOException {
         target.writeLong(((TimestampWatermark) genericWatermark).getTimestamp());
     }
 

@@ -1,4 +1,4 @@
-///*
+/// *
 // * Licensed to the Apache Software Foundation (ASF) under one
 // * or more contributor license agreements.  See the NOTICE file
 // * distributed with this work for additional information
@@ -16,15 +16,15 @@
 // * limitations under the License.
 // */
 //
-//package org.apache.flink.streaming.api.watermark;
+// package org.apache.flink.streaming.api.watermark;
 //
-//import org.apache.flink.annotation.Internal;
+// import org.apache.flink.annotation.Internal;
 //
-//import java.util.Objects;
+// import java.util.Objects;
 //
-///** The {@link Watermark} that contains extra information to be used internally. */
-//@Internal
-//public final class InternalWatermark extends Watermark {
+/// ** The {@link Watermark} that contains extra information to be used internally. */
+// @Internal
+// public final class InternalWatermark extends Watermark {
 //    private final int subpartitionIndex;
 //
 //    public InternalWatermark(long timestamp, int subpartitionIndex) {
@@ -52,4 +52,4 @@
 //    public String toString() {
 //        return "InternalWatermark @ " + timestamp + " " + subpartitionIndex;
 //    }
-//}
+// }

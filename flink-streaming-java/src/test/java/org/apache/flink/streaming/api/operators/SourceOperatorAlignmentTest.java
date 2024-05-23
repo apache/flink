@@ -18,7 +18,7 @@ limitations under the License.
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -173,7 +173,8 @@ class SourceOperatorAlignmentTest {
                 // If all source subtasks of the watermark group are idle,
                 // then the coordinator will report Long.MAX_VALUE
                 operator.handleOperatorEvent(
-                        new WatermarkAlignmentEvent(Watermark.MAX_WATERMARK.getTimestamp()));
+                        new WatermarkAlignmentEvent(
+                                TimestampWatermark.MAX_WATERMARK.getTimestamp()));
             } else {
                 // Other subtasks are not idle, so the watermark is increasing.
                 operator.handleOperatorEvent(new WatermarkAlignmentEvent(record1 + 150));
@@ -343,7 +344,7 @@ class SourceOperatorAlignmentTest {
             }
 
             if (shouldGenerate) {
-                output.emitWatermark(new Watermark(eventTimestamp));
+                output.emitWatermark(new TimestampWatermark(eventTimestamp));
             }
         }
 

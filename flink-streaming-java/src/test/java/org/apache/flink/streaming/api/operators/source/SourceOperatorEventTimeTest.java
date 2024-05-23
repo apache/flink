@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.source;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReader;
@@ -26,7 +27,7 @@ import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.streaming.api.operators.SourceOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
@@ -58,7 +59,7 @@ class SourceOperatorEventTimeTest {
         final WatermarkStrategy<Integer> watermarkStrategy =
                 WatermarkStrategy.forGenerator((ctx) -> new OnPeriodicTestWatermarkGenerator<>());
 
-        final List<Watermark> result =
+        final List<WatermarkEvent> result =
                 testSequenceOfWatermarks(
                         emitProgressiveWatermarks,
                         watermarkStrategy,
@@ -67,7 +68,10 @@ class SourceOperatorEventTimeTest {
                         (output) -> output.collect(0, 110L));
 
         assertWatermarksOrEmpty(
-                emitProgressiveWatermarks, result, new Watermark(100L), new Watermark(120L));
+                emitProgressiveWatermarks,
+                result,
+                new WatermarkEvent(new TimestampWatermark(100L)),
+                new WatermarkEvent(new TimestampWatermark(120L)));
     }
 
     @ParameterizedTest
@@ -76,7 +80,7 @@ class SourceOperatorEventTimeTest {
         final WatermarkStrategy<Integer> watermarkStrategy =
                 WatermarkStrategy.forGenerator((ctx) -> new OnEventTestWatermarkGenerator<>());
 
-        final List<Watermark> result =
+        final List<WatermarkEvent> result =
                 testSequenceOfWatermarks(
                         emitProgressiveWatermarks,
                         watermarkStrategy,
@@ -85,7 +89,10 @@ class SourceOperatorEventTimeTest {
                         (output) -> output.collect(0, 110L));
 
         assertWatermarksOrEmpty(
-                emitProgressiveWatermarks, result, new Watermark(100L), new Watermark(120L));
+                emitProgressiveWatermarks,
+                result,
+                new WatermarkEvent(new TimestampWatermark(100L)),
+                new WatermarkEvent(new TimestampWatermark(120L)));
     }
 
     @ParameterizedTest
@@ -94,7 +101,7 @@ class SourceOperatorEventTimeTest {
         final WatermarkStrategy<Integer> watermarkStrategy =
                 WatermarkStrategy.forGenerator((ctx) -> new OnPeriodicTestWatermarkGenerator<>());
 
-        final List<Watermark> result =
+        final List<WatermarkEvent> result =
                 testSequenceOfWatermarks(
                         emitProgressiveWatermarks,
                         watermarkStrategy,
@@ -111,9 +118,9 @@ class SourceOperatorEventTimeTest {
         assertWatermarksOrEmpty(
                 emitProgressiveWatermarks,
                 result,
-                new Watermark(100L),
-                new Watermark(150L),
-                new Watermark(200L));
+                new WatermarkEvent(new TimestampWatermark(100L)),
+                new WatermarkEvent(new TimestampWatermark(150L)),
+                new WatermarkEvent(new TimestampWatermark(200L)));
     }
 
     @ParameterizedTest
@@ -122,7 +129,7 @@ class SourceOperatorEventTimeTest {
         final WatermarkStrategy<Integer> watermarkStrategy =
                 WatermarkStrategy.forGenerator((ctx) -> new OnEventTestWatermarkGenerator<>());
 
-        final List<Watermark> result =
+        final List<WatermarkEvent> result =
                 testSequenceOfWatermarks(
                         emitProgressiveWatermarks,
                         watermarkStrategy,
@@ -139,9 +146,9 @@ class SourceOperatorEventTimeTest {
         assertWatermarksOrEmpty(
                 emitProgressiveWatermarks,
                 result,
-                new Watermark(100L),
-                new Watermark(150L),
-                new Watermark(200L));
+                new WatermarkEvent(new TimestampWatermark(100L)),
+                new WatermarkEvent(new TimestampWatermark(150L)),
+                new WatermarkEvent(new TimestampWatermark(200L)));
     }
 
     @ParameterizedTest
@@ -171,9 +178,12 @@ class SourceOperatorEventTimeTest {
                         Arrays.asList(new MockSourceSplit(1), new MockSourceSplit(2)),
                         new MockSourceSplitSerializer()));
 
-        final List<Watermark> result = testSequenceOfWatermarks(sourceOperator);
+        final List<WatermarkEvent> result = testSequenceOfWatermarks(sourceOperator);
         assertWatermarksOrEmpty(
-                emitProgressiveWatermarks, result, new Watermark(150L), new Watermark(300L));
+                emitProgressiveWatermarks,
+                result,
+                new WatermarkEvent(new TimestampWatermark(150L)),
+                new WatermarkEvent(new TimestampWatermark(300L)));
     }
 
     @Test
@@ -221,27 +231,27 @@ class SourceOperatorEventTimeTest {
                 .containsExactly(
                         // Record and watermark from main output
                         new StreamRecord<>(0, 100L),
-                        new Watermark(100L),
+                        new WatermarkEvent(new TimestampWatermark(100L)),
                         new WatermarkStatus(WatermarkStatus.IDLE_STATUS),
                         // Record and watermark from split 1
                         new StreamRecord<>(0, 150L),
                         new WatermarkStatus(WatermarkStatus.ACTIVE_STATUS),
-                        new Watermark(150L),
+                        new WatermarkEvent(new TimestampWatermark(150L)),
                         // Record and watermark from split 2
                         new StreamRecord<>(0, 200L),
-                        new Watermark(200L),
+                        new WatermarkEvent(new TimestampWatermark(200L)),
                         // IDLE event as output of main, split 1 and split 2 are idle
                         new WatermarkStatus(WatermarkStatus.IDLE_STATUS),
                         // Record and watermark from main output, together with an ACTIVE event
                         new StreamRecord<>(0, 250L),
                         new WatermarkStatus(WatermarkStatus.ACTIVE_STATUS),
-                        new Watermark(250L),
+                        new WatermarkEvent(new TimestampWatermark(250L)),
                         // IDLE event as output of main, split 1 and split 2 are idle
                         new WatermarkStatus(WatermarkStatus.IDLE_STATUS),
                         // Record and watermark from split 1, together with an ACTIVE event
                         new StreamRecord<>(0, 300L),
                         new WatermarkStatus(WatermarkStatus.ACTIVE_STATUS),
-                        new Watermark(300));
+                        new WatermarkEvent(new TimestampWatermark(300)));
     }
 
     // ------------------------------------------------------------------------
@@ -254,8 +264,8 @@ class SourceOperatorEventTimeTest {
      */
     private void assertWatermarksOrEmpty(
             boolean emitProgressiveWatermarks,
-            List<Watermark> actualWatermarks,
-            Watermark... expectedWatermarks) {
+            List<WatermarkEvent> actualWatermarks,
+            WatermarkEvent... expectedWatermarks) {
         // We add the expected Long.MAX_VALUE watermark to the end. We expect that for both
         // "STREAMING" and "BATCH" mode.
         if (emitProgressiveWatermarks) {
@@ -266,7 +276,7 @@ class SourceOperatorEventTimeTest {
     }
 
     @SafeVarargs
-    private final List<Watermark> testSequenceOfWatermarks(
+    private final List<WatermarkEvent> testSequenceOfWatermarks(
             final boolean emitProgressiveWatermarks,
             final WatermarkStrategy<Integer> watermarkStrategy,
             final Consumer<ReaderOutput<Integer>>... actions)
@@ -279,14 +289,14 @@ class SourceOperatorEventTimeTest {
     }
 
     @SuppressWarnings("FinalPrivateMethod")
-    private final List<Watermark> testSequenceOfWatermarks(
+    private final List<WatermarkEvent> testSequenceOfWatermarks(
             SourceOperator<Integer, MockSourceSplit> sourceOperator) throws Exception {
 
         final List<Object> allEvents = testSequenceOfEvents(sourceOperator);
 
         return allEvents.stream()
-                .filter((evt) -> evt instanceof Watermark)
-                .map((evt) -> (Watermark) evt)
+                .filter((evt) -> evt instanceof WatermarkEvent)
+                .map((evt) -> (WatermarkEvent) evt)
                 .collect(Collectors.toList());
     }
 

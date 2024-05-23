@@ -83,8 +83,11 @@ public abstract class AscendingTimestampExtractor<T> implements AssignerWithPeri
 
     @Override
     public final WatermarkEvent getCurrentWatermark() {
-        return new WatermarkEvent(new TimestampWatermark(
-                currentTimestamp == Long.MIN_VALUE ? Long.MIN_VALUE : currentTimestamp - 1));
+        return new WatermarkEvent(
+                new TimestampWatermark(
+                        currentTimestamp == Long.MIN_VALUE
+                                ? Long.MIN_VALUE
+                                : currentTimestamp - 1));
     }
 
     // ------------------------------------------------------------------------

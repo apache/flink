@@ -19,7 +19,7 @@ limitations under the License.
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -64,13 +64,13 @@ class SourceOperatorSplitWatermarkAlignmentTest {
                 public void onEvent(Integer event, long eventTimestamp, WatermarkOutput output) {
                     if (eventTimestamp > maxWatermark) {
                         this.maxWatermark = eventTimestamp;
-                        output.emitWatermark(new Watermark(maxWatermark));
+                        output.emitWatermark(new TimestampWatermark(maxWatermark));
                     }
                 }
 
                 @Override
                 public void onPeriodicEmit(WatermarkOutput output) {
-                    output.emitWatermark(new Watermark(maxWatermark));
+                    output.emitWatermark(new TimestampWatermark(maxWatermark));
                 }
             };
 

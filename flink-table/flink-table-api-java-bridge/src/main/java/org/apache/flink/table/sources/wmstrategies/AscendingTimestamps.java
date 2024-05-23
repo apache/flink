@@ -19,7 +19,8 @@
 package org.apache.flink.table.sources.wmstrategies;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.table.descriptors.Rowtime;
 
 import java.util.HashMap;
@@ -65,7 +66,7 @@ public final class AscendingTimestamps extends PeriodicWatermarkAssigner {
     }
 
     @Override
-    public Watermark getWatermark() {
-        return new Watermark(maxTimestamp - 1);
+    public WatermarkEvent getWatermark() {
+        return new WatermarkEvent(new TimestampWatermark(maxTimestamp - 1));
     }
 }

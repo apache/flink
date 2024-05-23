@@ -281,7 +281,8 @@ public class StreamMultipleInputProcessorFactory {
         public void emitWatermark(WatermarkEvent watermark) throws Exception {
             GenericWatermark genericWatermark = watermark.getGenericWatermark();
             if (genericWatermark instanceof TimestampWatermark) {
-                inputWatermarkGauge.setCurrentWatermark(((TimestampWatermark) genericWatermark).getTimestamp());
+                inputWatermarkGauge.setCurrentWatermark(
+                        ((TimestampWatermark) genericWatermark).getTimestamp());
             }
             input.processWatermark(watermark);
         }

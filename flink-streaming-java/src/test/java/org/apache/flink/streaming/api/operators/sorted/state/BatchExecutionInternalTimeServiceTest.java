@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.operators.sorted.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
@@ -39,7 +40,7 @@ import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.KeyContext;
 import org.apache.flink.streaming.api.operators.Triggerable;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 
@@ -165,7 +166,7 @@ class BatchExecutionInternalTimeServiceTest {
         timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, 123);
 
         // advancing the watermark should not fire timers
-        timeServiceManager.advanceWatermark(new Watermark(1000));
+        timeServiceManager.advanceWatermark(new WatermarkEvent(new TimestampWatermark(1000)));
         timerService.deleteEventTimeTimer(VoidNamespace.INSTANCE, 123);
         timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, 150);
 
@@ -240,7 +241,7 @@ class BatchExecutionInternalTimeServiceTest {
         assertThat(timerService.currentWatermark()).isEqualTo(Long.MIN_VALUE);
 
         // advancing the watermark to a value different than Long.MAX_VALUE should have no effect
-        timeServiceManager.advanceWatermark(new Watermark(1000));
+        timeServiceManager.advanceWatermark(new WatermarkEvent(new TimestampWatermark(1000)));
         assertThat(timerService.currentWatermark()).isEqualTo(Long.MIN_VALUE);
 
         // changing the current key fires all timers
@@ -249,7 +250,7 @@ class BatchExecutionInternalTimeServiceTest {
         timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, 124);
 
         // advancing the watermark to Long.MAX_VALUE should fire remaining key
-        timeServiceManager.advanceWatermark(Watermark.MAX_WATERMARK);
+        timeServiceManager.advanceWatermark(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
 
         assertThat(timers).containsExactly(123L, 124L);
     }

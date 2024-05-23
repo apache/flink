@@ -18,10 +18,11 @@ limitations under the License.
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.streaming.api.operators.source.CollectingDataOutput;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.util.MockOutput;
 
@@ -84,14 +85,16 @@ class SourceOperatorWatermarksTest {
         // matter for this test), three in total, watermark 42 can be finally emitted
         assertThat(operator.emitNext(actualOutput)).isEqualTo(DataInputStatus.MORE_AVAILABLE);
         assertThat(operator.emitNext(actualOutput)).isEqualTo(DataInputStatus.MORE_AVAILABLE);
-        assertWatermark(actualOutput, new Watermark(42));
+        assertWatermark(actualOutput, new WatermarkEvent(new TimestampWatermark(42)));
     }
 
     private static void assertNoWatermarks(CollectingDataOutput<Integer> actualOutput) {
-        assertThat(actualOutput.getEvents()).noneMatch(element -> element instanceof Watermark);
+        assertThat(actualOutput.getEvents())
+                .noneMatch(element -> element instanceof WatermarkEvent);
     }
 
-    private void assertWatermark(CollectingDataOutput<Integer> actualOutput, Watermark watermark) {
+    private void assertWatermark(
+            CollectingDataOutput<Integer> actualOutput, WatermarkEvent watermark) {
         assertThat(actualOutput.getEvents()).containsOnlyOnce(watermark);
     }
 }

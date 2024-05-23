@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators.async;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -47,7 +48,7 @@ import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueue;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
@@ -339,7 +340,7 @@ class AsyncWaitOperatorTest {
     private class StreamRecordComparator implements Comparator<Object> {
         @Override
         public int compare(Object o1, Object o2) {
-            if (o1 instanceof Watermark || o2 instanceof Watermark) {
+            if (o1 instanceof WatermarkEvent || o2 instanceof WatermarkEvent) {
                 return 0;
             } else {
                 StreamRecord<Integer> sr0 = (StreamRecord<Integer>) o1;
@@ -383,7 +384,8 @@ class AsyncWaitOperatorTest {
         synchronized (testHarness.getCheckpointLock()) {
             testHarness.processElement(new StreamRecord<>(1, initialTime + 1));
             testHarness.processElement(new StreamRecord<>(2, initialTime + 2));
-            testHarness.processWatermark(new Watermark(initialTime + 2));
+            testHarness.processWatermark(
+                    new WatermarkEvent(new TimestampWatermark(initialTime + 2)));
             testHarness.processElement(new StreamRecord<>(3, initialTime + 3));
         }
 
@@ -395,7 +397,7 @@ class AsyncWaitOperatorTest {
 
         expectedOutput.add(new StreamRecord<>(2, initialTime + 1));
         expectedOutput.add(new StreamRecord<>(4, initialTime + 2));
-        expectedOutput.add(new Watermark(initialTime + 2));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(initialTime + 2)));
         expectedOutput.add(new StreamRecord<>(6, initialTime + 3));
 
         if (AsyncDataStream.OutputMode.ORDERED == mode) {
@@ -408,7 +410,7 @@ class AsyncWaitOperatorTest {
 
             assertThat(jobOutputQueue[2])
                     .as("Watermark should be at index 2")
-                    .isEqualTo(new Watermark(initialTime + 2));
+                    .isEqualTo(new WatermarkEvent(new TimestampWatermark(initialTime + 2)));
             assertThat(jobOutputQueue[3])
                     .as("StreamRecord 3 should be at the end")
                     .isEqualTo(new StreamRecord<>(6, initialTime + 3));

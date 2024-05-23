@@ -18,23 +18,24 @@
 
 package org.apache.flink.streaming.util;
 
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 
 import org.hamcrest.FeatureMatcher;
 import org.hamcrest.Matcher;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 
-/** Matchers for {@link org.apache.flink.streaming.api.watermark.Watermark}. */
+/** Matchers for {@link org.apache.flink.streaming.api.watermark.WatermarkEvent}. */
 public class WatermarkMatchers {
 
     /** Creates a matcher that matches when the examined watermark has the given timestamp. */
-    public static Matcher<Watermark> legacyWatermark(long timestamp) {
-        return new FeatureMatcher<Watermark, Long>(
+    public static Matcher<WatermarkEvent> legacyWatermark(long timestamp) {
+        return new FeatureMatcher<WatermarkEvent, Long>(
                 equalTo(timestamp), "a watermark with value", "value of watermark") {
             @Override
-            protected Long featureValueOf(Watermark actual) {
-                return actual.getTimestamp();
+            protected Long featureValueOf(WatermarkEvent actual) {
+                return ((TimestampWatermark) (actual.getGenericWatermark())).getTimestamp();
             }
         };
     }

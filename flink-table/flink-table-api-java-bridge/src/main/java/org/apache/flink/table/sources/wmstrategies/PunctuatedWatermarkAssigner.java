@@ -19,7 +19,7 @@
 package org.apache.flink.table.sources.wmstrategies;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.types.Row;
 
 /** A punctuated watermark assigner. */
@@ -33,5 +33,5 @@ public abstract class PunctuatedWatermarkAssigner extends WatermarkStrategy {
      * @param timestamp The value of the timestamp attribute for the row.
      * @return The watermark for this row or null if no watermark should be generated.
      */
-    public abstract Watermark getWatermark(Row row, long timestamp);
+    public abstract WatermarkEvent getWatermark(Row row, long timestamp);
 }

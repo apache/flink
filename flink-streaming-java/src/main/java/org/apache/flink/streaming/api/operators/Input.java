@@ -41,8 +41,9 @@ public interface Input<IN> {
     void processElement(StreamRecord<IN> element) throws Exception;
 
     /**
-     * Processes a {@link WatermarkEvent} that arrived on the first input of this two-input operator.
-     * This method is guaranteed to not be called concurrently with other methods of the operator.
+     * Processes a {@link WatermarkEvent} that arrived on the first input of this two-input
+     * operator. This method is guaranteed to not be called concurrently with other methods of the
+     * operator.
      *
      * @see org.apache.flink.streaming.api.watermark.WatermarkEvent
      */

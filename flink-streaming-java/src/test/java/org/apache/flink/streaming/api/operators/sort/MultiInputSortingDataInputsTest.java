@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators.sort;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -27,7 +28,7 @@ import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.sort.MultiInputSortingDataInput.SelectableSortingInputs;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.MultipleInputSelectionHandler;
 import org.apache.flink.streaming.runtime.io.StreamMultipleInputProcessor;
@@ -68,13 +69,15 @@ class MultiInputSortingDataInputsTest {
                         new StreamRecord<>(2, 3),
                         new StreamRecord<>(1, 2),
                         new StreamRecord<>(2, 2),
-                        Watermark.MAX_WATERMARK);
+                        new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
         CollectionDataInput<Integer> sortedInput =
                 new CollectionDataInput<>(sortedInputElements, sortedIndex);
 
         List<StreamElement> preferredInputElements =
                 Arrays.asList(
-                        new StreamRecord<>(99, 3), new StreamRecord<>(99, 1), new Watermark(99L));
+                        new StreamRecord<>(99, 3),
+                        new StreamRecord<>(99, 1),
+                        new WatermarkEvent(new TimestampWatermark(99L)));
         CollectionDataInput<Integer> preferredInput =
                 new CollectionDataInput<>(preferredInputElements, preferredIndex);
 
@@ -134,7 +137,7 @@ class MultiInputSortingDataInputsTest {
                         new StreamRecord<>(99, 3),
                         new StreamRecord<>(99, 1),
                         // max watermark from the preferred input
-                        new Watermark(99L),
+                        new WatermarkEvent(new TimestampWatermark(99L)),
                         new StreamRecord<>(1, 1),
                         new StreamRecord<>(1, 2),
                         new StreamRecord<>(1, 3),
@@ -142,7 +145,7 @@ class MultiInputSortingDataInputsTest {
                         new StreamRecord<>(2, 2),
                         new StreamRecord<>(2, 3),
                         // max watermark from the sorted input
-                        Watermark.MAX_WATERMARK);
+                        new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
     }
 
     @Test
@@ -157,7 +160,7 @@ class MultiInputSortingDataInputsTest {
                         new StreamRecord<>(2, 3),
                         new StreamRecord<>(1, 2),
                         new StreamRecord<>(2, 2),
-                        Watermark.MAX_WATERMARK);
+                        new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
         CollectionDataInput<Integer> dataInput1 = new CollectionDataInput<>(elements, 0);
         CollectionDataInput<Integer> dataInput2 = new CollectionDataInput<>(elements, 1);
         KeySelector<Integer, Integer> keySelector = value -> value;
@@ -216,10 +219,10 @@ class MultiInputSortingDataInputsTest {
                         new StreamRecord<>(2, 2),
                         new StreamRecord<>(2, 3),
                         // max watermark from one of the inputs
-                        Watermark.MAX_WATERMARK,
+                        new WatermarkEvent(TimestampWatermark.MAX_WATERMARK),
                         new StreamRecord<>(2, 3),
                         // max watermark from the other input
-                        Watermark.MAX_WATERMARK);
+                        new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
     }
 
     @Test
@@ -229,15 +232,15 @@ class MultiInputSortingDataInputsTest {
         List<StreamElement> elements1 =
                 Arrays.asList(
                         new StreamRecord<>(2, 3),
-                        new Watermark(3),
+                        new WatermarkEvent(new TimestampWatermark(3)),
                         new StreamRecord<>(3, 3),
-                        new Watermark(7));
+                        new WatermarkEvent(new TimestampWatermark(7)));
         List<StreamElement> elements2 =
                 Arrays.asList(
                         new StreamRecord<>(0, 3),
-                        new Watermark(1),
+                        new WatermarkEvent(new TimestampWatermark(1)),
                         new StreamRecord<>(1, 3),
-                        new Watermark(3));
+                        new WatermarkEvent(new TimestampWatermark(3)));
         CollectionDataInput<Integer> dataInput1 = new CollectionDataInput<>(elements1, 0);
         CollectionDataInput<Integer> dataInput2 = new CollectionDataInput<>(elements2, 1);
         KeySelector<Integer, Integer> keySelector = value -> value;
@@ -287,11 +290,11 @@ class MultiInputSortingDataInputsTest {
                         new StreamRecord<>(0, 3),
                         new StreamRecord<>(1, 3),
                         // watermark from the second input
-                        new Watermark(3),
+                        new WatermarkEvent(new TimestampWatermark(3)),
                         new StreamRecord<>(2, 3),
                         new StreamRecord<>(3, 3),
                         // watermark from the first input
-                        new Watermark(7));
+                        new WatermarkEvent(new TimestampWatermark(7)));
     }
 
     private static class DummyOperatorChain implements BoundedMultiInput {

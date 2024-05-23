@@ -18,9 +18,10 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
@@ -157,8 +158,8 @@ class StreamSourceContextIdleDetectionTests {
                 break;
             case EMIT_WATERMARK:
                 long watermarkTime = processingTimeService.getCurrentProcessingTime();
-                expectedOutput.add(new Watermark(watermarkTime));
-                context.emitWatermark(new Watermark(watermarkTime));
+                expectedOutput.add(new WatermarkEvent(new TimestampWatermark(watermarkTime)));
+                context.emitWatermark(new WatermarkEvent(new TimestampWatermark(watermarkTime)));
                 break;
         }
     }
@@ -204,16 +205,18 @@ class StreamSourceContextIdleDetectionTests {
         // corresponds to step (2) of scenario (please see method-level Javadoc comment)
         processingTimeService.setCurrentTime(initialTime + watermarkInterval);
         expectedOutput.add(
-                new Watermark(
-                        processingTimeService.getCurrentProcessingTime()
-                                - (processingTimeService.getCurrentProcessingTime()
-                                        % watermarkInterval)));
+                new WatermarkEvent(
+                        new TimestampWatermark(
+                                processingTimeService.getCurrentProcessingTime()
+                                        - (processingTimeService.getCurrentProcessingTime()
+                                                % watermarkInterval))));
         processingTimeService.setCurrentTime(initialTime + 2 * watermarkInterval);
         expectedOutput.add(
-                new Watermark(
-                        processingTimeService.getCurrentProcessingTime()
-                                - (processingTimeService.getCurrentProcessingTime()
-                                        % watermarkInterval)));
+                new WatermarkEvent(
+                        new TimestampWatermark(
+                                processingTimeService.getCurrentProcessingTime()
+                                        - (processingTimeService.getCurrentProcessingTime()
+                                                % watermarkInterval))));
         processingTimeService.setCurrentTime(initialTime + idleTimeout);
         expectedOutput.add(WatermarkStatus.IDLE);
         assertThat(output).isEqualTo(expectedOutput);
@@ -237,10 +240,11 @@ class StreamSourceContextIdleDetectionTests {
                         new StreamRecord<>(
                                 "msg", processingTimeService.getCurrentProcessingTime()));
                 expectedOutput.add(
-                        new Watermark(
-                                processingTimeService.getCurrentProcessingTime()
-                                        - (processingTimeService.getCurrentProcessingTime()
-                                                % watermarkInterval)));
+                        new WatermarkEvent(
+                                new TimestampWatermark(
+                                        processingTimeService.getCurrentProcessingTime()
+                                                - (processingTimeService.getCurrentProcessingTime()
+                                                        % watermarkInterval))));
                 assertThat(output).isEqualTo(expectedOutput);
                 break;
             case COLLECT_WITH_TIMESTAMP:
@@ -251,10 +255,11 @@ class StreamSourceContextIdleDetectionTests {
                         new StreamRecord<>(
                                 "msg", processingTimeService.getCurrentProcessingTime()));
                 expectedOutput.add(
-                        new Watermark(
-                                processingTimeService.getCurrentProcessingTime()
-                                        - (processingTimeService.getCurrentProcessingTime()
-                                                % watermarkInterval)));
+                        new WatermarkEvent(
+                                new TimestampWatermark(
+                                        processingTimeService.getCurrentProcessingTime()
+                                                - (processingTimeService.getCurrentProcessingTime()
+                                                        % watermarkInterval))));
                 assertThat(output).isEqualTo(expectedOutput);
                 break;
             case EMIT_WATERMARK:
@@ -262,7 +267,9 @@ class StreamSourceContextIdleDetectionTests {
                 // it should not make the status become active;
                 // from here on, the status should remain idle for the emitWatermark variant test
                 context.emitWatermark(
-                        new Watermark(processingTimeService.getCurrentProcessingTime()));
+                        new WatermarkEvent(
+                                new TimestampWatermark(
+                                        processingTimeService.getCurrentProcessingTime())));
                 assertThat(output).isEqualTo(expectedOutput);
         }
 
@@ -287,7 +294,9 @@ class StreamSourceContextIdleDetectionTests {
                 break;
             case EMIT_WATERMARK:
                 context.emitWatermark(
-                        new Watermark(processingTimeService.getCurrentProcessingTime()));
+                        new WatermarkEvent(
+                                new TimestampWatermark(
+                                        processingTimeService.getCurrentProcessingTime())));
                 assertThat(output).isEqualTo(expectedOutput);
         }
 
@@ -296,10 +305,11 @@ class StreamSourceContextIdleDetectionTests {
             case COLLECT:
             case COLLECT_WITH_TIMESTAMP:
                 expectedOutput.add(
-                        new Watermark(
-                                processingTimeService.getCurrentProcessingTime()
-                                        - (processingTimeService.getCurrentProcessingTime()
-                                                % watermarkInterval)));
+                        new WatermarkEvent(
+                                new TimestampWatermark(
+                                        processingTimeService.getCurrentProcessingTime()
+                                                - (processingTimeService.getCurrentProcessingTime()
+                                                        % watermarkInterval))));
                 assertThat(output).isEqualTo(expectedOutput);
                 break;
             case EMIT_WATERMARK:
@@ -311,10 +321,11 @@ class StreamSourceContextIdleDetectionTests {
             case COLLECT:
             case COLLECT_WITH_TIMESTAMP:
                 expectedOutput.add(
-                        new Watermark(
-                                processingTimeService.getCurrentProcessingTime()
-                                        - (processingTimeService.getCurrentProcessingTime()
-                                                % watermarkInterval)));
+                        new WatermarkEvent(
+                                new TimestampWatermark(
+                                        processingTimeService.getCurrentProcessingTime()
+                                                - (processingTimeService.getCurrentProcessingTime()
+                                                        % watermarkInterval))));
                 assertThat(output).isEqualTo(expectedOutput);
                 break;
             case EMIT_WATERMARK:

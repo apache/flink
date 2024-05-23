@@ -19,7 +19,8 @@
 package org.apache.flink.test.runtime;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -204,8 +205,9 @@ class BatchShuffleITCaseBase {
         }
 
         @Override
-        public void writeWatermark(Watermark watermark) {
-            assertThat(watermark.getTimestamp()).isEqualTo(Long.MAX_VALUE);
+        public void writeWatermark(GenericWatermark watermark) {
+            assertThat(watermark).isInstanceOf(TimestampWatermark.class);
+            assertThat(((TimestampWatermark) watermark).getTimestamp()).isEqualTo(Long.MAX_VALUE);
             isWatermarkReceived = true;
         }
 

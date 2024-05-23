@@ -27,8 +27,6 @@ import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.tasks.ExceptionInChainedOperatorException;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
-import java.io.IOException;
-
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -82,7 +80,6 @@ public final class WatermarkToDataOutput implements WatermarkOutput {
             return;
         }
 
-
         final long newWatermark = ((TimestampWatermark) watermark).getTimestamp();
         if (newWatermark <= maxWatermarkSoFar) {
             return;
@@ -95,7 +92,8 @@ public final class WatermarkToDataOutput implements WatermarkOutput {
             markActiveInternally();
 
             output.emitWatermark(
-                    new org.apache.flink.streaming.api.watermark.WatermarkEvent(new TimestampWatermark(newWatermark)));
+                    new org.apache.flink.streaming.api.watermark.WatermarkEvent(
+                            new TimestampWatermark(newWatermark)));
         } catch (ExceptionInChainedOperatorException e) {
             throw e;
         } catch (Exception e) {

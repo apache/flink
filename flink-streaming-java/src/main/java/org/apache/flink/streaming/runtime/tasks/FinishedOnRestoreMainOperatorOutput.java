@@ -54,7 +54,8 @@ public class FinishedOnRestoreMainOperatorOutput<OUT> implements WatermarkGaugeE
         GenericWatermark genericWatermark = mark.getGenericWatermark();
 
         if (genericWatermark instanceof TimestampWatermark) {
-            watermarkGauge.setCurrentWatermark(((TimestampWatermark) genericWatermark).getTimestamp());
+            watermarkGauge.setCurrentWatermark(
+                    ((TimestampWatermark) genericWatermark).getTimestamp());
         }
         for (RecordWriterOutput<?> streamOutput : streamOutputs) {
             streamOutput.emitWatermark(mark);

@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -33,7 +34,7 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributesBuilder;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -491,24 +492,24 @@ public class AbstractStreamOperatorTest {
             testHarness.processElement1(1L, 1L);
             testHarness.processElement1(3L, 3L);
             testHarness.processElement1(4L, 4L);
-            testHarness.processWatermark1(new Watermark(1L));
+            testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(1L)));
             assertThat(testHarness.getOutput()).isEmpty();
 
             testHarness.processWatermarkStatus2(WatermarkStatus.IDLE);
             expectedOutput.add(new StreamRecord<>(1L));
-            expectedOutput.add(new Watermark(1L));
+            expectedOutput.add(new WatermarkEvent(new TimestampWatermark(1L)));
             TestHarnessUtil.assertOutputEquals(
                     "Output was not correct", expectedOutput, testHarness.getOutput());
 
-            testHarness.processWatermark1(new Watermark(3L));
+            testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(3L)));
             expectedOutput.add(new StreamRecord<>(3L));
-            expectedOutput.add(new Watermark(3L));
+            expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3L)));
             TestHarnessUtil.assertOutputEquals(
                     "Output was not correct", expectedOutput, testHarness.getOutput());
 
             testHarness.processWatermarkStatus2(WatermarkStatus.ACTIVE);
             // the other input is active now, we should not emit the watermark
-            testHarness.processWatermark1(new Watermark(4L));
+            testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(4L)));
             TestHarnessUtil.assertOutputEquals(
                     "Output was not correct", expectedOutput, testHarness.getOutput());
         }

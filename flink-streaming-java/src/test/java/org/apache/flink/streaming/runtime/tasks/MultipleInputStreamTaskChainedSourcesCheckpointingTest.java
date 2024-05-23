@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
@@ -50,7 +51,7 @@ import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
@@ -510,11 +511,13 @@ class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                         .finish()
                         .build()) {
 
-            testHarness.processElement(Watermark.MAX_WATERMARK);
+            testHarness.processElement(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
             assertThat(output).isEmpty();
             testHarness.waitForTaskCompletion();
             assertThat(output)
-                    .containsExactly(Watermark.MAX_WATERMARK, new EndOfData(StopMode.DRAIN));
+                    .containsExactly(
+                            new WatermarkEvent(TimestampWatermark.MAX_WATERMARK),
+                            new EndOfData(StopMode.DRAIN));
 
             for (StreamOperatorWrapper<?, ?> wrapper :
                     testHarness.getStreamTask().operatorChain.getAllOperators()) {
@@ -611,7 +614,7 @@ class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
             }
 
             @Override
-            public void processWatermark(Watermark mark) throws Exception {
+            public void processWatermark(WatermarkEvent mark) throws Exception {
                 throw new IllegalStateException(MESSAGE);
             }
 

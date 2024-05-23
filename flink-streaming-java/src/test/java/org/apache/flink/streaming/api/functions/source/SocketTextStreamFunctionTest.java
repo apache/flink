@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.util.NetUtils;
 
 import org.apache.commons.io.IOUtils;
@@ -282,7 +282,7 @@ class SocketTextStreamFunctionTest {
                             }
 
                             @Override
-                            public void emitWatermark(Watermark mark) {
+                            public void emitWatermark(WatermarkEvent mark) {
                                 throw new UnsupportedOperationException();
                             }
 

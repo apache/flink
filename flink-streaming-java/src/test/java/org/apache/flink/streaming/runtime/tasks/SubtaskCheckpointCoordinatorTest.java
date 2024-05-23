@@ -61,7 +61,7 @@ import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -863,7 +863,7 @@ class SubtaskCheckpointCoordinatorTest {
         public void processElement(StreamRecord<String> element) throws Exception {}
 
         @Override
-        public void processWatermark(Watermark mark) throws Exception {}
+        public void processWatermark(WatermarkEvent mark) throws Exception {}
 
         @Override
         public void processLatencyMarker(LatencyMarker latencyMarker) {}

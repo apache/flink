@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.api.functions;
 
+import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
 
 import org.junit.jupiter.api.Test;
@@ -71,12 +73,18 @@ class AscendingTimestampExtractorTest {
     @Test
     void testInitialAndFinalWatermark() {
         AscendingTimestampExtractor<Long> extractor = new LongExtractor();
-        assertThat(extractor.getCurrentWatermark().getTimestamp()).isEqualTo(Long.MIN_VALUE);
+        GenericWatermark genericWatermark = extractor.getCurrentWatermark().getGenericWatermark();
+        assertThat(genericWatermark).isInstanceOf(TimestampWatermark.class);
+        assertThat(((TimestampWatermark) genericWatermark).getTimestamp())
+                .isEqualTo(Long.MIN_VALUE);
 
         extractor.extractTimestamp(Long.MIN_VALUE, -1L);
 
         extractor.extractTimestamp(Long.MAX_VALUE, -1L);
-        assertThat(extractor.getCurrentWatermark().getTimestamp()).isEqualTo(Long.MAX_VALUE - 1);
+        genericWatermark = extractor.getCurrentWatermark().getGenericWatermark();
+        assertThat(genericWatermark).isInstanceOf(TimestampWatermark.class);
+        assertThat(((TimestampWatermark) genericWatermark).getTimestamp())
+                .isEqualTo(Long.MAX_VALUE - 1);
     }
 
     // ------------------------------------------------------------------------

@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -35,7 +36,7 @@ import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Triggerable;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.testutils.TestingUtils;
@@ -297,7 +298,7 @@ class StreamTaskCancellationTest {
                             harness.cancel();
                         }
                     });
-            harness.processElement(new Watermark(Long.MAX_VALUE));
+            harness.processElement(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
 
             // We need to wait for the first timer being fired, otherwise this is prone to race
             // condition because processing time timers are put into mailbox from a different
