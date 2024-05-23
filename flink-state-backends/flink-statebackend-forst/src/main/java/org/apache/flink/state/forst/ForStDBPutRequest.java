@@ -68,6 +68,10 @@ public class ForStDBPutRequest<K, V> {
         future.complete(null);
     }
 
+    public void completeStateFutureExceptionally(String message, Throwable ex) {
+        future.completeExceptionally(message, ex);
+    }
+
     /**
      * If the value of the ForStDBPutRequest is null, then the request will signify the deletion of
      * the data associated with that key.

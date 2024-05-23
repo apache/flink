@@ -75,7 +75,13 @@ public class ForStWriteBatchOperation implements ForStDBOperation {
                             request.completeStateFuture();
                         }
                     } catch (Exception e) {
-                        throw new CompletionException("Error while adding data to ForStDB", e);
+                        String msg = "Error while write batch data to ForStDB.";
+                        for (ForStDBPutRequest<?, ?> request : batchRequest) {
+                            // fail every state request in this batch
+                            request.completeStateFutureExceptionally(msg, e);
+                        }
+                        // fail the whole batch operation
+                        throw new CompletionException(msg, e);
                     }
                 },
                 executor);

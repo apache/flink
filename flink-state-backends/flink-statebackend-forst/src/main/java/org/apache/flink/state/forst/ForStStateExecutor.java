@@ -58,6 +58,8 @@ public class ForStStateExecutor implements StateExecutor {
 
     private final WriteOptions writeOptions;
 
+    private Throwable executionError;
+
     public ForStStateExecutor(int ioParallelism, RocksDB db, WriteOptions writeOptions) {
         this.coordinatorThread =
                 Executors.newSingleThreadScheduledExecutor(
@@ -72,6 +74,7 @@ public class ForStStateExecutor implements StateExecutor {
     @Override
     public CompletableFuture<Void> executeBatchRequests(
             StateRequestContainer stateRequestContainer) {
+        checkState();
         Preconditions.checkArgument(stateRequestContainer instanceof ForStStateRequestClassifier);
         ForStStateRequestClassifier stateRequestClassifier =
                 (ForStStateRequestClassifier) stateRequestContainer;
@@ -108,14 +111,28 @@ public class ForStStateExecutor implements StateExecutor {
                                                 duration);
                                         resultFuture.complete(null);
                                     },
-                                    coordinatorThread);
+                                    coordinatorThread)
+                            .exceptionally(
+                                    e -> {
+                                        executionError = e;
+                                        resultFuture.completeExceptionally(e);
+                                        return null;
+                                    });
                 });
         return resultFuture;
     }
 
     @Override
     public StateRequestContainer createStateRequestContainer() {
+        checkState();
         return new ForStStateRequestClassifier();
+    }
+
+    private void checkState() {
+        if (executionError != null) {
+            throw new IllegalStateException(
+                    "previous state request already failed : ", executionError);
+        }
     }
 
     @Override
