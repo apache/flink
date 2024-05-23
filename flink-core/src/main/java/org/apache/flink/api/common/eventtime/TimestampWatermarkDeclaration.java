@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,34 +22,21 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
-import java.util.Objects;
 
-public class InternalWatermark extends TimestampWatermark {
-    private final int subpartitionIndex;
-
-    public InternalWatermark(long timestamp, int subpartitionIndex) {
-        super(timestamp);
-        this.subpartitionIndex = subpartitionIndex;
-    }
-
-    public int getSubpartitionIndex() {
-        return subpartitionIndex;
-    }
-
-    // ------------------------------------------------------------------------
-
+public class TimestampWatermarkDeclaration implements GenericWatermarkDeclaration {
     @Override
-    public boolean equals(Object o) {
-        return super.equals(o) && ((InternalWatermark) o).subpartitionIndex == subpartitionIndex;
+    public Class<TimestampWatermark> watermarkClass() {
+        return TimestampWatermark.class;
     }
 
     @Override
-    public int hashCode() {
-        return Objects.hash(super.hashCode(), subpartitionIndex);
+    public void serialize(GenericWatermark genericWatermark, DataOutputView target) throws IOException {
+        target.writeLong(((TimestampWatermark) genericWatermark).getTimestamp());
     }
 
     @Override
-    public String toString() {
-        return "InternalWatermark @ " + getTimestamp() + " " + subpartitionIndex;
+    public GenericWatermark deserialize(DataInputView inputView) throws IOException {
+        long ts = inputView.readLong();
+        return new TimestampWatermark(ts);
     }
 }

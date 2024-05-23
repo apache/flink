@@ -59,17 +59,17 @@ public interface GenericWatermark extends Serializable {
      *         - A negative integer if this watermark is earlier.
      *         - Zero if both are equal.
      */
-    int checkUpdated(GenericWatermark laterWatermark);
-
-    boolean isComparable();
-    /**
-     * Creates a copy of this watermark.
-     *
-     * @return A new instance that is a copy of this watermark.
-     */
-    GenericWatermark copy();
-
-    void serialize(DataOutputView target) throws IOException;
-
-    GenericWatermark deserialize(DataInputView inputView) throws IOException;
+//    int checkUpdated(GenericWatermark laterWatermark);
+//
+//    boolean isComparable();
+//    /**
+//     * Creates a copy of this watermark.
+//     *
+//     * @return A new instance that is a copy of this watermark.
+//     */
+//    GenericWatermark copy();
+//
+//    void serialize(DataOutputView target) throws IOException;
+//
+//    GenericWatermark deserialize(DataInputView inputView) throws IOException;
 }

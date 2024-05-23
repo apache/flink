@@ -150,6 +150,13 @@ public class RecordWriterOutput<OUT>
         GenericWatermark genericWatermark = mark.getGenericWatermark();
         // TODOJEY
         if (!(genericWatermark instanceof TimestampWatermark)) {
+            serializationDelegate.setInstance(mark);
+
+            try {
+                recordWriter.broadcastEmit(serializationDelegate);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e.getMessage(), e);
+            }
             return;
         }
         if (announcedStatus.isIdle()) {

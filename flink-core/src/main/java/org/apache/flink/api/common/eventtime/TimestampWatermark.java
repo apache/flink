@@ -104,31 +104,4 @@ public class TimestampWatermark implements GenericWatermark {
     public String toString() {
         return "Watermark @ " + timestamp + " (" + getFormattedTimestamp() + ')';
     }
-
-    @Override
-    public int checkUpdated(GenericWatermark laterWatermark) {
-        assert (laterWatermark instanceof TimestampWatermark);
-
-        return Long.compare(this.getTimestamp(), ((TimestampWatermark) laterWatermark).getTimestamp());
-    }
-
-    @Override
-    public boolean isComparable() {
-        return true;
-    }
-
-    @Override
-    public GenericWatermark copy() {
-        return null;
-    }
-
-    @Override
-    public void serialize(DataOutputView target) throws IOException {
-
-    }
-
-    @Override
-    public GenericWatermark deserialize(DataInputView inputView) throws IOException {
-        return null;
-    }
 }
