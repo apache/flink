@@ -49,7 +49,7 @@ public class SqlGatewayRestEndpointFactory implements SqlGatewayEndpointFactory 
         endpointFactoryHelper.validate();
         Configuration config =
                 rebuildRestEndpointOptions(
-                        context.getEndpointOptions(), context.getFlinkConfigurationOptions());
+                        context.getEndpointOptions(), context.getFlinkConfiguration().toMap());
         try {
             return new SqlGatewayRestEndpoint(config, context.getSqlGatewayService());
         } catch (Exception e) {
