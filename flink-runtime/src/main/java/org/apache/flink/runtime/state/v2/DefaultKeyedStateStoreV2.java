@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.v2;
 
+import org.apache.flink.api.common.state.v2.AggregatingState;
 import org.apache.flink.api.common.state.v2.ListState;
 import org.apache.flink.api.common.state.v2.MapState;
 import org.apache.flink.api.common.state.v2.ReducingState;
@@ -70,6 +71,17 @@ public class DefaultKeyedStateStoreV2 implements KeyedStateStoreV2 {
     @Override
     public <T> ReducingState<T> getReducingState(
             @Nonnull ReducingStateDescriptor<T> stateProperties) {
+        Preconditions.checkNotNull(stateProperties, "The state properties must not be null");
+        try {
+            return asyncKeyedStateBackend.createState(stateProperties);
+        } catch (Exception e) {
+            throw new RuntimeException("Error while getting state", e);
+        }
+    }
+
+    @Override
+    public <IN, ACC, OUT> AggregatingState<IN, OUT> getAggregatingState(
+            @Nonnull AggregatingStateDescriptor<IN, ACC, OUT> stateProperties) {
         Preconditions.checkNotNull(stateProperties, "The state properties must not be null");
         try {
             return asyncKeyedStateBackend.createState(stateProperties);
