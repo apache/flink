@@ -119,7 +119,10 @@ public abstract class AbstractStreamOperatorV2<OUT>
         metrics =
                 environment
                         .getMetricGroup()
-                        .getOrAddOperator(config.getOperatorID(), config.getOperatorName());
+                        .getOrAddOperator(
+                                config.getOperatorID(),
+                                config.getOperatorName(),
+                                config.getAdditionalMetricVariables());
         latencyStats =
                 createLatencyStats(
                         environment.getTaskManagerInfo().getConfiguration(),

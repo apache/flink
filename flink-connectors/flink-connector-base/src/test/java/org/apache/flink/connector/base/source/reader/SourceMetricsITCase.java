@@ -55,6 +55,7 @@ import java.util.concurrent.CyclicBarrier;
 import static org.apache.flink.metrics.testutils.MetricAssertions.assertThatCounter;
 import static org.apache.flink.metrics.testutils.MetricAssertions.assertThatGauge;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 
 /** Tests whether all provided metrics of a {@link Source} are of the expected values (FLIP-33). */
 class SourceMetricsITCase {
@@ -113,6 +114,7 @@ class SourceMetricsITCase {
         int stopAtRecord2 = numRecordsPerSplit - 1;
         DataStream<Integer> stream =
                 env.fromSource(source, strategy, "MetricTestingSource")
+                        .addMetricVariable("foo", "42")
                         .map(
                                 i -> {
                                     if (i % numRecordsPerSplit == stopAtRecord1
@@ -165,6 +167,8 @@ class SourceMetricsITCase {
 
         int subtaskWithMetrics = 0;
         for (OperatorMetricGroup group : groups) {
+            assertThat(group.getAllVariables()).contains(entry("foo", "42"));
+
             Map<String, Metric> metrics = reporter.getMetricsByGroup(group);
             // there are only 2 splits assigned; so two groups will not update metrics
             if (group.getIOMetricGroup().getNumRecordsInCounter().getCount() == 0) {

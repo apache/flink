@@ -101,6 +101,10 @@ public abstract class SimpleTransformationTranslator<OUT, T extends Transformati
         if (transformation.getUid() != null) {
             streamGraph.setTransformationUID(transformationId, transformation.getUid());
         }
+        if (transformation.getAdditionalMetricVariables() != null) {
+            streamGraph.setAdditionalMetricVariables(
+                    transformation.getId(), transformation.getAdditionalMetricVariables());
+        }
         if (transformation.getUserProvidedNodeHash() != null) {
             streamGraph.setTransformationUserHash(
                     transformationId, transformation.getUserProvidedNodeHash());

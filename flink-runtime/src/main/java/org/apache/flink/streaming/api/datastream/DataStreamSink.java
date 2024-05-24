@@ -140,6 +140,22 @@ public class DataStreamSink<T> {
     }
 
     /**
+     * Adds additional variables that will be added to scope of the metrics reported from this
+     * operator.
+     *
+     * <p>The specified additional variables are only used for the writer operator. They are not
+     * used for committer or global committer.
+     *
+     * @param key
+     * @param value
+     */
+    @PublicEvolving
+    public DataStreamSink<T> addMetricVariable(String key, String value) {
+        transformation.addMetricVariable(key, value);
+        return this;
+    }
+
+    /**
      * Sets an user provided hash for this operator. This will be used AS IS the create the
      * JobVertexID.
      *

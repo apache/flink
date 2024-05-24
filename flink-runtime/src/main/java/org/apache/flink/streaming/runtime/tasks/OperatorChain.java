@@ -668,7 +668,9 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
                         .getEnvironment()
                         .getMetricGroup()
                         .getOrAddOperator(
-                                operatorConfig.getOperatorID(), operatorConfig.getOperatorName());
+                                operatorConfig.getOperatorID(),
+                                operatorConfig.getOperatorName(),
+                                operatorConfig.getAdditionalMetricVariables());
 
         return operatorMetricGroup.getIOMetricGroup().getNumRecordsOutCounter();
     }

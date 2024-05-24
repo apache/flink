@@ -546,6 +546,10 @@ public class StreamGraphGenerator {
         if (transform.getUid() != null) {
             streamGraph.setTransformationUID(transform.getId(), transform.getUid());
         }
+        if (transform.getAdditionalMetricVariables() != null) {
+            streamGraph.setAdditionalMetricVariables(
+                    transform.getId(), transform.getAdditionalMetricVariables());
+        }
         if (transform.getUserProvidedNodeHash() != null) {
             streamGraph.setTransformationUserHash(
                     transform.getId(), transform.getUserProvidedNodeHash());

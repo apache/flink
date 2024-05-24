@@ -1080,6 +1080,14 @@ public class StreamGraph implements Pipeline, ExecutionPlan {
         }
     }
 
+    public void setAdditionalMetricVariables(
+            Integer nodeId, Map<String, String> additionalMetricVariables) {
+        StreamNode node = streamNodes.get(nodeId);
+        if (node != null) {
+            node.setAdditionalMetricVariables(additionalMetricVariables);
+        }
+    }
+
     void setTransformationUserHash(Integer nodeId, String nodeHash) {
         StreamNode node = streamNodes.get(nodeId);
         if (node != null) {
