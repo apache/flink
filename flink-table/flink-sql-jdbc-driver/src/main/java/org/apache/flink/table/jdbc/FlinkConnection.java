@@ -84,6 +84,13 @@ public class FlinkConnection extends BaseConnection {
     }
 
     // TODO We currently do not support this, but we can't throw a SQLException here because we want
+    // to support jdbc tools such as Tableau.
+    @Override
+    public boolean isValid(int timeout) throws SQLException {
+        return true;
+    }
+
+    // TODO We currently do not support this, but we can't throw a SQLException here because we want
     // to support jdbc tools such as beeline and sqlline.
     @Override
     public void setAutoCommit(boolean autoCommit) throws SQLException {}
