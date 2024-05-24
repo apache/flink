@@ -684,10 +684,11 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                                         fileHandle.getFilePath(),
                                         path -> {
                                             boolean managedByFileMergingManager =
-                                                    isManagedByFileMergingManager(
-                                                            path,
-                                                            subtaskKey,
-                                                            fileHandle.getScope());
+                                                    fileSystemInitiated
+                                                            && isManagedByFileMergingManager(
+                                                                    path,
+                                                                    subtaskKey,
+                                                                    fileHandle.getScope());
                                             if (managedByFileMergingManager) {
                                                 spaceStat.onPhysicalFileCreate();
                                             }
