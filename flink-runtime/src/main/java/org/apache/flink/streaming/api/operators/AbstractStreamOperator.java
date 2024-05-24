@@ -188,7 +188,10 @@ public abstract class AbstractStreamOperator<OUT>
         this.metrics =
                 environment
                         .getMetricGroup()
-                        .getOrAddOperator(config.getOperatorID(), config.getOperatorName());
+                        .getOrAddOperator(
+                                config.getOperatorID(),
+                                config.getOperatorName(),
+                                config.getAdditionalMetricVariables());
         this.combinedWatermark = IndexedCombinedWatermarkStatus.forInputsCount(2);
 
         try {

@@ -43,6 +43,8 @@ import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -117,6 +119,7 @@ public class StreamConfig implements Serializable {
     private static final ConfigOption<Boolean> GRAPH_CONTAINING_LOOPS =
             ConfigOptions.key("graphContainingLoops").booleanType().defaultValue(false);
 
+    private static final String ADDITIONAL_METRIC_VARIABLES = "additionalmetricvariables";
     private static final String CHECKPOINT_STORAGE = "checkpointstorage";
     private static final String STATE_BACKEND = "statebackend";
     private static final String TIMER_SERVICE_PROVIDER = "timerservice";
@@ -635,6 +638,28 @@ public class StreamConfig implements Serializable {
         }
     }
 
+    public void setAdditionalMetricVariables(
+            @Nullable Map<String, String> additionalMetricVariables) {
+        if (additionalMetricVariables != null) {
+            toBeSerializedConfigObjects.put(ADDITIONAL_METRIC_VARIABLES, additionalMetricVariables);
+        }
+    }
+
+    public Map<String, String> getAdditionalMetricVariables() {
+        try {
+            Map<String, String> additionalMetricVariables =
+                    InstantiationUtil.readObjectFromConfig(
+                            this.config,
+                            ADDITIONAL_METRIC_VARIABLES,
+                            this.getClass().getClassLoader());
+            return additionalMetricVariables == null
+                    ? Collections.emptyMap()
+                    : additionalMetricVariables;
+        } catch (Exception e) {
+            throw new StreamTaskException("Could not instantiate additional metric variables.", e);
+        }
+    }
+
     @VisibleForTesting
     public void setCheckpointStorage(CheckpointStorage storage) {
         if (storage != null) {
@@ -879,9 +904,9 @@ public class StreamConfig implements Serializable {
         }
     }
 
-    public static boolean requiresSorting(StreamConfig.InputConfig inputConfig) {
-        return inputConfig instanceof StreamConfig.NetworkInputConfig
-                && ((StreamConfig.NetworkInputConfig) inputConfig).getInputRequirement()
-                        == StreamConfig.InputRequirement.SORTED;
+    public static boolean requiresSorting(InputConfig inputConfig) {
+        return inputConfig instanceof NetworkInputConfig
+                && ((NetworkInputConfig) inputConfig).getInputRequirement()
+                        == InputRequirement.SORTED;
     }
 }

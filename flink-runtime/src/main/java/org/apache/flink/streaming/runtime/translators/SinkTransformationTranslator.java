@@ -55,6 +55,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
@@ -394,6 +395,7 @@ public class SinkTransformationTranslator<Input, Output>
                         subTransformation,
                         StandardSinkTopologies.GLOBAL_COMMITTER_TRANSFORMATION_NAME,
                         operatorsUidHashes.getGlobalCommitterUidHash());
+                setAdditionalMetricVariablesForWriter(subTransformation);
 
                 concatUid(subTransformation, subTransformation.getName());
 
@@ -464,6 +466,19 @@ public class SinkTransformationTranslator<Input, Output>
             }
 
             return result;
+        }
+
+        /**
+         * Only writer inherits additional metric variables, as writer's metrics like number of
+         * records in, busyness, etc. are the most representative of "sink's" metrics.
+         */
+        private void setAdditionalMetricVariablesForWriter(Transformation<?> subTransformation) {
+            Map<String, String> additionalMetricVariables =
+                    transformation.getAdditionalMetricVariables();
+            if (additionalMetricVariables != null
+                    && subTransformation.getName().equals(ConfigConstants.WRITER_NAME)) {
+                additionalMetricVariables.forEach(subTransformation::addMetricVariable);
+            }
         }
 
         private void setOperatorUidHashIfPossible(

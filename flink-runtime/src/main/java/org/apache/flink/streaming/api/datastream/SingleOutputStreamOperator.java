@@ -103,6 +103,19 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
     }
 
     /**
+     * Adds additional variables that will be added to scope of the metrics reported from this
+     * operator.
+     *
+     * @param key
+     * @param value
+     */
+    @PublicEvolving
+    public SingleOutputStreamOperator<T> addMetricVariable(String key, String value) {
+        transformation.addMetricVariable(key, value);
+        return this;
+    }
+
+    /**
      * Sets an user provided hash for this operator. This will be used AS IS the create the
      * JobVertexID.
      *

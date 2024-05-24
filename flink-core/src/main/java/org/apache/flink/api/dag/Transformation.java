@@ -118,6 +118,7 @@ public abstract class Transformation<T> {
     // If true, the parallelism of the transformation is explicitly set and should be respected.
     // Otherwise the parallelism can be changed at runtime.
     private boolean parallelismConfigured;
+    private @Nullable Map<String, String> additionalMetricVariables;
 
     public static int getNewNodeId() {
         return ID_COUNTER.incrementAndGet();
@@ -457,6 +458,34 @@ public abstract class Transformation<T> {
     }
 
     /**
+     * @return additional variables that will be added to scope of the metrics reported from this
+     *     {@link Transformation}.
+     */
+    public @Nullable Map<String, String> getAdditionalMetricVariables() {
+        return additionalMetricVariables;
+    }
+
+    /**
+     * Adds additional variables that will be added to scope of the metrics reported from this
+     * operator.
+     *
+     * <p>Some transformations might be translated into multiple operators and in such cases, metric
+     * variables might be assigned to just one specific operator. For example {@code
+     * SinkTransformation}'s additional variables are only inherited by the writer operator. They
+     * are not used for committer or global committer.
+     *
+     * @param key
+     * @param value
+     */
+    public Transformation<T> addMetricVariable(String key, String value) {
+        if (additionalMetricVariables == null) {
+            additionalMetricVariables = new HashMap<>();
+        }
+        additionalMetricVariables.put(key, value);
+        return this;
+    }
+
+    /**
      * Returns the slot sharing group of this transformation if present.
      *
      * @see #setSlotSharingGroup(SlotSharingGroup)
@@ -652,6 +681,7 @@ public abstract class Transformation<T> {
         Transformation<?> that = (Transformation<?>) o;
         return Objects.equals(bufferTimeout, that.bufferTimeout)
                 && Objects.equals(id, that.id)
+                && Objects.equals(additionalMetricVariables, that.additionalMetricVariables)
                 && Objects.equals(parallelism, that.parallelism)
                 && Objects.equals(name, that.name)
                 && Objects.equals(outputType, that.outputType);

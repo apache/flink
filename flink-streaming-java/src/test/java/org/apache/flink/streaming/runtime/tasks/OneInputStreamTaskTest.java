@@ -849,13 +849,13 @@ class OneInputStreamTaskTest {
                 new InterceptingTaskMetricGroup() {
                     @Override
                     public InternalOperatorMetricGroup getOrAddOperator(
-                            OperatorID id, String name) {
+                            OperatorID id, String name, Map<String, String> additionalVariables) {
                         if (id.equals(headOperatorId)) {
                             return headOperatorMetricGroup;
                         } else if (id.equals(chainedOperatorId)) {
                             return chainedOperatorMetricGroup;
                         } else {
-                            return super.getOrAddOperator(id, name);
+                            return super.getOrAddOperator(id, name, additionalVariables);
                         }
                     }
                 };

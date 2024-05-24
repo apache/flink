@@ -412,9 +412,11 @@ class MultipleInputStreamTaskTest {
                 new UnregisteredMetricGroups.UnregisteredTaskMetricGroup() {
                     @Override
                     public InternalOperatorMetricGroup getOrAddOperator(
-                            OperatorID operatorID, String name) {
+                            OperatorID operatorID,
+                            String name,
+                            Map<String, String> additionalVariables) {
                         InternalOperatorMetricGroup operatorMetricGroup =
-                                super.getOrAddOperator(operatorID, name);
+                                super.getOrAddOperator(operatorID, name, additionalVariables);
                         operatorMetrics.put(name, operatorMetricGroup);
                         return operatorMetricGroup;
                     }
@@ -747,13 +749,13 @@ class MultipleInputStreamTaskTest {
                 new InterceptingTaskMetricGroup() {
                     @Override
                     public InternalOperatorMetricGroup getOrAddOperator(
-                            OperatorID id, String name) {
+                            OperatorID id, String name, Map<String, String> additionalVariables) {
                         if (id.equals(mainOperatorId)) {
                             return mainOperatorMetricGroup;
                         } else if (id.equals(chainedOperatorId)) {
                             return chainedOperatorMetricGroup;
                         } else {
-                            return super.getOrAddOperator(id, name);
+                            return super.getOrAddOperator(id, name, additionalVariables);
                         }
                     }
                 };
