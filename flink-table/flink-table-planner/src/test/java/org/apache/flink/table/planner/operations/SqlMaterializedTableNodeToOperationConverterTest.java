@@ -22,6 +22,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
+import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableRefreshOperation;
@@ -34,7 +35,6 @@ import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMap;
 
 import org.junit.jupiter.api.Test;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -85,7 +85,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
                         .comment("materialized table comment")
                         .options(options)
                         .partitionKeys(Arrays.asList("a", "d"))
-                        .freshness(Duration.ofSeconds(30))
+                        .freshness(IntervalFreshness.ofSecond("30"))
                         .logicalRefreshMode(CatalogMaterializedTable.LogicalRefreshMode.FULL)
                         .refreshMode(CatalogMaterializedTable.RefreshMode.FULL)
                         .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)
