@@ -142,6 +142,11 @@ public class SqlGatewayEndpointFactoryUtils {
         }
 
         @Override
+        public Map<String, String> getFlinkConfigurationOptions() {
+            return flinkConfiguration.toMap();
+        }
+
+        @Override
         public Map<String, String> getEndpointOptions() {
             return endpointConfig;
         }

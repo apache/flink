@@ -51,6 +51,14 @@ public interface SqlGatewayEndpointFactory extends Factory {
         ReadableConfig getFlinkConfiguration();
 
         /**
+         * Get a map contains all flink configurations.
+         *
+         * @return The copy of flink configurations in the form of map, modifying this map will not
+         *     influence the original configuration object.
+         */
+        Map<String, String> getFlinkConfigurationOptions();
+
+        /**
          * Returns the options with which the endpoint is created. All options that are prefixed
          * with the endpoint identifier are included in the map.
          *
