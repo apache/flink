@@ -38,7 +38,6 @@ import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -235,8 +234,8 @@ class CatalogBaseTableResolutionTest {
 
         assertThat(resolvedCatalogMaterializedTable.getResolvedSchema())
                 .isEqualTo(RESOLVED_MATERIALIZED_TABLE_SCHEMA);
-        assertThat(resolvedCatalogMaterializedTable.getFreshness())
-                .isEqualTo(Duration.ofSeconds(30));
+        assertThat(resolvedCatalogMaterializedTable.getDefinitionFreshness())
+                .isEqualTo(IntervalFreshness.ofSecond("30"));
         assertThat(resolvedCatalogMaterializedTable.getDefinitionQuery())
                 .isEqualTo(DEFINITION_QUERY);
         assertThat(resolvedCatalogMaterializedTable.getLogicalRefreshMode())
@@ -424,7 +423,8 @@ class CatalogBaseTableResolutionTest {
         properties.put("schema.3.comment", "");
         properties.put("schema.primary-key.name", "primary_constraint");
         properties.put("schema.primary-key.columns", "id");
-        properties.put("freshness", "PT30S");
+        properties.put("freshness-interval", "30");
+        properties.put("freshness-unit", "SECOND");
         properties.put("logical-refresh-mode", "CONTINUOUS");
         properties.put("refresh-mode", "CONTINUOUS");
         properties.put("refresh-status", "INITIALIZING");
@@ -454,7 +454,7 @@ class CatalogBaseTableResolutionTest {
                 .partitionKeys(partitionKeys)
                 .options(Collections.emptyMap())
                 .definitionQuery(definitionQuery)
-                .freshness(Duration.ofSeconds(30))
+                .freshness(IntervalFreshness.ofSecond("30"))
                 .logicalRefreshMode(CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC)
                 .refreshMode(CatalogMaterializedTable.RefreshMode.CONTINUOUS)
                 .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)

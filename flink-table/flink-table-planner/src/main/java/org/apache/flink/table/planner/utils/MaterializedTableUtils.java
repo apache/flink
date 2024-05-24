@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.sql.parser.ddl.SqlRefreshMode;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
+import org.apache.flink.table.catalog.IntervalFreshness;
 
 import org.apache.calcite.sql.SqlIntervalLiteral;
 import org.apache.calcite.sql.type.SqlTypeFamily;
@@ -32,7 +33,8 @@ import java.time.Duration;
 @Internal
 public class MaterializedTableUtils {
 
-    public static Duration getMaterializedTableFreshness(SqlIntervalLiteral sqlIntervalLiteral) {
+    public static IntervalFreshness getMaterializedTableFreshness(
+            SqlIntervalLiteral sqlIntervalLiteral) {
         if (sqlIntervalLiteral.signum() < 0) {
             throw new ValidationException(
                     "Materialized table freshness doesn't support negative value.");
@@ -44,16 +46,16 @@ public class MaterializedTableUtils {
 
         SqlIntervalLiteral.IntervalValue intervalValue =
                 sqlIntervalLiteral.getValueAs(SqlIntervalLiteral.IntervalValue.class);
-        long interval = Long.parseLong(intervalValue.getIntervalLiteral());
+        String interval = intervalValue.getIntervalLiteral();
         switch (intervalValue.getIntervalQualifier().typeName()) {
             case INTERVAL_DAY:
-                return Duration.ofDays(interval);
+                return IntervalFreshness.ofDay(interval);
             case INTERVAL_HOUR:
-                return Duration.ofHours(interval);
+                return IntervalFreshness.ofHour(interval);
             case INTERVAL_MINUTE:
-                return Duration.ofMinutes(interval);
+                return IntervalFreshness.ofMinute(interval);
             case INTERVAL_SECOND:
-                return Duration.ofSeconds(interval);
+                return IntervalFreshness.ofSecond(interval);
             default:
                 throw new ValidationException(
                         "Materialized table freshness only support SECOND, MINUTE, HOUR, DAY as the time unit.");
@@ -89,7 +91,7 @@ public class MaterializedTableUtils {
         }
 
         // derive the actual refresh mode via defined freshness
-        if (definedFreshness.compareTo(threshold) <= 0) {
+        if (definedFreshness.compareTo(threshold) < 0) {
             return CatalogMaterializedTable.RefreshMode.CONTINUOUS;
         } else {
             return CatalogMaterializedTable.RefreshMode.FULL;

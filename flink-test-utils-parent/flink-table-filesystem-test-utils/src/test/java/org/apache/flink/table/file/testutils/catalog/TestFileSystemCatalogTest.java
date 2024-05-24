@@ -26,6 +26,7 @@ import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
@@ -41,7 +42,6 @@ import org.apache.flink.table.refresh.RefreshHandler;
 
 import org.junit.jupiter.api.Test;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -92,7 +92,7 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
                     CREATE_RESOLVED_SCHEMA);
 
     private static final String DEFINITION_QUERY = "SELECT id, region, county FROM T";
-    private static final Duration FRESHNESS = Duration.ofMinutes(3);
+    private static final IntervalFreshness FRESHNESS = IntervalFreshness.ofMinute("3");
     private static final ResolvedCatalogMaterializedTable EXPECTED_CATALOG_MATERIALIZED_TABLE =
             new ResolvedCatalogMaterializedTable(
                     CatalogMaterializedTable.newBuilder()
@@ -235,7 +235,7 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
         // validate definition query
         assertThat(actualMaterializedTable.getDefinitionQuery()).isEqualTo(DEFINITION_QUERY);
         // validate freshness
-        assertThat(actualMaterializedTable.getFreshness()).isEqualTo(FRESHNESS);
+        assertThat(actualMaterializedTable.getDefinitionFreshness()).isEqualTo(FRESHNESS);
         // validate logical refresh mode
         assertThat(actualMaterializedTable.getLogicalRefreshMode())
                 .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC);

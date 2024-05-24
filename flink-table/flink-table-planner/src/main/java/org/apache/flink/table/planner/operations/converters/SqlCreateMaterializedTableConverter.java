@@ -28,6 +28,7 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
@@ -40,7 +41,6 @@ import org.apache.flink.table.planner.utils.OperationConverterUtils;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -49,6 +49,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.MATERIALIZED_TABLE_FRESHNESS_THRESHOLD;
+import static org.apache.flink.table.utils.IntervalFreshnessUtils.convertFreshnessToDuration;
 
 /** A converter for {@link SqlCreateMaterializedTable}. */
 public class SqlCreateMaterializedTableConverter
@@ -78,7 +79,7 @@ public class SqlCreateMaterializedTableConverter
                                         ((SqlTableOption) p).getValueString()));
 
         // get freshness
-        Duration freshness =
+        IntervalFreshness intervalFreshness =
                 MaterializedTableUtils.getMaterializedTableFreshness(
                         sqlCreateMaterializedTable.getFreshness());
 
@@ -100,7 +101,7 @@ public class SqlCreateMaterializedTableConverter
                         context.getTableConfig()
                                 .getRootConfiguration()
                                 .get(MATERIALIZED_TABLE_FRESHNESS_THRESHOLD),
-                        freshness,
+                        convertFreshnessToDuration(intervalFreshness),
                         logicalRefreshMode);
 
         // get query schema and definition query
@@ -139,7 +140,7 @@ public class SqlCreateMaterializedTableConverter
                         .partitionKeys(partitionKeys)
                         .options(options)
                         .definitionQuery(definitionQuery)
-                        .freshness(freshness)
+                        .freshness(intervalFreshness)
                         .logicalRefreshMode(logicalRefreshMode)
                         .refreshMode(refreshMode)
                         .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)

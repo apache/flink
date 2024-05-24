@@ -23,7 +23,6 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -125,8 +124,8 @@ public class ResolvedCatalogMaterializedTable
     }
 
     @Override
-    public Duration getFreshness() {
-        return origin.getFreshness();
+    public IntervalFreshness getDefinitionFreshness() {
+        return origin.getDefinitionFreshness();
     }
 
     @Override
