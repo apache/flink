@@ -451,14 +451,13 @@ string:
   - sql: URL_DECODE(string)
     table: STRING.urlDecode()
     description:
-      使用 UTF-8 编码方案对“application/x-www-form-urlencoded”格式的给定字符串进行解码，如果输入为 null，则该字符串将为 null。
-      如果解码过程出现问题，例如遇到非法转义模式，该函数将返回原始输入值。
-      如果不支持该编码方案，则会报错。
+      使用 UTF-8 编码方案对“application/x-www-form-urlencoded”格式的给定字符串进行解码。
+      如果输入为 NULL，或者解码过程出现问题（例如遇到非法转义模式或者不支持该编码方案），该函数将返回 NULL。
   - sql: URL_ENCODE(string)
     table: STRING.urlEncode()
     description:
-      使用 UTF-8 编码方案将字符串转换为“application/x-www-form-urlencoded”格式，如果输入为 null，则将为 null。
-      如果编码过程出现问题或者不支持编码方案，则会报告错误。
+      使用 UTF-8 编码方案将字符串转换为“application/x-www-form-urlencoded”格式。
+      如果输入为 NULL，或者编码过程出现问题，或者不支持编码方案，则会返回 NULL。
   - sql: PARSE_URL(string1, string2[, string3])
     table: STRING1.parseUrl(STRING2[, STRING3])
     description: |

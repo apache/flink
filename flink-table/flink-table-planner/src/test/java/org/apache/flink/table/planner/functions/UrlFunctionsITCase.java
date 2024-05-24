@@ -37,8 +37,9 @@ public class UrlFunctionsITCase extends BuiltInFunctionTestBase {
                                 "https://flink.apache.org/",
                                 null,
                                 "inva+lid%3A%2F%2Fuser%3Apass%40host%2Ffile%3Bparam%3Fquery%3Bp2",
-                                "")
-                        .andDataTypes(STRING(), STRING(), STRING(), STRING(), STRING())
+                                "",
+                                "illegal escape pattern test%")
+                        .andDataTypes(STRING(), STRING(), STRING(), STRING(), STRING(), STRING())
                         .testResult(
                                 $("f0").urlDecode(),
                                 "url_decode(f0)",
@@ -56,7 +57,8 @@ public class UrlFunctionsITCase extends BuiltInFunctionTestBase {
                                 "url_decode(f3)",
                                 "inva lid://user:pass@host/file;param?query;p2",
                                 STRING())
-                        .testResult($("f4").urlDecode(), "url_decode(f4)", "", STRING()),
+                        .testResult($("f4").urlDecode(), "url_decode(f4)", "", STRING())
+                        .testResult($("f5").urlDecode(), "url_decode(f5)", null, STRING()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.URL_ENCODE)
                         .onFieldsWithData(
                                 "https://flink.apache.org/",
