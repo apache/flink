@@ -70,6 +70,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.readAndVerifyCoordinatorSerdeVersion;
@@ -546,13 +547,18 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
 
     // ---------------------------------------------------
     @VisibleForTesting
-    SplitEnumerator<SplitT, EnumChkT> getEnumerator() {
+    public SplitEnumerator<SplitT, EnumChkT> getEnumerator() {
         return enumerator;
     }
 
     @VisibleForTesting
     SourceCoordinatorContext<SplitT> getContext() {
         return context;
+    }
+
+    @VisibleForTesting
+    public ExecutorService getCoordinatorExecutor() {
+        return context.getCoordinatorExecutor();
     }
 
     // --------------------- Serde -----------------------
