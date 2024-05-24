@@ -38,6 +38,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -638,29 +639,15 @@ public abstract class Transformation<T> {
         }
 
         Transformation<?> that = (Transformation<?>) o;
-
-        if (bufferTimeout != that.bufferTimeout) {
-            return false;
-        }
-        if (id != that.id) {
-            return false;
-        }
-        if (parallelism != that.parallelism) {
-            return false;
-        }
-        if (!name.equals(that.name)) {
-            return false;
-        }
-        return outputType != null ? outputType.equals(that.outputType) : that.outputType == null;
+        return Objects.equals(bufferTimeout, that.bufferTimeout)
+                && Objects.equals(id, that.id)
+                && Objects.equals(parallelism, that.parallelism)
+                && Objects.equals(name, that.name)
+                && Objects.equals(outputType, that.outputType);
     }
 
     @Override
     public int hashCode() {
-        int result = id;
-        result = 31 * result + name.hashCode();
-        result = 31 * result + (outputType != null ? outputType.hashCode() : 0);
-        result = 31 * result + parallelism;
-        result = 31 * result + (int) (bufferTimeout ^ (bufferTimeout >>> 32));
-        return result;
+        return Objects.hash(id, name, outputType, parallelism, bufferTimeout);
     }
 }
