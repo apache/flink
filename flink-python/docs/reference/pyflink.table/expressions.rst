@@ -243,8 +243,8 @@ advanced type helper functions
     Expression.map_union
     Expression.map_values
     Expression.array_except
+    Expression.array_intersect
     Expression.split
-
 
 time definition functions
 -------------------------

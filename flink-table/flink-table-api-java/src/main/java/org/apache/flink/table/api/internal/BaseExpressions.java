@@ -60,6 +60,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_DISTINCT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_ELEMENT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_EXCEPT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_INTERSECT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_MAX;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_MIN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_POSITION;
@@ -244,6 +245,19 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType arrayExcept(InType array) {
         return toApiSpecificExpression(
                 unresolvedCall(ARRAY_EXCEPT, toExpr(), objectToExpression(array)));
+    }
+
+    /**
+     * Returns an ARRAY that contains the elements from array1 that are also in array2, without
+     * duplicates. If no elements that are both in array1 and array2, the function returns an empty
+     * ARRAY.
+     *
+     * <p>If one or both arguments are NULL, the function returns NULL. The order of the elements
+     * from array1 is kept.
+     */
+    public OutType arrayIntersect(InType array) {
+        return toApiSpecificExpression(
+                unresolvedCall(ARRAY_INTERSECT, toExpr(), objectToExpression(array)));
     }
 
     /**
