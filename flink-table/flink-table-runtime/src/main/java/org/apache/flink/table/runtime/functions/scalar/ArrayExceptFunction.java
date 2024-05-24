@@ -32,8 +32,9 @@ import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 /** Implementation of {@link BuiltInFunctionDefinitions#ARRAY_EXCEPT}. */
@@ -63,7 +64,7 @@ public class ArrayExceptFunction extends BuiltInScalarFunction {
                 return null;
             }
 
-            Set<Object> resultSet = new LinkedHashSet<>();
+            List<Object> list = new ArrayList<>();
             Set<ObjectContainer> set = new HashSet<>();
             for (int pos = 0; pos < arrayTwo.size(); pos++) {
                 final Object element = elementGetter.getElementOrNull(arrayTwo, pos);
@@ -74,10 +75,10 @@ public class ArrayExceptFunction extends BuiltInScalarFunction {
                 final Object element = elementGetter.getElementOrNull(arrayOne, pos);
                 final ObjectContainer objectContainer = createObjectContainer(element);
                 if (!set.contains(objectContainer)) {
-                    resultSet.add(element);
+                    list.add(element);
                 }
             }
-            return new GenericArrayData(resultSet.toArray());
+            return new GenericArrayData(list.toArray());
         } catch (Throwable t) {
             throw new FlinkRuntimeException(t);
         }
