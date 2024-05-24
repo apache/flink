@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.SpecializedFunction;
-import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nullable;
 
@@ -44,14 +43,11 @@ public class UrlEncodeFunction extends BuiltInScalarFunction {
             return null;
         }
         final Charset charset = StandardCharsets.UTF_8;
-        String value;
 
         try {
-            value = URLEncoder.encode(url.toString(), charset.name());
+            return StringData.fromString(URLEncoder.encode(url.toString(), charset.name()));
         } catch (UnsupportedEncodingException e) {
-            throw new FlinkRuntimeException(
-                    "Failed to encode URL: " + url + " with charset: " + charset.name(), e);
+            return null;
         }
-        return StringData.fromString(value);
     }
 }
