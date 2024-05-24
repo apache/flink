@@ -146,6 +146,18 @@ public class VertexwiseSchedulingStrategy
         scheduledVertices.addAll(verticesToSchedule);
     }
 
+    @Override
+    public void scheduleAllVerticesIfPossible() {
+        newVertices.clear();
+        Set<ExecutionVertexID> verticesToSchedule =
+                IterableUtils.toStream(schedulingTopology.getVertices())
+                        .filter(vertex -> !vertex.getState().equals(ExecutionState.FINISHED))
+                        .map(SchedulingExecutionVertex::getId)
+                        .collect(Collectors.toSet());
+
+        maybeScheduleVertices(verticesToSchedule);
+    }
+
     private Set<ExecutionVertexID> addToScheduleAndGetVertices(
             Set<ExecutionVertexID> currentVertices, Set<ExecutionVertexID> verticesToSchedule) {
         Set<ExecutionVertexID> nextVertices = new HashSet<>();

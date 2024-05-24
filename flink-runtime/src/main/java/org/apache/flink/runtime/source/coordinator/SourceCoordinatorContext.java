@@ -229,6 +229,11 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
                 String.format("Failed to send event %s to subtask %d", event, subtaskId));
     }
 
+    @VisibleForTesting
+    ScheduledExecutorService getCoordinatorExecutor() {
+        return coordinatorExecutor;
+    }
+
     void sendEventToSourceOperatorIfTaskReady(int subtaskId, OperatorEvent event) {
         checkAndLazyInitialize();
         checkSubtaskIndex(subtaskId);

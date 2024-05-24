@@ -92,13 +92,13 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
     private final ScheduledExecutor delayExecutor;
 
-    private final SchedulingStrategy schedulingStrategy;
+    protected final SchedulingStrategy schedulingStrategy;
 
     private final ExecutionOperations executionOperations;
 
     private final Set<ExecutionVertexID> verticesWaitingForRestart;
 
-    private final ShuffleMaster<?> shuffleMaster;
+    protected final ShuffleMaster<?> shuffleMaster;
 
     private final Map<AllocationID, Long> reservedAllocationRefCounters;
 
@@ -108,6 +108,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
     private final Map<ExecutionVertexID, AllocationID> reservedAllocationByExecutionVertex;
 
     protected final ExecutionDeployer executionDeployer;
+
+    protected final FailoverStrategy failoverStrategy;
 
     protected DefaultScheduler(
             final Logger log,
@@ -162,7 +164,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         this.reservedAllocationRefCounters = new HashMap<>();
         this.reservedAllocationByExecutionVertex = new HashMap<>();
 
-        final FailoverStrategy failoverStrategy =
+        this.failoverStrategy =
                 failoverStrategyFactory.create(
                         getSchedulingTopology(), getResultPartitionAvailabilityChecker());
         log.info(
@@ -301,7 +303,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                 cause, Collections.singletonList(failedPartitionId.getIntermediateDataSetID()));
     }
 
-    private void notifyCoordinatorsAboutTaskFailure(
+    protected void notifyCoordinatorsAboutTaskFailure(
             final Execution execution, @Nullable final Throwable error) {
         final ExecutionJobVertex jobVertex = execution.getVertex().getJobVertex();
         final int subtaskIndex = execution.getParallelSubtaskIndex();
@@ -323,7 +325,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         maybeRestartTasks(failureHandlingResult);
     }
 
-    private void maybeRestartTasks(final FailureHandlingResult failureHandlingResult) {
+    protected void maybeRestartTasks(final FailureHandlingResult failureHandlingResult) {
         if (failureHandlingResult.canRestart()) {
             restartTasksWithDelay(failureHandlingResult);
         } else {

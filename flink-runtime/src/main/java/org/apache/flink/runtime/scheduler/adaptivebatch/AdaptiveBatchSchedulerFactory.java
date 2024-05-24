@@ -50,6 +50,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.forwardgroup.ForwardGroup;
 import org.apache.flink.runtime.jobgraph.forwardgroup.ForwardGroupComputeUtil;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
+import org.apache.flink.runtime.jobmaster.event.FileSystemJobEventStore;
+import org.apache.flink.runtime.jobmaster.event.JobEventManager;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
@@ -147,6 +149,21 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                 jobGraph.getName(),
                 jobGraph.getJobID());
 
+        final boolean isJobRecoveryEnabled =
+                jobMasterConfiguration.getBoolean(BatchExecutionOptions.JOB_RECOVERY_ENABLED)
+                        && shuffleMaster.supportsBatchSnapshot();
+
+        BatchJobRecoveryHandler jobRecoveryHandler;
+        if (isJobRecoveryEnabled) {
+            FileSystemJobEventStore jobEventStore =
+                    new FileSystemJobEventStore(jobGraph.getJobID(), jobMasterConfiguration);
+            JobEventManager jobEventManager = new JobEventManager(jobEventStore);
+            jobRecoveryHandler =
+                    new DefaultBatchJobRecoveryHandler(jobEventManager, jobMasterConfiguration);
+        } else {
+            jobRecoveryHandler = new DummyBatchJobRecoveryHandler();
+        }
+
         return createScheduler(
                 log,
                 jobGraph,
@@ -173,7 +190,8 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                 new ScheduledExecutorServiceAdapter(futureExecutor),
                 DefaultVertexParallelismAndInputInfosDecider.from(
                         getDefaultMaxParallelism(jobMasterConfiguration, executionConfig),
-                        jobMasterConfiguration));
+                        jobMasterConfiguration),
+                jobRecoveryHandler);
     }
 
     @VisibleForTesting
@@ -201,7 +219,8 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
             ExecutionSlotAllocatorFactory allocatorFactory,
             RestartBackoffTimeStrategy restartBackoffTimeStrategy,
             ScheduledExecutor delayExecutor,
-            VertexParallelismAndInputInfosDecider vertexParallelismAndInputInfosDecider)
+            VertexParallelismAndInputInfosDecider vertexParallelismAndInputInfosDecider,
+            BatchJobRecoveryHandler jobRecoveryHandler)
             throws Exception {
 
         checkState(
@@ -271,7 +290,8 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                 defaultMaxParallelism,
                 blocklistOperations,
                 hybridPartitionDataConsumeConstraint,
-                forwardGroupsByJobVertexId);
+                forwardGroupsByJobVertexId,
+                jobRecoveryHandler);
     }
 
     public static InputConsumableDecider.Factory loadInputConsumableDeciderFactory(
