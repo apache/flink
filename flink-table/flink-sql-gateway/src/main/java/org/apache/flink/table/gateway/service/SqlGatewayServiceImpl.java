@@ -46,6 +46,8 @@ import org.apache.flink.table.gateway.service.session.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -296,6 +298,35 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
         } catch (Throwable t) {
             LOG.error("Failed to getTable.", t);
             throw new SqlGatewayException("Failed to getTable.", t);
+        }
+    }
+
+    @Override
+    public OperationHandle refreshMaterializedTable(
+            SessionHandle sessionHandle,
+            String materializedTableIdentifier,
+            boolean isPeriodic,
+            @Nullable String scheduleTime,
+            Map<String, String> dynamicOptions,
+            Map<String, String> staticPartitions,
+            Map<String, String> executionConfig) {
+        try {
+            return getSession(sessionHandle)
+                    .getOperationManager()
+                    .submitOperation(
+                            handle ->
+                                    getSession(sessionHandle)
+                                            .createExecutor(Configuration.fromMap(executionConfig))
+                                            .refreshMaterializedTable(
+                                                    handle,
+                                                    materializedTableIdentifier,
+                                                    isPeriodic,
+                                                    scheduleTime,
+                                                    staticPartitions,
+                                                    dynamicOptions));
+        } catch (Throwable t) {
+            LOG.error("Failed to refresh MaterializedTable.", t);
+            throw new SqlGatewayException("Failed to refresh MaterializedTable.", t);
         }
     }
 

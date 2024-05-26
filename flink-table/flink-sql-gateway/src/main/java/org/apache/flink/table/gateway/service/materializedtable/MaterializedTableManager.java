@@ -51,14 +51,19 @@ import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TimeZone;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.api.common.RuntimeExecutionMode.BATCH;
@@ -69,8 +74,12 @@ import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.configuration.PipelineOptions.NAME;
 import static org.apache.flink.configuration.StateRecoveryOptions.SAVEPOINT_PATH;
 import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL;
+import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.DATE_FORMATTER;
+import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.PARTITION_FIELDS;
+import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.SCHEDULE_TIME_DATE_FORMATTER_DEFAULT;
 import static org.apache.flink.table.api.internal.TableResultInternal.TABLE_RESULT_OK;
 import static org.apache.flink.table.catalog.CatalogBaseTable.TableKind.MATERIALIZED_TABLE;
+import static org.apache.flink.table.utils.DateTimeUtils.formatTimestampString;
 
 /** Manager is responsible for execute the {@link MaterializedTableOperation}. */
 @Internal
@@ -312,13 +321,43 @@ public class MaterializedTableManager {
             AlterMaterializedTableRefreshOperation alterMaterializedTableRefreshOperation) {
         ObjectIdentifier materializedTableIdentifier =
                 alterMaterializedTableRefreshOperation.getTableIdentifier();
-        ResolvedCatalogMaterializedTable materializedTable =
-                getCatalogMaterializedTable(operationExecutor, materializedTableIdentifier);
 
         Map<String, String> partitionSpec =
                 alterMaterializedTableRefreshOperation.getPartitionSpec();
 
-        validatePartitionSpec(partitionSpec, materializedTable);
+        return refreshMaterializedTable(
+                operationExecutor,
+                handle,
+                materializedTableIdentifier,
+                partitionSpec,
+                Collections.emptyMap(),
+                false,
+                null);
+    }
+
+    public static ResultFetcher refreshMaterializedTable(
+            OperationExecutor operationExecutor,
+            OperationHandle handle,
+            ObjectIdentifier materializedTableIdentifier,
+            Map<String, String> staticPartitions,
+            Map<String, String> dynamicOptions,
+            boolean isPeriodic,
+            @Nullable String scheduleTime) {
+        ResolvedCatalogMaterializedTable materializedTable =
+                getCatalogMaterializedTable(operationExecutor, materializedTableIdentifier);
+        Map<String, String> refreshPartitions =
+                isPeriodic
+                        ? getPeriodRefreshPartition(
+                                scheduleTime,
+                                materializedTableIdentifier,
+                                materializedTable.getOptions(),
+                                operationExecutor
+                                        .getTableEnvironment()
+                                        .getConfig()
+                                        .getLocalTimeZone())
+                        : staticPartitions;
+
+        validatePartitionSpec(refreshPartitions, materializedTable);
 
         // Set job name, runtime mode
         Configuration customConfig = new Configuration();
@@ -330,18 +369,18 @@ public class MaterializedTableManager {
         customConfig.set(RUNTIME_MODE, BATCH);
 
         String insertStatement =
-                getManuallyRefreshStatement(
-                        materializedTableIdentifier.toString(),
+                getRefreshStatement(
+                        materializedTableIdentifier,
                         materializedTable.getDefinitionQuery(),
-                        partitionSpec);
+                        refreshPartitions,
+                        dynamicOptions);
 
         try {
             LOG.debug(
                     "Begin to manually refreshing the materialization table {}, statement: {}",
                     materializedTableIdentifier,
                     insertStatement);
-            return operationExecutor.executeStatement(
-                    handle, customConfig, insertStatement.toString());
+            return operationExecutor.executeStatement(handle, customConfig, insertStatement);
         } catch (Exception e) {
             // log and throw exception
             LOG.error(
@@ -354,6 +393,51 @@ public class MaterializedTableManager {
                             materializedTableIdentifier),
                     e);
         }
+    }
+
+    @VisibleForTesting
+    static Map<String, String> getPeriodRefreshPartition(
+            String scheduleTime,
+            ObjectIdentifier materializedTableIdentifier,
+            Map<String, String> materializedTableOptions,
+            ZoneId localZoneId) {
+        if (scheduleTime == null) {
+            throw new ValidationException(
+                    String.format(
+                            "Scheduler time not properly set for periodic refresh of materialized table %s.",
+                            materializedTableIdentifier));
+        }
+
+        Set<String> partitionFields =
+                materializedTableOptions.keySet().stream()
+                        .filter(k -> k.startsWith(PARTITION_FIELDS))
+                        .collect(Collectors.toSet());
+        Map<String, String> refreshPartitions = new HashMap<>();
+        for (String partKey : partitionFields) {
+            String partField =
+                    partKey.substring(
+                            PARTITION_FIELDS.length() + 1,
+                            partKey.length() - (DATE_FORMATTER.length() + 1));
+            String partFieldFormatter = materializedTableOptions.get(partKey);
+            String partFiledValue =
+                    formatTimestampString(
+                            scheduleTime,
+                            SCHEDULE_TIME_DATE_FORMATTER_DEFAULT,
+                            partFieldFormatter,
+                            TimeZone.getTimeZone(localZoneId));
+            if (partFiledValue == null) {
+                throw new SqlExecutionException(
+                        String.format(
+                                "Failed to parse a valid partition value for the field '%s' in materialized table %s using the scheduler time '%s' based on the date format '%s'.",
+                                partField,
+                                materializedTableIdentifier.asSerializableString(),
+                                scheduleTime,
+                                SCHEDULE_TIME_DATE_FORMATTER_DEFAULT));
+            }
+            refreshPartitions.put(partField, partFiledValue);
+        }
+
+        return refreshPartitions;
     }
 
     private static void validatePartitionSpec(
@@ -399,13 +483,18 @@ public class MaterializedTableManager {
     }
 
     @VisibleForTesting
-    protected static String getManuallyRefreshStatement(
-            String tableIdentifier, String query, Map<String, String> partitionSpec) {
+    protected static String getRefreshStatement(
+            ObjectIdentifier tableIdentifier,
+            String definitionQuery,
+            Map<String, String> partitionSpec,
+            Map<String, String> dynamicOptions) {
+        String tableIdentifierWithDynamicOptions =
+                generateTableWithDynamicOptions(tableIdentifier, dynamicOptions);
         StringBuilder insertStatement =
                 new StringBuilder(
                         String.format(
                                 "INSERT OVERWRITE %s\n  SELECT * FROM (%s)",
-                                tableIdentifier, query));
+                                tableIdentifierWithDynamicOptions, definitionQuery));
         if (!partitionSpec.isEmpty()) {
             insertStatement.append("\n  WHERE ");
             insertStatement.append(
@@ -571,11 +660,16 @@ public class MaterializedTableManager {
             ObjectIdentifier materializedTableIdentifier,
             String definitionQuery,
             Map<String, String> dynamicOptions) {
-        StringBuilder builder =
-                new StringBuilder(
-                        String.format(
-                                "INSERT INTO %s",
-                                materializedTableIdentifier.asSerializableString()));
+
+        return String.format(
+                "INSERT INTO %s\n%s",
+                generateTableWithDynamicOptions(materializedTableIdentifier, dynamicOptions),
+                definitionQuery);
+    }
+
+    private static String generateTableWithDynamicOptions(
+            ObjectIdentifier objectIdentifier, Map<String, String> dynamicOptions) {
+        StringBuilder builder = new StringBuilder(objectIdentifier.asSerializableString());
 
         if (!dynamicOptions.isEmpty()) {
             String hints =
@@ -585,7 +679,6 @@ public class MaterializedTableManager {
             builder.append(String.format(" /*+ OPTIONS(%s) */", hints));
         }
 
-        builder.append("\n").append(definitionQuery);
         return builder.toString();
     }
 

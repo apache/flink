@@ -24,6 +24,7 @@ import org.apache.flink.runtime.rest.RestServerEndpoint;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpoint;
+import org.apache.flink.table.gateway.rest.handler.materializedtable.RefreshMaterializedTableHandler;
 import org.apache.flink.table.gateway.rest.handler.materializedtable.scheduler.CreateEmbeddedSchedulerWorkflowHandler;
 import org.apache.flink.table.gateway.rest.handler.materializedtable.scheduler.DeleteEmbeddedSchedulerWorkflowHandler;
 import org.apache.flink.table.gateway.rest.handler.materializedtable.scheduler.ResumeEmbeddedSchedulerWorkflowHandler;
@@ -41,6 +42,7 @@ import org.apache.flink.table.gateway.rest.handler.statement.ExecuteStatementHan
 import org.apache.flink.table.gateway.rest.handler.statement.FetchResultsHandler;
 import org.apache.flink.table.gateway.rest.handler.util.GetApiVersionHandler;
 import org.apache.flink.table.gateway.rest.handler.util.GetInfoHandler;
+import org.apache.flink.table.gateway.rest.header.materializedtable.RefreshMaterializedTableHeaders;
 import org.apache.flink.table.gateway.rest.header.materializedtable.scheduler.CreateEmbeddedSchedulerWorkflowHeaders;
 import org.apache.flink.table.gateway.rest.header.materializedtable.scheduler.DeleteEmbeddedSchedulerWorkflowHeaders;
 import org.apache.flink.table.gateway.rest.header.materializedtable.scheduler.ResumeEmbeddedSchedulerWorkflowHeaders;
@@ -90,6 +92,7 @@ public class SqlGatewayRestEndpoint extends RestServerEndpoint implements SqlGat
         addUtilRelatedHandlers(handlers);
         addStatementRelatedHandlers(handlers);
         addEmbeddedSchedulerRelatedHandlers(handlers);
+        addMaterializedTableRelatedHandlers(handlers);
         return handlers;
     }
 
@@ -234,6 +237,18 @@ public class SqlGatewayRestEndpoint extends RestServerEndpoint implements SqlGat
                         DeleteEmbeddedSchedulerWorkflowHeaders.getInstance());
         handlers.add(
                 Tuple2.of(DeleteEmbeddedSchedulerWorkflowHeaders.getInstance(), deleteHandler));
+    }
+
+    private void addMaterializedTableRelatedHandlers(
+            List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers) {
+        // Refresh materialized table
+        RefreshMaterializedTableHandler refreshMaterializedTableHandler =
+                new RefreshMaterializedTableHandler(
+                        service, responseHeaders, RefreshMaterializedTableHeaders.getInstance());
+        handlers.add(
+                Tuple2.of(
+                        RefreshMaterializedTableHeaders.getInstance(),
+                        refreshMaterializedTableHandler));
     }
 
     @Override

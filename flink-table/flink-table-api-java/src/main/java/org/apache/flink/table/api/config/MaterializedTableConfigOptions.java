@@ -38,6 +38,8 @@ public class MaterializedTableConfigOptions {
     public static final String PARTITION_FIELDS = "partition.fields";
     public static final String DATE_FORMATTER = "date-formatter";
 
+    public static final String SCHEDULE_TIME_DATE_FORMATTER_DEFAULT = "yyyy-MM-dd HH:mm:ss";
+
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Duration> MATERIALIZED_TABLE_FRESHNESS_THRESHOLD =
             key("materialized-table.refresh-mode.freshness-threshold")

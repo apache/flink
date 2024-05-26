@@ -37,6 +37,8 @@ import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -184,6 +186,18 @@ public class MockedSqlGatewayService implements SqlGatewayService {
     public List<String> completeStatement(
             SessionHandle sessionHandle, String statement, int position)
             throws SqlGatewayException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public OperationHandle refreshMaterializedTable(
+            SessionHandle sessionHandle,
+            String materializedTableIdentifier,
+            boolean isPeriodic,
+            @Nullable String scheduleTime,
+            Map<String, String> dynamicOptions,
+            Map<String, String> staticPartitions,
+            Map<String, String> executionConfig) {
         throw new UnsupportedOperationException();
     }
 
