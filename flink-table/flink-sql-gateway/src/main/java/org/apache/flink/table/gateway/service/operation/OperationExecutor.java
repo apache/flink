@@ -107,6 +107,8 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.Arrays;
@@ -530,6 +532,28 @@ public class OperationExecutor {
                                 tableConfig(),
                                 sessionContext.getSessionConf().get(RUNTIME_MODE) == STREAMING));
         return ResultFetcher.fromTableResult(handle, result, false);
+    }
+
+    public ResultFetcher refreshMaterializedTable(
+            OperationHandle handle,
+            String materializedTableIdentifier,
+            boolean isPeriodic,
+            @Nullable String scheduleTime,
+            Map<String, String> staticPartitions,
+            Map<String, String> dynamicOptions) {
+        TableEnvironmentInternal tEnv = getTableEnvironment();
+        UnresolvedIdentifier unresolvedIdentifier =
+                tEnv.getParser().parseIdentifier(materializedTableIdentifier);
+        ObjectIdentifier objectIdentifier =
+                tEnv.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
+        return MaterializedTableManager.refreshMaterializedTable(
+                this,
+                handle,
+                objectIdentifier,
+                staticPartitions,
+                dynamicOptions,
+                isPeriodic,
+                scheduleTime);
     }
 
     private TableConfig tableConfig() {
