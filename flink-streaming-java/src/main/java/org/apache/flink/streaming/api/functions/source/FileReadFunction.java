@@ -47,7 +47,8 @@ public class FileReadFunction implements FlatMapFunction<Tuple3<String, Long, Lo
         FSDataInputStream stream = FileSystem.get(new URI(value.f0)).open(new Path(value.f0));
         stream.seek(value.f1);
 
-        BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
+        BufferedReader reader =
+                new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
         String line;
 
         try {

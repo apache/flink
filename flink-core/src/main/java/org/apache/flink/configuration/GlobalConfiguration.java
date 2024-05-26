@@ -217,7 +217,8 @@ public final class GlobalConfiguration {
         final Configuration config = new Configuration();
 
         try (BufferedReader reader =
-                new BufferedReader(new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
+                new BufferedReader(
+                        new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
 
             String line;
             int lineNo = 0;

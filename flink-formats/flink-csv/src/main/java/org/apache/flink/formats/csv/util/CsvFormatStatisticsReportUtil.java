@@ -57,7 +57,8 @@ public class CsvFormatStatisticsReportUtil {
                 if (sampledRowCnt < totalSampleLineCnt) {
                     try (InputStreamReader isr =
                                     new InputStreamReader(
-                                            Files.newInputStream(new File(file.toUri()).toPath()), StandardCharsets.UTF_8);
+                                            Files.newInputStream(new File(file.toUri()).toPath()),
+                                            StandardCharsets.UTF_8);
                             BufferedReader br = new BufferedReader(isr)) {
                         String line;
                         while (sampledRowCnt < totalSampleLineCnt
