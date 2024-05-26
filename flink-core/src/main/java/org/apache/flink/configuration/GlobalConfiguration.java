@@ -32,6 +32,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -216,7 +217,7 @@ public final class GlobalConfiguration {
         final Configuration config = new Configuration();
 
         try (BufferedReader reader =
-                new BufferedReader(new InputStreamReader(new FileInputStream(file)))) {
+                new BufferedReader(new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
 
             String line;
             int lineNo = 0;

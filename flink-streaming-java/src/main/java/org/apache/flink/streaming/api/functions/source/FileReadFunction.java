@@ -28,6 +28,7 @@ import org.apache.flink.util.Collector;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 
 /**
  * This is used together with {@link FileMonitoringFunction} to read from files that the monitoring
@@ -46,7 +47,7 @@ public class FileReadFunction implements FlatMapFunction<Tuple3<String, Long, Lo
         FSDataInputStream stream = FileSystem.get(new URI(value.f0)).open(new Path(value.f0));
         stream.seek(value.f1);
 
-        BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
+        BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
         String line;
 
         try {
