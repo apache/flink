@@ -55,6 +55,9 @@ public class TestFileSystemTableFactoryTest {
         // test ignore format options
         options.put("testcsv.my_option", "my_value");
 
+        // test ignore partition fields
+        options.put("partition.fields.f1.date-formatter", "yyyy-MM-dd");
+
         DynamicTableSource source = createTableSource(SCHEMA, options);
         assertThat(source).isInstanceOf(TestFileSystemTableSource.class);
 

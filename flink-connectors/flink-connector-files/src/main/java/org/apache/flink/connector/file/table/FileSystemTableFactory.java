@@ -213,7 +213,7 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
     }
 
     /** Similar logic as for {@link TableConfig}. */
-    private void validateTimeZone(String zone) {
+    protected void validateTimeZone(String zone) {
         boolean isValid;
         try {
             // We enforce a zone string that is compatible with both java.util.TimeZone and
