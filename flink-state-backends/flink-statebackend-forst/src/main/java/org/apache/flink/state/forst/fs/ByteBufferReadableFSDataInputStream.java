@@ -48,8 +48,12 @@ public class ByteBufferReadableFSDataInputStream extends FSDataInputStream {
 
     private final Callable<FSDataInputStream> inputStreamBuilder;
 
+    private final long totalFileSize;
+
     public ByteBufferReadableFSDataInputStream(
-            Callable<FSDataInputStream> inputStreamBuilder, int inputStreamCapacity)
+            Callable<FSDataInputStream> inputStreamBuilder,
+            int inputStreamCapacity,
+            long totalFileSize)
             throws IOException {
         try {
             this.originalInputStream = inputStreamBuilder.call();
@@ -58,6 +62,7 @@ public class ByteBufferReadableFSDataInputStream extends FSDataInputStream {
         }
         this.inputStreamBuilder = inputStreamBuilder;
         this.readInputStreamPool = new LinkedBlockingQueue<>(inputStreamCapacity);
+        this.totalFileSize = totalFileSize;
     }
 
     /**
@@ -99,7 +104,23 @@ public class ByteBufferReadableFSDataInputStream extends FSDataInputStream {
     public int readFully(long position, ByteBuffer bb) throws Exception {
         if (bb == null) {
             throw new NullPointerException();
-        } else if (bb.remaining() == 0) {
+        } else if (position >= totalFileSize) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "position [%s] is larger than or equals to totalFileSize [%s]",
+                            position, totalFileSize));
+        }
+
+        // Avoid bb.remaining() exceeding the file size limit.
+        bb.limit(
+                Math.min(
+                        bb.limit(),
+                        (int)
+                                Math.min(
+                                        totalFileSize - position + bb.position(),
+                                        Integer.MAX_VALUE)));
+
+        if (bb.remaining() == 0) {
             return 0;
         }
 

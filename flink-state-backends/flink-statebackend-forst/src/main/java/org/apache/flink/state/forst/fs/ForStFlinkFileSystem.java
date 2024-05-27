@@ -28,6 +28,8 @@ import org.apache.flink.core.fs.Path;
 import java.io.IOException;
 import java.net.URI;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * A {@link FileSystem} delegates some requests to file system loaded by Flink FileSystem mechanism.
  *
@@ -80,14 +82,18 @@ public class ForStFlinkFileSystem extends FileSystem {
 
     @Override
     public ByteBufferReadableFSDataInputStream open(Path path, int bufferSize) throws IOException {
+        FileStatus fileStatus = checkNotNull(getFileStatus(path));
         return new ByteBufferReadableFSDataInputStream(
-                () -> delegateFS.open(path, bufferSize), DEFAULT_INPUT_STREAM_CAPACITY);
+                () -> delegateFS.open(path, bufferSize),
+                DEFAULT_INPUT_STREAM_CAPACITY,
+                fileStatus.getLen());
     }
 
     @Override
     public ByteBufferReadableFSDataInputStream open(Path path) throws IOException {
+        FileStatus fileStatus = checkNotNull(getFileStatus(path));
         return new ByteBufferReadableFSDataInputStream(
-                () -> delegateFS.open(path), DEFAULT_INPUT_STREAM_CAPACITY);
+                () -> delegateFS.open(path), DEFAULT_INPUT_STREAM_CAPACITY, fileStatus.getLen());
     }
 
     @Override
