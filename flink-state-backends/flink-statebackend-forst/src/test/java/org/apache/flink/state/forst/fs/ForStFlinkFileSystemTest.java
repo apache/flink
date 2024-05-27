@@ -24,7 +24,6 @@ import org.apache.flink.core.fs.local.LocalDataInputStream;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -37,6 +36,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ForStFlinkFileSystem}. */
 public class ForStFlinkFileSystemTest {
@@ -86,9 +87,9 @@ public class ForStFlinkFileSystemTest {
             readBuffer.position(1);
             readBuffer.limit(17);
             int read = inputStream.readFully(readBuffer);
-            Assertions.assertThat(read).isEqualTo(16);
-            Assertions.assertThat(readBuffer.getLong(1)).isEqualTo(i);
-            Assertions.assertThat(readBuffer.getLong(9)).isEqualTo(i * 2);
+            assertThat(read).isEqualTo(16);
+            assertThat(readBuffer.getLong(1)).isEqualTo(i);
+            assertThat(readBuffer.getLong(9)).isEqualTo(i * 2);
         }
         inputStream.close();
 
@@ -108,11 +109,9 @@ public class ForStFlinkFileSystemTest {
                                         int read =
                                                 randomInputStream.readFully(
                                                         i * 16L, randomReadBuffer);
-                                        Assertions.assertThat(read).isEqualTo(16);
-                                        Assertions.assertThat(randomReadBuffer.getLong(1))
-                                                .isEqualTo(i);
-                                        Assertions.assertThat(randomReadBuffer.getLong(9))
-                                                .isEqualTo(i * 2L);
+                                        assertThat(read).isEqualTo(16);
+                                        assertThat(randomReadBuffer.getLong(1)).isEqualTo(i);
+                                        assertThat(randomReadBuffer.getLong(9)).isEqualTo(i * 2L);
                                     }
                                 } catch (Exception ex) {
                                     throw new CompletionException(ex);
@@ -122,9 +121,26 @@ public class ForStFlinkFileSystemTest {
         FutureUtils.waitForAll(futureList).get();
         inputStream.close();
 
-        Assertions.assertThat(fileSystem.exists(testFilePath)).isTrue();
+        assertThat(fileSystem.exists(testFilePath)).isTrue();
         fileSystem.delete(testFilePath, true);
-        Assertions.assertThat(fileSystem.exists(testFilePath)).isFalse();
+        assertThat(fileSystem.exists(testFilePath)).isFalse();
+    }
+
+    @Test
+    void testReadExceedingFileSize() throws Exception {
+        ForStFlinkFileSystem fileSystem =
+                new ForStFlinkFileSystem(new ByteBufferReadableLocalFileSystem());
+        org.apache.flink.core.fs.Path testFilePath =
+                new org.apache.flink.core.fs.Path(tempDir.toString() + "/temp-file");
+        try (ByteBufferWritableFSDataOutputStream outputStream = fileSystem.create(testFilePath)) {
+            outputStream.write(1);
+        }
+
+        try (ByteBufferReadableFSDataInputStream inputStream = fileSystem.open(testFilePath)) {
+            ByteBuffer byteBuffer = ByteBuffer.allocate(2);
+            inputStream.readFully(0, byteBuffer);
+            inputStream.readFully(byteBuffer);
+        }
     }
 
     private static class ByteBufferReadableLocalFileSystem extends LocalFileSystem {
@@ -139,12 +155,16 @@ public class ForStFlinkFileSystemTest {
     private static class ByteBufferReadableLocalDataInputStream extends LocalDataInputStream
             implements ByteBufferReadable {
 
+        private final long totalFileSize;
+
         public ByteBufferReadableLocalDataInputStream(File file) throws IOException {
             super(file);
+            this.totalFileSize = file.length();
         }
 
         @Override
         public synchronized int read(ByteBuffer byteBuffer) throws IOException {
+            assertThat((long) byteBuffer.remaining()).isLessThanOrEqualTo(totalFileSize);
             byte[] tmp = new byte[byteBuffer.remaining()];
             read(tmp, 0, tmp.length);
             byteBuffer.put(tmp);
@@ -153,6 +173,7 @@ public class ForStFlinkFileSystemTest {
 
         @Override
         public synchronized int read(long position, ByteBuffer byteBuffer) throws IOException {
+            assertThat(position + byteBuffer.remaining()).isLessThanOrEqualTo(totalFileSize);
             byte[] tmp = new byte[byteBuffer.remaining()];
             long currPosition = getPos();
             seek(position);
