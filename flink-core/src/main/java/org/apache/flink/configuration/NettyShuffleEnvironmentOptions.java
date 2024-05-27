@@ -316,8 +316,11 @@ public class NettyShuffleEnvironmentOptions {
     /**
      * Parallelism threshold to switch between sort-based blocking shuffle and hash-based blocking
      * shuffle.
+     *
+     * @deprecated The hash-based blocking shuffle is deprecated in 1.20 and will be totally removed
+     *     in 2.0.
      */
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    @Deprecated
     public static final ConfigOption<Integer> NETWORK_SORT_SHUFFLE_MIN_PARALLELISM =
             key("taskmanager.network.sort-shuffle.min-parallelism")
                     .intType()
@@ -455,7 +458,11 @@ public class NettyShuffleEnvironmentOptions {
                                     + "the \"Insufficient number of network buffers\" exception, while the workloads may suffer performance "
                                     + "reduction silently.");
 
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    /**
+     * @deprecated The hash-based blocking shuffle is deprecated in 1.20 and will be totally removed
+     *     in 2.0.
+     */
+    @Deprecated
     public static final ConfigOption<String> NETWORK_BLOCKING_SHUFFLE_TYPE =
             key("taskmanager.network.blocking-shuffle.type")
                     .stringType()
