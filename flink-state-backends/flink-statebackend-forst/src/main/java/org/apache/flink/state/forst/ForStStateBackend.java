@@ -50,7 +50,6 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -90,7 +89,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
      * configuration values will be used. The configuration will fallback to local directory by
      * default. TODO: fallback to checkpoint directory if not configured.
      */
-    @Nullable private URI remoteForStDirectory;
+    @Nullable private Path remoteForStDirectory;
 
     /**
      * Base paths for ForSt directory, as configured. Null if not yet set, in which case the
@@ -154,15 +153,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
             this.remoteForStDirectory = original.remoteForStDirectory;
         } else {
             String remoteDirStr = config.get(ForStOptions.REMOTE_DIRECTORY);
-            try {
-                this.remoteForStDirectory = remoteDirStr == null ? null : new URI(remoteDirStr);
-            } catch (URISyntaxException e) {
-                throw new RuntimeException(
-                        String.format(
-                                "Exception when transform %s to URI, the value is: %s",
-                                ForStOptions.REMOTE_DIRECTORY.key(), remoteDirStr),
-                        e);
-            }
+            this.remoteForStDirectory = remoteDirStr == null ? null : new Path(remoteDirStr);
         }
 
         // configure local directories
@@ -308,12 +299,17 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
 
         lazyInitializeForJob(env, fileCompatibleIdentifier);
 
-        String childPath =
-                "job_" + jobId + "_op_" + fileCompatibleIdentifier + "_uuid_" + UUID.randomUUID();
+        String opChildPath =
+                String.format(
+                        "op_%s_attempt_%s",
+                        fileCompatibleIdentifier, env.getTaskInfo().getAttemptNumber());
 
-        File localBasePath = new File(getNextStoragePath(), childPath);
-        URI remoteBasePath =
-                remoteForStDirectory != null ? remoteForStDirectory.resolve(childPath) : null;
+        File localBasePath =
+                new File(new File(getNextStoragePath(), jobId.toHexString()), opChildPath);
+        Path remoteBasePath =
+                remoteForStDirectory != null
+                        ? new Path(new Path(remoteForStDirectory, jobId.toHexString()), opChildPath)
+                        : null;
 
         final OpaqueMemoryResource<ForStSharedResources> sharedResources =
                 ForStOperationUtils.allocateSharedCachesIfConfigured(
@@ -570,7 +566,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
     private ForStResourceContainer createOptionsAndResourceContainer(
             @Nullable OpaqueMemoryResource<ForStSharedResources> sharedResources,
             @Nullable File localBasePath,
-            @Nullable URI remoteBasePath,
+            @Nullable Path remoteBasePath,
             boolean enableStatistics) {
 
         return new ForStResourceContainer(
