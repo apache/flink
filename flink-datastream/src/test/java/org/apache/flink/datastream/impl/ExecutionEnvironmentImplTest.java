@@ -22,7 +22,9 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.dsv2.DataStreamV2SourceUtils;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.datastream.api.ExecutionEnvironment;
 import org.apache.flink.datastream.api.common.Collector;
@@ -79,6 +81,49 @@ class ExecutionEnvironmentImplTest {
         env.setExecutionMode(RuntimeExecutionMode.BATCH);
         assertThat(env.getExecutionMode()).isEqualTo(RuntimeExecutionMode.BATCH);
     }
+
+    @Test
+    void testFromSource2() throws Exception {
+        Configuration configuration = new Configuration();
+        configuration.set(DeploymentOptions.TARGET, "local");
+//        configuration.set(DeploymentOptions.ATTACHED, true);
+
+        ExecutionEnvironmentImpl env =
+                new ExecutionEnvironmentImpl(
+                        new DefaultExecutorServiceLoader(), configuration, null);
+        NonKeyedPartitionStream<Integer> source =
+                env.fromSource(
+                        DataStreamV2SourceUtils.fromData(Arrays.asList(1, 2, 3)), "test-source");
+        source.process(new OneInputStreamProcessFunction<Integer, Integer>() {
+            @Override
+            public void processRecord(
+                    Integer record,
+                    Collector<Integer> output,
+                    PartitionedContext ctx) throws Exception {
+                System.out.println(record + " AAA");
+                output.collect(record);
+
+            }
+        });
+        source.keyBy(new KeySelector<Integer, Integer>() {
+            @Override
+            public Integer getKey(Integer value) throws Exception {
+                return value;
+            }
+        }).process(new OneInputStreamProcessFunction<Integer, Integer>() {
+            @Override
+            public void processRecord(
+                    Integer record,
+                    Collector<Integer> output,
+                    PartitionedContext ctx) throws Exception {
+                System.out.println(record + " BBB");
+                output.collect(record);
+            }
+        });
+
+        env.execute("asda");
+    }
+
 
     @Test
     void testFromSource() {

@@ -19,7 +19,9 @@
 package org.apache.flink.datastream.api.function;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.common.GenericWatermarkPolicy;
 import org.apache.flink.api.common.functions.Function;
+
 
 /** Base class for all user defined process functions. */
 @Experimental
@@ -47,4 +49,10 @@ public interface ProcessFunction extends Function {
      *     decide whether to retry the task execution.
      */
     default void close() throws Exception {}
+
+    default GenericWatermarkPolicy watermarkPolicy()
+    {
+        return null;
+    }
+
 }

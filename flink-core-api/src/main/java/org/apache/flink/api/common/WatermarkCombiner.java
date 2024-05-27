@@ -16,23 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.datastream.api.context;
+package org.apache.flink.api.common;
 
-import org.apache.flink.annotation.Experimental;
-import org.apache.flink.api.common.WatermarkManager;
-import org.apache.flink.datastream.api.function.ApplyPartitionFunction;
+import org.apache.flink.api.common.eventtime.GenericWatermark;
 
-/**
- * This interface represents the context associated with all operations must be applied to all
- * partitions.
- */
-@Experimental
-public interface NonPartitionedContext<OUT> extends RuntimeContext {
-    /**
-     * Apply a function to all partitions. For keyed stream, it will apply to all keys. For
-     * non-keyed stream, it will apply to single partition.
-     */
-    void applyToAllPartitions(ApplyPartitionFunction<OUT> applyPartitionFunction) throws Exception;
+public interface WatermarkCombiner {
+    GenericWatermark combineWatermark(GenericWatermark watermark, Context context) throws Exception;
 
-    WatermarkManager getWatermarkManager();
+    /** This interface provides information of all channels. */
+    interface Context {
+        int getNumberOfInputChannels();
+
+        int getIndexOfCurrentChannel();
+    }
 }

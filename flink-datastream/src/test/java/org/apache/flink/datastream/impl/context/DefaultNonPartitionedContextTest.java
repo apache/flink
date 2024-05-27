@@ -65,6 +65,7 @@ class DefaultNonPartitionedContextTest {
                                 UnsupportedProcessingTimeManager.INSTANCE),
                         collector,
                         false,
+                        null,
                         null);
         nonPartitionedContext.applyToAllPartitions(
                 (out, ctx) -> {
@@ -112,7 +113,8 @@ class DefaultNonPartitionedContextTest {
                                 UnsupportedProcessingTimeManager.INSTANCE),
                         collector,
                         true,
-                        allKeys);
+                        allKeys,
+                        null);
         nonPartitionedContext.applyToAllPartitions(
                 (out, ctx) -> {
                     counter.incrementAndGet();

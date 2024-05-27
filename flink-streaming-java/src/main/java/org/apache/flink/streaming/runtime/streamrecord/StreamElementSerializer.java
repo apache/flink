@@ -19,8 +19,8 @@
 package org.apache.flink.streaming.runtime.streamrecord;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.GenericWatermarkPolicy;
 import org.apache.flink.api.common.eventtime.GenericWatermark;
-import org.apache.flink.api.common.eventtime.GenericWatermarkDeclaration;
 import org.apache.flink.api.common.eventtime.InternalWatermarkDeclaration;
 import org.apache.flink.api.common.eventtime.TimestampWatermarkDeclaration;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
@@ -64,7 +64,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 
     private final TypeSerializer<T> typeSerializer;
 
-    private final Map<String, GenericWatermarkDeclaration> watermarkDeclarationMap;
+    private final Map<String, GenericWatermarkPolicy.GenericWatermarkDeclaration> watermarkDeclarationMap;
 
     public StreamElementSerializer(TypeSerializer<T> serializer) {
         this(
@@ -77,7 +77,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 
     public StreamElementSerializer(
             TypeSerializer<T> serializer,
-            Set<GenericWatermarkDeclaration> watermarkDeclarationSet) {
+            Set<GenericWatermarkPolicy.GenericWatermarkDeclaration> watermarkDeclarationSet) {
         if (serializer instanceof StreamElementSerializer) {
             throw new RuntimeException(
                     "StreamRecordSerializer given to StreamRecordSerializer as value TypeSerializer: "
@@ -85,7 +85,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
         }
         this.typeSerializer = requireNonNull(serializer);
         this.watermarkDeclarationMap = new HashMap<>();
-        for (GenericWatermarkDeclaration genericWatermarkDeclaration : watermarkDeclarationSet) {
+        for (GenericWatermarkPolicy.GenericWatermarkDeclaration genericWatermarkDeclaration : watermarkDeclarationSet) {
             this.watermarkDeclarationMap.put(
                     genericWatermarkDeclaration.watermarkClass().getName(),
                     genericWatermarkDeclaration);

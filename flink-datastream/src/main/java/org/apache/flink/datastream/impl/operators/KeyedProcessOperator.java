@@ -18,6 +18,7 @@
 
 package org.apache.flink.datastream.impl.operators;
 
+import org.apache.flink.api.common.eventtime.GenericWatermark;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.ProcessingTimeManager;
@@ -33,6 +34,7 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.Triggerable;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import javax.annotation.Nullable;
@@ -102,8 +104,7 @@ public class KeyedProcessOperator<KEY, IN, OUT> extends ProcessOperator<IN, OUT>
                                         partitionedContext),
                         timer.getKey());
     }
-
-    @Override
+        @Override
     protected ProcessingTimeManager getProcessingTimeManager() {
         return new DefaultProcessingTimeManager(timerService);
     }
@@ -111,7 +112,7 @@ public class KeyedProcessOperator<KEY, IN, OUT> extends ProcessOperator<IN, OUT>
     @Override
     protected NonPartitionedContext<OUT> getNonPartitionedContext() {
         return new DefaultNonPartitionedContext<>(
-                context, partitionedContext, outputCollector, true, keySet);
+                context, partitionedContext, outputCollector, true, keySet, output);
     }
 
     @Override

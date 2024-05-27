@@ -16,18 +16,41 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common.eventtime;
+package org.apache.flink.api.common;
 
+import org.apache.flink.api.common.eventtime.GenericWatermark;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.Set;
 
-public interface GenericWatermarkDeclaration extends Serializable {
-    Class<? extends GenericWatermark> watermarkClass();
 
-    void serialize(GenericWatermark genericWatermark, DataOutputView target) throws IOException;
+public interface GenericWatermarkPolicy extends Serializable {
 
-    GenericWatermark deserialize(DataInputView inputView) throws IOException;
+    default Set<Class<? extends GenericWatermarkDeclaration>> declaredWatermarks()
+    {
+        return Collections.emptySet();
+    }
+
+    WatermarkResult useWatermark(GenericWatermark watermark);
+
+    WatermarkCombiner watermarkCombiner();
+
+    enum WatermarkResult {
+        PEEK,
+        POP
+    }
+
+    interface GenericWatermarkDeclaration extends Serializable {
+        Class<? extends GenericWatermark> watermarkClass();
+
+        void serialize(GenericWatermark genericWatermark, DataOutputView target) throws IOException;
+
+        GenericWatermark deserialize(DataInputView inputView) throws IOException;
+    }
 }
+
+

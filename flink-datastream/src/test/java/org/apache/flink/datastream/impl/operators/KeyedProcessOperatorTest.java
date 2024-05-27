@@ -24,6 +24,7 @@ import org.apache.flink.datastream.api.common.Collector;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 
@@ -37,6 +38,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link KeyedProcessOperator}. */
 class KeyedProcessOperatorTest {
+
     @Test
     void testProcessRecord() throws Exception {
         KeyedProcessOperator<Integer, Integer, Integer> processOperator =
@@ -47,7 +49,7 @@ class KeyedProcessOperatorTest {
                                     Integer record,
                                     Collector<Integer> output,
                                     PartitionedContext ctx) {
-                                output.collect(record + 1);
+                                 output.collect(record + 1);
                             }
                         });
 

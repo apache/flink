@@ -18,12 +18,13 @@
 
 package org.apache.flink.api.common.eventtime;
 
+import org.apache.flink.api.common.GenericWatermarkPolicy;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 
-public class TimestampWatermarkDeclaration implements GenericWatermarkDeclaration {
+public class TimestampWatermarkDeclaration implements GenericWatermarkPolicy.GenericWatermarkDeclaration {
     @Override
     public Class<TimestampWatermark> watermarkClass() {
         return TimestampWatermark.class;
