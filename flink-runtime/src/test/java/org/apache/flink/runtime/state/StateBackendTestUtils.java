@@ -152,6 +152,27 @@ public class StateBackendTestUtils {
         public void close() {
             // do nothing
         }
+
+        @Override
+        public void notifyCheckpointSubsumed(long checkpointId) throws Exception {
+            // do nothing
+        }
+
+        @Override
+        public void notifyCheckpointComplete(long checkpointId) throws Exception {
+            // do nothing
+        }
+
+        @Override
+        public RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot(
+                long checkpointId,
+                long timestamp,
+                CheckpointStreamFactory streamFactory,
+                CheckpointOptions checkpointOptions)
+                throws Exception {
+            // do nothing
+            return null;
+        }
     }
 
     /** Wrapper of state backend which supports apply the snapshot result. */

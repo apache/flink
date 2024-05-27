@@ -65,6 +65,9 @@ public abstract class RegisteredStateMetaInfoBase {
                 return new RegisteredBroadcastStateBackendMetaInfo<>(snapshot);
             case PRIORITY_QUEUE:
                 return new RegisteredPriorityQueueStateBackendMetaInfo<>(snapshot);
+            case KEY_VALUE_V2:
+                return new org.apache.flink.runtime.state.v2
+                        .RegisteredKeyValueStateBackendMetaInfo<>(snapshot);
             default:
                 throw new IllegalArgumentException(
                         "Unknown backend state type: " + backendStateType);
