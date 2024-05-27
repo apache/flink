@@ -77,6 +77,7 @@ final Schema schema = Schema.newBuilder()
 
 final TableDescriptor sinkDescriptor = TableDescriptor.forConnector("filesystem")
     .schema(schema)
+    .option("path", "/path/to/file")    
     .format(FormatDescriptor.forFormat("csv")
         .option("field-delimiter", ",")
         .build())
