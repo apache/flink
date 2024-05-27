@@ -49,6 +49,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.MATERIALIZED_TABLE_FRESHNESS_THRESHOLD;
+import static org.apache.flink.table.utils.IntervalFreshnessUtils.convertFreshnessToCron;
 import static org.apache.flink.table.utils.IntervalFreshnessUtils.convertFreshnessToDuration;
 
 /** A converter for {@link SqlCreateMaterializedTable}. */
@@ -103,6 +104,11 @@ public class SqlCreateMaterializedTableConverter
                                 .get(MATERIALIZED_TABLE_FRESHNESS_THRESHOLD),
                         convertFreshnessToDuration(intervalFreshness),
                         logicalRefreshMode);
+        // If the refresh mode is full, validate whether the freshness can convert to cron
+        // expression in advance
+        if (CatalogMaterializedTable.RefreshMode.FULL == refreshMode) {
+            convertFreshnessToCron(intervalFreshness);
+        }
 
         // get query schema and definition query
         SqlNode validateQuery =

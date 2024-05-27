@@ -172,6 +172,15 @@ public class SqlMaterializedTableNodeToOperationConverterTest
                 .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.FULL);
         assertThat(materializedTable2.getRefreshMode())
                 .isEqualTo(CatalogMaterializedTable.RefreshMode.FULL);
+
+        final String sql3 =
+                "CREATE MATERIALIZED TABLE mtbl1\n"
+                        + "FRESHNESS = INTERVAL '40' MINUTE\n"
+                        + "AS SELECT * FROM t1";
+        assertThatThrownBy(() -> parse(sql3))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "In full refresh mode, only freshness that are factors of 60 are currently supported when the time unit is MINUTE.");
     }
 
     @Test
