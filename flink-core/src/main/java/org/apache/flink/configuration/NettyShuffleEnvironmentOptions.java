@@ -341,8 +341,14 @@ public class NettyShuffleEnvironmentOptions {
                                     // this raw value must be changed correspondingly
                                     "taskmanager.memory.framework.off-heap.batch-shuffle.size"));
 
-    /** Region group size of hybrid spilled file data index. */
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    /**
+     * Region group size of hybrid spilled file data index.
+     *
+     * @deprecated The option is only used in the legacy hybrid shuffle mode. It is deprecated in
+     *     1.20 and will be totally removed in 2.0, as the legacy hybrid shuffle mode will be
+     *     removed in 2.0.
+     */
+    @Deprecated
     public static final ConfigOption<Integer> HYBRID_SHUFFLE_SPILLED_INDEX_REGION_GROUP_SIZE =
             key("taskmanager.network.hybrid-shuffle.spill-index-region-group-size")
                     .intType()
@@ -355,8 +361,14 @@ public class NettyShuffleEnvironmentOptions {
                                     + HYBRID_SHUFFLE_NEW_MODE_OPTION_NAME
                                     + " is set true.");
 
-    /** Max number of hybrid retained regions in memory. */
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    /**
+     * Max number of hybrid retained regions in memory.
+     *
+     * @deprecated The option is only used in the legacy hybrid shuffle mode. It is deprecated in
+     *     1.20 and will be totally removed in 2.0, as the legacy hybrid shuffle mode will be
+     *     removed in 2.0.
+     */
+    @Deprecated
     public static final ConfigOption<Long> HYBRID_SHUFFLE_NUM_RETAINED_IN_MEMORY_REGIONS_MAX =
             key("taskmanager.network.hybrid-shuffle.num-retained-in-memory-regions-max")
                     .longType()
@@ -413,9 +425,13 @@ public class NettyShuffleEnvironmentOptions {
                                     + "tasks have occupied all the buffers and the downstream tasks are waiting for the exclusive buffers. The timeout breaks"
                                     + "the tie by failing the request of exclusive buffers and ask users to increase the number of total buffers.");
 
-    /** The option to enable the new mode of hybrid shuffle. */
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
-    @Experimental
+    /**
+     * The option to enable the new mode of hybrid shuffle.
+     *
+     * @deprecated This option is deprecated in 1.20 and will be totally removed in 2.0, as the
+     *     legacy hybrid shuffle mode will be removed in 2.0.
+     */
+    @Deprecated @Experimental
     public static final ConfigOption<Boolean> NETWORK_HYBRID_SHUFFLE_ENABLE_NEW_MODE =
             ConfigOptions.key(HYBRID_SHUFFLE_NEW_MODE_OPTION_NAME)
                     .booleanType()
