@@ -20,12 +20,12 @@ package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
-import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -412,13 +412,11 @@ class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
     }
 
     public static byte[] serializeLocalDateTime(LocalDateTime localDateTime) {
-        DataOutputSerializer dos = new DataOutputSerializer(16);
-        LocalDateTimeSerializer serializer = new LocalDateTimeSerializer();
         try {
-            serializer.serialize(localDateTime, dos);
+            return InstantiationUtil.serializeToByteArray(
+                    LocalDateTimeSerializer.INSTANCE, localDateTime);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        return dos.getCopyOfBuffer();
     }
 }
