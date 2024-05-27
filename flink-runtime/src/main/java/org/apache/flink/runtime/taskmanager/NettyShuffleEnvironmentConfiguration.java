@@ -368,10 +368,7 @@ public class NettyShuffleEnvironmentConfiguration {
         Collections.shuffle(shuffleDirs);
 
         Duration requestSegmentsTimeout =
-                Duration.ofMillis(
-                        configuration.get(
-                                NettyShuffleEnvironmentOptions
-                                        .NETWORK_EXCLUSIVE_BUFFERS_REQUEST_TIMEOUT_MILLISECONDS));
+                configuration.get(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_REQUEST_TIMEOUT);
 
         BoundedBlockingSubpartitionType blockingSubpartitionType =
                 getBlockingSubpartitionType(configuration);

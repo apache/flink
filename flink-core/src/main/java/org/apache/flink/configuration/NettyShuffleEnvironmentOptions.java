@@ -240,8 +240,11 @@ public class NettyShuffleEnvironmentOptions {
      * upstream outgoing channel, max(1, configured value) will be used. In other words we ensure
      * that, for performance reasons, at least one buffer is used per outgoing channel regardless of
      * the configuration.
+     *
+     * @deprecated This option is deprecated in 1.20 and will be removed in 2.0 to simplify the
+     *     configuration of network buffers.
      */
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    @Deprecated
     public static final ConfigOption<Integer> NETWORK_BUFFERS_PER_CHANNEL =
             key("taskmanager.network.memory.buffers-per-channel")
                     .intType()
@@ -270,8 +273,11 @@ public class NettyShuffleEnvironmentOptions {
     /**
      * Number of floating network buffers for each outgoing/incoming gate (result partition/input
      * gate).
+     *
+     * @deprecated This option is deprecated in 1.20 and will be removed in 2.0 to simplify the
+     *     configuration of network buffers.
      */
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    @Deprecated
     public static final ConfigOption<Integer> NETWORK_EXTRA_BUFFERS_PER_GATE =
             key("taskmanager.network.memory.floating-buffers-per-gate")
                     .intType()
@@ -379,8 +385,13 @@ public class NettyShuffleEnvironmentOptions {
                                     + HYBRID_SHUFFLE_NEW_MODE_OPTION_NAME
                                     + " is set true. ");
 
-    /** Number of max buffers can be used for each output subpartition. */
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    /**
+     * Number of max buffers can be used for each output subpartition.
+     *
+     * @deprecated This option is deprecated in 1.20 and will be removed in 2.0 to simplify the
+     *     configuration of network buffers.
+     */
+    @Deprecated
     public static final ConfigOption<Integer> NETWORK_MAX_BUFFERS_PER_CHANNEL =
             key("taskmanager.network.memory.max-buffers-per-channel")
                     .intType()
@@ -393,8 +404,13 @@ public class NettyShuffleEnvironmentOptions {
                                     + " and can be ignored by things like flatMap operators, records spanning multiple buffers or single timer"
                                     + " producing large amount of data.");
 
-    /** Number of max overdraft network buffers to use for each ResultPartition. */
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    /**
+     * Number of max overdraft network buffers to use for each ResultPartition.
+     *
+     * @deprecated This option is deprecated in 1.20 and will be removed in 2.0 to simplify the
+     *     configuration of network buffers.
+     */
+    @Deprecated
     public static final ConfigOption<Integer> NETWORK_MAX_OVERDRAFT_BUFFERS_PER_GATE =
             key("taskmanager.network.memory.max-overdraft-buffers-per-gate")
                     .intType()
@@ -412,15 +428,35 @@ public class NettyShuffleEnvironmentOptions {
                                     + " process any more records until the overdraft buffers are returned to the pool."
                                     + " It should be noted that this config option only takes effect for Pipelined Shuffle.");
 
-    /** The timeout for requesting exclusive buffers for each channel. */
-    @Documentation.ExcludeFromDocumentation(
-            "This option is purely implementation related, and may be removed as the implementation changes.")
+    /**
+     * The timeout for requesting exclusive buffers for each channel.
+     *
+     * @deprecated This option is deprecated in 1.20 and will be removed in 2.0 to simplify the
+     *     configuration of network buffers. Please use {@link
+     *     NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_REQUEST_TIMEOUT} instead.
+     */
+    @Deprecated
     public static final ConfigOption<Long> NETWORK_EXCLUSIVE_BUFFERS_REQUEST_TIMEOUT_MILLISECONDS =
             key("taskmanager.network.memory.exclusive-buffers-request-timeout-ms")
                     .longType()
                     .defaultValue(30000L)
                     .withDescription(
                             "The timeout for requesting exclusive buffers for each channel. Since the number of maximum buffers and "
+                                    + "the number of required buffers is not the same for local buffer pools, there may be deadlock cases that the upstream"
+                                    + "tasks have occupied all the buffers and the downstream tasks are waiting for the exclusive buffers. The timeout breaks"
+                                    + "the tie by failing the request of exclusive buffers and ask users to increase the number of total buffers.");
+
+    /** The timeout for requesting buffers for each channel. */
+    @Documentation.ExcludeFromDocumentation(
+            "This option is purely implementation related, and may be removed as the implementation changes.")
+    public static final ConfigOption<Duration> NETWORK_BUFFERS_REQUEST_TIMEOUT =
+            key("taskmanager.network.memory.buffers-request-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(30000L))
+                    .withDeprecatedKeys(
+                            "taskmanager.network.memory.exclusive-buffers-request-timeout-ms")
+                    .withDescription(
+                            "The timeout for requesting buffers for each channel. Since the number of maximum buffers and "
                                     + "the number of required buffers is not the same for local buffer pools, there may be deadlock cases that the upstream"
                                     + "tasks have occupied all the buffers and the downstream tasks are waiting for the exclusive buffers. The timeout breaks"
                                     + "the tie by failing the request of exclusive buffers and ask users to increase the number of total buffers.");

@@ -261,8 +261,7 @@ public class NetworkBufferPool
                                             + " or you may increase the timeout which is %dms by setting the key '%s'.",
                                     getConfigDescription(),
                                     requestSegmentsTimeout.toMillis(),
-                                    NettyShuffleEnvironmentOptions
-                                            .NETWORK_EXCLUSIVE_BUFFERS_REQUEST_TIMEOUT_MILLISECONDS
+                                    NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_REQUEST_TIMEOUT
                                             .key()));
                 }
             }
