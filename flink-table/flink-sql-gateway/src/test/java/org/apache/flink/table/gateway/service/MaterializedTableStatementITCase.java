@@ -818,6 +818,16 @@ public class MaterializedTableStatementITCase {
 
         assertThat(activeMaterializedTable).isInstanceOf(ResolvedCatalogMaterializedTable.class);
 
+        waitUntilAllTasksAreRunning(
+                restClusterClient,
+                JobID.fromHexString(
+                        ContinuousRefreshHandlerSerializer.INSTANCE
+                                .deserialize(
+                                        ((ResolvedCatalogMaterializedTable) activeMaterializedTable)
+                                                .getSerializedRefreshHandler(),
+                                        getClass().getClassLoader())
+                                .getJobId()));
+
         // verify background job is running
         ContinuousRefreshHandler activeRefreshHandler =
                 ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
