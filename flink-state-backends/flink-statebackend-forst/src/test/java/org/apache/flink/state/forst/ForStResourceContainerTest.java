@@ -19,6 +19,7 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -43,7 +44,6 @@ import org.rocksdb.WriteOptions;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -303,18 +303,18 @@ public class ForStResourceContainerTest {
     @Test
     public void testDirectoryResources() throws Exception {
         File localBasePath = TMP_FOLDER.newFolder();
-        URI remoteBasePath = TMP_FOLDER.newFolder().toURI();
+        Path remoteBasePath = new Path(TMP_FOLDER.newFolder().getPath());
         try (final ForStResourceContainer optionsContainer =
                 new ForStResourceContainer(
                         new Configuration(), null, null, localBasePath, remoteBasePath, false)) {
             optionsContainer.prepareDirectories();
             assertTrue(localBasePath.exists());
-            assertTrue(new File(remoteBasePath).exists());
+            assertTrue(new File(remoteBasePath.getPath()).exists());
             assertTrue(optionsContainer.getDbOptions().getEnv() instanceof FlinkEnv);
 
             optionsContainer.clearDirectories();
             assertFalse(localBasePath.exists());
-            assertFalse(new File(remoteBasePath).exists());
+            assertFalse(new File(remoteBasePath.getPath()).exists());
         }
     }
 }

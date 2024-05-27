@@ -20,6 +20,7 @@ package org.apache.flink.state.forst;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.asyncprocessing.StateExecutor;
@@ -43,7 +44,6 @@ import javax.annotation.concurrent.GuardedBy;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URI;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Function;
@@ -231,7 +231,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
     }
 
     @VisibleForTesting
-    URI getRemoteBasePath() {
+    Path getRemoteBasePath() {
         return optionsContainer.getRemoteBasePath();
     }
 

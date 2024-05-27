@@ -37,13 +37,13 @@ import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.DBOptions;
 import org.rocksdb.RocksDB;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.io.File;
 import java.util.Collection;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -180,11 +180,21 @@ public class ForStKeyedStateBackendBuilder<K>
     }
 
     private ForStRestoreOperation getForStRestoreOperation() {
-        DBOptions dbOptions = optionsContainer.getDbOptions();
+        // Currently, ForStDB does not support mixing local-dir and remote-dir, and ForStDB will
+        // concatenates the dfs directory with the local directory as working dir when using flink
+        // env. We expect to directly use the dfs directory in flink env or local directory as
+        // working dir. We will implement this in ForStDB later, but before that, we achieved this
+        // by setting the dbPath to "/" when the dfs directory existed.
+        // TODO: use localForStPath as dbPath after ForSt Support mixing local-dir and remote-dir
+        File instanceForStPath =
+                optionsContainer.getRemoteForStPath() == null
+                        ? optionsContainer.getLocalForStPath()
+                        : new File("/");
+
         if (CollectionUtil.isEmptyOrAllElementsNull(restoreStateHandles)) {
             return new ForStNoneRestoreOperation(
-                    optionsContainer.getLocalForStPath(),
-                    dbOptions,
+                    instanceForStPath,
+                    optionsContainer.getDbOptions(),
                     columnFamilyOptionsFactory,
                     nativeMetricOptions,
                     metricGroup);
