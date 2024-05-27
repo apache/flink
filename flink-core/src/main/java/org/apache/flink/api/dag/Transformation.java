@@ -28,7 +28,6 @@ import org.apache.flink.api.common.operators.util.OperatorValidationUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
-import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -44,6 +43,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@code Transformation} represents the operation that creates a DataStream. Every DataStream has
@@ -216,7 +216,7 @@ public abstract class Transformation<T> {
             int parallelism,
             boolean parallelismConfigured) {
         this.id = getNewNodeId();
-        this.name = Preconditions.checkNotNull(name);
+        this.name = checkNotNull(name);
         this.outputType = outputType;
         this.parallelism = parallelism;
         this.slotSharingGroup = Optional.empty();
@@ -247,7 +247,7 @@ public abstract class Transformation<T> {
 
     /** Changes the description of this {@code Transformation}. */
     public void setDescription(String description) {
-        this.description = Preconditions.checkNotNull(description);
+        this.description = checkNotNull(description);
     }
 
     /** Returns the description of this {@code Transformation}. */
@@ -341,12 +341,11 @@ public abstract class Transformation<T> {
      */
     public Optional<Integer> declareManagedMemoryUseCaseAtOperatorScope(
             ManagedMemoryUseCase managedMemoryUseCase, int weight) {
-        Preconditions.checkNotNull(managedMemoryUseCase);
-        Preconditions.checkArgument(
+        checkNotNull(managedMemoryUseCase);
+        checkArgument(
                 managedMemoryUseCase.scope == ManagedMemoryUseCase.Scope.OPERATOR,
                 "Use case is not operator scope.");
-        Preconditions.checkArgument(
-                weight > 0, "Weights for operator scope use cases must be greater than 0.");
+        checkArgument(weight > 0, "Weights for operator scope use cases must be greater than 0.");
 
         return Optional.ofNullable(
                 managedMemoryOperatorScopeUseCaseWeights.put(managedMemoryUseCase, weight));
@@ -359,8 +358,8 @@ public abstract class Transformation<T> {
      *     memory for.
      */
     public void declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase managedMemoryUseCase) {
-        Preconditions.checkNotNull(managedMemoryUseCase);
-        Preconditions.checkArgument(managedMemoryUseCase.scope == ManagedMemoryUseCase.Scope.SLOT);
+        checkNotNull(managedMemoryUseCase);
+        checkArgument(managedMemoryUseCase.scope == ManagedMemoryUseCase.Scope.SLOT);
 
         managedMemorySlotScopeUseCases.add(managedMemoryUseCase);
     }
@@ -411,8 +410,8 @@ public abstract class Transformation<T> {
      */
     public void setUidHash(String uidHash) {
 
-        Preconditions.checkNotNull(uidHash);
-        Preconditions.checkArgument(
+        checkNotNull(uidHash);
+        checkArgument(
                 uidHash.matches("^[0-9A-Fa-f]{32}$"),
                 "Node hash must be a 32 character String that describes a hex code. Found: "
                         + uidHash);
