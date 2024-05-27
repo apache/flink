@@ -322,11 +322,7 @@ public class SinkTransformationTranslator<Input, Output>
                         StandardSinkTopologies.GLOBAL_COMMITTER_TRANSFORMATION_NAME,
                         operatorsUidHashes.getGlobalCommitterUidHash());
 
-                concatUid(
-                        subTransformation,
-                        Transformation::getUid,
-                        Transformation::setUid,
-                        subTransformation.getName());
+                concatUid(subTransformation, subTransformation.getName());
 
                 concatProperty(
                         subTransformation,
@@ -406,23 +402,19 @@ public class SinkTransformationTranslator<Input, Output>
         }
 
         private void concatUid(
-                Transformation<?> subTransformation,
-                Function<Transformation<?>, String> getter,
-                BiConsumer<Transformation<?>, String> setter,
-                @Nullable String transformationName) {
-            if (transformationName != null && getter.apply(transformation) != null) {
+                Transformation<?> subTransformation, @Nullable String transformationName) {
+            if (transformationName != null && transformation.getUid() != null) {
                 // Use the same uid pattern than for Sink V1. We deliberately decided to use the uid
                 // pattern of Flink 1.13 because 1.14 did not have a dedicated committer operator.
                 if (transformationName.equals(COMMITTER_NAME)) {
                     final String committerFormat = "Sink Committer: %s";
-                    setter.accept(
-                            subTransformation,
-                            String.format(committerFormat, getter.apply(transformation)));
+                    subTransformation.setUid(
+                            String.format(committerFormat, transformation.getUid()));
                     return;
                 }
                 // Set the writer operator uid to the sinks uid to support state migrations
                 if (transformationName.equals(WRITER_NAME)) {
-                    setter.accept(subTransformation, getter.apply(transformation));
+                    subTransformation.setUid(transformation.getUid());
                     return;
                 }
 
@@ -430,13 +422,12 @@ public class SinkTransformationTranslator<Input, Output>
                 if (transformationName.equals(
                         StandardSinkTopologies.GLOBAL_COMMITTER_TRANSFORMATION_NAME)) {
                     final String committerFormat = "Sink %s Global Committer";
-                    setter.accept(
-                            subTransformation,
-                            String.format(committerFormat, getter.apply(transformation)));
+                    subTransformation.setUid(
+                            String.format(committerFormat, transformation.getUid()));
                     return;
                 }
             }
-            concatProperty(subTransformation, getter, setter);
+            concatProperty(subTransformation, Transformation::getUid, Transformation::setUid);
         }
 
         private void concatProperty(
