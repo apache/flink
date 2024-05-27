@@ -32,7 +32,7 @@ public class ForStOptions {
 
     /** The local directory (on the TaskManager) where ForSt puts some meta files. */
     public static final ConfigOption<String> LOCAL_DIRECTORIES =
-            ConfigOptions.key("state.backend.forst.localdir")
+            ConfigOptions.key("state.backend.forst.local-dir")
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
@@ -47,7 +47,7 @@ public class ForStOptions {
 
     /** The remote directory where ForSt puts its SST files. */
     public static final ConfigOption<String> REMOTE_DIRECTORY =
-            ConfigOptions.key("state.backend.forst.remotedir")
+            ConfigOptions.key("state.backend.forst.remote-dir")
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
