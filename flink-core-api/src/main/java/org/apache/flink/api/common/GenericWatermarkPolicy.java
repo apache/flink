@@ -27,23 +27,36 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.Set;
 
-
+/** This class defines watermark handling policy for ProcessOperator.*/
 public interface GenericWatermarkPolicy extends Serializable {
 
+    /**
+     * Declare generated watermarks by its operator upfront.
+     * */
     default Set<Class<? extends GenericWatermarkDeclaration>> declaredWatermarks()
     {
         return Collections.emptySet();
     }
 
+    /**
+     * Define watermark responsibility. For a given watermark, this method returns WatermarkResult.
+     * */
     WatermarkResult useWatermark(GenericWatermark watermark);
 
-    WatermarkCombiner watermarkCombiner();
-
     enum WatermarkResult {
+        /**  Peek the watermark. The respobsibility to propagate is on the framework */
         PEEK,
+        /** Pop the watermark. The responsibility to propagate (this or another watermark) is on the user function */
         POP
     }
 
+
+    /** Returns user-defined Watermark combiner implementation. */
+    WatermarkCombiner watermarkCombiner();
+
+
+    /** Declaration for GenericWatermark classes. Note that the subclasses of this interface should
+     * ensure zero-argument constructor. */
     interface GenericWatermarkDeclaration extends Serializable {
         Class<? extends GenericWatermark> watermarkClass();
 

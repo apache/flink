@@ -23,6 +23,7 @@ import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.WatermarkCombiner;
 import org.apache.flink.api.common.eventtime.GenericWatermark;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
+import org.apache.flink.datastream.api.context.EventTimeManager;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.ProcessingTimeManager;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
@@ -32,6 +33,7 @@ import org.apache.flink.datastream.impl.context.DefaultNonPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultRuntimeContext;
 import org.apache.flink.datastream.impl.context.DefaultWatermarkManager;
+import org.apache.flink.datastream.impl.context.UnsupportedEventTimeManager;
 import org.apache.flink.datastream.impl.context.UnsupportedProcessingTimeManager;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
@@ -78,7 +80,7 @@ public class ProcessOperator<IN, OUT>
                         operatorContext.getMetricGroup());
         partitionedContext =
                 new DefaultPartitionedContext(
-                        context, this::currentKey, this::setCurrentKey, getProcessingTimeManager());
+                        context, this::currentKey, this::setCurrentKey, getProcessingTimeManager(), getEventTimeManager());
         outputCollector = getOutputCollector();
         nonPartitionedContext = getNonPartitionedContext();
     }
@@ -139,6 +141,10 @@ public class ProcessOperator<IN, OUT>
 
     protected ProcessingTimeManager getProcessingTimeManager() {
         return UnsupportedProcessingTimeManager.INSTANCE;
+    }
+
+    protected EventTimeManager getEventTimeManager() {
+        return UnsupportedEventTimeManager.INSTANCE;
     }
 
     protected NonPartitionedContext<OUT> getNonPartitionedContext() {

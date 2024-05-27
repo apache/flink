@@ -25,5 +25,27 @@ import org.apache.flink.annotation.Experimental;
  * function.
  */
 @Experimental
-public interface ProcessingTimeManager extends TimeManager {
+public interface TimeManager {
+    /**
+     * Register a processing timer for this process function. `onProcessingTimer` method of this
+     * function will be invoked as callback if the timer expires.
+     *
+     * @param timestamp to trigger timer callback.
+     */
+    void registerTimer(long timestamp);
+
+    /**
+     * Deletes the processing-time timer with the given trigger timestamp. This method has only an
+     * effect if such a timer was previously registered and did not already expire.
+     *
+     * @param timestamp indicates the timestamp of the timer to delete.
+     */
+    void deleteTimer(long timestamp);
+
+    /**
+     * Get the current processing time.
+     *
+     * @return current processing time.
+     */
+    long currentTime();
 }

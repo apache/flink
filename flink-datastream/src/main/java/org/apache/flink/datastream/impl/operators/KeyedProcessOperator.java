@@ -20,6 +20,7 @@ package org.apache.flink.datastream.impl.operators;
 
 import org.apache.flink.api.common.eventtime.GenericWatermark;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.datastream.api.context.EventTimeManager;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.ProcessingTimeManager;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
@@ -27,6 +28,7 @@ import org.apache.flink.datastream.api.stream.KeyedPartitionStream;
 import org.apache.flink.datastream.impl.common.KeyCheckedOutputCollector;
 import org.apache.flink.datastream.impl.common.OutputCollector;
 import org.apache.flink.datastream.impl.common.TimestampCollector;
+import org.apache.flink.datastream.impl.context.DefaultEventTimeManager;
 import org.apache.flink.datastream.impl.context.DefaultNonPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultProcessingTimeManager;
 import org.apache.flink.runtime.state.VoidNamespace;
@@ -88,7 +90,15 @@ public class KeyedProcessOperator<KEY, IN, OUT> extends ProcessOperator<IN, OUT>
 
     @Override
     public void onEventTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
-        // do nothing at the moment.
+        partitionedContext
+                .getStateManager()
+                .executeInKeyContext(
+                        () ->
+                                userFunction.onEventTimer(
+                                        timer.getTimestamp(),
+                                        getOutputCollector(),
+                                        partitionedContext),
+                        timer.getKey());
     }
 
     @Override
@@ -104,9 +114,15 @@ public class KeyedProcessOperator<KEY, IN, OUT> extends ProcessOperator<IN, OUT>
                                         partitionedContext),
                         timer.getKey());
     }
-        @Override
+
+    @Override
     protected ProcessingTimeManager getProcessingTimeManager() {
         return new DefaultProcessingTimeManager(timerService);
+    }
+
+    @Override
+    protected EventTimeManager getEventTimeManager() {
+        return new DefaultEventTimeManager(timerService);
     }
 
     @Override

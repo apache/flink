@@ -83,7 +83,7 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
                         operatorContext.getMetricGroup());
         this.partitionedContext =
                 new DefaultPartitionedContext(
-                        context, this::currentKey, this::setCurrentKey, getProcessingTimeManager());
+                        context, this::currentKey, this::setCurrentKey, getProcessingTimeManager(), null);
         this.nonPartitionedContext = getNonPartitionedContext();
     }
 

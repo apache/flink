@@ -53,6 +53,8 @@ public interface OneInputStreamProcessFunction<IN, OUT> extends ProcessFunction 
      */
     default void onProcessingTimer(long timestamp, Collector<OUT> output, PartitionedContext ctx) {}
 
+    default void onEventTimer(long timestamp, Collector<OUT> output, PartitionedContext ctx) {}
+
     default void onWatermark(
             GenericWatermark watermark, Collector<OUT> output, NonPartitionedContext<OUT> ctx) {}
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.datastream.impl.context;
 
+import org.apache.flink.datastream.api.context.EventTimeManager;
 import org.apache.flink.datastream.api.context.JobInfo;
 import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.context.ProcessingTimeManager;
@@ -38,15 +39,19 @@ public class DefaultPartitionedContext implements PartitionedContext {
 
     private final ProcessingTimeManager processingTimeManager;
 
+    private final EventTimeManager eventTimeManager;
+
     public DefaultPartitionedContext(
             RuntimeContext context,
             Supplier<Object> currentKeySupplier,
             Consumer<Object> currentKeySetter,
-            ProcessingTimeManager processingTimeManager
-            ) {
+            ProcessingTimeManager processingTimeManager,
+            EventTimeManager eventTimeManager
+    ) {
         this.context = context;
         this.stateManager = new DefaultStateManager(currentKeySupplier, currentKeySetter);
         this.processingTimeManager = processingTimeManager;
+        this.eventTimeManager = eventTimeManager;
     }
 
     @Override
@@ -67,6 +72,11 @@ public class DefaultPartitionedContext implements PartitionedContext {
     @Override
     public ProcessingTimeManager getProcessingTimeManager() {
         return processingTimeManager;
+    }
+
+    @Override
+    public EventTimeManager getEventTimeManager() {
+        return eventTimeManager;
     }
 
     @Override
