@@ -374,30 +374,43 @@ public class RestServerEndpointITCase {
     @TestTemplate
     void testFileUpload() throws Exception {
         final String boundary = generateMultiPartBoundary();
-        final String crlf = "\r\n";
         final String uploadedContent = "hello";
-        final HttpURLConnection connection = openHttpConnectionForUpload(boundary);
+        final HttpURLConnection connection =
+                openHttpConnectionForUpload(
+                        boundary, TestUploadHeaders.INSTANCE.getTargetRestEndpointURL());
 
-        try (OutputStream output = connection.getOutputStream();
-                PrintWriter writer =
-                        new PrintWriter(
-                                new OutputStreamWriter(output, StandardCharsets.UTF_8), true)) {
-
-            writer.append("--" + boundary).append(crlf);
-            writer.append("Content-Disposition: form-data; name=\"foo\"; filename=\"bar\"")
-                    .append(crlf);
-            writer.append("Content-Type: plain/text; charset=utf8").append(crlf);
-            writer.append(crlf).flush();
-            output.write(uploadedContent.getBytes(StandardCharsets.UTF_8));
-            output.flush();
-            writer.append(crlf).flush();
-            writer.append("--" + boundary + "--").append(crlf).flush();
-        }
+        uploadFile(connection, uploadedContent, boundary);
 
         assertThat(connection.getResponseCode()).isEqualTo(200);
         final byte[] lastUploadedFileContents = testUploadHandler.getLastUploadedFileContents();
         assertThat(uploadedContent)
                 .isEqualTo(new String(lastUploadedFileContents, StandardCharsets.UTF_8));
+    }
+
+    /**
+     * Tests that when a handler is marked as not accepting file uploads we (1) return an error and
+     * (2) don't upload the file to the upload directory.
+     */
+    @TestTemplate
+    void testFileUploadLimitedToAllowedUris() throws Exception {
+        final String boundary = generateMultiPartBoundary();
+        final File uploadDir = new File(tempFolder.toString(), "flink-web-upload");
+        final File[] preUploadFiles = uploadDir.listFiles();
+
+        // We need a handler that does not accept file uploads for this test
+        assertThat(TestVersionHeaders.INSTANCE.acceptsFileUploads()).isFalse();
+        String uri = TestVersionHeaders.INSTANCE.getTargetRestEndpointURL();
+
+        final HttpURLConnection connection = openHttpConnectionForUpload(boundary, uri);
+
+        uploadFile(connection, "hello", boundary);
+
+        assertThat(connection.getResponseCode()).isEqualTo(400);
+
+        // This is the important check. We don't want additional files when the handler does
+        // not accept file uploads.
+        final File[] postUploadFiles = uploadDir.listFiles();
+        assertThat(postUploadFiles).isEqualTo(preUploadFiles);
     }
 
     /**
@@ -408,7 +421,9 @@ public class RestServerEndpointITCase {
     void testMultiPartFormDataWithoutFileUpload() throws Exception {
         final String boundary = generateMultiPartBoundary();
         final String crlf = "\r\n";
-        final HttpURLConnection connection = openHttpConnectionForUpload(boundary);
+        final HttpURLConnection connection =
+                openHttpConnectionForUpload(
+                        boundary, TestUploadHeaders.INSTANCE.getTargetRestEndpointURL());
 
         try (OutputStream output = connection.getOutputStream();
                 PrintWriter writer =
@@ -715,11 +730,11 @@ public class RestServerEndpointITCase {
         return new File(resource.getFile());
     }
 
-    private HttpURLConnection openHttpConnectionForUpload(final String boundary)
-            throws IOException {
+    private HttpURLConnection openHttpConnectionForUpload(
+            final String boundary, final String uploadUri) throws IOException {
         final HttpURLConnection connection =
                 (HttpURLConnection)
-                        new URL(serverEndpoint.getRestBaseUrl() + "/upload").openConnection();
+                        new URL(serverEndpoint.getRestBaseUrl() + uploadUri).openConnection();
         connection.setDoOutput(true);
         connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
         return connection;
@@ -735,6 +750,26 @@ public class RestServerEndpointITCase {
             sb.append('a');
         }
         return sb.toString();
+    }
+
+    private static void uploadFile(HttpURLConnection connection, String content, String boundary)
+            throws IOException {
+        final String crlf = "\r\n";
+        try (OutputStream output = connection.getOutputStream();
+                PrintWriter writer =
+                        new PrintWriter(
+                                new OutputStreamWriter(output, StandardCharsets.UTF_8), true)) {
+
+            writer.append("--" + boundary).append(crlf);
+            writer.append("Content-Disposition: form-data; name=\"foo\"; filename=\"bar\"")
+                    .append(crlf);
+            writer.append("Content-Type: plain/text; charset=utf8").append(crlf);
+            writer.append(crlf).flush();
+            output.write(content.getBytes(StandardCharsets.UTF_8));
+            output.flush();
+            writer.append(crlf).flush();
+            writer.append("--" + boundary + "--").append(crlf).flush();
+        }
     }
 
     private static class TestHandler
