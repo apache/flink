@@ -560,7 +560,11 @@ public class NettyShuffleEnvironmentOptions {
     //  Netty Options
     // ------------------------------------------------------------------------
 
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    /**
+     * @deprecated It is not recommended to use the option. It is deprecated in 1.20 and will be
+     *     totally removed in 2.0.
+     */
+    @Deprecated
     public static final ConfigOption<Integer> NUM_ARENAS =
             key("taskmanager.network.netty.num-arenas")
                     .intType()
@@ -568,7 +572,11 @@ public class NettyShuffleEnvironmentOptions {
                     .withDeprecatedKeys("taskmanager.net.num-arenas")
                     .withDescription("The number of Netty arenas.");
 
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    /**
+     * @deprecated It is not recommended to use the option. It is deprecated in 1.20 and will be
+     *     totally removed in 2.0.
+     */
+    @Deprecated
     public static final ConfigOption<Integer> NUM_THREADS_SERVER =
             key("taskmanager.network.netty.server.numThreads")
                     .intType()
@@ -576,7 +584,11 @@ public class NettyShuffleEnvironmentOptions {
                     .withDeprecatedKeys("taskmanager.net.server.numThreads")
                     .withDescription("The number of Netty server threads.");
 
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    /**
+     * @deprecated It is not recommended to use the option. It is deprecated in 1.20 and will be
+     *     totally removed in 2.0.
+     */
+    @Deprecated
     public static final ConfigOption<Integer> NUM_THREADS_CLIENT =
             key("taskmanager.network.netty.client.numThreads")
                     .intType()
@@ -584,7 +596,11 @@ public class NettyShuffleEnvironmentOptions {
                     .withDeprecatedKeys("taskmanager.net.client.numThreads")
                     .withDescription("The number of Netty client threads.");
 
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    /**
+     * @deprecated It is not recommended to use the option. It is deprecated in 1.20 and will be
+     *     totally removed in 2.0.
+     */
+    @Deprecated
     public static final ConfigOption<Integer> CONNECT_BACKLOG =
             key("taskmanager.network.netty.server.backlog")
                     .intType()
@@ -610,7 +626,11 @@ public class NettyShuffleEnvironmentOptions {
                             "The number of retry attempts for network communication."
                                     + " Currently it's only used for establishing input/output channel connections");
 
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    /**
+     * @deprecated It is not recommended to use the option. It is deprecated in 1.20 and will be
+     *     totally removed in 2.0.
+     */
+    @Deprecated
     public static final ConfigOption<Integer> SEND_RECEIVE_BUFFER_SIZE =
             key("taskmanager.network.netty.sendReceiveBufferSize")
                     .intType()
@@ -620,7 +640,11 @@ public class NettyShuffleEnvironmentOptions {
                             "The Netty send and receive buffer size. This defaults to the system buffer size"
                                     + " (cat /proc/sys/net/ipv4/tcp_[rw]mem) and is 4 MiB in modern Linux.");
 
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    /**
+     * @deprecated It is not recommended to use the option. It is deprecated in 1.20 and will be
+     *     totally removed in 2.0.
+     */
+    @Deprecated
     public static final ConfigOption<String> TRANSPORT_TYPE =
             key("taskmanager.network.netty.transport")
                     .stringType()
