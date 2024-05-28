@@ -198,8 +198,13 @@ public class NettyShuffleEnvironmentOptions {
                     .defaultValue("1gb")
                     .withDescription("Maximum memory size for network buffers.");
 
-    /** The maximum number of tpc connections between taskmanagers for data communication. */
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    /**
+     * The maximum number of tpc connections between taskmanagers for data communication.
+     *
+     * @deprecated The option is unnecessary. It is deprecated in 1.20 and will be removed and
+     *     hard-coded to 1 in 2.0.
+     */
+    @Deprecated
     public static final ConfigOption<Integer> MAX_NUM_TCP_CONNECTIONS =
             key("taskmanager.network.max-num-tcp-connections")
                     .intType()
