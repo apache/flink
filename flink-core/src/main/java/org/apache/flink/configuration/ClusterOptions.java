@@ -141,7 +141,10 @@ public class ClusterOptions {
                     .withDescription(
                             "The maximum stacktrace depth of TaskManager and JobManager's thread dump web-frontend displayed.");
 
-    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+    /**
+     * @deprecated The option is unnecessary. It is deprecated in 1.20 and will be removed in 2.0.
+     */
+    @Deprecated
     public static final ConfigOption<Boolean> FINE_GRAINED_SHUFFLE_MODE_ALL_BLOCKING =
             ConfigOptions.key("fine-grained.shuffle-mode.all-blocking")
                     .booleanType()
