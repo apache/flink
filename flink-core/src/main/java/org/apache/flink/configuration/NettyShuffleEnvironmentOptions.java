@@ -90,8 +90,12 @@ public class NettyShuffleEnvironmentOptions {
      *
      * <p>Note: Data is compressed per buffer and compression can incur extra CPU overhead so it is
      * more effective for IO bounded scenario when data compression ratio is high.
+     *
+     * @deprecated This option is deprecated in 1.20 and will be removed in 2.0. Please set the
+     *     {@link NettyShuffleEnvironmentOptions#SHUFFLE_COMPRESSION_CODEC} to NONE to disable the
+     *     compression.
      */
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    @Deprecated
     public static final ConfigOption<Boolean> BATCH_SHUFFLE_COMPRESSION_ENABLED =
             key("taskmanager.network.batch-shuffle.compression.enabled")
                     .booleanType()
@@ -106,13 +110,13 @@ public class NettyShuffleEnvironmentOptions {
 
     /** The codec to be used when compressing shuffle data. */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
-    @Experimental
     public static final ConfigOption<CompressionCodec> SHUFFLE_COMPRESSION_CODEC =
             key("taskmanager.network.compression.codec")
                     .enumType(CompressionCodec.class)
                     .defaultValue(CompressionCodec.LZ4)
                     .withDescription(
-                            "The codec to be used when compressing shuffle data, only \"LZ4\", \"LZO\" "
+                            "The codec to be used when compressing shuffle data. If it is \"NONE\", "
+                                    + "compression is disable. If it is not \"NONE\", only \"LZ4\", \"LZO\" "
                                     + "and \"ZSTD\" are supported now. Through tpc-ds test of these "
                                     + "three algorithms, the results show that \"LZ4\" algorithm has "
                                     + "the highest compression and decompression speed, but the "
@@ -123,6 +127,7 @@ public class NettyShuffleEnvironmentOptions {
 
     /** Supported compression codec. */
     public enum CompressionCodec {
+        NONE,
         LZ4,
         LZO,
         ZSTD
