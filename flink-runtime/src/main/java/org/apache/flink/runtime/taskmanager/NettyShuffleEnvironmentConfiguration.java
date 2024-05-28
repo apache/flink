@@ -373,10 +373,25 @@ public class NettyShuffleEnvironmentConfiguration {
         BoundedBlockingSubpartitionType blockingSubpartitionType =
                 getBlockingSubpartitionType(configuration);
 
-        boolean batchShuffleCompressionEnabled =
-                configuration.get(NettyShuffleEnvironmentOptions.BATCH_SHUFFLE_COMPRESSION_ENABLED);
         CompressionCodec compressionCodec =
                 configuration.get(NettyShuffleEnvironmentOptions.SHUFFLE_COMPRESSION_CODEC);
+
+        boolean batchShuffleCompressionEnabled;
+        if (compressionCodec == CompressionCodec.NONE) {
+            batchShuffleCompressionEnabled = false;
+        } else {
+            batchShuffleCompressionEnabled =
+                    configuration.get(
+                            NettyShuffleEnvironmentOptions.BATCH_SHUFFLE_COMPRESSION_ENABLED);
+
+            if (!batchShuffleCompressionEnabled) {
+                LOG.warn(
+                        "Deprecated configuration key {} is used to disable the compression. "
+                                + "Please set the {} to \"None\" to disable the compression.",
+                        NettyShuffleEnvironmentOptions.BATCH_SHUFFLE_COMPRESSION_ENABLED.key(),
+                        NettyShuffleEnvironmentOptions.SHUFFLE_COMPRESSION_CODEC.key());
+            }
+        }
 
         int maxNumConnections =
                 Math.max(
