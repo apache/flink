@@ -28,8 +28,10 @@ import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 import org.apache.flink.runtime.net.RedirectingSslHandler;
 import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
+import org.apache.flink.runtime.rest.handler.router.MultipartRoutes;
 import org.apache.flink.runtime.rest.handler.router.Router;
 import org.apache.flink.runtime.rest.handler.router.RouterHandler;
+import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ConfigurationException;
@@ -196,6 +198,9 @@ public abstract class RestServerEndpoint implements RestService {
             checkAllEndpointsAndHandlersAreUnique(handlers);
             handlers.forEach(handler -> registerHandler(router, handler, log));
 
+            MultipartRoutes multipartRoutes = createMultipartRoutes(handlers);
+            log.debug("Using {} for FileUploadHandler", multipartRoutes);
+
             ChannelInitializer<SocketChannel> initializer =
                     new ChannelInitializer<SocketChannel>() {
 
@@ -216,7 +221,7 @@ public abstract class RestServerEndpoint implements RestService {
 
                             ch.pipeline()
                                     .addLast(new HttpServerCodec())
-                                    .addLast(new FileUploadHandler(uploadDir))
+                                    .addLast(new FileUploadHandler(uploadDir, multipartRoutes))
                                     .addLast(
                                             new FlinkHttpObjectAggregator(
                                                     maxContentLength, responseHeaders));
@@ -633,6 +638,32 @@ public abstract class RestServerEndpoint implements RestService {
                 }
             }
         }
+    }
+
+    private MultipartRoutes createMultipartRoutes(
+            List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers) {
+        MultipartRoutes.Builder builder = new MultipartRoutes.Builder();
+
+        for (Tuple2<RestHandlerSpecification, ChannelInboundHandler> handler : handlers) {
+            if (handler.f0.getHttpMethod() == HttpMethodWrapper.POST) {
+                for (String url : getHandlerRoutes(handler.f0)) {
+                    builder.addPostRoute(url);
+                }
+            }
+
+            // The cast is necessary, because currently only UntypedResponseMessageHeaders exposes
+            // whether the handler accepts file uploads.
+            if (handler.f0 instanceof UntypedResponseMessageHeaders) {
+                UntypedResponseMessageHeaders<?, ?> header =
+                        (UntypedResponseMessageHeaders<?, ?>) handler.f0;
+                if (header.acceptsFileUploads()) {
+                    for (String url : getHandlerRoutes(header)) {
+                        builder.addFileUploadRoute(url);
+                    }
+                }
+            }
+        }
+        return builder.build();
     }
 
     private static Iterable<String> getHandlerRoutes(RestHandlerSpecification handlerSpec) {

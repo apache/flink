@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest;
 
 import org.apache.flink.runtime.rest.handler.FileUploads;
+import org.apache.flink.runtime.rest.handler.router.MultipartRoutes;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.util.RestConstants;
@@ -79,15 +80,15 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 
     private final Path uploadDir;
 
+    private final MultipartRoutes multipartRoutes;
+
     private HttpPostRequestDecoder currentHttpPostRequestDecoder;
 
     private HttpRequest currentHttpRequest;
     private byte[] currentJsonPayload;
     private Path currentUploadDir;
 
-    private boolean addCRPrefix = false;
-
-    public FileUploadHandler(final Path uploadDir) {
+    public FileUploadHandler(final Path uploadDir, final MultipartRoutes multipartRoutes) {
         super(true);
 
         // the clean up of temp files when jvm exits is handled by
@@ -103,6 +104,7 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
         DiskAttribute.baseDirectory = DiskFileUpload.baseDirectory;
 
         this.uploadDir = requireNonNull(uploadDir);
+        this.multipartRoutes = requireNonNull(multipartRoutes);
     }
 
     @Override
@@ -124,6 +126,18 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
                         currentHttpPostRequestDecoder =
                                 new HttpPostRequestDecoder(DATA_FACTORY, httpRequest);
                         currentHttpRequest = ReferenceCountUtil.retain(httpRequest);
+
+                        // We check this after initializing the multipart file upload in order for
+                        // handleError to work correctly.
+                        if (!multipartRoutes.isPostRoute(httpRequest.uri())) {
+                            LOG.trace("POST request not allowed for {}.", httpRequest.uri());
+                            handleError(
+                                    ctx,
+                                    "POST request not allowed",
+                                    HttpResponseStatus.BAD_REQUEST,
+                                    null);
+                            return;
+                        }
 
                         // make sure that we still have a upload dir in case that it got deleted in
                         // the meanwhile
@@ -151,6 +165,17 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
                         && hasNext(currentHttpPostRequestDecoder)) {
                     final InterfaceHttpData data = currentHttpPostRequestDecoder.next();
                     if (data.getHttpDataType() == InterfaceHttpData.HttpDataType.FileUpload) {
+                        HttpRequest httpRequest = currentHttpRequest;
+                        if (!multipartRoutes.isFileUploadRoute(httpRequest.uri())) {
+                            LOG.trace("File upload not allowed for {}.", httpRequest.uri());
+                            handleError(
+                                    ctx,
+                                    "File upload not allowed",
+                                    HttpResponseStatus.BAD_REQUEST,
+                                    null);
+                            return;
+                        }
+
                         final DiskFileUpload fileUpload = (DiskFileUpload) data;
                         checkState(fileUpload.isCompleted());
 
