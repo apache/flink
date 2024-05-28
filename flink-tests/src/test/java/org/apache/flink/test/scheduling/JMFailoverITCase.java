@@ -382,7 +382,7 @@ class JMFailoverITCase {
         NetUtils.Port jobManagerRpcPort = NetUtils.getAvailablePort();
         flinkConfiguration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
         flinkConfiguration.set(JobManagerOptions.PORT, jobManagerRpcPort.getPort());
-        flinkConfiguration.set(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 5000L);
+        flinkConfiguration.set(JobManagerOptions.SLOT_REQUEST_TIMEOUT, Duration.ofMillis(5000L));
         flinkConfiguration.set(RestOptions.BIND_PORT, "0");
         flinkConfiguration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
         flinkConfiguration.set(TaskManagerOptions.NETWORK_MEMORY_FRACTION, 0.4F);
