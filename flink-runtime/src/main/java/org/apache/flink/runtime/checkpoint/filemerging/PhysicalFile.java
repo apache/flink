@@ -193,10 +193,15 @@ public class PhysicalFile {
      * @throws IOException if anything goes wrong with file system.
      */
     private void innerClose() throws IOException {
-        closed = true;
-        if (outputStream != null) {
-            outputStream.close();
-            outputStream = null;
+        synchronized (this) {
+            if (closed) {
+                return;
+            }
+            closed = true;
+            if (outputStream != null) {
+                outputStream.close();
+                outputStream = null;
+            }
         }
     }
 

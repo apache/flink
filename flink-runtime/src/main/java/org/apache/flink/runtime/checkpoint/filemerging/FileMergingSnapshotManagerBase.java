@@ -73,7 +73,7 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     /** The executor for I/O operations in this manager. */
     protected final Executor ioExecutor;
 
-    /** Guard for uploadedStates. */
+    /** Guard for {@link #initFileSystem}, {@link #restoreStateHandles} and uploadedStates. */
     protected final Object lock = new Object();
 
     @GuardedBy("lock")
@@ -166,35 +166,38 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
             Path taskOwnedStateDir,
             int writeBufferSize)
             throws IllegalArgumentException {
-        if (fileSystemInitiated) {
-            Preconditions.checkArgument(
-                    checkpointBaseDir.equals(this.checkpointDir),
-                    "The checkpoint base dir is not deterministic across subtasks.");
-            Preconditions.checkArgument(
-                    sharedStateDir.equals(this.sharedStateDir),
-                    "The shared checkpoint dir is not deterministic across subtasks.");
-            Preconditions.checkArgument(
-                    taskOwnedStateDir.equals(this.taskOwnedStateDir),
-                    "The task-owned checkpoint dir is not deterministic across subtasks.");
-            return;
+        synchronized (lock) {
+            if (fileSystemInitiated) {
+                Preconditions.checkArgument(
+                        checkpointBaseDir.equals(this.checkpointDir),
+                        "The checkpoint base dir is not deterministic across subtasks.");
+                Preconditions.checkArgument(
+                        sharedStateDir.equals(this.sharedStateDir),
+                        "The shared checkpoint dir is not deterministic across subtasks.");
+                Preconditions.checkArgument(
+                        taskOwnedStateDir.equals(this.taskOwnedStateDir),
+                        "The task-owned checkpoint dir is not deterministic across subtasks.");
+                return;
+            }
+            this.fs = fileSystem;
+            this.checkpointDir = Preconditions.checkNotNull(checkpointBaseDir);
+            this.sharedStateDir = Preconditions.checkNotNull(sharedStateDir);
+            this.taskOwnedStateDir = Preconditions.checkNotNull(taskOwnedStateDir);
+            this.fileSystemInitiated = true;
+            this.shouldSyncAfterClosingLogicalFile = shouldSyncAfterClosingLogicalFile(fileSystem);
+            // Initialize the managed exclusive path using id as the child path name.
+            // Currently, we use the task-owned directory to place the merged private state.
+            // According
+            // to the FLIP-306, we later consider move these files to the new introduced
+            // task-manager-owned directory.
+            Path managedExclusivePath = new Path(taskOwnedStateDir, id);
+            createManagedDirectory(managedExclusivePath);
+            this.managedExclusiveStateDir = managedExclusivePath;
+            this.managedExclusiveStateDirHandle =
+                    DirectoryStreamStateHandle.forPathWithZeroSize(
+                            new File(managedExclusivePath.getPath()).toPath());
+            this.writeBufferSize = writeBufferSize;
         }
-        this.fs = fileSystem;
-        this.checkpointDir = Preconditions.checkNotNull(checkpointBaseDir);
-        this.sharedStateDir = Preconditions.checkNotNull(sharedStateDir);
-        this.taskOwnedStateDir = Preconditions.checkNotNull(taskOwnedStateDir);
-        this.fileSystemInitiated = true;
-        this.shouldSyncAfterClosingLogicalFile = shouldSyncAfterClosingLogicalFile(fileSystem);
-        // Initialize the managed exclusive path using id as the child path name.
-        // Currently, we use the task-owned directory to place the merged private state. According
-        // to the FLIP-306, we later consider move these files to the new introduced
-        // task-manager-owned directory.
-        Path managedExclusivePath = new Path(taskOwnedStateDir, id);
-        createManagedDirectory(managedExclusivePath);
-        this.managedExclusiveStateDir = managedExclusivePath;
-        this.managedExclusiveStateDirHandle =
-                DirectoryStreamStateHandle.forPathWithZeroSize(
-                        new File(managedExclusivePath.getPath()).toPath());
-        this.writeBufferSize = writeBufferSize;
     }
 
     @Override
