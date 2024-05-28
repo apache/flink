@@ -311,7 +311,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                 // shifts records from one partition to another evenly to retain order
                 .partitionCustom(new ShiftingPartitioner(), l -> l)
                 .map(
-                        new FailingMapper(
+                        new FailingMapper<>(
                                 state ->
                                         state.completedCheckpoints >= minCheckpoints / 4
                                                         && state.runNumber == 0

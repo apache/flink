@@ -22,6 +22,7 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -54,10 +55,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
-import java.util.Collection;
 import java.util.Collections;
 
 import static org.apache.flink.api.common.eventtime.WatermarkStrategy.noWatermarks;
@@ -336,38 +335,57 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
         },
         CUSTOM_PARTITIONER {
             final int sinkParallelism = 3;
-            final int numberElements = 1000;
 
             @Override
             public void create(
-                    StreamExecutionEnvironment environment,
+                    StreamExecutionEnvironment env,
                     int minCheckpoints,
                     boolean slotSharing,
-                    int expectedFailuresUntilSourceFinishes,
+                    int expectedRestarts,
                     long sourceSleepMs) {
-                int parallelism = environment.getParallelism();
-                environment
-                        .fromData(generateStrings(numberElements / parallelism, sinkParallelism))
+                int parallelism = env.getParallelism();
+
+                env.fromSource(
+                                new LongSource(
+                                        minCheckpoints,
+                                        parallelism,
+                                        expectedRestarts,
+                                        env.getCheckpointInterval(),
+                                        sourceSleepMs),
+                                noWatermarks(),
+                                "source")
                         .name("source")
+                        .uid("source")
+                        .map(
+                                new MapFunction<Long, String>() {
+                                    @Override
+                                    public String map(Long value) throws Exception {
+                                        value = withoutHeader(value);
+                                        return buildString(
+                                                value % sinkParallelism, value / sinkParallelism);
+                                    }
+                                })
+                        .name("long-to-string-map")
+                        .uid("long-to-string-map")
+                        .map(
+                                new FailingMapper<>(
+                                        state -> false,
+                                        state ->
+                                                state.completedCheckpoints >= minCheckpoints / 2
+                                                        && state.runNumber == 0,
+                                        state -> false,
+                                        state -> false))
+                        .name("failing-map")
+                        .uid("failing-map")
                         .setParallelism(parallelism)
                         .partitionCustom(new StringPartitioner(), str -> str.split(" ")[0])
-                        .addSink(new StringSink(numberElements / sinkParallelism))
+                        .addSink(new BackPressureInducingSink())
                         .name("sink")
+                        .uid("sink")
                         .setParallelism(sinkParallelism);
             }
 
-            private Collection<String> generateStrings(
-                    int producePerPartition, int partitionCount) {
-                Collection<String> list = new ArrayList<>();
-                for (int i = 0; i < producePerPartition; i++) {
-                    for (int partition = 0; partition < partitionCount; partition++) {
-                        list.add(buildString(partition, i));
-                    }
-                }
-                return list;
-            }
-
-            private String buildString(int partition, int index) {
+            private String buildString(long partition, long index) {
                 String longStr = new String(new char[3713]).replace('\0', '\uFFFF');
                 return partition + " " + index + " " + longStr;
             }
@@ -378,7 +396,7 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
             combinedSource
                     .shuffle()
                     .map(
-                            new FailingMapper(
+                            new FailingMapper<>(
                                     state -> false,
                                     state ->
                                             state.completedCheckpoints >= minCheckpoints / 2
@@ -604,7 +622,6 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
 
     @Test
     public void shouldRescaleUnalignedCheckpoint() throws Exception {
-        StringSink.failed = false;
         final UnalignedSettings prescaleSettings =
                 new UnalignedSettings(topology)
                         .setParallelism(oldParallelism)
@@ -761,43 +778,12 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
         }
     }
 
-    private static class StringSink implements SinkFunction<String>, CheckpointedFunction {
-
-        static volatile boolean failed = false;
-
-        int checkpointConsumed = 0;
-
-        int recordsConsumed = 0;
-
-        final int numberElements;
-
-        public StringSink(int numberElements) {
-            this.numberElements = numberElements;
-        }
-
+    private static class BackPressureInducingSink<T> implements SinkFunction<T> {
         @Override
-        public void invoke(String value, Context ctx) throws Exception {
-            if (!failed && checkpointConsumed > 1) {
-                failed = true;
-                throw new TestException("FAIL");
-            }
-            recordsConsumed++;
-            if (!failed && recordsConsumed == (numberElements / 3)) {
-                Thread.sleep(1000);
-            }
-            if (recordsConsumed == (numberElements - 1)) {
-                Thread.sleep(1000);
-            }
-        }
-
-        @Override
-        public void snapshotState(FunctionSnapshotContext context) {
-            checkpointConsumed++;
-        }
-
-        @Override
-        public void initializeState(FunctionInitializationContext context) {
-            // do  nothing
+        public void invoke(T value, Context ctx) throws Exception {
+            // TODO: maybe similarly to VerifyingSink, we should back pressure only until some point
+            // but currently it doesn't seem to be needed (test runs quickly enough)
+            Thread.sleep(1);
         }
     }
 }
