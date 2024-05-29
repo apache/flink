@@ -95,7 +95,7 @@ class Executing extends StateWithExecutionGraph
         deploy();
 
         // check if new resources have come available in the meantime
-        context.runIfState(this, rescaleManager::onChange, Duration.ZERO);
+        context.runIfState(this, this::evaluateRescaling, Duration.ZERO);
     }
 
     @Override
@@ -194,12 +194,17 @@ class Executing extends StateWithExecutionGraph
 
     @Override
     public void onNewResourcesAvailable() {
-        rescaleManager.onChange();
+        evaluateRescaling();
     }
 
     @Override
     public void onNewResourceRequirements() {
+        evaluateRescaling();
+    }
+
+    private void evaluateRescaling() {
         rescaleManager.onChange();
+        rescaleManager.onTrigger();
     }
 
     CompletableFuture<String> stopWithSavepoint(

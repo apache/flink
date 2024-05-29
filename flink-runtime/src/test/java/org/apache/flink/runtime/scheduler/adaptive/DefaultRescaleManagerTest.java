@@ -31,6 +31,7 @@ import java.util.Objects;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -41,10 +42,13 @@ class DefaultRescaleManagerTest {
     void testProperConfiguration() {
         final Duration scalingIntervalMin = Duration.ofMillis(1337);
         final Duration scalingIntervalMax = Duration.ofMillis(7331);
+        final Duration maximumDelayForRescaleTrigger = Duration.ofMillis(4242);
 
         final Configuration configuration = new Configuration();
         configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, scalingIntervalMin);
         configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MAX, scalingIntervalMax);
+        configuration.set(
+                JobManagerOptions.MAXIMUM_DELAY_FOR_SCALE_TRIGGER, maximumDelayForRescaleTrigger);
 
         final DefaultRescaleManager testInstance =
                 DefaultRescaleManager.Factory.fromSettings(
@@ -52,6 +56,7 @@ class DefaultRescaleManagerTest {
                         .create(TestingRescaleManagerContext.stableContext(), Instant.now());
         assertThat(testInstance.scalingIntervalMin).isEqualTo(scalingIntervalMin);
         assertThat(testInstance.scalingIntervalMax).isEqualTo(scalingIntervalMax);
+        assertThat(testInstance.maxTriggerDelay).isEqualTo(maximumDelayForRescaleTrigger);
     }
 
     @Test
@@ -64,8 +69,42 @@ class DefaultRescaleManagerTest {
                                         Instant.now(),
                                         ctx,
                                         cooldownThreshold,
-                                        cooldownThreshold.minusNanos(1)))
+                                        cooldownThreshold.minusNanos(1),
+                                        Duration.ofHours(5)))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void triggerWithoutChangeEventNoopInCooldownPhase() {
+        triggerWithoutChangeEventNoop(
+                TestingRescaleManagerContext::createTestInstanceInCooldownPhase);
+    }
+
+    @Test
+    void triggerWithoutChangeEventNoopInSoftRescalingPhase() {
+        triggerWithoutChangeEventNoop(
+                TestingRescaleManagerContext::createTestInstanceInSoftRescalePhase);
+    }
+
+    @Test
+    void triggerWithoutChangeEventNoopInHardRescalingPhase() {
+        triggerWithoutChangeEventNoop(
+                TestingRescaleManagerContext::createTestInstanceInHardRescalePhase);
+    }
+
+    private void triggerWithoutChangeEventNoop(
+            Function<TestingRescaleManagerContext, DefaultRescaleManager> testInstanceCreator) {
+        final TestingRescaleManagerContext ctx =
+                TestingRescaleManagerContext.stableContext().withDesiredRescaling();
+        final DefaultRescaleManager testInstance = testInstanceCreator.apply(ctx);
+
+        testInstance.onTrigger();
+
+        assertThat(ctx.rescaleWasTriggered())
+                .as(
+                        "No rescaling should have been triggered due to the missing change event despite the fact that desired rescaling would be possible.")
+                .isFalse();
+        assertThat(ctx.additionalTasksWaiting()).as("No tasks should be scheduled.").isFalse();
     }
 
     @Test
@@ -76,6 +115,10 @@ class DefaultRescaleManagerTest {
                 softScalePossibleCtx.createTestInstanceInCooldownPhase();
 
         testInstance.onChange();
+
+        assertIntermediateStateWithoutRescale(softScalePossibleCtx);
+
+        testInstance.onTrigger();
 
         assertIntermediateStateWithoutRescale(softScalePossibleCtx);
 
@@ -93,6 +136,10 @@ class DefaultRescaleManagerTest {
 
         testInstance.onChange();
 
+        assertIntermediateStateWithoutRescale(desiredRescalePossibleCtx);
+
+        testInstance.onTrigger();
+
         assertFinalStateWithRescale(desiredRescalePossibleCtx);
     }
 
@@ -104,6 +151,10 @@ class DefaultRescaleManagerTest {
                 desiredRescalePossibleCtx.createTestInstanceInHardRescalePhase();
 
         testInstance.onChange();
+
+        assertIntermediateStateWithoutRescale(desiredRescalePossibleCtx);
+
+        testInstance.onTrigger();
 
         assertFinalStateWithRescale(desiredRescalePossibleCtx);
     }
@@ -119,6 +170,10 @@ class DefaultRescaleManagerTest {
 
         assertIntermediateStateWithoutRescale(noRescalePossibleCtx);
 
+        testInstance.onTrigger();
+
+        assertIntermediateStateWithoutRescale(noRescalePossibleCtx);
+
         noRescalePossibleCtx.transitionIntoSoftScalingTimeframe();
 
         assertIntermediateStateWithoutRescale(noRescalePossibleCtx);
@@ -130,7 +185,7 @@ class DefaultRescaleManagerTest {
                 .isFalse();
         assertThat(noRescalePossibleCtx.additionalTasksWaiting())
                 .as("No further tasks should have been waiting for execution.")
-                .isFalse();
+                .isTrue();
     }
 
     @Test
@@ -144,6 +199,10 @@ class DefaultRescaleManagerTest {
 
         assertIntermediateStateWithoutRescale(noRescalePossibleCtx);
 
+        testInstance.onTrigger();
+
+        assertIntermediateStateWithoutRescale(noRescalePossibleCtx);
+
         noRescalePossibleCtx.transitionIntoHardScalingTimeframe();
 
         assertThat(noRescalePossibleCtx.rescaleWasTriggered())
@@ -151,7 +210,7 @@ class DefaultRescaleManagerTest {
                 .isFalse();
         assertThat(noRescalePossibleCtx.additionalTasksWaiting())
                 .as("No further tasks should have been waiting for execution.")
-                .isFalse();
+                .isTrue();
     }
 
     @Test
@@ -163,12 +222,16 @@ class DefaultRescaleManagerTest {
 
         testInstance.onChange();
 
+        assertIntermediateStateWithoutRescale(noRescalePossibleCtx);
+
+        testInstance.onTrigger();
+
         assertThat(noRescalePossibleCtx.rescaleWasTriggered())
                 .as("No rescaling should have happened even in the hard-rescaling phase.")
                 .isFalse();
         assertThat(noRescalePossibleCtx.additionalTasksWaiting())
                 .as("No further tasks should have been waiting for execution.")
-                .isFalse();
+                .isTrue();
     }
 
     @Test
@@ -179,6 +242,10 @@ class DefaultRescaleManagerTest {
                 hardRescalePossibleCtx.createTestInstanceInCooldownPhase();
 
         testInstance.onChange();
+
+        assertIntermediateStateWithoutRescale(hardRescalePossibleCtx);
+
+        testInstance.onTrigger();
 
         assertIntermediateStateWithoutRescale(hardRescalePossibleCtx);
 
@@ -202,6 +269,10 @@ class DefaultRescaleManagerTest {
 
         assertIntermediateStateWithoutRescale(hardRescalePossibleCtx);
 
+        testInstance.onTrigger();
+
+        assertIntermediateStateWithoutRescale(hardRescalePossibleCtx);
+
         hardRescalePossibleCtx.transitionIntoHardScalingTimeframe();
 
         assertFinalStateWithRescale(hardRescalePossibleCtx);
@@ -216,6 +287,10 @@ class DefaultRescaleManagerTest {
 
         testInstance.onChange();
 
+        assertIntermediateStateWithoutRescale(hardRescalePossibleCtx);
+
+        testInstance.onTrigger();
+
         assertFinalStateWithRescale(hardRescalePossibleCtx);
     }
 
@@ -229,17 +304,25 @@ class DefaultRescaleManagerTest {
 
         assertIntermediateStateWithoutRescale(ctx);
 
+        testInstance.onTrigger();
+
+        assertIntermediateStateWithoutRescale(ctx);
+
         ctx.transitionIntoSoftScalingTimeframe();
 
         ctx.withDesiredRescaling();
 
         testInstance.onChange();
 
+        assertIntermediateStateWithoutRescale(ctx);
+
+        testInstance.onTrigger();
+
         assertThat(ctx.rescaleWasTriggered()).isTrue();
         assertThat(ctx.numberOfTasksWaiting())
                 .as(
                         "There should be a task scheduled that allows transitioning into hard-rescaling phase.")
-                .isEqualTo(1);
+                .isEqualTo(3);
     }
 
     @Test
@@ -252,14 +335,22 @@ class DefaultRescaleManagerTest {
 
         assertIntermediateStateWithoutRescale(ctx);
 
+        testInstance.onTrigger();
+
+        assertIntermediateStateWithoutRescale(ctx);
+
         assertThat(ctx.numberOfTasksWaiting())
                 .as(
                         "There should be a task scheduled that allows transitioning into hard-rescaling phase.")
-                .isEqualTo(1);
+                .isEqualTo(2);
 
         ctx.withDesiredRescaling();
 
         testInstance.onChange();
+
+        assertIntermediateStateWithoutRescale(ctx);
+
+        testInstance.onTrigger();
 
         assertThat(ctx.rescaleWasTriggered()).isTrue();
     }
@@ -275,10 +366,14 @@ class DefaultRescaleManagerTest {
 
         assertIntermediateStateWithoutRescale(ctx);
 
+        testInstance.onTrigger();
+
+        assertIntermediateStateWithoutRescale(ctx);
+
         assertThat(ctx.numberOfTasksWaiting())
                 .as(
                         "There should be a task scheduled that allows transitioning into hard-rescaling phase.")
-                .isEqualTo(1);
+                .isEqualTo(2);
 
         ctx.revertAnyParallelismImprovements();
 
@@ -286,10 +381,14 @@ class DefaultRescaleManagerTest {
 
         assertIntermediateStateWithoutRescale(ctx);
 
+        testInstance.onTrigger();
+
+        assertIntermediateStateWithoutRescale(ctx);
+
         assertThat(ctx.numberOfTasksWaiting())
                 .as(
                         "There should be a task scheduled that allows transitioning into hard-rescaling phase.")
-                .isEqualTo(1);
+                .isEqualTo(2);
 
         ctx.transitionIntoHardScalingTimeframe();
 
@@ -300,11 +399,15 @@ class DefaultRescaleManagerTest {
         assertThat(ctx.additionalTasksWaiting())
                 .as(
                         "The transition to hard-rescaling should have happened without any additional tasks in waiting state.")
-                .isFalse();
+                .isTrue();
 
         ctx.withSufficientRescaling();
 
         testInstance.onChange();
+
+        assertIntermediateStateWithoutRescale(ctx);
+
+        testInstance.onTrigger();
 
         assertFinalStateWithRescale(ctx);
     }
@@ -316,12 +419,20 @@ class DefaultRescaleManagerTest {
 
         testInstance.onChange();
 
+        assertIntermediateStateWithoutRescale(ctx);
+
+        testInstance.onTrigger();
+
         assertThat(ctx.rescaleWasTriggered()).isFalse();
-        assertThat(ctx.additionalTasksWaiting()).isFalse();
+        assertThat(ctx.additionalTasksWaiting()).isTrue();
 
         ctx.withSufficientRescaling();
 
         testInstance.onChange();
+
+        assertIntermediateStateWithoutRescale(ctx);
+
+        testInstance.onTrigger();
 
         assertFinalStateWithRescale(ctx);
     }
@@ -341,7 +452,7 @@ class DefaultRescaleManagerTest {
                 .isTrue();
         assertThat(ctx.additionalTasksWaiting())
                 .as("All scheduled tasks should have been executed.")
-                .isFalse();
+                .isTrue();
     }
 
     /**
@@ -469,10 +580,20 @@ class DefaultRescaleManagerTest {
                             () -> Objects.requireNonNull(initializationTime).plus(elapsedTime),
                             this,
                             SCALING_MIN,
-                            SCALING_MAX) {
+                            SCALING_MAX,
+                            Duration.ofHours(5)) {
                         @Override
                         public void onChange() {
                             super.onChange();
+
+                            // hack to avoid calling this method in every test method
+                            // we want to trigger tasks that are meant to run right-away
+                            TestingRescaleManagerContext.this.triggerOutdatedTasks();
+                        }
+
+                        @Override
+                        public void onTrigger() {
+                            super.onTrigger();
 
                             // hack to avoid calling this method in every test method
                             // we want to trigger tasks that are meant to run right-away

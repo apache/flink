@@ -39,6 +39,7 @@ import static org.apache.flink.configuration.description.TextElement.text;
 public class JobManagerOptions {
 
     public static final MemorySize MIN_JVM_HEAP_SIZE = MemorySize.ofMebiBytes(128);
+    public static final int FACTOR_FOR_DEFAULT_MAXIMUM_DELAY_FOR_RESCALE_TRIGGER = 3;
 
     /**
      * The config parameter defining the network address to connect to for communication with the
@@ -571,6 +572,24 @@ public class JobManagerOptions {
                                             "If %s is configured to %s, this configuration value will default to a negative value to disable the resource timeout.",
                                             code(SCHEDULER_MODE.key()),
                                             code(SchedulerExecutionMode.REACTIVE.name()))
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Duration> MAXIMUM_DELAY_FOR_SCALE_TRIGGER =
+            key("jobmanager.adaptive-scheduler.max-delay-for-scale-trigger")
+                    .durationType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The maximum time the JobManager will wait with evaluating previously observed events for rescaling (default: 0ms if checkpointing is disabled "
+                                                    + "and %dx of the checkpointing interval if checkpointing is enabled).",
+                                            text(
+                                                    String.valueOf(
+                                                            FACTOR_FOR_DEFAULT_MAXIMUM_DELAY_FOR_RESCALE_TRIGGER)))
                                     .build());
 
     @Documentation.Section({
