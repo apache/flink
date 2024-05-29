@@ -19,9 +19,10 @@
 package org.apache.flink.formats.csv;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.connector.datagen.source.TestDataGenerators;
 import org.apache.flink.connector.file.sink.FileSink;
@@ -51,10 +52,13 @@ public class CsvBulkWriterIT {
     @Test
     public void testNoDataIsWrittenBeforeFlush() throws Exception {
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        Configuration config = new Configuration();
+        config.set(
+                RestartStrategyOptions.RESTART_STRATEGY,
+                RestartStrategyOptions.RestartStrategyType.NO_RESTART_STRATEGY.getMainValue());
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
         env.setParallelism(1);
         env.enableCheckpointing(100);
-        env.setRestartStrategy(RestartStrategies.noRestart());
 
         // Workaround serialization limitations
         File outDirRef = new File(outDir.getAbsolutePath());
@@ -83,9 +87,9 @@ public class CsvBulkWriterIT {
 
     private static class CsvBulkWriterWrapper<T> implements BulkWriter<T> {
 
-        private static int callCounter = 0;
+        private static int addedElements = 0;
 
-        private static int unFlushedCounter = 0;
+        private static int expectedFlushedElements = 0;
 
         private final CsvBulkWriter<T, ?, ?> csvBulkWriter;
 
@@ -104,20 +108,16 @@ public class CsvBulkWriterIT {
 
         @Override
         public void addElement(T element) throws IOException {
-
-            callCounter++;
-            unFlushedCounter++;
-
+            addedElements++;
             csvBulkWriter.addElement(element);
-
-            assertThat(getResultsFromSinkFiles(outDir)).hasSize(callCounter - unFlushedCounter);
+            assertThat(getResultsFromSinkFiles(outDir)).hasSize(expectedFlushedElements);
         }
 
         @Override
         public void flush() throws IOException {
             csvBulkWriter.flush();
-            assertThat(getResultsFromSinkFiles(outDir)).hasSize(callCounter);
-            unFlushedCounter = 0;
+            expectedFlushedElements = addedElements;
+            assertThat(getResultsFromSinkFiles(outDir)).hasSize(expectedFlushedElements);
         }
 
         @Override
