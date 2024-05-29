@@ -563,7 +563,7 @@ class StateAssignmentOperationTest {
     }
 
     @Test
-    void testChannelStateAssignmentTwoGatesPartiallyDownscaling()
+    public void testChannelStateAssignmentTwoGatesPartiallyDownscaling()
             throws JobException, JobExecutionException {
         JobVertex upstream1 = createJobVertex(new OperatorID(), 2);
         JobVertex upstream2 = createJobVertex(new OperatorID(), 2);
