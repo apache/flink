@@ -24,6 +24,7 @@ import org.apache.flink.contrib.streaming.state.RocksDBIncrementalCheckpointUtil
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDbKvStateInfo;
 import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBOperationUtils;
+import org.apache.flink.contrib.streaming.state.RocksDBStateDataTransferHelper;
 import org.apache.flink.contrib.streaming.state.RocksDBStateDownloader;
 import org.apache.flink.contrib.streaming.state.RocksDBWriteBatchWrapper;
 import org.apache.flink.contrib.streaming.state.RocksIteratorWrapper;
@@ -721,7 +722,8 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                 operatorIdentifier,
                 keyGroupRange.prettyPrintInterval());
         try (RocksDBStateDownloader rocksDBStateDownloader =
-                new RocksDBStateDownloader(numberOfTransferringThreads)) {
+                new RocksDBStateDownloader(
+                        RocksDBStateDataTransferHelper.forThreadNum(numberOfTransferringThreads))) {
             rocksDBStateDownloader.transferAllStateDataToDirectory(
                     downloadSpecs, cancelStreamRegistry);
             logger.info(
