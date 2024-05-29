@@ -84,18 +84,19 @@ import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -459,15 +460,22 @@ class ExecutingTest {
 
     @Test
     void testExecutingChecksForNewResourcesWhenBeingCreated() throws Exception {
+        final String onChangeEventLabel = "onChange";
+        final String onTriggerEventLabel = "onTrigger";
+        final Queue<String> actualEvents = new ArrayDeque<>();
         try (MockExecutingContext ctx = new MockExecutingContext()) {
-            final AtomicBoolean scaleEventTriggered = new AtomicBoolean();
             new ExecutingStateBuilder()
                     .setRescaleManagerFactory(
-                            new TestingRescaleManager.Factory(() -> scaleEventTriggered.set(true)))
+                            new TestingRescaleManager.Factory(
+                                    () -> actualEvents.add(onChangeEventLabel),
+                                    () -> actualEvents.add(onTriggerEventLabel)))
                     .build(ctx);
 
             ctx.triggerExecutors();
-            assertThat(scaleEventTriggered.get()).isTrue();
+
+            assertThat(actualEvents.poll()).isEqualTo(onChangeEventLabel);
+            assertThat(actualEvents.poll()).isEqualTo(onTriggerEventLabel);
+            assertThat(actualEvents.isEmpty()).isTrue();
         }
     }
 

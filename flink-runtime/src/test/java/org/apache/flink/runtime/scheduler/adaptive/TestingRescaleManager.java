@@ -23,9 +23,11 @@ import java.time.Instant;
 public class TestingRescaleManager implements RescaleManager {
 
     private final Runnable onChangeRunnable;
+    private final Runnable onTriggerRunnable;
 
-    private TestingRescaleManager(Runnable onChangeRunnable) {
+    private TestingRescaleManager(Runnable onChangeRunnable, Runnable onTriggerRunnable) {
         this.onChangeRunnable = onChangeRunnable;
+        this.onTriggerRunnable = onTriggerRunnable;
     }
 
     @Override
@@ -33,21 +35,28 @@ public class TestingRescaleManager implements RescaleManager {
         this.onChangeRunnable.run();
     }
 
+    @Override
+    public void onTrigger() {
+        this.onTriggerRunnable.run();
+    }
+
     public static class Factory implements RescaleManager.Factory {
 
         private final Runnable onChangeRunnable;
+        private final Runnable onTriggerRunnable;
 
         public static TestingRescaleManager.Factory noOpFactory() {
-            return new Factory(() -> {});
+            return new Factory(() -> {}, () -> {});
         }
 
-        public Factory(Runnable onChangeRunnable) {
+        public Factory(Runnable onChangeRunnable, Runnable onTriggerRunnable) {
             this.onChangeRunnable = onChangeRunnable;
+            this.onTriggerRunnable = onTriggerRunnable;
         }
 
         @Override
         public RescaleManager create(Context ignoredContext, Instant ignoredLastRescale) {
-            return new TestingRescaleManager(onChangeRunnable);
+            return new TestingRescaleManager(onChangeRunnable, onTriggerRunnable);
         }
     }
 }

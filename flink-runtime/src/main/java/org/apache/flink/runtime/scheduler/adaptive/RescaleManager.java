@@ -28,6 +28,12 @@ public interface RescaleManager {
     void onChange();
 
     /**
+     * Is called when any previous observed environment changes shall be verified possibly
+     * triggering a rescale operation.
+     */
+    void onTrigger();
+
+    /**
      * The interface that can be used by the {@code RescaleManager} to communicate with the
      * underlying system.
      */
