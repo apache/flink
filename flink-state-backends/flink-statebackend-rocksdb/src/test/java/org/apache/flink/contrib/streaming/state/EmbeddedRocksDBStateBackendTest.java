@@ -785,7 +785,7 @@ public class EmbeddedRocksDBStateBackendTest
         assertThat(keyedStateBackend.isDisposed()).isTrue();
     }
 
-    private void verifyRocksDBStateUploaderClosed() {
+    private void verifyRocksDBStateUploaderClosed() throws IOException {
         if (enableIncrementalCheckpointing) {
             verify(rocksDBStateUploader, times(1)).close();
         }

@@ -27,6 +27,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 
+import static org.apache.flink.configuration.ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE;
 import static org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB;
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.DEFAULT;
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.FLASH_SSD_OPTIMIZED;
@@ -86,7 +87,10 @@ public class RocksDBOptions {
                     .intType()
                     .defaultValue(4)
                     .withDescription(
-                            "The number of threads (per stateful operator) used to transfer (download and upload) files in RocksDBStateBackend.");
+                            "The number of threads (per stateful operator) used to transfer (download and upload) files in RocksDBStateBackend."
+                                    + "If negative, the common (TM) IO thread pool is used (see "
+                                    + CLUSTER_IO_EXECUTOR_POOL_SIZE.key()
+                                    + ")");
 
     /** The predefined settings for RocksDB DBOptions and ColumnFamilyOptions by Flink community. */
     @Documentation.Section(Documentation.Sections.EXPERT_ROCKSDB)

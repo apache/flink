@@ -303,7 +303,7 @@ public abstract class RocksDBSnapshotStrategyBase<K, R extends SnapshotResources
     }
 
     @Override
-    public abstract void close();
+    public abstract void close() throws IOException;
 
     /** Common operation in native rocksdb snapshot result supplier. */
     protected abstract class RocksDBSnapshotOperation

@@ -536,7 +536,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                     overlapFractionThreshold,
                     useIngestDbRestoreMode,
                     incrementalRestoreAsyncCompactAfterRescale,
-                    rescalingUseDeleteFilesInRange);
+                    rescalingUseDeleteFilesInRange,
+                    ioExecutor);
         } else if (priorityQueueConfig.getPriorityQueueStateType()
                 == EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP) {
             return new RocksDBHeapTimersFullRestoreOperation<>(
@@ -586,8 +587,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
         RocksDBStateUploader stateUploader =
                 injectRocksDBStateUploader == null
                         ? new RocksDBStateUploader(
-                                RocksDBStateDataTransferHelper.forThreadNum(
-                                        numberOfTransferingThreads))
+                                RocksDBStateDataTransferHelper.forThreadNumIfSpecified(
+                                        numberOfTransferingThreads, ioExecutor))
                         : injectRocksDBStateUploader;
         if (enableIncrementalCheckpointing) {
             checkpointSnapshotStrategy =

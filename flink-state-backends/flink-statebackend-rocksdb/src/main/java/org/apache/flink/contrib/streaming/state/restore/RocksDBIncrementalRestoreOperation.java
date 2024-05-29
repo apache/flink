@@ -129,6 +129,8 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
 
     private final boolean useDeleteFilesInRange;
 
+    private final ExecutorService ioExecutor;
+
     public RocksDBIncrementalRestoreOperation(
             String operatorIdentifier,
             KeyGroupRange keyGroupRange,
@@ -152,7 +154,8 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
             double overlapFractionThreshold,
             boolean useIngestDbRestoreMode,
             boolean asyncCompactAfterRescale,
-            boolean useDeleteFilesInRange) {
+            boolean useDeleteFilesInRange,
+            ExecutorService ioExecutor) {
         this.rocksHandle =
                 new RocksDBHandle(
                         kvStateInformation,
@@ -183,6 +186,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
         this.useIngestDbRestoreMode = false;
         this.asyncCompactAfterRescale = false;
         this.useDeleteFilesInRange = useDeleteFilesInRange;
+        this.ioExecutor = ioExecutor;
     }
 
     /**
@@ -723,7 +727,8 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                 keyGroupRange.prettyPrintInterval());
         try (RocksDBStateDownloader rocksDBStateDownloader =
                 new RocksDBStateDownloader(
-                        RocksDBStateDataTransferHelper.forThreadNum(numberOfTransferringThreads))) {
+                        RocksDBStateDataTransferHelper.forThreadNumIfSpecified(
+                                numberOfTransferringThreads, ioExecutor))) {
             rocksDBStateDownloader.transferAllStateDataToDirectory(
                     downloadSpecs, cancelStreamRegistry);
             logger.info(
