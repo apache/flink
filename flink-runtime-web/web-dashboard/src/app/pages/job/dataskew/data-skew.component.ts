@@ -68,7 +68,7 @@ export class DataSkewComponent implements OnInit, OnDestroy {
             this.metricsService
               .loadAggregatedMetrics(this.jobDetail.jid, v.id, ['numRecordsIn'], 'skew')
               .subscribe(metricMap => {
-                const skew = Number.isNaN(+metricMap['numRecordsIn']) ? 0 : Math.round(metricMap['numRecordsIn']);
+                const skew = Number.isNaN(+metricMap['numRecordsIn']) ? 0 : Math.round(+metricMap['numRecordsIn']);
                 result.push({ vertexName: v.name, skewPct: skew });
                 result.sort((a, b) => (a.skewPct > b.skewPct ? -1 : 1));
                 this.isLoading = false;

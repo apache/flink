@@ -54,7 +54,7 @@ import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 })
 export class TaskManagerMetricsComponent implements OnInit, OnDestroy {
   public taskManagerDetail?: TaskManagerDetail;
-  public metrics: { [id: string]: number } = {};
+  public metrics: { [id: string]: number | string } = {};
 
   private readonly destroy$ = new Subject<void>();
 

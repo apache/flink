@@ -38,8 +38,8 @@
     </div>
   </div>
   <div class="content">
-    <div [hidden]="displayMode === 'numeric'" #chart></div>
-    <div class="numeric" [hidden]="displayMode === 'chart'">
+    <div [hidden]="displayMode === 'literal'" #chart></div>
+    <div class="literal" [hidden]="displayMode === 'chart'">
       {{ latestValue | humanizeChartNumeric: title }}
     </div>
     <div class="type-switch">
@@ -53,10 +53,10 @@
         </button>
         <button
           nz-button
-          [nzType]="displayMode === 'numeric' ? 'primary' : 'default'"
-          (click)="setMode('numeric')"
+          [nzType]="displayMode === 'literal' ? 'primary' : 'default'"
+          (click)="setMode('literal')"
         >
-          Numeric
+          Literal
         </button>
       </nz-button-group>
     </div>

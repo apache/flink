@@ -22,7 +22,7 @@ export interface JobMetric {
 }
 
 export interface MetricMap {
-  [p: string]: number;
+  [p: string]: number | string;
 }
 
 export interface AggregateValueMap {

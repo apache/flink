@@ -53,7 +53,7 @@ import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
   standalone: true
 })
 export class JobManagerMetricsComponent implements OnInit, OnDestroy {
-  public metrics: { [id: string]: number } = {};
+  public metrics: { [id: string]: number | string } = {};
   public jmConfig: { [id: string]: string } = {};
   public listOfGCName: string[] = [];
   public listOfGCMetric: Array<{ name: string; count: number | null; time: number | null }> = [];
@@ -122,8 +122,8 @@ export class JobManagerMetricsComponent implements OnInit, OnDestroy {
           ).map(name => {
             return {
               name,
-              count: this.metrics[`Status.JVM.GarbageCollector.${name}.Count`],
-              time: this.metrics[`Status.JVM.GarbageCollector.${name}.Time`]
+              count: +this.metrics[`Status.JVM.GarbageCollector.${name}.Count`],
+              time: +this.metrics[`Status.JVM.GarbageCollector.${name}.Time`]
             };
           });
           this.cdr.markForCheck();

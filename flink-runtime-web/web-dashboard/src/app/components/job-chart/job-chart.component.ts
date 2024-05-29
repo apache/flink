@@ -52,10 +52,10 @@ export class JobChartComponent implements AfterViewInit, OnDestroy {
   @Output() closed = new EventEmitter();
   @ViewChild('chart', { static: true }) chart: ElementRef;
   size = 'small';
-  displayMode: 'chart' | 'numeric' = 'chart';
+  displayMode: 'chart' | 'literal' = 'chart';
   chartInstance: Chart;
-  data: Array<{ time: number; value: number; type: string }> = [];
-  latestValue: number;
+  data: Array<{ time: number; value: number | string; type: string }> = [];
+  latestValue: number | string;
   destroy$ = new Subject<void>();
 
   @HostBinding('class.big')
@@ -63,9 +63,9 @@ export class JobChartComponent implements AfterViewInit, OnDestroy {
     return this.size === 'big';
   }
 
-  refresh(res: { timestamp: number; values: { [id: string]: number } }): void {
+  refresh(res: { timestamp: number; values: { [id: string]: number | string } }): void {
     this.latestValue = res.values[this.title];
-    if (this.displayMode === 'numeric') {
+    if (this.displayMode === 'literal') {
       this.cdr.detectChanges();
     }
     this.data.push({
@@ -82,7 +82,7 @@ export class JobChartComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  setMode(mode: 'chart' | 'numeric'): void {
+  setMode(mode: 'chart' | 'literal'): void {
     this.displayMode = mode;
     this.cdr.detectChanges();
   }
