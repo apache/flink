@@ -47,6 +47,7 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -186,7 +187,7 @@ public class RocksIncrementalSnapshotStrategy<K>
     }
 
     @Override
-    public void close() {
+    public void close() throws IOException {
         stateUploader.close();
     }
 
