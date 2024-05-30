@@ -598,9 +598,10 @@ class LimitedConnectionsFileSystemTest {
         public void go() throws Exception {
 
             try (FSDataOutputStream stream = fs.create(path, WriteMode.OVERWRITE)) {
-                assertThat(fs.getNumberOfOpenOutputStreams() <= maxConcurrentOutputStreams)
-                        .isTrue();
-                assertThat(fs.getTotalNumberOfOpenStreams() <= maxConcurrentStreamsTotal).isTrue();
+                assertThat(fs.getNumberOfOpenOutputStreams())
+                        .isLessThanOrEqualTo(maxConcurrentOutputStreams);
+                assertThat(fs.getTotalNumberOfOpenStreams())
+                        .isLessThanOrEqualTo(maxConcurrentStreamsTotal);
 
                 final Random rnd = new Random();
                 final byte[] data = new byte[rnd.nextInt(10000) + 1];
@@ -636,8 +637,10 @@ class LimitedConnectionsFileSystemTest {
         public void go() throws Exception {
 
             try (FSDataInputStream stream = fs.open(path)) {
-                assertThat(fs.getNumberOfOpenInputStreams() <= maxConcurrentInputStreams).isTrue();
-                assertThat(fs.getTotalNumberOfOpenStreams() <= maxConcurrentStreamsTotal).isTrue();
+                assertThat(fs.getNumberOfOpenInputStreams())
+                        .isLessThanOrEqualTo(maxConcurrentInputStreams);
+                assertThat(fs.getTotalNumberOfOpenStreams())
+                        .isLessThanOrEqualTo(maxConcurrentStreamsTotal);
 
                 final byte[] readBuffer = new byte[4096];
 
@@ -686,9 +689,10 @@ class LimitedConnectionsFileSystemTest {
         public void go() throws Exception {
 
             try (FSDataOutputStream stream = fs.create(path, WriteMode.OVERWRITE)) {
-                assertThat(fs.getNumberOfOpenOutputStreams() <= maxConcurrentOutputStreams)
-                        .isTrue();
-                assertThat(fs.getTotalNumberOfOpenStreams() <= maxConcurrentStreamsTotal).isTrue();
+                assertThat(fs.getNumberOfOpenOutputStreams())
+                        .isLessThanOrEqualTo(maxConcurrentOutputStreams);
+                assertThat(fs.getTotalNumberOfOpenStreams())
+                        .isLessThanOrEqualTo(maxConcurrentStreamsTotal);
 
                 final Random rnd = new Random();
                 final byte[] data = new byte[rnd.nextInt(10000) + 1];
@@ -729,8 +733,10 @@ class LimitedConnectionsFileSystemTest {
         public void go() throws Exception {
 
             try (FSDataInputStream stream = fs.open(path)) {
-                assertThat(fs.getNumberOfOpenInputStreams() <= maxConcurrentInputStreams).isTrue();
-                assertThat(fs.getTotalNumberOfOpenStreams() <= maxConcurrentStreamsTotal).isTrue();
+                assertThat(fs.getNumberOfOpenInputStreams())
+                        .isLessThanOrEqualTo(maxConcurrentInputStreams);
+                assertThat(fs.getTotalNumberOfOpenStreams())
+                        .isLessThanOrEqualTo(maxConcurrentStreamsTotal);
 
                 final byte[] readBuffer = new byte[(int) fs.getFileStatus(path).getLen() - 1];
                 assertThat(stream.read(readBuffer) != -1).isTrue();

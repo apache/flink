@@ -67,7 +67,7 @@ class RefCountedFileWithStreamTest {
         Path path = TempDirUtils.newFolder(tempFolder).toPath();
         getClosedRefCountedFileWithContent("hello world", path);
         try (Stream<Path> files = Files.list(path)) {
-            assertThat(files.count()).isOne();
+            assertThat(files).hasSize(1);
         }
     }
 

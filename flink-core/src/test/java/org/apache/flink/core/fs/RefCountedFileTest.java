@@ -48,7 +48,7 @@ class RefCountedFileTest {
         fileUnderTest.release();
 
         try (Stream<Path> files = Files.list(tempFolder)) {
-            assertThat(files.count()).isZero();
+            assertThat(files).isEmpty();
         }
     }
 
@@ -76,13 +76,13 @@ class RefCountedFileTest {
         fileUnderTest.release();
         // the file is deleted now
         try (Stream<Path> files = Files.list(tempFolder)) {
-            assertThat(files.count()).isZero();
+            assertThat(files).isEmpty();
         }
     }
 
     private void verifyTheFileIsStillThere() throws IOException {
         try (Stream<Path> files = Files.list(tempFolder)) {
-            assertThat(files.count()).isOne();
+            assertThat(files).hasSize(1);
         }
     }
 

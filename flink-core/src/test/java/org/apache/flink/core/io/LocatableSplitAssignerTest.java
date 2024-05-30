@@ -428,7 +428,8 @@ class LocatableSplitAssignerTest {
         assertThat(ia.getNextInputSplit("testhost", 0)).isNull();
 
         // at least one fraction of hosts needs be local, no matter how bad the thread races
-        assertThat(ia.getNumberOfLocalAssignments() >= NUM_SPLITS / hosts.length).isTrue();
+        assertThat(ia.getNumberOfRemoteAssignments())
+                .isGreaterThanOrEqualTo(NUM_SPLITS / hosts.length);
     }
 
     @Test
@@ -468,7 +469,7 @@ class LocatableSplitAssignerTest {
         for (int i = 0; i < NUM_SPLITS; i++) {
             LocatableInputSplit split =
                     ia.getNextInputSplit(requestingHosts[rand.nextInt(requestingHosts.length)], 0);
-            assertThat(split != null).isTrue();
+            assertThat(split).isNotNull();
             assertThat(splits.remove(split)).isTrue();
         }
 

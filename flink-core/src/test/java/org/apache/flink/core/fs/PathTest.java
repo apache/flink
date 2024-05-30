@@ -153,7 +153,7 @@ class PathTest {
         assertThat(p.getName()).isEqualTo("myPath");
 
         p = new Path("/");
-        assertThat(p.getName()).isEqualTo("");
+        assertThat(p.getName()).isEmpty();
 
         p = new Path("C:/my/windows/path");
         assertThat(p.getName()).isEqualTo("path");
