@@ -119,6 +119,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -165,6 +166,7 @@ public class BatchJobRecoveryTest {
 
     private SourceCoordinatorProvider<MockSourceSplit> provider;
     private FileSystemJobEventStore jobEventStore;
+    private AtomicBoolean recoveryStarted;
     private List<JobEvent> persistedJobEventList;
 
     private byte[] serializedJobGraph;
@@ -184,9 +186,10 @@ public class BatchJobRecoveryTest {
         delayedExecutor = new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor());
         receivingTasks = EventReceivingTasks.createForRunningTasks();
         persistedJobEventList = new ArrayList<>();
+        recoveryStarted = new AtomicBoolean();
         jobEventStore =
                 new TestingFileSystemJobEventStore(
-                        rootPath, new Configuration(), persistedJobEventList);
+                        rootPath, new Configuration(), persistedJobEventList, recoveryStarted);
 
         provider =
                 new SourceCoordinatorProvider<>(
@@ -291,7 +294,7 @@ public class BatchJobRecoveryTest {
                 getExecutionVertices(MIDDLE_ID, newScheduler.getExecutionGraph())) {
             assertThat(middleExecutions)
                     .doesNotContain(vertex.getCurrentExecutionAttempt().getAttemptId());
-            assertThat(vertex.getExecutionState()).isEqualTo(ExecutionState.DEPLOYING);
+            waitUntilExecutionVertexState(vertex, ExecutionState.DEPLOYING, 15000L);
         }
     }
 
@@ -365,7 +368,7 @@ public class BatchJobRecoveryTest {
                 getExecutionVertices(SOURCE_ID, newScheduler.getExecutionGraph())) {
             // check source task0 was reset.
             if (vertex.getParallelSubtaskIndex() == subtaskIndex) {
-                assertThat(vertex.getExecutionState()).isEqualTo(ExecutionState.DEPLOYING);
+                waitUntilExecutionVertexState(vertex, ExecutionState.DEPLOYING, 15000L);
                 continue;
             }
 
@@ -400,7 +403,7 @@ public class BatchJobRecoveryTest {
                 continue;
             }
 
-            assertThat(vertex.getExecutionState()).isEqualTo(ExecutionState.DEPLOYING);
+            waitUntilExecutionVertexState(vertex, ExecutionState.DEPLOYING, 15000L);
         }
     }
 
@@ -471,6 +474,11 @@ public class BatchJobRecoveryTest {
             for (ResultPartitionID partitionID : resultPartitionIds) {
                 assertThat(partitionTracker.isPartitionTracked(partitionID)).isTrue();
             }
+        }
+
+        for (ExecutionVertex taskVertex :
+                getExecutionVertices(MIDDLE_ID, newScheduler.getExecutionGraph())) {
+            waitUntilExecutionVertexState(taskVertex, ExecutionState.DEPLOYING, 15000L);
         }
 
         runInMainThread(
@@ -550,7 +558,7 @@ public class BatchJobRecoveryTest {
             if (i == losePartitionsTaskIndex) {
                 assertThat(sourceExecutions)
                         .doesNotContain(vertex.getCurrentExecutionAttempt().getAttemptId());
-                assertThat(vertex.getExecutionState()).isEqualTo(ExecutionState.DEPLOYING);
+                waitUntilExecutionVertexState(vertex, ExecutionState.DEPLOYING, 15000L);
             } else {
                 assertThat(sourceExecutions)
                         .contains(vertex.getCurrentExecutionAttempt().getAttemptId());
@@ -764,7 +772,7 @@ public class BatchJobRecoveryTest {
         for (ExecutionVertex vertex :
                 getExecutionVertices(SOURCE_ID, newScheduler.getExecutionGraph())) {
             assertThat(vertex.getCurrentExecutionAttempt().getAttemptNumber()).isEqualTo(1);
-            assertThat(vertex.getExecutionState()).isEqualTo(ExecutionState.DEPLOYING);
+            waitUntilExecutionVertexState(vertex, ExecutionState.DEPLOYING, 15000L);
         }
     }
 
@@ -913,11 +921,9 @@ public class BatchJobRecoveryTest {
             throws Exception {
         runInMainThread(scheduler::startScheduling);
 
-        // wait recover start
-        CommonTestUtils.waitUntilCondition(scheduler::isRecovering);
-
         // wait recover finish
-        CommonTestUtils.waitUntilCondition(() -> !scheduler.isRecovering());
+        CommonTestUtils.waitUntilCondition(
+                () -> recoveryStarted.get() && !scheduler.isRecovering());
     }
 
     private static SourceCoordinator<?, ?> getInternalSourceCoordinator(
@@ -1095,18 +1101,29 @@ public class BatchJobRecoveryTest {
     private static class TestingFileSystemJobEventStore extends FileSystemJobEventStore {
 
         private final List<JobEvent> persistedJobEventList;
+        private final AtomicBoolean recoveryStarted;
 
         public TestingFileSystemJobEventStore(
-                Path workingDir, Configuration configuration, List<JobEvent> persistedJobEventList)
+                Path workingDir,
+                Configuration configuration,
+                List<JobEvent> persistedJobEventList,
+                AtomicBoolean recoveryStarted)
                 throws IOException {
             super(workingDir, configuration);
             this.persistedJobEventList = persistedJobEventList;
+            this.recoveryStarted = recoveryStarted;
         }
 
         @Override
         protected void writeEventRunnable(JobEvent event, boolean cutBlock) {
             super.writeEventRunnable(event, cutBlock);
             persistedJobEventList.add(event);
+        }
+
+        @Override
+        public JobEvent readEvent() throws Exception {
+            recoveryStarted.compareAndSet(false, true);
+            return super.readEvent();
         }
     }
 
