@@ -129,7 +129,7 @@ public class SafetyNetCloseableRegistryTest
                     public void go() throws Exception {
                         FileSystem fs1 = FileSystem.getLocalFileSystem();
                         // ensure no safety net in place
-                        assertThat(fs1 instanceof SafetyNetWrapperFileSystem).isFalse();
+                        assertThat(fs1).isNotInstanceOf(SafetyNetWrapperFileSystem.class);
                         FileSystemSafetyNet.initializeSafetyNetForThread();
                         fs1 = FileSystem.getLocalFileSystem();
                         // ensure safety net is in place now
@@ -148,19 +148,21 @@ public class SafetyNetCloseableRegistryTest
                                         public void go() {
                                             FileSystem fs2 = FileSystem.getLocalFileSystem();
                                             // ensure the safety net does not leak here
-                                            assertThat(fs2 instanceof SafetyNetWrapperFileSystem)
-                                                    .isFalse();
+                                            assertThat(fs2)
+                                                    .isNotInstanceOf(
+                                                            SafetyNetWrapperFileSystem.class);
                                             FileSystemSafetyNet.initializeSafetyNetForThread();
                                             fs2 = FileSystem.getLocalFileSystem();
                                             // ensure we can bring another safety net in place
-                                            assertThat(fs2 instanceof SafetyNetWrapperFileSystem)
-                                                    .isTrue();
+                                            assertThat(fs2)
+                                                    .isInstanceOf(SafetyNetWrapperFileSystem.class);
                                             FileSystemSafetyNet
                                                     .closeSafetyNetAndGuardedResourcesForThread();
                                             fs2 = FileSystem.getLocalFileSystem();
                                             // and that we can remove it again
-                                            assertThat(fs2 instanceof SafetyNetWrapperFileSystem)
-                                                    .isFalse();
+                                            assertThat(fs2)
+                                                    .isNotInstanceOf(
+                                                            SafetyNetWrapperFileSystem.class);
                                         }
                                     };
 
@@ -177,7 +179,7 @@ public class SafetyNetCloseableRegistryTest
                                     .isInstanceOf(IOException.class);
                             fs1 = FileSystem.getLocalFileSystem();
                             // ensure safety net was removed
-                            assertThat(fs1 instanceof SafetyNetWrapperFileSystem).isFalse();
+                            assertThat(fs1).isNotInstanceOf(SafetyNetWrapperFileSystem.class);
                         } finally {
                             fs1.delete(tmp, false);
                         }

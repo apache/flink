@@ -48,8 +48,8 @@ class LimitedConnectionsConfigurationTest {
         FileSystem schemeFs = FileSystem.get(URI.create(fsScheme + ":///a/b/c"));
         FileSystem localFs = FileSystem.get(File.createTempFile("junit", null, tempDir).toURI());
 
-        assertThat(schemeFs instanceof LimitedConnectionsFileSystem).isFalse();
-        assertThat(localFs instanceof LimitedConnectionsFileSystem).isFalse();
+        assertThat(schemeFs).isNotInstanceOf(LimitedConnectionsFileSystem.class);
+        assertThat(localFs).isNotInstanceOf(LimitedConnectionsFileSystem.class);
 
         // configure some limits, which should cause "fsScheme" to be limited
 
@@ -67,7 +67,7 @@ class LimitedConnectionsConfigurationTest {
             localFs = FileSystem.get(File.createTempFile("junit", null, tempDir).toURI());
 
             assertThat(schemeFs).isInstanceOf(LimitedConnectionsFileSystem.class);
-            assertThat(localFs instanceof LimitedConnectionsFileSystem).isFalse();
+            assertThat(localFs).isNotInstanceOf(LimitedConnectionsFileSystem.class);
 
             LimitedConnectionsFileSystem limitedFs = (LimitedConnectionsFileSystem) schemeFs;
             assertThat(limitedFs.getMaxNumOpenStreamsTotal()).isEqualTo(42);

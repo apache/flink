@@ -86,7 +86,7 @@ class CrossSegmentTypeTest {
             if (pos1 < pos2 - shift) {
                 assertThat(cmp).isLessThanOrEqualTo(0);
             } else {
-                assertThat(cmp >= 0).isTrue();
+                assertThat(cmp).isGreaterThanOrEqualTo(0);
             }
         }
     }

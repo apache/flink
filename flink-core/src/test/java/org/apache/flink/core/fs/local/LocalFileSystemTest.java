@@ -42,7 +42,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -154,7 +153,7 @@ class LocalFileSystemTest {
         final FSDataInputStream lfsinput2 = lfs.open(pathtotestfile2);
         assertThat(lfsinput2.read(testbytestest)).isEqualTo(5);
         lfsinput2.close();
-        assertThat(Arrays.equals(testbytes, testbytestest)).isTrue();
+        assertThat(testbytestest).containsExactly(testbytes);
 
         // does lfs see two files?
         assertThat(lfs.listStatus(pathtotmpdir)).hasSize(2);
