@@ -20,6 +20,10 @@ package org.apache.flink.datastream.api.function;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.state.StateDeclaration;
+
+import java.util.Collections;
+import java.util.Set;
 
 /** Base class for all user defined process functions. */
 @Experimental
@@ -35,6 +39,16 @@ public interface ProcessFunction extends Function {
      *     decide whether to retry the task execution.
      */
     default void open() throws Exception {}
+
+    /**
+     * Explicitly declares states upfront. Each specific state must be declared in this method
+     * before it can be used.
+     *
+     * @return all declared states used by this process function.
+     */
+    default Set<StateDeclaration> usesStates() {
+        return Collections.emptySet();
+    }
 
     /**
      * Tear-down method for the user code. It is called after the last call to the main working
