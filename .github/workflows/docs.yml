@@ -52,7 +52,7 @@ jobs:
       - name: Upload documentation
         uses: burnett01/rsync-deployments@5.2
         with:
-          switches: --archive --compress
+          switches: --archive --compress --delete
           path: docs/target/
           remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/flink/flink-docs-${{ env.flink_branch }}/
           remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
@@ -63,7 +63,7 @@ jobs:
         if: env.flink_alias != ''
         uses: burnett01/rsync-deployments@5.2
         with:
-          switches: --archive --compress
+          switches: --archive --compress --delete
           path: docs/target/
           remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/flink/flink-docs-${{ env.flink_alias }}/
           remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
