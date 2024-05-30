@@ -644,7 +644,9 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                 return file.getPhysicalFile().isCouldReuse();
             }
         }
-        return true;
+        // If a stateHandle is not of the type SegmentFileStateHandle or if its corresponding file
+        // is not recognized by the fileMergingManager, it needs to be re-uploaded.
+        return false;
     }
 
     public void discardSingleLogicalFile(LogicalFile logicalFile, long checkpointId)
