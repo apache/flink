@@ -19,12 +19,12 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatistics;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.traces.Span;
@@ -40,6 +40,7 @@ import javax.annotation.Nullable;
 import java.io.StringWriter;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -86,9 +87,7 @@ public class CheckpointStatsTracker {
     /** History of checkpoints. */
     private final CheckpointStatsHistory history;
 
-    private final JobID jobID;
-    private final MetricGroup metricGroup;
-    private int totalNumberOfSubTasks;
+    private final JobManagerJobMetricGroup metricGroup;
 
     private Optional<JobInitializationMetricsBuilder> jobInitializationMetricsBuilder =
             Optional.empty();
@@ -111,23 +110,12 @@ public class CheckpointStatsTracker {
      * @param numRememberedCheckpoints Maximum number of checkpoints to remember, including in
      *     progress ones.
      * @param metricGroup Metric group for exposed metrics
-     * @param jobID ID of the job being checkpointed
      */
     public CheckpointStatsTracker(
-            int numRememberedCheckpoints, MetricGroup metricGroup, JobID jobID) {
-        this(numRememberedCheckpoints, metricGroup, jobID, Integer.MAX_VALUE);
-    }
-
-    CheckpointStatsTracker(
-            int numRememberedCheckpoints,
-            MetricGroup metricGroup,
-            JobID jobID,
-            int totalNumberOfSubTasks) {
+            int numRememberedCheckpoints, JobManagerJobMetricGroup metricGroup) {
         checkArgument(numRememberedCheckpoints >= 0, "Negative number of remembered checkpoints");
         this.history = new CheckpointStatsHistory(numRememberedCheckpoints);
-        this.jobID = jobID;
         this.metricGroup = metricGroup;
-        this.totalNumberOfSubTasks = totalNumberOfSubTasks;
 
         // Latest snapshot is empty
         latestSnapshot =
@@ -139,11 +127,6 @@ public class CheckpointStatsTracker {
 
         // Register the metrics
         registerMetrics(metricGroup);
-    }
-
-    public CheckpointStatsTracker updateTotalNumberOfSubtasks(int totalNumberOfSubTasks) {
-        this.totalNumberOfSubTasks = totalNumberOfSubTasks;
-        return this;
     }
 
     /**
@@ -309,7 +292,7 @@ public class CheckpointStatsTracker {
                 String jsonDump = sw.toString();
                 LOG.debug(
                         "CheckpointStatistics (for jobID={}, checkpointId={}) dump = {} ",
-                        jobID,
+                        metricGroup.jobId(),
                         checkpointStats.checkpointId,
                         jsonDump);
             }
@@ -372,14 +355,16 @@ public class CheckpointStatsTracker {
         }
     }
 
-    public void reportInitializationStartTs(long initializationStartTs) {
+    public void reportInitializationStarted(
+            Set<ExecutionAttemptID> toInitialize, long initializationStartTs) {
         jobInitializationMetricsBuilder =
                 Optional.of(
-                        new JobInitializationMetricsBuilder(
-                                totalNumberOfSubTasks, initializationStartTs));
+                        new JobInitializationMetricsBuilder(toInitialize, initializationStartTs));
     }
 
-    public void reportInitializationMetrics(SubTaskInitializationMetrics initializationMetrics) {
+    public void reportInitializationMetrics(
+            ExecutionAttemptID executionAttemptId,
+            SubTaskInitializationMetrics initializationMetrics) {
         statsReadWriteLock.lock();
         try {
             if (!jobInitializationMetricsBuilder.isPresent()) {
@@ -389,12 +374,12 @@ public class CheckpointStatsTracker {
                 return;
             }
             JobInitializationMetricsBuilder builder = jobInitializationMetricsBuilder.get();
-            builder.reportInitializationMetrics(initializationMetrics);
+            builder.reportInitializationMetrics(executionAttemptId, initializationMetrics);
             if (builder.isComplete()) {
                 traceInitializationMetrics(builder.build());
             }
         } catch (Exception ex) {
-            LOG.warn("Failed to log SubTaskInitializationMetrics[{}]", ex, initializationMetrics);
+            LOG.warn("Failed to log SubTaskInitializationMetrics [{}]", initializationMetrics, ex);
         } finally {
             statsReadWriteLock.unlock();
         }

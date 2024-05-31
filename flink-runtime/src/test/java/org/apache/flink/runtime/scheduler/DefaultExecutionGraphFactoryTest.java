@@ -31,6 +31,7 @@ import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetricsBuilder;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.executiongraph.DefaultVertexAttemptNumberStore;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -177,8 +178,11 @@ class DefaultExecutionGraphFactoryTest {
                         log);
 
         CheckpointStatsTracker checkpointStatsTracker = executionGraph.getCheckpointStatsTracker();
-        checkpointStatsTracker.reportInitializationStartTs(
-                SystemClock.getInstance().absoluteTimeMillis());
+        assertThat(checkpointStatsTracker).isNotNull();
+
+        final ExecutionAttemptID randomAttemptId = ExecutionAttemptID.randomId();
+        checkpointStatsTracker.reportInitializationStarted(
+                Sets.newHashSet(randomAttemptId), SystemClock.getInstance().absoluteTimeMillis());
 
         checkpointStatsTracker.reportRestoredCheckpoint(
                 savepointId,
@@ -186,6 +190,7 @@ class DefaultExecutionGraphFactoryTest {
                 "foo",
                 1337);
         checkpointStatsTracker.reportInitializationMetrics(
+                randomAttemptId,
                 new SubTaskInitializationMetricsBuilder(
                                 SystemClock.getInstance().absoluteTimeMillis())
                         .build());
@@ -202,19 +207,17 @@ class DefaultExecutionGraphFactoryTest {
     @Nonnull
     private ExecutionGraphFactory createExecutionGraphFactory(
             JobManagerJobMetricGroup metricGroup) {
-        final ExecutionGraphFactory executionGraphFactory =
-                new DefaultExecutionGraphFactory(
-                        new Configuration(),
-                        ClassLoader.getSystemClassLoader(),
-                        new DefaultExecutionDeploymentTracker(),
-                        EXECUTOR_EXTENSION.getExecutor(),
-                        EXECUTOR_EXTENSION.getExecutor(),
-                        Time.milliseconds(0L),
-                        metricGroup,
-                        VoidBlobWriter.getInstance(),
-                        ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER,
-                        NoOpJobMasterPartitionTracker.INSTANCE);
-        return executionGraphFactory;
+        return new DefaultExecutionGraphFactory(
+                new Configuration(),
+                ClassLoader.getSystemClassLoader(),
+                new DefaultExecutionDeploymentTracker(),
+                EXECUTOR_EXTENSION.getExecutor(),
+                EXECUTOR_EXTENSION.getExecutor(),
+                Time.milliseconds(0L),
+                metricGroup,
+                VoidBlobWriter.getInstance(),
+                ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER,
+                NoOpJobMasterPartitionTracker.INSTANCE);
     }
 
     @Nonnull

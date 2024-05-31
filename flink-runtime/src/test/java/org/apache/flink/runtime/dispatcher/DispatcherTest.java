@@ -739,9 +739,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
     private CheckpointStatsSnapshot getTestCheckpointStatsSnapshotWithTwoFailedCheckpoints() {
         CheckpointStatsTracker checkpointStatsTracker =
                 new CheckpointStatsTracker(
-                        10,
-                        UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-                        new JobID());
+                        10, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
         checkpointStatsTracker.reportFailedCheckpointsWithoutInProgress();
         checkpointStatsTracker.reportFailedCheckpointsWithoutInProgress();
         return checkpointStatsTracker.createSnapshot();

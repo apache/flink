@@ -876,11 +876,14 @@ public class AdaptiveScheduler
 
     @Override
     public void reportInitializationMetrics(
-            JobID jobId, SubTaskInitializationMetrics initializationMetrics) {
+            JobID jobId,
+            ExecutionAttemptID executionAttemptId,
+            SubTaskInitializationMetrics initializationMetrics) {
         state.tryRun(
                 StateWithExecutionGraph.class,
                 stateWithExecutionGraph ->
-                        stateWithExecutionGraph.reportInitializationMetrics(initializationMetrics),
+                        stateWithExecutionGraph.reportInitializationMetrics(
+                                executionAttemptId, initializationMetrics),
                 "reportCheckpointMetrics");
     }
 
