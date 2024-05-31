@@ -402,7 +402,18 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
             MiniClusterWithClientResource cluster,
             RestoreMode restoreMode)
             throws Exception {
-        JobGraph initialJobGraph = getJobGraph(backend, externalCheckpoint, restoreMode);
+        return runJobAndGetExternalizedCheckpoint(
+                backend, externalCheckpoint, cluster, restoreMode, new Configuration());
+    }
+
+    static String runJobAndGetExternalizedCheckpoint(
+            StateBackend backend,
+            @Nullable String externalCheckpoint,
+            MiniClusterWithClientResource cluster,
+            RestoreMode restoreMode,
+            Configuration jobConfig)
+            throws Exception {
+        JobGraph initialJobGraph = getJobGraph(backend, externalCheckpoint, restoreMode, jobConfig);
         NotifyingInfiniteTupleSource.countDownLatch = new CountDownLatch(PARALLELISM);
         cluster.getClusterClient().submitJob(initialJobGraph).get();
 
@@ -423,8 +434,12 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
     }
 
     private static JobGraph getJobGraph(
-            StateBackend backend, @Nullable String externalCheckpoint, RestoreMode restoreMode) {
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+            StateBackend backend,
+            @Nullable String externalCheckpoint,
+            RestoreMode restoreMode,
+            Configuration jobConfig) {
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(jobConfig);
 
         env.enableCheckpointing(500);
         env.setStateBackend(backend);
