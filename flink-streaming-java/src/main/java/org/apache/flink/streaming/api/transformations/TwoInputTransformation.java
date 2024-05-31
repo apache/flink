@@ -235,4 +235,8 @@ public class TwoInputTransformation<IN1, IN2, OUT> extends PhysicalTransformatio
     public boolean isOutputOnlyAfterEndOfStream() {
         return operatorFactory.getOperatorAttributes().isOutputOnlyAfterEndOfStream();
     }
+
+    public boolean isInternalSorterSupported() {
+        return operatorFactory.getOperatorAttributes().isInternalSorterSupported();
+    }
 }

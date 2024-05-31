@@ -94,4 +94,8 @@ public abstract class AbstractMultipleInputTransformation<OUT> extends PhysicalT
     public boolean isOutputOnlyAfterEndOfStream() {
         return operatorFactory.getOperatorAttributes().isOutputOnlyAfterEndOfStream();
     }
+
+    public boolean isInternalSorterSupported() {
+        return operatorFactory.getOperatorAttributes().isInternalSorterSupported();
+    }
 }

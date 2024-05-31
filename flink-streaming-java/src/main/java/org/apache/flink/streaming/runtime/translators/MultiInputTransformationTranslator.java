@@ -132,7 +132,8 @@ public class MultiInputTransformationTranslator<OUT>
 
     private void maybeApplyBatchExecutionSettings(
             final AbstractMultipleInputTransformation<OUT> transformation, final Context context) {
-        if (transformation instanceof KeyedMultipleInputTransformation) {
+        if (transformation instanceof KeyedMultipleInputTransformation
+                && !transformation.isInternalSorterSupported()) {
             KeyedMultipleInputTransformation<OUT> keyedTransformation =
                     (KeyedMultipleInputTransformation<OUT>) transformation;
             List<Transformation<?>> inputs = transformation.getInputs();

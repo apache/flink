@@ -89,8 +89,9 @@ public class TwoInputTransformationTranslator<IN1, IN2, OUT>
                         ? StreamConfig.InputRequirement.SORTED
                         : StreamConfig.InputRequirement.PASS_THROUGH;
 
-        if (input1Requirement == StreamConfig.InputRequirement.SORTED
-                || input2Requirement == StreamConfig.InputRequirement.SORTED) {
+        if ((input1Requirement == StreamConfig.InputRequirement.SORTED
+                        || input2Requirement == StreamConfig.InputRequirement.SORTED)
+                && !transformation.isInternalSorterSupported()) {
             BatchExecutionUtils.applyBatchExecutionSettings(
                     transformation.getId(), context, input1Requirement, input2Requirement);
         }
