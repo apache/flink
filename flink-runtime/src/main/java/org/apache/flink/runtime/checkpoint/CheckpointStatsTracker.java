@@ -146,11 +146,6 @@ public class CheckpointStatsTracker {
         return this;
     }
 
-    @VisibleForTesting
-    Optional<JobInitializationMetricsBuilder> getJobInitializationMetricsBuilder() {
-        return jobInitializationMetricsBuilder;
-    }
-
     /**
      * Creates a new snapshot of the available stats.
      *
