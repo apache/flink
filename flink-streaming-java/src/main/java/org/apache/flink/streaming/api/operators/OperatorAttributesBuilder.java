@@ -23,6 +23,7 @@ import org.apache.flink.annotation.Experimental;
 @Experimental
 public class OperatorAttributesBuilder {
     private boolean outputOnlyAfterEndOfStream = false;
+    private boolean internalSorterSupported = false;
 
     /**
      * Set to true if and only if the operator only emits records after all its inputs have ended.
@@ -34,7 +35,12 @@ public class OperatorAttributesBuilder {
         return this;
     }
 
+    public OperatorAttributesBuilder setInternalSorterSupported(boolean internalSorterSupported) {
+        this.internalSorterSupported = internalSorterSupported;
+        return this;
+    }
+
     public OperatorAttributes build() {
-        return new OperatorAttributes(outputOnlyAfterEndOfStream);
+        return new OperatorAttributes(outputOnlyAfterEndOfStream, internalSorterSupported);
     }
 }

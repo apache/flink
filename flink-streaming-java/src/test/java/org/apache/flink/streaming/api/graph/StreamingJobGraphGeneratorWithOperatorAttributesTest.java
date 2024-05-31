@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -28,10 +29,15 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OperatorAttributes;
 import org.apache.flink.streaming.api.operators.OperatorAttributesBuilder;
 import org.apache.flink.streaming.api.operators.StreamMap;
+import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.co.CoProcessOperator;
+import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransformation;
 import org.apache.flink.util.Collector;
 
 import org.junit.jupiter.api.Test;
@@ -144,6 +150,139 @@ public class StreamingJobGraphGeneratorWithOperatorAttributesTest {
         assertThat(node.getManagedMemoryOperatorScopeUseCaseWeights()).hasSize(weightSize);
     }
 
+    @Test
+    void testOneInputOperatorWithInternalSorterSupported() {
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(new Configuration());
+
+        final DataStream<Integer> source1 = env.fromData(1, 2, 3).name("source1");
+        source1.keyBy(x -> x)
+                .transform(
+                        "internalSorter",
+                        Types.INT,
+                        new StreamOperatorWithConfigurableOperatorAttributes<>(
+                                (MapFunction<Integer, Integer>) value -> value,
+                                new OperatorAttributesBuilder()
+                                        .setOutputOnlyAfterEndOfStream(true)
+                                        .setInternalSorterSupported(true)
+                                        .build()))
+                .keyBy(x -> x)
+                .transform(
+                        "noInternalSorter",
+                        Types.INT,
+                        new StreamOperatorWithConfigurableOperatorAttributes<>(
+                                (MapFunction<Integer, Integer>) value -> value,
+                                new OperatorAttributesBuilder()
+                                        .setOutputOnlyAfterEndOfStream(true)
+                                        .build()))
+                .sinkTo(new DiscardingSink<>())
+                .name("sink");
+
+        final StreamGraph streamGraph = env.getStreamGraph(false);
+        Map<String, StreamNode> nodeMap = new HashMap<>();
+        for (StreamNode node : streamGraph.getStreamNodes()) {
+            nodeMap.put(node.getOperatorName(), node);
+        }
+
+        assertThat(nodeMap.get("internalSorter").getInputRequirements()).isEmpty();
+        assertThat(nodeMap.get("noInternalSorter").getInputRequirements().get(0))
+                .isEqualTo(StreamConfig.InputRequirement.SORTED);
+    }
+
+    @Test
+    void testTwoInputOperatorWithInternalSorterSupported() {
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(new Configuration());
+
+        final DataStream<Integer> source1 = env.fromData(1, 2, 3).name("source1");
+        final DataStream<Integer> source2 = env.fromData(1, 2, 3).name("source2");
+        source1.keyBy(x -> x)
+                .connect(source2.keyBy(x -> x))
+                .transform(
+                        "internalSorter",
+                        Types.INT,
+                        new TwoInputStreamOperatorWithConfigurableOperatorAttributes<>(
+                                new OperatorAttributesBuilder()
+                                        .setOutputOnlyAfterEndOfStream(true)
+                                        .setInternalSorterSupported(true)
+                                        .build()))
+                .keyBy(x -> x)
+                .connect(source2.keyBy(x -> x))
+                .transform(
+                        "noInternalSorter",
+                        Types.INT,
+                        new TwoInputStreamOperatorWithConfigurableOperatorAttributes<>(
+                                new OperatorAttributesBuilder()
+                                        .setOutputOnlyAfterEndOfStream(true)
+                                        .build()))
+                .sinkTo(new DiscardingSink<>())
+                .name("sink");
+
+        final StreamGraph streamGraph = env.getStreamGraph(false);
+        Map<String, StreamNode> nodeMap = new HashMap<>();
+        for (StreamNode node : streamGraph.getStreamNodes()) {
+            nodeMap.put(node.getOperatorName(), node);
+        }
+
+        assertThat(nodeMap.get("internalSorter").getInputRequirements()).isEmpty();
+        assertThat(nodeMap.get("noInternalSorter").getInputRequirements().get(0))
+                .isEqualTo(StreamConfig.InputRequirement.SORTED);
+        assertThat(nodeMap.get("noInternalSorter").getInputRequirements().get(1))
+                .isEqualTo(StreamConfig.InputRequirement.SORTED);
+    }
+
+    @Test
+    void testMultipleInputOperatorWithInternalSorterSupported() {
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(new Configuration());
+
+        final DataStream<Integer> source1 = env.fromData(1, 2, 3).name("source1");
+        final DataStream<Integer> source2 = env.fromData(1, 2, 3).name("source2");
+
+        KeyedMultipleInputTransformation<Integer> transform =
+                new KeyedMultipleInputTransformation<>(
+                        "internalSorter",
+                        new OperatorAttributesConfigurableOperatorFactory<>(
+                                new OperatorAttributesBuilder()
+                                        .setOutputOnlyAfterEndOfStream(true)
+                                        .setInternalSorterSupported(true)
+                                        .build()),
+                        BasicTypeInfo.INT_TYPE_INFO,
+                        3,
+                        BasicTypeInfo.INT_TYPE_INFO);
+
+        transform.addInput(source1.keyBy(x -> x).getTransformation(), x -> x);
+        transform.addInput(source2.getTransformation(), null);
+
+        KeyedMultipleInputTransformation<Integer> transform2 =
+                new KeyedMultipleInputTransformation<>(
+                        "noInternalSorter",
+                        new OperatorAttributesConfigurableOperatorFactory<>(
+                                new OperatorAttributesBuilder()
+                                        .setOutputOnlyAfterEndOfStream(true)
+                                        .build()),
+                        BasicTypeInfo.INT_TYPE_INFO,
+                        3,
+                        BasicTypeInfo.INT_TYPE_INFO);
+
+        transform2.addInput(transform, null);
+        transform2.addInput(source2.keyBy(x -> x).getTransformation(), x -> x);
+
+        new DataStream<>(env, transform2).sinkTo(new DiscardingSink<>());
+
+        final StreamGraph streamGraph = env.getStreamGraph(false);
+        Map<String, StreamNode> nodeMap = new HashMap<>();
+        for (StreamNode node : streamGraph.getStreamNodes()) {
+            nodeMap.put(node.getOperatorName(), node);
+        }
+
+        assertThat(nodeMap.get("internalSorter").getInputRequirements()).isEmpty();
+        assertThat(nodeMap.get("noInternalSorter").getInputRequirements().get(0))
+                .isEqualTo(StreamConfig.InputRequirement.PASS_THROUGH);
+        assertThat(nodeMap.get("noInternalSorter").getInputRequirements().get(1))
+                .isEqualTo(StreamConfig.InputRequirement.SORTED);
+    }
+
     private static class StreamOperatorWithConfigurableOperatorAttributes<IN, OUT>
             extends StreamMap<IN, OUT> {
         private final OperatorAttributes attributes;
@@ -173,6 +312,41 @@ public class StreamingJobGraphGeneratorWithOperatorAttributesTest {
         @Override
         public OperatorAttributes getOperatorAttributes() {
             return attributes;
+        }
+    }
+
+    private static class OperatorAttributesConfigurableOperatorFactory<OUT>
+            implements StreamOperatorFactory<OUT> {
+
+        private final OperatorAttributes operatorAttributes;
+
+        public OperatorAttributesConfigurableOperatorFactory(
+                OperatorAttributes operatorAttributes) {
+            this.operatorAttributes = operatorAttributes;
+        }
+
+        @Override
+        public <T extends StreamOperator<OUT>> T createStreamOperator(
+                StreamOperatorParameters<OUT> parameters) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void setChainingStrategy(ChainingStrategy strategy) {}
+
+        @Override
+        public ChainingStrategy getChainingStrategy() {
+            return ChainingStrategy.DEFAULT_CHAINING_STRATEGY;
+        }
+
+        @Override
+        public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+            return StreamMap.class;
+        }
+
+        @Override
+        public OperatorAttributes getOperatorAttributes() {
+            return operatorAttributes;
         }
     }
 
