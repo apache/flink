@@ -36,7 +36,7 @@ public class CreatePeriodicRefreshWorkflow implements CreateRefreshWorkflow {
     private final ObjectIdentifier materializedTableIdentifier;
     private final String descriptionStatement;
     private final String cronExpression;
-    private final @Nullable Map<String, String> dynamicOptions;
+    private final @Nullable Map<String, String> initConfig;
     private final @Nullable Map<String, String> executionConfig;
 
     // The SQL Gateway rest endpoint url that used for execute refresh operation
@@ -46,13 +46,13 @@ public class CreatePeriodicRefreshWorkflow implements CreateRefreshWorkflow {
             ObjectIdentifier materializedTableIdentifier,
             String descriptionStatement,
             String cronExpression,
-            Map<String, String> dynamicOptions,
+            Map<String, String> initConfig,
             Map<String, String> executionConfig,
             String restEndpointUrl) {
         this.materializedTableIdentifier = materializedTableIdentifier;
         this.descriptionStatement = descriptionStatement;
         this.cronExpression = cronExpression;
-        this.dynamicOptions = dynamicOptions;
+        this.initConfig = initConfig;
         this.executionConfig = executionConfig;
         this.restEndpointUrl = restEndpointUrl;
     }
@@ -70,8 +70,8 @@ public class CreatePeriodicRefreshWorkflow implements CreateRefreshWorkflow {
     }
 
     @Nullable
-    public Map<String, String> getDynamicOptions() {
-        return dynamicOptions;
+    public Map<String, String> getInitConfig() {
+        return initConfig;
     }
 
     @Nullable
