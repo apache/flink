@@ -27,15 +27,12 @@ import org.apache.flink.table.gateway.rest.header.materializedtable.RefreshMater
 import org.apache.flink.table.gateway.rest.message.materializedtable.RefreshMaterializedTableParameters;
 import org.apache.flink.table.gateway.rest.message.materializedtable.RefreshMaterializedTableRequestBody;
 import org.apache.flink.table.gateway.rest.message.materializedtable.RefreshMaterializedTableResponseBody;
-import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
 import org.apache.flink.table.gateway.rest.util.TestingRestClient;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -56,11 +53,6 @@ public class SqlGatewayRestEndpointMaterializedTableITCase
         extends AbstractMaterializedTableStatementITCase {
 
     private static TestingRestClient restClient;
-
-    @RegisterExtension
-    @Order(4)
-    private static final SqlGatewayRestEndpointExtension SQL_GATEWAY_REST_ENDPOINT_EXTENSION =
-            new SqlGatewayRestEndpointExtension(SQL_GATEWAY_SERVICE_EXTENSION::getService);
 
     @BeforeAll
     static void setup() throws Exception {

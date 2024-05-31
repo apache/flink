@@ -82,6 +82,10 @@ public class Session implements Closeable {
         return sessionContext.getPlanCacheManager();
     }
 
+    public void open() {
+        sessionContext.open();
+    }
+
     @Override
     public void close() {
         sessionContext.close();

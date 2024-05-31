@@ -65,7 +65,6 @@ import org.apache.flink.table.gateway.api.results.FunctionInfo;
 import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.environment.SqlGatewayStreamExecutionEnvironment;
 import org.apache.flink.table.gateway.service.context.SessionContext;
-import org.apache.flink.table.gateway.service.materializedtable.MaterializedTableManager;
 import org.apache.flink.table.gateway.service.result.ResultFetcher;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.module.ModuleManager;
@@ -514,8 +513,11 @@ public class OperationExecutor {
                 || op instanceof ShowFunctionsOperation) {
             return callExecutableOperation(handle, (ExecutableOperation) op);
         } else if (op instanceof MaterializedTableOperation) {
-            return MaterializedTableManager.callMaterializedTableOperation(
-                    this, handle, (MaterializedTableOperation) op, statement);
+            return sessionContext
+                    .getSessionState()
+                    .materializedTableManager
+                    .callMaterializedTableOperation(
+                            this, handle, (MaterializedTableOperation) op, statement);
         } else {
             return callOperation(tableEnv, handle, op);
         }
@@ -546,14 +548,17 @@ public class OperationExecutor {
                 tEnv.getParser().parseIdentifier(materializedTableIdentifier);
         ObjectIdentifier objectIdentifier =
                 tEnv.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
-        return MaterializedTableManager.refreshMaterializedTable(
-                this,
-                handle,
-                objectIdentifier,
-                staticPartitions,
-                dynamicOptions,
-                isPeriodic,
-                scheduleTime);
+        return sessionContext
+                .getSessionState()
+                .materializedTableManager
+                .refreshMaterializedTable(
+                        this,
+                        handle,
+                        objectIdentifier,
+                        staticPartitions,
+                        dynamicOptions,
+                        isPeriodic,
+                        scheduleTime);
     }
 
     private TableConfig tableConfig() {
