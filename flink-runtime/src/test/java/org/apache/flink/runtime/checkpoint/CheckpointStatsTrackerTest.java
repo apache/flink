@@ -18,14 +18,14 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.metrics.Gauge;
-import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.traces.Span;
@@ -39,7 +39,9 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -66,7 +68,8 @@ class CheckpointStatsTrackerTest {
         ExecutionJobVertex jobVertex = graph.getJobVertex(jobVertexID);
 
         CheckpointStatsTracker tracker =
-                new CheckpointStatsTracker(0, new UnregisteredMetricsGroup(), new JobID());
+                new CheckpointStatsTracker(
+                        0, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
         PendingCheckpointStats pending =
                 tracker.reportPendingCheckpoint(
@@ -114,7 +117,8 @@ class CheckpointStatsTrackerTest {
                 singletonMap(jobVertexID, jobVertex.getParallelism());
 
         CheckpointStatsTracker tracker =
-                new CheckpointStatsTracker(10, new UnregisteredMetricsGroup(), new JobID());
+                new CheckpointStatsTracker(
+                        10, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
         // Completed checkpoint
         PendingCheckpointStats completed1 =
@@ -173,7 +177,7 @@ class CheckpointStatsTrackerTest {
                         123,
                         null,
                         42);
-        tracker.reportInitializationStartTs(123);
+        tracker.reportInitializationStarted(Collections.emptySet(), 123L);
         tracker.reportRestoredCheckpoint(restored);
 
         CheckpointStatsSnapshot snapshot = tracker.createSnapshot();
@@ -240,7 +244,8 @@ class CheckpointStatsTrackerTest {
     void testCreateSnapshot() {
         JobVertexID jobVertexID = new JobVertexID();
         CheckpointStatsTracker tracker =
-                new CheckpointStatsTracker(10, new UnregisteredMetricsGroup(), new JobID());
+                new CheckpointStatsTracker(
+                        10, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
         CheckpointStatsSnapshot snapshot1 = tracker.createSnapshot();
 
@@ -267,7 +272,7 @@ class CheckpointStatsTrackerTest {
         assertThat(snapshot3).isNotEqualTo(snapshot2);
 
         // Restore operation => new snapshot
-        tracker.reportInitializationStartTs(0);
+        tracker.reportInitializationStarted(Collections.emptySet(), 0);
         tracker.reportRestoredCheckpoint(
                 new RestoredCheckpointStats(
                         12,
@@ -287,15 +292,16 @@ class CheckpointStatsTrackerTest {
         JobVertexID jobVertexID = new JobVertexID();
         final List<Span> reportedSpans = new ArrayList<>();
 
-        MetricGroup metricGroup =
-                new UnregisteredMetricsGroup() {
+        JobManagerJobMetricGroup metricGroup =
+                new UnregisteredMetricGroups.UnregisteredJobManagerJobMetricGroup() {
+
                     @Override
                     public void addSpan(SpanBuilder spanBuilder) {
                         reportedSpans.add(spanBuilder.build());
                     }
                 };
 
-        CheckpointStatsTracker tracker = new CheckpointStatsTracker(10, metricGroup, new JobID());
+        CheckpointStatsTracker tracker = new CheckpointStatsTracker(10, metricGroup);
 
         PendingCheckpointStats pending =
                 tracker.reportPendingCheckpoint(
@@ -322,18 +328,21 @@ class CheckpointStatsTrackerTest {
     public void testInitializationSpanCreation() throws Exception {
         final List<Span> reportedSpans = new ArrayList<>();
 
-        MetricGroup metricGroup =
-                new UnregisteredMetricsGroup() {
+        JobManagerJobMetricGroup metricGroup =
+                new UnregisteredMetricGroups.UnregisteredJobManagerJobMetricGroup() {
+
                     @Override
                     public void addSpan(SpanBuilder spanBuilder) {
                         reportedSpans.add(spanBuilder.build());
                     }
                 };
 
-        CheckpointStatsTracker tracker =
-                new CheckpointStatsTracker(10, metricGroup, new JobID(), 2);
+        CheckpointStatsTracker tracker = new CheckpointStatsTracker(10, metricGroup);
 
-        tracker.reportInitializationStartTs(100);
+        final ExecutionAttemptID executionAttemptId3 = ExecutionAttemptID.randomId();
+        final ExecutionAttemptID executionAttemptId2 = ExecutionAttemptID.randomId();
+        tracker.reportInitializationStarted(
+                new HashSet<>(Arrays.asList(executionAttemptId3, executionAttemptId2)), 100);
         tracker.reportRestoredCheckpoint(
                 new RestoredCheckpointStats(
                         42,
@@ -350,7 +359,8 @@ class CheckpointStatsTrackerTest {
         subTaskInitializationMetricsBuilder3.addDurationMetric("ReadOutputDataDurationMs", 20);
         subTaskInitializationMetricsBuilder3.addDurationMetric("InitializeStateDurationMs", 30);
         subTaskInitializationMetricsBuilder3.addDurationMetric("GateRestoreDurationMs", 40);
-        tracker.reportInitializationMetrics(subTaskInitializationMetricsBuilder3.build(215));
+        tracker.reportInitializationMetrics(
+                executionAttemptId3, subTaskInitializationMetricsBuilder3.build(215));
         assertThat(reportedSpans).isEmpty();
 
         SubTaskInitializationMetricsBuilder subTaskInitializationMetricsBuilder2 =
@@ -360,7 +370,8 @@ class CheckpointStatsTrackerTest {
         subTaskInitializationMetricsBuilder2.addDurationMetric("ReadOutputDataDurationMs", 20);
         subTaskInitializationMetricsBuilder2.addDurationMetric("InitializeStateDurationMs", 30);
         subTaskInitializationMetricsBuilder2.addDurationMetric("GateRestoreDurationMs", 40);
-        tracker.reportInitializationMetrics(subTaskInitializationMetricsBuilder2.build(215));
+        tracker.reportInitializationMetrics(
+                executionAttemptId2, subTaskInitializationMetricsBuilder2.build(215));
 
         assertThat(reportedSpans.size()).isEqualTo(1);
         Span reportedSpan = Iterables.getOnlyElement(reportedSpans);
@@ -372,7 +383,10 @@ class CheckpointStatsTrackerTest {
         // simulate another failover with the same instance
         reportedSpans.clear();
 
-        tracker.reportInitializationStartTs(100);
+        final ExecutionAttemptID executionAttemptId1 = ExecutionAttemptID.randomId();
+        final ExecutionAttemptID executionAttemptId = ExecutionAttemptID.randomId();
+        tracker.reportInitializationStarted(
+                new HashSet<>(Arrays.asList(executionAttemptId1, executionAttemptId)), 100);
         tracker.reportRestoredCheckpoint(
                 new RestoredCheckpointStats(
                         44,
@@ -389,7 +403,8 @@ class CheckpointStatsTrackerTest {
         subTaskInitializationMetricsBuilder1.addDurationMetric("ReadOutputDataDurationMs", 20);
         subTaskInitializationMetricsBuilder1.addDurationMetric("InitializeStateDurationMs", 30);
         subTaskInitializationMetricsBuilder1.addDurationMetric("GateRestoreDurationMs", 40);
-        tracker.reportInitializationMetrics(subTaskInitializationMetricsBuilder1.build(215));
+        tracker.reportInitializationMetrics(
+                executionAttemptId1, subTaskInitializationMetricsBuilder1.build(215));
         assertThat(reportedSpans).isEmpty();
 
         SubTaskInitializationMetricsBuilder subTaskInitializationMetricsBuilder =
@@ -399,7 +414,8 @@ class CheckpointStatsTrackerTest {
         subTaskInitializationMetricsBuilder.addDurationMetric("ReadOutputDataDurationMs", 20);
         subTaskInitializationMetricsBuilder.addDurationMetric("InitializeStateDurationMs", 30);
         subTaskInitializationMetricsBuilder.addDurationMetric("GateRestoreDurationMs", 40);
-        tracker.reportInitializationMetrics(subTaskInitializationMetricsBuilder.build(215));
+        tracker.reportInitializationMetrics(
+                executionAttemptId, subTaskInitializationMetricsBuilder.build(215));
 
         assertThat(reportedSpans.size()).isEqualTo(1);
         reportedSpan = Iterables.getOnlyElement(reportedSpans);
@@ -411,8 +427,8 @@ class CheckpointStatsTrackerTest {
     void testMetricsRegistration() {
         final Collection<String> registeredGaugeNames = new ArrayList<>();
 
-        MetricGroup metricGroup =
-                new UnregisteredMetricsGroup() {
+        JobManagerJobMetricGroup metricGroup =
+                new UnregisteredMetricGroups.UnregisteredJobManagerJobMetricGroup() {
                     @Override
                     public <T, G extends Gauge<T>> G gauge(String name, G gauge) {
                         if (gauge != null) {
@@ -422,7 +438,7 @@ class CheckpointStatsTrackerTest {
                     }
                 };
 
-        new CheckpointStatsTracker(0, metricGroup, new JobID());
+        new CheckpointStatsTracker(0, metricGroup);
 
         // Make sure this test is adjusted when further metrics are added
         assertThat(registeredGaugeNames)
@@ -454,9 +470,8 @@ class CheckpointStatsTrackerTest {
     @SuppressWarnings("unchecked")
     void testMetricsAreUpdated() throws Exception {
         final Map<String, Gauge<?>> registeredGauges = new HashMap<>();
-
-        MetricGroup metricGroup =
-                new UnregisteredMetricsGroup() {
+        JobManagerJobMetricGroup metricGroup =
+                new UnregisteredMetricGroups.UnregisteredJobManagerJobMetricGroup() {
                     @Override
                     public <T, G extends Gauge<T>> G gauge(String name, G gauge) {
                         registeredGauges.put(name, gauge);
@@ -469,9 +484,8 @@ class CheckpointStatsTrackerTest {
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                         .addJobVertex(jobVertexID)
                         .build(EXECUTOR_RESOURCE.getExecutor());
-        ExecutionJobVertex jobVertex = graph.getJobVertex(jobVertexID);
 
-        CheckpointStatsTracker stats = new CheckpointStatsTracker(0, metricGroup, new JobID());
+        CheckpointStatsTracker stats = new CheckpointStatsTracker(0, metricGroup);
 
         // Make sure to adjust this test if metrics are added/removed
         assertThat(registeredGauges).hasSize(12);
@@ -626,7 +640,7 @@ class CheckpointStatsTrackerTest {
                         restoreTimestamp,
                         null,
                         42);
-        stats.reportInitializationStartTs(restoreTimestamp);
+        stats.reportInitializationStarted(Collections.emptySet(), restoreTimestamp);
         stats.reportRestoredCheckpoint(restored);
 
         assertThat(numCheckpoints.getValue()).isEqualTo(2);

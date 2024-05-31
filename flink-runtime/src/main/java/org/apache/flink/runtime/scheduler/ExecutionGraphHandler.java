@@ -78,7 +78,9 @@ public class ExecutionGraphHandler {
                 coordinator -> coordinator.reportCheckpointMetrics(id, attemptId, metrics));
     }
 
-    public void reportInitializationMetrics(SubTaskInitializationMetrics initializationMetrics) {
+    public void reportInitializationMetrics(
+            ExecutionAttemptID executionAttemptId,
+            SubTaskInitializationMetrics initializationMetrics) {
         if (executionGraph.getCheckpointStatsTracker() == null) {
             // TODO: Consider to support reporting initialization stats without checkpointing
             log.debug(
@@ -90,7 +92,8 @@ public class ExecutionGraphHandler {
                     try {
                         executionGraph
                                 .getCheckpointStatsTracker()
-                                .reportInitializationMetrics(initializationMetrics);
+                                .reportInitializationMetrics(
+                                        executionAttemptId, initializationMetrics);
                     } catch (Exception t) {
                         log.warn("Error while reportInitializationMetrics", t);
                     }

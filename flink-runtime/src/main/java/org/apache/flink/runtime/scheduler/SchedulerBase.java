@@ -1012,8 +1012,11 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
     @Override
     public void reportInitializationMetrics(
-            JobID jobId, SubTaskInitializationMetrics initializationMetrics) {
-        executionGraphHandler.reportInitializationMetrics(initializationMetrics);
+            JobID jobId,
+            ExecutionAttemptID executionAttemptId,
+            SubTaskInitializationMetrics initializationMetrics) {
+        executionGraphHandler.reportInitializationMetrics(
+                executionAttemptId, initializationMetrics);
     }
 
     @Override

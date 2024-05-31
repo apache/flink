@@ -101,5 +101,7 @@ public class CompletingCheckpointResponder implements CheckpointResponder {
 
     @Override
     public void reportInitializationMetrics(
-            JobID jobId, SubTaskInitializationMetrics initializationMetrics) {}
+            JobID jobId,
+            ExecutionAttemptID executionAttemptID,
+            SubTaskInitializationMetrics initializationMetrics) {}
 }

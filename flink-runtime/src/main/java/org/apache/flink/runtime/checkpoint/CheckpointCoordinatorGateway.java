@@ -45,5 +45,7 @@ public interface CheckpointCoordinatorGateway extends RpcGateway {
             CheckpointMetrics checkpointMetrics);
 
     void reportInitializationMetrics(
-            JobID jobId, SubTaskInitializationMetrics initializationMetrics);
+            JobID jobId,
+            ExecutionAttemptID executionAttemptId,
+            SubTaskInitializationMetrics initializationMetrics);
 }
