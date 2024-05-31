@@ -67,7 +67,7 @@ public class CreatingExecutionGraph extends StateWithoutExecutionGraph {
                     executionGraphWithParallelismFuture,
             Logger logger,
             OperatorCoordinatorHandlerFactory operatorCoordinatorFactory,
-            ExecutionGraph previousExecutionGraph1) {
+            @Nullable ExecutionGraph previousExecutionGraph) {
         super(context, logger);
         this.context = context;
         this.operatorCoordinatorHandlerFactory = operatorCoordinatorFactory;
@@ -83,7 +83,7 @@ public class CreatingExecutionGraph extends StateWithoutExecutionGraph {
                                     Duration.ZERO);
                             return null;
                         }));
-        previousExecutionGraph = previousExecutionGraph1;
+        this.previousExecutionGraph = previousExecutionGraph;
     }
 
     private void handleExecutionGraphCreation(
