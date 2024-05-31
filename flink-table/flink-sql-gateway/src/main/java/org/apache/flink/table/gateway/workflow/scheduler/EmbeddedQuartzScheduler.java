@@ -19,8 +19,34 @@
 package org.apache.flink.table.gateway.workflow.scheduler;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.rest.RestClient;
+import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.SqlGateway;
+import org.apache.flink.table.gateway.api.operation.OperationHandle;
+import org.apache.flink.table.gateway.api.session.SessionHandle;
+import org.apache.flink.table.gateway.rest.header.materializedtable.RefreshMaterializedTableHeaders;
+import org.apache.flink.table.gateway.rest.header.operation.CloseOperationHeaders;
+import org.apache.flink.table.gateway.rest.header.session.CloseSessionHeaders;
+import org.apache.flink.table.gateway.rest.header.session.OpenSessionHeaders;
+import org.apache.flink.table.gateway.rest.header.statement.FetchResultsHeaders;
+import org.apache.flink.table.gateway.rest.message.materializedtable.RefreshMaterializedTableParameters;
+import org.apache.flink.table.gateway.rest.message.materializedtable.RefreshMaterializedTableRequestBody;
+import org.apache.flink.table.gateway.rest.message.materializedtable.RefreshMaterializedTableResponseBody;
+import org.apache.flink.table.gateway.rest.message.operation.OperationMessageParameters;
+import org.apache.flink.table.gateway.rest.message.session.OpenSessionRequestBody;
+import org.apache.flink.table.gateway.rest.message.session.OpenSessionResponseBody;
+import org.apache.flink.table.gateway.rest.message.session.SessionMessageParameters;
+import org.apache.flink.table.gateway.rest.message.statement.FetchResultsMessageParameters;
+import org.apache.flink.table.gateway.rest.message.statement.FetchResultsResponseBody;
+import org.apache.flink.table.gateway.rest.message.statement.NotReadyFetchResultResponse;
+import org.apache.flink.table.gateway.rest.util.RowFormat;
+import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointUtils;
 import org.apache.flink.table.gateway.workflow.WorkflowInfo;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.quartz.CronTrigger;
 import org.quartz.Job;
@@ -36,11 +62,19 @@ import org.quartz.impl.StdSchedulerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static org.apache.flink.table.gateway.workflow.scheduler.QuartzSchedulerUtils.WORKFLOW_INFO;
+import static org.apache.flink.table.gateway.workflow.scheduler.QuartzSchedulerUtils.dateToString;
 import static org.apache.flink.table.gateway.workflow.scheduler.QuartzSchedulerUtils.fromJson;
 import static org.apache.flink.table.gateway.workflow.scheduler.QuartzSchedulerUtils.getJobKey;
 import static org.apache.flink.table.gateway.workflow.scheduler.QuartzSchedulerUtils.initializeQuartzSchedulerConfig;
@@ -214,16 +248,218 @@ public class EmbeddedQuartzScheduler {
         }
     }
 
+    @VisibleForTesting
+    public Scheduler getQuartzScheduler() {
+        return quartzScheduler;
+    }
+
     /** The {@link Job} implementation for embedded quartz scheduler. */
-    private class EmbeddedSchedulerJob implements Job {
+    public static class EmbeddedSchedulerJob implements Job {
 
         @Override
         public void execute(JobExecutionContext context) throws JobExecutionException {
-            JobDataMap dataMap = context.getJobDetail().getJobDataMap();
-            String workflowJsonStr = dataMap.getString(WORKFLOW_INFO);
-            WorkflowInfo workflowInfo = fromJson(workflowJsonStr, WorkflowInfo.class);
-            // TODO: implement the refresh operation for materialized table, see FLINK-35348
-            LOG.info("Execute refresh operation for workflow: {}.", workflowInfo);
+
+            SessionHandle sessionHandle = null;
+            OperationHandle operationHandle = null;
+            SqlGatewayRestClient gatewayRestClient = null;
+            try {
+                JobDataMap dataMap = context.getJobDetail().getJobDataMap();
+                String workflowJsonStr = dataMap.getString(WORKFLOW_INFO);
+                WorkflowInfo workflowInfo = fromJson(workflowJsonStr, WorkflowInfo.class);
+                LOG.info("Execute refresh operation for workflow: {}.", workflowInfo);
+
+                String schedulerTime = dateToString(context.getScheduledFireTime());
+
+                gatewayRestClient = new SqlGatewayRestClient(workflowInfo.getRestEndpointUrl());
+                sessionHandle =
+                        gatewayRestClient.openSession(
+                                String.format(
+                                        "%s-quartz-refresh-session-%s",
+                                        workflowInfo.getMaterializedTableIdentifier(),
+                                        schedulerTime),
+                                workflowInfo.getInitConfig());
+                operationHandle =
+                        gatewayRestClient.refreshMaterializedTable(
+                                sessionHandle,
+                                workflowInfo.getMaterializedTableIdentifier(),
+                                schedulerTime,
+                                workflowInfo.getDynamicOptions(),
+                                Collections.emptyMap(),
+                                workflowInfo.getExecutionConfig());
+
+                List<RowData> results =
+                        gatewayRestClient.fetchOperationAllResults(sessionHandle, operationHandle);
+
+                String jobId = results.get(0).getString(0).toString();
+                LOG.info(
+                        "Successfully execute refresh operation for materialized table: {} with job id: {}.",
+                        workflowInfo.getMaterializedTableIdentifier(),
+                        jobId);
+
+                context.setResult(
+                        "Successfully execute refresh operation for materialized table: "
+                                + workflowInfo.getMaterializedTableIdentifier()
+                                + " with job id: "
+                                + jobId);
+                // TODO wait for the job to finish
+            } catch (Exception e) {
+                LOG.error("Failed to execute refresh operation for workflow.", e);
+                throw new JobExecutionException(e.getMessage(), e);
+            } finally {
+                try {
+                    if (gatewayRestClient != null) {
+                        if (operationHandle != null) {
+                            gatewayRestClient.closeOperation(sessionHandle, operationHandle);
+                        }
+                        if (sessionHandle != null) {
+                            gatewayRestClient.closeSession(sessionHandle);
+                        }
+                        gatewayRestClient.close();
+                    }
+                } catch (Exception e) {
+                    LOG.error("Failed to close session.", e);
+                }
+            }
+        }
+
+        /** A simple rest client for gateway rest endpoint. */
+        private static class SqlGatewayRestClient implements AutoCloseable {
+
+            private final String address;
+            private final int port;
+            private final RestClient restClient;
+
+            private SqlGatewayRestClient(String endpointUrl) throws Exception {
+                URL url = new URL(endpointUrl);
+                this.address = url.getHost();
+                this.port = url.getPort();
+                this.restClient =
+                        RestClient.forUrl(new Configuration(), Executors.directExecutor(), url);
+            }
+
+            private SessionHandle openSession(String sessionName, Map<String, String> initConfig)
+                    throws Exception {
+                OpenSessionRequestBody requestBody =
+                        new OpenSessionRequestBody(sessionName, initConfig);
+                OpenSessionHeaders headers = OpenSessionHeaders.getInstance();
+
+                OpenSessionResponseBody responseBody =
+                        restClient
+                                .sendRequest(
+                                        address,
+                                        port,
+                                        headers,
+                                        EmptyMessageParameters.getInstance(),
+                                        requestBody)
+                                .get();
+
+                return new SessionHandle(UUID.fromString(responseBody.getSessionHandle()));
+            }
+
+            private void closeSession(SessionHandle sessionHandle) throws Exception {
+                // Close session
+                CloseSessionHeaders closeSessionHeaders = CloseSessionHeaders.getInstance();
+                SessionMessageParameters sessionMessageParameters =
+                        new SessionMessageParameters(sessionHandle);
+                restClient
+                        .sendRequest(
+                                address,
+                                port,
+                                closeSessionHeaders,
+                                sessionMessageParameters,
+                                EmptyRequestBody.getInstance())
+                        .get();
+            }
+
+            private void closeOperation(
+                    SessionHandle sessionHandle, OperationHandle operationHandle) throws Exception {
+                // Close operation
+                CloseOperationHeaders closeOperationHeaders = CloseOperationHeaders.getInstance();
+                OperationMessageParameters operationMessageParameters =
+                        new OperationMessageParameters(sessionHandle, operationHandle);
+                restClient
+                        .sendRequest(
+                                address,
+                                port,
+                                closeOperationHeaders,
+                                operationMessageParameters,
+                                EmptyRequestBody.getInstance())
+                        .get();
+            }
+
+            private OperationHandle refreshMaterializedTable(
+                    SessionHandle sessionHandle,
+                    String materializedTableIdentifier,
+                    String schedulerTime,
+                    Map<String, String> dynamicOptions,
+                    Map<String, String> staticPartitions,
+                    Map<String, String> executionConfig)
+                    throws Exception {
+
+                RefreshMaterializedTableRequestBody requestBody =
+                        new RefreshMaterializedTableRequestBody(
+                                true,
+                                schedulerTime,
+                                dynamicOptions,
+                                staticPartitions,
+                                executionConfig);
+                RefreshMaterializedTableHeaders headers =
+                        RefreshMaterializedTableHeaders.getInstance();
+                RefreshMaterializedTableParameters parameters =
+                        new RefreshMaterializedTableParameters(
+                                sessionHandle, materializedTableIdentifier);
+
+                RefreshMaterializedTableResponseBody responseBody =
+                        restClient
+                                .sendRequest(address, port, headers, parameters, requestBody)
+                                .get();
+
+                return new OperationHandle(UUID.fromString(responseBody.getOperationHandle()));
+            }
+
+            private List<RowData> fetchOperationAllResults(
+                    SessionHandle sessionHandle, OperationHandle operationHandle) throws Exception {
+                Long token = 0L;
+                List<RowData> results = new ArrayList<>();
+                while (token != null) {
+                    FetchResultsResponseBody responseBody =
+                            fetchOperationResults(sessionHandle, operationHandle, token);
+                    if (responseBody instanceof NotReadyFetchResultResponse) {
+                        Thread.sleep(10);
+                        continue;
+                    }
+                    responseBody.getNextResultUri();
+                    results.addAll(responseBody.getResults().getData());
+                    token = SqlGatewayRestEndpointUtils.parseToken(responseBody.getNextResultUri());
+                }
+                return results;
+            }
+
+            private FetchResultsResponseBody fetchOperationResults(
+                    SessionHandle sessionHandle, OperationHandle operationHandle, Long token)
+                    throws Exception {
+                FetchResultsMessageParameters fetchResultsMessageParameters =
+                        new FetchResultsMessageParameters(
+                                sessionHandle, operationHandle, token, RowFormat.JSON);
+                FetchResultsHeaders fetchResultsHeaders = FetchResultsHeaders.getDefaultInstance();
+                CompletableFuture<FetchResultsResponseBody> response =
+                        restClient.sendRequest(
+                                address,
+                                port,
+                                fetchResultsHeaders,
+                                fetchResultsMessageParameters,
+                                EmptyRequestBody.getInstance());
+                return response.get();
+            }
+
+            @Override
+            public void close() {
+                try {
+                    restClient.close();
+                } catch (Exception e) {
+                    LOG.error("Failed to close rest client.", e);
+                }
+            }
         }
     }
 }

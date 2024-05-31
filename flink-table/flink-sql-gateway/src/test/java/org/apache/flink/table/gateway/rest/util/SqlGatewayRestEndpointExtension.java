@@ -61,6 +61,10 @@ public class SqlGatewayRestEndpointExtension implements BeforeAllCallback, After
         return sqlGatewayService;
     }
 
+    public SqlGatewayRestEndpoint getSqlGatewayRestEndpoint() {
+        return sqlGatewayRestEndpoint;
+    }
+
     public SqlGatewayRestEndpointExtension(Supplier<SqlGatewayService> serviceSupplier) {
         this(serviceSupplier, (conf) -> {});
     }

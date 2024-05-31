@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.gateway.rest;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.rest.RestServerEndpoint;
@@ -81,6 +82,11 @@ public class SqlGatewayRestEndpoint extends RestServerEndpoint implements SqlGat
         super(configuration);
         service = sqlGatewayService;
         quartzScheduler = new EmbeddedQuartzScheduler();
+    }
+
+    @VisibleForTesting
+    public EmbeddedQuartzScheduler getQuartzScheduler() {
+        return quartzScheduler;
     }
 
     @Override

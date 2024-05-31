@@ -29,12 +29,14 @@ import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
+import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.results.TableInfo;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.MockedEndpointVersion;
+import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
 import org.apache.flink.table.gateway.service.SqlGatewayServiceImpl;
 import org.apache.flink.table.gateway.service.utils.IgnoreExceptionHandler;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
@@ -67,6 +69,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.catalog.CommonCatalogOptions.TABLE_CATALOG_STORE_KIND;
+import static org.apache.flink.table.factories.FactoryUtil.WORKFLOW_SCHEDULER_TYPE;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.awaitOperationTermination;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.fetchAllResults;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -103,6 +106,11 @@ public abstract class AbstractMaterializedTableStatementITCase {
                                             "SqlGatewayService Test Pool",
                                             IgnoreExceptionHandler.INSTANCE)));
 
+    @RegisterExtension
+    @Order(4)
+    protected static final SqlGatewayRestEndpointExtension SQL_GATEWAY_REST_ENDPOINT_EXTENSION =
+            new SqlGatewayRestEndpointExtension(SQL_GATEWAY_SERVICE_EXTENSION::getService);
+
     protected static SqlGatewayServiceImpl service;
     private static SessionEnvironment defaultSessionEnvironment;
     private static Path baseCatalogPath;
@@ -129,9 +137,26 @@ public abstract class AbstractMaterializedTableStatementITCase {
         baseCatalogPath = temporaryFolder.resolve(TEST_CATALOG_PREFIX);
         Files.createDirectory(baseCatalogPath);
 
+        // workflow scheduler config
+        Map<String, String> workflowSchedulerConfig = new HashMap<>();
+        workflowSchedulerConfig.put(WORKFLOW_SCHEDULER_TYPE.key(), "embedded");
+        workflowSchedulerConfig.put(
+                "sql-gateway.endpoint.rest.address",
+                SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress());
+        workflowSchedulerConfig.put(
+                "sql-gateway.endpoint.rest.port",
+                String.valueOf(SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort()));
+
+        // Session conf for testing purpose
+        Map<String, String> testConf = new HashMap<>();
+        testConf.put("k1", "v1");
+        testConf.put("k2", "v2");
+
         defaultSessionEnvironment =
                 SessionEnvironment.newBuilder()
                         .addSessionConfig(catalogStoreOptions)
+                        .addSessionConfig(workflowSchedulerConfig)
+                        .addSessionConfig(testConf)
                         .setSessionEndpointVersion(MockedEndpointVersion.V1)
                         .build();
     }
@@ -169,14 +194,20 @@ public abstract class AbstractMaterializedTableStatementITCase {
             ResolvedCatalogBaseTable<?> resolvedTable =
                     service.getTable(sessionHandle, tableInfo.getIdentifier());
             if (CatalogBaseTable.TableKind.MATERIALIZED_TABLE == resolvedTable.getTableKind()) {
-                String dropTableDDL =
-                        String.format(
-                                "DROP MATERIALIZED TABLE %s",
-                                tableInfo.getIdentifier().asSerializableString());
-                OperationHandle dropTableHandle =
-                        service.executeStatement(
-                                sessionHandle, dropTableDDL, -1, new Configuration());
-                awaitOperationTermination(service, sessionHandle, dropTableHandle);
+                ResolvedCatalogMaterializedTable catalogMaterializedTable =
+                        (ResolvedCatalogMaterializedTable) resolvedTable;
+                if (catalogMaterializedTable.getRefreshMode()
+                        == ResolvedCatalogMaterializedTable.RefreshMode.CONTINUOUS) {
+                    // drop materialized table (batch refresh job will be dropped automatically
+                    String dropTableDDL =
+                            String.format(
+                                    "DROP MATERIALIZED TABLE %s",
+                                    tableInfo.getIdentifier().asSerializableString());
+                    OperationHandle dropTableHandle =
+                            service.executeStatement(
+                                    sessionHandle, dropTableDDL, -1, new Configuration());
+                    awaitOperationTermination(service, sessionHandle, dropTableHandle);
+                }
             }
         }
     }

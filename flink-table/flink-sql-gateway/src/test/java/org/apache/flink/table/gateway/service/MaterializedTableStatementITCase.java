@@ -45,6 +45,10 @@ import org.apache.flink.table.gateway.AbstractMaterializedTableStatementITCase;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
+import org.apache.flink.table.gateway.workflow.EmbeddedRefreshHandler;
+import org.apache.flink.table.gateway.workflow.EmbeddedRefreshHandlerSerializer;
+import org.apache.flink.table.gateway.workflow.WorkflowInfo;
+import org.apache.flink.table.gateway.workflow.scheduler.EmbeddedQuartzScheduler;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.refresh.ContinuousRefreshHandler;
 import org.apache.flink.table.refresh.ContinuousRefreshHandlerSerializer;
@@ -52,6 +56,8 @@ import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.quartz.JobDetail;
+import org.quartz.JobKey;
 
 import java.nio.file.Path;
 import java.time.Duration;
@@ -64,8 +70,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.table.api.config.TableConfigOptions.RESOURCES_DOWNLOAD_DIR;
+import static org.apache.flink.table.factories.FactoryUtil.WORKFLOW_SCHEDULER_TYPE;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.awaitOperationTermination;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.fetchAllResults;
+import static org.apache.flink.table.gateway.workflow.scheduler.QuartzSchedulerUtils.WORKFLOW_INFO;
+import static org.apache.flink.table.gateway.workflow.scheduler.QuartzSchedulerUtils.fromJson;
 import static org.apache.flink.test.util.TestUtils.waitUntilAllTasksAreRunning;
 import static org.apache.flink.test.util.TestUtils.waitUntilJobCanceled;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -158,36 +168,106 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
     }
 
     @Test
-    void testCreateMaterializedTableInFullMode() {
+    void testCreateMaterializedTableInFullMode() throws Exception {
+        String dataId = TestValuesTableFactory.registerData(Collections.emptyList());
+        String sourceDdl =
+                String.format(
+                        "CREATE TABLE IF NOT EXISTS my_source (\n"
+                                + "  order_id BIGINT,\n"
+                                + "  user_id BIGINT,\n"
+                                + "  shop_id BIGINT,\n"
+                                + "  order_created_at STRING\n"
+                                + ")\n"
+                                + "WITH (\n"
+                                + "  'connector' = 'values',\n"
+                                + "  'bounded' = 'true',\n"
+                                + "  'data-id' = '%s'\n"
+                                + ")",
+                        dataId);
+
+        OperationHandle sourceHandle =
+                service.executeStatement(sessionHandle, sourceDdl, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, sourceHandle);
+
         String materializedTableDDL =
                 "CREATE MATERIALIZED TABLE users_shops"
                         + " PARTITIONED BY (ds)\n"
                         + " WITH(\n"
+                        + "    'partition.fields.ds.date-formatter' = 'yyyy-MM-dd',\n"
                         + "   'format' = 'debezium-json'\n"
                         + " )\n"
-                        + " FRESHNESS = INTERVAL '1' DAY\n"
+                        + " FRESHNESS = INTERVAL '1' MINUTE\n"
+                        + " REFRESH_MODE = FULL\n"
                         + " AS SELECT \n"
                         + "  user_id,\n"
                         + "  shop_id,\n"
                         + "  ds,\n"
-                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum,\n"
-                        + "  SUM (1) AS pv\n"
+                        + "  COUNT(order_id) AS order_cnt\n"
                         + " FROM (\n"
-                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
+                        + "    SELECT user_id, shop_id, order_created_at AS ds, order_id FROM my_source"
                         + " ) AS tmp\n"
                         + " GROUP BY (user_id, shop_id, ds)";
         OperationHandle materializedTableHandle =
                 service.executeStatement(
                         sessionHandle, materializedTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, materializedTableHandle);
 
-        assertThatThrownBy(
-                        () ->
-                                awaitOperationTermination(
-                                        service, sessionHandle, materializedTableHandle))
-                .rootCause()
-                .isInstanceOf(SqlExecutionException.class)
-                .hasMessage(
-                        "Only support create materialized table in continuous refresh mode currently.");
+        // verify materialized table is created
+        ResolvedCatalogMaterializedTable actualMaterializedTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+
+        // verify refresh mode
+        assertThat(actualMaterializedTable.getRefreshMode())
+                .isEqualTo(CatalogMaterializedTable.RefreshMode.FULL);
+
+        // verify refresh handler
+        byte[] serializedHandler = actualMaterializedTable.getSerializedRefreshHandler();
+        EmbeddedRefreshHandler embeddedRefreshHandler =
+                EmbeddedRefreshHandlerSerializer.INSTANCE.deserialize(
+                        serializedHandler, getClass().getClassLoader());
+        assertThat(embeddedRefreshHandler.getWorkflowName())
+                .isEqualTo(
+                        "quartz_job_"
+                                + ObjectIdentifier.of(
+                                                fileSystemCatalogName,
+                                                TEST_DEFAULT_DATABASE,
+                                                "users_shops")
+                                        .asSerializableString());
+
+        EmbeddedQuartzScheduler embeddedWorkflowScheduler =
+                SQL_GATEWAY_REST_ENDPOINT_EXTENSION
+                        .getSqlGatewayRestEndpoint()
+                        .getQuartzScheduler();
+        JobKey jobKey =
+                new JobKey(
+                        embeddedRefreshHandler.getWorkflowName(),
+                        embeddedRefreshHandler.getWorkflowGroup());
+
+        // verify the job is created
+        assertThat(embeddedWorkflowScheduler.getQuartzScheduler().checkExists(jobKey)).isTrue();
+
+        // verify initialization conf
+        JobDetail jobDetail = embeddedWorkflowScheduler.getQuartzScheduler().getJobDetail(jobKey);
+        String workflowJsonStr = jobDetail.getJobDataMap().getString(WORKFLOW_INFO);
+        WorkflowInfo workflowInfo = fromJson(workflowJsonStr, WorkflowInfo.class);
+        assertThat(workflowInfo.getInitConfig())
+                .containsEntry("k1", "v1")
+                .containsEntry("k2", "v2")
+                .containsKey("sql-gateway.endpoint.rest.address")
+                .containsKey("sql-gateway.endpoint.rest.port")
+                .containsKey("table.catalog-store.kind")
+                .containsKey("table.catalog-store.file.path")
+                .doesNotContainKey(WORKFLOW_SCHEDULER_TYPE.key())
+                .doesNotContainKey(RESOURCES_DOWNLOAD_DIR.key());
+
+        // delete the workflow
+        embeddedWorkflowScheduler.deleteScheduleWorkflow(jobKey.getName(), jobKey.getGroup());
     }
 
     @Test
