@@ -48,14 +48,19 @@ public class QuartzSchedulerUtilsTest {
         dynamicOptions.put("k1", "v1");
         dynamicOptions.put("k2", "v2");
 
+        Map<String, String> initConfig = new HashMap<>();
+        initConfig.put("k3", "v4");
+        initConfig.put("k4", "v5");
+
         Map<String, String> executionConfig = new HashMap<>();
-        executionConfig.put("k3", "v3");
-        executionConfig.put("k4", "v4");
+        executionConfig.put("k5", "v5");
+        executionConfig.put("k6", "v6");
 
         String scheduleTime = "2023-04-04 20:00:00";
         String url = "http://localhost:8083";
         WorkflowInfo expected =
-                new WorkflowInfo(identifier, dynamicOptions, executionConfig, scheduleTime, url);
+                new WorkflowInfo(
+                        identifier, dynamicOptions, initConfig, executionConfig, scheduleTime, url);
 
         WorkflowInfo serde = fromJson(toJson(expected), WorkflowInfo.class);
         assertThat(serde).isEqualTo(expected);

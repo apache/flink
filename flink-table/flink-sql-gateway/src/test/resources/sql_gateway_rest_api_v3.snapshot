@@ -459,7 +459,7 @@
         "cronExpression" : {
           "type" : "string"
         },
-        "dynamicOptions" : {
+        "initConfig" : {
           "type" : "object",
           "additionalProperties" : {
             "type" : "string"

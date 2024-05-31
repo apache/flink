@@ -100,7 +100,7 @@ public class EmbeddedWorkflowScheduler implements WorkflowScheduler<EmbeddedRefr
                     new CreateEmbeddedSchedulerWorkflowRequestBody(
                             materializedTableIdentifier.asSerializableString(),
                             periodicRefreshWorkflow.getCronExpression(),
-                            periodicRefreshWorkflow.getDynamicOptions(),
+                            periodicRefreshWorkflow.getInitConfig(),
                             periodicRefreshWorkflow.getExecutionConfig(),
                             null,
                             periodicRefreshWorkflow.getRestEndpointUrl());
