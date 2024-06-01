@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.gateway.rest;
 
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.AbstractMaterializedTableStatementITCase;
@@ -28,7 +29,6 @@ import org.apache.flink.table.gateway.rest.message.materializedtable.RefreshMate
 import org.apache.flink.table.gateway.rest.message.materializedtable.RefreshMaterializedTableRequestBody;
 import org.apache.flink.table.gateway.rest.message.materializedtable.RefreshMaterializedTableResponseBody;
 import org.apache.flink.table.gateway.rest.util.TestingRestClient;
-import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -64,10 +64,9 @@ public class SqlGatewayRestEndpointMaterializedTableITCase
         List<Row> data = new ArrayList<>();
         data.add(Row.of(1L, 1L, 1L, "2024-01-01"));
         data.add(Row.of(2L, 2L, 2L, "2024-01-02"));
-        String dataId = TestValuesTableFactory.registerData(data);
 
         createAndVerifyCreateMaterializedTableWithData(
-                "my_materialized_table", dataId, data, Collections.emptyMap());
+                "my_materialized_table", data, Collections.emptyMap(), RefreshMode.CONTINUOUS);
 
         RefreshMaterializedTableHeaders refreshMaterializedTableHeaders =
                 new RefreshMaterializedTableHeaders();
@@ -122,13 +121,12 @@ public class SqlGatewayRestEndpointMaterializedTableITCase
         List<Row> data = new ArrayList<>();
         data.add(Row.of(1L, 1L, 1L, "2024-01-01"));
         data.add(Row.of(2L, 2L, 2L, "2024-01-02"));
-        String dataId = TestValuesTableFactory.registerData(data);
 
         createAndVerifyCreateMaterializedTableWithData(
                 "my_materialized_table",
-                dataId,
                 data,
-                Collections.singletonMap("ds", "yyyy-MM-dd"));
+                Collections.singletonMap("ds", "yyyy-MM-dd"),
+                RefreshMode.CONTINUOUS);
 
         RefreshMaterializedTableHeaders refreshMaterializedTableHeaders =
                 new RefreshMaterializedTableHeaders();

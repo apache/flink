@@ -35,6 +35,7 @@ import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
@@ -58,6 +59,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.quartz.JobDetail;
 import org.quartz.JobKey;
+import org.quartz.Trigger;
+import org.quartz.TriggerKey;
 
 import java.nio.file.Path;
 import java.time.Duration;
@@ -330,13 +333,12 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
         data.add(Row.of(1L, 1L, 1L, "2024-01-01"));
         data.add(Row.of(2L, 2L, 2L, "2024-01-02"));
         data.add(Row.of(3L, 3L, 3L, "2024-01-02"));
-        String dataId = TestValuesTableFactory.registerData(data);
 
         createAndVerifyCreateMaterializedTableWithData(
                 "my_materialized_table",
-                dataId,
                 data,
-                Collections.singletonMap("ds", "yyyy-MM-dd"));
+                Collections.singletonMap("ds", "yyyy-MM-dd"),
+                RefreshMode.CONTINUOUS);
 
         // remove the last element
         data.remove(2);
@@ -653,6 +655,108 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
     }
 
     @Test
+    void testAlterMaterializedTableSuspendAndResumeInFullMode() throws Exception {
+        createAndVerifyCreateMaterializedTableWithData(
+                "users_shops", Collections.emptyList(), Collections.emptyMap(), RefreshMode.FULL);
+
+        ResolvedCatalogMaterializedTable activeMaterializedTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+
+        assertThat(activeMaterializedTable.getRefreshStatus())
+                .isEqualTo(CatalogMaterializedTable.RefreshStatus.ACTIVATED);
+
+        // suspend materialized table
+        String alterMaterializedTableSuspendDDL = "ALTER MATERIALIZED TABLE users_shops SUSPEND";
+        OperationHandle alterMaterializedTableSuspendHandle =
+                service.executeStatement(
+                        sessionHandle, alterMaterializedTableSuspendDDL, -1, new Configuration());
+
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableSuspendHandle);
+
+        ResolvedCatalogMaterializedTable suspendMaterializedTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+
+        assertThat(suspendMaterializedTable.getRefreshStatus())
+                .isEqualTo(CatalogMaterializedTable.RefreshStatus.SUSPENDED);
+
+        // verify workflow is suspended
+        byte[] refreshHandler = suspendMaterializedTable.getSerializedRefreshHandler();
+        EmbeddedRefreshHandler suspendRefreshHandler =
+                EmbeddedRefreshHandlerSerializer.INSTANCE.deserialize(
+                        refreshHandler, getClass().getClassLoader());
+
+        String workflowName = suspendRefreshHandler.getWorkflowName();
+        String workflowGroup = suspendRefreshHandler.getWorkflowGroup();
+        EmbeddedQuartzScheduler embeddedWorkflowScheduler =
+                SQL_GATEWAY_REST_ENDPOINT_EXTENSION
+                        .getSqlGatewayRestEndpoint()
+                        .getQuartzScheduler();
+        JobKey jobKey = JobKey.jobKey(workflowName, workflowGroup);
+        Trigger.TriggerState suspendTriggerState =
+                embeddedWorkflowScheduler
+                        .getQuartzScheduler()
+                        .getTriggerState(TriggerKey.triggerKey(workflowName, workflowGroup));
+
+        assertThat(suspendTriggerState).isEqualTo(Trigger.TriggerState.PAUSED);
+
+        // resume materialized table
+        String alterMaterializedTableResumeDDL =
+                "ALTER MATERIALIZED TABLE users_shops RESUME WITH ('debezium-json.ignore-parse-errors' = 'true')";
+        OperationHandle alterMaterializedTableResumeHandle =
+                service.executeStatement(
+                        sessionHandle, alterMaterializedTableResumeDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableResumeHandle);
+
+        ResolvedCatalogMaterializedTable resumedCatalogMaterializedTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+
+        assertThat(resumedCatalogMaterializedTable.getRefreshStatus())
+                .isEqualTo(CatalogMaterializedTable.RefreshStatus.ACTIVATED);
+
+        // verify workflow is resumed
+        refreshHandler = resumedCatalogMaterializedTable.getSerializedRefreshHandler();
+        EmbeddedRefreshHandler resumeRefreshHandler =
+                EmbeddedRefreshHandlerSerializer.INSTANCE.deserialize(
+                        refreshHandler, getClass().getClassLoader());
+
+        assertThat(resumeRefreshHandler.getWorkflowName()).isEqualTo(workflowName);
+        assertThat(resumeRefreshHandler.getWorkflowGroup()).isEqualTo(workflowGroup);
+
+        JobDetail jobDetail = embeddedWorkflowScheduler.getQuartzScheduler().getJobDetail(jobKey);
+        Trigger.TriggerState resumedTriggerState =
+                embeddedWorkflowScheduler
+                        .getQuartzScheduler()
+                        .getTriggerState(TriggerKey.triggerKey(workflowName, workflowGroup));
+        assertThat(resumedTriggerState).isEqualTo(Trigger.TriggerState.NORMAL);
+
+        WorkflowInfo workflowInfo =
+                fromJson((String) jobDetail.getJobDataMap().get(WORKFLOW_INFO), WorkflowInfo.class);
+        assertThat(workflowInfo.getDynamicOptions())
+                .containsEntry("debezium-json.ignore-parse-errors", "true");
+
+        // delete the workflow
+        embeddedWorkflowScheduler.deleteScheduleWorkflow(jobKey.getName(), jobKey.getGroup());
+    }
+
+    @Test
     void testDropMaterializedTable() throws Exception {
         String materializedTableDDL =
                 "CREATE MATERIALIZED TABLE users_shops"
@@ -792,13 +896,12 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
         List<Row> data = new ArrayList<>();
         data.add(Row.of(1L, 1L, 1L, "2024-01-01"));
         data.add(Row.of(2L, 2L, 2L, "2024-01-02"));
-        String dataId = TestValuesTableFactory.registerData(data);
 
         createAndVerifyCreateMaterializedTableWithData(
                 "my_materialized_table",
-                dataId,
                 data,
-                Collections.singletonMap("ds", "yyyy-MM-dd"));
+                Collections.singletonMap("ds", "yyyy-MM-dd"),
+                RefreshMode.CONTINUOUS);
 
         ObjectIdentifier objectIdentifier =
                 ObjectIdentifier.of(
@@ -852,14 +955,13 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
         List<Row> data = new ArrayList<>();
         data.add(Row.of(1L, 1L, 1L, "2024-01-01"));
         data.add(Row.of(2L, 2L, 2L, "2024-01-02"));
-        String dataId = TestValuesTableFactory.registerData(data);
 
         // create materialized table without partition formatter
         createAndVerifyCreateMaterializedTableWithData(
                 "my_materialized_table_without_partition_options",
-                dataId,
                 data,
-                Collections.emptyMap());
+                Collections.emptyMap(),
+                RefreshMode.CONTINUOUS);
 
         ObjectIdentifier materializedTableWithoutFormatterIdentifier =
                 ObjectIdentifier.of(
@@ -916,14 +1018,13 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
         List<Row> data = new ArrayList<>();
         data.add(Row.of(1L, 1L, 1L, "2024-01-01"));
         data.add(Row.of(2L, 2L, 2L, "2024-01-02"));
-        String dataId = TestValuesTableFactory.registerData(data);
 
         // create materialized table with partition formatter
         createAndVerifyCreateMaterializedTableWithData(
                 "my_materialized_table",
-                dataId,
                 data,
-                Collections.singletonMap("ds", "yyyy-MM-dd"));
+                Collections.singletonMap("ds", "yyyy-MM-dd"),
+                RefreshMode.CONTINUOUS);
 
         ObjectIdentifier materializedTableIdentifier =
                 ObjectIdentifier.of(
@@ -979,13 +1080,12 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
         List<Row> data = new ArrayList<>();
         data.add(Row.of(1L, 1L, 1L, "2024-01-01"));
         data.add(Row.of(2L, 2L, 2L, "2024-01-02"));
-        String dataId = TestValuesTableFactory.registerData(data);
 
         createAndVerifyCreateMaterializedTableWithData(
                 "my_materialized_table",
-                dataId,
                 data,
-                Collections.singletonMap("ds", "yyyy-MM-dd"));
+                Collections.singletonMap("ds", "yyyy-MM-dd"),
+                RefreshMode.CONTINUOUS);
 
         ObjectIdentifier objectIdentifier =
                 ObjectIdentifier.of(
