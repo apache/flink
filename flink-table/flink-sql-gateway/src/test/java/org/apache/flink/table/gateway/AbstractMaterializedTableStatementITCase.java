@@ -28,6 +28,7 @@ import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.data.RowData;
@@ -40,6 +41,7 @@ import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
 import org.apache.flink.table.gateway.service.SqlGatewayServiceImpl;
 import org.apache.flink.table.gateway.service.utils.IgnoreExceptionHandler;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
+import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
@@ -250,13 +252,14 @@ public abstract class AbstractMaterializedTableStatementITCase {
 
     public void createAndVerifyCreateMaterializedTableWithData(
             String materializedTableName,
-            String dataId,
             List<Row> data,
-            Map<String, String> partitionFormatter)
+            Map<String, String> partitionFormatter,
+            CatalogMaterializedTable.RefreshMode refreshMode)
             throws Exception {
         long timeout = Duration.ofSeconds(20).toMillis();
         long pause = Duration.ofSeconds(2).toMillis();
 
+        String dataId = TestValuesTableFactory.registerData(data);
         String sourceDdl =
                 String.format(
                         "CREATE TABLE IF NOT EXISTS my_source (\n"
@@ -293,7 +296,8 @@ public abstract class AbstractMaterializedTableStatementITCase {
                                 + "    %s"
                                 + "   'format' = 'debezium-json'\n"
                                 + " )\n"
-                                + " FRESHNESS = INTERVAL '2' SECOND\n"
+                                + " FRESHNESS = INTERVAL '30' SECOND\n"
+                                + " REFRESH_MODE = %s\n"
                                 + " AS SELECT \n"
                                 + "  user_id,\n"
                                 + "  shop_id,\n"
@@ -303,7 +307,7 @@ public abstract class AbstractMaterializedTableStatementITCase {
                                 + "    SELECT user_id, shop_id, order_created_at AS ds, order_id FROM my_source"
                                 + " ) AS tmp\n"
                                 + " GROUP BY (user_id, shop_id, ds)",
-                        materializedTableName, partitionFields);
+                        materializedTableName, partitionFields, refreshMode.toString());
 
         OperationHandle materializedTableHandle =
                 service.executeStatement(
