@@ -19,10 +19,25 @@
 package org.apache.flink.table.gateway.rest.header.materializedtable.scheduler;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
+import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
+import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
+import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
+import org.apache.flink.table.gateway.rest.header.SqlGatewayMessageHeaders;
+import org.apache.flink.table.gateway.rest.message.materializedtable.scheduler.ResumeEmbeddedSchedulerWorkflowRequestBody;
+
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+
+import java.util.Collection;
+import java.util.Collections;
+
+import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion.V3;
 
 /** Message headers for resume workflow in embedded scheduler. */
 public class ResumeEmbeddedSchedulerWorkflowHeaders
-        extends AbstractEmbeddedSchedulerWorkflowHeaders {
+        implements SqlGatewayMessageHeaders<
+                ResumeEmbeddedSchedulerWorkflowRequestBody,
+                EmptyResponseBody,
+                EmptyMessageParameters> {
 
     private static final ResumeEmbeddedSchedulerWorkflowHeaders INSTANCE =
             new ResumeEmbeddedSchedulerWorkflowHeaders();
@@ -46,5 +61,30 @@ public class ResumeEmbeddedSchedulerWorkflowHeaders
 
     public static ResumeEmbeddedSchedulerWorkflowHeaders getInstance() {
         return INSTANCE;
+    }
+
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
+
+    @Override
+    public Class<EmptyResponseBody> getResponseClass() {
+        return EmptyResponseBody.class;
+    }
+
+    @Override
+    public Class<ResumeEmbeddedSchedulerWorkflowRequestBody> getRequestClass() {
+        return ResumeEmbeddedSchedulerWorkflowRequestBody.class;
+    }
+
+    @Override
+    public EmptyMessageParameters getUnresolvedMessageParameters() {
+        return EmptyMessageParameters.getInstance();
+    }
+
+    @Override
+    public Collection<? extends RestAPIVersion<?>> getSupportedAPIVersions() {
+        return Collections.singleton(V3);
     }
 }

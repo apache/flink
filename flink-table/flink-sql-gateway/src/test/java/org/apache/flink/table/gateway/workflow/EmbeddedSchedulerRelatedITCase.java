@@ -33,6 +33,7 @@ import org.apache.flink.table.gateway.rest.header.materializedtable.scheduler.Su
 import org.apache.flink.table.gateway.rest.message.materializedtable.scheduler.CreateEmbeddedSchedulerWorkflowRequestBody;
 import org.apache.flink.table.gateway.rest.message.materializedtable.scheduler.CreateEmbeddedSchedulerWorkflowResponseBody;
 import org.apache.flink.table.gateway.rest.message.materializedtable.scheduler.EmbeddedSchedulerWorkflowRequestBody;
+import org.apache.flink.table.gateway.rest.message.materializedtable.scheduler.ResumeEmbeddedSchedulerWorkflowRequestBody;
 import org.apache.flink.table.workflow.CreatePeriodicRefreshWorkflow;
 import org.apache.flink.table.workflow.CreateRefreshWorkflow;
 import org.apache.flink.table.workflow.DeleteRefreshWorkflow;
@@ -47,6 +48,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -193,11 +195,16 @@ public class EmbeddedSchedulerRelatedITCase extends RestAPIITCaseBase {
 
     @Test
     void testResumeNonExistsWorkflow() throws Exception {
+        ResumeEmbeddedSchedulerWorkflowRequestBody resumeRequestBody =
+                new ResumeEmbeddedSchedulerWorkflowRequestBody(
+                        nonExistsWorkflow.getWorkflowName(),
+                        nonExistsWorkflow.getWorkflowGroup(),
+                        null);
         CompletableFuture<EmptyResponseBody> suspendFuture =
                 sendRequest(
                         ResumeEmbeddedSchedulerWorkflowHeaders.getInstance(),
                         EmptyMessageParameters.getInstance(),
-                        nonExistsWorkflow);
+                        resumeRequestBody);
 
         assertThatFuture(suspendFuture)
                 .failsWithin(5, TimeUnit.SECONDS)
@@ -265,7 +272,7 @@ public class EmbeddedSchedulerRelatedITCase extends RestAPIITCaseBase {
 
         // resume, just to verify suspend function can work
         ResumeRefreshWorkflow<EmbeddedRefreshHandler> resumeRefreshWorkflow =
-                new ResumeRefreshWorkflow<>(actual);
+                new ResumeRefreshWorkflow<>(actual, Collections.emptyMap());
         embeddedWorkflowScheduler.modifyRefreshWorkflow(resumeRefreshWorkflow);
 
         // delete, just to verify suspend function can work
@@ -314,7 +321,8 @@ public class EmbeddedSchedulerRelatedITCase extends RestAPIITCaseBase {
         assertThatThrownBy(
                         () ->
                                 embeddedWorkflowScheduler.modifyRefreshWorkflow(
-                                        new ResumeRefreshWorkflow<>(nonExistsHandler)))
+                                        new ResumeRefreshWorkflow<>(
+                                                nonExistsHandler, Collections.emptyMap())))
                 .isInstanceOf(WorkflowException.class)
                 .hasMessage(
                         "Failed to resume refresh workflow {\n"

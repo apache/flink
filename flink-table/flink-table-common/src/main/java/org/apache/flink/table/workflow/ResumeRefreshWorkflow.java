@@ -22,6 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.refresh.RefreshHandler;
 
+import java.util.Map;
+
 /**
  * {@link ModifyRefreshWorkflow} provides the related information to resume refresh workflow of
  * {@link CatalogMaterializedTable}.
@@ -31,8 +33,15 @@ public class ResumeRefreshWorkflow<T extends RefreshHandler> implements ModifyRe
 
     private final T refreshHandler;
 
-    public ResumeRefreshWorkflow(T refreshHandler) {
+    private final Map<String, String> dynamicOptions;
+
+    public ResumeRefreshWorkflow(T refreshHandler, Map<String, String> dynamicOptions) {
         this.refreshHandler = refreshHandler;
+        this.dynamicOptions = dynamicOptions;
+    }
+
+    public Map<String, String> getDynamicOptions() {
+        return dynamicOptions;
     }
 
     @Override
