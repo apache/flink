@@ -200,7 +200,22 @@ public class EmbeddedQuartzScheduler {
         }
     }
 
-    public void resumeScheduleWorkflow(String workflowName, String workflowGroup)
+    /**
+     * Resume a quartz schedule job with new dynamic options. If the dynamic options is empty, just
+     * resume the job. If the dynamic options is not empty, since we cannot update the old workflow
+     * job, we need to remove the old job and create a new job with new dynamic options. The new job
+     * will be with new dynamic options. The new job will use the same job key and cron expression
+     * as the old job.
+     *
+     * @param workflowName The name of the workflow to be resumed.
+     * @param workflowGroup The group of the workflow to be resumed.
+     * @param dynamicOptions A map containing the new dynamic options for the workflow. If empty,
+     *     the workflow is simply resumed.
+     * @throws SchedulerException if the workflow does not exist or if there is an error resuming
+     *     the workflow.
+     */
+    public void resumeScheduleWorkflow(
+            String workflowName, String workflowGroup, Map<String, String> dynamicOptions)
             throws SchedulerException {
         JobKey jobKey = JobKey.jobKey(workflowName, workflowGroup);
         lock.writeLock().lock();
@@ -210,7 +225,38 @@ public class EmbeddedQuartzScheduler {
                             "Failed to resume a non-existent quartz schedule job: %s.", jobKey);
             checkJobExists(jobKey, errorMsg);
 
-            quartzScheduler.resumeJob(jobKey);
+            if (dynamicOptions.isEmpty()) {
+                quartzScheduler.resumeJob(jobKey);
+            } else {
+                // remove old job and create a new job with new dynamic options
+                JobDetail jobDetail = quartzScheduler.getJobDetail(jobKey);
+                WorkflowInfo workflowInfo =
+                        fromJson(
+                                jobDetail.getJobDataMap().getString(WORKFLOW_INFO),
+                                WorkflowInfo.class);
+                // create a new job with new dynamic options
+                WorkflowInfo newWorkflowInfo =
+                        new WorkflowInfo(
+                                workflowInfo.getMaterializedTableIdentifier(),
+                                dynamicOptions,
+                                workflowInfo.getInitConfig(),
+                                workflowInfo.getExecutionConfig(),
+                                workflowInfo.getCustomSchedulerTime(),
+                                workflowInfo.getRestEndpointUrl());
+
+                // create a new job
+                CronTrigger trigger =
+                        (CronTrigger)
+                                quartzScheduler.getTrigger(
+                                        TriggerKey.triggerKey(jobKey.getName(), jobKey.getGroup()));
+                String cronExpression = trigger.getCronExpression();
+
+                // remove the old job
+                quartzScheduler.deleteJob(jobKey);
+
+                // schedule the new job
+                createScheduleWorkflow(newWorkflowInfo, cronExpression);
+            }
         } catch (org.quartz.SchedulerException e) {
             LOG.error("Failed to resume quartz schedule job: {}.", jobKey, e);
             throw new SchedulerException(

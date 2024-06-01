@@ -25,7 +25,7 @@ import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.table.gateway.api.SqlGatewayService;
 import org.apache.flink.table.gateway.rest.handler.AbstractSqlGatewayRestHandler;
-import org.apache.flink.table.gateway.rest.message.materializedtable.scheduler.EmbeddedSchedulerWorkflowRequestBody;
+import org.apache.flink.table.gateway.rest.message.materializedtable.scheduler.ResumeEmbeddedSchedulerWorkflowRequestBody;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion;
 import org.apache.flink.table.gateway.workflow.scheduler.EmbeddedQuartzScheduler;
 
@@ -34,13 +34,16 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /** Handler to resume workflow in embedded scheduler. */
 public class ResumeEmbeddedSchedulerWorkflowHandler
         extends AbstractSqlGatewayRestHandler<
-                EmbeddedSchedulerWorkflowRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+                ResumeEmbeddedSchedulerWorkflowRequestBody,
+                EmptyResponseBody,
+                EmptyMessageParameters> {
 
     private final EmbeddedQuartzScheduler quartzScheduler;
 
@@ -49,7 +52,7 @@ public class ResumeEmbeddedSchedulerWorkflowHandler
             EmbeddedQuartzScheduler quartzScheduler,
             Map<String, String> responseHeaders,
             MessageHeaders<
-                            EmbeddedSchedulerWorkflowRequestBody,
+                            ResumeEmbeddedSchedulerWorkflowRequestBody,
                             EmptyResponseBody,
                             EmptyMessageParameters>
                     messageHeaders) {
@@ -60,12 +63,16 @@ public class ResumeEmbeddedSchedulerWorkflowHandler
     @Override
     protected CompletableFuture<EmptyResponseBody> handleRequest(
             @Nullable SqlGatewayRestAPIVersion version,
-            @Nonnull HandlerRequest<EmbeddedSchedulerWorkflowRequestBody> request)
+            @Nonnull HandlerRequest<ResumeEmbeddedSchedulerWorkflowRequestBody> request)
             throws RestHandlerException {
         String workflowName = request.getRequestBody().getWorkflowName();
         String workflowGroup = request.getRequestBody().getWorkflowGroup();
+        Map<String, String> dynamicOptions = request.getRequestBody().getDynamicOptions();
         try {
-            quartzScheduler.resumeScheduleWorkflow(workflowName, workflowGroup);
+            quartzScheduler.resumeScheduleWorkflow(
+                    workflowName,
+                    workflowGroup,
+                    dynamicOptions == null ? Collections.emptyMap() : dynamicOptions);
             return CompletableFuture.completedFuture(EmptyResponseBody.getInstance());
         } catch (Exception e) {
             throw new RestHandlerException(

@@ -31,6 +31,7 @@ import org.apache.flink.table.gateway.rest.header.materializedtable.scheduler.Su
 import org.apache.flink.table.gateway.rest.message.materializedtable.scheduler.CreateEmbeddedSchedulerWorkflowRequestBody;
 import org.apache.flink.table.gateway.rest.message.materializedtable.scheduler.CreateEmbeddedSchedulerWorkflowResponseBody;
 import org.apache.flink.table.gateway.rest.message.materializedtable.scheduler.EmbeddedSchedulerWorkflowRequestBody;
+import org.apache.flink.table.gateway.rest.message.materializedtable.scheduler.ResumeEmbeddedSchedulerWorkflowRequestBody;
 import org.apache.flink.table.gateway.workflow.scheduler.EmbeddedQuartzScheduler;
 import org.apache.flink.table.workflow.CreatePeriodicRefreshWorkflow;
 import org.apache.flink.table.workflow.CreateRefreshWorkflow;
@@ -145,11 +146,12 @@ public class EmbeddedWorkflowScheduler implements WorkflowScheduler<EmbeddedRefr
             ModifyRefreshWorkflow<EmbeddedRefreshHandler> modifyRefreshWorkflow)
             throws WorkflowException {
         EmbeddedRefreshHandler embeddedRefreshHandler = modifyRefreshWorkflow.getRefreshHandler();
-        EmbeddedSchedulerWorkflowRequestBody requestBody =
-                new EmbeddedSchedulerWorkflowRequestBody(
-                        embeddedRefreshHandler.getWorkflowName(),
-                        embeddedRefreshHandler.getWorkflowGroup());
+
         if (modifyRefreshWorkflow instanceof SuspendRefreshWorkflow) {
+            EmbeddedSchedulerWorkflowRequestBody suspendRequestBody =
+                    new EmbeddedSchedulerWorkflowRequestBody(
+                            embeddedRefreshHandler.getWorkflowName(),
+                            embeddedRefreshHandler.getWorkflowGroup());
             try {
                 restClient
                         .sendRequest(
@@ -157,7 +159,7 @@ public class EmbeddedWorkflowScheduler implements WorkflowScheduler<EmbeddedRefr
                                 port,
                                 SuspendEmbeddedSchedulerWorkflowHeaders.getInstance(),
                                 EmptyMessageParameters.getInstance(),
-                                requestBody)
+                                suspendRequestBody)
                         .get(30, TimeUnit.SECONDS);
             } catch (Exception e) {
                 LOG.error(
@@ -171,6 +173,11 @@ public class EmbeddedWorkflowScheduler implements WorkflowScheduler<EmbeddedRefr
                         e);
             }
         } else if (modifyRefreshWorkflow instanceof ResumeRefreshWorkflow) {
+            ResumeEmbeddedSchedulerWorkflowRequestBody requestBody =
+                    new ResumeEmbeddedSchedulerWorkflowRequestBody(
+                            embeddedRefreshHandler.getWorkflowName(),
+                            embeddedRefreshHandler.getWorkflowGroup(),
+                            ((ResumeRefreshWorkflow<?>) modifyRefreshWorkflow).getDynamicOptions());
             try {
                 restClient
                         .sendRequest(
