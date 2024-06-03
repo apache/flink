@@ -255,12 +255,12 @@ $ bin/flink savepoint -d :savepointPath
 
 ### 配置
 
-你可以通过 `state.savepoints.dir` 配置 savepoint 的默认目录。 触发 savepoint 时，将使用此目录来存储 savepoint。 你可以通过使用触发器命令指定自定义目标目录来覆盖缺省值（请参阅[`:targetDirectory`参数](#触发-savepoint-1)）。
+你可以通过 `execution.checkpointing.savepoint-dir` 配置 savepoint 的默认目录。 触发 savepoint 时，将使用此目录来存储 savepoint。 你可以通过使用触发器命令指定自定义目标目录来覆盖缺省值（请参阅[`:targetDirectory`参数](#触发-savepoint-1)）。
 
 
 ```yaml
 # 默认 Savepoint 目标目录
-state.savepoints.dir: hdfs:///flink/savepoints
+execution.checkpointing.savepoint-dir: hdfs:///flink/savepoints
 ```
 
 如果既未配置缺省值也未指定自定义目标目录，则触发 Savepoint 将失败。
