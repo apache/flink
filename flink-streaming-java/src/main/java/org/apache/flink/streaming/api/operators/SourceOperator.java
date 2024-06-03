@@ -449,6 +449,10 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                 sourceMetricGroup.idlingStarted();
                 return DataInputStatus.END_OF_DATA;
             case DATA_FINISHED:
+                if (watermarkAlignmentParams.isEnabled()) {
+                    latestWatermark = Watermark.MAX_WATERMARK.getTimestamp();
+                    emitLatestWatermark();
+                }
                 sourceMetricGroup.idlingStarted();
                 return DataInputStatus.END_OF_INPUT;
             case WAITING_FOR_ALIGNMENT:
@@ -572,10 +576,6 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         } else if (event instanceof SourceEventWrapper) {
             sourceReader.handleSourceEvents(((SourceEventWrapper) event).getSourceEvent());
         } else if (event instanceof NoMoreSplitsEvent) {
-            if (watermarkAlignmentParams.isEnabled()) {
-                latestWatermark = Watermark.MAX_WATERMARK.getTimestamp();
-                emitLatestWatermark();
-            }
             sourceReader.notifyNoMoreSplits();
         } else if (event instanceof IsProcessingBacklogEvent) {
             if (eventTimeLogic != null) {
