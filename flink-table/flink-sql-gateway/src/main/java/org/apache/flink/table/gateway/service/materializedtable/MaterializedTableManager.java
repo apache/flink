@@ -23,15 +23,20 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
+import org.apache.flink.table.data.GenericMapData;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.factories.WorkflowSchedulerFactoryUtil;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.results.ResultSet;
@@ -94,6 +99,8 @@ import static org.apache.flink.table.api.internal.TableResultInternal.TABLE_RESU
 import static org.apache.flink.table.catalog.CatalogBaseTable.TableKind.MATERIALIZED_TABLE;
 import static org.apache.flink.table.factories.WorkflowSchedulerFactoryUtil.WORKFLOW_SCHEDULER_PREFIX;
 import static org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils.getEndpointConfig;
+import static org.apache.flink.table.gateway.service.utils.Constants.CLUSTER_INFO;
+import static org.apache.flink.table.gateway.service.utils.Constants.JOB_ID;
 import static org.apache.flink.table.utils.DateTimeUtils.formatTimestampString;
 import static org.apache.flink.table.utils.IntervalFreshnessUtils.convertFreshnessToCron;
 
@@ -594,11 +601,33 @@ public class MaterializedTableManager {
                         dynamicOptions);
 
         try {
-            LOG.debug(
-                    "Begin to manually refreshing the materialization table {}, statement: {}",
+            LOG.info(
+                    "Begin to manually refreshing the materialized table {}, statement: {}",
                     materializedTableIdentifier,
                     insertStatement);
-            return operationExecutor.executeStatement(handle, customConfig, insertStatement);
+            ResultFetcher resultFetcher =
+                    operationExecutor.executeStatement(handle, customConfig, insertStatement);
+
+            List<RowData> results = fetchAllResults(resultFetcher);
+            String jobId = results.get(0).getString(0).toString();
+            String executeTarget =
+                    operationExecutor.getSessionContext().getSessionConf().get(TARGET);
+            Map<StringData, StringData> clusterInfo = new HashMap<>();
+            clusterInfo.put(
+                    StringData.fromString(TARGET.key()), StringData.fromString(executeTarget));
+            // TODO get clusterId
+
+            return ResultFetcher.fromResults(
+                    handle,
+                    ResolvedSchema.of(
+                            Column.physical(JOB_ID, DataTypes.STRING()),
+                            Column.physical(
+                                    CLUSTER_INFO,
+                                    DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING()))),
+                    Collections.singletonList(
+                            GenericRowData.of(
+                                    StringData.fromString(jobId),
+                                    new GenericMapData(clusterInfo))));
         } catch (Exception e) {
             // log and throw exception
             LOG.error(

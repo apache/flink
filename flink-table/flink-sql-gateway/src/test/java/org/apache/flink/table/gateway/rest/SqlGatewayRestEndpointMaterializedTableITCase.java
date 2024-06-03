@@ -18,31 +18,42 @@
 
 package org.apache.flink.table.gateway.rest;
 
+import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.gateway.AbstractMaterializedTableStatementITCase;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
+import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.rest.handler.AbstractSqlGatewayRestHandler;
 import org.apache.flink.table.gateway.rest.header.materializedtable.RefreshMaterializedTableHeaders;
+import org.apache.flink.table.gateway.rest.header.statement.FetchResultsHeaders;
 import org.apache.flink.table.gateway.rest.message.materializedtable.RefreshMaterializedTableParameters;
 import org.apache.flink.table.gateway.rest.message.materializedtable.RefreshMaterializedTableRequestBody;
 import org.apache.flink.table.gateway.rest.message.materializedtable.RefreshMaterializedTableResponseBody;
+import org.apache.flink.table.gateway.rest.message.statement.FetchResultsMessageParameters;
+import org.apache.flink.table.gateway.rest.message.statement.FetchResultsResponseBody;
+import org.apache.flink.table.gateway.rest.util.RowFormat;
 import org.apache.flink.table.gateway.rest.util.TestingRestClient;
 import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.configuration.DeploymentOptions.TARGET;
 import static org.apache.flink.table.gateway.rest.util.TestingRestClient.getTestingRestClient;
-import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.fetchAllResults;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -105,15 +116,30 @@ public class SqlGatewayRestEndpointMaterializedTableITCase
         assertThat(response.getOperationHandle()).isNotNull();
 
         // verify refresh job is created
-        String operationHandle = response.getOperationHandle();
-        List<RowData> results =
-                fetchAllResults(
-                        service,
-                        sessionHandle,
-                        new OperationHandle(UUID.fromString(operationHandle)));
-        String jobId = results.get(0).getString(0).toString();
+        OperationHandle operationHandle =
+                new OperationHandle(UUID.fromString(response.getOperationHandle()));
 
+        CommonTestUtils.waitUtil(
+                () ->
+                        SQL_GATEWAY_SERVICE_EXTENSION
+                                .getService()
+                                .getOperationInfo(sessionHandle, operationHandle)
+                                .getStatus()
+                                .isTerminalStatus(),
+                Duration.ofSeconds(100),
+                "Failed to wait operation finish.");
+
+        // fetch all results
+        FetchResultsResponseBody fetchResultsResponseBody =
+                fetchResults(sessionHandle, operationHandle);
+        List<RowData> results = fetchResultsResponseBody.getResults().getData();
+
+        String jobId = results.get(0).getString(0).toString();
         verifyRefreshJobCreated(restClusterClient, jobId, startTime);
+
+        GenericMapData clusterInfo = ((GenericMapData) results.get(0).getMap(1));
+        assertThat(clusterInfo.get(StringData.fromString(TARGET.key())))
+                .isEqualTo(StringData.fromString("remote"));
     }
 
     @Test
@@ -164,14 +190,44 @@ public class SqlGatewayRestEndpointMaterializedTableITCase
         assertThat(response.getOperationHandle()).isNotNull();
 
         // verify refresh job is created
-        String operationHandle = response.getOperationHandle();
-        List<RowData> results =
-                fetchAllResults(
-                        service,
-                        sessionHandle,
-                        new OperationHandle(UUID.fromString(operationHandle)));
-        String jobId = results.get(0).getString(0).toString();
+        OperationHandle operationHandle =
+                new OperationHandle(UUID.fromString(response.getOperationHandle()));
 
+        CommonTestUtils.waitUtil(
+                () ->
+                        SQL_GATEWAY_SERVICE_EXTENSION
+                                .getService()
+                                .getOperationInfo(sessionHandle, operationHandle)
+                                .getStatus()
+                                .isTerminalStatus(),
+                Duration.ofSeconds(100),
+                "Failed to wait operation finish.");
+
+        // fetch all results
+        FetchResultsResponseBody fetchResultsResponseBody =
+                fetchResults(sessionHandle, operationHandle);
+        List<RowData> results = fetchResultsResponseBody.getResults().getData();
+
+        String jobId = results.get(0).getString(0).toString();
         verifyRefreshJobCreated(restClusterClient, jobId, startTime);
+
+        GenericMapData clusterInfo = ((GenericMapData) results.get(0).getMap(1));
+        assertThat(clusterInfo.get(StringData.fromString(TARGET.key())))
+                .isEqualTo(StringData.fromString("remote"));
+    }
+
+    FetchResultsResponseBody fetchResults(
+            SessionHandle sessionHandle, OperationHandle operationHandle) throws Exception {
+        FetchResultsMessageParameters fetchResultsMessageParameters =
+                new FetchResultsMessageParameters(
+                        sessionHandle, operationHandle, 0L, RowFormat.JSON);
+        CompletableFuture<FetchResultsResponseBody> response =
+                restClient.sendRequest(
+                        SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetAddress(),
+                        SQL_GATEWAY_REST_ENDPOINT_EXTENSION.getTargetPort(),
+                        FetchResultsHeaders.getDefaultInstance(),
+                        fetchResultsMessageParameters,
+                        EmptyRequestBody.getInstance());
+        return response.get();
     }
 }
