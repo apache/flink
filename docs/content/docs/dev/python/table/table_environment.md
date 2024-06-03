@@ -839,5 +839,5 @@ table_env.get_config().set("execution.checkpointing.interval", "3min")
 table_env.get_config().set("state.backend.type", "rocksdb")
 
 # set the checkpoint directory, which is required by the RocksDB statebackend
-table_env.get_config().set("state.checkpoints.dir", "file:///tmp/checkpoints/")
+table_env.get_config().set("execution.checkpointing.dir", "file:///tmp/checkpoints/")
 ```

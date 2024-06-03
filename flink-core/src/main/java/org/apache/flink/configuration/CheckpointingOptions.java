@@ -99,9 +99,10 @@ public class CheckpointingOptions {
      */
     @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS, position = 2)
     public static final ConfigOption<String> CHECKPOINT_STORAGE =
-            ConfigOptions.key("state.checkpoint-storage")
+            ConfigOptions.key("execution.checkpointing.storage")
                     .stringType()
                     .noDefaultValue()
+                    .withDeprecatedKeys("state.checkpoint-storage")
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -121,21 +122,22 @@ public class CheckpointingOptions {
                                             "Recognized shortcut names are 'jobmanager' and 'filesystem'.")
                                     .linebreak()
                                     .text(
-                                            "'state.checkpoint-storage' and 'state.checkpoints.dir' are usually combined to configure the checkpoint location."
+                                            "'execution.checkpointing.storage' and 'execution.checkpointing.dir' are usually combined to configure the checkpoint location."
                                                     + " By default,  the checkpoint meta data and actual program state will be stored in the JobManager's memory directly."
-                                                    + " When 'state.checkpoint-storage' is set to 'jobmanager', if 'state.checkpoints.dir' is configured,"
-                                                    + " the meta data of checkpoints will be persisted to the path specified by 'state.checkpoints.dir'."
+                                                    + " When 'execution.checkpointing.storage' is set to 'jobmanager', if 'execution.checkpointing.dir' is configured,"
+                                                    + " the meta data of checkpoints will be persisted to the path specified by 'execution.checkpointing.dir'."
                                                     + " Otherwise, the meta data will be stored in the JobManager's memory."
-                                                    + " When 'state.checkpoint-storage' is set to 'filesystem', a valid path must be configured to 'state.checkpoints.dir',"
+                                                    + " When 'execution.checkpointing.storage' is set to 'filesystem', a valid path must be configured to 'execution.checkpointing.dir',"
                                                     + " and the checkpoint meta data and actual program state will both be persisted to the path.")
                                     .build());
 
     /** The maximum number of completed checkpoints to retain. */
     @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
     public static final ConfigOption<Integer> MAX_RETAINED_CHECKPOINTS =
-            ConfigOptions.key("state.checkpoints.num-retained")
+            ConfigOptions.key("execution.checkpointing.num-retained")
                     .intType()
                     .defaultValue(1)
+                    .withDeprecatedKeys("state.checkpoints.num-retained")
                     .withDescription("The maximum number of completed checkpoints to retain.");
 
     /* Option whether to clean individual checkpoint's operatorstates in parallel. If enabled,
@@ -144,9 +146,10 @@ public class CheckpointingOptions {
      */
     @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
     public static final ConfigOption<Boolean> CLEANER_PARALLEL_MODE =
-            ConfigOptions.key("state.checkpoint.cleaner.parallel-mode")
+            ConfigOptions.key("execution.checkpointing.cleaner.parallel-mode")
                     .booleanType()
                     .defaultValue(true)
+                    .withDeprecatedKeys("state.checkpoint.cleaner.parallel-mode")
                     .withDescription(
                             "Option whether to discard a checkpoint's states in parallel using"
                                     + " the ExecutorService passed into the cleaner");
@@ -160,9 +163,9 @@ public class CheckpointingOptions {
                     .withDescription("Deprecated option. All state snapshots are asynchronous.");
 
     /**
-     * Option whether the state backend should create incremental checkpoints, if possible. For an
-     * incremental checkpoint, only a diff from the previous checkpoint is stored, rather than the
-     * complete checkpoint state.
+     * Option whether to create incremental checkpoints, if possible. For an incremental checkpoint,
+     * only a diff from the previous checkpoint is stored, rather than the complete checkpoint
+     * state.
      *
      * <p>Once enabled, the state size shown in web UI or fetched from rest API only represents the
      * delta checkpoint size instead of full checkpoint size.
@@ -171,11 +174,12 @@ public class CheckpointingOptions {
      */
     @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
     public static final ConfigOption<Boolean> INCREMENTAL_CHECKPOINTS =
-            ConfigOptions.key("state.backend.incremental")
+            ConfigOptions.key("execution.checkpointing.incremental")
                     .booleanType()
                     .defaultValue(false)
+                    .withDeprecatedKeys("state.backend.incremental")
                     .withDescription(
-                            "Option whether the state backend should create incremental checkpoints, if possible. For"
+                            "Option whether to create incremental checkpoints, if possible. For"
                                     + " an incremental checkpoint, only a diff from the previous checkpoint is stored, rather than the"
                                     + " complete checkpoint state. Once enabled, the state size shown in web UI or fetched from rest API"
                                     + " only represents the delta checkpoint size instead of full checkpoint size."
@@ -212,9 +216,10 @@ public class CheckpointingOptions {
      */
     @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
     public static final ConfigOption<String> LOCAL_RECOVERY_TASK_MANAGER_STATE_ROOT_DIRS =
-            ConfigOptions.key("taskmanager.state.local.root-dirs")
+            ConfigOptions.key("execution.checkpointing.local-backup.dirs")
                     .stringType()
                     .noDefaultValue()
+                    .withDeprecatedKeys("taskmanager.state.local.root-dirs")
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -238,10 +243,10 @@ public class CheckpointingOptions {
      */
     @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS, position = 3)
     public static final ConfigOption<String> SAVEPOINT_DIRECTORY =
-            ConfigOptions.key("state.savepoints.dir")
+            ConfigOptions.key("execution.checkpointing.savepoint-dir")
                     .stringType()
                     .noDefaultValue()
-                    .withDeprecatedKeys("savepoints.state.backend.fs.dir")
+                    .withDeprecatedKeys("state.savepoints.dir", "savepoints.state.backend.fs.dir")
                     .withDescription(
                             "The default directory for savepoints. Used by the state backends that write savepoints to"
                                     + " file systems (HashMapStateBackend, EmbeddedRocksDBStateBackend).");
@@ -254,10 +259,10 @@ public class CheckpointingOptions {
      */
     @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS, position = 2)
     public static final ConfigOption<String> CHECKPOINTS_DIRECTORY =
-            ConfigOptions.key("state.checkpoints.dir")
+            ConfigOptions.key("execution.checkpointing.dir")
                     .stringType()
                     .noDefaultValue()
-                    .withDeprecatedKeys("state.backend.fs.checkpointdir")
+                    .withDeprecatedKeys("state.checkpoints.dir", "state.backend.fs.checkpointdir")
                     .withDescription(
                             "The default directory used for storing the data files and meta data of checkpoints "
                                     + "in a Flink supported filesystem. The storage path must be accessible from all participating processes/nodes"
@@ -273,9 +278,10 @@ public class CheckpointingOptions {
      */
     @Documentation.Section(Documentation.Sections.EXPERT_STATE_BACKENDS)
     public static final ConfigOption<Boolean> CREATE_CHECKPOINT_SUB_DIR =
-            ConfigOptions.key("state.checkpoints.create-subdir")
+            ConfigOptions.key("execution.checkpointing.create-subdir")
                     .booleanType()
                     .defaultValue(true)
+                    .withDeprecatedKeys("state.checkpoints.create-subdir")
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -297,20 +303,22 @@ public class CheckpointingOptions {
      */
     @Documentation.Section(Documentation.Sections.EXPERT_STATE_BACKENDS)
     public static final ConfigOption<MemorySize> FS_SMALL_FILE_THRESHOLD =
-            ConfigOptions.key("state.storage.fs.memory-threshold")
+            ConfigOptions.key("execution.checkpointing.data-inline-threshold")
                     .memoryType()
                     .defaultValue(MemorySize.parse("20kb"))
                     .withDescription(
                             "The minimum size of state data files. All state chunks smaller than that are stored"
                                     + " inline in the root checkpoint metadata file. The max memory threshold for this configuration is 1MB.")
-                    .withDeprecatedKeys("state.backend.fs.memory-threshold");
+                    .withDeprecatedKeys(
+                            "state.storage.fs.memory-threshold",
+                            "state.backend.fs.memory-threshold");
 
     /**
      * The default size of the write buffer for the checkpoint streams that write to file systems.
      */
     @Documentation.Section(Documentation.Sections.EXPERT_STATE_BACKENDS)
     public static final ConfigOption<Integer> FS_WRITE_BUFFER_SIZE =
-            ConfigOptions.key("state.storage.fs.write-buffer-size")
+            ConfigOptions.key("execution.checkpointing.write-buffer-size")
                     .intType()
                     .defaultValue(4 * 1024)
                     .withDescription(
@@ -318,7 +326,9 @@ public class CheckpointingOptions {
                                     "The default size of the write buffer for the checkpoint streams that write to file systems. "
                                             + "The actual write buffer size is determined to be the maximum of the value of this option and option '%s'.",
                                     FS_SMALL_FILE_THRESHOLD.key()))
-                    .withDeprecatedKeys("state.backend.fs.write-buffer-size");
+                    .withDeprecatedKeys(
+                            "state.storage.fs.write-buffer-size",
+                            "state.backend.fs.write-buffer-size");
 
     /**
      * This option configures local backup for the state backend, which indicates whether to make
@@ -355,7 +365,7 @@ public class CheckpointingOptions {
     @Experimental
     @Documentation.Section(value = Documentation.Sections.CHECKPOINT_FILE_MERGING, position = 1)
     public static final ConfigOption<Boolean> FILE_MERGING_ENABLED =
-            ConfigOptions.key("state.checkpoints.file-merging.enabled")
+            ConfigOptions.key("execution.checkpointing.file-merging.enabled")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
@@ -371,7 +381,7 @@ public class CheckpointingOptions {
     @Experimental
     @Documentation.Section(value = Documentation.Sections.CHECKPOINT_FILE_MERGING, position = 2)
     public static final ConfigOption<Boolean> FILE_MERGING_ACROSS_BOUNDARY =
-            ConfigOptions.key("state.checkpoints.file-merging.across-checkpoint-boundary")
+            ConfigOptions.key("execution.checkpointing.file-merging.across-checkpoint-boundary")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
@@ -392,7 +402,7 @@ public class CheckpointingOptions {
     @Experimental
     @Documentation.Section(value = Documentation.Sections.CHECKPOINT_FILE_MERGING, position = 3)
     public static final ConfigOption<MemorySize> FILE_MERGING_MAX_FILE_SIZE =
-            ConfigOptions.key("state.checkpoints.file-merging.max-file-size")
+            ConfigOptions.key("execution.checkpointing.file-merging.max-file-size")
                     .memoryType()
                     .defaultValue(MemorySize.parse("32MB"))
                     .withDescription("Max size of a physical file for merged checkpoints.");
@@ -406,7 +416,7 @@ public class CheckpointingOptions {
     @Experimental
     @Documentation.Section(value = Documentation.Sections.CHECKPOINT_FILE_MERGING, position = 4)
     public static final ConfigOption<Boolean> FILE_MERGING_POOL_BLOCKING =
-            ConfigOptions.key("state.checkpoints.file-merging.pool-blocking")
+            ConfigOptions.key("execution.checkpointing.file-merging.pool-blocking")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
@@ -422,7 +432,7 @@ public class CheckpointingOptions {
      */
     @Experimental @Documentation.ExcludeFromDocumentation
     public static final ConfigOption<Integer> FILE_MERGING_MAX_SUBTASKS_PER_FILE =
-            ConfigOptions.key("state.checkpoints.file-merging.max-subtasks-per-file")
+            ConfigOptions.key("execution.checkpointing.file-merging.max-subtasks-per-file")
                     .intType()
                     .defaultValue(4)
                     .withDescription(
@@ -438,7 +448,7 @@ public class CheckpointingOptions {
     @Experimental
     @Documentation.Section(value = Documentation.Sections.CHECKPOINT_FILE_MERGING, position = 6)
     public static final ConfigOption<Float> FILE_MERGING_MAX_SPACE_AMPLIFICATION =
-            ConfigOptions.key("state.checkpoints.file-merging.max-space-amplification")
+            ConfigOptions.key("execution.checkpointing.file-merging.max-space-amplification")
                     .floatType()
                     .defaultValue(2f)
                     .withDescription(
@@ -641,9 +651,11 @@ public class CheckpointingOptions {
                             "Allows unaligned checkpoints to skip timers that are currently being fired.");
 
     public static final ConfigOption<Boolean> ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH =
-            ConfigOptions.key("execution.checkpointing.checkpoints-after-tasks-finish.enabled")
+            ConfigOptions.key("execution.checkpointing.checkpoints-after-tasks-finish")
                     .booleanType()
                     .defaultValue(true)
+                    .withDeprecatedKeys(
+                            "execution.checkpointing.checkpoints-after-tasks-finish.enabled")
                     .withDescription(
                             Description.builder()
                                     .text(

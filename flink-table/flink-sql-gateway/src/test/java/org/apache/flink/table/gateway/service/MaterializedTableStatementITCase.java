@@ -498,7 +498,8 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
         // set up savepoint dir
         String savepointDir = temporaryPath.toString();
         String alterJobSavepointDDL =
-                String.format("SET 'state.savepoints.dir' = 'file://%s'", savepointDir);
+                String.format(
+                        "SET 'execution.checkpointing.savepoint-dir' = 'file://%s'", savepointDir);
         OperationHandle alterMaterializedTableSavepointHandle =
                 service.executeStatement(
                         sessionHandle, alterJobSavepointDDL, -1, new Configuration());
