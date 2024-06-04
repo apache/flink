@@ -54,7 +54,8 @@ import scala.collection.mutable
 /** Utility methods concerning [[RexNode]]. */
 object FlinkRexUtil {
 
-  // It is a experimental config, will may be removed later.
+  /** This configuration will be removed in Flink 2.0. */
+  @Deprecated
   @Experimental
   val TABLE_OPTIMIZER_CNF_NODES_LIMIT: ConfigOption[Integer] =
     key("table.optimizer.cnf-nodes-limit")

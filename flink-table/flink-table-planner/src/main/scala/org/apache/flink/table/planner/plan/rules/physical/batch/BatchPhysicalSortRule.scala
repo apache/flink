@@ -75,7 +75,8 @@ object BatchPhysicalSortRule {
       FlinkConventions.BATCH_PHYSICAL,
       "BatchPhysicalSortRule"))
 
-  // It is a experimental config, will may be removed later.
+  /** This configuration will be removed in Flink 2.0. */
+  @Deprecated
   @Experimental
   val TABLE_EXEC_RANGE_SORT_ENABLED: ConfigOption[JBoolean] =
     key("table.exec.range-sort.enabled")
