@@ -18,7 +18,6 @@
 
 package org.apache.flink.connector.file.sink;
 
-import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.SupportsConcurrentExecutionAttempts;
@@ -129,7 +128,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * @param <IN> Type of the elements in the input of the sink that are also the elements to be
  *     written to its output
  */
-@Experimental
+@PublicEvolving
 public class FileSink<IN>
         implements Sink<IN>,
                 SupportsWriterState<IN, FileWriterBucketState>,
