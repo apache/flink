@@ -451,7 +451,8 @@ object FlinkRelMdRowCount {
   val SOURCE: RelMetadataProvider =
     ReflectiveRelMetadataProvider.reflectiveSource(BuiltInMethod.ROW_COUNT.method, INSTANCE)
 
-  // It is a experimental config, will may be removed later.
+  /** This configuration will be removed in Flink 2.0. */
+  @Deprecated
   @Experimental
   val TABLE_OPTIMIZER_ROWS_PER_LOCALAGG: ConfigOption[JLong] =
     key("table.optimizer.rows-per-local-agg")
