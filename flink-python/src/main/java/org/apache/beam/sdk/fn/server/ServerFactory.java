@@ -19,17 +19,17 @@ package org.apache.beam.sdk.fn.server;
 
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.channel.SocketAddressFactory;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.BindableService;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ServerBuilder;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ServerInterceptors;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.netty.NettyServerBuilder;
-import org.apache.beam.vendor.grpc.v1p54p0.io.netty.channel.epoll.EpollEventLoopGroup;
-import org.apache.beam.vendor.grpc.v1p54p0.io.netty.channel.epoll.EpollServerDomainSocketChannel;
-import org.apache.beam.vendor.grpc.v1p54p0.io.netty.channel.epoll.EpollServerSocketChannel;
-import org.apache.beam.vendor.grpc.v1p54p0.io.netty.channel.unix.DomainSocketAddress;
-import org.apache.beam.vendor.grpc.v1p54p0.io.netty.util.internal.ThreadLocalRandom;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.BindableService;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ServerBuilder;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ServerInterceptors;
+import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.netty.NettyServerBuilder;
+import org.apache.beam.vendor.grpc.v1p48p1.io.netty.channel.epoll.EpollEventLoopGroup;
+import org.apache.beam.vendor.grpc.v1p48p1.io.netty.channel.epoll.EpollServerDomainSocketChannel;
+import org.apache.beam.vendor.grpc.v1p48p1.io.netty.channel.epoll.EpollServerSocketChannel;
+import org.apache.beam.vendor.grpc.v1p48p1.io.netty.channel.unix.DomainSocketAddress;
+import org.apache.beam.vendor.grpc.v1p48p1.io.netty.util.internal.ThreadLocalRandom;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 
 import java.io.File;
 import java.io.IOException;
@@ -40,7 +40,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 // This class is copied from Beam's org.apache.beam.sdk.fn.server.ServerFactory,
 // can be removed after https://github.com/apache/beam/issues/21598 is fixed.
@@ -161,7 +161,7 @@ public abstract class ServerFactory {
                             // Set the message size to max value here. The actual size is governed
                             // by the
                             // buffer size in the layers above.
-                            .maxInboundMessageSize(Integer.MAX_VALUE)
+                            .maxMessageSize(Integer.MAX_VALUE)
                             .permitKeepAliveTime(KEEP_ALIVE_TIME_SEC, TimeUnit.SECONDS);
             services.stream()
                     .forEach(
@@ -223,7 +223,7 @@ public abstract class ServerFactory {
                             .channelType(EpollServerDomainSocketChannel.class)
                             .workerEventLoopGroup(new EpollEventLoopGroup())
                             .bossEventLoopGroup(new EpollEventLoopGroup())
-                            .maxInboundMessageSize(Integer.MAX_VALUE)
+                            .maxMessageSize(Integer.MAX_VALUE)
                             .permitKeepAliveTime(KEEP_ALIVE_TIME_SEC, TimeUnit.SECONDS);
             for (BindableService service : services) {
                 // Wrap the service to extract headers
@@ -276,7 +276,7 @@ public abstract class ServerFactory {
                             .channelType(EpollServerSocketChannel.class)
                             .workerEventLoopGroup(new EpollEventLoopGroup())
                             .bossEventLoopGroup(new EpollEventLoopGroup())
-                            .maxInboundMessageSize(Integer.MAX_VALUE)
+                            .maxMessageSize(Integer.MAX_VALUE)
                             .permitKeepAliveTime(KEEP_ALIVE_TIME_SEC, TimeUnit.SECONDS);
             for (BindableService service : services) {
                 // Wrap the service to extract headers

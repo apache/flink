@@ -322,7 +322,7 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
                                                 /usr/local/bin/python3). The
                                                 python UDF worker depends on
                                                 Python 3.8+, Apache Beam
-                                                (version >= 2.52.0), Pip
+                                                (version == 2.43.0), Pip
                                                 (version >= 20.3) and SetupTools
                                                 (version >= 37.0.0). Please
                                                 ensure that the specified
