@@ -339,7 +339,7 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
         OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
         AggregatePhaseStrategy.TWO_PHASE)
     tEnv.getConfig.set(
-      HashAggCodeGenerator.TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD,
+      ExecutionConfigOptions.TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD,
       Long.box(1L))
     checkOpFusionCodegenResult(
       """

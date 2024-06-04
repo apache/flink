@@ -89,6 +89,24 @@ By default no operator is disabled.</td>
             <td>Determines whether CAST will operate following the legacy behaviour or the new one that introduces various fixes and improvements.<br /><br />Possible values:<ul><li>"ENABLED": CAST will operate following the legacy behaviour.</li><li>"DISABLED": CAST will operate following the new correct behaviour.</li></ul></td>
         </tr>
         <tr>
+            <td><h5>table.exec.local-hash-agg.adaptive.distinct-value-rate-threshold</h5><br> <span class="label label-primary">Batch</span></td>
+            <td style="word-wrap: break-word;">0.5</td>
+            <td>Double</td>
+            <td>The distinct value rate can be defined as the number of local aggregation results for the sampled data divided by the sampling threshold (see table.exec.local-hash-agg.adaptive.sampling-threshold). If the computed result is lower than the given configuration value, the remaining input records proceed to do local aggregation, otherwise the remaining input records are subjected to simple projection which calculation cost is less than local aggregation. The default value is 0.5.</td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.local-hash-agg.adaptive.enabled</h5><br> <span class="label label-primary">Batch</span></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Whether to enable adaptive local hash aggregation. Adaptive local hash aggregation is an optimization of local hash aggregation, which can adaptively determine whether to continue to do local hash aggregation according to the distinct value rate of sampling data. If distinct value rate bigger than defined threshold (see parameter: table.exec.local-hash-agg.adaptive.distinct-value-rate-threshold), we will stop aggregating and just send the input data to the downstream after a simple projection. Otherwise, we will continue to do aggregation. Adaptive local hash aggregation only works in batch mode. Default value of this parameter is true.</td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.local-hash-agg.adaptive.sampling-threshold</h5><br> <span class="label label-primary">Batch</span></td>
+            <td style="word-wrap: break-word;">500000</td>
+            <td>Long</td>
+            <td>If adaptive local hash aggregation is enabled, this value defines how many records will be used as sampled data to calculate distinct value rate (see parameter: table.exec.local-hash-agg.adaptive.distinct-value-rate-threshold) for the local aggregate. The higher the sampling threshold, the more accurate the distinct value rate is. But as the sampling threshold increases, local aggregation is meaningless when the distinct values rate is low. The default value is 500000.</td>
+        </tr>
+        <tr>
             <td><h5>table.exec.mini-batch.allow-latency</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">0 ms</td>
             <td>Duration</td>
