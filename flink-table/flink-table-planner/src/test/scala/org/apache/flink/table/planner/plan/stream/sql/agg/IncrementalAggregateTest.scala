@@ -17,8 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql.agg
 
-import org.apache.flink.table.api.config.AggregatePhaseStrategy
-import org.apache.flink.table.planner.plan.rules.physical.stream.IncrementalAggregateRule
+import org.apache.flink.table.api.config.{AggregatePhaseStrategy, OptimizerConfigOptions}
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 
 import org.junit.jupiter.api.BeforeEach
@@ -37,7 +36,7 @@ class IncrementalAggregateTest(
     super.before()
     // enable incremental agg
     util.tableEnv.getConfig
-      .set(IncrementalAggregateRule.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED, Boolean.box(true))
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED, Boolean.box(true))
   }
 }
 
