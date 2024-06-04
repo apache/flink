@@ -31,7 +31,7 @@ LogicalProject(a=[$0], hints=[[[ALIAS options:[t1]]]]), rowType=[RecordType(BIGI
     <Resource name="afterPropagatingHints">
       <![CDATA[
 LogicalProject(a=[$0], hints=[[[ALIAS options:[t1]]]]), rowType=[RecordType(BIGINT a)]
-+- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=true, output-mode=allow_unordered, table=d, timeout=300 s, capacity=1000}]]], hints=[[[ALIAS inheritPath:[0] options:[t1]]]]), rowType=[RecordType(BIGINT a, BIGINT ARRAY ds, TIMESTAMP_LTZ(3) *PROCTIME* pts, BIGINT a0)]
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}], joinHints=[[[LOOKUP inheritPath:[0] options:{lookup-table=d, async=true, output-mode=allow_unordered, timeout=300 s, capacity=1000}]]], hints=[[[ALIAS inheritPath:[0] options:[t1]]]]), rowType=[RecordType(BIGINT a, BIGINT ARRAY ds, TIMESTAMP_LTZ(3) *PROCTIME* pts, BIGINT a0)]
    :- LogicalProject(a=[$0], ds=[$1], pts=[PROCTIME()]), rowType=[RecordType(BIGINT a, BIGINT ARRAY ds, TIMESTAMP_LTZ(3) *PROCTIME* pts)]
    :  +- LogicalTableScan(table=[[builtin, default, src]]), rowType=[RecordType(BIGINT a, BIGINT ARRAY ds)]
    +- LogicalFilter(condition=[=($cor0.a, $0)]), rowType=[RecordType(BIGINT a)]
@@ -42,7 +42,7 @@ LogicalProject(a=[$0], hints=[[[ALIAS options:[t1]]]]), rowType=[RecordType(BIGI
     <Resource name="afterClearingJoinHints">
       <![CDATA[
 LogicalProject(a=[$0], hints=[[[ALIAS options:[t1]]]]), rowType=[RecordType(BIGINT a)]
-+- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=true, output-mode=allow_unordered, table=d, timeout=300 s, capacity=1000}]]], hints=[[[ALIAS inheritPath:[0] options:[t1]]]]), rowType=[RecordType(BIGINT a, BIGINT ARRAY ds, TIMESTAMP_LTZ(3) *PROCTIME* pts, BIGINT a0)]
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}], joinHints=[[[LOOKUP inheritPath:[0] options:{lookup-table=d, async=true, output-mode=allow_unordered, timeout=300 s, capacity=1000}]]], hints=[[[ALIAS inheritPath:[0] options:[t1]]]]), rowType=[RecordType(BIGINT a, BIGINT ARRAY ds, TIMESTAMP_LTZ(3) *PROCTIME* pts, BIGINT a0)]
    :- LogicalProject(a=[$0], ds=[$1], pts=[PROCTIME()]), rowType=[RecordType(BIGINT a, BIGINT ARRAY ds, TIMESTAMP_LTZ(3) *PROCTIME* pts)]
    :  +- LogicalTableScan(table=[[builtin, default, src]]), rowType=[RecordType(BIGINT a, BIGINT ARRAY ds)]
    +- LogicalFilter(condition=[=($cor0.a, $0)]), rowType=[RecordType(BIGINT a)]
@@ -70,9 +70,9 @@ LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
     <Resource name="afterPropagatingHints">
       <![CDATA[
 LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
-+- LogicalJoin(condition=[=($0, $1)], joinType=[inner], joinHints=[[[LOOKUP inheritPath:[0] options:{async=true, retry-strategy=fixed_delay, max-attempts=10, output-mode=allow_unordered, fixed-delay=155 ms, retry-predicate=lookup_miss, table=src, timeout=300 s, capacity=1000}]]]), rowType=[RecordType(BIGINT a, BIGINT a0, BIGINT ARRAY ds, TIMESTAMP_LTZ(3) *PROCTIME* pts)]
++- LogicalJoin(condition=[=($0, $1)], joinType=[inner], joinHints=[[[LOOKUP inheritPath:[0] options:{lookup-table=src, async=true, retry-strategy=fixed_delay, max-attempts=10, output-mode=allow_unordered, fixed-delay=155 ms, retry-predicate=lookup_miss, timeout=300 s, capacity=1000}]]]), rowType=[RecordType(BIGINT a, BIGINT a0, BIGINT ARRAY ds, TIMESTAMP_LTZ(3) *PROCTIME* pts)]
    :- LogicalProject(a=[$0], hints=[[[ALIAS options:[t1]]]]), rowType=[RecordType(BIGINT a)]
-   :  +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=true, output-mode=allow_unordered, table=d, timeout=300 s, capacity=1000}][LOOKUP inheritPath:[0, 0, 0] options:{async=true, retry-strategy=fixed_delay, max-attempts=10, output-mode=allow_unordered, fixed-delay=155 ms, retry-predicate=lookup_miss, table=src, timeout=300 s, capacity=1000}]]], hints=[[[ALIAS inheritPath:[0] options:[t1]]]]), rowType=[RecordType(BIGINT a, BIGINT ARRAY ds, TIMESTAMP_LTZ(3) *PROCTIME* pts, BIGINT a0)]
+   :  +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}], joinHints=[[[LOOKUP inheritPath:[0] options:{lookup-table=d, async=true, output-mode=allow_unordered, timeout=300 s, capacity=1000}][LOOKUP inheritPath:[0, 0, 0] options:{lookup-table=src, async=true, retry-strategy=fixed_delay, max-attempts=10, output-mode=allow_unordered, fixed-delay=155 ms, retry-predicate=lookup_miss, timeout=300 s, capacity=1000}]]], hints=[[[ALIAS inheritPath:[0] options:[t1]]]]), rowType=[RecordType(BIGINT a, BIGINT ARRAY ds, TIMESTAMP_LTZ(3) *PROCTIME* pts, BIGINT a0)]
    :     :- LogicalProject(a=[$0], ds=[$1], pts=[PROCTIME()]), rowType=[RecordType(BIGINT a, BIGINT ARRAY ds, TIMESTAMP_LTZ(3) *PROCTIME* pts)]
    :     :  +- LogicalTableScan(table=[[builtin, default, src]]), rowType=[RecordType(BIGINT a, BIGINT ARRAY ds)]
    :     +- LogicalFilter(condition=[=($cor0.a, $0)]), rowType=[RecordType(BIGINT a)]
@@ -85,9 +85,9 @@ LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
     <Resource name="afterClearingJoinHints">
       <![CDATA[
 LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
-+- LogicalJoin(condition=[=($0, $1)], joinType=[inner], joinHints=[[[LOOKUP inheritPath:[0] options:{async=true, retry-strategy=fixed_delay, max-attempts=10, output-mode=allow_unordered, fixed-delay=155 ms, retry-predicate=lookup_miss, table=src, timeout=300 s, capacity=1000}]]]), rowType=[RecordType(BIGINT a, BIGINT a0, BIGINT ARRAY ds, TIMESTAMP_LTZ(3) *PROCTIME* pts)]
++- LogicalJoin(condition=[=($0, $1)], joinType=[inner], joinHints=[[[LOOKUP inheritPath:[0] options:{lookup-table=src, async=true, retry-strategy=fixed_delay, max-attempts=10, output-mode=allow_unordered, fixed-delay=155 ms, retry-predicate=lookup_miss, timeout=300 s, capacity=1000}]]]), rowType=[RecordType(BIGINT a, BIGINT a0, BIGINT ARRAY ds, TIMESTAMP_LTZ(3) *PROCTIME* pts)]
    :- LogicalProject(a=[$0], hints=[[[ALIAS options:[t1]]]]), rowType=[RecordType(BIGINT a)]
-   :  +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=true, output-mode=allow_unordered, table=d, timeout=300 s, capacity=1000}]]], hints=[[[ALIAS inheritPath:[0] options:[t1]]]]), rowType=[RecordType(BIGINT a, BIGINT ARRAY ds, TIMESTAMP_LTZ(3) *PROCTIME* pts, BIGINT a0)]
+   :  +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}], joinHints=[[[LOOKUP inheritPath:[0] options:{lookup-table=d, async=true, output-mode=allow_unordered, timeout=300 s, capacity=1000}]]], hints=[[[ALIAS inheritPath:[0] options:[t1]]]]), rowType=[RecordType(BIGINT a, BIGINT ARRAY ds, TIMESTAMP_LTZ(3) *PROCTIME* pts, BIGINT a0)]
    :     :- LogicalProject(a=[$0], ds=[$1], pts=[PROCTIME()]), rowType=[RecordType(BIGINT a, BIGINT ARRAY ds, TIMESTAMP_LTZ(3) *PROCTIME* pts)]
    :     :  +- LogicalTableScan(table=[[builtin, default, src]]), rowType=[RecordType(BIGINT a, BIGINT ARRAY ds)]
    :     +- LogicalFilter(condition=[=($cor0.a, $0)]), rowType=[RecordType(BIGINT a)]
@@ -113,7 +113,7 @@ LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
     <Resource name="afterPropagatingHints">
       <![CDATA[
 LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
-+- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=true, output-mode=allow_unordered, table=d, timeout=300 s, capacity=1000}]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}], joinHints=[[[LOOKUP inheritPath:[0] options:{lookup-table=d, async=true, output-mode=allow_unordered, timeout=300 s, capacity=1000}]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
    :- LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
    :  +- LogicalTableScan(table=[[builtin, default, src]]), rowType=[RecordType(BIGINT a, BIGINT ARRAY ds)]
    +- Uncollect, rowType=[RecordType(BIGINT a)]
@@ -124,7 +124,7 @@ LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
     <Resource name="afterClearingJoinHints">
       <![CDATA[
 LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
-+- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=true, output-mode=allow_unordered, table=d, timeout=300 s, capacity=1000}]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}], joinHints=[[[LOOKUP inheritPath:[0] options:{lookup-table=d, async=true, output-mode=allow_unordered, timeout=300 s, capacity=1000}]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
    :- LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
    :  +- LogicalTableScan(table=[[builtin, default, src]]), rowType=[RecordType(BIGINT a, BIGINT ARRAY ds)]
    +- Uncollect, rowType=[RecordType(BIGINT a)]
@@ -146,7 +146,7 @@ LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
     <Resource name="afterPropagatingHints">
       <![CDATA[
 LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
-+- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=true, output-mode=allow_unordered, table=d, timeout=300 s, capacity=1000}]]]), rowType=[RecordType(BIGINT a, BIGINT b)]
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}], joinHints=[[[LOOKUP inheritPath:[0] options:{lookup-table=d, async=true, output-mode=allow_unordered, timeout=300 s, capacity=1000}]]]), rowType=[RecordType(BIGINT a, BIGINT b)]
    :- LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
    :  +- LogicalTableScan(table=[[builtin, default, src]]), rowType=[RecordType(BIGINT a, BIGINT ARRAY ds)]
    +- LogicalTableFunctionScan(invocation=[TABLE($cor0.b)], rowType=[RecordType(BIGINT b)]), rowType=[RecordType(BIGINT b)]
@@ -155,7 +155,7 @@ LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
     <Resource name="afterClearingJoinHints">
       <![CDATA[
 LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
-+- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=true, output-mode=allow_unordered, table=d, timeout=300 s, capacity=1000}]]]), rowType=[RecordType(BIGINT a, BIGINT b)]
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}], joinHints=[[[LOOKUP inheritPath:[0] options:{lookup-table=d, async=true, output-mode=allow_unordered, timeout=300 s, capacity=1000}]]]), rowType=[RecordType(BIGINT a, BIGINT b)]
    :- LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
    :  +- LogicalTableScan(table=[[builtin, default, src]]), rowType=[RecordType(BIGINT a, BIGINT ARRAY ds)]
    +- LogicalTableFunctionScan(invocation=[TABLE($cor0.b)], rowType=[RecordType(BIGINT b)]), rowType=[RecordType(BIGINT b)]

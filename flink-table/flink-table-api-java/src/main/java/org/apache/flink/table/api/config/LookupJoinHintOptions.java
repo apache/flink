@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.hint;
+package org.apache.flink.table.api.config;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableSet;
 
@@ -31,24 +30,18 @@ import java.util.Set;
 import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
- * This {@link LookupJoinHintOptions} defines valid hint options of lookup join hint.
- *
- * @deprecated This configurations have been deprecated as part of FLIP-457. Please use {@link
- *     org.apache.flink.table.api.config.LookupJoinHintOptions} instead.
+ * This class holds {@link org.apache.flink.configuration.ConfigOption}s used by lookup join hint.
  */
-@Deprecated
-@Internal
+@PublicEvolving
 public class LookupJoinHintOptions {
-    private LookupJoinHintOptions() {}
 
-    @Deprecated
     public static final ConfigOption<String> LOOKUP_TABLE =
-            key("table")
+            key("lookup-table")
                     .stringType()
                     .noDefaultValue()
+                    .withDeprecatedKeys("table")
                     .withDescription("The table name of the lookup source.");
 
-    @Deprecated
     public static final ConfigOption<Boolean> ASYNC_LOOKUP =
             key("async")
                     .booleanType()
@@ -58,7 +51,6 @@ public class LookupJoinHintOptions {
                                     + " lookup function. If the backend lookup source does not support the"
                                     + " suggested lookup mode, it will take no effect.");
 
-    @Deprecated
     public static final ConfigOption<ExecutionConfigOptions.AsyncOutputMode> ASYNC_OUTPUT_MODE =
             key("output-mode")
                     .enumType(ExecutionConfigOptions.AsyncOutputMode.class)
@@ -68,7 +60,6 @@ public class LookupJoinHintOptions {
                                     + "If set to ALLOW_UNORDERED, will attempt to use {@see AsyncDataStream.OutputMode.UNORDERED} when it does not "
                                     + "affect the correctness of the result, otherwise ORDERED will be still used.");
 
-    @Deprecated
     public static final ConfigOption<Integer> ASYNC_CAPACITY =
             key("capacity")
                     .intType()
@@ -76,7 +67,6 @@ public class LookupJoinHintOptions {
                     .withDescription(
                             "The max number of async i/o operation that the async lookup join can trigger.");
 
-    @Deprecated
     public static final ConfigOption<Duration> ASYNC_TIMEOUT =
             key("timeout")
                     .durationType()
@@ -84,8 +74,6 @@ public class LookupJoinHintOptions {
                     .withDescription(
                             "Timeout from first invoke to final completion of asynchronous operation, may include multiple"
                                     + " retries, and will be reset in case of failover.");
-
-    @Deprecated
     public static final ConfigOption<String> RETRY_PREDICATE =
             key("retry-predicate")
                     .stringType()
@@ -94,21 +82,18 @@ public class LookupJoinHintOptions {
                             "A predicate expresses the retry condition, can be 'lookup-miss' which will"
                                     + " enable retry if lookup result is empty.");
 
-    @Deprecated
     public static final ConfigOption<RetryStrategy> RETRY_STRATEGY =
             key("retry-strategy")
                     .enumType(RetryStrategy.class)
                     .noDefaultValue()
                     .withDescription("The retry strategy name, can be 'fixed-delay' for now.");
 
-    @Deprecated
     public static final ConfigOption<Duration> FIXED_DELAY =
             key("fixed-delay")
                     .durationType()
                     .noDefaultValue()
                     .withDescription("Delay time for the 'fixed-delay' retry strategy.");
 
-    @Deprecated
     public static final ConfigOption<Integer> MAX_ATTEMPTS =
             key("max-attempts")
                     .intType()
@@ -117,8 +102,8 @@ public class LookupJoinHintOptions {
 
     public static final String LOOKUP_MISS_PREDICATE = "lookup_miss";
 
-    private static Set<ConfigOption> requiredKeys = new HashSet<>();
-    private static Set<ConfigOption> supportedKeys = new HashSet<>();
+    private static final Set<ConfigOption<?>> requiredKeys = new HashSet<>();
+    private static final Set<ConfigOption<?>> supportedKeys = new HashSet<>();
 
     static {
         requiredKeys.add(LOOKUP_TABLE);
@@ -143,6 +128,7 @@ public class LookupJoinHintOptions {
     }
 
     /** Supported retry strategies. */
+    @PublicEvolving
     public enum RetryStrategy {
         /** Fixed-delay retry strategy. */
         FIXED_DELAY
