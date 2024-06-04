@@ -76,6 +76,7 @@ public class ArrayExceptFunction extends BuiltInScalarFunction {
                 final ObjectContainer objectContainer = createObjectContainer(element);
                 if (!set.contains(objectContainer)) {
                     list.add(element);
+                    set.add(objectContainer);
                 }
             }
             return new GenericArrayData(list.toArray());
