@@ -51,7 +51,7 @@ class DistinctAggregateTest(
       Boolean.box(splitDistinctAggEnabled))
     // disable incremental agg
     util.tableEnv.getConfig
-      .set(IncrementalAggregateRule.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED, Boolean.box(false))
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED, Boolean.box(false))
   }
 
   @TestTemplate

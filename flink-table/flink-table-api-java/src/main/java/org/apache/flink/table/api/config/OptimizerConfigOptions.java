@@ -274,6 +274,40 @@ public class OptimizerConfigOptions {
                                                     + "such as causing the output of certain non-deterministic expressions to not meet expectations(see FLINK-20887).")
                                     .build());
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED =
+            key("table.optimizer.union-all-as-breakpoint-enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "When true, the optimizer will breakup the graph at union-all node "
+                                    + "when it's a breakpoint. When false, the optimizer will skip the union-all node "
+                                    + "even it's a breakpoint, and will try find the breakpoint in its inputs.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean>
+            TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED =
+                    key("table.optimizer.reuse-optimize-block-with-digest-enabled")
+                            .booleanType()
+                            .defaultValue(false)
+                            .withDescription(
+                                    "When true, the optimizer will try to find out duplicated sub-plans by "
+                                            + "digest to build optimize blocks (a.k.a. common sub-graphs). "
+                                            + "Each optimize block will be optimized independently.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Boolean> TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED =
+            key("table.optimizer.incremental-agg-enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "When both local aggregation and distinct aggregation splitting "
+                                    + "are enabled, a distinct aggregation will be optimized into four aggregations, "
+                                    + "i.e., local-agg1, global-agg1, local-agg2, and global-agg2. We can combine global-agg1 "
+                                    + "and local-agg2 into a single operator (we call it incremental agg because "
+                                    + "it receives incremental accumulators and outputs incremental results). "
+                                    + "In this way, we can reduce some state overhead and resources. Default is enabled.");
+
     /** Strategy for handling non-deterministic updates. */
     @PublicEvolving
     public enum NonDeterministicUpdateStrategy {
