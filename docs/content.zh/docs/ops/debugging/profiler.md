@@ -33,11 +33,11 @@ under the License.
 - **ALLOCATION**: 在allocation 分析模式下， 每个调用跟踪的顶部框架是被分配对象的类，计数器是堆压力 （分配的TLAB或TLAB之外的对象的总大小）。
 - **Wall-clock**: Wall-Clock选项使得异步分析器在每个给定的时间段内均匀对所有线程进行采样，无论线程状态如何：正在运行、睡眠或阻塞。这个选项在分析应用程序启动时间时会很有帮助
 - **Lock**: 在lock分析模式下，顶部框架是锁定/监视器的类，计数器是进入此锁定/监视器所需的纳秒数。
-- **ITIMER**: 您可以退回到itimer分析模式。它类似于cpu模式，但不需要perf_events支持。它的缺陷是没有内核堆栈跟踪。
+- **ITIMER**: 你可以退回到itimer分析模式。它类似于cpu模式，但不需要perf_events支持。它的缺陷是没有内核堆栈跟踪。
 
 {{< hint warning >}}
 
-任何测量过程本身都不可避免地会影响测量对象。为了防止对生产环境产生意外影响，分析器目前作为一项可选的功能。要启用它，您需要在[Flink配置文件]({{< ref "docs/deployment/config#flink-configuration-file" >}}) 中设置 [`rest.profiling.enabled: true`]({{< ref "docs/deployment/config">}}#rest-profiling-enabled) 。我们建议在开发和预生产环境中启用它，但在生产环境中应将其视为试验性功能。
+任何测量过程本身都不可避免地会影响测量对象。为了防止对生产环境产生意外影响，分析器目前作为一项可选的功能。要启用它，你需要在[Flink配置文件]({{< ref "docs/deployment/config#flink-configuration-file" >}}) 中设置 [`rest.profiling.enabled: true`]({{< ref "docs/deployment/config">}}#rest-profiling-enabled) 。我们建议在开发和预生产环境中启用它，但在生产环境中应将其视为试验性功能。
 
 {{< /hint >}}
 
@@ -50,16 +50,16 @@ under the License.
 | **Linux** | x64, arm64                   | x86, arm32, ppc64le, riscv64, loongarch64 |
 | **macOS** | x64, arm64                   |                                           |
 
-在上述之外的平台分析将在 `Message` 列中报错。
+在上述列表之外的平台分析将在 `Message` 列中报错。
 
 
 ##  用途
 Flink用户可以通过Flink Web UI方便地完成剖析提交和结果导出。
 
 比如，
-- 首先，您应找出性能瓶颈的 TaskManager/JobManager，然后切换到相应的 TaskManager/JobManager 页面（分析器选项卡）。
-- 您只需通过点击 **创建分析实例**按钮来提交一个具有特定持续时间和模式的剖析实例。 （悬停在模式上时将显示相应分析模式的描述。）
-- 一旦分析实例完成，您可以通过点击链接下载交互式 HTML 文件。
+- 首先，你应找出存在性能瓶颈的 TaskManager/JobManager，然后切换到相应的 TaskManager/JobManager 页面（分析器选项卡）。
+- 你只需通过点击 **创建分析实例**按钮来提交一个具有特定持续时间和模式的剖析实例。 （悬停在模式上时将显示相应分析模式的描述。）
+- 一旦分析实例完成，你可以通过点击链接下载交互式 HTML 文件。
 
 {{< img src="/fig/profiler_instance.png" class="img-fluid" width="90%" >}}
 {{% center %}}
@@ -76,6 +76,6 @@ Profiling Instance
 
 {{< hint info >}}
 
-您可以在 [Troubleshooting](https://github.com/async-profiler/async-profiler?tab=readme-ov-file#troubleshooting) 页面的异步分析器中查阅更多案例。
+你可以在 [Troubleshooting](https://github.com/async-profiler/async-profiler?tab=readme-ov-file#troubleshooting) 页面的异步分析器中查阅更多案例。
 
 {{< /hint >}}
