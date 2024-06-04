@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.hint;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.config.LookupJoinHintOptions;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.planner.plan.rules.logical.WrapJsonAggFunctionArgumentsRule;
 import org.apache.flink.util.TimeUtils;
