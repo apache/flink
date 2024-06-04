@@ -344,7 +344,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.time.Time;
 
 StateTtlConfig ttlConfig = StateTtlConfig
-    .newBuilder(Duration.ofSeconds(1))
+    .newBuilder(Time.seconds(1))
     .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
     .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
     .build();
@@ -360,7 +360,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor
 import org.apache.flink.api.common.time.Time
 
 val ttlConfig = StateTtlConfig
-    .newBuilder(Duration.ofSeconds(1))
+    .newBuilder(Time.seconds(1))
     .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
     .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
     .build
@@ -447,7 +447,7 @@ in the background if supported by the configured state backend. Background clean
 ```java
 import org.apache.flink.api.common.state.StateTtlConfig;
 StateTtlConfig ttlConfig = StateTtlConfig
-    .newBuilder(Duration.ofSeconds(1))
+    .newBuilder(Time.seconds(1))
     .disableCleanupInBackground()
     .build();
 ```
@@ -456,7 +456,7 @@ StateTtlConfig ttlConfig = StateTtlConfig
 ```scala
 import org.apache.flink.api.common.state.StateTtlConfig
 val ttlConfig = StateTtlConfig
-    .newBuilder(Duration.ofSeconds(1))
+    .newBuilder(Time.seconds(1))
     .disableCleanupInBackground
     .build
 ```
@@ -491,7 +491,7 @@ import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.time.Time;
 
 StateTtlConfig ttlConfig = StateTtlConfig
-    .newBuilder(Duration.ofSeconds(1))
+    .newBuilder(Time.seconds(1))
     .cleanupFullSnapshot()
     .build();
 ```
@@ -502,7 +502,7 @@ import org.apache.flink.api.common.state.StateTtlConfig
 import org.apache.flink.api.common.time.Time
 
 val ttlConfig = StateTtlConfig
-    .newBuilder(Duration.ofSeconds(1))
+    .newBuilder(Time.seconds(1))
     .cleanupFullSnapshot
     .build
 ```
@@ -542,8 +542,10 @@ This feature can be configured in `StateTtlConfig`:
 {{< tab "Java" >}}
 ```java
 import org.apache.flink.api.common.state.StateTtlConfig;
- StateTtlConfig ttlConfig = StateTtlConfig
-    .newBuilder(Duration.ofSeconds(1))
+import org.apache.flink.api.common.time.Time;
+
+StateTtlConfig ttlConfig = StateTtlConfig
+    .newBuilder(Time.seconds(1))
     .cleanupIncrementally(10, true)
     .build();
 ```
@@ -551,8 +553,10 @@ import org.apache.flink.api.common.state.StateTtlConfig;
 {{< tab "Scala" >}}
 ```scala
 import org.apache.flink.api.common.state.StateTtlConfig
+import org.apache.flink.api.common.time.Time
+
 val ttlConfig = StateTtlConfig
-    .newBuilder(Duration.ofSeconds(1))
+    .newBuilder(Time.seconds(1))
     .cleanupIncrementally(10, true)
     .build
 ```
@@ -598,20 +602,22 @@ This feature can be configured in `StateTtlConfig`:
 {{< tab "Java" >}}
 ```java
 import org.apache.flink.api.common.state.StateTtlConfig;
+import org.apache.flink.api.common.time.Time;
 
 StateTtlConfig ttlConfig = StateTtlConfig
-    .newBuilder(Duration.ofSeconds(1))
-    .cleanupInRocksdbCompactFilter(1000, Duration.ofHours(1))
+    .newBuilder(Time.seconds(1))
+    .cleanupInRocksdbCompactFilter(1000)
     .build();
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
 import org.apache.flink.api.common.state.StateTtlConfig
+import org.apache.flink.api.common.time.Time
 
 val ttlConfig = StateTtlConfig
-    .newBuilder(Duration.ofSeconds(1))
-    .cleanupInRocksdbCompactFilter(1000, Duration.ofHours(1))
+    .newBuilder(Time.seconds(1))
+    .cleanupInRocksdbCompactFilter(1000)
     .build
 ```
 {{< /tab >}}
@@ -623,7 +629,7 @@ from pyflink.datastream.state import StateTtlConfig
 
 ttl_config = StateTtlConfig \
   .new_builder(Time.seconds(1)) \
-  .cleanup_in_rocksdb_compact_filter(1000, Duration.of_hours(1)) \
+  .cleanup_in_rocksdb_compact_filter(1000) \
   .build()
 ```
 {{< /tab >}}
