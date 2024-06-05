@@ -1255,6 +1255,14 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                 .hasMessageContaining(
                         "Failed to execute ALTER TABLE statement.\nThe column `a` is used as the partition keys.");
         checkAlterNonExistTable("alter table %s nonexistent rename a to a1");
+
+        prepareNonManagedTableWithDistribution("tb3");
+        // rename column used as distribution key
+        assertThatThrownBy(() -> parse("alter table tb3 rename c to a1"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Failed to execute ALTER TABLE statement.\nThe column `c` is used as a distribution key.");
+        checkAlterNonExistTable("alter table %s nonexistent rename a to a1");
     }
 
     @Test
@@ -1289,6 +1297,11 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         assertThatThrownBy(() -> parse("alter table tb1 drop c"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("The column `c` is used as the primary key.");
+
+        prepareNonManagedTableWithDistribution("tb3");
+        assertThatThrownBy(() -> parse("alter table tb3 drop c"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("The column `c` is used as a distribution key.");
 
         // drop a column which defines watermark
         assertThatThrownBy(() -> parse("alter table tb1 drop ts"))
@@ -1365,7 +1378,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
 
     @Test
     public void testAlterTableDropDistribution() throws Exception {
-        prepareNonManagedTableWithDistribution();
+        prepareNonManagedTableWithDistribution("tb1");
         String expectedSummaryString = "ALTER TABLE cat1.db1.tb1\n  DROP DISTRIBUTION";
 
         Operation operation = parse("alter table tb1 drop distribution");
@@ -1373,6 +1386,14 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         assertThat(operation.asSummaryString()).isEqualTo(expectedSummaryString);
         assertThat(((AlterTableChangeOperation) operation).getNewTable().getDistribution())
                 .isNotPresent();
+
+        prepareNonManagedTableWithDistribution("tb3");
+        // rename column used as distribution key
+        assertThatThrownBy(() -> parse("alter table tb3 drop c"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Failed to execute ALTER TABLE statement.\nThe column `c` is used as a distribution key.");
+        checkAlterNonExistTable("alter table %s nonexistent rename a to a1");
     }
 
     @Test
@@ -1380,7 +1401,8 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         prepareNonManagedTable("tb1", false);
         assertThatThrownBy(() -> parse("alter table tb1 drop distribution"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("The base table does not define an existing distribution.");
+                .hasMessageContaining(
+                        "Table `cat1`.`db1`.`tb1` does not have a distribution to drop.");
         checkAlterNonExistTable("alter table %s nonexistent drop watermark");
     }
 
@@ -2234,7 +2256,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
 
     @Test
     public void testFailedToAlterTableAddDistribution() throws Exception {
-        prepareNonManagedTableWithDistribution();
+        prepareNonManagedTableWithDistribution("tb1");
 
         // modify watermark on a table without watermark
         assertThatThrownBy(
@@ -2259,17 +2281,17 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
 
     @Test
     public void testAlterTableModifyDistribution() throws Exception {
-        prepareNonManagedTableWithDistribution();
+        prepareNonManagedTableWithDistribution("tb1");
 
         Operation operation =
-                parse("alter table tb1 modify distribution by hash(a) into 12 buckets");
+                parse("alter table tb1 modify distribution by hash(c) into 12 buckets");
         ObjectIdentifier tableIdentifier = ObjectIdentifier.of("cat1", "db1", "tb1");
         assertAlterTableDistribution(
                 operation,
                 tableIdentifier,
-                TableDistribution.ofHash(Collections.singletonList("a"), 12),
+                TableDistribution.ofHash(Collections.singletonList("c"), 12),
                 "ALTER TABLE cat1.db1.tb1\n"
-                        + "  MODIFY DISTRIBUTED BY HASH(`a`) INTO 12 BUCKETS\n");
+                        + "  MODIFY DISTRIBUTED BY HASH(`c`) INTO 12 BUCKETS\n");
     }
 
     @Test
@@ -2549,11 +2571,11 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         prepareTable("tb1", true, hasPartition, false, 0);
     }
 
-    private void prepareNonManagedTableWithDistribution() throws Exception {
+    private void prepareNonManagedTableWithDistribution(String tableName) throws Exception {
         TableDistribution distribution =
                 TableDistribution.of(
-                        TableDistribution.Kind.HASH, 6, Collections.singletonList("a"));
-        prepareTable("tb1", false, false, false, 0, distribution);
+                        TableDistribution.Kind.HASH, 6, Collections.singletonList("c"));
+        prepareTable(tableName, false, false, false, 0, distribution);
     }
 
     private void prepareTable(
@@ -2631,8 +2653,6 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         if (tableDistribution != null) {
             tableBuilder.distribution(tableDistribution);
         }
-        //        .distribution(TableDistribution.of(TableDistribution.Kind.HASH, 6,
-        // Collections.singletonList("a"))).build();
 
         CatalogTable catalogTable = tableBuilder.build();
 

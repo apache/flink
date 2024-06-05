@@ -22,7 +22,6 @@ import org.apache.flink.sql.parser.ddl.SqlAlterTable;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableAdd;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropColumn;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropConstraint;
-import org.apache.flink.sql.parser.ddl.SqlAlterTableDropDistribution;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropPrimaryKey;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropWatermark;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableModify;
@@ -210,24 +209,6 @@ public class AlterSchemaConverter {
                 dropColumn, tableChanges, schemaBuilder.build(), oldTable);
     }
 
-    /** Convert ALTER TABLE DROP DISTRIBUTION to generate an updated Schema. */
-    public Operation convertAlterSchema(
-            SqlAlterTableDropDistribution dropDistribution, ResolvedCatalogTable oldTable) {
-        Optional<TableDistribution> oldTableDistribution = oldTable.getDistribution();
-        if (!oldTableDistribution.isPresent()) {
-            throw new ValidationException(
-                    String.format(
-                            "%sThe base table does not define an existing distribution.",
-                            EX_MSG_PREFIX));
-        }
-
-        return buildAlterTableChangeOperation(
-                dropDistribution,
-                Collections.singletonList(TableChange.dropDistribution()),
-                oldTable.getUnresolvedSchema(),
-                oldTable);
-    }
-
     /** Convert ALTER TABLE DROP PRIMARY KEY to generate an updated Schema. */
     public Operation convertAlterSchema(
             SqlAlterTableDropPrimaryKey dropPrimaryKey, ResolvedCatalogTable oldTable) {
@@ -344,7 +325,7 @@ public class AlterSchemaConverter {
             populateColumnsFromSourceTable(oldSchema);
             populatePrimaryKeyFromSourceTable(oldSchema);
             populateWatermarkFromSourceTable(oldSchema);
-            populateDistribution(oldTable);
+            populateDistributionFromSourceTable(oldTable);
         }
 
         private void populateColumnsFromSourceTable(Schema oldSchema) {
@@ -364,7 +345,7 @@ public class AlterSchemaConverter {
             }
         }
 
-        private void populateDistribution(ResolvedCatalogTable oldTable) {
+        private void populateDistributionFromSourceTable(ResolvedCatalogTable oldTable) {
             oldTable.getDistribution().ifPresent(distribution -> this.distribution = distribution);
         }
 
@@ -816,19 +797,24 @@ public class AlterSchemaConverter {
         /** The name of the column partition keys contains. */
         private final Set<String> partitionKeys;
 
+        /** The names of the columns used as distribution keys. */
+        private final Set<String> distributionKeys;
+
         private ReferencesManager(
                 Set<String> columns,
                 Map<String, Set<String>> columnToReferences,
                 Map<String, Set<String>> columnToDependencies,
                 Set<String> primaryKeys,
                 Set<String> watermarkReferences,
-                Set<String> partitionKeys) {
+                Set<String> partitionKeys,
+                Set<String> distributionKeys) {
             this.columns = columns;
             this.columnToReferences = columnToReferences;
             this.columnToDependencies = columnToDependencies;
             this.primaryKeys = primaryKeys;
             this.watermarkReferences = watermarkReferences;
             this.partitionKeys = partitionKeys;
+            this.distributionKeys = distributionKeys;
         }
 
         static ReferencesManager create(ResolvedCatalogTable catalogTable) {
@@ -864,7 +850,12 @@ public class AlterSchemaConverter {
                             .orElse(new HashSet<>()),
                     ColumnReferenceFinder.findWatermarkReferencedColumn(
                             catalogTable.getResolvedSchema()),
-                    new HashSet<>(catalogTable.getPartitionKeys()));
+                    new HashSet<>(catalogTable.getPartitionKeys()),
+                    new HashSet<>(
+                            catalogTable
+                                    .getDistribution()
+                                    .map(TableDistribution::getBucketKeys)
+                                    .orElse(Collections.emptyList())));
         }
 
         void dropColumn(String columnName) {
@@ -918,6 +909,12 @@ public class AlterSchemaConverter {
                 throw new ValidationException(
                         String.format(
                                 "%sThe column `%s` is referenced by watermark expression.",
+                                EX_MSG_PREFIX, columnName));
+            }
+            if (distributionKeys.contains(columnName)) {
+                throw new ValidationException(
+                        String.format(
+                                "%sThe column `%s` is used as a distribution key.",
                                 EX_MSG_PREFIX, columnName));
             }
         }
