@@ -271,11 +271,6 @@ public class EmbeddedQuartzScheduler {
         JobKey jobKey = JobKey.jobKey(workflowName, workflowGroup);
         lock.writeLock().lock();
         try {
-            String errorMsg =
-                    String.format(
-                            "Failed to delete a non-existent quartz schedule job: %s.", jobKey);
-            checkJobExists(jobKey, errorMsg);
-
             quartzScheduler.deleteJob(jobKey);
         } catch (org.quartz.SchedulerException e) {
             LOG.error("Failed to delete quartz schedule job: {}.", jobKey, e);

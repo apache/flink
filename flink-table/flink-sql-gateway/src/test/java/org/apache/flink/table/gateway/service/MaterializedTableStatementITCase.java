@@ -268,9 +268,6 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                 .containsKey("table.catalog-store.file.path")
                 .doesNotContainKey(WORKFLOW_SCHEDULER_TYPE.key())
                 .doesNotContainKey(RESOURCES_DOWNLOAD_DIR.key());
-
-        // delete the workflow
-        embeddedWorkflowScheduler.deleteScheduleWorkflow(jobKey.getName(), jobKey.getGroup());
     }
 
     @Test
@@ -751,9 +748,6 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                 fromJson((String) jobDetail.getJobDataMap().get(WORKFLOW_INFO), WorkflowInfo.class);
         assertThat(workflowInfo.getDynamicOptions())
                 .containsEntry("debezium-json.ignore-parse-errors", "true");
-
-        // delete the workflow
-        embeddedWorkflowScheduler.deleteScheduleWorkflow(jobKey.getName(), jobKey.getGroup());
     }
 
     @Test
@@ -889,6 +883,96 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                                                 TEST_DEFAULT_DATABASE,
                                                 "datagenSource")
                                         .asSerializableString()));
+    }
+
+    @Test
+    void testDropMaterializedTableInFullMode() throws Exception {
+        createAndVerifyCreateMaterializedTableWithData(
+                "users_shops", Collections.emptyList(), Collections.emptyMap(), RefreshMode.FULL);
+
+        JobKey jobKey =
+                JobKey.jobKey(
+                        "quartz_job_"
+                                + ObjectIdentifier.of(
+                                                fileSystemCatalogName,
+                                                TEST_DEFAULT_DATABASE,
+                                                "users_shops")
+                                        .asSerializableString(),
+                        "default_group");
+        EmbeddedQuartzScheduler embeddedWorkflowScheduler =
+                SQL_GATEWAY_REST_ENDPOINT_EXTENSION
+                        .getSqlGatewayRestEndpoint()
+                        .getQuartzScheduler();
+
+        // verify refresh workflow is created
+        assertThat(embeddedWorkflowScheduler.getQuartzScheduler().checkExists(jobKey)).isTrue();
+
+        // drop materialized table
+        String dropMaterializedTableDDL = "DROP MATERIALIZED TABLE IF EXISTS users_shops";
+        OperationHandle dropMaterializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, dropMaterializedTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, dropMaterializedTableHandle);
+
+        // verify materialized table metadata is removed
+        assertThatThrownBy(
+                        () ->
+                                service.getTable(
+                                        sessionHandle,
+                                        ObjectIdentifier.of(
+                                                fileSystemCatalogName,
+                                                TEST_DEFAULT_DATABASE,
+                                                "users_shops")))
+                .isInstanceOf(SqlGatewayException.class)
+                .hasMessageContaining("Failed to getTable.");
+
+        // verify refresh workflow is removed
+        assertThat(embeddedWorkflowScheduler.getQuartzScheduler().checkExists(jobKey)).isFalse();
+    }
+
+    @Test
+    void testDropMaterializedTableWithDeletedRefreshWorkflowInFullMode() throws Exception {
+        createAndVerifyCreateMaterializedTableWithData(
+                "users_shops", Collections.emptyList(), Collections.emptyMap(), RefreshMode.FULL);
+
+        JobKey jobKey =
+                JobKey.jobKey(
+                        "quartz_job_"
+                                + ObjectIdentifier.of(
+                                                fileSystemCatalogName,
+                                                TEST_DEFAULT_DATABASE,
+                                                "users_shops")
+                                        .asSerializableString(),
+                        "default_group");
+        EmbeddedQuartzScheduler embeddedWorkflowScheduler =
+                SQL_GATEWAY_REST_ENDPOINT_EXTENSION
+                        .getSqlGatewayRestEndpoint()
+                        .getQuartzScheduler();
+
+        // verify refresh workflow is created
+        assertThat(embeddedWorkflowScheduler.getQuartzScheduler().checkExists(jobKey)).isTrue();
+
+        // delete the workflow
+        embeddedWorkflowScheduler.deleteScheduleWorkflow(jobKey.getName(), jobKey.getGroup());
+
+        // drop materialized table
+        String dropMaterializedTableDDL = "DROP MATERIALIZED TABLE IF EXISTS users_shops";
+        OperationHandle dropMaterializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, dropMaterializedTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, dropMaterializedTableHandle);
+
+        // verify materialized table metadata is removed
+        assertThatThrownBy(
+                        () ->
+                                service.getTable(
+                                        sessionHandle,
+                                        ObjectIdentifier.of(
+                                                fileSystemCatalogName,
+                                                TEST_DEFAULT_DATABASE,
+                                                "users_shops")))
+                .isInstanceOf(SqlGatewayException.class)
+                .hasMessageContaining("Failed to getTable.");
     }
 
     @Test
