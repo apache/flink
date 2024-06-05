@@ -69,7 +69,12 @@ public class ProcessOperator<IN, OUT>
                         operatorContext.getMetricGroup());
         partitionedContext =
                 new DefaultPartitionedContext(
-                        context, this::currentKey, this::setCurrentKey, getProcessingTimeManager());
+                        context,
+                        this::currentKey,
+                        this::setCurrentKey,
+                        getProcessingTimeManager(),
+                        operatorContext,
+                        getOperatorStateBackend());
         outputCollector = getOutputCollector();
         nonPartitionedContext = getNonPartitionedContext();
     }
