@@ -355,13 +355,17 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
 
         ForStKeyedStateBackendBuilder<K> builder =
                 new ForStKeyedStateBackendBuilder<>(
+                                parameters.getOperatorIdentifier(),
+                                env.getUserCodeClassLoader().asClassLoader(),
                                 resourceContainer,
                                 stateName -> resourceContainer.getColumnOptions(),
                                 parameters.getKeySerializer(),
                                 parameters.getNumberOfKeyGroups(),
                                 parameters.getKeyGroupRange(),
                                 parameters.getMetricGroup(),
-                                parameters.getStateHandles())
+                                parameters.getCustomInitializationMetrics(),
+                                parameters.getStateHandles(),
+                                parameters.getCancelStreamRegistry())
                         // TODO: remove after support more snapshot strategy
                         .setEnableIncrementalCheckpointing(true)
                         .setNativeMetricOptions(

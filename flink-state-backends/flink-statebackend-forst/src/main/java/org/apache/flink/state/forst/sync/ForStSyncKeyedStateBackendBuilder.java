@@ -52,7 +52,6 @@ import org.apache.flink.state.forst.ForStResourceContainer;
 import org.apache.flink.state.forst.restore.ForStNoneRestoreOperation;
 import org.apache.flink.state.forst.restore.ForStRestoreOperation;
 import org.apache.flink.state.forst.restore.ForStRestoreResult;
-import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
@@ -60,7 +59,6 @@ import org.apache.flink.util.ResourceGuard;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.DBOptions;
 import org.rocksdb.RocksDB;
 
 import javax.annotation.Nonnull;
@@ -69,6 +67,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -407,16 +406,15 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
             LinkedHashMap<String, ForStSyncKeyedStateBackend.ForStDbKvStateInfo> kvStateInformation,
             LinkedHashMap<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
             ForStDBTtlCompactFiltersManager ttlCompactFiltersManager) {
-        DBOptions dbOptions = optionsContainer.getDbOptions();
-        if (CollectionUtil.isEmptyOrAllElementsNull(restoreStateHandles)) {
-            return new ForStNoneRestoreOperation(
-                    instanceForStDBPath,
-                    optionsContainer.getDbOptions(),
-                    columnFamilyOptionsFactory,
-                    nativeMetricOptions,
-                    metricGroup);
-        }
-        throw new UnsupportedOperationException("Not support restoring yet for ForStStateBackend");
+
+        //  skip restore until ForStSyncKeyedStateBackend implement checkpoint
+        return new ForStNoneRestoreOperation(
+                Collections.emptyMap(),
+                instanceForStDBPath,
+                optionsContainer.getDbOptions(),
+                columnFamilyOptionsFactory,
+                nativeMetricOptions,
+                metricGroup);
     }
 
     private PriorityQueueSetFactory initPriorityQueueFactory(
