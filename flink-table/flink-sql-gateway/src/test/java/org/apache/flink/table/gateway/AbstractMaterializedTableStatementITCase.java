@@ -30,7 +30,6 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
-import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.results.TableInfo;
@@ -196,20 +195,14 @@ public abstract class AbstractMaterializedTableStatementITCase {
             ResolvedCatalogBaseTable<?> resolvedTable =
                     service.getTable(sessionHandle, tableInfo.getIdentifier());
             if (CatalogBaseTable.TableKind.MATERIALIZED_TABLE == resolvedTable.getTableKind()) {
-                ResolvedCatalogMaterializedTable catalogMaterializedTable =
-                        (ResolvedCatalogMaterializedTable) resolvedTable;
-                if (catalogMaterializedTable.getRefreshMode()
-                        == ResolvedCatalogMaterializedTable.RefreshMode.CONTINUOUS) {
-                    // drop materialized table (batch refresh job will be dropped automatically
-                    String dropTableDDL =
-                            String.format(
-                                    "DROP MATERIALIZED TABLE %s",
-                                    tableInfo.getIdentifier().asSerializableString());
-                    OperationHandle dropTableHandle =
-                            service.executeStatement(
-                                    sessionHandle, dropTableDDL, -1, new Configuration());
-                    awaitOperationTermination(service, sessionHandle, dropTableHandle);
-                }
+                String dropTableDDL =
+                        String.format(
+                                "DROP MATERIALIZED TABLE %s",
+                                tableInfo.getIdentifier().asSerializableString());
+                OperationHandle dropTableHandle =
+                        service.executeStatement(
+                                sessionHandle, dropTableDDL, -1, new Configuration());
+                awaitOperationTermination(service, sessionHandle, dropTableHandle);
             }
         }
     }

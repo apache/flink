@@ -228,18 +228,7 @@ public class EmbeddedSchedulerRelatedITCase extends RestAPIITCaseBase {
                         EmptyMessageParameters.getInstance(),
                         nonExistsWorkflow);
 
-        assertThatFuture(suspendFuture)
-                .failsWithin(5, TimeUnit.SECONDS)
-                .withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(RestClientException.class)
-                .withMessageContaining(
-                        "Failed to delete a non-existent quartz schedule job: default_group.non-exists.")
-                .satisfies(
-                        e ->
-                                assertThat(
-                                                ((RestClientException) e.getCause())
-                                                        .getHttpResponseStatus())
-                                        .isEqualTo(HttpResponseStatus.INTERNAL_SERVER_ERROR));
+        assertThatFuture(suspendFuture).succeedsWithin(5, TimeUnit.SECONDS);
     }
 
     @Test
@@ -304,7 +293,7 @@ public class EmbeddedSchedulerRelatedITCase extends RestAPIITCaseBase {
     }
 
     @Test
-    void testNonExistsWorkflowByWorkflowSchedulerInterface() {
+    void testNonExistsWorkflowByWorkflowSchedulerInterface() throws WorkflowException {
         // suspend case
         assertThatThrownBy(
                         () ->
@@ -331,16 +320,8 @@ public class EmbeddedSchedulerRelatedITCase extends RestAPIITCaseBase {
                                 + "}.");
 
         // delete case
-        assertThatThrownBy(
-                        () ->
-                                embeddedWorkflowScheduler.deleteRefreshWorkflow(
-                                        new DeleteRefreshWorkflow<>(nonExistsHandler)))
-                .isInstanceOf(WorkflowException.class)
-                .hasMessage(
-                        "Failed to delete refresh workflow {\n"
-                                + "  workflowName: non-exits,\n"
-                                + "  workflowGroup: default_group\n"
-                                + "}.");
+        embeddedWorkflowScheduler.deleteRefreshWorkflow(
+                new DeleteRefreshWorkflow<>(nonExistsHandler));
     }
 
     /** Just used for test. */

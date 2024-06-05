@@ -61,6 +61,7 @@ import org.apache.flink.table.refresh.RefreshHandlerSerializer;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.workflow.CreatePeriodicRefreshWorkflow;
 import org.apache.flink.table.workflow.CreateRefreshWorkflow;
+import org.apache.flink.table.workflow.DeleteRefreshWorkflow;
 import org.apache.flink.table.workflow.ModifyRefreshWorkflow;
 import org.apache.flink.table.workflow.ResumeRefreshWorkflow;
 import org.apache.flink.table.workflow.SuspendRefreshWorkflow;
@@ -779,38 +780,16 @@ public class MaterializedTableManager {
 
         CatalogMaterializedTable materializedTable =
                 getCatalogMaterializedTable(operationExecutor, tableIdentifier);
-
-        if (CatalogMaterializedTable.RefreshStatus.ACTIVATED
-                == materializedTable.getRefreshStatus()) {
-            ContinuousRefreshHandler refreshHandler =
-                    deserializeContinuousHandler(materializedTable.getSerializedRefreshHandler());
-            // get job running status
-            JobStatus jobStatus = getJobStatus(operationExecutor, handle, refreshHandler);
-            if (!jobStatus.isTerminalState()) {
-                try {
-                    cancelJob(operationExecutor, handle, refreshHandler.getJobId());
-                } catch (Exception e) {
-                    jobStatus = getJobStatus(operationExecutor, handle, refreshHandler);
-                    if (!jobStatus.isTerminalState()) {
-                        throw new SqlExecutionException(
-                                String.format(
-                                        "Failed to drop the materialized table %s because the continuous refresh job %s could not be canceled."
-                                                + " The current status of the continuous refresh job is %s.",
-                                        tableIdentifier, refreshHandler.getJobId(), jobStatus),
-                                e);
-                    } else {
-                        LOG.warn(
-                                "An exception occurred while canceling the continuous refresh job {} for materialized table {},"
-                                        + " but since the job is in a terminal state, skip the cancel operation.",
-                                refreshHandler.getJobId(),
-                                tableIdentifier);
-                    }
-                }
-            } else {
-                LOG.info(
-                        "No need to cancel the continuous refresh job {} for materialized table {} as it is not currently running.",
-                        refreshHandler.getJobId(),
-                        tableIdentifier);
+        CatalogMaterializedTable.RefreshMode refreshMode = materializedTable.getRefreshMode();
+        CatalogMaterializedTable.RefreshStatus refreshStatus = materializedTable.getRefreshStatus();
+        if (CatalogMaterializedTable.RefreshStatus.ACTIVATED == refreshStatus
+                || CatalogMaterializedTable.RefreshStatus.SUSPENDED == refreshStatus) {
+            if (CatalogMaterializedTable.RefreshMode.FULL == refreshMode) {
+                deleteRefreshWorkflow(tableIdentifier, materializedTable);
+            } else if (CatalogMaterializedTable.RefreshMode.CONTINUOUS == refreshMode
+                    && CatalogMaterializedTable.RefreshStatus.ACTIVATED == refreshStatus) {
+                cancelContinuousRefreshJob(
+                        operationExecutor, handle, tableIdentifier, materializedTable);
             }
         } else if (CatalogMaterializedTable.RefreshStatus.INITIALIZING
                 == materializedTable.getRefreshStatus()) {
@@ -823,6 +802,71 @@ public class MaterializedTableManager {
         operationExecutor.callExecutableOperation(handle, dropMaterializedTableOperation);
 
         return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false);
+    }
+
+    private void cancelContinuousRefreshJob(
+            OperationExecutor operationExecutor,
+            OperationHandle handle,
+            ObjectIdentifier tableIdentifier,
+            CatalogMaterializedTable materializedTable) {
+        ContinuousRefreshHandler refreshHandler =
+                deserializeContinuousHandler(materializedTable.getSerializedRefreshHandler());
+        // get job running status
+        JobStatus jobStatus = getJobStatus(operationExecutor, handle, refreshHandler);
+        if (!jobStatus.isTerminalState()) {
+            try {
+                cancelJob(operationExecutor, handle, refreshHandler.getJobId());
+            } catch (Exception e) {
+                jobStatus = getJobStatus(operationExecutor, handle, refreshHandler);
+                if (!jobStatus.isTerminalState()) {
+                    throw new SqlExecutionException(
+                            String.format(
+                                    "Failed to drop the materialized table %s because the continuous refresh job %s could not be canceled."
+                                            + " The current status of the continuous refresh job is %s.",
+                                    tableIdentifier, refreshHandler.getJobId(), jobStatus),
+                            e);
+                } else {
+                    LOG.warn(
+                            "An exception occurred while canceling the continuous refresh job {} for materialized table {},"
+                                    + " but since the job is in a terminal state, skip the cancel operation.",
+                            refreshHandler.getJobId(),
+                            tableIdentifier);
+                }
+            }
+        } else {
+            LOG.info(
+                    "No need to cancel the continuous refresh job {} for materialized table {} as it is not currently running.",
+                    refreshHandler.getJobId(),
+                    tableIdentifier);
+        }
+    }
+
+    private void deleteRefreshWorkflow(
+            ObjectIdentifier tableIdentifier, CatalogMaterializedTable catalogMaterializedTable) {
+        if (workflowScheduler == null) {
+            throw new SqlExecutionException(
+                    "The workflow scheduler must be configured when dropping materialized table in full refresh mode.");
+        }
+        try {
+            RefreshHandlerSerializer<?> refreshHandlerSerializer =
+                    workflowScheduler.getRefreshHandlerSerializer();
+            RefreshHandler refreshHandler =
+                    refreshHandlerSerializer.deserialize(
+                            catalogMaterializedTable.getSerializedRefreshHandler(),
+                            userCodeClassLoader);
+            DeleteRefreshWorkflow deleteRefreshWorkflow = new DeleteRefreshWorkflow(refreshHandler);
+            workflowScheduler.deleteRefreshWorkflow(deleteRefreshWorkflow);
+        } catch (Exception e) {
+            LOG.error(
+                    "Failed to delete the refresh workflow for materialized table {}.",
+                    tableIdentifier,
+                    e);
+            throw new SqlExecutionException(
+                    String.format(
+                            "Failed to delete the refresh workflow for materialized table %s.",
+                            tableIdentifier),
+                    e);
+        }
     }
 
     /**
