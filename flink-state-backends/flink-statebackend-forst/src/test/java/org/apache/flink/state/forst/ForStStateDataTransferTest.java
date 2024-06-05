@@ -27,7 +27,10 @@ import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
+import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TestStreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
@@ -35,6 +38,7 @@ import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -46,12 +50,18 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test class for {@link ForStStateDataTransfer}. */
 class ForStStateDataTransferTest extends TestLogger {
@@ -418,5 +428,193 @@ class ForStStateDataTransferTest extends TestLogger {
                 throws IOException {
             throw new UnsupportedOperationException();
         }
+    }
+
+    /** Test that the exception arose in the thread pool will rethrow to the main thread. */
+    @Test
+    public void testMultiThreadRestoreThreadPoolExceptionRethrow() {
+        SpecifiedException expectedCause =
+                new SpecifiedException("throw exception while multi thread restore.");
+        StreamStateHandle stateHandle = new ThrowingStateHandle(expectedCause);
+
+        List<HandleAndLocalPath> stateHandles = new ArrayList<>(1);
+        stateHandles.add(HandleAndLocalPath.of(stateHandle, "state1"));
+
+        IncrementalRemoteKeyedStateHandle incrementalKeyedStateHandle =
+                new IncrementalRemoteKeyedStateHandle(
+                        UUID.randomUUID(),
+                        KeyGroupRange.EMPTY_KEY_GROUP_RANGE,
+                        1,
+                        stateHandles,
+                        stateHandles,
+                        stateHandle);
+
+        try (ForStStateDataTransfer stateTransfer = new ForStStateDataTransfer(5)) {
+            stateTransfer.transferAllStateDataToDirectory(
+                    Collections.singletonList(
+                            new StateHandleTransferSpec(
+                                    incrementalKeyedStateHandle,
+                                    Path.fromLocalFile(TempDirUtils.newFolder(temporaryFolder)))),
+                    new CloseableRegistry());
+            fail();
+        } catch (Exception e) {
+            assertEquals(expectedCause, e.getCause());
+        }
+    }
+
+    /** Tests that transfer files to forst working dir with multi-thread correctly. */
+    @Test
+    public void testMultiThreadRestoreCorrectly() throws Exception {
+        int numRemoteHandles = 3;
+        int numSubHandles = 6;
+        byte[][][] contents = createContents(numRemoteHandles, numSubHandles);
+        List<StateHandleTransferSpec> transferRequests = new ArrayList<>(numRemoteHandles);
+        for (int i = 0; i < numRemoteHandles; ++i) {
+            transferRequests.add(
+                    createTransferRequestForContent(
+                            Path.fromLocalFile(TempDirUtils.newFolder(temporaryFolder)),
+                            contents[i],
+                            i));
+        }
+
+        try (ForStStateDataTransfer stateTransfer = new ForStStateDataTransfer(4)) {
+            stateTransfer.transferAllStateDataToDirectory(
+                    transferRequests, new CloseableRegistry());
+        }
+
+        for (int i = 0; i < numRemoteHandles; ++i) {
+            StateHandleTransferSpec transferRequest = transferRequests.get(i);
+            Path dstPath = transferRequest.getTransferDestination();
+
+            assertTrue(dstPath.getFileSystem().exists(dstPath));
+
+            for (int j = 0; j < numSubHandles; ++j) {
+                assertStateContentEqual(
+                        contents[i][j],
+                        new Path(dstPath, String.format("sharedState-%d-%d", i, j)));
+            }
+        }
+    }
+
+    /** Tests cleanup on transfer failures. */
+    @Test
+    public void testMultiThreadCleanupOnFailure() throws Exception {
+        int numRemoteHandles = 3;
+        int numSubHandles = 6;
+        byte[][][] contents = createContents(numRemoteHandles, numSubHandles);
+        List<StateHandleTransferSpec> transferRequests = new ArrayList<>(numRemoteHandles);
+        for (int i = 0; i < numRemoteHandles; ++i) {
+            transferRequests.add(
+                    createTransferRequestForContent(
+                            Path.fromLocalFile(TempDirUtils.newFolder(temporaryFolder)),
+                            contents[i],
+                            i));
+        }
+
+        IncrementalRemoteKeyedStateHandle stateHandle =
+                transferRequests.get(transferRequests.size() - 1).getStateHandle();
+
+        // Add a state handle that induces an exception
+        stateHandle
+                .getSharedState()
+                .add(
+                        HandleAndLocalPath.of(
+                                new ThrowingStateHandle(new IOException("Test exception.")),
+                                "error-handle"));
+
+        CloseableRegistry closeableRegistry = new CloseableRegistry();
+        try (ForStStateDataTransfer stateTransfer = new ForStStateDataTransfer(5)) {
+            stateTransfer.transferAllStateDataToDirectory(transferRequests, closeableRegistry);
+            fail("Exception is expected");
+        } catch (IOException ignore) {
+        }
+
+        // Check that all transfer directories have been deleted
+        for (StateHandleTransferSpec transferRequest : transferRequests) {
+            Path dstPath = transferRequest.getTransferDestination();
+            assertFalse(dstPath.getFileSystem().exists(dstPath));
+        }
+        // The passed in closable registry should not be closed by us on failure.
+        assertFalse(closeableRegistry.isClosed());
+    }
+
+    private void assertStateContentEqual(byte[] expected, Path path) throws IOException {
+        byte[] actual = readHeadBytes(path, -1);
+        Assertions.assertEquals(expected.length, actual.length);
+        assertThat(actual).isEqualTo(expected);
+    }
+
+    private static class ThrowingStateHandle implements TestStreamStateHandle {
+        private static final long serialVersionUID = -2102069659550694805L;
+
+        private final IOException expectedException;
+
+        private ThrowingStateHandle(IOException expectedException) {
+            this.expectedException = expectedException;
+        }
+
+        @Override
+        public FSDataInputStream openInputStream() throws IOException {
+            throw expectedException;
+        }
+
+        @Override
+        public Optional<byte[]> asBytesIfInMemory() {
+            return Optional.empty();
+        }
+
+        @Override
+        public void discardState() {}
+
+        @Override
+        public long getStateSize() {
+            return 0;
+        }
+    }
+
+    private byte[][][] createContents(int numRemoteHandles, int numSubHandles) {
+        Random random = new Random();
+        byte[][][] contents = new byte[numRemoteHandles][numSubHandles][];
+        for (int i = 0; i < numRemoteHandles; ++i) {
+            for (int j = 0; j < numSubHandles; ++j) {
+                contents[i][j] = new byte[random.nextInt(100000) + 1];
+                random.nextBytes(contents[i][j]);
+            }
+        }
+        return contents;
+    }
+
+    private StateHandleTransferSpec createTransferRequestForContent(
+            Path dstPath, byte[][] content, int remoteHandleId) {
+        int numSubHandles = content.length;
+        List<StreamStateHandle> handles = new ArrayList<>(numSubHandles);
+        for (int i = 0; i < numSubHandles; ++i) {
+            handles.add(
+                    new ByteStreamStateHandle(
+                            String.format("state-%d-%d", remoteHandleId, i), content[i]));
+        }
+
+        List<HandleAndLocalPath> sharedStates = new ArrayList<>(numSubHandles);
+        List<HandleAndLocalPath> privateStates = new ArrayList<>(numSubHandles);
+        for (int i = 0; i < numSubHandles; ++i) {
+            sharedStates.add(
+                    HandleAndLocalPath.of(
+                            handles.get(i), String.format("sharedState-%d-%d", remoteHandleId, i)));
+            privateStates.add(
+                    HandleAndLocalPath.of(
+                            handles.get(i),
+                            String.format("privateState-%d-%d", remoteHandleId, i)));
+        }
+
+        IncrementalRemoteKeyedStateHandle incrementalKeyedStateHandle =
+                new IncrementalRemoteKeyedStateHandle(
+                        UUID.randomUUID(),
+                        KeyGroupRange.of(0, 1),
+                        1,
+                        sharedStates,
+                        privateStates,
+                        handles.get(0));
+
+        return new StateHandleTransferSpec(incrementalKeyedStateHandle, dstPath);
     }
 }

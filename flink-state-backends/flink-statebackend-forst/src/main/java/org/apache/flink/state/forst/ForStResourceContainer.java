@@ -65,12 +65,12 @@ import java.util.Collection;
 public final class ForStResourceContainer implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(ForStResourceContainer.class);
 
+    public static final String DB_DIR_STRING = "db";
+
     private static final String FORST_RELOCATE_LOG_SUFFIX = "_LOG";
 
     // the filename length limit is 255 on most operating systems
     private static final int INSTANCE_PATH_LENGTH_LIMIT = 255 - FORST_RELOCATE_LOG_SUFFIX.length();
-
-    private static final String DB_DIR_STRING = "db";
 
     @Nullable private final Path remoteBasePath;
 
@@ -267,6 +267,14 @@ public final class ForStResourceContainer implements AutoCloseable {
     @Nullable
     public Path getRemoteForStPath() {
         return remoteForStPath;
+    }
+
+    public Path getBasePath() {
+        if (remoteBasePath != null) {
+            return remoteBasePath;
+        } else {
+            return Path.fromLocalFile(localBasePath);
+        }
     }
 
     public Path getDbPath() {
