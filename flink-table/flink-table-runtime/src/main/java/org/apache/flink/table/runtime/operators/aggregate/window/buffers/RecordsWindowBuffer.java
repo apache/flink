@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.window.tvf.combines.RecordsCombiner;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
@@ -182,7 +183,7 @@ public final class RecordsWindowBuffer implements WindowBuffer {
                             // memory size for global aggregation buffer:
                             runtimeContext
                                     .getExecutionConfig()
-                                    .getGlobalAggregationBufferSize()
+                                    .get(ExecutionConfigOptions.GLOBAL_AGG_BUFFER_SIZE)
                                     .map(MemorySize::getBytes)
                                     .orElse(memorySize)),
                     combiner,
@@ -192,7 +193,7 @@ public final class RecordsWindowBuffer implements WindowBuffer {
                     shiftTimeZone,
                     runtimeContext
                             .getExecutionConfig()
-                            .getGlobalAggregationMaxBufferedRecords()
+                            .get(ExecutionConfigOptions.GLOBAL_AGG_MAX_BUFFERED_RECORDS)
                             .orElse(Integer.MAX_VALUE));
         }
     }
@@ -235,7 +236,7 @@ public final class RecordsWindowBuffer implements WindowBuffer {
                             // memory size for local aggregation buffer:
                             runtimeContext
                                     .getExecutionConfig()
-                                    .getLocalAggregationBufferSize()
+                                    .get(ExecutionConfigOptions.LOCAL_AGG_BUFFER_SIZE)
                                     .map(MemorySize::getBytes)
                                     .orElse(memorySize)),
                     combiner,
@@ -245,7 +246,7 @@ public final class RecordsWindowBuffer implements WindowBuffer {
                     shiftTimeZone,
                     runtimeContext
                             .getExecutionConfig()
-                            .getLocalAggregationMaxBufferedRecords()
+                            .get(ExecutionConfigOptions.LOCAL_AGG_MAX_BUFFERED_RECORDS)
                             .orElse(Integer.MAX_VALUE));
         }
     }

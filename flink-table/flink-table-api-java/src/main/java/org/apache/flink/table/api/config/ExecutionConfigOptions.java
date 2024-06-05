@@ -32,6 +32,7 @@ import org.apache.flink.configuration.description.InlineElement;
 import java.time.Duration;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.TaskManagerOptions.MEMORY_SEGMENT_SIZE;
 import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
 
@@ -315,6 +316,57 @@ public class ExecutionConfigOptions {
                     .withDescription(
                             "Sets the window elements buffer size limit used in group window agg operator.");
 
+    public static final ConfigOption<MemorySize> GLOBAL_AGG_BUFFER_SIZE =
+            ConfigOptions.key("table.exec.window-agg.global.buffer-size")
+                    .memoryType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Maximum size of the buffer used by Global Aggregation."
+                                    + "The buffer holds records for aggregation in memory and is flushed to state on: "
+                                    + "1) checkpoints, 2) watermarks, or 3) when it is full."
+                                    + "If it's too big, and watermarks are not progressing and/or the window "
+                                    + "is big enough, there will be too much work to be done during the checkpoint sync phase."
+                                    + "That might lead to checkpoint timeouts. "
+                                    + "If it's too small, aggregation efficiency will be lower.");
+
+    public static final ConfigOption<Integer> GLOBAL_AGG_MAX_BUFFERED_RECORDS =
+            ConfigOptions.key("table.exec.window-agg.global.max-buffered-records")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Maximum number of records to buffer in Global Aggregation."
+                                    + "see "
+                                    + GLOBAL_AGG_BUFFER_SIZE.key()
+                                    + " for more details.");
+
+    public static final ConfigOption<MemorySize> LOCAL_AGG_BUFFER_SIZE =
+            ConfigOptions.key("table.exec.window-agg.local.buffer-size")
+                    .memoryType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Maximum size of the buffer used by Local Aggregation."
+                                    + "Minimum is 128Kb; must be a multiple of "
+                                    + MEMORY_SEGMENT_SIZE.key()
+                                    + "The buffer holds records for aggregation in memory and is flushed downstream on: "
+                                    + "1) checkpoints, 2) watermarks, or 3) when it is full."
+                                    + "If it's too big (even if watermarks are progressing), "
+                                    + "there might be much more data to flush than the memory available (classic flatMap problem)."
+                                    + "That might lead to back-pressure and hard-blocking the task thread."
+                                    + "To overcome this, the buffer AND the headers must fit into a network buffer "
+                                    + "(see "
+                                    + MEMORY_SEGMENT_SIZE.key()
+                                    + ")"
+                                    + "However, this buffer can't be as small because keys, values, and offsets use separate memory pages.");
+
+    public static final ConfigOption<Integer> LOCAL_AGG_MAX_BUFFERED_RECORDS =
+            ConfigOptions.key("table.exec.window-agg.local.max-buffered-records")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Maximum number of records to buffer in Local Aggregation."
+                                    + "see "
+                                    + LOCAL_AGG_BUFFER_SIZE.key()
+                                    + " for more details.");
     // ------------------------------------------------------------------------
     //  Async Lookup Options
     // ------------------------------------------------------------------------

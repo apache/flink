@@ -50,29 +50,5 @@
             <td>MemorySize</td>
             <td>Sets the managed memory size for sort partition operator in NonKeyedPartitionWindowedStream.The memory size is only a weight hint. Thus, it will affect the operator's memory weight within a task, but the actual memory used depends on the running environment.</td>
         </tr>
-        <tr>
-            <td><h5>taskmanager.runtime.aggregation.global.buffer-size</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>MemorySize</td>
-            <td>Maximum size of the buffer used by Global Aggregation.The buffer holds records for aggregation in memory and is flushed to state on: 1) checkpoints, 2) watermarks, or 3) when it is full.If it's too big, and watermarks are not progressing and/or the window is big enough, there will be too much work to be done during the checkpoint sync phase.That might lead to checkpoint timeouts. If it's too small, aggregation efficiency will be lower.</td>
-        </tr>
-        <tr>
-            <td><h5>taskmanager.runtime.aggregation.global.max-buffered-records</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>Integer</td>
-            <td>Maximum number of records to buffer in Global Aggregation.see taskmanager.runtime.aggregation.global.buffer-size for more details.</td>
-        </tr>
-        <tr>
-            <td><h5>taskmanager.runtime.aggregation.local.buffer-size</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>MemorySize</td>
-            <td>Maximum size of the buffer used by Local Aggregation.Minimum is 128Kb; must be a multiple of taskmanager.memory.segment-sizeThe buffer holds records for aggregation in memory and is flushed downstream on: 1) checkpoints, 2) watermarks, or 3) when it is full.If it's too big (even if watermarks are progressing), there might be much more data to flush than the memory available (classic flatMap problem).That might lead to back-pressure and hard-blocking the task thread.To overcome this, the buffer AND the headers must fit into a network buffer (see taskmanager.memory.segment-size)However, this buffer can't be as small because keys, values, and offsets use separate memory pages.</td>
-        </tr>
-        <tr>
-            <td><h5>taskmanager.runtime.aggregation.local.max-buffered-records</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>Integer</td>
-            <td>Maximum number of records to buffer in Local Aggregation.see taskmanager.runtime.aggregation.local.buffer-size for more details.</td>
-        </tr>
     </tbody>
 </table>
