@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.api.DataTypes;
@@ -747,7 +748,8 @@ public final class ExtractionUtils {
         return fieldNames;
     }
 
-    private static @Nullable List<String> extractExecutableNames(Executable executable) {
+    @VisibleForTesting
+    static @Nullable List<String> extractExecutableNames(Executable executable) {
         final int offset;
         if (!Modifier.isStatic(executable.getModifiers())) {
             // remove "this" as first parameter
@@ -831,7 +833,7 @@ public final class ExtractionUtils {
 
         private final String methodDescriptor;
 
-        private final List<String> parameterNames = new ArrayList<>();
+        private final Map<Integer, String> parameterNamesWithIndex = new HashMap<>();
 
         ParameterExtractor(Constructor<?> constructor) {
             super(OPCODE);
@@ -844,7 +846,14 @@ public final class ExtractionUtils {
         }
 
         List<String> getParameterNames() {
-            return parameterNames;
+            // method parameters are always at the head in the 'index' list
+            // NOTE: the first parameter may be "this" if the function is not static
+            // See more at Chapter "3.6. Receiving Arguments" in
+            // https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-3.html
+            return parameterNamesWithIndex.entrySet().stream()
+                    .sorted(Comparator.comparingInt(Map.Entry::getKey))
+                    .map(Map.Entry::getValue)
+                    .collect(Collectors.toList());
         }
 
         @Override
@@ -860,7 +869,7 @@ public final class ExtractionUtils {
                             Label start,
                             Label end,
                             int index) {
-                        parameterNames.add(name);
+                        parameterNamesWithIndex.put(index, name);
                     }
                 };
             }

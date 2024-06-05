@@ -1542,6 +1542,22 @@ public class FunctionITCase extends StreamingTestBase {
                 "drop function lowerUdf");
     }
 
+    @Test
+    void testUdfWithMultiLocalVariables() {
+        List<Row> sourceData = Arrays.asList(Row.of(1L, 2L), Row.of(2L, 3L));
+        TestCollectionTableFactory.reset();
+        TestCollectionTableFactory.initData(sourceData);
+
+        tEnv().executeSql(
+                        "CREATE TABLE SourceTable(x BIGINT, y BIGINT) WITH ('connector' = 'COLLECTION')");
+        tEnv().executeSql(
+                        "CREATE FUNCTION MultiLocalVariables AS '"
+                                + MultiLocalVariableBlocksClass.class.getName()
+                                + "'");
+        CollectionUtil.iteratorToList(
+                tEnv().executeSql("SELECT MultiLocalVariables(x, y) FROM SourceTable").collect());
+    }
+
     // --------------------------------------------------------------------------------------------
     // Test functions
     // --------------------------------------------------------------------------------------------
@@ -2136,6 +2152,29 @@ public class FunctionITCase extends StreamingTestBase {
     public static class BoolEcho extends ScalarFunction {
         public Boolean eval(@DataTypeHint("BOOLEAN NOT NULL") Boolean b) {
             return b;
+        }
+    }
+
+    /** A function that contains a local variable with multi blocks. */
+    public static class MultiLocalVariableBlocksClass extends ScalarFunction {
+
+        public Long eval(Long a, Long b) {
+            long localVariable;
+            if (a == null) {
+                // block 1
+                localVariable = 0;
+            } else if (a == 0) {
+                // block 2
+                localVariable = -1;
+            } else if (b < 1) {
+                // block 3
+                localVariable = -1L * a;
+            } else {
+                // block 4
+                localVariable = a;
+            }
+
+            return localVariable * Optional.ofNullable(b).orElse(0L);
         }
     }
 
