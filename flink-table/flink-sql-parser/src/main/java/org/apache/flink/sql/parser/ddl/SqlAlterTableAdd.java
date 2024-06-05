@@ -67,7 +67,14 @@ public class SqlAlterTableAdd extends SqlAlterTableSchema {
         super.unparse(writer, leftPrec, rightPrec);
         writer.keyword("ADD");
         // unparse table schema
-        SqlUnparseUtils.unparseTableSchema(
-                writer, leftPrec, rightPrec, columnList, constraints, watermark, distribution);
+        if ((columnList != null && columnList.size() > 0)
+                || (constraints != null && constraints.size() > 0)
+                || watermark != null) {
+            SqlUnparseUtils.unparseTableSchema(
+                    writer, leftPrec, rightPrec, columnList, constraints, watermark);
+        }
+        if (distribution != null) {
+            distribution.unparseAlter(writer, leftPrec, rightPrec);
+        }
     }
 }
