@@ -663,14 +663,14 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
                 assignmentTracker.uncheckpointedAssignments().get(subtaskIndex);
 
         if (cachedSplits != null) {
-            if (supportsConcurrentExecutionAttempts) {
-                assignSplitsToAttempt(subtaskIndex, attemptNumber, new ArrayList<>(cachedSplits));
-                if (hasNoMoreSplits(subtaskIndex)) {
-                    signalNoMoreSplitsToAttempt(subtaskIndex, attemptNumber);
-                }
-            } else {
+            if (!supportsConcurrentExecutionAttempts) {
                 throw new IllegalStateException("No cached split is expected.");
             }
+            assignSplitsToAttempt(subtaskIndex, attemptNumber, new ArrayList<>(cachedSplits));
+        }
+
+        if (supportsConcurrentExecutionAttempts && hasNoMoreSplits(subtaskIndex)) {
+            signalNoMoreSplitsToAttempt(subtaskIndex, attemptNumber);
         }
     }
 
