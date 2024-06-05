@@ -1374,6 +1374,12 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             for (Map.Entry<String, byte[]> e : container.getTokens().entrySet()) {
                 if (e.getKey().equals("hadoopfs")) {
                     credentials.addAll(HadoopDelegationTokenConverter.deserialize(e.getValue()));
+                } else {
+                    // Add hdfs tokens, maybe fetched by custom DelegationTokenProvider
+                    Credentials fetchedCredentials = HadoopDelegationTokenConverter.deserialize(e.getValue());
+                    fetchedCredentials.getAllTokens().stream()
+                            .filter(HadoopUtils::isHDFSDelegationToken)
+                            .forEach(t -> credentials.addToken(t.getService(), t));
                 }
             }
         }

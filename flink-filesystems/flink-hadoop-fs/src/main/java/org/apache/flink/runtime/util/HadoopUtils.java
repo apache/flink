@@ -185,6 +185,10 @@ public class HadoopUtils {
         return false;
     }
 
+    public static boolean isHDFSDelegationToken(Token<? extends TokenIdentifier> token) {
+        return token.getKind().equals(HDFS_DELEGATION_TOKEN_KIND);
+    }
+
     /** Checks if the Hadoop dependency is at least the given version. */
     public static boolean isMinHadoopVersion(int major, int minor) throws FlinkRuntimeException {
         final Tuple2<Integer, Integer> hadoopVersion = getMajorMinorBundledHadoopVersion();
