@@ -45,8 +45,8 @@ public interface ValueState<T> extends State {
      * the value returned depends on the current operator input, as the operator maintains an
      * independent state for each partition.
      *
-     * <p>If you didn't specify a default value when creating the {@link ValueStateDescriptor} this
-     * will return {@code null} when no value was previously set using {@link #update(Object)}.
+     * <p>If you didn't specify a default value when creating the ValueStateDescriptor this will
+     * return {@code null} when no value was previously set using {@link #update(Object)}.
      *
      * @return The state value corresponding to the current input.
      * @throws IOException Thrown if the system cannot access the state.
