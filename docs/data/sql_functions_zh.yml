@@ -819,7 +819,7 @@ collection:
     description: 返回一个通过合并两个图 'map1' 和 'map2' 创建的图。这两个图应该具有共同的图类型。如果有重叠的键，'map2' 的值将覆盖 'map1' 的值。如果任一图为空，则返回 null。
   - sql: ARRAY_EXCEPT(array1, array2)
     table: arrayOne.arrayExcept(arrayTwo)
-    description: Returns an ARRAY that contains the elements from array1 that are not in array2, without duplicates.
+    description: Returns an ARRAY that contains the elements from array1 that are not in array2, without duplicates. If no elements remain after excluding the elements in array2 from array1, the function returns an empty ARRAY. If one or both arguments are NULL, the function returns NULL. The order of the elements from array1 is kept.
   - sql: SPLIT(string, delimiter)
     table: string.split(delimiter)
     description: Returns an array of substrings by splitting the input string based on the given delimiter. If the delimiter is not found in the string, the original string is returned as the only element in the array. If the delimiter is empty, every character in the string is split. If the string or delimiter is null, a null value is returned. If the delimiter is found at the beginning or end of the string, or there are contiguous delimiters, then an empty string is added to the array.
