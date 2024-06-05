@@ -18,6 +18,8 @@
 
 package org.apache.flink.datastream.impl.utils;
 
+import org.apache.flink.api.common.state.IllegalRedistributionModeException;
+import org.apache.flink.api.common.state.StateDeclaration;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.dsv2.Sink;
 import org.apache.flink.api.connector.dsv2.WrappedSink;
@@ -47,6 +49,8 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.DataStreamV2SinkTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
+
+import java.util.Set;
 
 /**
  * This class encapsulates the common logic for all type of streams. It can be used to handle things
@@ -309,5 +313,19 @@ public final class StreamUtils {
     public static <T> ProcessConfigurableAndGlobalStream<T> wrapWithConfigureHandle(
             GlobalStreamImpl<T> stream) {
         return new ProcessConfigurableAndGlobalStreamImpl<>(stream);
+    }
+
+    /** Wrap a {@link GlobalStreamImpl} with configure handle. */
+    public static void validateStates(
+            Set<StateDeclaration> inputStateDeclarations,
+            Set<StateDeclaration.RedistributionMode> invalidStateDeclarations) {
+        inputStateDeclarations.stream()
+                .map(StateDeclaration::getRedistributionMode)
+                .forEach(
+                        mode -> {
+                            if (invalidStateDeclarations.contains(mode)) {
+                                throw new IllegalRedistributionModeException(mode);
+                            }
+                        });
     }
 }
