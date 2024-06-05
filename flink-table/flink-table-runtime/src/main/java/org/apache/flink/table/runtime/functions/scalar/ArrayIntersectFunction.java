@@ -32,9 +32,8 @@ import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nullable;
 
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 /** Implementation of {@link BuiltInFunctionDefinitions#ARRAY_INTERSECT}. */
@@ -64,21 +63,26 @@ public class ArrayIntersectFunction extends BuiltInScalarFunction {
                 return null;
             }
 
-            List<Object> list = new ArrayList<>();
             Set<ObjectContainer> set = new HashSet<>();
             for (int pos = 0; pos < arrayTwo.size(); pos++) {
                 final Object element = elementGetter.getElementOrNull(arrayTwo, pos);
                 final ObjectContainer objectContainer = createObjectContainer(element);
                 set.add(objectContainer);
             }
+
+            Set<ObjectContainer> res = new LinkedHashSet<>();
             for (int pos = 0; pos < arrayOne.size(); pos++) {
                 final Object element = elementGetter.getElementOrNull(arrayOne, pos);
                 final ObjectContainer objectContainer = createObjectContainer(element);
                 if (set.contains(objectContainer)) {
-                    list.add(element);
+                    res.add(objectContainer);
                 }
             }
-            return new GenericArrayData(list.toArray());
+
+            return new GenericArrayData(
+                    res.stream()
+                            .map(element -> element != null ? element.getObject() : null)
+                            .toArray());
         } catch (Throwable t) {
             throw new FlinkRuntimeException(t);
         }

@@ -1749,7 +1749,7 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f0").arrayIntersect(new Integer[] {1, null, 4}),
                                 "ARRAY_INTERSECT(f0, ARRAY[1, NULL, 4])",
-                                new Integer[] {1, 1},
+                                new Integer[] {1},
                                 DataTypes.ARRAY(DataTypes.INT()))
                         .testResult(
                                 $("f0").arrayIntersect(new Integer[] {3, 4}),
@@ -1775,7 +1775,7 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f3").arrayIntersect(new Integer[] {null, 42}),
                                 "ARRAY_INTERSECT(f3, ARRAY[null, 42])",
-                                new Integer[] {null, null},
+                                new Integer[] {null},
                                 DataTypes.ARRAY(DataTypes.INT()).nullable())
                         .testResult(
                                 $("f4").arrayIntersect(
