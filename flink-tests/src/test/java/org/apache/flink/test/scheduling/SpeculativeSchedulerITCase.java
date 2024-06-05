@@ -34,7 +34,10 @@ import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
+import org.apache.flink.api.connector.source.lib.util.IteratorSourceEnumerator;
 import org.apache.flink.api.connector.source.lib.util.IteratorSourceReader;
 import org.apache.flink.api.connector.source.lib.util.IteratorSourceSplit;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -71,6 +74,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -170,6 +174,13 @@ class SpeculativeSchedulerITCase {
     @Test
     void testSpeculativeExecutionOfNewSource() throws Exception {
         executeJob(this::setupJobWithSlowNewSource);
+        waitUntilJobArchived();
+        checkResults();
+    }
+
+    @Test
+    void testSpeculativeExecutionOfNewSourceWithFailure() throws Exception {
+        executeJob(env -> setupJobWithSlowNewSource(env, true));
         waitUntilJobArchived();
         checkResults();
     }
@@ -333,9 +344,14 @@ class SpeculativeSchedulerITCase {
     }
 
     private void setupJobWithSlowNewSource(StreamExecutionEnvironment env) {
+        setupJobWithSlowNewSource(env, false);
+    }
+
+    private void setupJobWithSlowNewSource(
+            StreamExecutionEnvironment env, boolean forceFailureFlag) {
         final DataStream<Long> source =
                 env.fromSource(
-                        new TestingNumberSequenceSource(),
+                        new TestingNumberSequenceSource(forceFailureFlag),
                         WatermarkStrategy.noWatermarks(),
                         "source");
         addSink(source);
@@ -480,14 +496,39 @@ class SpeculativeSchedulerITCase {
     }
 
     private static class TestingNumberSequenceSource extends NumberSequenceSource {
-        private TestingNumberSequenceSource() {
+
+        private final boolean forceFailureFlag;
+        // When forceFailureCounter > 0, the source task will throw an exception on reader close
+        // until forceFailureCounter reaches 0.
+        public static AtomicInteger forceFailureCounter = new AtomicInteger(0);
+
+        private TestingNumberSequenceSource(boolean forceFailureFlag) {
             super(0, NUMBERS_TO_PRODUCE - 1);
+            this.forceFailureFlag = forceFailureFlag;
+            if (forceFailureFlag) {
+                forceFailureCounter = new AtomicInteger(1);
+            }
         }
 
         @Override
         public SourceReader<Long, NumberSequenceSplit> createReader(
                 SourceReaderContext readerContext) {
             return new TestingIteratorSourceReader(readerContext);
+        }
+
+        @Override
+        public SplitEnumerator<NumberSequenceSplit, Collection<NumberSequenceSplit>>
+                createEnumerator(final SplitEnumeratorContext<NumberSequenceSplit> enumContext) {
+
+            int splitSize = enumContext.currentParallelism();
+            // Simulating the case that the splits number less than the parallelism to verify
+            // unassigned source tasks and failover.
+            if (forceFailureFlag) {
+                splitSize = 1;
+            }
+            final List<NumberSequenceSplit> splits =
+                    splitNumberRange(0, NUMBERS_TO_PRODUCE - 1, splitSize);
+            return new IteratorSourceEnumerator<>(enumContext, splits);
         }
     }
 
@@ -503,6 +544,14 @@ class SpeculativeSchedulerITCase {
         public InputStatus pollNext(ReaderOutput<E> output) {
             maybeSleep();
             return super.pollNext(output);
+        }
+
+        @Override
+        public void close() throws Exception {
+            if (TestingNumberSequenceSource.forceFailureCounter.get() > 0) {
+                TestingNumberSequenceSource.forceFailureCounter.decrementAndGet();
+                throw new RuntimeException("Forced failure for testing");
+            }
         }
     }
 
