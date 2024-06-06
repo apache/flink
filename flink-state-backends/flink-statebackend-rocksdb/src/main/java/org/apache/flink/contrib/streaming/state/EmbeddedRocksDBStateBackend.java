@@ -66,6 +66,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
@@ -890,6 +891,8 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
             base = new Configuration();
         }
         Configuration configuration = new Configuration();
+        Map<String, String> baseMap = base.toMap();
+        Map<String, String> onTopMap = onTop.toMap();
         for (ConfigOption<?> option : RocksDBConfigurableOptions.CANDIDATE_CONFIGS) {
             Optional<?> baseValue = base.getOptional(option);
             Optional<?> topValue = onTop.getOptional(option);
@@ -897,7 +900,11 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
             if (topValue.isPresent() || baseValue.isPresent()) {
                 Object validValue = topValue.isPresent() ? topValue.get() : baseValue.get();
                 RocksDBConfigurableOptions.checkArgumentValid(option, validValue);
-                configuration.setString(option.key(), validValue.toString());
+                String valueString =
+                        topValue.isPresent()
+                                ? onTopMap.get(option.key())
+                                : baseMap.get(option.key());
+                configuration.setString(option.key(), valueString);
             }
         }
         return configuration;
