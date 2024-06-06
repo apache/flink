@@ -18,9 +18,12 @@
 
 package org.apache.flink.state.forst;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.state.InternalStateFuture;
 
 import org.rocksdb.ColumnFamilyHandle;
+import org.rocksdb.RocksDB;
+import org.rocksdb.RocksDBException;
 
 import javax.annotation.Nullable;
 
@@ -54,16 +57,17 @@ public class ForStDBPutRequest<K, N, V> {
         this.future = future;
     }
 
-    public boolean valueIsNull() {
-        return value == null;
-    }
-
-    public boolean isMerge() {
-        return isMerge;
-    }
-
-    public ColumnFamilyHandle getColumnFamilyHandle() {
-        return table.getColumnFamilyHandle();
+    public void process(ForStDBWriteBatchWrapper writeBatchWrapper, RocksDB db)
+            throws IOException, RocksDBException {
+        if (value == null) {
+            writeBatchWrapper.remove(table.getColumnFamilyHandle(), buildSerializedKey());
+        } else if (isMerge) {
+            writeBatchWrapper.merge(
+                    table.getColumnFamilyHandle(), buildSerializedKey(), buildSerializedValue());
+        } else {
+            writeBatchWrapper.put(
+                    table.getColumnFamilyHandle(), buildSerializedKey(), buildSerializedValue());
+        }
     }
 
     public byte[] buildSerializedKey() throws IOException {
@@ -101,5 +105,16 @@ public class ForStDBPutRequest<K, N, V> {
             ForStInnerTable<K, N, V> table,
             InternalStateFuture<Void> future) {
         return new ForStDBPutRequest<>(key, value, true, table, future);
+    }
+
+    // --------------- For testing usage ---------------
+    @VisibleForTesting
+    public boolean valueIsNull() {
+        return value == null;
+    }
+
+    @VisibleForTesting
+    public ColumnFamilyHandle getColumnFamilyHandle() {
+        return table.getColumnFamilyHandle();
     }
 }

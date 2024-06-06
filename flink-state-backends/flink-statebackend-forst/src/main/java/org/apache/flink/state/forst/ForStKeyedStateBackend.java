@@ -58,6 +58,9 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
 
     private static final Logger LOG = LoggerFactory.getLogger(ForStKeyedStateBackend.class);
 
+    /** Number of bytes required to prefix the key groups. */
+    private final int keyGroupPrefixBytes;
+
     /** The key serializer. */
     protected final TypeSerializer<K> keySerializer;
 
@@ -112,6 +115,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
 
     public ForStKeyedStateBackend(
             ForStResourceContainer optionsContainer,
+            int keyGroupPrefixBytes,
             TypeSerializer<K> keySerializer,
             Supplier<SerializedCompositeKeyBuilder<K>> serializedKeyBuilder,
             Supplier<DataOutputSerializer> valueSerializerView,
@@ -121,6 +125,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
             ColumnFamilyHandle defaultColumnFamilyHandle,
             ForStNativeMetricMonitor nativeMetricMonitor) {
         this.optionsContainer = Preconditions.checkNotNull(optionsContainer);
+        this.keyGroupPrefixBytes = keyGroupPrefixBytes;
         this.keySerializer = keySerializer;
         this.serializedKeyBuilder = serializedKeyBuilder;
         this.valueSerializerView = valueSerializerView;
@@ -173,6 +178,17 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
                                 namespaceSerializer::duplicate,
                                 valueSerializerView,
                                 valueDeserializerView);
+            case MAP:
+                Supplier<DataInputDeserializer> keyDeserializerView = DataInputDeserializer::new;
+                return ForStMapState.create(
+                        stateDesc,
+                        stateRequestHandler,
+                        columnFamilyHandle,
+                        serializedKeyBuilder,
+                        valueSerializerView,
+                        keyDeserializerView,
+                        valueDeserializerView,
+                        keyGroupPrefixBytes);
             default:
                 throw new UnsupportedOperationException(
                         String.format("Unsupported state type: %s", stateDesc.getType()));

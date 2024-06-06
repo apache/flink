@@ -29,6 +29,7 @@ import java.util.List;
  * The Get access request for ForStDB.
  *
  * @param <K> The type of key in get access request.
+ * @param <N> The type of namespace in get access request.
  * @param <V> The type of value returned by get request.
  */
 public class ForStDBListGetRequest<K, N, V>

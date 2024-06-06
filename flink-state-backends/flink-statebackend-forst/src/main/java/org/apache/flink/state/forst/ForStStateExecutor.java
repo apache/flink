@@ -82,7 +82,7 @@ public class ForStStateExecutor implements StateExecutor {
         coordinatorThread.execute(
                 () -> {
                     long startTime = System.currentTimeMillis();
-                    List<CompletableFuture<Void>> futures = new ArrayList<>(2);
+                    List<CompletableFuture<Void>> futures = new ArrayList<>(3);
                     List<ForStDBPutRequest<?, ?, ?>> putRequests =
                             stateRequestClassifier.pollDbPutRequests();
                     if (!putRequests.isEmpty()) {
@@ -100,14 +100,23 @@ public class ForStStateExecutor implements StateExecutor {
                         futures.add(getOperations.process());
                     }
 
+                    List<ForStDBIterRequest<?>> iterRequests =
+                            stateRequestClassifier.pollDbIterRequests();
+                    if (!iterRequests.isEmpty()) {
+                        ForStIterateOperation iterOperations =
+                                new ForStIterateOperation(db, iterRequests, workerThreads);
+                        futures.add(iterOperations.process());
+                    }
+
                     FutureUtils.combineAll(futures)
                             .thenAcceptAsync(
                                     (e) -> {
                                         long duration = System.currentTimeMillis() - startTime;
                                         LOG.debug(
-                                                "Complete executing a batch of state requests, putRequest size {}, getRequest size {}, duration {} ms",
+                                                "Complete executing a batch of state requests, putRequest size {}, getRequest size {}, iterRequest size {}, duration {} ms",
                                                 putRequests.size(),
                                                 getRequests.size(),
+                                                iterRequests.size(),
                                                 duration);
                                         resultFuture.complete(null);
                                     },

@@ -124,4 +124,101 @@ public class ForStGeneralMultiGetOperationTest extends ForStDBOperationTestBase 
         }
         executor.shutdownNow();
     }
+
+    @Test
+    void testMapStateMultiGet() throws Exception {
+        ForStMapState<Integer, VoidNamespace, String, String> mapState1 =
+                buildForStMapState("map-multiGet-1");
+        ForStMapState<Integer, VoidNamespace, String, String> mapState2 =
+                buildForStMapState("map-multiGet-2");
+        List<ForStDBGetRequest<?, ?, ?, ?>> batchGetRequest = new ArrayList<>();
+        List<Tuple2<String, TestStateFuture<String>>> resultCheckList = new ArrayList<>();
+
+        int keyNum = 1000;
+        for (int i = 0; i < keyNum; i++) {
+            TestStateFuture<String> future = new TestStateFuture<>();
+            ForStMapState<Integer, VoidNamespace, String, String> table =
+                    ((i % 2 == 0) ? mapState1 : mapState2);
+            ContextKey<Integer, VoidNamespace> contextKey = buildContextKey(i);
+            contextKey.setUserKey(String.valueOf(i));
+            ForStDBGetRequest<Integer, VoidNamespace, String, String> request =
+                    new ForStDBSingleGetRequest<>(contextKey, table, future);
+            batchGetRequest.add(request);
+
+            String value = (i % 10 != 0 ? String.valueOf(i) : null);
+            resultCheckList.add(Tuple2.of(value, future));
+            if (value == null) {
+                continue;
+            }
+            byte[] keyBytes = request.buildSerializedKey();
+            byte[] valueBytes = table.serializeValue(value);
+            db.put(request.getColumnFamilyHandle(), keyBytes, valueBytes);
+        }
+
+        ExecutorService executor = Executors.newFixedThreadPool(4);
+        ForStGeneralMultiGetOperation generalMultiGetOperation =
+                new ForStGeneralMultiGetOperation(db, batchGetRequest, executor);
+        generalMultiGetOperation.process().get();
+
+        for (Tuple2<String, TestStateFuture<String>> tuple : resultCheckList) {
+            assertThat(tuple.f1.getCompletedResult()).isEqualTo(tuple.f0);
+        }
+
+        executor.shutdownNow();
+    }
+
+    @Test
+    void testMapStateEmpty() throws Exception {
+        ForStMapState<Integer, VoidNamespace, String, String> mapState =
+                buildForStMapState("map-is-empty");
+        for (int i = 0; i < 10; i++) {
+            ContextKey<Integer, VoidNamespace> contextKey = buildContextKey(1);
+            contextKey.setUserKey(String.valueOf(i));
+            String value = String.valueOf(i);
+            byte[] keyBytes = mapState.serializeKey(contextKey);
+            byte[] valueBytes = mapState.serializeValue(value);
+            db.put(mapState.getColumnFamilyHandle(), keyBytes, valueBytes);
+        }
+        TestStateFuture<Boolean> future = new TestStateFuture<>();
+        List<ForStDBGetRequest<?, ?, ?, ?>> batchGetRequest = new ArrayList<>();
+        ContextKey<Integer, VoidNamespace> contextKey = buildContextKey(1);
+        ForStDBGetRequest<Integer, VoidNamespace, String, Boolean> request1 =
+                new ForStDBMapCheckRequest<>(contextKey, mapState, future, true);
+        batchGetRequest.add(request1);
+
+        TestStateFuture<Boolean> future2 = new TestStateFuture<>();
+        ContextKey<Integer, VoidNamespace> contextKey2 = buildContextKey(2);
+        ForStDBGetRequest<Integer, VoidNamespace, String, Boolean> request2 =
+                new ForStDBMapCheckRequest<>(contextKey2, mapState, future2, true);
+        batchGetRequest.add(request2);
+
+        TestStateFuture<Boolean> future3 = new TestStateFuture<>();
+        ContextKey<Integer, VoidNamespace> contextKey3 = buildContextKey(1);
+        contextKey3.setUserKey("10");
+        ForStDBGetRequest<Integer, VoidNamespace, String, Boolean> request3 =
+                new ForStDBMapCheckRequest<>(contextKey3, mapState, future3, false);
+        batchGetRequest.add(request3);
+
+        TestStateFuture<Boolean> future4 = new TestStateFuture<>();
+        ContextKey<Integer, VoidNamespace> contextKey4 = buildContextKey(1);
+        contextKey4.setUserKey("1");
+        ForStDBGetRequest<Integer, VoidNamespace, String, Boolean> request4 =
+                new ForStDBMapCheckRequest<>(contextKey4, mapState, future4, false);
+        batchGetRequest.add(request4);
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        ForStGeneralMultiGetOperation generalMultiGetOperation =
+                new ForStGeneralMultiGetOperation(db, batchGetRequest, executor);
+        generalMultiGetOperation.process().get();
+
+        // key 1 is not empty
+        assertThat(future.getCompletedResult()).isFalse();
+        // key 2 is empty
+        assertThat(future2.getCompletedResult()).isTrue();
+
+        // key 1#10 not exists
+        assertThat(future3.getCompletedResult()).isFalse();
+        // key 1#1 exists
+        assertThat(future4.getCompletedResult()).isTrue();
+    }
 }

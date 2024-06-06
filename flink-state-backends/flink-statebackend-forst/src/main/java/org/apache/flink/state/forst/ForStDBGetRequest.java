@@ -21,6 +21,8 @@ package org.apache.flink.state.forst;
 import org.apache.flink.core.state.InternalStateFuture;
 
 import org.rocksdb.ColumnFamilyHandle;
+import org.rocksdb.RocksDB;
+import org.rocksdb.RocksDBException;
 
 import java.io.IOException;
 
@@ -43,6 +45,12 @@ public abstract class ForStDBGetRequest<K, N, V, R> {
         this.key = key;
         this.table = table;
         this.future = future;
+    }
+
+    public void process(RocksDB db) throws IOException, RocksDBException {
+        byte[] key = buildSerializedKey();
+        byte[] value = db.get(getColumnFamilyHandle(), key);
+        completeStateFuture(value);
     }
 
     public byte[] buildSerializedKey() throws IOException {
