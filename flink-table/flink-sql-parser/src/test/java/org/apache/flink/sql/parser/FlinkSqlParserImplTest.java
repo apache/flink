@@ -613,14 +613,11 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     void testAlterTableAddDistribution() {
-        sql("alter table t1 add DISTRIBUTION BY HASH(a, h) INTO 6 BUCKETS")
-                .ok("ALTER TABLE `T1` ADD DISTRIBUTION BY HASH(`A`, `H`) INTO 6 BUCKETS");
+        sql("alter table t1 add DISTRIBUTION BY HASH(a) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `T1` ADD DISTRIBUTION BY HASH(`A`) INTO 6 BUCKETS");
 
         sql("alter table t1 add DISTRIBUTION BY HASH(a, h) INTO 6 BUCKETS")
                 .ok("ALTER TABLE `T1` ADD DISTRIBUTION BY HASH(`A`, `H`) INTO 6 BUCKETS");
-
-        sql("alter table tbl1 add DISTRIBUTION BY HASH(a, h) INTO 6 BUCKETS")
-                .ok("ALTER TABLE `TBL1` ADD DISTRIBUTION BY HASH(`A`, `H`) INTO 6 BUCKETS");
 
         sql("alter table tbl1 add DISTRIBUTION BY RANGE(a, h) INTO 6 BUCKETS")
                 .ok("ALTER TABLE `TBL1` ADD DISTRIBUTION BY RANGE(`A`, `H`) INTO 6 BUCKETS");
@@ -640,11 +637,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     void testAlterTableModifyDistribution() {
-        sql("alter table t1 modify DISTRIBUTION BY HASH(a, h) INTO 6 BUCKETS")
-                .ok("ALTER TABLE `T1` MODIFY DISTRIBUTION BY HASH(`A`, `H`) INTO 6 BUCKETS");
-
-        sql("alter table t1 modify DISTRIBUTION BY HASH(a, h) INTO 6 BUCKETS")
-                .ok("ALTER TABLE `T1` MODIFY DISTRIBUTION BY HASH(`A`, `H`) INTO 6 BUCKETS");
+        sql("alter table t1 modify DISTRIBUTION BY HASH(a) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `T1` MODIFY DISTRIBUTION BY HASH(`A`) INTO 6 BUCKETS");
 
         sql("alter table tbl1 modify DISTRIBUTION BY HASH(a, h) INTO 6 BUCKETS")
                 .ok("ALTER TABLE `TBL1` MODIFY DISTRIBUTION BY HASH(`A`, `H`) INTO 6 BUCKETS");
