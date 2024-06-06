@@ -238,6 +238,7 @@ public class NettyShuffleServiceFactory
                         config.getMaxOverdraftBuffersPerGate(),
                         config.getHybridShuffleSpilledIndexRegionGroupSize(),
                         config.getHybridShuffleNumRetainedInMemoryRegionsMax(),
+                        config.isMemoryDecouplingEnabled(),
                         tieredResultPartitionFactory);
 
         SingleInputGateFactory singleInputGateFactory =

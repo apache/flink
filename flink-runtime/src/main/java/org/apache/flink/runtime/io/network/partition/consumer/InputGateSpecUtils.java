@@ -20,9 +20,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageConfiguration;
-
-import javax.annotation.Nullable;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageUtils;
 
 import java.util.Optional;
 
@@ -41,8 +39,8 @@ public class InputGateSpecUtils {
             int configuredFloatingNetworkBuffersPerGate,
             ResultPartitionType partitionType,
             int numInputChannels,
-            @Nullable TieredStorageConfiguration tieredStorageConfiguration) {
-        boolean enableTieredStorage = tieredStorageConfiguration != null;
+            boolean enableTieredStorage,
+            boolean memoryDecouplingEnabled) {
         int maxRequiredBuffersThresholdPerGate =
                 getEffectiveMaxRequiredBuffersPerGate(
                         partitionType, configuredMaxRequiredBuffersPerGate, enableTieredStorage);
@@ -64,8 +62,8 @@ public class InputGateSpecUtils {
         int minBuffersPerGate =
                 partitionType.isHybridResultPartition()
                                 && enableTieredStorage
-                                && tieredStorageConfiguration.getMemoryDecouplingEnabled()
-                        ? tieredStorageConfiguration.getMinBuffersPerGate()
+                                && memoryDecouplingEnabled
+                        ? TieredStorageUtils.getMinBuffersPerGate()
                         : expectedBuffersPerGate;
         expectedBuffersPerGate = Math.max(minBuffersPerGate, expectedBuffersPerGate);
 

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.shuffle;
 
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
@@ -265,9 +266,7 @@ class TieredResultPartitionTest {
             int numSubpartitions, BufferPool bufferPool, boolean isBroadcastOnly)
             throws IOException {
         TieredStorageConfiguration tieredStorageConfiguration =
-                TieredStorageConfiguration.builder(null)
-                        .setMemoryTierSubpartitionMaxQueuedBuffers(10)
-                        .build();
+                TieredStorageConfiguration.fromConfiguration(new Configuration());
         TieredStorageResourceRegistry tieredStorageResourceRegistry =
                 new TieredStorageResourceRegistry();
         TieredStorageNettyServiceImpl tieredStorageNettyService =
@@ -286,7 +285,9 @@ class TieredResultPartitionTest {
                         ResultPartitionType.HYBRID_SELECTIVE,
                         numSubpartitions,
                         numSubpartitions,
+                        NETWORK_BUFFER_SIZE,
                         isBroadcastOnly,
+                        true,
                         new ResultPartitionManager(),
                         new BufferCompressor(NETWORK_BUFFER_SIZE, CompressionCodec.LZ4),
                         () -> bufferPool,
