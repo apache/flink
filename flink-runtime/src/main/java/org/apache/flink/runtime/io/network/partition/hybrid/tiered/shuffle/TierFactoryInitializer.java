@@ -30,6 +30,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -53,20 +54,23 @@ public class TierFactoryInitializer {
      * @throws IllegalArgumentException If an unknown persistent level is encountered.
      */
     public static List<TierFactory> initializeTierFactories(Configuration configuration) {
-        List<TierFactory> tierFactories = new ArrayList<>();
-        // TODO: Get externalTierFactoryClass from the configuration.
-        String externalTierFactoryClass = null;
+        String externalTierFactoryClass =
+                configuration.get(
+                        NettyShuffleEnvironmentOptions
+                                .NETWORK_HYBRID_SHUFFLE_EXTERNAL_REMOTE_TIER_FACTORY_CLASS_NAME);
         if (externalTierFactoryClass != null) {
-            tierFactories.add(createExternalTierFactory(configuration, externalTierFactoryClass));
-            return tierFactories;
+            return Collections.singletonList(
+                    createExternalTierFactory(configuration, externalTierFactoryClass));
         } else {
             return getEphemeralTierFactories(configuration);
         }
     }
 
     private static List<TierFactory> getEphemeralTierFactories(Configuration configuration) {
-        // TODO, get from configuration
-        String externalTierFactoryClass = null;
+        String externalTierFactoryClass =
+                configuration.get(
+                        NettyShuffleEnvironmentOptions
+                                .NETWORK_HYBRID_SHUFFLE_EXTERNAL_REMOTE_TIER_FACTORY_CLASS_NAME);
         String remoteStoragePath =
                 configuration.get(
                         NettyShuffleEnvironmentOptions

@@ -39,6 +39,12 @@
             <td>Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue lengths.</td>
         </tr>
         <tr>
+            <td><h5>taskmanager.network.hybrid-shuffle.external-remote-tier-factory.class</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The option configures the class that is responsible for creating an external remote tier factory for hybrid shuffle. If configured, the hybrid shuffle will only initialize the specified remote tier according to the given class name. Currently, since the tier interfaces are not yet public and are still actively evolving, it is recommended that users do not independently implement the external remote tier until the tier interfaces are stabilized. </td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.network.hybrid-shuffle.memory-decoupling.enabled</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
