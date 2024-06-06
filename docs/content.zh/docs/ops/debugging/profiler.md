@@ -27,11 +27,11 @@ under the License.
 
 # 分析器
 
-自 Flink 1.19 起，我们基于 Flink Web UI ，用 [异步分析器](https://github.com/async-profiler/async-profiler) 交互式地分析JobManager/TaskManager 进程， 让用户可以创建具有任意间隔和事件模式的分析实例，比如 ITIMER、CPU、Lock、Wall-Clock 和 Allocation。
+自 Flink 1.19 起，我们基于 Flink Web UI ，用 [async-profiler](https://github.com/async-profiler/async-profiler) 交互式地分析JobManager/TaskManager 进程， 让用户可以创建具有任意间隔和事件模式的分析实例，比如 ITIMER、CPU、Lock、Wall-Clock 和 Allocation。
 
 - **CPU**: 在这种模式下，分析器收集包括Java方法、本地调用、JVM代码和内核函数在内的堆栈跟踪样本
-- **ALLOCATION**: 在allocation 分析模式下， 每个调用跟踪的顶部框架是被分配对象的类，计数器是堆压力 （分配的TLAB或TLAB之外的对象的总大小）。
-- **Wall-clock**: Wall-Clock选项使得异步分析器在每个给定的时间段内均匀对所有线程进行采样，无论线程状态如何：正在运行、睡眠或阻塞。这个选项在分析应用程序启动时间时会很有帮助
+- **ALLOCATION**: 在allocation 分析模式下， 每个调用跟踪的顶部框架是被分配对象的类，以及对分配的TLAB或TLAB之外的对象的总大小的计数。
+- **Wall-clock**: Wall-Clock选项使得async-profiler在每个给定的时间段内均匀对所有线程进行采样，无论线程状态如何：正在运行、睡眠或阻塞。这个选项在分析应用程序启动时间时会很有帮助
 - **Lock**: 在lock分析模式下，顶部框架是锁定/监视器的类，计数器是进入此锁定/监视器所需的纳秒数。
 - **ITIMER**: 你可以退回到itimer分析模式。它类似于cpu模式，但不需要perf_events支持。它的缺陷是没有内核堆栈跟踪。
 
@@ -43,7 +43,7 @@ under the License.
 
 
 ## 要求
-由于分析器由异步分析器驱动，因此必须在异步分析器支持的平台上运行。
+由于分析器由async-profiler驱动，因此必须在async-profiler支持的平台上运行。
 
 |           | Officially maintained builds | Other available ports                     |
 |-----------|------------------------------|-------------------------------------------|
@@ -68,14 +68,14 @@ Profiling Instance
 
 
 ## 故障排除
-1. **CPU模式下无法进行分析：没有访问perf事件的权限。请试着使用-fdtransfer或--all-user选项或'sysctl kernel.perf_event_paranoid=1'** \
+1. **Failed to profiling in CPU mode: No access to perf events. Try –fdtransfer or –all-user option or ‘sysctl kernel.perf_event_paranoid=1’** \
    这意味着 `perf_event_open()` 系统调用失败。默认情况下，Docker容器限制对 `perf_event_open` 系统调用。建议解决方案是回退到ITIMER分析模式。它类似于cpu模式，但不需要perf_events支持。它的缺陷是没有内核堆栈跟踪。
 
-2. **Allocation模型下无法进行分析: 未找到AllocTracer符号。是否安装了JDK调试符号？** \
+2. **Failed to profiling in Allocation mode: No AllocTracer symbols found. Are JDK debug symbols installed?** \
    OpenJDK debug symbols 在 allocation分析模式下是必需的。 在 [Installing Debug Symbols](https://github.com/async-profiler/async-profiler?tab=readme-ov-file#installing-debug-symbols) 中查看更多详细信息。
 
 {{< hint info >}}
 
-你可以在 [Troubleshooting](https://github.com/async-profiler/async-profiler?tab=readme-ov-file#troubleshooting) 页面的异步分析器中查阅更多案例。
+你可以在 [Troubleshooting](https://github.com/async-profiler/async-profiler?tab=readme-ov-file#troubleshooting) 页面的async-profiler中查阅更多案例。
 
 {{< /hint >}}
