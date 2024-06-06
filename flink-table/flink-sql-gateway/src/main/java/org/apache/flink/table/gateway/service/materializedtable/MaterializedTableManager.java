@@ -220,10 +220,6 @@ public class MaterializedTableManager {
             // atomicity is guaranteed
             operationExecutor.callExecutableOperation(
                     handle, new DropMaterializedTableOperation(materializedTableIdentifier, true));
-            LOG.error(
-                    "Submit continuous refresh job for materialized table {} occur exception.",
-                    materializedTableIdentifier,
-                    e);
             throw new SqlExecutionException(
                     String.format(
                             "Submit continuous refresh job for materialized table %s occur exception.",
@@ -279,10 +275,6 @@ public class MaterializedTableManager {
         } catch (Exception e) {
             // drop materialized table while create refresh workflow occur exception. Thus, weak
             // atomicity is guaranteed
-            LOG.error(
-                    "Create refresh workflow occur exception, drop materialized table {}.",
-                    materializedTableIdentifier,
-                    e);
             operationExecutor.callExecutableOperation(
                     handle, new DropMaterializedTableOperation(materializedTableIdentifier, true));
             throw new SqlExecutionException(
@@ -337,10 +329,6 @@ public class MaterializedTableManager {
                     updateRefreshHandler.asSummaryString(),
                     serializeContinuousHandler(updateRefreshHandler));
         } catch (Exception e) {
-            LOG.error(
-                    "Failed to suspend the continuous refresh job for materialized table {}.",
-                    tableIdentifier,
-                    e);
             throw new SqlExecutionException(
                     String.format(
                             "Failed to suspend the continuous refresh job for materialized table %s.",
@@ -378,10 +366,6 @@ public class MaterializedTableManager {
                     refreshHandler.asSummaryString(),
                     materializedTable.getSerializedRefreshHandler());
         } catch (Exception e) {
-            LOG.error(
-                    "Failed to suspend the refresh workflow for materialized table {}.",
-                    tableIdentifier,
-                    e);
             throw new SqlExecutionException(
                     String.format(
                             "Failed to suspend the refresh workflow for materialized table %s.",
@@ -438,10 +422,6 @@ public class MaterializedTableManager {
                     dynamicOptions,
                     restorePath);
         } catch (Exception e) {
-            LOG.error(
-                    "Failed to resume the continuous refresh job for materialized table {}.",
-                    tableIdentifier,
-                    e);
             throw new SqlExecutionException(
                     String.format(
                             "Failed to resume the continuous refresh job for materialized table %s.",
@@ -480,10 +460,6 @@ public class MaterializedTableManager {
                     refreshHandler.asSummaryString(),
                     catalogMaterializedTable.getSerializedRefreshHandler());
         } catch (Exception e) {
-            LOG.error(
-                    "Failed to resume the refresh workflow for materialized table {}.",
-                    tableIdentifier,
-                    e);
             throw new SqlExecutionException(
                     String.format(
                             "Failed to resume the refresh workflow for materialized table %s.",
@@ -630,11 +606,6 @@ public class MaterializedTableManager {
                                     StringData.fromString(jobId),
                                     new GenericMapData(clusterInfo))));
         } catch (Exception e) {
-            // log and throw exception
-            LOG.error(
-                    "Manually refreshing the materialized table {} occur exception.",
-                    materializedTableIdentifier,
-                    e);
             throw new SqlExecutionException(
                     String.format(
                             "Manually refreshing the materialized table %s occur exception.",
@@ -857,10 +828,6 @@ public class MaterializedTableManager {
             DeleteRefreshWorkflow deleteRefreshWorkflow = new DeleteRefreshWorkflow(refreshHandler);
             workflowScheduler.deleteRefreshWorkflow(deleteRefreshWorkflow);
         } catch (Exception e) {
-            LOG.error(
-                    "Failed to delete the refresh workflow for materialized table {}.",
-                    tableIdentifier,
-                    e);
             throw new SqlExecutionException(
                     String.format(
                             "Failed to delete the refresh workflow for materialized table %s.",
