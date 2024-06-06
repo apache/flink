@@ -57,7 +57,7 @@ In order to use a connector/format module, you can either:
 
 For shading dependencies, check out the specific [Maven]({{< ref "docs/dev/configuration/maven" >}}) 
 and [Gradle]({{< ref "docs/dev/configuration/gradle" >}}) guides. 
-For a reference about the Flink distribution, check [Anatomy of the Flink distribution]({{< ref "docs/dev/configuration/overview" >}}#anatomy-of-the-flink-distribution).
+For a reference about the Flink distribution, check [Anatomy of the Flink distribution]({{< ref "docs/dev/configuration/advanced" >}}#anatomy-of-the-flink-distribution).
 
 {{< hint info >}}
 Deciding whether to shade the uber JAR, the thin JAR or just include the dependency in the distribution is up to you and your use case.
