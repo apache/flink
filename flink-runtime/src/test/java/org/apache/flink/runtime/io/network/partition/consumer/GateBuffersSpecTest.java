@@ -19,12 +19,9 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageConfiguration;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-
-import javax.annotation.Nullable;
 
 import java.util.Optional;
 
@@ -183,7 +180,8 @@ class GateBuffersSpecTest {
         int numExclusiveBuffers = 2;
 
         GateBuffersSpec gateBuffersSpec =
-                createGateBuffersSpec(numInputChannels, partitionType, numExclusiveBuffers, null);
+                createGateBuffersSpec(
+                        numInputChannels, partitionType, numExclusiveBuffers, false, false);
         int expectedBuffersPerGate = 999;
         int maxBuffersPerGate = 1006;
         checkBuffersInGate(
@@ -193,10 +191,9 @@ class GateBuffersSpecTest {
                 expectedBuffersPerGate,
                 maxBuffersPerGate);
 
-        TieredStorageConfiguration config =
-                (new TieredStorageConfiguration.Builder().setMemoryDecouplingEnabled(true)).build();
         gateBuffersSpec =
-                createGateBuffersSpec(numInputChannels, partitionType, numExclusiveBuffers, config);
+                createGateBuffersSpec(
+                        numInputChannels, partitionType, numExclusiveBuffers, true, true);
         int minBuffersPerGate = partitionType.isHybridResultPartition() ? 2 : 999;
         checkBuffersInGate(
                 gateBuffersSpec,
@@ -234,21 +231,24 @@ class GateBuffersSpecTest {
                 8,
                 partitionType,
                 numInputChannels,
-                null);
+                false,
+                false);
     }
 
     private static GateBuffersSpec createGateBuffersSpec(
             int numInputChannels,
             ResultPartitionType partitionType,
             int numExclusiveBuffersPerChannel,
-            @Nullable TieredStorageConfiguration config) {
+            boolean enableTieredStorage,
+            boolean memoryDecouplingEnabled) {
         return InputGateSpecUtils.createGateBuffersSpec(
                 getMaxRequiredBuffersPerGate(partitionType),
                 numExclusiveBuffersPerChannel,
                 8,
                 partitionType,
                 numInputChannels,
-                config);
+                enableTieredStorage,
+                memoryDecouplingEnabled);
     }
 
     private static Optional<Integer> getMaxRequiredBuffersPerGate(

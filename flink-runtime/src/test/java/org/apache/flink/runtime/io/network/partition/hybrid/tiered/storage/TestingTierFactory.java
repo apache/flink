@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyService;
@@ -26,7 +27,6 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierFact
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierMasterAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierProducerAgent;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BiFunction;
@@ -35,11 +35,11 @@ import java.util.function.Supplier;
 /** Test implementation for {@link TierFactory}. */
 public class TestingTierFactory implements TierFactory {
 
-    private final Supplier<TierMasterAgent> tierMasterAgentSupplier;
+    private Supplier<TierMasterAgent> tierMasterAgentSupplier;
 
-    private final Supplier<TierProducerAgent> tierProducerAgentSupplier;
+    private Supplier<TierProducerAgent> tierProducerAgentSupplier;
 
-    private final BiFunction<
+    private BiFunction<
                     List<TieredStorageConsumerSpec>, TieredStorageNettyService, TierConsumerAgent>
             tierConsumerAgentSupplier;
 
@@ -55,6 +55,11 @@ public class TestingTierFactory implements TierFactory {
         this.tierProducerAgentSupplier = tierProducerAgentSupplier;
         this.tierConsumerAgentSupplier = tierConsumerAgentSupplier;
     }
+
+    public TestingTierFactory() {}
+
+    @Override
+    public void setup(Configuration configuration) {}
 
     @Override
     public TierMasterAgent createMasterAgent(
@@ -73,8 +78,7 @@ public class TestingTierFactory implements TierFactory {
             TieredStorageResourceRegistry resourceRegistry,
             BatchShuffleReadBufferPool bufferPool,
             ScheduledExecutorService ioExecutor,
-            int maxRequestedBuffers,
-            Duration bufferRequestTimeout) {
+            int maxRequestedBuffers) {
         return tierProducerAgentSupplier.get();
     }
 

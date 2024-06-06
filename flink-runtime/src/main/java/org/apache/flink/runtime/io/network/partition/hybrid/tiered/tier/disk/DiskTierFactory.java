@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.disk;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.ProducerMergedPartitionFile;
@@ -33,6 +34,7 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierCons
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierFactory;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierMasterAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierProducerAgent;
+import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -42,35 +44,30 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.ProducerMergedPartitionFile.DATA_FILE_SUFFIX;
 import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.ProducerMergedPartitionFile.INDEX_FILE_SUFFIX;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** The implementation of {@link TierFactory} for disk tier. */
 public class DiskTierFactory implements TierFactory {
 
-    private final int numBytesPerSegment;
+    private static final int DEFAULT_DISK_TIER_NUM_BYTES_PER_SEGMENT = 16 * 32 * 1024;
 
-    private final int bufferSizeBytes;
+    private static final int DEFAULT_REGION_GROUP_SIZE_IN_BYTES = 1024;
 
-    private final float minReservedDiskSpaceFraction;
+    private static final int DEFAULT_MAX_CACHED_BYTES_BEFORE_FLUSH = 512 * 1024;
 
-    private final int regionGroupSizeInBytes;
+    private static final long DEFAULT_MAX_REGION_NUM_RETAINED_IN_MEMORY = 1024 * 1024L;
 
-    private final int maxCachedBytesBeforeFlush;
+    private static final float DEFAULT_MIN_RESERVE_DISK_SPACE_FRACTION = 0.05f;
 
-    private final long numRetainedInMemoryRegionsMax;
+    private static final int DEFAULT_DISK_TIER_EXCLUSIVE_BUFFERS = 1;
 
-    public DiskTierFactory(
-            int numBytesPerSegment,
-            int bufferSizeBytes,
-            float minReservedDiskSpaceFraction,
-            int regionGroupSizeInBytes,
-            int maxCachedBytesBeforeFlush,
-            long numRetainedInMemoryRegionsMax) {
-        this.numBytesPerSegment = numBytesPerSegment;
-        this.bufferSizeBytes = bufferSizeBytes;
-        this.minReservedDiskSpaceFraction = minReservedDiskSpaceFraction;
-        this.regionGroupSizeInBytes = regionGroupSizeInBytes;
-        this.maxCachedBytesBeforeFlush = maxCachedBytesBeforeFlush;
-        this.numRetainedInMemoryRegionsMax = numRetainedInMemoryRegionsMax;
+    private static final Duration DEFAULT_DISK_TIER_BUFFER_REQUEST_TIMEOUT = Duration.ofMinutes(5);
+
+    private int bufferSizeBytes = -1;
+
+    @Override
+    public void setup(Configuration configuration) {
+        this.bufferSizeBytes = ConfigurationParserUtils.getPageSize(configuration);
     }
 
     @Override
@@ -89,14 +86,15 @@ public class DiskTierFactory implements TierFactory {
             TieredStorageResourceRegistry resourceRegistry,
             BatchShuffleReadBufferPool bufferPool,
             ScheduledExecutorService ioExecutor,
-            int maxRequestedBuffers,
-            Duration bufferRequestTimeout) {
+            int maxRequestedBuffers) {
+        checkState(bufferSizeBytes > 0);
+
         ProducerMergedPartitionFileIndex partitionFileIndex =
                 new ProducerMergedPartitionFileIndex(
                         isBroadcastOnly ? 1 : numSubpartitions,
                         Paths.get(dataFileBasePath + INDEX_FILE_SUFFIX),
-                        regionGroupSizeInBytes,
-                        numRetainedInMemoryRegionsMax);
+                        DEFAULT_REGION_GROUP_SIZE_IN_BYTES,
+                        DEFAULT_MAX_REGION_NUM_RETAINED_IN_MEMORY);
         Path dataFilePath = Paths.get(dataFileBasePath + DATA_FILE_SUFFIX);
         ProducerMergedPartitionFileWriter partitionFileWriter =
                 ProducerMergedPartitionFile.createPartitionFileWriter(
@@ -107,11 +105,11 @@ public class DiskTierFactory implements TierFactory {
         return new DiskTierProducerAgent(
                 partitionId,
                 numSubpartitions,
-                numBytesPerSegment,
+                DEFAULT_DISK_TIER_NUM_BYTES_PER_SEGMENT,
                 bufferSizeBytes,
-                maxCachedBytesBeforeFlush,
+                DEFAULT_MAX_CACHED_BYTES_BEFORE_FLUSH,
                 dataFilePath,
-                minReservedDiskSpaceFraction,
+                DEFAULT_MIN_RESERVE_DISK_SPACE_FRACTION,
                 isBroadcastOnly,
                 partitionFileWriter,
                 partitionFileReader,
@@ -121,7 +119,7 @@ public class DiskTierFactory implements TierFactory {
                 bufferPool,
                 ioExecutor,
                 maxRequestedBuffers,
-                bufferRequestTimeout);
+                DEFAULT_DISK_TIER_BUFFER_REQUEST_TIMEOUT);
     }
 
     @Override

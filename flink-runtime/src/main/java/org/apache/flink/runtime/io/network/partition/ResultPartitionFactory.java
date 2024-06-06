@@ -30,6 +30,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
 import org.apache.flink.runtime.io.network.partition.hybrid.HsResultPartition;
 import org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleConfiguration;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageUtils;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.shuffle.TieredResultPartitionFactory;
 import org.apache.flink.runtime.shuffle.NettyShuffleUtils;
 import org.apache.flink.util.ExceptionUtils;
@@ -82,6 +83,8 @@ public class ResultPartitionFactory {
 
     private final long hybridShuffleNumRetainedInMemoryRegionsMax;
 
+    private final boolean memoryDecouplingEnabled;
+
     private final boolean sslEnabled;
 
     private final int maxOverdraftBuffersPerGate;
@@ -107,6 +110,7 @@ public class ResultPartitionFactory {
             int maxOverdraftBuffersPerGate,
             int hybridShuffleSpilledIndexRegionGroupSize,
             long hybridShuffleNumRetainedInMemoryRegionsMax,
+            boolean memoryDecouplingEnabled,
             Optional<TieredResultPartitionFactory> tieredStorage) {
 
         this.partitionManager = partitionManager;
@@ -128,6 +132,7 @@ public class ResultPartitionFactory {
         this.hybridShuffleSpilledIndexRegionGroupSize = hybridShuffleSpilledIndexRegionGroupSize;
         this.hybridShuffleNumRetainedInMemoryRegionsMax =
                 hybridShuffleNumRetainedInMemoryRegionsMax;
+        this.memoryDecouplingEnabled = memoryDecouplingEnabled;
         this.tieredStorage = tieredStorage;
     }
 
@@ -247,7 +252,9 @@ public class ResultPartitionFactory {
                                         type,
                                         subpartitions.length,
                                         maxParallelism,
+                                        networkBufferSize,
                                         isBroadcast,
+                                        memoryDecouplingEnabled,
                                         partitionManager,
                                         bufferCompressor,
                                         bufferPoolFactory,
@@ -369,24 +376,14 @@ public class ResultPartitionFactory {
                             sortShuffleMinBuffers,
                             numberOfSubpartitions,
                             tieredStorage.isPresent(),
-                            tieredStorage
-                                    .map(
-                                            storage ->
-                                                    storage.getTieredStorageConfiguration()
-                                                            .getMemoryDecouplingEnabled())
-                                    .orElse(false),
+                            memoryDecouplingEnabled,
                             tieredStorage
                                     .map(
                                             storage ->
                                                     storage.getTieredStorageConfiguration()
                                                             .getTotalExclusiveBufferNum())
                                     .orElse(0),
-                            tieredStorage
-                                    .map(
-                                            storage ->
-                                                    storage.getTieredStorageConfiguration()
-                                                            .getMinBuffersPerResultPartition())
-                                    .orElse(0),
+                            TieredStorageUtils.getMinBuffersPerResultPartition(),
                             type);
 
             return bufferPoolFactory.createBufferPool(

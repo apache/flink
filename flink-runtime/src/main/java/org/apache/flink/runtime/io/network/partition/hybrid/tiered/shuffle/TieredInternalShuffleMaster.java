@@ -28,7 +28,6 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierMast
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.configuration.NettyShuffleEnvironmentOptions.NETWORK_HYBRID_SHUFFLE_REMOTE_STORAGE_BASE_PATH;
 import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageIdMappingUtils.convertId;
 
 /**
@@ -41,9 +40,7 @@ public class TieredInternalShuffleMaster {
 
     public TieredInternalShuffleMaster(Configuration conf) {
         TieredStorageConfiguration tieredStorageConfiguration =
-                TieredStorageConfiguration.builder(
-                                conf.get(NETWORK_HYBRID_SHUFFLE_REMOTE_STORAGE_BASE_PATH))
-                        .build();
+                TieredStorageConfiguration.fromConfiguration(conf);
         TieredStorageResourceRegistry resourceRegistry = new TieredStorageResourceRegistry();
         List<TierMasterAgent> tierFactories =
                 tieredStorageConfiguration.getTierFactories().stream()

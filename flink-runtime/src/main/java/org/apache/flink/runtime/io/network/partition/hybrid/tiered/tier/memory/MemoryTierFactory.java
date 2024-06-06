@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.memory;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyService;
@@ -29,25 +30,27 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierCons
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierFactory;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierMasterAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierProducerAgent;
+import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** The implementation of {@link TierFactory} for memory tier. */
 public class MemoryTierFactory implements TierFactory {
 
-    private final int segmentSizeBytes;
+    private static final int DEFAULT_MEMORY_TIER_EXCLUSIVE_BUFFERS = 100;
 
-    private final int bufferSizeBytes;
+    private static final int DEFAULT_MEMORY_TIER_SUBPARTITION_MAX_QUEUED_BUFFERS = 3;
 
-    private final int subpartitionMaxQueuedBuffers;
+    private static final int DEFAULT_MEMORY_TIER_NUM_BYTES_PER_SEGMENT = 2 * 32 * 1024;
 
-    public MemoryTierFactory(
-            int segmentSizeBytes, int bufferSizeBytes, int subpartitionMaxQueuedBuffers) {
-        this.segmentSizeBytes = segmentSizeBytes;
-        this.bufferSizeBytes = bufferSizeBytes;
-        this.subpartitionMaxQueuedBuffers = subpartitionMaxQueuedBuffers;
+    private int bufferSizeBytes = -1;
+
+    @Override
+    public void setup(Configuration configuration) {
+        this.bufferSizeBytes = ConfigurationParserUtils.getPageSize(configuration);
     }
 
     @Override
@@ -67,14 +70,15 @@ public class MemoryTierFactory implements TierFactory {
             TieredStorageResourceRegistry resourceRegistry,
             BatchShuffleReadBufferPool bufferPool,
             ScheduledExecutorService ioExecutor,
-            int maxRequestedBuffers,
-            Duration bufferRequestTimeout) {
+            int maxRequestedBuffers) {
+        checkState(bufferSizeBytes > 0);
+
         return new MemoryTierProducerAgent(
                 partitionID,
                 numSubpartitions,
                 bufferSizeBytes,
-                segmentSizeBytes,
-                subpartitionMaxQueuedBuffers,
+                DEFAULT_MEMORY_TIER_NUM_BYTES_PER_SEGMENT,
+                DEFAULT_MEMORY_TIER_SUBPARTITION_MAX_QUEUED_BUFFERS,
                 isBroadcastOnly,
                 memoryManager,
                 nettyService,

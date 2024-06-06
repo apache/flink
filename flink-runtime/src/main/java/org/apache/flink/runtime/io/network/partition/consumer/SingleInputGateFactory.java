@@ -101,6 +101,8 @@ public class SingleInputGateFactory {
 
     private final int networkBufferSize;
 
+    private final boolean memoryDecouplingEnabled;
+
     private final BufferDebloatConfiguration debloatConfiguration;
 
     /** The following attributes will be null if tiered storage shuffle is disabled. */
@@ -129,6 +131,7 @@ public class SingleInputGateFactory {
         this.batchShuffleCompressionEnabled = networkConfig.isBatchShuffleCompressionEnabled();
         this.compressionCodec = networkConfig.getCompressionCodec();
         this.networkBufferSize = networkConfig.networkBufferSize();
+        this.memoryDecouplingEnabled = networkConfig.isMemoryDecouplingEnabled();
         this.connectionManager = connectionManager;
         this.partitionManager = partitionManager;
         this.taskEventPublisher = taskEventPublisher;
@@ -161,7 +164,8 @@ public class SingleInputGateFactory {
                         floatingNetworkBuffersPerGate,
                         igdd.getConsumedPartitionType(),
                         calculateNumNonLocalChannels(igdd, isSharedInputChannelSupported),
-                        tieredStorageConfiguration);
+                        tieredStorageConfiguration != null,
+                        memoryDecouplingEnabled);
         SupplierWithException<BufferPool, IOException> bufferPoolFactory =
                 createBufferPoolFactory(
                         networkBufferPool,
