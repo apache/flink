@@ -25,6 +25,9 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.Buffe
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.HashBufferAccumulator;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.SortBufferAccumulator;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierProducerAgent;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.disk.DiskTierFactory;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.memory.MemoryTierFactory;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.remote.RemoteTierFactory;
 
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -92,6 +95,18 @@ public class TieredStorageUtils {
      */
     public static int getMinBuffersPerResultPartition() {
         return DEFAULT_MIN_BUFFERS_PER_RESULT_PARTITION;
+    }
+
+    public static String getMemoryTierName() {
+        return MemoryTierFactory.class.getSimpleName();
+    }
+
+    public static String getDiskTierName() {
+        return DiskTierFactory.class.getSimpleName();
+    }
+
+    public static String getRemoteTierName() {
+        return RemoteTierFactory.class.getSimpleName();
     }
 
     public static ByteBuffer[] generateBufferWithHeaders(

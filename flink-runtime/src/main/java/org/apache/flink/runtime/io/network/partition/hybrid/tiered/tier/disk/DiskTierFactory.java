@@ -28,12 +28,14 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.Producer
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyService;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerSpec;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemoryManager;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemorySpec;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageResourceRegistry;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.NoOpMasterAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierConsumerAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierFactory;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierMasterAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierProducerAgent;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
 import java.nio.file.Path;
@@ -42,6 +44,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageUtils.getDiskTierName;
 import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.ProducerMergedPartitionFile.DATA_FILE_SUFFIX;
 import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.ProducerMergedPartitionFile.INDEX_FILE_SUFFIX;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -71,12 +74,28 @@ public class DiskTierFactory implements TierFactory {
     }
 
     @Override
+    public TieredStorageMemorySpec getMasterAgentMemorySpec() {
+        return new TieredStorageMemorySpec(getDiskTierName(), 0);
+    }
+
+    @Override
+    public TieredStorageMemorySpec getProducerAgentMemorySpec() {
+        return new TieredStorageMemorySpec(getDiskTierName(), DEFAULT_DISK_TIER_EXCLUSIVE_BUFFERS);
+    }
+
+    @Override
+    public TieredStorageMemorySpec getConsumerAgentMemorySpec() {
+        return new TieredStorageMemorySpec(getDiskTierName(), 0);
+    }
+
+    @Override
     public TierMasterAgent createMasterAgent(TieredStorageResourceRegistry resourceRegistry) {
         return NoOpMasterAgent.INSTANCE;
     }
 
     @Override
     public TierProducerAgent createProducerAgent(
+            int numPartitions,
             int numSubpartitions,
             TieredStoragePartitionId partitionId,
             String dataFileBasePath,
@@ -86,6 +105,7 @@ public class DiskTierFactory implements TierFactory {
             TieredStorageResourceRegistry resourceRegistry,
             BatchShuffleReadBufferPool bufferPool,
             ScheduledExecutorService ioExecutor,
+            List<TierShuffleDescriptor> shuffleDescriptors,
             int maxRequestedBuffers) {
         checkState(bufferSizeBytes > 0);
 
@@ -125,6 +145,7 @@ public class DiskTierFactory implements TierFactory {
     @Override
     public TierConsumerAgent createConsumerAgent(
             List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs,
+            List<TierShuffleDescriptor> shuffleDescriptors,
             TieredStorageNettyService nettyService) {
         return new DiskTierConsumerAgent(tieredStorageConsumerSpecs, nettyService);
     }

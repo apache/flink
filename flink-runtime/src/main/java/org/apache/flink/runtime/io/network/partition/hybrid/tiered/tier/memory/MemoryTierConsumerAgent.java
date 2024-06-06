@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.NettyCo
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyService;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.AvailabilityNotifier;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerSpec;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemoryManager;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierConsumerAgent;
 
 import java.io.IOException;
@@ -59,6 +60,11 @@ public class MemoryTierConsumerAgent implements TierConsumerAgent {
                                         new TieredStorageSubpartitionId(subpartitionId)));
             }
         }
+    }
+
+    @Override
+    public void setup(TieredStorageMemoryManager memoryManager) {
+        // noop
     }
 
     @Override

@@ -79,6 +79,13 @@ public interface TieredStorageMemoryManager {
     void listenBufferReclaimRequest(Runnable onBufferReclaimRequest);
 
     /**
+     * Expose and get the internal {@link BufferPool}. Please note that this method is a temporary
+     * workaround for the remote tier plugin and may be removed at any time in the future. We
+     * strongly advise that users do not rely on this method.
+     */
+    BufferPool getBufferPool();
+
+    /**
      * Request a {@link BufferBuilder} instance for a specific owner. The {@link
      * TieredStorageMemoryManagerImpl} will not check whether a buffer can be requested. The manager
      * only records the number of requested buffers. If the buffers is not enough to meet the

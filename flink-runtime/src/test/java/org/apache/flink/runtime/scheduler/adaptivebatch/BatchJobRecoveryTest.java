@@ -74,6 +74,7 @@ import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.PartitionWithMetrics;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.runtime.shuffle.ShuffleMasterContextImpl;
 import org.apache.flink.runtime.shuffle.ShuffleMetrics;
 import org.apache.flink.runtime.source.coordinator.SourceCoordinator;
 import org.apache.flink.runtime.source.coordinator.SourceCoordinatorProvider;
@@ -1042,7 +1043,8 @@ public class BatchJobRecoveryTest {
             throws Exception {
 
         final ShuffleMaster<NettyShuffleDescriptor> shuffleMaster =
-                new NettyShuffleMaster(new Configuration());
+                new NettyShuffleMaster(
+                        new ShuffleMasterContextImpl(new Configuration(), throwable -> {}));
         TestingJobMasterGateway jobMasterGateway =
                 new TestingJobMasterGatewayBuilder()
                         .setGetPartitionWithMetricsFunction(

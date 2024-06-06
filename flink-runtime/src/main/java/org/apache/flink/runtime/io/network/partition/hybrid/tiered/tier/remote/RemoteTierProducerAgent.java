@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierProd
 
 import java.util.Arrays;
 
+import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageUtils.getRemoteTierName;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** The implementation of {@link TierProducerAgent} for the remote tier. */
@@ -95,7 +96,7 @@ public class RemoteTierProducerAgent implements TierProducerAgent {
             return false;
         }
         if (buffer.isBuffer()) {
-            memoryManager.transferBufferOwnership(bufferOwner, this, buffer);
+            memoryManager.transferBufferOwnership(bufferOwner, getRemoteTierName(), buffer);
         }
         currentSubpartitionSegmentWriteBuffers[subpartitionIndex]++;
         cacheDataManager.appendBuffer(buffer, subpartitionIndex);

@@ -28,16 +28,19 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.SegmentP
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyService;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerSpec;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemoryManager;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemorySpec;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageResourceRegistry;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierConsumerAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierFactory;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierMasterAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierProducerAgent;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageUtils.getRemoteTierName;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -65,12 +68,29 @@ public class RemoteTierFactory implements TierFactory {
     }
 
     @Override
+    public TieredStorageMemorySpec getMasterAgentMemorySpec() {
+        return new TieredStorageMemorySpec(getRemoteTierName(), 0);
+    }
+
+    @Override
+    public TieredStorageMemorySpec getProducerAgentMemorySpec() {
+        return new TieredStorageMemorySpec(
+                getRemoteTierName(), DEFAULT_REMOTE_TIER_EXCLUSIVE_BUFFERS);
+    }
+
+    @Override
+    public TieredStorageMemorySpec getConsumerAgentMemorySpec() {
+        return new TieredStorageMemorySpec(getRemoteTierName(), 0);
+    }
+
+    @Override
     public TierMasterAgent createMasterAgent(TieredStorageResourceRegistry resourceRegistry) {
         return new RemoteTierMasterAgent(remoteStoragePath, resourceRegistry);
     }
 
     @Override
     public TierProducerAgent createProducerAgent(
+            int numPartitions,
             int numSubpartitions,
             TieredStoragePartitionId partitionID,
             String dataFileBasePath,
@@ -80,6 +100,7 @@ public class RemoteTierFactory implements TierFactory {
             TieredStorageResourceRegistry resourceRegistry,
             BatchShuffleReadBufferPool bufferPool,
             ScheduledExecutorService ioExecutor,
+            List<TierShuffleDescriptor> shuffleDescriptors,
             int maxRequestedBuffers) {
         checkState(bufferSizeBytes > 0);
         checkNotNull(remoteStoragePath);
@@ -100,6 +121,7 @@ public class RemoteTierFactory implements TierFactory {
     @Override
     public TierConsumerAgent createConsumerAgent(
             List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs,
+            List<TierShuffleDescriptor> shuffleDescriptors,
             TieredStorageNettyService nettyService) {
         PartitionFileReader partitionFileReader =
                 SegmentPartitionFile.createPartitionFileReader(remoteStoragePath);

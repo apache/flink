@@ -42,8 +42,10 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.Tiered
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyServiceImpl;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageProducerClient;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageResourceRegistry;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.util.NoOpTierShuffleDescriptor;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.IgnoreShutdownRejectedExecutionHandler;
 
@@ -54,7 +56,9 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
@@ -277,6 +281,10 @@ class TieredResultPartitionTest {
                         tieredStorageNettyService,
                         tieredStorageResourceRegistry);
 
+        List<TierShuffleDescriptor> tierShuffleDescriptors =
+                Arrays.asList(
+                        NoOpTierShuffleDescriptor.INSTANCE, NoOpTierShuffleDescriptor.INSTANCE);
+
         TieredResultPartition resultPartition =
                 tieredResultPartitionFactory.createTieredResultPartition(
                         "TieredStoreResultPartitionTest",
@@ -285,11 +293,13 @@ class TieredResultPartitionTest {
                         ResultPartitionType.HYBRID_SELECTIVE,
                         numSubpartitions,
                         numSubpartitions,
+                        Integer.MAX_VALUE,
                         NETWORK_BUFFER_SIZE,
                         isBroadcastOnly,
                         true,
                         new ResultPartitionManager(),
                         new BufferCompressor(NETWORK_BUFFER_SIZE, CompressionCodec.LZ4),
+                        tierShuffleDescriptors,
                         () -> bufferPool,
                         fileChannelManager,
                         readBufferPool,

@@ -312,6 +312,9 @@ public class SingleInputGate extends IndexedInputGate {
 
         BufferPool bufferPool = bufferPoolFactory.get();
         setBufferPool(bufferPool);
+        if (tieredStorageConsumerClient != null) {
+            tieredStorageConsumerClient.setup(bufferPool);
+        }
 
         setupChannels();
     }
