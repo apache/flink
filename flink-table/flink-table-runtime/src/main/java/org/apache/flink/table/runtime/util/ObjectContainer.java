@@ -31,19 +31,23 @@ import java.util.function.Function;
 @Internal
 public class ObjectContainer {
 
-    private final Object o;
+    private final Object object;
 
     private final BiFunction<Object, Object, Boolean> equalsMethod;
 
     private final Function<Object, Integer> hashCodeMethod;
 
     public ObjectContainer(
-            Object o,
+            Object object,
             BiFunction<Object, Object, Boolean> equalsMethod,
             Function<Object, Integer> hashCodeMethod) {
-        this.o = o;
+        this.object = object;
         this.equalsMethod = equalsMethod;
         this.hashCodeMethod = hashCodeMethod;
+    }
+
+    public Object getObject() {
+        return object;
     }
 
     @Override
@@ -55,11 +59,11 @@ public class ObjectContainer {
             return false;
         }
         ObjectContainer that = (ObjectContainer) other;
-        return equalsMethod.apply(this.o, that.o);
+        return equalsMethod.apply(this.object, that.object);
     }
 
     @Override
     public int hashCode() {
-        return hashCodeMethod.apply(o);
+        return hashCodeMethod.apply(object);
     }
 }
