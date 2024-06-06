@@ -16,17 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.shuffle;
+package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier;
 
-import org.apache.flink.configuration.Configuration;
+/**
+ * This is a placeholder when the tier shuffle descriptor should be unknown because the netty
+ * shuffle descriptor is unknown.
+ */
+public class UnknownTierShuffleDescriptor implements TierShuffleDescriptor {
+    private static final long serialVersionUID = 1L;
 
-/** Utils for shuffle related tests. */
-public class ShuffleTestUtils {
+    public static final UnknownTierShuffleDescriptor INSTANCE = new UnknownTierShuffleDescriptor();
 
-    public static final ShuffleMaster<?> DEFAULT_SHUFFLE_MASTER =
-            new NettyShuffleMaster(
-                    new ShuffleMasterContextImpl(new Configuration(), throwable -> {}));
-
-    /** Private default constructor to avoid being instantiated. */
-    private ShuffleTestUtils() {}
+    private UnknownTierShuffleDescriptor() {}
 }

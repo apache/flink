@@ -24,6 +24,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.shuffle.TieredInternalShuffleMaster;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.LocalExecutionPartitionConnectionInfo;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.NetworkPartitionConnectionInfo;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.PartitionConnectionInfo;
@@ -34,6 +35,7 @@ import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -65,7 +67,8 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
 
     private final Map<JobID, JobShuffleContext> jobShuffleContexts = new HashMap<>();
 
-    public NettyShuffleMaster(Configuration conf) {
+    public NettyShuffleMaster(ShuffleMasterContext shuffleMasterContext) {
+        Configuration conf = shuffleMasterContext.getConfiguration();
         checkNotNull(conf);
         buffersPerInputChannel =
                 conf.get(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL);
@@ -81,7 +84,7 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
         networkBufferSize = ConfigurationParserUtils.getPageSize(conf);
 
         if (isHybridShuffleNewModeEnabled(conf)) {
-            tieredInternalShuffleMaster = new TieredInternalShuffleMaster(conf);
+            tieredInternalShuffleMaster = new TieredInternalShuffleMaster(shuffleMasterContext);
         } else {
             tieredInternalShuffleMaster = null;
         }
@@ -110,23 +113,27 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
                         partitionDescriptor.getPartitionId(),
                         producerDescriptor.getProducerExecutionId());
 
+        List<TierShuffleDescriptor> tierShuffleDescriptors = null;
+        if (tieredInternalShuffleMaster != null) {
+            tierShuffleDescriptors =
+                    tieredInternalShuffleMaster.addPartitionAndGetShuffleDescriptor(
+                            jobID, resultPartitionID);
+        }
+
         NettyShuffleDescriptor shuffleDeploymentDescriptor =
                 new NettyShuffleDescriptor(
                         producerDescriptor.getProducerLocation(),
                         createConnectionInfo(
                                 producerDescriptor, partitionDescriptor.getConnectionIndex()),
-                        resultPartitionID);
-
-        if (tieredInternalShuffleMaster != null) {
-            tieredInternalShuffleMaster.addPartition(resultPartitionID);
-        }
+                        resultPartitionID,
+                        tierShuffleDescriptors);
         return CompletableFuture.completedFuture(shuffleDeploymentDescriptor);
     }
 
     @Override
     public void releasePartitionExternally(ShuffleDescriptor shuffleDescriptor) {
         if (tieredInternalShuffleMaster != null) {
-            tieredInternalShuffleMaster.releasePartition(shuffleDescriptor.getResultPartitionID());
+            tieredInternalShuffleMaster.releasePartition(shuffleDescriptor);
         }
     }
 
