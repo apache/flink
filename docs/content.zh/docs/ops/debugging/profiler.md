@@ -69,7 +69,7 @@ Profiling Instance
 
 ## 故障排除
 1. **Failed to profiling in CPU mode: No access to perf events. Try –fdtransfer or –all-user option or ‘sysctl kernel.perf_event_paranoid=1’** \
-   这意味着 `perf_event_open()` 系统调用失败。默认情况下，Docker容器限制对 `perf_event_open` 系统调用。建议解决方案是回退到ITIMER分析模式。它类似于cpu模式，但不需要perf_events支持。它的缺陷是没有内核堆栈跟踪。
+   这意味着 `perf_event_open()` 系统调用失败。默认情况下，Docker容器限制对 `perf_event_open` 系统调用。建议解决方案是回退到ITIMER分析模式。它类似于cpu模式，但不需要perf_events支持。它的缺点是没有内核堆栈跟踪。
 
 2. **Failed to profiling in Allocation mode: No AllocTracer symbols found. Are JDK debug symbols installed?** \
    OpenJDK debug symbols 在 allocation分析模式下是必需的。 在 [Installing Debug Symbols](https://github.com/async-profiler/async-profiler?tab=readme-ov-file#installing-debug-symbols) 中查看更多详细信息。
