@@ -364,6 +364,16 @@ public class YarnConfigOptions {
                                     + "resource directory. If set to false, Flink"
                                     + " will try to directly locate the keytab from the path itself.");
 
+    public static final ConfigOption<List<String>> APP_MASTER_TOKEN_SERVICES =
+            key("yarn.security.appmaster.delegation.token.services")
+                    .stringType()
+                    .asList()
+                    .defaultValues("hadoopfs")
+                    .withDescription(
+                            "The delegation token provider services are allowed to pass obtained tokens to YARN application master."
+                                    + " For backward compatibility to make log aggregation to work, we add tokens obtained"
+                                    + " by `hadoopfs` provider to AM by default.");
+
     public static final ConfigOption<List<String>> PROVIDED_LIB_DIRS =
             key("yarn.provided.lib.dirs")
                     .stringType()
