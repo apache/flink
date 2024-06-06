@@ -28,7 +28,7 @@ under the License.
         <version>1.20-SNAPSHOT</version>
     </parent>
 
-    <artifactId>fink-migration-test-utils</artifactId>
+    <artifactId>flink-migration-test-utils</artifactId>
     <name>Flink : Test utils : MigrationTestUtils</name>
 
     <packaging>jar</packaging>
