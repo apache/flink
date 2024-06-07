@@ -137,7 +137,7 @@ public class HiveServer2EndpointITCase extends TestLogger {
             new HiveServer2EndpointExtension(SQL_GATEWAY_SERVICE_EXTENSION::getService);
 
     @BeforeAll
-    public static void setup() throws Exception {
+    static void setup() throws Exception {
         initializeEnvironment();
     }
 

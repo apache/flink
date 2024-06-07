@@ -30,7 +30,6 @@ import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.apache.commons.lang3.RandomStringUtils;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -53,6 +52,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /**
  * This class tests the functionality of the {@link LocalFileSystem} class in its components. In
@@ -104,7 +104,7 @@ class LocalFileSystemTest {
 
         // double check that directory is not existent anymore..
         assertThat(lfs.exists(pathtotmpdir)).isFalse();
-        assertThat(tempdir.exists()).isFalse();
+        assertThat(tempdir).doesNotExist();
 
         // re-create directory..
         lfs.mkdirs(pathtotmpdir);
@@ -170,7 +170,7 @@ class LocalFileSystemTest {
         // and can lfs also delete directories recursively?
         assertThat(lfs.delete(pathtotmpdir, true)).isTrue();
 
-        assertThat(tempdir.exists()).isFalse();
+        assertThat(tempdir).doesNotExist();
     }
 
     @Test
@@ -244,8 +244,8 @@ class LocalFileSystemTest {
         final File destFile = new File(TempDirUtils.newFolder(tempFolder), "target");
 
         // we need to make the file non-modifiable so that the rename fails
-        Assumptions.assumeTrue(srcFile.getParentFile().setWritable(false, false));
-        Assumptions.assumeTrue(srcFile.setWritable(false, false));
+        assumeThat(srcFile.getParentFile().setWritable(false, false)).isTrue();
+        assumeThat(srcFile.setWritable(false, false)).isTrue();
 
         try {
             final Path srcFilePath = new Path(srcFile.toURI());

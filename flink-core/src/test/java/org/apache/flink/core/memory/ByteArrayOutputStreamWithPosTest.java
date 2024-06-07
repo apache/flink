@@ -27,7 +27,7 @@ import java.io.IOException;
 import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link ByteArrayOutputStreamWithPos}. */
 class ByteArrayOutputStreamWithPosTest {
@@ -61,14 +61,13 @@ class ByteArrayOutputStreamWithPosTest {
     /** Test setting negative position. */
     @Test
     void testSetNegativePosition() {
-        Throwable exception =
-                assertThrows(
-                        IllegalArgumentException.class,
+        assertThatThrownBy(
                         () -> {
                             stream.write(new byte[BUFFER_SIZE]);
                             stream.setPosition(-1);
-                        });
-        assertThat(exception.getMessage()).contains("Position out of bounds");
+                        })
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Position out of bounds");
     }
 
     /** Test setting position larger than buffer size. */

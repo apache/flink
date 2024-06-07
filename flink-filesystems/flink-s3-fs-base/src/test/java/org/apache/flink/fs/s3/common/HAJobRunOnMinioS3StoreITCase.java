@@ -108,7 +108,7 @@ public abstract class HAJobRunOnMinioS3StoreITCase extends AbstractHAJobRunITCas
     }
 
     @AfterAll
-    public static void unsetFileSystem() {
+    static void unsetFileSystem() {
         FileSystem.initialize(new Configuration(), null);
     }
 

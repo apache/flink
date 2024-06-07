@@ -48,17 +48,17 @@ class HadoopRecoverableWriterTest extends AbstractRecoverableWriterTest {
     private static Path basePath;
 
     @BeforeAll
-    public static void testHadoopVersion() {
+    static void testHadoopVersion() {
         assumeThat(HadoopUtils.isMinHadoopVersion(2, 6)).isTrue();
     }
 
     @BeforeAll
-    public static void verifyOS() {
+    static void verifyOS() {
         assumeThat(OperatingSystem.isWindows()).isFalse();
     }
 
     @BeforeAll
-    public static void createHDFS() throws Exception {
+    static void createHDFS() throws Exception {
         final File baseDir = TempDirUtils.newFolder(tempFolder);
 
         final Configuration hdConf = new Configuration();
@@ -74,7 +74,7 @@ class HadoopRecoverableWriterTest extends AbstractRecoverableWriterTest {
     }
 
     @AfterAll
-    public static void destroyHDFS() throws Exception {
+    static void destroyHDFS() throws Exception {
         if (hdfsCluster != null) {
             hdfsCluster
                     .getFileSystem()

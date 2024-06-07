@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the {@link AutoCloseableRegistry}. */
@@ -64,9 +65,16 @@ class AutoCloseableRegistryTest {
 
             fail("Close should throw exception");
         } catch (Exception ex) {
-            assertThat(ex.getMessage()).isEqualTo("1");
-            assertThat(ex.getSuppressed()[0].getMessage()).isEqualTo("2");
-            assertThat(ex.getSuppressed()[1].getMessage()).isEqualTo("java.lang.AssertionError: 3");
+            assertThatThrownBy(
+                            () -> {
+                                throw ex;
+                            })
+                    .hasMessage("1")
+                    .satisfies(
+                            e -> assertThat(e.getSuppressed()[0]).hasMessage("2"),
+                            e ->
+                                    assertThat(e.getSuppressed()[1])
+                                            .hasMessage("java.lang.AssertionError: 3"));
         }
     }
 }

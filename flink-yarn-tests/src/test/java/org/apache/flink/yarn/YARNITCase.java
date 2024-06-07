@@ -61,7 +61,7 @@ class YARNITCase extends YarnTestBase {
     private static final int sleepIntervalInMS = 100;
 
     @BeforeAll
-    public static void setup() {
+    static void setup() {
         YARN_CONFIGURATION.set(YarnTestBase.TEST_CLUSTER_NAME_KEY, "flink-yarn-tests-per-job");
         startYARNWithConfig(YARN_CONFIGURATION, true);
     }

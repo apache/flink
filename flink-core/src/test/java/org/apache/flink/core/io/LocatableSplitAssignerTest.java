@@ -198,7 +198,7 @@ class LocatableSplitAssignerTest {
             String host = requestingHosts[i % requestingHosts.length];
             is = ia.getNextInputSplit(host, 0);
             // check valid split
-            assertThat(is != null).isTrue();
+            assertThat(is).isNotNull();
             // check unassigned split
             assertThat(splits.remove(is)).isTrue();
             // check priority of split

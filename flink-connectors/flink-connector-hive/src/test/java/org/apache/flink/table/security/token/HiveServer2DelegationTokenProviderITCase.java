@@ -49,7 +49,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class HiveServer2DelegationTokenProviderITCase {
 
     @BeforeAll
-    public static void setPropertiesToEnableKerberosConfigInit() throws KrbException {
+    static void setPropertiesToEnableKerberosConfigInit() throws KrbException {
         System.setProperty("java.security.krb5.realm", "EXAMPLE.COM");
         System.setProperty("java.security.krb5.kdc", "kdc");
         System.setProperty("java.security.krb5.conf", "/dev/null");
@@ -57,7 +57,7 @@ public class HiveServer2DelegationTokenProviderITCase {
     }
 
     @AfterAll
-    public static void cleanupHadoopConfigs() {
+    static void cleanupHadoopConfigs() {
         UserGroupInformation.setConfiguration(new Configuration());
     }
 

@@ -60,7 +60,7 @@ class OffHeapUnsafeMemorySegmentTest extends MemorySegmentTestBase {
         MemorySegmentFactory.allocateOffHeapUnsafeMemory(
                         10, null, () -> cleanerFuture.complete(null))
                 .free();
-        assertThat(cleanerFuture.isDone()).isTrue();
+        assertThat(cleanerFuture).isDone();
     }
 
     @TestTemplate

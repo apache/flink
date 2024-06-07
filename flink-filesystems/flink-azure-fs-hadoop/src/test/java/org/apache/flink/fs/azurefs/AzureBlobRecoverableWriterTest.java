@@ -44,7 +44,7 @@ class AzureBlobRecoverableWriterTest extends AbstractRecoverableWriterTest {
     private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
 
     @BeforeAll
-    public static void checkCredentialsAndSetup() throws IOException {
+    static void checkCredentialsAndSetup() throws IOException {
         // check whether credentials and container details exist
         assumeThat(StringUtils.isNullOrWhitespaceOnly(CONTAINER)).isFalse();
         assumeThat(StringUtils.isNullOrWhitespaceOnly(ACCESS_KEY)).isFalse();
@@ -69,7 +69,7 @@ class AzureBlobRecoverableWriterTest extends AbstractRecoverableWriterTest {
     }
 
     @AfterAll
-    public static void afterClass() {
+    static void afterClass() {
         AzureBlobFsRecoverableDataOutputStream.minBufferLength = 2097152;
     }
 

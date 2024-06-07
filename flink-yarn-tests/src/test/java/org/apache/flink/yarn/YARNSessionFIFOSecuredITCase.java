@@ -65,7 +65,7 @@ class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
     private static final Logger log = LoggerFactory.getLogger(YARNSessionFIFOSecuredITCase.class);
 
     @BeforeAll
-    public static void setup() {
+    static void setup() {
 
         log.info("starting secure cluster environment for testing");
 
