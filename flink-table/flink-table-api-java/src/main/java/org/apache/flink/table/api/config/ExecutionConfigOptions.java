@@ -316,8 +316,12 @@ public class ExecutionConfigOptions {
                     .withDescription(
                             "Sets the window elements buffer size limit used in group window agg operator.");
 
+    // ------------------------------------------------------------------------
+    //  Runtime Execution Options (set at least after planning and probably scheduling)
+    // ------------------------------------------------------------------------
+
     public static final ConfigOption<MemorySize> GLOBAL_AGG_BUFFER_SIZE =
-            ConfigOptions.key("table.exec.window-agg.global.buffer-size")
+            ConfigOptions.key("table.runtime.window-agg.global.buffer-size")
                     .memoryType()
                     .noDefaultValue()
                     .withDescription(
@@ -330,7 +334,7 @@ public class ExecutionConfigOptions {
                                     + "If it's too small, aggregation efficiency will be lower.");
 
     public static final ConfigOption<Integer> GLOBAL_AGG_MAX_BUFFERED_RECORDS =
-            ConfigOptions.key("table.exec.window-agg.global.max-buffered-records")
+            ConfigOptions.key("table.runtime.window-agg.global.max-buffered-records")
                     .intType()
                     .noDefaultValue()
                     .withDescription(
@@ -340,7 +344,7 @@ public class ExecutionConfigOptions {
                                     + " for more details.");
 
     public static final ConfigOption<MemorySize> LOCAL_AGG_BUFFER_SIZE =
-            ConfigOptions.key("table.exec.window-agg.local.buffer-size")
+            ConfigOptions.key("table.runtime.window-agg.local.buffer-size")
                     .memoryType()
                     .noDefaultValue()
                     .withDescription(
@@ -359,7 +363,7 @@ public class ExecutionConfigOptions {
                                     + "However, this buffer can't be as small because keys, values, and offsets use separate memory pages.");
 
     public static final ConfigOption<Integer> LOCAL_AGG_MAX_BUFFERED_RECORDS =
-            ConfigOptions.key("table.exec.window-agg.local.max-buffered-records")
+            ConfigOptions.key("table.runtime.window-agg.local.max-buffered-records")
                     .intType()
                     .noDefaultValue()
                     .withDescription(
