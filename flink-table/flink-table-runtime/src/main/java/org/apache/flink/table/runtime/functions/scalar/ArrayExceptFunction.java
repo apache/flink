@@ -33,9 +33,9 @@ import org.apache.flink.util.FlinkRuntimeException;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 
 /** Implementation of {@link BuiltInFunctionDefinitions#ARRAY_EXCEPT}. */
 @Internal
@@ -65,19 +65,18 @@ public class ArrayExceptFunction extends BuiltInScalarFunction {
             }
 
             List<Object> list = new ArrayList<>();
-            Map<ObjectContainer, Integer> map = new HashMap<>();
+            Set<ObjectContainer> set = new HashSet<>();
             for (int pos = 0; pos < arrayTwo.size(); pos++) {
                 final Object element = elementGetter.getElementOrNull(arrayTwo, pos);
                 final ObjectContainer objectContainer = createObjectContainer(element);
-                map.merge(objectContainer, 1, (k, v) -> v + 1);
+                set.add(objectContainer);
             }
             for (int pos = 0; pos < arrayOne.size(); pos++) {
                 final Object element = elementGetter.getElementOrNull(arrayOne, pos);
                 final ObjectContainer objectContainer = createObjectContainer(element);
-                if (map.containsKey(objectContainer)) {
-                    map.compute(objectContainer, (k, v) -> v == null || v == 1 ? null : v - 1);
-                } else {
+                if (!set.contains(objectContainer)) {
                     list.add(element);
+                    set.add(objectContainer);
                 }
             }
             return new GenericArrayData(list.toArray());

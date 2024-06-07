@@ -1634,22 +1634,22 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f0").arrayExcept(new Integer[] {1, null, 4}),
                                 "ARRAY_EXCEPT(f0, ARRAY[1, NULL, 4])",
-                                new Integer[] {2, 2},
+                                new Integer[] {2},
                                 DataTypes.ARRAY(DataTypes.INT()).nullable())
                         .testResult(
                                 $("f0").arrayExcept(new Integer[] {1}),
                                 "ARRAY_EXCEPT(f0, ARRAY[1])",
-                                new Integer[] {2, 2},
+                                new Integer[] {2},
                                 DataTypes.ARRAY(DataTypes.INT()).nullable())
                         .testResult(
                                 $("f0").arrayExcept(new Integer[] {42}),
                                 "ARRAY_EXCEPT(f0, ARRAY[42])",
-                                new Integer[] {1, 2, 2},
+                                new Integer[] {1, 2},
                                 DataTypes.ARRAY(DataTypes.INT()).nullable())
                         .testResult(
                                 $("f6").arrayExcept(new Integer[] {2, 2}),
                                 "ARRAY_EXCEPT(f6, ARRAY[2, 2])",
-                                new Integer[] {1, 3, 4, 2},
+                                new Integer[] {1, 3, 4},
                                 DataTypes.ARRAY(DataTypes.INT()).nullable())
                         // arrayTwo is NULL
                         .testResult(
@@ -1663,7 +1663,7 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f0").arrayExcept(new Integer[] {null, 2}),
                                 "ARRAY_EXCEPT(f0, ARRAY[null, 2])",
-                                new Integer[] {1, 2},
+                                new Integer[] {1},
                                 DataTypes.ARRAY(DataTypes.INT()).nullable())
                         // arrayOne is NULL
                         .testResult(
@@ -1675,7 +1675,7 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f3").arrayExcept(new Integer[] {null, 42}),
                                 "ARRAY_EXCEPT(f3, ARRAY[null, 42])",
-                                new Integer[] {null, 1},
+                                new Integer[] {1},
                                 DataTypes.ARRAY(DataTypes.INT()).nullable())
                         // ARRAY<ROW<BOOLEAN, DATE>>
                         .testResult(
