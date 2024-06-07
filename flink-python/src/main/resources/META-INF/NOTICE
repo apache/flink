@@ -24,7 +24,9 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.beam:beam-runners-core-java:2.52.0
 - org.apache.beam:beam-runners-java-fn-execution:2.52.0
 - org.apache.beam:beam-sdks-java-core:2.52.0
+- org.apache.beam:beam-sdks-java-extensions-avro:2.52.0
 - org.apache.beam:beam-sdks-java-fn-execution:2.52.0
+- org.apache.beam:beam-sdks-java-transform-service-launcher:2.52.0
 - org.apache.beam:beam-vendor-guava-32_1_2-jre:0.1
 - org.apache.beam:beam-vendor-grpc-1_54_0:0.1
 - com.alibaba:pemja:0.4.1
@@ -70,5 +72,3 @@ The bundled Apache Beam dependencies bundle the following dependencies under the
 - io.opencensus:opencensus-api:0.31.0
 - io.opencensus:opencensus-contrib-grpc-metrics:0.31.0
 - io.perfmark:perfmark-api:0.26.0
-- org.apache.beam:beam-sdks-java-extensions-avro:2.52.0
-- org.apache.beam:beam-sdks-java-transform-service-launcher:2.52.0
