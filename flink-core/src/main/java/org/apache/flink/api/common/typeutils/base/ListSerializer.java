@@ -21,6 +21,7 @@ package org.apache.flink.api.common.typeutils.base;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.api.java.typeutils.runtime.MaskUtils;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -34,8 +35,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A serializer for {@link List Lists}. The serializer relies on an element serializer for the
  * serialization of the list's elements.
  *
- * <p>The serialization format for the list is as follows: four bytes for the length of the lost,
- * followed by the serialized representation of each element.
+ * <p>The serialization format for the list is as follows: four bytes for the length of the list, an
+ * optional binary mask for marking null values, followed by the serialized representation of each
+ * element. The binary mask is added in the new version to allow null values, and we rely on
+ * TypeSerializerSnapshot to deal with state-compatibility.
  *
  * @param <T> The type of element in the list.
  */
@@ -47,13 +50,21 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
     /** The serializer for the elements of the list. */
     private final TypeSerializer<T> elementSerializer;
 
+    private final boolean hasNullMask;
+    private transient boolean[] reuseMask;
+
     /**
      * Creates a list serializer that uses the given serializer to serialize the list's elements.
      *
      * @param elementSerializer The serializer for the elements of the list
      */
     public ListSerializer(TypeSerializer<T> elementSerializer) {
+        this(elementSerializer, true);
+    }
+
+    public ListSerializer(TypeSerializer<T> elementSerializer, boolean hasNullMask) {
         this.elementSerializer = checkNotNull(elementSerializer);
+        this.hasNullMask = hasNullMask;
     }
 
     // ------------------------------------------------------------------------
@@ -80,10 +91,7 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
 
     @Override
     public TypeSerializer<List<T>> duplicate() {
-        TypeSerializer<T> duplicateElement = elementSerializer.duplicate();
-        return duplicateElement == elementSerializer
-                ? this
-                : new ListSerializer<>(duplicateElement);
+        return new ListSerializer<>(elementSerializer.duplicate(), hasNullMask);
     }
 
     @Override
@@ -99,7 +107,8 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
         // the given list supports RandomAccess.
         // The Iterator should be stack allocated on new JVMs (due to escape analysis)
         for (T element : from) {
-            newList.add(elementSerializer.copy(element));
+            T newElement = element == null ? null : elementSerializer.copy(element);
+            newList.add(newElement);
         }
         return newList;
     }
@@ -119,11 +128,18 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
         final int size = list.size();
         target.writeInt(size);
 
+        if (hasNullMask) {
+            ensureReuseMaskLength(list.size());
+            MaskUtils.writeMask(getNullMask(list), list.size(), target);
+        }
+
         // We iterate here rather than accessing by index, because we cannot be sure that
         // the given list supports RandomAccess.
         // The Iterator should be stack allocated on new JVMs (due to escape analysis)
         for (T element : list) {
-            elementSerializer.serialize(element, target);
+            if (element != null) {
+                elementSerializer.serialize(element, target);
+            }
         }
     }
 
@@ -133,8 +149,16 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
         // create new list with (size + 1) capacity to prevent expensive growth when a single
         // element is added
         final List<T> list = new ArrayList<>(size + 1);
+        if (hasNullMask) {
+            ensureReuseMaskLength(size);
+            MaskUtils.readIntoMask(source, reuseMask, size);
+        }
         for (int i = 0; i < size; i++) {
-            list.add(elementSerializer.deserialize(source));
+            if (hasNullMask && reuseMask[i]) {
+                list.add(null);
+            } else {
+                list.add(elementSerializer.deserialize(source));
+            }
         }
         return list;
     }
@@ -149,12 +173,37 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
         // copy number of elements
         final int num = source.readInt();
         target.writeInt(num);
+        if (hasNullMask) {
+            ensureReuseMaskLength(num);
+            MaskUtils.readIntoAndCopyMask(source, target, reuseMask, num);
+        }
         for (int i = 0; i < num; i++) {
-            elementSerializer.copy(source, target);
+            if (!(hasNullMask && reuseMask[i])) {
+                elementSerializer.copy(source, target);
+            }
         }
     }
 
+    private void ensureReuseMaskLength(int len) {
+        if (reuseMask == null || reuseMask.length < len) {
+            reuseMask = new boolean[len];
+        }
+    }
+
+    private boolean[] getNullMask(List<T> list) {
+        int idx = 0;
+        for (T item : list) {
+            reuseMask[idx] = item == null;
+            idx++;
+        }
+        return reuseMask;
+    }
+
     // --------------------------------------------------------------------
+
+    public boolean isHasNullMask() {
+        return hasNullMask;
+    }
 
     @Override
     public boolean equals(Object obj) {

@@ -95,7 +95,11 @@ class ListSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<List<Strin
         @Override
         public Condition<TypeSerializerSchemaCompatibility<List<String>>>
                 schemaCompatibilityCondition(FlinkVersion version) {
-            return TypeSerializerConditions.isCompatibleAsIs();
+            if (version.isNewerVersionThan(FlinkVersion.v1_19)) {
+                return TypeSerializerConditions.isCompatibleAsIs();
+            } else {
+                return TypeSerializerConditions.isCompatibleAfterMigration();
+            }
         }
     }
 }
