@@ -244,7 +244,13 @@ These options control the basic setup of state backends and checkpointing behavi
 The options are only relevant for jobs/applications executing in a continuous streaming fashion.
 Jobs/applications executing in a batch fashion do not use state backends and checkpoints, but different internal data structures that are optimized for batch processing.
 
+**State Backends**
+
 {{< generated/common_state_backends_section >}}
+
+**Checkpoints**
+
+{{< generated/common_checkpointing_section >}}
 
 ### High Availability
 
@@ -454,9 +460,9 @@ Please refer to the [Debugging Classloading Docs]({{< ref "docs/ops/debugging/de
 
 {{< generated/expert_debugging_and_tuning_section >}}
 
-### Advanced State Backends Options
+### Advanced Checkpointing Options
 
-{{< generated/expert_state_backends_section >}}
+{{< generated/expert_checkpointing_section >}}
 
 ### State Latency Tracking Options
 

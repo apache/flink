@@ -97,7 +97,7 @@ public class CheckpointingOptions {
      *     to {@link #CHECKPOINTS_DIRECTORY}, and the checkpoint meta data and actual program state
      *     will both be persisted to the path.
      */
-    @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS, position = 2)
+    @Documentation.Section(value = Documentation.Sections.COMMON_CHECKPOINTING, position = 2)
     public static final ConfigOption<String> CHECKPOINT_STORAGE =
             ConfigOptions.key("execution.checkpointing.storage")
                     .stringType()
@@ -132,7 +132,7 @@ public class CheckpointingOptions {
                                     .build());
 
     /** The maximum number of completed checkpoints to retain. */
-    @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
+    @Documentation.Section(Documentation.Sections.COMMON_CHECKPOINTING)
     public static final ConfigOption<Integer> MAX_RETAINED_CHECKPOINTS =
             ConfigOptions.key("execution.checkpointing.num-retained")
                     .intType()
@@ -144,7 +144,7 @@ public class CheckpointingOptions {
      * operator states are discarded in parallel using the ExecutorService passed to the cleaner.
      * This speeds up checkpoints cleaning, but adds load to the IO.
      */
-    @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
+    @Documentation.Section(Documentation.Sections.COMMON_CHECKPOINTING)
     public static final ConfigOption<Boolean> CLEANER_PARALLEL_MODE =
             ConfigOptions.key("execution.checkpointing.cleaner.parallel-mode")
                     .booleanType()
@@ -172,7 +172,7 @@ public class CheckpointingOptions {
      *
      * <p>Some state backends may not support incremental checkpoints and ignore this option.
      */
-    @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
+    @Documentation.Section(Documentation.Sections.COMMON_CHECKPOINTING)
     public static final ConfigOption<Boolean> INCREMENTAL_CHECKPOINTS =
             ConfigOptions.key("execution.checkpointing.incremental")
                     .booleanType()
@@ -214,7 +214,7 @@ public class CheckpointingOptions {
      * <p>Local recovery currently only covers keyed state backends. Currently, MemoryStateBackend
      * does not support local recovery and ignore this option.
      */
-    @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
+    @Documentation.Section(Documentation.Sections.COMMON_CHECKPOINTING)
     public static final ConfigOption<String> LOCAL_RECOVERY_TASK_MANAGER_STATE_ROOT_DIRS =
             ConfigOptions.key("execution.checkpointing.local-backup.dirs")
                     .stringType()
@@ -241,7 +241,7 @@ public class CheckpointingOptions {
      * The default directory for savepoints. Used by the state backends that write savepoints to
      * file systems (HashMapStateBackend, EmbeddedRocksDBStateBackend).
      */
-    @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS, position = 3)
+    @Documentation.Section(value = Documentation.Sections.COMMON_CHECKPOINTING, position = 4)
     public static final ConfigOption<String> SAVEPOINT_DIRECTORY =
             ConfigOptions.key("execution.checkpointing.savepoint-dir")
                     .stringType()
@@ -257,7 +257,7 @@ public class CheckpointingOptions {
      * processes/nodes(i.e. all TaskManagers and JobManagers). If {@link #CHECKPOINT_STORAGE} is set
      * to 'jobmanager', only the meta data of checkpoints will be stored in this directory.
      */
-    @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS, position = 2)
+    @Documentation.Section(value = Documentation.Sections.COMMON_CHECKPOINTING, position = 3)
     public static final ConfigOption<String> CHECKPOINTS_DIRECTORY =
             ConfigOptions.key("execution.checkpointing.dir")
                     .stringType()
@@ -276,7 +276,7 @@ public class CheckpointingOptions {
      * checkpoint directory at the same time. If this value is set to false, pay attention not to
      * run several jobs with the same directory simultaneously.
      */
-    @Documentation.Section(Documentation.Sections.EXPERT_STATE_BACKENDS)
+    @Documentation.Section(Documentation.Sections.EXPERT_CHECKPOINTING)
     public static final ConfigOption<Boolean> CREATE_CHECKPOINT_SUB_DIR =
             ConfigOptions.key("execution.checkpointing.create-subdir")
                     .booleanType()
@@ -301,7 +301,7 @@ public class CheckpointingOptions {
      * The minimum size of state data files. All state chunks smaller than that are stored inline in
      * the root checkpoint metadata file.
      */
-    @Documentation.Section(Documentation.Sections.EXPERT_STATE_BACKENDS)
+    @Documentation.Section(Documentation.Sections.EXPERT_CHECKPOINTING)
     public static final ConfigOption<MemorySize> FS_SMALL_FILE_THRESHOLD =
             ConfigOptions.key("execution.checkpointing.data-inline-threshold")
                     .memoryType()
@@ -316,7 +316,7 @@ public class CheckpointingOptions {
     /**
      * The default size of the write buffer for the checkpoint streams that write to file systems.
      */
-    @Documentation.Section(Documentation.Sections.EXPERT_STATE_BACKENDS)
+    @Documentation.Section(Documentation.Sections.EXPERT_CHECKPOINTING)
     public static final ConfigOption<Integer> FS_WRITE_BUFFER_SIZE =
             ConfigOptions.key("execution.checkpointing.write-buffer-size")
                     .intType()
@@ -337,6 +337,7 @@ public class CheckpointingOptions {
      * currently only covers keyed state backends (including both the EmbeddedRocksDBStateBackend
      * and the HashMapStateBackend).
      */
+    @Documentation.Section(value = Documentation.Sections.COMMON_CHECKPOINTING)
     public static final ConfigOption<Boolean> LOCAL_BACKUP_ENABLED =
             ConfigOptions.key("execution.checkpointing.local-backup.enabled")
                     .booleanType()

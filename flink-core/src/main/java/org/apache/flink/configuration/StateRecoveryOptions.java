@@ -105,7 +105,6 @@ public class StateRecoveryOptions {
      * <p>Local recovery currently only covers keyed state backends (including both the
      * EmbeddedRocksDBStateBackend and the HashMapStateBackend).
      */
-    @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
     public static final ConfigOption<Boolean> LOCAL_RECOVERY =
             ConfigOptions.key("execution.state-recovery.from-local")
                     .booleanType()
