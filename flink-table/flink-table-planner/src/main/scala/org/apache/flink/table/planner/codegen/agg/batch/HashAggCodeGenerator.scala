@@ -49,7 +49,8 @@ object HashAggCodeGenerator {
   /**
    * Whether to enable adaptive local hash aggregation.
    * @deprecated
-   *   This configuration has been deprecated as part of FLIP-457. Please use
+   *   This configuration has been deprecated as part of FLIP-457 and will be removed in Flink 2.0.
+   *   Please use
    *   [[org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_ENABLED]]
    *   instead.
    */
@@ -75,7 +76,8 @@ object HashAggCodeGenerator {
    * The value to define how many records as sample data when adaptive local hash aggregation is
    * enabled.
    * @deprecated
-   *   This configuration has been deprecated as part of FLIP-457. Please use
+   *   This configuration has been deprecated as part of FLIP-457 and will be removed in Flink 2.0.
+   *   Please use
    *   [[org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD]]
    *   instead.
    */
@@ -101,7 +103,8 @@ object HashAggCodeGenerator {
    * when adaptive local hash aggregation is enabled.
    *
    * @deprecated
-   *   This configuration has been deprecated as part of FLIP-457. Please use
+   *   This configuration has been deprecated as part of FLIP-457 and will be removed in Flink 2.0.
+   *   Please use
    *   [[org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_DISTINCT_VALUE_RATE_THRESHOLD]]
    *   instead.
    */
