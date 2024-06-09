@@ -585,7 +585,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
         |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
         | ON T.a = D.id
         |""".stripMargin,
-      "Invalid LOOKUP hint: incomplete required option(s): [Key: 'lookup-table' , default: null (fallback keys: [{key=table, isDeprecated=true}])]",
+      "Invalid LOOKUP hint: incomplete required option(s): [Key: 'table' , default: null (fallback keys: [])]",
       classOf[AssertionError]
     )
 

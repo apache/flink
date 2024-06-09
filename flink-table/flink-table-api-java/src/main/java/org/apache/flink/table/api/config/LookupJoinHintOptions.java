@@ -30,16 +30,16 @@ import java.util.Set;
 import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
- * This class holds {@link org.apache.flink.configuration.ConfigOption}s used by lookup join hint.
+ * This class holds hint option name definitions for LOOKUP join hints based on {@link
+ * org.apache.flink.configuration.ConfigOption}.
  */
 @PublicEvolving
 public class LookupJoinHintOptions {
 
     public static final ConfigOption<String> LOOKUP_TABLE =
-            key("lookup-table")
+            key("table")
                     .stringType()
                     .noDefaultValue()
-                    .withDeprecatedKeys("table")
                     .withDescription("The table name of the lookup source.");
 
     public static final ConfigOption<Boolean> ASYNC_LOOKUP =
