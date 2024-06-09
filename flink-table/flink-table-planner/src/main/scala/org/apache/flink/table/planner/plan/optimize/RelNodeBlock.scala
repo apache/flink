@@ -356,7 +356,8 @@ object RelNodeBlockPlanBuilder {
   /**
    * Whether to treat union-all node as a breakpoint.
    * @deprecated
-   *   This configuration has been deprecated as part of FLIP-457. Please use
+   *   This configuration has been deprecated as part of FLIP-457 and will be removed in Flink 2.0.
+   *   Please use
    *   [[org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED]]
    *   instead.
    */
@@ -374,7 +375,8 @@ object RelNodeBlockPlanBuilder {
   /**
    * Whether to reuse optimize block based on digest.
    * @deprecated
-   *   This configuration has been deprecated as part of FLIP-457. Please use
+   *   This configuration has been deprecated as part of FLIP-457 and will be removed in Flink 2.0.
+   *   Please use
    *   [[org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED]]
    *   instead.
    */

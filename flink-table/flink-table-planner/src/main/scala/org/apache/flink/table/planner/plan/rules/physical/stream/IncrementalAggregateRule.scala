@@ -160,7 +160,8 @@ object IncrementalAggregateRule {
    * Whether to enable incremental aggregation.
    *
    * @deprecated
-   *   This configuration has been deprecated as part of FLIP-457. Please use
+   *   This configuration has been deprecated as part of FLIP-457 and will be removed in Flink 2.0.
+   *   Please use
    *   [[org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED]]
    *   instead.
    */
