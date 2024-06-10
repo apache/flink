@@ -20,8 +20,10 @@ package org.apache.flink.table.planner.plan.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
+import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.util.retryable.RetryPredicates;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
@@ -34,6 +36,7 @@ import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
+import org.apache.flink.table.connector.source.abilities.SupportsLookupCustomShuffle;
 import org.apache.flink.table.connector.source.lookup.AsyncLookupFunctionProvider;
 import org.apache.flink.table.connector.source.lookup.FullCachingLookupProvider;
 import org.apache.flink.table.connector.source.lookup.LookupFunctionProvider;
@@ -45,6 +48,7 @@ import org.apache.flink.table.functions.AsyncLookupFunction;
 import org.apache.flink.table.functions.LookupFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.runtime.connector.source.LookupRuntimeProviderContext;
@@ -57,6 +61,7 @@ import org.apache.flink.table.runtime.keyselector.GenericRowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.lookup.ResultRetryStrategy;
 import org.apache.flink.table.runtime.operators.join.lookup.RetryableAsyncLookupFunctionDelegator;
 import org.apache.flink.table.runtime.operators.join.lookup.RetryableLookupFunctionDelegator;
+import org.apache.flink.table.runtime.partitioner.RowDataCustomStreamPartitioner;
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.sources.LookupableTableSource;
@@ -83,7 +88,9 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.api.config.LookupJoinHintOptions.ASYNC_CAPACITY;
@@ -410,7 +417,9 @@ public final class LookupJoinUtil {
         if (temporalTable instanceof TableSourceTable) {
             int[] lookupKeyIndicesInOrder = getOrderedLookupKeys(lookupKeys);
             LookupTableSource.LookupRuntimeProvider provider =
-                    createLookupRuntimeProvider(temporalTable, lookupKeyIndicesInOrder);
+                    // Setting isCustomShuffleEnabled to false here as it's unrelated to
+                    // LookupRuntimeProvider's async execution.
+                    createLookupRuntimeProvider(temporalTable, lookupKeyIndicesInOrder, false);
             if (provider instanceof LookupFunctionProvider
                     || provider instanceof TableFunctionProvider) {
                 syncFound = true;
@@ -448,7 +457,8 @@ public final class LookupJoinUtil {
             Collection<Integer> lookupKeys,
             ClassLoader classLoader,
             boolean async,
-            ResultRetryStrategy retryStrategy) {
+            ResultRetryStrategy retryStrategy,
+            boolean isCustomShuffleEnabled) {
         UserDefinedFunction lookupFunction = null;
         int[] lookupKeyIndicesInOrder = getOrderedLookupKeys(lookupKeys);
         if (temporalTable instanceof TableSourceTable) {
@@ -458,7 +468,8 @@ public final class LookupJoinUtil {
                             lookupKeyIndicesInOrder,
                             retryStrategy,
                             async,
-                            classLoader);
+                            classLoader,
+                            isCustomShuffleEnabled);
         } else if (temporalTable instanceof LegacyTableSourceTable) {
             lookupFunction =
                     findLookupFunctionFromLegacySource(
@@ -538,9 +549,11 @@ public final class LookupJoinUtil {
             int[] lookupKeyIndicesInOrder,
             ResultRetryStrategy retryStrategy,
             boolean async,
-            ClassLoader classLoader) {
+            ClassLoader classLoader,
+            boolean isCustomShuffleEnabled) {
         LookupTableSource.LookupRuntimeProvider provider =
-                createLookupRuntimeProvider(temporalTable, lookupKeyIndicesInOrder);
+                createLookupRuntimeProvider(
+                        temporalTable, lookupKeyIndicesInOrder, isCustomShuffleEnabled);
 
         if (async) {
             if (provider instanceof AsyncLookupFunctionProvider) {
@@ -612,7 +625,9 @@ public final class LookupJoinUtil {
     }
 
     private static LookupTableSource.LookupRuntimeProvider createLookupRuntimeProvider(
-            RelOptTable temporalTable, int[] lookupKeyIndicesInOrder) {
+            RelOptTable temporalTable,
+            int[] lookupKeyIndicesInOrder,
+            boolean isCustomShuffleEnabled) {
         // TODO: support nested lookup keys in the future,
         //  currently we only support top-level lookup keys
         int[][] indices =
@@ -622,7 +637,8 @@ public final class LookupJoinUtil {
 
         LookupTableSource tableSource =
                 (LookupTableSource) ((TableSourceTable) temporalTable).tableSource();
-        LookupRuntimeProviderContext providerContext = new LookupRuntimeProviderContext(indices);
+        LookupRuntimeProviderContext providerContext =
+                new LookupRuntimeProviderContext(indices, isCustomShuffleEnabled);
         return tableSource.getLookupRuntimeProvider(providerContext);
     }
 
@@ -663,5 +679,34 @@ public final class LookupJoinUtil {
             throw new UnsupportedOperationException(
                     "Currently only InputFormatProvider and SourceFunctionProvider are supported as ScanRuntimeProviders for Full caching lookup join.");
         }
+    }
+
+    /** Try to apply custom partitioner to the input transformation of lookup join. */
+    public static Transformation<RowData> tryApplyCustomShufflePartitioner(
+            PlannerBase planner,
+            RelOptTable table,
+            RowType inputRowType,
+            Map<Integer, LookupKey> allLookupKeys,
+            Transformation<RowData> inputTransformation) {
+        // If the partitioner of input has been specified, the custom shuffle will
+        // be ignored.
+        if (inputTransformation instanceof PartitionTransformation) {
+            return inputTransformation;
+        }
+        Optional<SupportsLookupCustomShuffle.InputDataPartitioner> partitioner =
+                ((SupportsLookupCustomShuffle) (((TableSourceTable) table).tableSource()))
+                        .getPartitioner();
+        if (!partitioner.isPresent()) {
+            return inputTransformation;
+        }
+        GenericRowDataKeySelector lookupTableKeySelector =
+                (GenericRowDataKeySelector)
+                        KeySelectorUtil.getLookupKeysSelectorFromLeftTable(
+                                planner.getFlinkContext().getClassLoader(),
+                                allLookupKeys,
+                                InternalTypeInfo.of(inputRowType));
+        return new PartitionTransformation<>(
+                inputTransformation,
+                new RowDataCustomStreamPartitioner(partitioner.get(), lookupTableKeySelector));
     }
 }

@@ -69,6 +69,7 @@ import org.apache.flink.table.connector.source.abilities.SupportsAggregatePushDo
 import org.apache.flink.table.connector.source.abilities.SupportsDynamicFiltering;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsLookupCustomShuffle;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
@@ -168,6 +169,7 @@ import static org.apache.flink.table.connector.source.lookup.LookupOptions.PARTI
 import static org.apache.flink.table.connector.source.lookup.LookupOptions.PARTIAL_CACHE_EXPIRE_AFTER_WRITE;
 import static org.apache.flink.table.connector.source.lookup.LookupOptions.PARTIAL_CACHE_MAX_ROWS;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -480,6 +482,9 @@ public final class TestValuesTableFactory
 
     private static final ConfigOption<Integer> SINK_PARALLELISM = FactoryUtil.SINK_PARALLELISM;
 
+    private static final ConfigOption<Boolean> ENABLE_CUSTOM_SHUFFLE =
+            ConfigOptions.key("enable-custom-shuffle").booleanType().defaultValue(false);
+
     @Override
     public String factoryIdentifier() {
         return IDENTIFIER;
@@ -510,6 +515,7 @@ public final class TestValuesTableFactory
         int sleepAfterElements = helper.getOptions().get(SOURCE_SLEEP_AFTER_ELEMENTS);
         long sleepTimeMillis = helper.getOptions().get(SOURCE_SLEEP_TIME).toMillis();
         Integer parallelism = helper.getOptions().get(SOURCE_PARALLELISM);
+        boolean enableCustomShuffle = helper.getOptions().get(ENABLE_CUSTOM_SHUFFLE);
         DefaultLookupCache cache = null;
         if (helper.getOptions().get(CACHE_TYPE).equals(LookupOptions.LookupCacheType.PARTIAL)) {
             cache = DefaultLookupCache.fromConfig(helper.getOptions());
@@ -652,7 +658,8 @@ public final class TestValuesTableFactory
                         null,
                         cache,
                         reloadTrigger,
-                        lookupThreshold);
+                        lookupThreshold,
+                        enableCustomShuffle);
             }
         } else {
             try {
@@ -774,7 +781,8 @@ public final class TestValuesTableFactory
                         FULL_CACHE_PERIODIC_RELOAD_INTERVAL,
                         FULL_CACHE_PERIODIC_RELOAD_SCHEDULE_MODE,
                         FULL_CACHE_TIMED_RELOAD_ISO_TIME,
-                        FULL_CACHE_TIMED_RELOAD_INTERVAL_IN_DAYS));
+                        FULL_CACHE_TIMED_RELOAD_INTERVAL_IN_DAYS,
+                        ENABLE_CUSTOM_SHUFFLE));
     }
 
     private static int validateAndExtractRowtimeIndex(
@@ -1656,7 +1664,7 @@ public final class TestValuesTableFactory
      * scan source without lookup ability, e.g. testing temporal join changelog source.
      */
     private static class TestValuesScanLookupTableSource extends TestValuesScanTableSource
-            implements LookupTableSource, SupportsDynamicFiltering {
+            implements LookupTableSource, SupportsDynamicFiltering, SupportsLookupCustomShuffle {
 
         private final @Nullable String lookupFunctionClass;
         private final @Nullable LookupCache cache;
@@ -1665,6 +1673,8 @@ public final class TestValuesTableFactory
         private final int lookupThreshold;
 
         private final DataType originType;
+
+        private final boolean enableCustomShuffle;
 
         private TestValuesScanLookupTableSource(
                 DataType originType,
@@ -1689,7 +1699,8 @@ public final class TestValuesTableFactory
                 @Nullable int[] projectedMetadataFields,
                 @Nullable LookupCache cache,
                 @Nullable CacheReloadTrigger reloadTrigger,
-                int lookupThreshold) {
+                int lookupThreshold,
+                boolean enableCustomShuffle) {
             super(
                     producedDataType,
                     changelogMode,
@@ -1714,6 +1725,7 @@ public final class TestValuesTableFactory
             this.cache = cache;
             this.reloadTrigger = reloadTrigger;
             this.lookupThreshold = lookupThreshold;
+            this.enableCustomShuffle = enableCustomShuffle;
         }
 
         @SuppressWarnings({"unchecked", "rawtypes"})
@@ -1873,6 +1885,20 @@ public final class TestValuesTableFactory
         }
 
         @Override
+        public Optional<InputDataPartitioner> getPartitioner() {
+            if (enableCustomShuffle) {
+                return Optional.of(
+                        (InputDataPartitioner)
+                                (joinKeys, numPartitions) -> {
+                                    checkState(joinKeys.getArity() == 3);
+                                    return 0;
+                                });
+            } else {
+                return Optional.empty();
+            }
+        }
+
+        @Override
         public DynamicTableSource copy() {
             return new TestValuesScanLookupTableSource(
                     originType,
@@ -1897,7 +1923,8 @@ public final class TestValuesTableFactory
                     projectedMetadataFields,
                     cache,
                     reloadTrigger,
-                    lookupThreshold);
+                    lookupThreshold,
+                    enableCustomShuffle);
         }
     }
 

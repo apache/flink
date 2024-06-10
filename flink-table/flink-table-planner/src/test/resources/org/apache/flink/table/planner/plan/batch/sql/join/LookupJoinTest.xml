@@ -188,7 +188,86 @@ Calc(select=[a, b, c, name, age, nominal_age])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithComputedColumnAndPushDown[LegacyTableSource=false]">
+<TestCase name="testJoinTemporalTableWithCustomShuffle[LegacyTableSource=false]">
+		<Resource name="explain">
+			<![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$6])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
+   :- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T0]])
+   +- LogicalFilter(condition=[=($cor0.a, $0)])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTableWithCustomShuffle]])
+
+== Optimized Physical Plan ==
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
++- LookupJoin(table=[default_catalog.default_database.LookupTableWithCustomShuffle], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, id, name, age])
+   +- Calc(select=[a, b, c, PROCTIME() AS proctime])
+      +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
+
+== Optimized Execution Plan ==
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
++- LookupJoin(table=[default_catalog.default_database.LookupTableWithCustomShuffle], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, id, name, age])
+   +- Calc(select=[a, b, c, PROCTIME() AS proctime])
+      +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: Collection Source",
+    "pact" : "Data Source",
+    "contents" : "Source: Collection Source",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "SourceConversion[]",
+    "pact" : "Operator",
+    "contents" : "[]:SourceConversion(table=[default_catalog.default_database.T0], fields=[a, b, c])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[a, b, c, PROCTIME() AS proctime])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "LookupJoin[]",
+    "pact" : "Operator",
+    "contents" : "[]:LookupJoin(table=[default_catalog.default_database.LookupTableWithCustomShuffle], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, id, name, age])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "org.apache.flink.table.runtime.partitioner.RowDataCustomStreamPartitioner@1f",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testJoinTemporalTableWithComputedColumnAndPushDown[LegacyTableSource=false]">
     <Resource name="sql">
       <![CDATA[
 SELECT

@@ -19,6 +19,7 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
@@ -145,5 +146,14 @@ public class FunctionContext {
             return userClassLoader;
         }
         return context.getUserCodeClassLoader();
+    }
+
+    /**
+     * Get the task info of current task.
+     *
+     * @return task info.
+     */
+    public TaskInfo getTaskInfo() {
+        return context.getTaskInfo();
     }
 }
