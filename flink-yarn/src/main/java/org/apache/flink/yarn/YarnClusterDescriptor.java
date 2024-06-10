@@ -147,6 +147,7 @@ import static org.apache.flink.yarn.Utils.getPathFromLocalFilePathStr;
 import static org.apache.flink.yarn.Utils.getStartCommand;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
 import static org.apache.flink.yarn.YarnConfigKeys.LOCAL_RESOURCE_DESCRIPTOR_SEPARATOR;
+import static org.apache.flink.yarn.configuration.YarnConfigOptions.APP_MASTER_TOKEN_SERVICES;
 import static org.apache.flink.yarn.configuration.YarnConfigOptions.YARN_CONTAINER_START_COMMAND_TEMPLATE;
 
 /** The descriptor with deployment information for deploying a Flink cluster on Yarn. */
@@ -1348,7 +1349,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                         });
     }
 
-    private void setTokensFor(ContainerLaunchContext containerLaunchContext, boolean fetchToken)
+    @VisibleForTesting
+    void setTokensFor(ContainerLaunchContext containerLaunchContext, boolean fetchToken)
             throws Exception {
         Credentials credentials = new Credentials();
 
@@ -1372,7 +1374,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
             // This is here for backward compatibility to make log aggregation work
             for (Map.Entry<String, byte[]> e : container.getTokens().entrySet()) {
-                if (e.getKey().equals("hadoopfs")) {
+                if (flinkConfiguration.get(APP_MASTER_TOKEN_SERVICES).contains(e.getKey())) {
                     credentials.addAll(HadoopDelegationTokenConverter.deserialize(e.getValue()));
                 }
             }
