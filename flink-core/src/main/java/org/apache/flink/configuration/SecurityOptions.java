@@ -24,6 +24,7 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.core.security.token.DelegationTokenProvider;
 
+import java.security.KeyStore;
 import java.time.Duration;
 import java.util.List;
 
@@ -386,6 +387,16 @@ public class SecurityOptions {
                             "The secret to decrypt the key in the keystore "
                                     + "for Flink's internal endpoints (rpc, data transport, blob server).");
 
+    /** For internal SSL, the type of the keystore. */
+    @Documentation.Section(Documentation.Sections.SECURITY_SSL)
+    public static final ConfigOption<String> SSL_INTERNAL_KEYSTORE_TYPE =
+            key("security.ssl.internal.keystore-type")
+                    .stringType()
+                    .defaultValue(KeyStore.getDefaultType())
+                    .withDescription(
+                            "The type of keystore "
+                                    + "for Flink's internal endpoints (rpc, data transport, blob server).");
+
     /**
      * For internal SSL, the truststore file containing the public CA certificates to verify the ssl
      * peers.
@@ -407,6 +418,16 @@ public class SecurityOptions {
                     .noDefaultValue()
                     .withDescription(
                             "The password to decrypt the truststore "
+                                    + "for Flink's internal endpoints (rpc, data transport, blob server).");
+
+    /** For internal SSL, the type of the truststore. */
+    @Documentation.Section(Documentation.Sections.SECURITY_SSL)
+    public static final ConfigOption<String> SSL_INTERNAL_TRUSTSTORE_TYPE =
+            key("security.ssl.internal.truststore-type")
+                    .stringType()
+                    .defaultValue(KeyStore.getDefaultType())
+                    .withDescription(
+                            "The type of truststore "
                                     + "for Flink's internal endpoints (rpc, data transport, blob server).");
 
     /** For internal SSL, the sha1 fingerprint of the internal certificate to verify the client. */
@@ -457,6 +478,15 @@ public class SecurityOptions {
                             "The secret to decrypt the key in the keystore "
                                     + "for Flink's external REST endpoints.");
 
+    /** For external (REST) SSL, the type of the keystore. */
+    @Documentation.Section(Documentation.Sections.SECURITY_SSL)
+    public static final ConfigOption<String> SSL_REST_KEYSTORE_TYPE =
+            key("security.ssl.rest.keystore-type")
+                    .stringType()
+                    .defaultValue(KeyStore.getDefaultType())
+                    .withDescription(
+                            "The type of the keystore for Flink's external REST endpoints.");
+
     /**
      * For external (REST) SSL, the truststore file containing the public CA certificates to verify
      * the ssl peers.
@@ -479,6 +509,15 @@ public class SecurityOptions {
                     .withDescription(
                             "The password to decrypt the truststore "
                                     + "for Flink's external REST endpoints.");
+
+    /** For external (REST) SSL, the type of the truststore. */
+    @Documentation.Section(Documentation.Sections.SECURITY_SSL)
+    public static final ConfigOption<String> SSL_REST_TRUSTSTORE_TYPE =
+            key("security.ssl.rest.truststore-type")
+                    .stringType()
+                    .defaultValue(KeyStore.getDefaultType())
+                    .withDescription(
+                            "The type of the truststore for Flink's external REST endpoints.");
 
     /** For external (REST) SSL, the sha1 fingerprint of the rest client certificate to verify. */
     @Documentation.Section(Documentation.Sections.SECURITY_SSL)
