@@ -278,7 +278,7 @@ public class OptimizerConfigOptions {
                                                     + "such as causing the output of certain non-deterministic expressions to not meet expectations(see FLINK-20887).")
                                     .build());
 
-    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED =
             key("table.optimizer.union-all-as-breakpoint-enabled")
                     .booleanType()
@@ -288,6 +288,7 @@ public class OptimizerConfigOptions {
                                     + "when it's a breakpoint. When false, the optimizer will skip the union-all node "
                                     + "even it's a breakpoint, and will try find the breakpoint in its inputs.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean>
             TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED =
                     key("table.optimizer.reuse-optimize-block-with-digest-enabled")

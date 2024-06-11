@@ -72,7 +72,7 @@ ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggre
             <td>When it is `TRY_RESOLVE`, the optimizer tries to resolve the correctness issue caused by 'Non-Deterministic Updates' (NDU) in a changelog pipeline. Changelog may contain kinds of message types: Insert (I), Delete (D), Update_Before (UB), Update_After (UA). There's no NDU problem in an insert only changelog pipeline. For updates, there are  three main NDU problems:<br />1. Non-deterministic functions, include scalar, table, aggregate functions, both builtin and custom ones.<br />2. LookupJoin on an evolving source<br />3. Cdc-source carries metadata fields which are system columns, not belongs to the entity data itself.<br /><br />For the first step, the optimizer automatically enables the materialization for No.2(LookupJoin) if needed, and gives the detailed error message for No.1(Non-deterministic functions) and No.3(Cdc-source with metadata) which is relatively easier to solve by changing the SQL.<br />Default value is `IGNORE`, the optimizer does no changes.<br /><br />Possible values:<ul><li>"TRY_RESOLVE"</li><li>"IGNORE"</li></ul></td>
         </tr>
         <tr>
-            <td><h5>table.optimizer.reuse-optimize-block-with-digest-enabled</h5></td>
+            <td><h5>table.optimizer.reuse-optimize-block-with-digest-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>When true, the optimizer will try to find out duplicated sub-plans by digest to build optimize blocks (a.k.a. common sub-graphs). Each optimize block will be optimized independently.</td>
@@ -126,7 +126,7 @@ ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggre
             <td>If set to true, it will merge projects when converting SqlNode to RelNode.<br />Note: it is not recommended to turn on unless you are aware of possible side effects, such as causing the output of certain non-deterministic expressions to not meet expectations(see FLINK-20887).</td>
         </tr>
         <tr>
-            <td><h5>table.optimizer.union-all-as-breakpoint-enabled</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td><h5>table.optimizer.union-all-as-breakpoint-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
             <td>When true, the optimizer will breakup the graph at union-all node when it's a breakpoint. When false, the optimizer will skip the union-all node even it's a breakpoint, and will try find the breakpoint in its inputs.</td>
