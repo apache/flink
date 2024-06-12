@@ -35,7 +35,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -236,13 +235,9 @@ class FlinkSecurityManagerTest {
                 new FlinkSecurityManager(
                         ClusterOptions.UserSystemExitMode.DISABLED, false, originalSecurityManager);
 
-        assertThrows(
-                "not allowed",
-                SecurityException.class,
-                () -> {
-                    flinkSecurityManager.checkExit(TEST_EXIT_CODE);
-                    return null;
-                });
+        assertThatThrownBy(() -> flinkSecurityManager.checkExit(TEST_EXIT_CODE))
+                .isInstanceOf(SecurityException.class)
+                .hasMessage("not allowed");
     }
 
     @Test
@@ -269,13 +264,9 @@ class FlinkSecurityManagerTest {
                     }
                 });
 
-        assertThrows(
-                "Could not register security manager",
-                IllegalConfigurationException.class,
-                () -> {
-                    FlinkSecurityManager.setFromConfiguration(configuration);
-                    return null;
-                });
+        assertThatThrownBy(() -> FlinkSecurityManager.setFromConfiguration(configuration))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("Could not register security manager");
     }
 
     @Test

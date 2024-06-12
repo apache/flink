@@ -42,7 +42,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Tests for the access and transfer methods of the {@link MemorySegment}. */
 abstract class MemorySegmentTestBase {
@@ -882,54 +881,58 @@ abstract class MemorySegmentTestBase {
         random.nextBytes(bytes);
 
         // Wrong positions into memory segment
-        assertThrows(IndexOutOfBoundsException.class, () -> segment.put(-1, bytes));
-        assertThrows(IndexOutOfBoundsException.class, () -> segment.put(-1, bytes, 4, 5));
-        assertThrows(IndexOutOfBoundsException.class, () -> segment.put(Integer.MIN_VALUE, bytes));
-        assertThrows(
-                IndexOutOfBoundsException.class, () -> segment.put(Integer.MIN_VALUE, bytes, 4, 5));
-        assertThrows(IndexOutOfBoundsException.class, () -> segment.put(pageSize, bytes));
-        assertThrows(IndexOutOfBoundsException.class, () -> segment.put(pageSize, bytes, 6, 44));
-        assertThrows(
-                IndexOutOfBoundsException.class,
-                () -> segment.put(pageSize - bytes.length + 1, bytes));
-        assertThrows(IndexOutOfBoundsException.class, () -> segment.put(pageSize - 5, bytes, 3, 6));
-        assertThrows(IndexOutOfBoundsException.class, () -> segment.put(Integer.MAX_VALUE, bytes));
-        assertThrows(
-                IndexOutOfBoundsException.class,
-                () -> segment.put(Integer.MAX_VALUE, bytes, 10, 20));
-        assertThrows(
-                IndexOutOfBoundsException.class,
-                () -> segment.put(Integer.MAX_VALUE - bytes.length + 1, bytes));
-        assertThrows(
-                IndexOutOfBoundsException.class,
-                () -> segment.put(Integer.MAX_VALUE - 11, bytes, 11, 11));
-        assertThrows(
-                IndexOutOfBoundsException.class, () -> segment.put(3 * (pageSize / 4) + 1, bytes));
-        assertThrows(
-                IndexOutOfBoundsException.class,
-                () -> segment.put(3 * (pageSize / 4) + 2, bytes, 0, bytes.length - 1));
-        assertThrows(
-                IndexOutOfBoundsException.class,
-                () -> segment.put(7 * (pageSize / 8) + 1, bytes, 0, bytes.length / 2));
+        assertThatThrownBy(() -> segment.put(-1, bytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(-1, bytes, 4, 5))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(Integer.MIN_VALUE, bytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(Integer.MIN_VALUE, bytes, 4, 5))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(pageSize, bytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(pageSize, bytes, 6, 44))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(pageSize - bytes.length + 1, bytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(pageSize - 5, bytes, 3, 6))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(Integer.MAX_VALUE, bytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(Integer.MAX_VALUE, bytes, 10, 20))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(Integer.MAX_VALUE - bytes.length + 1, bytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(Integer.MAX_VALUE - 11, bytes, 11, 11))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(3 * (pageSize / 4) + 1, bytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(3 * (pageSize / 4) + 2, bytes, 0, bytes.length - 1))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(7 * (pageSize / 8) + 1, bytes, 0, bytes.length / 2))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
         // Wrong source array positions / lengths
-        assertThrows(IndexOutOfBoundsException.class, () -> segment.put(0, bytes, -1, 1));
-        assertThrows(
-                IndexOutOfBoundsException.class, () -> segment.put(0, bytes, -1, bytes.length + 1));
-        assertThrows(
-                IndexOutOfBoundsException.class,
-                () -> segment.put(0, bytes, Integer.MIN_VALUE, bytes.length));
-        assertThrows(
-                IndexOutOfBoundsException.class,
-                () -> segment.put(0, bytes, Integer.MAX_VALUE, bytes.length));
-        assertThrows(
-                IndexOutOfBoundsException.class,
-                () -> segment.put(0, bytes, Integer.MAX_VALUE - bytes.length + 1, bytes.length));
+        assertThatThrownBy(() -> segment.put(0, bytes, -1, 1))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(0, bytes, -1, bytes.length + 1))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(0, bytes, Integer.MIN_VALUE, bytes.length))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(0, bytes, Integer.MAX_VALUE, bytes.length))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(
+                        () ->
+                                segment.put(
+                                        0,
+                                        bytes,
+                                        Integer.MAX_VALUE - bytes.length + 1,
+                                        bytes.length))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
         // Case where negative offset and negative index compensate each other
-        assertThrows(
-                IndexOutOfBoundsException.class,
-                () -> segment.put(-2, bytes, -1, bytes.length / 2));
+        assertThatThrownBy(() -> segment.put(-2, bytes, -1, bytes.length / 2))
+                .isInstanceOf(IndexOutOfBoundsException.class);
     }
 
     @TestTemplate
@@ -940,54 +943,58 @@ abstract class MemorySegmentTestBase {
         byte[] bytes = new byte[pageSize / 4];
 
         // Wrong positions into memory segment
-        assertThrows(IndexOutOfBoundsException.class, () -> segment.get(-1, bytes));
-        assertThrows(IndexOutOfBoundsException.class, () -> segment.get(-1, bytes, 4, 5));
-        assertThrows(IndexOutOfBoundsException.class, () -> segment.get(Integer.MIN_VALUE, bytes));
-        assertThrows(
-                IndexOutOfBoundsException.class, () -> segment.get(Integer.MIN_VALUE, bytes, 4, 5));
-        assertThrows(IndexOutOfBoundsException.class, () -> segment.get(pageSize, bytes));
-        assertThrows(IndexOutOfBoundsException.class, () -> segment.get(pageSize, bytes, 6, 44));
-        assertThrows(
-                IndexOutOfBoundsException.class,
-                () -> segment.get(pageSize - bytes.length + 1, bytes));
-        assertThrows(IndexOutOfBoundsException.class, () -> segment.get(pageSize - 5, bytes, 3, 6));
-        assertThrows(IndexOutOfBoundsException.class, () -> segment.get(Integer.MAX_VALUE, bytes));
-        assertThrows(
-                IndexOutOfBoundsException.class,
-                () -> segment.get(Integer.MAX_VALUE, bytes, 10, 20));
-        assertThrows(
-                IndexOutOfBoundsException.class,
-                () -> segment.get(Integer.MAX_VALUE - bytes.length + 1, bytes));
-        assertThrows(
-                IndexOutOfBoundsException.class,
-                () -> segment.get(Integer.MAX_VALUE - 11, bytes, 11, 11));
-        assertThrows(
-                IndexOutOfBoundsException.class, () -> segment.get(3 * (pageSize / 4) + 1, bytes));
-        assertThrows(
-                IndexOutOfBoundsException.class,
-                () -> segment.get(3 * (pageSize / 4) + 2, bytes, 0, bytes.length - 1));
-        assertThrows(
-                IndexOutOfBoundsException.class,
-                () -> segment.get(7 * (pageSize / 8) + 1, bytes, 0, bytes.length / 2));
+        assertThatThrownBy(() -> segment.put(-1, bytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(-1, bytes, 4, 5))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(Integer.MIN_VALUE, bytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(Integer.MIN_VALUE, bytes, 4, 5))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(pageSize, bytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(pageSize, bytes, 6, 44))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(pageSize - bytes.length + 1, bytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(pageSize - 5, bytes, 3, 6))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(Integer.MAX_VALUE, bytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(Integer.MAX_VALUE, bytes, 10, 20))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(Integer.MAX_VALUE - bytes.length + 1, bytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(Integer.MAX_VALUE - 11, bytes, 11, 11))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(3 * (pageSize / 4) + 1, bytes))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(3 * (pageSize / 4) + 2, bytes, 0, bytes.length - 1))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(7 * (pageSize / 8) + 1, bytes, 0, bytes.length / 2))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
         // Wrong source array positions / lengths
-        assertThrows(IndexOutOfBoundsException.class, () -> segment.get(0, bytes, -1, 1));
-        assertThrows(
-                IndexOutOfBoundsException.class, () -> segment.get(0, bytes, -1, bytes.length + 1));
-        assertThrows(
-                IndexOutOfBoundsException.class,
-                () -> segment.get(0, bytes, Integer.MIN_VALUE, bytes.length));
-        assertThrows(
-                IndexOutOfBoundsException.class,
-                () -> segment.get(0, bytes, Integer.MAX_VALUE, bytes.length));
-        assertThrows(
-                IndexOutOfBoundsException.class,
-                () -> segment.get(0, bytes, Integer.MAX_VALUE - bytes.length + 1, bytes.length));
+        assertThatThrownBy(() -> segment.put(0, bytes, -1, 1))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(0, bytes, -1, bytes.length + 1))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(0, bytes, Integer.MIN_VALUE, bytes.length))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> segment.put(0, bytes, Integer.MAX_VALUE, bytes.length))
+                .isInstanceOf(IndexOutOfBoundsException.class);
+        assertThatThrownBy(
+                        () ->
+                                segment.put(
+                                        0,
+                                        bytes,
+                                        Integer.MAX_VALUE - bytes.length + 1,
+                                        bytes.length))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
         // Case where negative offset and negative index compensate each other
-        assertThrows(
-                IndexOutOfBoundsException.class,
-                () -> segment.get(-2, bytes, -1, bytes.length / 2));
+        assertThatThrownBy(() -> segment.put(-2, bytes, -1, bytes.length / 2))
+                .isInstanceOf(IndexOutOfBoundsException.class);
     }
 
     @TestTemplate

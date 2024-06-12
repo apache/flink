@@ -87,6 +87,6 @@ class OffHeapUnsafeMemorySegmentTest extends MemorySegmentTestBase {
         t1.join();
         t2.join();
 
-        assertThat(counter.get()).isOne();
+        assertThat(counter).hasValue(1);
     }
 }

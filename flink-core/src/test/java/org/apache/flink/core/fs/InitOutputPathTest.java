@@ -38,7 +38,7 @@ import java.nio.file.FileAlreadyExistsException;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertThrows;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** A test validating that the initialization of local output paths is properly synchronized. */
 class InitOutputPathTest {
@@ -63,7 +63,7 @@ class InitOutputPathTest {
         lock.set(null, new NoOpLock());
         // in the original un-synchronized state, we can force the race to occur by using
         // the proper latch order to control the process of the concurrent threads
-        assertThrows(FileNotFoundException.class, () -> runTest(true));
+        assertThatThrownBy(() -> runTest(true)).isInstanceOf(FileNotFoundException.class);
         lock.set(null, new ReentrantLock(true));
     }
 

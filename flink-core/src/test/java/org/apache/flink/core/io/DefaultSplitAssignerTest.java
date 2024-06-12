@@ -97,8 +97,8 @@ class DefaultSplitAssignerTest {
             assertThat(threads[i].isAlive()).isFalse();
         }
 
-        assertThat(splitsRetrieved.get()).isEqualTo(NUM_SPLITS);
-        assertThat(sumOfIds.get()).isEqualTo(SUM_OF_IDS);
+        assertThat(splitsRetrieved).hasValue(NUM_SPLITS);
+        assertThat(sumOfIds).hasValue(SUM_OF_IDS);
 
         // nothing left
         assertThat(ia.getNextInputSplit("", 0)).isNull();

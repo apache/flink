@@ -37,7 +37,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link StateFuture} related implementations. */
-public class StateFutureTest {
+class StateFutureTest {
     static AsyncFrameworkExceptionHandler exceptionHandler =
             (message, exception) -> {
                 throw new RuntimeException(message, exception);
@@ -50,19 +50,19 @@ public class StateFutureTest {
 
         StateFutureImpl<Integer> stateFuture1 = new StateFutureImpl<>(runner, exceptionHandler);
         stateFuture1.thenAccept(counter::addAndGet);
-        assertThat(counter.get()).isZero();
+        assertThat(counter).hasValue(0);
         stateFuture1.complete(5);
-        assertThat(counter.get()).isEqualTo(5);
+        assertThat(counter).hasValue(5);
 
         StateFutureImpl<Integer> stateFuture2 = new StateFutureImpl<>(runner, exceptionHandler);
         StateFuture<String> stateFuture3 =
                 stateFuture2.thenApply((v) -> String.valueOf(counter.addAndGet(v)));
-        assertThat(counter.get()).isEqualTo(5);
+        assertThat(counter).hasValue(5);
         stateFuture2.complete(3);
-        assertThat(counter.get()).isEqualTo(8);
+        assertThat(counter).hasValue(8);
 
         stateFuture3.thenAccept((v) -> counter.addAndGet(-Integer.parseInt(v)));
-        assertThat(counter.get()).isZero();
+        assertThat(counter).hasValue(0);
 
         StateFutureImpl<Integer> stateFuture4 = new StateFutureImpl<>(runner, exceptionHandler);
         StateFutureImpl<Integer> stateFuture5 = new StateFutureImpl<>(runner, exceptionHandler);
@@ -73,11 +73,11 @@ public class StateFutureTest {
                             return stateFuture5;
                         })
                 .thenAccept(counter::addAndGet);
-        assertThat(counter.get()).isZero();
+        assertThat(counter).hasValue(0);
         stateFuture4.complete(6);
-        assertThat(counter.get()).isEqualTo(6);
+        assertThat(counter).hasValue(6);
         stateFuture5.complete(3);
-        assertThat(counter.get()).isEqualTo(9);
+        assertThat(counter).hasValue(9);
 
         StateFutureImpl<Integer> stateFuture6 = new StateFutureImpl<>(runner, exceptionHandler);
         StateFutureImpl<Integer> stateFuture7 = new StateFutureImpl<>(runner, exceptionHandler);
@@ -87,14 +87,14 @@ public class StateFutureTest {
                     counter.addAndGet(v1 - v2);
                     return StateFutureUtils.completedVoidFuture();
                 });
-        assertThat(counter.get()).isEqualTo(9);
+        assertThat(counter).hasValue(9);
         stateFuture6.complete(4);
-        assertThat(counter.get()).isEqualTo(9);
+        assertThat(counter).hasValue(9);
         stateFuture7.complete(4 + 9);
-        assertThat(counter.get()).isZero();
+        assertThat(counter).hasValue(0);
 
         StateFutureUtils.completedFuture(3).thenAccept(counter::addAndGet);
-        assertThat(counter.get()).isEqualTo(3);
+        assertThat(counter).hasValue(3);
 
         counter.set(0);
         ArrayList<StateFutureImpl<Integer>> futures = new ArrayList<>();
@@ -111,14 +111,14 @@ public class StateFutureTest {
                             }
                             counter.addAndGet(sum);
                         });
-        assertThat(counter.get()).isZero();
+        assertThat(counter).hasValue(0);
         for (int i = 0; i < 5; i++) {
             futures.get(i).complete(i + 1);
             if (i != 4) {
-                assertThat(counter.get()).isZero();
+                assertThat(counter).hasValue(0);
             }
         }
-        assertThat(counter.get()).isEqualTo(12345);
+        assertThat(counter).hasValue(12345);
     }
 
     @Test
@@ -148,7 +148,7 @@ public class StateFutureTest {
         latch.await(20, TimeUnit.SECONDS);
 
         assertThat(latch.getCount()).isZero();
-        assertThat(exception.get()).isNull();
+        assertThat(exception).hasValue(null);
 
         MockValueState valueState = new MockValueState(executor);
         Runnable threadChecker =

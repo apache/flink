@@ -34,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link SafetyNetCloseableRegistry}. */
-public class SafetyNetCloseableRegistryTest
+class SafetyNetCloseableRegistryTest
         extends AbstractAutoCloseableRegistryTest<
                 Closeable,
                 WrappingProxyCloseable<? extends Closeable>,
@@ -202,7 +202,7 @@ public class SafetyNetCloseableRegistryTest
             Thread.sleep(50);
         }
 
-        assertThat(unclosedCounter.get()).isZero();
+        assertThat(unclosedCounter).hasValue(0);
         closeableRegistry.close();
     }
 

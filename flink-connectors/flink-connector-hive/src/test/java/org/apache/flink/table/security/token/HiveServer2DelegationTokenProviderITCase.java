@@ -46,7 +46,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test for {@link HiveServer2DelegationTokenProvider}. */
-public class HiveServer2DelegationTokenProviderITCase {
+class HiveServer2DelegationTokenProviderITCase {
 
     @BeforeAll
     static void setPropertiesToEnableKerberosConfigInit() throws KrbException {

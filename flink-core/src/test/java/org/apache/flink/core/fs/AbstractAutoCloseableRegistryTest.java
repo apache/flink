@@ -87,7 +87,7 @@ public abstract class AbstractAutoCloseableRegistryTest<C extends Closeable, E e
 
         joinThreads();
 
-        assertThat(unclosedCounter.get()).isZero();
+        assertThat(unclosedCounter).hasValue(0);
         assertThat(closeableRegistry.getNumberOfRegisteredCloseables()).isZero();
 
         final TestCloseable testCloseable = new TestCloseable();
@@ -95,7 +95,7 @@ public abstract class AbstractAutoCloseableRegistryTest<C extends Closeable, E e
         assertThatThrownBy(() -> registerCloseable(testCloseable)).isInstanceOf(IOException.class);
 
         assertThat(testCloseable.isClosed()).isTrue();
-        assertThat(unclosedCounter.get()).isZero();
+        assertThat(unclosedCounter).hasValue(0);
         assertThat(closeableRegistry.getNumberOfRegisteredCloseables()).isZero();
     }
 

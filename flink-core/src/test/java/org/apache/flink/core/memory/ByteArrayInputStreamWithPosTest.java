@@ -21,8 +21,8 @@ package org.apache.flink.core.memory;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Tests for {@link ByteArrayInputStreamWithPos}. */
 class ByteArrayInputStreamWithPosTest {
@@ -85,18 +85,17 @@ class ByteArrayInputStreamWithPosTest {
     /** Test that the expected position exceeds the capacity of the byte array. */
     @Test
     void testSetTooLargePosition() throws Exception {
-        Throwable exception =
-                assertThrows(
-                        IllegalArgumentException.class, () -> stream.setPosition(data.length + 1));
-        assertThat(exception.getMessage()).contains("Position out of bounds.");
+        assertThatThrownBy(() -> stream.setPosition(data.length + 1))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Position out of bounds.");
     }
 
     /** Test setting a negative position. */
     @Test
     void testSetNegativePosition() throws Exception {
-        Throwable exception =
-                assertThrows(IllegalArgumentException.class, () -> stream.setPosition(-1));
-        assertThat(exception.getMessage()).contains("Position out of bounds.");
+        assertThatThrownBy(() -> stream.setPosition(-1))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Position out of bounds.");
     }
 
     @Test

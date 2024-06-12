@@ -26,7 +26,7 @@ import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.junit.jupiter.api.io.TempDir;
 
 /** Tests for the {@link LocalRecoverableWriter}. */
-public class LocalFileSystemRecoverableWriterTest extends AbstractRecoverableWriterTest {
+class LocalFileSystemRecoverableWriterTest extends AbstractRecoverableWriterTest {
 
     @TempDir private static java.nio.file.Path tempFolder;
 
