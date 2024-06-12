@@ -25,6 +25,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
+import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.filemerging.DirectoryStreamStateHandle;
@@ -360,5 +361,11 @@ public interface FileMergingSnapshotManager extends Closeable {
                     + logicalFileSize.get()
                     + '}';
         }
+    }
+
+    static boolean isFileMergingHandle(StreamStateHandle handle) {
+        return (handle instanceof SegmentFileStateHandle)
+                || (handle instanceof PlaceholderStreamStateHandle
+                        && ((PlaceholderStreamStateHandle) handle).isFileMerged());
     }
 }

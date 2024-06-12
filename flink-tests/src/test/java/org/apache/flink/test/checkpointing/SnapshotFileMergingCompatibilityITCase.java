@@ -33,7 +33,6 @@ import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -90,6 +89,9 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
             boolean fileMergingAcrossBoundary)
             throws Exception {
         final Configuration config = new Configuration();
+        // Wait for 4 checkpoints each round to subsume the original one and produce the
+        // PlaceholderStreamStateHandle in the final round
+        final int consecutiveCheckpoint = 4;
         config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toUri().toString());
         config.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true);
         config.set(CheckpointingOptions.FILE_MERGING_ACROSS_BOUNDARY, fileMergingAcrossBoundary);
@@ -108,7 +110,12 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
         try {
             firstCheckpoint =
                     runJobAndGetExternalizedCheckpoint(
-                            stateBackend1, null, firstCluster, restoreMode, config);
+                            stateBackend1,
+                            null,
+                            firstCluster,
+                            restoreMode,
+                            config,
+                            consecutiveCheckpoint);
             assertThat(firstCheckpoint).isNotNull();
             verifyStateHandleType(firstCheckpoint, firstFileMergingSwitch);
         } finally {
@@ -130,7 +137,12 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
         try {
             secondCheckpoint =
                     runJobAndGetExternalizedCheckpoint(
-                            stateBackend2, firstCheckpoint, secondCluster, restoreMode, config);
+                            stateBackend2,
+                            firstCheckpoint,
+                            secondCluster,
+                            restoreMode,
+                            config,
+                            consecutiveCheckpoint);
             assertThat(secondCheckpoint).isNotNull();
             verifyStateHandleType(secondCheckpoint, secondFileMergingSwitch);
         } finally {
@@ -150,7 +162,12 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
         try {
             String thirdCheckpoint =
                     runJobAndGetExternalizedCheckpoint(
-                            stateBackend3, secondCheckpoint, thirdCluster, restoreMode, config);
+                            stateBackend3,
+                            secondCheckpoint,
+                            thirdCluster,
+                            restoreMode,
+                            config,
+                            consecutiveCheckpoint);
             assertThat(thirdCheckpoint).isNotNull();
             verifyStateHandleType(thirdCheckpoint, secondFileMergingSwitch);
         } finally {
@@ -167,22 +184,25 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
                 // Check keyed state handle
                 List<KeyedStateHandle> keyedStateHandles =
                         new ArrayList<>(subtaskState.getManagedKeyedState());
-                keyedStateHandles.addAll(subtaskState.getRawKeyedState());
                 for (KeyedStateHandle keyedStateHandle : keyedStateHandles) {
-                    Assertions.assertInstanceOf(
-                            IncrementalRemoteKeyedStateHandle.class, keyedStateHandle);
+                    assertThat(keyedStateHandle)
+                            .isInstanceOf(IncrementalRemoteKeyedStateHandle.class);
                     ((IncrementalRemoteKeyedStateHandle) keyedStateHandle)
                             .streamSubHandles()
                             .forEach(
                                     handle -> {
-                                        Assertions.assertEquals(
-                                                fileMergingEnabled,
-                                                handle instanceof SegmentFileStateHandle);
+                                        if (fileMergingEnabled) {
+                                            assertThat(handle)
+                                                    .isInstanceOf(SegmentFileStateHandle.class);
+                                        } else {
+                                            assertThat(handle)
+                                                    .isNotInstanceOf(SegmentFileStateHandle.class);
+                                        }
                                     });
                     hasKeyedState = true;
                 }
             }
         }
-        Assertions.assertTrue(hasKeyedState);
+        assertThat(hasKeyedState).isTrue();
     }
 }

@@ -571,7 +571,8 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                 if (file != null) {
                     file.advanceLastCheckpointId(checkpointId);
                 }
-            } else if (stateHandle instanceof PlaceholderStreamStateHandle) {
+            } else if (stateHandle instanceof PlaceholderStreamStateHandle
+                    && ((PlaceholderStreamStateHandle) stateHandle).isFileMerged()) {
                 // Since the rocksdb state backend will leverage the PlaceholderStreamStateHandle,
                 // the manager should recognize this.
                 LogicalFile file =
@@ -640,6 +641,16 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
             LogicalFile file =
                     knownLogicalFiles.get(
                             ((SegmentFileStateHandle) stateHandle).getLogicalFileId());
+            if (file != null) {
+                return file.getPhysicalFile().isCouldReuse();
+            }
+        } else if (stateHandle instanceof PlaceholderStreamStateHandle
+                && ((PlaceholderStreamStateHandle) stateHandle).isFileMerged()) {
+            // Since the rocksdb state backend will leverage the PlaceholderStreamStateHandle,
+            // the manager should recognize this.
+            LogicalFile file =
+                    knownLogicalFiles.get(
+                            new LogicalFileId(stateHandle.getStreamStateHandleID().getKeyString()));
             if (file != null) {
                 return file.getPhysicalFile().isCouldReuse();
             }
