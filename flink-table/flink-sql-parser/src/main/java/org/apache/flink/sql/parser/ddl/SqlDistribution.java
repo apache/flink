@@ -77,7 +77,7 @@ public class SqlDistribution extends SqlCall {
         unparse(writer, leftPrec, rightPrec, "DISTRIBUTION", false);
     }
 
-    public void unparse(
+    private void unparse(
             SqlWriter writer, int leftPrec, int rightPrec, String keyword, boolean printNewlines) {
         if (printNewlines) {
             writer.newlineAndIndent();

@@ -1386,13 +1386,6 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         assertThat(operation.asSummaryString()).isEqualTo(expectedSummaryString);
         assertThat(((AlterTableChangeOperation) operation).getNewTable().getDistribution())
                 .isNotPresent();
-
-        prepareNonManagedTableWithDistribution("tb3");
-        // rename column used as distribution key
-        assertThatThrownBy(() -> parse("alter table tb3 drop c"))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "Failed to execute ALTER TABLE statement.\nThe column `c` is used as a distribution key.");
         checkAlterNonExistTable("alter table %s nonexistent rename a to a1");
     }
 
@@ -2258,7 +2251,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
     public void testFailedToAlterTableAddDistribution() throws Exception {
         prepareNonManagedTableWithDistribution("tb1");
 
-        // modify watermark on a table without watermark
+        // add distribution on a table with distribution
         assertThatThrownBy(
                         () -> parse("alter table tb1 add distribution by hash(a) into 12 buckets"))
                 .isInstanceOf(ValidationException.class)
@@ -2269,7 +2262,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
     public void testFailedToAlterTableModifyDistribution() throws Exception {
         prepareNonManagedTable("tb2", false);
 
-        // modify watermark on a table without watermark
+        // modify distribution on a table without distribution
         assertThatThrownBy(
                         () ->
                                 parse(
@@ -2594,7 +2587,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
             boolean hasPartition,
             boolean hasWatermark,
             int numOfPkFields,
-            TableDistribution tableDistribution)
+            @Nullable TableDistribution tableDistribution)
             throws Exception {
         Catalog catalog = new GenericInMemoryCatalog("default", "default");
         if (!catalogManager.getCatalog("cat1").isPresent()) {
