@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -76,13 +77,21 @@ public class RocksDBOperationUtils {
         RocksDB dbRef;
 
         try {
+            // Ensure that the working directory exists and is a directory to make RocksDB happy
+            File pathFile = new File(Preconditions.checkNotNull(path));
+
+            if (!pathFile.exists() && !pathFile.mkdirs() && !pathFile.isDirectory()) {
+                throw new IOException(
+                        "Could not create working directory for RocksDB instance: " + path);
+            }
+
             dbRef =
                     RocksDB.open(
                             Preconditions.checkNotNull(dbOptions),
-                            Preconditions.checkNotNull(path),
+                            path,
                             columnFamilyDescriptors,
                             stateColumnFamilyHandles);
-        } catch (RocksDBException e) {
+        } catch (Exception e) {
             IOUtils.closeQuietly(columnFamilyOptions);
             columnFamilyDescriptors.forEach((cfd) -> IOUtils.closeQuietly(cfd.getOptions()));
 
