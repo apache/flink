@@ -30,6 +30,7 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager.SpaceStat;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager.SubtaskKey;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
@@ -594,6 +595,9 @@ public abstract class FileMergingSnapshotManagerTestBase {
                         .setMaxFileSize(maxFileSize)
                         .setFilePoolType(filePoolType)
                         .setMaxSpaceAmplification(spaceAmplification)
+                        .setMetricGroup(
+                                new UnregisteredMetricGroups
+                                        .UnregisteredTaskManagerJobMetricGroup())
                         .build();
         fmsm.initFileSystem(
                 LocalFileSystem.getSharedInstance(),

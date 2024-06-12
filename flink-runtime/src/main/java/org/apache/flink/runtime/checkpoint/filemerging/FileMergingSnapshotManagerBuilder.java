@@ -17,6 +17,8 @@
 
 package org.apache.flink.runtime.checkpoint.filemerging;
 
+import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -42,6 +44,8 @@ public class FileMergingSnapshotManagerBuilder {
     private float maxSpaceAmplification = Float.MAX_VALUE;
 
     @Nullable private Executor ioExecutor = null;
+
+    @Nullable private TaskManagerJobMetricGroup metricGroup;
 
     /**
      * Initialize the builder.
@@ -86,6 +90,11 @@ public class FileMergingSnapshotManagerBuilder {
         return this;
     }
 
+    public FileMergingSnapshotManagerBuilder setMetricGroup(TaskManagerJobMetricGroup metricGroup) {
+        this.metricGroup = metricGroup;
+        return this;
+    }
+
     /**
      * Create file-merging snapshot manager based on configuration.
      *
@@ -99,14 +108,22 @@ public class FileMergingSnapshotManagerBuilder {
                         maxFileSize,
                         filePoolType,
                         maxSpaceAmplification,
-                        ioExecutor == null ? Runnable::run : ioExecutor);
+                        ioExecutor == null ? Runnable::run : ioExecutor,
+                        metricGroup == null
+                                ? new UnregisteredMetricGroups
+                                        .UnregisteredTaskManagerJobMetricGroup()
+                                : metricGroup);
             case MERGE_ACROSS_CHECKPOINT:
                 return new AcrossCheckpointFileMergingSnapshotManager(
                         id,
                         maxFileSize,
                         filePoolType,
                         maxSpaceAmplification,
-                        ioExecutor == null ? Runnable::run : ioExecutor);
+                        ioExecutor == null ? Runnable::run : ioExecutor,
+                        metricGroup == null
+                                ? new UnregisteredMetricGroups
+                                        .UnregisteredTaskManagerJobMetricGroup()
+                                : metricGroup);
             default:
                 throw new UnsupportedOperationException(
                         String.format(

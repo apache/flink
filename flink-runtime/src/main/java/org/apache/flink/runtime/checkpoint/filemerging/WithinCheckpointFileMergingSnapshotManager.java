@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint.filemerging;
 
 import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 
 import javax.annotation.Nonnull;
@@ -43,9 +44,10 @@ public class WithinCheckpointFileMergingSnapshotManager extends FileMergingSnaps
             long maxFileSize,
             PhysicalFilePool.Type filePoolType,
             float maxSpaceAmplification,
-            Executor ioExecutor) {
+            Executor ioExecutor,
+            MetricGroup metricGroup) {
         // currently there is no file size limit For WITHIN_BOUNDARY mode
-        super(id, maxFileSize, filePoolType, maxSpaceAmplification, ioExecutor);
+        super(id, maxFileSize, filePoolType, maxSpaceAmplification, ioExecutor, metricGroup);
         writablePhysicalFilePool = new HashMap<>();
     }
 
