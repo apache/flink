@@ -29,6 +29,7 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager.SpaceStat;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager.SubtaskKey;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
@@ -83,13 +84,11 @@ public abstract class FileMergingSnapshotManagerTestBase {
 
     @BeforeEach
     public void setup(@TempDir java.nio.file.Path tempFolder) {
-        // use simplified job ids for the tests
-        long jobId = 1;
         subtaskKey1 =
                 new SubtaskKey(jobID, operatorID, new TaskInfoImpl("TestingTask", 128, 0, 128, 3));
         subtaskKey2 =
                 new SubtaskKey(jobID, operatorID, new TaskInfoImpl("TestingTask", 128, 1, 128, 3));
-        checkpointBaseDir = new Path(tempFolder.toString(), String.valueOf(jobId));
+        checkpointBaseDir = new Path(tempFolder.toString(), jobID.toHexString());
         writeBufferSize = 4096;
     }
 
@@ -106,7 +105,7 @@ public abstract class FileMergingSnapshotManagerTestBase {
                                     AbstractFsCheckpointStorageAccess
                                                     .CHECKPOINT_TASK_OWNED_STATE_DIR
                                             + "/"
-                                            + tmId));
+                                            + String.format("job_%s_tm_%s", jobID, tmId)));
             assertThat(fmsm.getManagedDir(subtaskKey1, CheckpointedStateScope.SHARED))
                     .isEqualTo(
                             new Path(
@@ -591,7 +590,8 @@ public abstract class FileMergingSnapshotManagerTestBase {
             fs.mkdirs(taskOwnedStateDir);
         }
         FileMergingSnapshotManager fmsm =
-                new FileMergingSnapshotManagerBuilder(tmId, getFileMergingType())
+                new FileMergingSnapshotManagerBuilder(
+                                jobID, new ResourceID(tmId), getFileMergingType())
                         .setMaxFileSize(maxFileSize)
                         .setFilePoolType(filePoolType)
                         .setMaxSpaceAmplification(spaceAmplification)
