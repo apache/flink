@@ -402,8 +402,9 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
             MiniClusterWithClientResource cluster,
             RestoreMode restoreMode)
             throws Exception {
+        // complete at least two checkpoints so that the initial checkpoint can be subsumed
         return runJobAndGetExternalizedCheckpoint(
-                backend, externalCheckpoint, cluster, restoreMode, new Configuration());
+                backend, externalCheckpoint, cluster, restoreMode, new Configuration(), 2);
     }
 
     static String runJobAndGetExternalizedCheckpoint(
@@ -411,7 +412,8 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
             @Nullable String externalCheckpoint,
             MiniClusterWithClientResource cluster,
             RestoreMode restoreMode,
-            Configuration jobConfig)
+            Configuration jobConfig,
+            int consecutiveCheckpoints)
             throws Exception {
         JobGraph initialJobGraph = getJobGraph(backend, externalCheckpoint, restoreMode, jobConfig);
         NotifyingInfiniteTupleSource.countDownLatch = new CountDownLatch(PARALLELISM);
@@ -420,8 +422,8 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
         // wait until all sources have been started
         NotifyingInfiniteTupleSource.countDownLatch.await();
 
-        // complete at least two checkpoints so that the initial checkpoint can be subsumed
-        waitForCheckpoint(initialJobGraph.getJobID(), cluster.getMiniCluster(), 2);
+        waitForCheckpoint(
+                initialJobGraph.getJobID(), cluster.getMiniCluster(), consecutiveCheckpoints);
         cluster.getClusterClient().cancel(initialJobGraph.getJobID()).get();
         waitUntilJobCanceled(initialJobGraph.getJobID(), cluster.getClusterClient());
 
