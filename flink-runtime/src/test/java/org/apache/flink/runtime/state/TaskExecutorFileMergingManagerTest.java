@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager.SubtaskKey;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 
 import org.junit.jupiter.api.Test;
@@ -36,6 +37,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class TaskExecutorFileMergingManagerTest {
     @Test
     public void testCheckpointScope(@TempDir java.nio.file.Path testBaseDir) throws IOException {
+        ResourceID tmResourceId1 = ResourceID.generate();
+        ResourceID tmResourceId2 = ResourceID.generate();
+        ResourceID tmResourceId3 = ResourceID.generate();
+        ResourceID tmResourceId4 = ResourceID.generate();
+
         TaskExecutorFileMergingManager taskExecutorFileMergingManager =
                 new TaskExecutorFileMergingManager();
         JobID job1 = new JobID(1234L, 4321L);
@@ -51,7 +57,7 @@ public class TaskExecutorFileMergingManagerTest {
         ExecutionAttemptID executionID1 = ExecutionAttemptID.randomId();
         FileMergingSnapshotManager manager1 =
                 taskExecutorFileMergingManager.fileMergingSnapshotManagerForTask(
-                        job1, executionID1, clusterConfig, jobConfig);
+                        job1, tmResourceId1, executionID1, clusterConfig, jobConfig);
         manager1.initFileSystem(
                 checkpointDir1.getFileSystem(),
                 checkpointDir1,
@@ -62,7 +68,7 @@ public class TaskExecutorFileMergingManagerTest {
         ExecutionAttemptID executionID2 = ExecutionAttemptID.randomId();
         FileMergingSnapshotManager manager2 =
                 taskExecutorFileMergingManager.fileMergingSnapshotManagerForTask(
-                        job1, executionID2, clusterConfig, jobConfig);
+                        job1, tmResourceId2, executionID2, clusterConfig, jobConfig);
         manager2.initFileSystem(
                 checkpointDir1.getFileSystem(),
                 checkpointDir1,
@@ -73,7 +79,7 @@ public class TaskExecutorFileMergingManagerTest {
         ExecutionAttemptID executionID3 = ExecutionAttemptID.randomId();
         FileMergingSnapshotManager manager3 =
                 taskExecutorFileMergingManager.fileMergingSnapshotManagerForTask(
-                        job2, executionID3, clusterConfig, jobConfig);
+                        job2, tmResourceId3, executionID3, clusterConfig, jobConfig);
         manager3.initFileSystem(
                 checkpointDir2.getFileSystem(),
                 checkpointDir2,
@@ -109,7 +115,7 @@ public class TaskExecutorFileMergingManagerTest {
         ExecutionAttemptID executionID4 = ExecutionAttemptID.randomId();
         FileMergingSnapshotManager manager4 =
                 taskExecutorFileMergingManager.fileMergingSnapshotManagerForTask(
-                        job1, executionID4, clusterConfig, jobConfig);
+                        job1, tmResourceId4, executionID4, clusterConfig, jobConfig);
         assertThat(manager4).isNotEqualTo(manager1);
     }
 }

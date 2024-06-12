@@ -17,6 +17,8 @@
 
 package org.apache.flink.runtime.checkpoint.filemerging;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -26,8 +28,9 @@ import java.util.concurrent.Executor;
 /** A builder that builds the {@link FileMergingSnapshotManager}. */
 public class FileMergingSnapshotManagerBuilder {
 
-    /** The id for identifying a {@link FileMergingSnapshotManager}. */
-    private final String id;
+    private final JobID jobId;
+
+    private final ResourceID tmResourceId;
 
     /** The file merging type. */
     private final FileMergingType fileMergingType;
@@ -48,8 +51,10 @@ public class FileMergingSnapshotManagerBuilder {
      *
      * @param id the id of the manager.
      */
-    public FileMergingSnapshotManagerBuilder(String id, FileMergingType type) {
-        this.id = id;
+    public FileMergingSnapshotManagerBuilder(
+            JobID jobId, ResourceID tmResourceId, FileMergingType type) {
+        this.jobId = jobId;
+        this.tmResourceId = tmResourceId;
         this.fileMergingType = type;
     }
 
@@ -95,14 +100,16 @@ public class FileMergingSnapshotManagerBuilder {
         switch (fileMergingType) {
             case MERGE_WITHIN_CHECKPOINT:
                 return new WithinCheckpointFileMergingSnapshotManager(
-                        id,
+                        jobId,
+                        tmResourceId,
                         maxFileSize,
                         filePoolType,
                         maxSpaceAmplification,
                         ioExecutor == null ? Runnable::run : ioExecutor);
             case MERGE_ACROSS_CHECKPOINT:
                 return new AcrossCheckpointFileMergingSnapshotManager(
-                        id,
+                        jobId,
+                        tmResourceId,
                         maxFileSize,
                         filePoolType,
                         maxSpaceAmplification,

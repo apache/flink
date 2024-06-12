@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.checkpoint.filemerging;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.EntropyInjector;
 import org.apache.flink.core.fs.FSDataOutputStream;
@@ -26,6 +27,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.OutputStreamAndPath;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.filemerging.LogicalFile.LogicalFileId;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -66,11 +68,14 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
 
     private static final Logger LOG = LoggerFactory.getLogger(FileMergingSnapshotManager.class);
 
+    private static final String MANAGED_EXCLUSIVE_DIR_FORMAT = "job_%s_tm_%s";
+
     /** The number of recent checkpoints whose IDs are remembered. */
     private static final int NUM_GHOST_CHECKPOINT_IDS = 16;
 
-    /** The identifier of this manager. */
-    private final String id;
+    private final JobID jobId;
+
+    private final ResourceID tmResourceId;
 
     /** The executor for I/O operations in this manager. */
     protected final Executor ioExecutor;
@@ -154,12 +159,14 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     protected SpaceStat spaceStat;
 
     public FileMergingSnapshotManagerBase(
-            String id,
+            JobID jobId,
+            ResourceID tmResourceId,
             long maxFileSize,
             PhysicalFilePool.Type filePoolType,
             float maxSpaceAmplification,
             Executor ioExecutor) {
-        this.id = id;
+        this.jobId = jobId;
+        this.tmResourceId = tmResourceId;
         this.maxPhysicalFileSize = maxFileSize;
         this.filePoolType = filePoolType;
         this.maxSpaceAmplification =
@@ -200,7 +207,13 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
             // According
             // to the FLIP-306, we later consider move these files to the new introduced
             // task-manager-owned directory.
-            Path managedExclusivePath = new Path(taskOwnedStateDir, id);
+            Path managedExclusivePath =
+                    new Path(
+                            taskOwnedStateDir,
+                            String.format(
+                                    MANAGED_EXCLUSIVE_DIR_FORMAT,
+                                    jobId.toHexString(),
+                                    tmResourceId.getResourceIdString()));
             createManagedDirectory(managedExclusivePath);
             this.managedExclusiveStateDir = managedExclusivePath;
             this.managedExclusiveStateDirHandle =

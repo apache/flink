@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -25,6 +26,8 @@ import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManagerBuilder;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingType;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.filemerging.SegmentFileStateHandle;
@@ -60,12 +63,16 @@ public class FsMergingCheckpointStorageLocationTest {
 
     private final Random random = new Random();
 
+    private static final JobID jobId = JobID.generate();
+    private static final OperatorID opId = new OperatorID();
+
     private static final String SNAPSHOT_MGR_ID = "snapshotMgrId";
     private static final int FILE_STATE_SIZE_THRESHOLD = 1024;
     private static final int WRITE_BUFFER_SIZE = 1024;
 
     private static final FileMergingSnapshotManager.SubtaskKey SUBTASK_KEY =
-            new FileMergingSnapshotManager.SubtaskKey("jobId", "opId", 1, 1);
+            new FileMergingSnapshotManager.SubtaskKey(
+                    jobId.toHexString(), opId.toHexString(), 1, 1);
 
     @Before
     public void prepareDirectories() {
@@ -222,7 +229,9 @@ public class FsMergingCheckpointStorageLocationTest {
     private FileMergingSnapshotManager createFileMergingSnapshotManager(long maxFileSize) {
         FileMergingSnapshotManager mgr =
                 new FileMergingSnapshotManagerBuilder(
-                                SNAPSHOT_MGR_ID, FileMergingType.MERGE_WITHIN_CHECKPOINT)
+                                jobId,
+                                new ResourceID(SNAPSHOT_MGR_ID),
+                                FileMergingType.MERGE_WITHIN_CHECKPOINT)
                         .build();
 
         mgr.initFileSystem(
