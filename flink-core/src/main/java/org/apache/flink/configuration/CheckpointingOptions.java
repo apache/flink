@@ -649,7 +649,9 @@ public class CheckpointingOptions {
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Allows unaligned checkpoints to skip timers that are currently being fired.");
+                            "Allows unaligned checkpoints to skip timers that are currently being fired."
+                                    + " For this feature to be enabled, it must be also supported by the operator."
+                                    + " Currently this is supported by all TableStreamOperators and CepOperator.");
 
     public static final ConfigOption<Boolean> ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH =
             ConfigOptions.key("execution.checkpointing.checkpoints-after-tasks-finish")

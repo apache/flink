@@ -174,7 +174,7 @@
             <td><h5>execution.checkpointing.unaligned.interruptible-timers.enabled</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
-            <td>Allows unaligned checkpoints to skip timers that are currently being fired.</td>
+            <td>Allows unaligned checkpoints to skip timers that are currently being fired. For this feature to be enabled, it must be also supported by the operator. Currently this is supported by all TableStreamOperators and CepOperator.</td>
         </tr>
         <tr>
             <td><h5>execution.checkpointing.unaligned.max-subtasks-per-channel-state-file</h5></td>
