@@ -779,6 +779,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             final FileMergingSnapshotManager fileMergingSnapshotManager =
                     fileMergingManager.fileMergingSnapshotManagerForTask(
                             jobId,
+                            getResourceID(),
                             tdd.getExecutionAttemptId(),
                             taskManagerConfiguration.getConfiguration(),
                             jobInformation.getJobConfiguration(),

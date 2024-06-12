@@ -204,6 +204,8 @@ public interface FileMergingSnapshotManager extends Closeable {
      * the parallelism. Note that this key should be consistent across job attempts.
      */
     final class SubtaskKey {
+        private static final String MANAGED_DIR_FORMAT = "job_%s_op_%s_%d_%d";
+
         final String jobIDString;
         final String operatorIDString;
         final int subtaskIndex;
@@ -244,6 +246,11 @@ public interface FileMergingSnapshotManager extends Closeable {
                     environment.getTaskInfo());
         }
 
+        @VisibleForTesting
+        public String getJobIDString() {
+            return jobIDString;
+        }
+
         /**
          * Generate an unique managed directory name for one subtask.
          *
@@ -251,8 +258,11 @@ public interface FileMergingSnapshotManager extends Closeable {
          */
         public String getManagedDirName() {
             return String.format(
-                            "%s_%s_%d_%d_",
-                            jobIDString, operatorIDString, subtaskIndex, parallelism)
+                            MANAGED_DIR_FORMAT,
+                            jobIDString,
+                            operatorIDString,
+                            subtaskIndex,
+                            parallelism)
                     .replaceAll("[^a-zA-Z0-9\\-]", "_");
         }
 
