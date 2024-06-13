@@ -19,6 +19,7 @@
 package org.apache.flink.api.connector.sink2;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobInfo;
@@ -47,7 +48,7 @@ import java.util.function.Consumer;
  *
  * @param <InputT> The type of the sink's input
  */
-@PublicEvolving
+@Public
 public interface Sink<InputT> extends Serializable {
 
     /**

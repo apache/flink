@@ -18,8 +18,7 @@
 
 package org.apache.flink.api.connector.sink2;
 
-import org.apache.flink.annotation.Experimental;
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.common.serialization.SerializationSchema;
@@ -31,7 +30,7 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 /** The interface exposes some runtime info for creating a {@link SinkWriter}. */
-@PublicEvolving
+@Public
 public interface WriterInitContext extends org.apache.flink.api.connector.sink2.InitContext {
     /**
      * Gets the {@link UserCodeClassLoader} to load classes that are not in system's classpath, but
@@ -78,7 +77,6 @@ public interface WriterInitContext extends org.apache.flink.api.connector.sink2.
      * a lot of these messages in the mailbox may lead to a performance decrease. thread, and the
      * {@link Consumer#accept} method is executed very fast.
      */
-    @Experimental
     default <MetaT> Optional<Consumer<MetaT>> metadataConsumer() {
         return Optional.empty();
     }

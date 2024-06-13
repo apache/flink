@@ -2383,6 +2383,11 @@ under the License.
 								<exclude>org.apache.flink.util.function.SerializableFunction</exclude>
 								<exclude>org.apache.flink.util.function.SupplierWithException</exclude>
 								<exclude>org.apache.flink.util.function.ThrowingConsumer</exclude>
+								<!-- Disable check for two sink methods. -->
+								<!-- TypeSerializer needs to be considered upgraded to Public. Tracked under FLINK-35566 -->
+								<exclude>org.apache.flink.api.connector.sink2.WriterInitContext#createInputSerializer()</exclude>
+								<!-- SinkV1 is deprecated but relies on an Experimental interface. Keeping this for legacy purposes  -->
+								<exclude>org.apache.flink.api.connector.sink2.WriterInitContext#metadataConsumer()</exclude>
 								<!-- MARKER: end exclusions -->
 							</excludes>
 							<accessModifier>public</accessModifier>
