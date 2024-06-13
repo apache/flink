@@ -295,11 +295,13 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      *
      * @param catalogName the given catalog name under which to create the given catalog
      * @param catalogDescriptor catalog descriptor for creating catalog
+     * @param ignoreIfExists if false exception will be thrown if a catalog exists.
      * @throws CatalogException If the catalog already exists in the catalog store or initialized
      *     catalogs, or if an error occurs while creating the catalog or storing the {@link
      *     CatalogDescriptor}
      */
-    public void createCatalog(String catalogName, CatalogDescriptor catalogDescriptor)
+    public void createCatalog(
+            String catalogName, CatalogDescriptor catalogDescriptor, boolean ignoreIfExists)
             throws CatalogException {
         checkArgument(
                 !StringUtils.isNullOrWhitespaceOnly(catalogName),
@@ -307,19 +309,28 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         checkNotNull(catalogDescriptor, "Catalog descriptor cannot be null");
 
         if (catalogStoreHolder.catalogStore().contains(catalogName)) {
-            throw new CatalogException(
-                    format("Catalog %s already exists in catalog store.", catalogName));
+            if (!ignoreIfExists) {
+                throw new CatalogException(
+                        format("Catalog %s already exists in catalog store.", catalogName));
+            }
+        } else {
+            catalogStoreHolder.catalogStore().storeCatalog(catalogName, catalogDescriptor);
         }
+
         if (catalogs.containsKey(catalogName)) {
-            throw new CatalogException(
-                    format("Catalog %s already exists in initialized catalogs.", catalogName));
+            if (!ignoreIfExists) {
+                throw new CatalogException(
+                        format("Catalog %s already exists in initialized catalogs.", catalogName));
+            }
+        } else {
+            Catalog catalog = initCatalog(catalogName, catalogDescriptor);
+            catalog.open();
+            catalogs.put(catalogName, catalog);
         }
+    }
 
-        Catalog catalog = initCatalog(catalogName, catalogDescriptor);
-        catalog.open();
-        catalogs.put(catalogName, catalog);
-
-        catalogStoreHolder.catalogStore().storeCatalog(catalogName, catalogDescriptor);
+    public void createCatalog(String catalogName, CatalogDescriptor catalogDescriptor) {
+        createCatalog(catalogName, catalogDescriptor, false);
     }
 
     /**

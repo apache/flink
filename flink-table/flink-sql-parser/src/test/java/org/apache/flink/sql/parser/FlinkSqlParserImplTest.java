@@ -134,6 +134,28 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                 + "  'key1' = 'value1',\n"
                                 + "  'key2' = 'value2'\n"
                                 + ")");
+        sql("create catalog c1 comment 'hello'\n"
+                        + " WITH (\n"
+                        + "  'key1'='value1',\n"
+                        + "  'key2'='value2'\n"
+                        + " )\n")
+                .ok(
+                        "CREATE CATALOG `C1`\n"
+                                + "COMMENT 'hello' WITH (\n"
+                                + "  'key1' = 'value1',\n"
+                                + "  'key2' = 'value2'\n"
+                                + ")");
+        sql("create catalog if not exists c1 comment 'hello'\n"
+                        + " WITH (\n"
+                        + "  'key1'='value1',\n"
+                        + "  'key2'='value2'\n"
+                        + " )\n")
+                .ok(
+                        "CREATE CATALOG IF NOT EXISTS `C1`\n"
+                                + "COMMENT 'hello' WITH (\n"
+                                + "  'key1' = 'value1',\n"
+                                + "  'key2' = 'value2'\n"
+                                + ")");
     }
 
     @Test

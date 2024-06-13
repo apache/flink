@@ -26,6 +26,8 @@ import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.table.planner.utils.OperationConverterUtils.getCatalogComment;
+
 /** A converter for {@link SqlCreateCatalog}. */
 public class SqlCreateCatalogConverter implements SqlNodeConverter<SqlCreateCatalog> {
 
@@ -41,6 +43,10 @@ public class SqlCreateCatalogConverter implements SqlNodeConverter<SqlCreateCata
                                         ((SqlTableOption) p).getKeyString(),
                                         ((SqlTableOption) p).getValueString()));
 
-        return new CreateCatalogOperation(node.catalogName(), properties);
+        return new CreateCatalogOperation(
+                node.catalogName(),
+                properties,
+                getCatalogComment(node.getComment()),
+                node.isIfNotExists());
     }
 }

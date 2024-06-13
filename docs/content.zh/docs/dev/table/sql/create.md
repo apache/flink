@@ -628,18 +628,23 @@ INSERT INTO my_rtas_table SELECT id, name, age FROM source_table WHERE mod(id, 1
 ## CREATE CATALOG
 
 ```sql
-CREATE CATALOG catalog_name
+CREATE CATALOG [IF NOT EXISTS] catalog_name
+  [COMMENT catalog_comment]
   WITH (key1=val1, key2=val2, ...)
 ```
 
-Create a catalog with the given catalog properties. If a catalog with the same name already exists, an exception is thrown.
+根据给定的属性创建 catalog。若已存在同名 catalog，会抛出异常。
+
+**IF NOT EXISTS**
+
+若 catalog 已经存在，则不会进行任何操作。
 
 **WITH OPTIONS**
 
-Catalog properties used to store extra information related to this catalog.
-The key and value of expression `key1=val1` should both be string literal.
+catalog 属性一般用于存储关于这个 catalog 的额外的信息。
+表达式 `key1=val1` 中的键和值都需要是字符串文本常量。
 
-Check out more details at [Catalogs]({{< ref "docs/dev/table/catalogs" >}}).
+详情见 [Catalogs]({{< ref "docs/dev/table/catalogs" >}})。
 
 {{< top >}}
 
