@@ -24,51 +24,42 @@ import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogChange;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
-
-import java.util.Collections;
-import java.util.Set;
-import java.util.stream.Collectors;
+import org.apache.flink.table.utils.EncodingUtils;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** Operation to describe an ALTER CATALOG RESET statement. */
+/** Operation to describe a ALTER CATALOG COMMENT statement. */
 @Internal
-public class AlterCatalogResetOperation implements AlterOperation {
+public class AlterCatalogCommentOperation implements AlterOperation {
 
     private final String catalogName;
-    private final Set<String> resetKeys;
+    private final String comment;
 
-    public AlterCatalogResetOperation(String catalogName, Set<String> resetKeys) {
+    public AlterCatalogCommentOperation(String catalogName, String comment) {
         this.catalogName = checkNotNull(catalogName);
-        this.resetKeys = Collections.unmodifiableSet(checkNotNull(resetKeys));
+        this.comment = comment;
     }
 
     public String getCatalogName() {
         return catalogName;
     }
 
-    public Set<String> getResetKeys() {
-        return resetKeys;
+    public String getComment() {
+        return comment;
     }
 
     @Override
     public String asSummaryString() {
         return String.format(
-                "ALTER CATALOG %s\n%s",
-                catalogName,
-                resetKeys.stream()
-                        .map(key -> String.format("  RESET '%s'", key))
-                        .collect(Collectors.joining(",\n")));
+                "ALTER CATALOG %s COMMENT '%s'",
+                catalogName, EncodingUtils.escapeSingleQuotes(comment));
     }
 
     @Override
     public TableResultInternal execute(Context ctx) {
         try {
             ctx.getCatalogManager()
-                    .alterCatalog(
-                            catalogName,
-                            new CatalogChange.CatalogConfigurationChange(
-                                    conf -> resetKeys.forEach(conf::removeKey)));
+                    .alterCatalog(catalogName, new CatalogChange.CatalogCommentChange(comment));
 
             return TableResultImpl.TABLE_RESULT_OK;
         } catch (CatalogException e) {

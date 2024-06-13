@@ -36,6 +36,7 @@
     "org.apache.flink.sql.parser.ddl.SqlAlterCatalog"
     "org.apache.flink.sql.parser.ddl.SqlAlterCatalogOptions"
     "org.apache.flink.sql.parser.ddl.SqlAlterCatalogReset"
+    "org.apache.flink.sql.parser.ddl.SqlAlterCatalogComment"
     "org.apache.flink.sql.parser.ddl.SqlAlterDatabase"
     "org.apache.flink.sql.parser.ddl.SqlAlterFunction"
     "org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTable"

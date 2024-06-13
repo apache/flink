@@ -73,6 +73,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         sql("alter catalog a set ('k1'='v1', 'k2'='v2')")
                 .ok("ALTER CATALOG `A` SET (\n" + "  'k1' = 'v1',\n" + "  'k2' = 'v2'\n" + ")");
         sql("alter catalog a reset ('k1')").ok("ALTER CATALOG `A` RESET (\n" + "  'k1'\n" + ")");
+        sql("alter catalog a comment 'comment1'").ok("ALTER CATALOG `A` COMMENT 'comment1'");
     }
 
     @Test

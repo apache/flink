@@ -246,6 +246,36 @@ alter catalog cat2 reset ();
 org.apache.flink.table.api.ValidationException: ALTER CATALOG RESET does not support empty key
 !error
 
+alter catalog cat2 comment 'comment for catalog ''cat2''';
+[INFO] Execute statement succeeded.
+!info
+
+desc catalog extended cat2;
++-----------+----------------------------+
+| info name |                 info value |
++-----------+----------------------------+
+|      name |                       cat2 |
+|      type |          generic_in_memory |
+|   comment | comment for catalog 'cat2' |
++-----------+----------------------------+
+3 rows in set
+!ok
+
+alter catalog cat2 comment '';
+[INFO] Execute statement succeeded.
+!info
+
+desc catalog extended cat2;
++-----------+-------------------+
+| info name |        info value |
++-----------+-------------------+
+|      name |              cat2 |
+|      type | generic_in_memory |
+|   comment |                   |
++-----------+-------------------+
+3 rows in set
+!ok
+
 # ==========================================================================
 # test database
 # ==========================================================================
