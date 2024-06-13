@@ -144,6 +144,15 @@ public interface FileMergingSnapshotManager extends Closeable {
             SubtaskKey subtaskKey, CheckpointedStateScope scope);
 
     /**
+     * Notifies the manager that the checkpoint with the given {@code checkpointId} has been
+     * started.
+     *
+     * @param subtaskKey the subtask key identifying the subtask.
+     * @param checkpointId The ID of the checkpoint that has been started.
+     */
+    void notifyCheckpointStart(SubtaskKey subtaskKey, long checkpointId);
+
+    /**
      * Notifies the manager that the checkpoint with the given {@code checkpointId} completed and
      * was committed.
      *

@@ -314,6 +314,12 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             return;
         }
 
+        if (fileMergingSnapshotManager != null) {
+            // notify file merging snapshot manager for managed dir lifecycle management
+            fileMergingSnapshotManager.notifyCheckpointStart(
+                    FileMergingSnapshotManager.SubtaskKey.of(env), metadata.getCheckpointId());
+        }
+
         // if checkpoint has been previously unaligned, but was forced to be aligned (pointwise
         // connection), revert it here so that it can jump over output data
         if (options.getAlignment() == CheckpointOptions.AlignmentType.FORCED_ALIGNED) {
