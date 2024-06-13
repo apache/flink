@@ -18,11 +18,13 @@
 
 package org.apache.flink.configuration.description;
 
+import java.io.Serializable;
+
 import org.apache.flink.annotation.PublicEvolving;
 
 /** Part of a {@link Description} that can be converted into String representation. */
 @PublicEvolving
-interface DescriptionElement {
+interface DescriptionElement extends Serializable {
     /**
      * Transforms itself into String representation using given format.
      *
