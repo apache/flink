@@ -19,11 +19,9 @@
 package org.apache.flink.table.operations.ddl;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
-import org.apache.flink.table.catalog.CatalogDescriptor;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 
 import java.util.Collections;
@@ -64,10 +62,8 @@ public class AlterCatalogResetOperation implements AlterOperation {
     @Override
     public TableResultInternal execute(Context ctx) {
         try {
-            Configuration resetConf = new Configuration();
-            resetKeys.forEach(key -> resetConf.setString(key, ""));
             ctx.getCatalogManager()
-                    .alterCatalog(catalogName, CatalogDescriptor.of(catalogName, resetConf));
+                    .alterCatalog(catalogName, conf -> resetKeys.forEach(conf::removeKey));
 
             return TableResultImpl.TABLE_RESULT_OK;
         } catch (CatalogException e) {

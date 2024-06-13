@@ -23,7 +23,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
-import org.apache.flink.table.catalog.CatalogDescriptor;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 
 import java.util.Collections;
@@ -70,8 +69,7 @@ public class AlterCatalogOptionsOperation implements AlterOperation {
         try {
             ctx.getCatalogManager()
                     .alterCatalog(
-                            catalogName,
-                            CatalogDescriptor.of(catalogName, Configuration.fromMap(properties)));
+                            catalogName, conf -> conf.addAll(Configuration.fromMap(properties)));
 
             return TableResultImpl.TABLE_RESULT_OK;
         } catch (CatalogException e) {

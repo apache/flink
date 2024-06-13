@@ -84,7 +84,6 @@ import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -129,8 +128,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                         expectedOptions);
 
         // test alter catalog reset
-        final Set<String> expectedResetKeys = new HashSet<>();
-        expectedResetKeys.add("K1");
+        final Set<String> expectedResetKeys = Collections.singleton("K1");
 
         operation = parse("ALTER CATALOG cat2 RESET ('K1')");
         assertThat(operation)
