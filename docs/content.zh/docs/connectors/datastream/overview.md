@@ -59,6 +59,13 @@ Currently these systems are supported as part of the Apache Flink project:
 要注意这些列举的连接器是 Flink 工程的一部分，包含在发布的源码中，但是不包含在二进制发行版中。
 更多说明可以参考对应的子部分。
 
+{{< hint info >}}
+由于 flink-connector-base 依赖已经在 flink-dist 中提供，
+在<a href="https://issues.apache.org/jira/browse/FLINK-30400">FLINK-30400</a>完成后，
+这些外部连接器开始停止打包 flink-connector-base 依赖。
+如果需要在本地环境测试运行，请确保 flink-connector-base 依赖被正确的提供，而且能在 classpath 下找到。
+{{< /hint >}}
+
 ## Apache Bahir 中的连接器
 
 Flink 还有些一些额外的连接器通过 [Apache Bahir](https://bahir.apache.org/) 发布, 包括:
