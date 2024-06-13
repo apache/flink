@@ -17,9 +17,7 @@
 
 package org.apache.flink.runtime.checkpoint.filemerging;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FSDataOutputStream;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 
 import javax.annotation.Nonnull;
@@ -33,13 +31,12 @@ public class AcrossCheckpointFileMergingSnapshotManager extends FileMergingSnaps
     private final PhysicalFilePool filePool;
 
     public AcrossCheckpointFileMergingSnapshotManager(
-            JobID jobId,
-            ResourceID tmResourceId,
+            String id,
             long maxFileSize,
             PhysicalFilePool.Type filePoolType,
             float maxSpaceAmplification,
             Executor ioExecutor) {
-        super(jobId, tmResourceId, maxFileSize, filePoolType, maxSpaceAmplification, ioExecutor);
+        super(id, maxFileSize, filePoolType, maxSpaceAmplification, ioExecutor);
         filePool = createPhysicalPool();
     }
 

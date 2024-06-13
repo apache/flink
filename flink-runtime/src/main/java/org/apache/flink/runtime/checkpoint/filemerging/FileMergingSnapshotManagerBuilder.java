@@ -28,6 +28,9 @@ import java.util.concurrent.Executor;
 /** A builder that builds the {@link FileMergingSnapshotManager}. */
 public class FileMergingSnapshotManagerBuilder {
 
+    // Id format for FileMergingSnapshotManager, consist with jobId and tmId
+    private static final String ID_FORMAT = "job_%s_tm_%s";
+
     private final JobID jobId;
 
     private final ResourceID tmResourceId;
@@ -100,16 +103,14 @@ public class FileMergingSnapshotManagerBuilder {
         switch (fileMergingType) {
             case MERGE_WITHIN_CHECKPOINT:
                 return new WithinCheckpointFileMergingSnapshotManager(
-                        jobId,
-                        tmResourceId,
+                        String.format(ID_FORMAT, jobId, tmResourceId),
                         maxFileSize,
                         filePoolType,
                         maxSpaceAmplification,
                         ioExecutor == null ? Runnable::run : ioExecutor);
             case MERGE_ACROSS_CHECKPOINT:
                 return new AcrossCheckpointFileMergingSnapshotManager(
-                        jobId,
-                        tmResourceId,
+                        String.format(ID_FORMAT, jobId, tmResourceId),
                         maxFileSize,
                         filePoolType,
                         maxSpaceAmplification,
