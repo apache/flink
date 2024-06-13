@@ -23,7 +23,7 @@ import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandle
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.function.ThrowingRunnable;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -35,35 +35,34 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for {@link StateFuture} related implementations. */
-public class StateFutureTest {
+class StateFutureTest {
     static AsyncFrameworkExceptionHandler exceptionHandler =
             (message, exception) -> {
                 throw new RuntimeException(message, exception);
             };
 
     @Test
-    public void basicSyncComplete() {
+    void basicSyncComplete() {
         StateFutureImpl.CallbackRunner runner = new TestCallbackRunner(null);
         final AtomicInteger counter = new AtomicInteger(0);
 
         StateFutureImpl<Integer> stateFuture1 = new StateFutureImpl<>(runner, exceptionHandler);
         stateFuture1.thenAccept(counter::addAndGet);
-        assertThat(counter.get()).isEqualTo(0);
+        assertThat(counter).hasValue(0);
         stateFuture1.complete(5);
-        assertThat(counter.get()).isEqualTo(5);
+        assertThat(counter).hasValue(5);
 
         StateFutureImpl<Integer> stateFuture2 = new StateFutureImpl<>(runner, exceptionHandler);
         StateFuture<String> stateFuture3 =
                 stateFuture2.thenApply((v) -> String.valueOf(counter.addAndGet(v)));
-        assertThat(counter.get()).isEqualTo(5);
+        assertThat(counter).hasValue(5);
         stateFuture2.complete(3);
-        assertThat(counter.get()).isEqualTo(8);
+        assertThat(counter).hasValue(8);
 
         stateFuture3.thenAccept((v) -> counter.addAndGet(-Integer.parseInt(v)));
-        assertThat(counter.get()).isEqualTo(0);
+        assertThat(counter).hasValue(0);
 
         StateFutureImpl<Integer> stateFuture4 = new StateFutureImpl<>(runner, exceptionHandler);
         StateFutureImpl<Integer> stateFuture5 = new StateFutureImpl<>(runner, exceptionHandler);
@@ -74,11 +73,11 @@ public class StateFutureTest {
                             return stateFuture5;
                         })
                 .thenAccept(counter::addAndGet);
-        assertThat(counter.get()).isEqualTo(0);
+        assertThat(counter).hasValue(0);
         stateFuture4.complete(6);
-        assertThat(counter.get()).isEqualTo(6);
+        assertThat(counter).hasValue(6);
         stateFuture5.complete(3);
-        assertThat(counter.get()).isEqualTo(9);
+        assertThat(counter).hasValue(9);
 
         StateFutureImpl<Integer> stateFuture6 = new StateFutureImpl<>(runner, exceptionHandler);
         StateFutureImpl<Integer> stateFuture7 = new StateFutureImpl<>(runner, exceptionHandler);
@@ -88,14 +87,14 @@ public class StateFutureTest {
                     counter.addAndGet(v1 - v2);
                     return StateFutureUtils.completedVoidFuture();
                 });
-        assertThat(counter.get()).isEqualTo(9);
+        assertThat(counter).hasValue(9);
         stateFuture6.complete(4);
-        assertThat(counter.get()).isEqualTo(9);
+        assertThat(counter).hasValue(9);
         stateFuture7.complete(4 + 9);
-        assertThat(counter.get()).isEqualTo(0);
+        assertThat(counter).hasValue(0);
 
         StateFutureUtils.completedFuture(3).thenAccept(counter::addAndGet);
-        assertThat(counter.get()).isEqualTo(3);
+        assertThat(counter).hasValue(3);
 
         counter.set(0);
         ArrayList<StateFutureImpl<Integer>> futures = new ArrayList<>();
@@ -112,24 +111,24 @@ public class StateFutureTest {
                             }
                             counter.addAndGet(sum);
                         });
-        assertThat(counter.get()).isEqualTo(0);
+        assertThat(counter).hasValue(0);
         for (int i = 0; i < 5; i++) {
             futures.get(i).complete(i + 1);
             if (i != 4) {
-                assertThat(counter.get()).isEqualTo(0);
+                assertThat(counter).hasValue(0);
             }
         }
-        assertThat(counter.get()).isEqualTo(12345);
+        assertThat(counter).hasValue(12345);
     }
 
     @Test
-    public void testRunOnCorrectThread() throws Exception {
+    void testRunOnCorrectThread() throws Exception {
         final AtomicInteger threadIdProvider = new AtomicInteger(0);
         final ThreadLocal<Integer> threadId =
                 ThreadLocal.withInitial(threadIdProvider::getAndIncrement);
         final AtomicReference<Throwable> exception = new AtomicReference<>();
         final CountDownLatch latch = new CountDownLatch(1);
-        assertThat(threadId.get()).isEqualTo(0);
+        assertThat(threadId.get()).isZero();
 
         ExecutorService executor =
                 Executors.newSingleThreadExecutor(
@@ -138,7 +137,7 @@ public class StateFutureTest {
         executor.execute(
                 () -> {
                     try {
-                        assertThat(threadId.get()).isEqualTo(1);
+                        assertThat(threadId.get()).isOne();
                     } catch (Throwable e) {
                         exception.set(e);
                     } finally {
@@ -147,20 +146,15 @@ public class StateFutureTest {
                 });
 
         latch.await(20, TimeUnit.SECONDS);
-        if (latch.getCount() != 0) {
-            fail(
-                    "Wait timeout, some error may occurred in other thread. latch count="
-                            + latch.getCount());
-        }
-        if (exception.get() != null) {
-            fail("Exception thrown in other threads", exception.get());
-        }
+
+        assertThat(latch.getCount()).isZero();
+        assertThat(exception).hasValue(null);
 
         MockValueState valueState = new MockValueState(executor);
         Runnable threadChecker =
                 () -> {
                     try {
-                        assertThat(threadId.get()).isEqualTo(1);
+                        assertThat(threadId.get()).isOne();
                     } catch (Throwable e) {
                         exception.set(e);
                     }
@@ -203,16 +197,10 @@ public class StateFutureTest {
                 });
 
         latch2.await(20, TimeUnit.SECONDS);
-        if (latch2.getCount() != 0) {
-            fail(
-                    "Wait timeout, some error may occurred in other thread. latch count="
-                            + latch2.getCount());
-        }
-        if (exception.get() != null) {
-            fail("Exception thrown in other threads", exception.get());
-        }
 
-        assertThat(list.size()).isEqualTo(7);
+        assertThat(latch2.getCount()).isZero();
+        assertThat(exception.get()).isNull();
+        assertThat(list).hasSize(7);
     }
 
     /** Mock for value state. */
@@ -244,7 +232,7 @@ public class StateFutureTest {
     }
 
     private static class TestCallbackRunner implements StateFutureImpl.CallbackRunner {
-        private ExecutorService stateExecutor;
+        private final ExecutorService stateExecutor;
 
         TestCallbackRunner(ExecutorService stateExecutor) {
             this.stateExecutor = stateExecutor;
