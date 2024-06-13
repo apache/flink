@@ -69,8 +69,7 @@ class HiveServer2DelegationTokenProviderITCase {
     }
 
     @Test
-    public void delegationTokensRequiredShouldReturnFalseWhenKerberosIsNotEnabled()
-            throws Exception {
+    void delegationTokensRequiredShouldReturnFalseWhenKerberosIsNotEnabled() throws Exception {
         HiveServer2DelegationTokenProvider provider = new HiveServer2DelegationTokenProvider();
         provider.init(new org.apache.flink.configuration.Configuration());
         boolean result = provider.delegationTokensRequired();
@@ -78,8 +77,7 @@ class HiveServer2DelegationTokenProviderITCase {
     }
 
     @Test
-    public void delegationTokensRequiredShouldReturnFalseWhenHiveMetastoreUrisIsEmpty()
-            throws Exception {
+    void delegationTokensRequiredShouldReturnFalseWhenHiveMetastoreUrisIsEmpty() throws Exception {
         UserGroupInformation.setConfiguration(
                 getHadoopConfigWithAuthMethod(UserGroupInformation.AuthenticationMethod.KERBEROS));
         UserGroupInformation.getCurrentUser()
@@ -91,8 +89,8 @@ class HiveServer2DelegationTokenProviderITCase {
     }
 
     @Test
-    public void delegationTokensRequiredShouldReturnTrueWhenAllConditionsIsRight(
-            @TempDir Path tmpDir) throws Exception {
+    void delegationTokensRequiredShouldReturnTrueWhenAllConditionsIsRight(@TempDir Path tmpDir)
+            throws Exception {
         URL resource =
                 Thread.currentThread()
                         .getContextClassLoader()
@@ -116,7 +114,7 @@ class HiveServer2DelegationTokenProviderITCase {
     }
 
     @Test
-    public void getTokenRenewalIntervalShouldReturnRenewalIntervalWhenNoExceptionIsThrown() {
+    void getTokenRenewalIntervalShouldReturnRenewalIntervalWhenNoExceptionIsThrown() {
         HiveServer2DelegationTokenProvider provider =
                 new HiveServer2DelegationTokenProvider() {
                     @Override
@@ -132,7 +130,7 @@ class HiveServer2DelegationTokenProviderITCase {
     }
 
     @Test
-    public void getTokenRenewalIntervalShouldThrowExceptionWhenHiveIsNull() {
+    void getTokenRenewalIntervalShouldThrowExceptionWhenHiveIsNull() {
         HiveServer2DelegationTokenProvider provider = new HiveServer2DelegationTokenProvider();
         Clock constantClock = Clock.fixed(ofEpochMilli(0), ZoneId.systemDefault());
         TestHiveServer2DelegationToken testDelegationToken = new TestHiveServer2DelegationToken();
@@ -146,7 +144,7 @@ class HiveServer2DelegationTokenProviderITCase {
     }
 
     @Test
-    public void getTokenRenewalDateShouldReturnNoneWhenNegativeRenewalInterval() {
+    void getTokenRenewalDateShouldReturnNoneWhenNegativeRenewalInterval() {
         HiveServer2DelegationTokenProvider provider = new HiveServer2DelegationTokenProvider();
         Clock constantClock = Clock.fixed(ofEpochMilli(0), ZoneId.systemDefault());
         TestHiveServer2DelegationToken testDelegationToken = new TestHiveServer2DelegationToken();
@@ -156,7 +154,7 @@ class HiveServer2DelegationTokenProviderITCase {
     }
 
     @Test
-    public void getTokenRenewalDateShouldReturnRenewalDateWhenNotNegativeRenewalInterval() {
+    void getTokenRenewalDateShouldReturnRenewalDateWhenNotNegativeRenewalInterval() {
         HiveServer2DelegationTokenProvider provider = new HiveServer2DelegationTokenProvider();
         Clock constantClock = Clock.fixed(ofEpochMilli(0), ZoneId.systemDefault());
         TestHiveServer2DelegationToken testDelegationToken = new TestHiveServer2DelegationToken();
