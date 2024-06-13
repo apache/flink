@@ -160,13 +160,23 @@ SqlAlterCatalog SqlAlterCatalog() :
 {
     <ALTER> <CATALOG> { startPos = getPos(); }
     catalogName = SimpleIdentifier()
-    <SET>
-    propertyList = Properties()
-    {
-        return new SqlAlterCatalogOptions(startPos.plus(getPos()),
-                    catalogName,
-                    propertyList);
-    }
+    (
+        <SET>
+        propertyList = Properties()
+        {
+            return new SqlAlterCatalogOptions(startPos.plus(getPos()),
+                        catalogName,
+                        propertyList);
+        }
+    |
+        <RESET>
+        propertyList = PropertyKeys()
+        {
+            return new SqlAlterCatalogReset(startPos.plus(getPos()),
+                           catalogName,
+                           propertyList);
+        }
+    )
 }
 
 /**

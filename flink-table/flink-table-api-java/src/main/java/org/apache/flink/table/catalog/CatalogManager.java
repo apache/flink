@@ -326,22 +326,24 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      * Alters a catalog under the given name. The catalog name must be unique.
      *
      * @param catalogName the given catalog name under which to alter the given catalog
-     * @param catalogDescriptor catalog descriptor for altering catalog
+     * @param catalogUpdater catalog configuration updater to alter catalog
      * @throws CatalogException If the catalog neither exists in the catalog store nor in the
      *     initialized catalogs, or if an error occurs while creating the catalog or storing the
      *     {@link CatalogDescriptor}
      */
-    public void alterCatalog(String catalogName, CatalogDescriptor catalogDescriptor)
+    public void alterCatalog(String catalogName, Consumer<Configuration> catalogUpdater)
             throws CatalogException {
         checkArgument(
                 !StringUtils.isNullOrWhitespaceOnly(catalogName),
                 "Catalog name cannot be null or empty.");
-        checkNotNull(catalogDescriptor, "Catalog descriptor cannot be null");
+        checkNotNull(catalogUpdater, "Catalog configuration updater cannot be null.");
+
         CatalogStore catalogStore = catalogStoreHolder.catalogStore();
         Optional<CatalogDescriptor> oldCatalogDescriptor = getCatalogDescriptor(catalogName);
+
         if (catalogStore.contains(catalogName) && oldCatalogDescriptor.isPresent()) {
             Configuration conf = oldCatalogDescriptor.get().getConfiguration();
-            conf.addAll(catalogDescriptor.getConfiguration());
+            catalogUpdater.accept(conf);
             CatalogDescriptor newCatalogDescriptor = CatalogDescriptor.of(catalogName, conf);
             Catalog newCatalog = initCatalog(catalogName, newCatalogDescriptor);
             catalogStore.removeCatalog(catalogName, false);
@@ -353,7 +355,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
             catalogStoreHolder.catalogStore().storeCatalog(catalogName, newCatalogDescriptor);
         } else {
             throw new CatalogException(
-                    format("Catalog %s not exists in the catalog store.", catalogName));
+                    String.format("Catalog %s does not exist in the catalog store.", catalogName));
         }
     }
 

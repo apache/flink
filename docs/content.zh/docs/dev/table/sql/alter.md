@@ -28,7 +28,7 @@ under the License.
 
 
 
-ALTER 语句用于修改一个已经在 [Catalog]({{< ref "docs/dev/table/catalogs" >}}) 中注册的表、视图或函数定义。
+ALTER 语句用于修改一个已经在 [Catalog]({{< ref "docs/dev/table/catalogs" >}}) 中注册的表、视图或函数定义，或 catalog 本身的定义。
 
 Flink SQL 目前支持以下 ALTER 语句：
 
@@ -36,6 +36,7 @@ Flink SQL 目前支持以下 ALTER 语句：
 - ALTER VIEW
 - ALTER DATABASE
 - ALTER FUNCTION
+- ALTER CATALOG
 
 ## 执行 ALTER 语句
 
@@ -538,10 +539,14 @@ ALTER [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
 
 Language tag 用于指定 Flink runtime 如何执行这个函数。目前，只支持 JAVA，SCALA 和 PYTHON，且函数的默认语言为 JAVA。
 
+{{< top >}}
+
 ## ALTER CATALOG
 
 ```sql
-ALTER CATALOG catalog_name SET (key1=val1, ...)
+ALTER CATALOG catalog_name 
+    SET (key1=val1, ...)
+  | RESET (key1, ...)
 ```
 
 ### SET
@@ -553,6 +558,17 @@ ALTER CATALOG catalog_name SET (key1=val1, ...)
 ```sql
 -- set 'default-database'
 ALTER CATALOG cat2 SET ('default-database'='db');
+```
+
+### RESET
+
+为指定的 catalog 重置一个或多个属性。
+
+`RESET` 语句示例如下。
+
+```sql
+-- reset 'default-database'
+ALTER CATALOG cat2 RESET ('default-database');
 ```
 
 {{< top >}}

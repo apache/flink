@@ -53,6 +53,7 @@ import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogOptionsOperation;
+import org.apache.flink.table.operations.ddl.AlterCatalogResetOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
@@ -86,6 +87,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -124,6 +126,25 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                         "cat2",
                         "ALTER CATALOG cat2\n  SET 'K1' = 'V1',\n  SET 'k2' = 'v2_new'",
                         expectedOptions);
+
+        // test alter catalog reset
+        final Set<String> expectedResetKeys = Collections.singleton("K1");
+
+        operation = parse("ALTER CATALOG cat2 RESET ('K1')");
+        assertThat(operation)
+                .isInstanceOf(AlterCatalogResetOperation.class)
+                .asInstanceOf(InstanceOfAssertFactories.type(AlterCatalogResetOperation.class))
+                .extracting(
+                        AlterCatalogResetOperation::getCatalogName,
+                        AlterCatalogResetOperation::asSummaryString,
+                        AlterCatalogResetOperation::getResetKeys)
+                .containsExactly("cat2", "ALTER CATALOG cat2\n  RESET 'K1'", expectedResetKeys);
+        assertThatThrownBy(() -> parse("ALTER CATALOG cat2 RESET ('type')"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("ALTER CATALOG RESET does not support changing 'type'");
+        assertThatThrownBy(() -> parse("ALTER CATALOG cat2 RESET ()"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("ALTER CATALOG RESET does not support empty key");
     }
 
     @Test

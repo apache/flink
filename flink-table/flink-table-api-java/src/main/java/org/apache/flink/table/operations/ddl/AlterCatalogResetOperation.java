@@ -19,35 +19,34 @@
 package org.apache.flink.table.operations.ddl;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 
 import java.util.Collections;
-import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** Operation to describe a ALTER CATALOG SET statement. */
+/** Operation to describe an ALTER CATALOG RESET statement. */
 @Internal
-public class AlterCatalogOptionsOperation implements AlterOperation {
+public class AlterCatalogResetOperation implements AlterOperation {
     private final String catalogName;
-    private final Map<String, String> properties;
+    private final Set<String> resetKeys;
 
-    public AlterCatalogOptionsOperation(String catalogName, Map<String, String> properties) {
+    public AlterCatalogResetOperation(String catalogName, Set<String> resetKeys) {
         this.catalogName = checkNotNull(catalogName);
-        this.properties = Collections.unmodifiableMap(checkNotNull(properties));
+        this.resetKeys = Collections.unmodifiableSet(checkNotNull(resetKeys));
     }
 
     public String getCatalogName() {
         return catalogName;
     }
 
-    public Map<String, String> getProperties() {
-        return properties;
+    public Set<String> getResetKeys() {
+        return resetKeys;
     }
 
     @Override
@@ -55,12 +54,8 @@ public class AlterCatalogOptionsOperation implements AlterOperation {
         return String.format(
                 "ALTER CATALOG %s\n%s",
                 catalogName,
-                properties.entrySet().stream()
-                        .map(
-                                entry ->
-                                        String.format(
-                                                "  SET '%s' = '%s'",
-                                                entry.getKey(), entry.getValue()))
+                resetKeys.stream()
+                        .map(key -> String.format("  RESET '%s'", key))
                         .collect(Collectors.joining(",\n")));
     }
 
@@ -68,8 +63,7 @@ public class AlterCatalogOptionsOperation implements AlterOperation {
     public TableResultInternal execute(Context ctx) {
         try {
             ctx.getCatalogManager()
-                    .alterCatalog(
-                            catalogName, conf -> conf.addAll(Configuration.fromMap(properties)));
+                    .alterCatalog(catalogName, conf -> resetKeys.forEach(conf::removeKey));
 
             return TableResultImpl.TABLE_RESULT_OK;
         } catch (CatalogException e) {
