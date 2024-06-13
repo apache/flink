@@ -310,53 +310,6 @@ class SourceCoordinatorAlignmentTest extends SourceCoordinatorTestBase {
         testWatermarkAggregatorRandomly(10, 10000, true, false);
     }
 
-    @Test
-    void testWatermarkAlignmentWhileSubtaskFinished() throws Exception {
-        long maxDrift = 1000L;
-        WatermarkAlignmentParams params =
-                new WatermarkAlignmentParams(maxDrift, "group1", maxDrift);
-
-        final Source<Integer, MockSourceSplit, Set<MockSourceSplit>> mockSource =
-                createMockSource();
-
-        sourceCoordinator =
-                new SourceCoordinator<MockSourceSplit, Set<MockSourceSplit>>(
-                        OPERATOR_NAME,
-                        mockSource,
-                        getNewSourceCoordinatorContext(),
-                        new CoordinatorStoreImpl(),
-                        params,
-                        null) {
-                    @Override
-                    void announceCombinedWatermark() {
-                        super.announceCombinedWatermark();
-                    }
-                };
-
-        sourceCoordinator.start();
-
-        int subtask0 = 0;
-        int subtask1 = 1;
-
-        setReaderTaskReady(sourceCoordinator, subtask0, 0);
-        setReaderTaskReady(sourceCoordinator, subtask1, 0);
-        registerReader(subtask0);
-        registerReader(subtask1);
-
-        reportWatermarkEvent(sourceCoordinator, subtask0, 42);
-        assertLatestWatermarkAlignmentEvent(subtask0, 1042);
-
-        reportWatermarkEvent(sourceCoordinator, subtask1, 44);
-        assertLatestWatermarkAlignmentEvent(subtask1, 1042);
-
-        // mock noMoreSplits event
-        assertHasNoMoreSplits(subtask0, true);
-        reportWatermarkEvent(sourceCoordinator, subtask0, Long.MAX_VALUE);
-        assertLatestWatermarkAlignmentEvent(subtask1, 1044);
-
-        sourceCoordinator.close();
-    }
-
     private void testWatermarkAggregatorRandomly(
             int roundNumber, int keyNumber, boolean checkResult, boolean testSourceIdle) {
         final SourceCoordinator.WatermarkAggregator<Integer> combinedWatermark =
@@ -423,10 +376,5 @@ class SourceCoordinatorAlignmentTest extends SourceCoordinatorTestBase {
         assertThat(events).isNotEmpty();
         assertThat(events.get(events.size() - 1))
                 .isEqualTo(new WatermarkAlignmentEvent(expectedWatermark));
-    }
-
-    private void assertHasNoMoreSplits(int subtask, boolean expected) {
-        sourceCoordinator.getContext().signalNoMoreSplits(0);
-        assertThat(sourceCoordinator.getContext().hasNoMoreSplits(subtask)).isEqualTo(expected);
     }
 }

@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
 /** This ITCase class tests the behavior of task execution with watermark alignment. */
-public class WatermarkAlignmentITCase {
+class WatermarkAlignmentITCase {
 
     /**
      * Test method to verify whether the watermark alignment works well with finished task.
@@ -43,7 +43,7 @@ public class WatermarkAlignmentITCase {
      * @throws Exception if any error occurs during the execution.
      */
     @Test
-    public void testTaskFinishedWithWatermarkAlignmentExecution() throws Exception {
+    void testTaskFinishedWithWatermarkAlignmentExecution() throws Exception {
         // Set up the execution environment with parallelism of 2
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(2);
