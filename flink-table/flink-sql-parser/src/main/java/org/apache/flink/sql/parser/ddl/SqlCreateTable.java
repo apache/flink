@@ -296,6 +296,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
         public List<SqlNode> columnList = new ArrayList<>();
         public List<SqlTableConstraint> constraints = new ArrayList<>();
         @Nullable public SqlWatermark watermark;
+        @Nullable public SqlDistribution distribution;
     }
 
     public String[] fullTableName() {

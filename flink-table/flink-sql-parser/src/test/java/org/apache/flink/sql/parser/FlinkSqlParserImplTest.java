@@ -613,6 +613,59 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testAlterTableAddDistribution() {
+        sql("alter table t1 add DISTRIBUTION BY HASH(a) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `T1` ADD DISTRIBUTION BY HASH(`A`) INTO 6 BUCKETS");
+
+        sql("alter table t1 add DISTRIBUTION BY HASH(a, h) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `T1` ADD DISTRIBUTION BY HASH(`A`, `H`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 add DISTRIBUTION BY RANGE(a, h) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `TBL1` ADD DISTRIBUTION BY RANGE(`A`, `H`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 add DISTRIBUTION BY ^RANDOM^(a, h) INTO 6 BUCKETS")
+                .fails("(?s).*Encountered \"RANDOM\" at line 1, column 38.*");
+
+        sql("alter table tbl1 add DISTRIBUTION BY (a, h) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `TBL1` ADD DISTRIBUTION BY (`A`, `H`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 add DISTRIBUTION BY RANGE(a, h)")
+                .ok("ALTER TABLE `TBL1` ADD DISTRIBUTION BY RANGE(`A`, `H`)");
+
+        sql("alter table tbl1 add DISTRIBUTION BY (a, h)")
+                .ok("ALTER TABLE `TBL1` ADD DISTRIBUTION BY (`A`, `H`)");
+    }
+
+    @Test
+    void testAlterTableModifyDistribution() {
+        sql("alter table t1 modify DISTRIBUTION BY HASH(a) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `T1` MODIFY DISTRIBUTION BY HASH(`A`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY HASH(a, h) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `TBL1` MODIFY DISTRIBUTION BY HASH(`A`, `H`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY RANGE(a, h) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `TBL1` MODIFY DISTRIBUTION BY RANGE(`A`, `H`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY ^RANDOM^(a, h) INTO 6 BUCKETS")
+                .fails("(?s).*Encountered \"RANDOM\" at line 1, column 41.*");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY (a, h) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `TBL1` MODIFY DISTRIBUTION BY (`A`, `H`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY RANGE(a, h)")
+                .ok("ALTER TABLE `TBL1` MODIFY DISTRIBUTION BY RANGE(`A`, `H`)");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY (a, h)")
+                .ok("ALTER TABLE `TBL1` MODIFY DISTRIBUTION BY (`A`, `H`)");
+    }
+
+    @Test
+    void testAlterTableDropDistribution() {
+        sql("alter table t1 drop DISTRIBUTION").ok("ALTER TABLE `T1` DROP DISTRIBUTION");
+    }
+
+    @Test
     void testAlterTableAddMultipleColumn() {
         final String sql1 =
                 "alter table t1 add (\n"
@@ -970,7 +1023,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     void testCreateTableWithDistribution() {
-        final String sql = buildDistributionInput("DISTRIBUTED BY HASH(a, h) INTO 6 BUCKETS\n");
+        final String sql = buildDistributionInput("DISTRIBUTED BY HASH(a, h) INTO 6 BUCKETS");
         final String expected =
                 buildDistributionOutput("DISTRIBUTED BY HASH(`A`, `H`) INTO 6 BUCKETS\n");
         sql(sql).ok(expected);
@@ -1063,7 +1116,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "  h varchar, \n"
                         + "  PRIMARY KEY (a, b)\n"
                         + ")\n"
-                        + "DISTRIBUTED BY HASH(a, h) INTO 6 BUCKETS\n"
+                        + "DISTRIBUTED BY HASH(a, h) INTO 6 BUCKETS"
                         + "  with (\n"
                         + "    'connector' = 'kafka', \n"
                         + "    'kafka.topic' = 'log.test'\n"

@@ -54,6 +54,7 @@
     "org.apache.flink.sql.parser.ddl.SqlAlterTableCompact"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableDropColumn"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableDropConstraint"
+    "org.apache.flink.sql.parser.ddl.SqlAlterTableDropDistribution"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableDropPrimaryKey"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableDropWatermark"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableModify"

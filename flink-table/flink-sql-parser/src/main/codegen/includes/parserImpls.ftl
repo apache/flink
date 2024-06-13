@@ -780,6 +780,7 @@ SqlAlterTable SqlAlterTable() :
     SqlNodeList propertyList = SqlNodeList.EMPTY;
     SqlNodeList propertyKeyList = SqlNodeList.EMPTY;
     SqlNodeList partitionSpec = null;
+    SqlDistribution distribution = null;
     SqlIdentifier constraintName;
     SqlTableConstraint constraint;
     SqlIdentifier originColumnIdentifier;
@@ -866,6 +867,7 @@ SqlAlterTable SqlAlterTable() :
                         new SqlNodeList(ctx.columnPositions, startPos.plus(getPos())),
                         ctx.constraints,
                         ctx.watermark,
+                        ctx.distribution,
                         ifExists);
         }
         )
@@ -888,6 +890,7 @@ SqlAlterTable SqlAlterTable() :
                         new SqlNodeList(ctx.columnPositions, startPos.plus(getPos())),
                         ctx.constraints,
                         ctx.watermark,
+                        ctx.distribution,
                         ifExists);
         }
 
@@ -936,6 +939,13 @@ SqlAlterTable SqlAlterTable() :
                             startPos.plus(getPos()),
                             tableIdentifier,
                             constraintName,
+                            ifExists);
+            }
+        |
+            <DISTRIBUTION> {
+                return new SqlAlterTableDropDistribution(
+                            startPos.plus(getPos()),
+                            tableIdentifier,
                             ifExists);
             }
         |
@@ -1177,6 +1187,9 @@ void AlterTableAddOrModify(AlterTableContext context) :
         }
     |
         Watermark(context)
+    |
+        <DISTRIBUTION>
+        context.distribution = SqlDistribution(getPos())
     )
 }
 
@@ -1442,7 +1455,6 @@ SqlDistribution SqlDistribution(SqlParserPos startPos) :
     String distributionKind = null;
     SqlNumericLiteral bucketCount = null;
     SqlNodeList bucketColumns = SqlNodeList.EMPTY;
-    SqlDistribution distribution = null;
 }
 {
     (
@@ -1474,11 +1486,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
 	SqlCharStringLiteral comment = null;
 	SqlTableLike tableLike = null;
     SqlNode asQuery = null;
-
     SqlNodeList propertyList = SqlNodeList.EMPTY;
-    String distributionKind = null;
-    SqlNumericLiteral bucketCount = null;
-    SqlNodeList bucketColumns = SqlNodeList.EMPTY;
     SqlDistribution distribution = null;
     SqlNodeList partitionColumns = SqlNodeList.EMPTY;
     SqlParserPos pos = startPos;
@@ -1680,9 +1688,6 @@ SqlNode SqlReplaceTable() :
     List<SqlTableConstraint> constraints = new ArrayList<SqlTableConstraint>();
     SqlWatermark watermark = null;
     SqlNodeList columnList = SqlNodeList.EMPTY;
-    String distributionKind = null;
-    SqlNumericLiteral bucketCount = null;
-    SqlNodeList bucketColumns = SqlNodeList.EMPTY;
     SqlDistribution distribution = null;
     SqlNodeList partitionColumns = SqlNodeList.EMPTY;
     boolean ifNotExists = false;
