@@ -166,6 +166,7 @@ SqlAlterCatalog SqlAlterCatalog() :
     SqlParserPos startPos;
     SqlIdentifier catalogName;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
+    SqlNode comment = null;
 }
 {
     <ALTER> <CATALOG> { startPos = getPos(); }
@@ -185,6 +186,14 @@ SqlAlterCatalog SqlAlterCatalog() :
             return new SqlAlterCatalogReset(startPos.plus(getPos()),
                            catalogName,
                            propertyList);
+        }
+    |
+        <COMMENT>
+        comment = StringLiteral()
+        {
+            return new SqlAlterCatalogComment(startPos.plus(getPos()),
+                                       catalogName,
+                                       comment);
         }
     )
 }

@@ -21,6 +21,7 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Optional;
@@ -57,6 +58,10 @@ public class CatalogDescriptor {
 
     public Optional<String> getComment() {
         return Optional.ofNullable(comment);
+    }
+
+    public CatalogDescriptor setComment(@Nonnull String comment) {
+        return new CatalogDescriptor(catalogName, configuration, comment);
     }
 
     private CatalogDescriptor(

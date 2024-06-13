@@ -547,6 +547,7 @@ Language tag 用于指定 Flink runtime 如何执行这个函数。目前，只�
 ALTER CATALOG catalog_name 
     SET (key1=val1, ...)
   | RESET (key1, ...)
+  | COMMENT 'comment'
 ```
 
 ### SET
@@ -569,6 +570,16 @@ ALTER CATALOG cat2 SET ('default-database'='db');
 ```sql
 -- reset 'default-database'
 ALTER CATALOG cat2 RESET ('default-database');
+```
+
+### COMMENT
+
+为指定的 catalog 设置注释。若注释已经存在，则使用新值覆盖旧值。
+
+`COMMENT` 语句示例如下。
+
+```sql
+ALTER CATALOG cat2 COMMENT 'comment for catalog ''cat2''';
 ```
 
 {{< top >}}

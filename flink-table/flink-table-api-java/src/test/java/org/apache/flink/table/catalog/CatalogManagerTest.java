@@ -396,6 +396,35 @@ class CatalogManagerTest {
         assertEquals(
                 "comment for catalog",
                 catalogManager.getCatalogDescriptor("cat_comment").get().getComment().get());
+        assertThat(catalogManager.getCatalog("cat_comment")).isPresent();
+        assertThat(catalogManager.getCatalogDescriptor("cat_comment"))
+                .isPresent()
+                .hasValueSatisfying(
+                        descriptor ->
+                                assertThat(descriptor.getComment())
+                                        .isPresent()
+                                        .hasValueSatisfying(
+                                                comment ->
+                                                        assertEquals(
+                                                                "comment for catalog", comment)));
+
+        catalogManager.alterCatalog(
+                "cat_comment",
+                new CatalogChange.CatalogConfigurationChange(
+                        conf -> conf.setString("default-database", "db")));
+        catalogManager.alterCatalog(
+                "cat_comment", new CatalogChange.CatalogCommentChange("new comment"));
+        assertThat(catalogManager.getCatalogDescriptor("cat_comment"))
+                .isPresent()
+                .hasValueSatisfying(
+                        descriptor -> {
+                            assertThat(descriptor.getConfiguration().toMap())
+                                    .containsEntry("default-database", "db");
+                            assertThat(descriptor.getComment())
+                                    .isPresent()
+                                    .hasValueSatisfying(
+                                            comment -> assertEquals("new comment", comment));
+                        });
 
         assertTrue(catalogManager.listCatalogs().contains("cat1"));
         assertTrue(catalogManager.listCatalogs().contains("cat2"));

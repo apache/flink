@@ -52,6 +52,7 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
+import org.apache.flink.table.operations.ddl.AlterCatalogCommentOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogOptionsOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogResetOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
@@ -145,6 +146,20 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         assertThatThrownBy(() -> parse("ALTER CATALOG cat2 RESET ()"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("ALTER CATALOG RESET does not support empty key");
+
+        // test alter catalog comment
+        operation = parse("ALTER CATALOG cat2 COMMENT 'comment for catalog ''cat2'''");
+        assertThat(operation)
+                .isInstanceOf(AlterCatalogCommentOperation.class)
+                .asInstanceOf(InstanceOfAssertFactories.type(AlterCatalogCommentOperation.class))
+                .extracting(
+                        AlterCatalogCommentOperation::getCatalogName,
+                        AlterCatalogCommentOperation::asSummaryString,
+                        AlterCatalogCommentOperation::getComment)
+                .containsExactly(
+                        "cat2",
+                        "ALTER CATALOG cat2 COMMENT 'comment for catalog ''cat2'''",
+                        "comment for catalog 'cat2'");
     }
 
     @Test

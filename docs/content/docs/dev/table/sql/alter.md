@@ -549,6 +549,7 @@ Language tag to instruct flink runtime how to execute the function. Currently on
 ALTER CATALOG catalog_name 
     SET (key1=val1, ...)
   | RESET (key1, ...)
+  | COMMENT 'comment'
 ```
 
 ### SET
@@ -571,6 +572,16 @@ The following examples illustrate the usage of the `RESET` statements.
 ```sql
 -- reset 'default-database'
 ALTER CATALOG cat2 RESET ('default-database');
+```
+
+### COMMENT
+
+Set comment in the specified catalog. If the comment is already set in the catalog, override the old value with the new one.
+
+The following examples illustrate the usage of the `COMMENT` statements.
+
+```sql
+ALTER CATALOG cat2 COMMENT 'comment for catalog ''cat2''';
 ```
 
 {{< top >}}
