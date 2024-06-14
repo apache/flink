@@ -26,12 +26,15 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParserFixture;
 import org.apache.calcite.sql.parser.SqlParserTest;
+import org.apache.commons.lang3.StringUtils;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -121,15 +124,25 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         sql("use catalog a").ok("USE CATALOG `A`");
     }
 
-    @Test
-    void testCreateCatalog() {
-        sql("create catalog c1\n"
+    @ParameterizedTest
+    @CsvSource({"true,true", "true,false", "false,true", "false,false"})
+    void testCreateCatalog(boolean ifNotExists, boolean comment) {
+        String ifNotExistsClause = ifNotExists ? "if not exists " : "";
+        String commentClause = comment ? "\ncomment 'HELLO' " : " ";
+
+        sql("create catalog "
+                        + ifNotExistsClause
+                        + "c1"
+                        + commentClause
                         + " WITH (\n"
                         + "  'key1'='value1',\n"
                         + "  'key2'='value2'\n"
                         + " )\n")
                 .ok(
-                        "CREATE CATALOG `C1` "
+                        "CREATE CATALOG "
+                                + StringUtils.upperCase(ifNotExistsClause)
+                                + "`C1`"
+                                + StringUtils.upperCase(commentClause)
                                 + "WITH (\n"
                                 + "  'key1' = 'value1',\n"
                                 + "  'key2' = 'value2'\n"

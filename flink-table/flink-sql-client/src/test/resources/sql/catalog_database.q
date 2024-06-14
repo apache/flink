@@ -35,6 +35,7 @@ org.apache.flink.sql.parser.impl.ParseException: Encountered "." at line 1, colu
 Was expecting one of:
     <EOF>
     "WITH" ...
+    "COMMENT" ...
     ";" ...
 !error
 
@@ -90,6 +91,55 @@ drop catalog default_catalog;
 drop catalog c1;
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.catalog.exceptions.CatalogException: Cannot drop a catalog which is currently in use.
+!error
+
+create catalog cat_comment comment 'hello ''catalog''' WITH ('type'='generic_in_memory', 'default-database'='db');
+[INFO] Execute statement succeeded.
+!info
+
+show create catalog cat_comment;
++--------------------------------------------------------------------------------------------------------------------------------+
+|                                                                                                                         result |
++--------------------------------------------------------------------------------------------------------------------------------+
+| CREATE CATALOG `cat_comment` COMMENT 'hello ''catalog''' WITH (
+  'default-database' = 'db',
+  'type' = 'generic_in_memory'
+)
+ |
++--------------------------------------------------------------------------------------------------------------------------------+
+1 row in set
+!ok
+
+describe catalog cat_comment;
++-----------+-------------------+
+| info name |        info value |
++-----------+-------------------+
+|      name |       cat_comment |
+|      type | generic_in_memory |
+|   comment |   hello 'catalog' |
++-----------+-------------------+
+3 rows in set
+!ok
+
+describe catalog extended cat_comment;
++-------------------------+-------------------+
+|               info name |        info value |
++-------------------------+-------------------+
+|                    name |       cat_comment |
+|                    type | generic_in_memory |
+|                 comment |   hello 'catalog' |
+| option:default-database |                db |
++-------------------------+-------------------+
+4 rows in set
+!ok
+
+create catalog if not exists cat_comment comment 'hello' with ('type' = 'generic_in_memory');
+[INFO] Execute statement succeeded.
+!info
+
+create catalog cat_comment comment 'hello2' with ('type' = 'generic_in_memory');
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.catalog.exceptions.CatalogException: Catalog cat_comment already exists.
 !error
 
 create catalog cat2 WITH ('type'='generic_in_memory', 'default-database'='db');
