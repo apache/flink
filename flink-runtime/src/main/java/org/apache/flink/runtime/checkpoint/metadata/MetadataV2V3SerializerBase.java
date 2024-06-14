@@ -73,7 +73,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -675,17 +674,13 @@ public abstract class MetadataV2V3SerializerBase {
                 Preconditions.checkArgument(stateHandle instanceof SegmentFileStateHandle);
                 return isEmpty
                         ? new EmptyFileMergingOperatorStreamStateHandle(
-                                DirectoryStreamStateHandle.forPathWithZeroSize(
-                                        new File(taskOwnedDirPathStr).toPath()),
-                                DirectoryStreamStateHandle.forPathWithZeroSize(
-                                        new File(sharedDirPathStr).toPath()),
+                                DirectoryStreamStateHandle.of(new Path(taskOwnedDirPathStr)),
+                                DirectoryStreamStateHandle.of(new Path(sharedDirPathStr)),
                                 offsetsMap,
                                 stateHandle)
                         : new FileMergingOperatorStreamStateHandle(
-                                DirectoryStreamStateHandle.forPathWithZeroSize(
-                                        new File(taskOwnedDirPathStr).toPath()),
-                                DirectoryStreamStateHandle.forPathWithZeroSize(
-                                        new File(sharedDirPathStr).toPath()),
+                                DirectoryStreamStateHandle.of(new Path(taskOwnedDirPathStr)),
+                                DirectoryStreamStateHandle.of(new Path(sharedDirPathStr)),
                                 offsetsMap,
                                 stateHandle);
             } else {

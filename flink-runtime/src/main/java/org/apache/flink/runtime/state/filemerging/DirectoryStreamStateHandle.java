@@ -19,23 +19,28 @@
 package org.apache.flink.runtime.state.filemerging;
 
 import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.runtime.state.DirectoryStateHandle;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.PhysicalStateHandleID;
 import org.apache.flink.runtime.state.SharedStateRegistryKey;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
 import javax.annotation.Nonnull;
 
-import java.nio.file.Path;
 import java.util.Optional;
 
-/** Wrap {@link DirectoryStateHandle} to a {@link StreamStateHandle}. */
-public class DirectoryStreamStateHandle extends DirectoryStateHandle implements StreamStateHandle {
+/**
+ * This state handle represents a directory, usually used to be registered to {@link
+ * org.apache.flink.runtime.state.SharedStateRegistry} to track the life cycle of the directory.
+ */
+public class DirectoryStreamStateHandle implements StreamStateHandle {
 
     private static final long serialVersionUID = 1L;
 
-    public DirectoryStreamStateHandle(@Nonnull Path directory, long directorySize) {
-        super(directory, directorySize);
+    private final Path directory;
+
+    public DirectoryStreamStateHandle(@Nonnull Path directory) {
+        this.directory = directory;
     }
 
     @Override
@@ -50,11 +55,16 @@ public class DirectoryStreamStateHandle extends DirectoryStateHandle implements 
 
     @Override
     public PhysicalStateHandleID getStreamStateHandleID() {
-        return new PhysicalStateHandleID(getDirectory().toString());
+        return new PhysicalStateHandleID(directory.toString());
     }
 
     public SharedStateRegistryKey createStateRegistryKey() {
-        return new SharedStateRegistryKey(getDirectory().toUri().toString());
+        return new SharedStateRegistryKey(directory.toString());
+    }
+
+    @Override
+    public int hashCode() {
+        return directory.hashCode();
     }
 
     @Override
@@ -68,7 +78,7 @@ public class DirectoryStreamStateHandle extends DirectoryStateHandle implements 
 
         DirectoryStreamStateHandle that = (DirectoryStreamStateHandle) o;
 
-        return getDirectory().equals(that.getDirectory());
+        return directory.equals(that.directory);
     }
 
     @Override
@@ -76,15 +86,26 @@ public class DirectoryStreamStateHandle extends DirectoryStateHandle implements 
         return "DirectoryStreamStateHandle{" + "directory=" + getDirectory() + '}';
     }
 
+    public Path getDirectory() {
+        return directory;
+    }
+
+    @Override
+    public void discardState() throws Exception {
+        FileSystem fs = directory.getFileSystem();
+        fs.delete(directory, true);
+    }
+
     /**
-     * Return a {@link DirectoryStreamStateHandle} with zero size, which usually used to be
-     * registered to {@link org.apache.flink.runtime.state.SharedStateRegistry} to track the life
-     * cycle of the directory, therefore a fake size is provided.
-     *
-     * @param directory the directory.
-     * @return DirectoryStreamStateHandle with zero size.
+     * This handle usually used to track the life cycle of the directory, therefore a fake size is
+     * provided.
      */
-    public static DirectoryStreamStateHandle forPathWithZeroSize(@Nonnull Path directory) {
-        return new DirectoryStreamStateHandle(directory, 0);
+    @Override
+    public long getStateSize() {
+        return 0;
+    }
+
+    public static DirectoryStreamStateHandle of(@Nonnull Path directory) {
+        return new DirectoryStreamStateHandle(directory);
     }
 }

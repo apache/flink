@@ -42,7 +42,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
 
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
@@ -210,8 +209,7 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
             createManagedDirectory(managedExclusivePath);
             this.managedExclusiveStateDir = managedExclusivePath;
             this.managedExclusiveStateDirHandle =
-                    DirectoryStreamStateHandle.forPathWithZeroSize(
-                            new File(managedExclusivePath.getPath()).toPath());
+                    DirectoryStreamStateHandle.of(managedExclusivePath);
             this.writeBufferSize = writeBufferSize;
         }
     }
@@ -224,9 +222,7 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
             createManagedDirectory(managedPath);
             managedSharedStateDir.put(subtaskKey, managedPath);
             managedSharedStateDirHandles.put(
-                    subtaskKey,
-                    DirectoryStreamStateHandle.forPathWithZeroSize(
-                            new File(managedPath.getPath()).toPath()));
+                    subtaskKey, DirectoryStreamStateHandle.of(managedPath));
         }
     }
 
