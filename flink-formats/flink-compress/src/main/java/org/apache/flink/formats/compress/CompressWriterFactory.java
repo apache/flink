@@ -97,6 +97,17 @@ public class CompressWriterFactory<IN> implements BulkWriter.Factory<IN> {
         return this;
     }
 
+    /**
+     * Creates a {@link NoCompressionBulkWriter} even if {@code codecName} is given. This is
+     * required when compaction is used on compressed files.
+     *
+     * @param out The output stream to write the encoded data to.
+     */
+    @SuppressWarnings("unused")
+    public BulkWriter<IN> createWithNoCompression(FSDataOutputStream out) {
+        return new NoCompressionBulkWriter<>(out, extractor);
+    }
+
     @Override
     public BulkWriter<IN> create(FSDataOutputStream out) throws IOException {
         if (hadoopCodecName == null || hadoopCodecName.trim().isEmpty()) {

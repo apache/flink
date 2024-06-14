@@ -20,17 +20,11 @@ package org.apache.flink.connector.file.sink.compactor;
 
 import org.apache.flink.api.java.typeutils.runtime.EitherSerializer;
 import org.apache.flink.connector.file.sink.FileSinkCommittable;
-import org.apache.flink.connector.file.sink.FileSinkCommittableSerializer;
 import org.apache.flink.connector.file.sink.compactor.FileCompactStrategy.Builder;
 import org.apache.flink.connector.file.sink.compactor.operator.CompactCoordinator;
 import org.apache.flink.connector.file.sink.compactor.operator.CompactCoordinatorStateHandler;
 import org.apache.flink.connector.file.sink.compactor.operator.CompactorRequest;
 import org.apache.flink.connector.file.sink.compactor.operator.CompactorRequestSerializer;
-import org.apache.flink.connector.file.sink.utils.FileSinkTestUtils;
-import org.apache.flink.connector.file.sink.utils.FileSinkTestUtils.TestInProgressFileRecoverable;
-import org.apache.flink.connector.file.sink.utils.FileSinkTestUtils.TestPendingFileRecoverable;
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.io.SimpleVersionedSerializerTypeSerializerProxy;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
@@ -42,7 +36,6 @@ import org.apache.flink.types.Either;
 
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -423,30 +416,6 @@ class CompactCoordinatorTest extends AbstractCompactTestBase {
     private StreamRecord<CommittableMessage<FileSinkCommittable>> message(
             FileSinkCommittable committable) {
         return new StreamRecord<>(new CommittableWithLineage<>(committable, 1L, 0), 0L);
-    }
-
-    private FileSinkCommittable committable(String bucketId, String name, int size)
-            throws IOException {
-        // put bucketId after name to keep the possible '.' prefix in name
-        return new FileSinkCommittable(
-                bucketId,
-                new TestPendingFileRecoverable(
-                        newFile(name + "_" + bucketId, size <= 0 ? 1 : size), size));
-    }
-
-    private FileSinkCommittable cleanupInprogress(String bucketId, String name, int size)
-            throws IOException {
-        Path toCleanup = newFile(name + "_" + bucketId, size);
-        return new FileSinkCommittable(
-                bucketId, new TestInProgressFileRecoverable(toCleanup, size));
-    }
-
-    private SimpleVersionedSerializer<FileSinkCommittable> getTestCommittableSerializer() {
-        return new FileSinkCommittableSerializer(
-                new FileSinkTestUtils.SimpleVersionedWrapperSerializer<>(
-                        FileSinkTestUtils.TestPendingFileRecoverable::new),
-                new FileSinkTestUtils.SimpleVersionedWrapperSerializer<>(
-                        FileSinkTestUtils.TestInProgressFileRecoverable::new));
     }
 
     private void assertToCompact(CompactorRequest request, FileSinkCommittable... committables) {

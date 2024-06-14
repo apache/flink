@@ -89,11 +89,11 @@ public abstract class OutputStreamBasedPartFileWriter<IN, BucketID>
 
     @Override
     public OutputStream asOutputStream() throws IOException {
-        ensureWriteType(Type.OUTPUT_STREAM);
+        ensureWriteType(CompactingFileWriter.Type.OUTPUT_STREAM);
         return currentPartStream;
     }
 
-    protected void ensureWriteType(Type type) {
+    protected void ensureWriteType(CompactingFileWriter.Type type) {
         if (type != this.writeType) {
             if (this.writeType == null) {
                 this.writeType = type;
@@ -121,7 +121,7 @@ public abstract class OutputStreamBasedPartFileWriter<IN, BucketID>
         public InProgressFileWriter<IN, BucketID> openNewInProgressFile(
                 final BucketID bucketID, final Path path, final long creationTime)
                 throws IOException {
-            return openNew(bucketID, recoverableWriter.open(path), path, creationTime);
+            return openNew(bucketID, recoverableWriter.open(path), path, creationTime, false);
         }
 
         @Override
@@ -129,7 +129,7 @@ public abstract class OutputStreamBasedPartFileWriter<IN, BucketID>
                 CompactingFileWriter.Type type, BucketID bucketID, Path path, long creationTime)
                 throws IOException {
             // Both types are supported, overwrite to avoid UnsupportedOperationException.
-            return openNewInProgressFile(bucketID, path, creationTime);
+            return openNew(bucketID, recoverableWriter.open(path), path, creationTime, true);
         }
 
         @Override
@@ -195,7 +195,8 @@ public abstract class OutputStreamBasedPartFileWriter<IN, BucketID>
                 final BucketID bucketId,
                 final RecoverableFsDataOutputStream stream,
                 final Path path,
-                final long creationTime)
+                final long creationTime,
+                final boolean forceNoCompress)
                 throws IOException;
 
         public abstract InProgressFileWriter<IN, BucketID> resumeFrom(

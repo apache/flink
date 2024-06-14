@@ -32,7 +32,15 @@ import java.util.List;
 
 /**
  * A {@link OutputStreamBasedFileCompactor} implementation that simply concat the compacting files.
- * The fileDelimiter will be added between neighbouring files if provided.
+ *
+ * <p>The {@code fileDelimiter} will be added between neighboring files if provided. Supports the
+ * following compression types:
+ *
+ * <ul>
+ *   <li>DEFLATE
+ *   <li>GZIP
+ *   <li>BZIP2
+ * </ul>
  */
 @PublicEvolving
 public class ConcatFileCompactor extends OutputStreamBasedFileCompactor {

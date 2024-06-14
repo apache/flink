@@ -62,7 +62,8 @@ public class RowWiseBucketWriter<IN, BucketID>
             final BucketID bucketId,
             final RecoverableFsDataOutputStream stream,
             final Path path,
-            final long creationTime) {
+            final long creationTime,
+            final boolean forceNoCompress) {
 
         Preconditions.checkNotNull(stream);
         Preconditions.checkNotNull(path);

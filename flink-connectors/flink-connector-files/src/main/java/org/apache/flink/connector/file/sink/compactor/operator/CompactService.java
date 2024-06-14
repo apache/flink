@@ -19,6 +19,7 @@
 package org.apache.flink.connector.file.sink.compactor.operator;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.connector.file.sink.FileSinkCommittable;
 import org.apache.flink.connector.file.sink.compactor.FileCompactor;
 import org.apache.flink.connector.file.sink.compactor.OutputStreamBasedFileCompactor;
@@ -27,7 +28,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketWriter;
 import org.apache.flink.streaming.api.functions.sink.filesystem.CompactingFileWriter;
-import org.apache.flink.streaming.api.functions.sink.filesystem.CompactingFileWriter.Type;
 import org.apache.flink.streaming.api.functions.sink.filesystem.InProgressFileWriter.PendingFileRecoverable;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputStreamBasedCompactingFileWriter;
 import org.apache.flink.streaming.api.functions.sink.filesystem.RecordWiseCompactingFileWriter;
@@ -92,7 +92,8 @@ public class CompactService {
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
-    private Iterable<FileSinkCommittable> compact(CompactorRequest request) throws Exception {
+    @VisibleForTesting
+    Iterable<FileSinkCommittable> compact(CompactorRequest request) throws Exception {
         List<FileSinkCommittable> results = new ArrayList<>(request.getCommittableToPassthrough());
 
         List<Path> compactingFiles = getCompactingPath(request);
@@ -107,7 +108,7 @@ public class CompactService {
                         request.getBucketId(),
                         targetPath,
                         System.currentTimeMillis());
-        if (compactingWriterType == Type.RECORD_WISE) {
+        if (compactingWriterType == CompactingFileWriter.Type.RECORD_WISE) {
             ((RecordWiseFileCompactor) fileCompactor)
                     .compact(
                             compactingFiles,
@@ -162,14 +163,15 @@ public class CompactService {
         return new Path(uncompactedPath.getParent(), COMPACTED_PREFIX + uncompactedName);
     }
 
-    private static CompactingFileWriter.Type getWriterType(FileCompactor fileCompactor) {
+    @VisibleForTesting
+    static CompactingFileWriter.Type getWriterType(FileCompactor fileCompactor) {
         if (fileCompactor instanceof OutputStreamBasedFileCompactor) {
             return CompactingFileWriter.Type.OUTPUT_STREAM;
         } else if (fileCompactor instanceof RecordWiseFileCompactor) {
             return CompactingFileWriter.Type.RECORD_WISE;
         } else {
             throw new UnsupportedOperationException(
-                    "Unable to crate compacting file writer for compactor:"
+                    "Unable to create compacting file writer for compactor:"
                             + fileCompactor.getClass());
         }
     }
