@@ -432,7 +432,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                     // introduces a small performance regression (probably because of an extra
                     // virtual call)
                     processingTimeService.scheduleWithFixedDelay(
-                            this::emitLatestWatermark,
+                            time -> emitLatestWatermark(),
                             watermarkAlignmentParams.getUpdateInterval(),
                             watermarkAlignmentParams.getUpdateInterval());
                 }
@@ -447,6 +447,10 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                 sourceMetricGroup.idlingStarted();
                 return DataInputStatus.END_OF_DATA;
             case DATA_FINISHED:
+                if (watermarkAlignmentParams.isEnabled()) {
+                    latestWatermark = Watermark.MAX_WATERMARK.getTimestamp();
+                    emitLatestWatermark();
+                }
                 sourceMetricGroup.idlingStarted();
                 return DataInputStatus.END_OF_INPUT;
             case WAITING_FOR_ALIGNMENT:
@@ -504,7 +508,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         }
     }
 
-    private void emitLatestWatermark(long time) {
+    private void emitLatestWatermark() {
         checkState(currentMainOutput != null);
         if (latestWatermark == Watermark.UNINITIALIZED.getTimestamp()) {
             return;
