@@ -56,14 +56,13 @@ public final class ProcedureNamespace extends AbstractNamespace {
 
     public RelDataType validateImpl(RelDataType targetRowType) {
         validator.inferUnknownTypes(validator.unknownType, scope, call);
-        // The result is ignored but the type is derived to trigger the validation
-        final SqlCallBinding callBinding = new FlinkSqlCallBinding(validator, scope, call);
-        validator.deriveTypeImpl(scope, callBinding.permutedCall());
         final SqlOperator operator = call.getOperator();
         if (!(operator instanceof SqlTableFunction)) {
             throw new IllegalArgumentException(
                     "Argument must be a table function: " + operator.getNameAsId());
         }
+        final SqlCallBinding callBinding = new FlinkSqlCallBinding(validator, scope, call);
+        callBinding.permutedCall().validate(validator, scope);
         final SqlTableFunction tableFunction = (SqlTableFunction) operator;
         final SqlReturnTypeInference rowTypeInference = tableFunction.getRowTypeInference();
         final RelDataType rowRelDataType =
