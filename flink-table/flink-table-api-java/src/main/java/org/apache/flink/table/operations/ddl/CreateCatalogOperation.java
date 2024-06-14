@@ -41,7 +41,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class CreateCatalogOperation implements CreateOperation {
     private final String catalogName;
     private final Map<String, String> properties;
-    private final @Nullable String comment;
+    @Nullable private final String comment;
     private final boolean ignoreIfExists;
 
     public CreateCatalogOperation(
@@ -61,10 +61,6 @@ public class CreateCatalogOperation implements CreateOperation {
 
     public Map<String, String> getProperties() {
         return properties;
-    }
-
-    public @Nullable String getComment() {
-        return comment;
     }
 
     public boolean isIgnoreIfExists() {

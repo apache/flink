@@ -376,6 +376,17 @@ class CatalogManagerTest {
                 CatalogDescriptor.of(
                         "cat_comment", configuration.clone(), "second comment for catalog"),
                 true);
+        assertThatThrownBy(
+                        () ->
+                                catalogManager.createCatalog(
+                                        "cat_comment",
+                                        CatalogDescriptor.of(
+                                                "cat_comment",
+                                                configuration.clone(),
+                                                "third comment for catalog"),
+                                        false))
+                .isInstanceOf(CatalogException.class)
+                .hasMessage("Catalog cat_comment already exists.");
 
         assertTrue(catalogManager.getCatalog("cat1").isPresent());
         assertTrue(catalogManager.getCatalog("cat2").isPresent());
@@ -398,14 +409,14 @@ class CatalogManagerTest {
                                 catalogManager.createCatalog(
                                         "cat1", CatalogDescriptor.of("cat1", configuration)))
                 .isInstanceOf(CatalogException.class)
-                .hasMessageContaining("Catalog cat1 already exists in catalog store.");
+                .hasMessageContaining("Catalog cat1 already exists.");
 
         assertThatThrownBy(
                         () ->
                                 catalogManager.createCatalog(
                                         "cat4", CatalogDescriptor.of("cat4", configuration)))
                 .isInstanceOf(CatalogException.class)
-                .hasMessageContaining("Catalog cat4 already exists in initialized catalogs.");
+                .hasMessageContaining("Catalog cat4 already exists.");
 
         catalogManager.createDatabase(
                 "exist_cat",

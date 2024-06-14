@@ -59,10 +59,6 @@ public class CatalogDescriptor {
         return Optional.ofNullable(comment);
     }
 
-    public CatalogDescriptor setComment(String comment) {
-        return new CatalogDescriptor(catalogName, configuration, comment);
-    }
-
     private CatalogDescriptor(
             String catalogName, Configuration configuration, @Nullable String comment) {
         this.catalogName = catalogName;

@@ -308,21 +308,18 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                 "Catalog name cannot be null or empty.");
         checkNotNull(catalogDescriptor, "Catalog descriptor cannot be null");
 
-        if (catalogStoreHolder.catalogStore().contains(catalogName)) {
-            if (!ignoreIfExists) {
-                throw new CatalogException(
-                        format("Catalog %s already exists in catalog store.", catalogName));
-            }
-        } else {
-            catalogStoreHolder.catalogStore().storeCatalog(catalogName, catalogDescriptor);
-        }
+        boolean catalogExistsInStore = catalogStoreHolder.catalogStore().contains(catalogName);
+        boolean catalogExistsInMemory = catalogs.containsKey(catalogName);
 
-        if (catalogs.containsKey(catalogName)) {
+        if (catalogExistsInStore || catalogExistsInMemory) {
             if (!ignoreIfExists) {
-                throw new CatalogException(
-                        format("Catalog %s already exists in initialized catalogs.", catalogName));
+                throw new CatalogException(format("Catalog %s already exists.", catalogName));
             }
         } else {
+            // Store the catalog in the catalog store
+            catalogStoreHolder.catalogStore().storeCatalog(catalogName, catalogDescriptor);
+
+            // Initialize and store the catalog in memory
             Catalog catalog = initCatalog(catalogName, catalogDescriptor);
             catalog.open();
             catalogs.put(catalogName, catalog);

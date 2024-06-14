@@ -139,7 +139,7 @@ create catalog if not exists cat_comment comment 'hello' with ('type' = 'generic
 
 create catalog cat_comment comment 'hello2' with ('type' = 'generic_in_memory');
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.table.catalog.exceptions.CatalogException: Catalog cat_comment already exists in catalog store.
+org.apache.flink.table.catalog.exceptions.CatalogException: Catalog cat_comment already exists.
 !error
 
 create catalog cat2 WITH ('type'='generic_in_memory', 'default-database'='db');

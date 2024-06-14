@@ -27,10 +27,8 @@ import org.apache.flink.table.catalog.TableDistribution;
 
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlNumericLiteral;
-import org.apache.calcite.util.NlsString;
 
 import javax.annotation.Nullable;
 
@@ -85,13 +83,6 @@ public class OperationConverterUtils {
             return Collections.singletonList(
                     TableChange.modify(oldColumn, newColumn, columnPosition));
         }
-    }
-
-    public static @Nullable String getCatalogComment(Optional<SqlNode> catalogComment) {
-        return catalogComment
-                .map(SqlCharStringLiteral.class::cast)
-                .map(c -> c.getValueAs(NlsString.class).getValue())
-                .orElse(null);
     }
 
     public static @Nullable String getComment(SqlTableColumn column) {

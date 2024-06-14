@@ -48,7 +48,7 @@ public class SqlCreateCatalog extends SqlCreate {
 
     private final SqlNodeList propertyList;
 
-    private final @Nullable SqlNode comment;
+    @Nullable private final SqlNode comment;
 
     public SqlCreateCatalog(
             SqlParserPos position,
