@@ -18,9 +18,9 @@
 
 package org.apache.flink.configuration.description;
 
-import java.io.Serializable;
-
 import org.apache.flink.annotation.PublicEvolving;
+
+import java.io.Serializable;
 
 /** Part of a {@link Description} that can be converted into String representation. */
 @PublicEvolving
