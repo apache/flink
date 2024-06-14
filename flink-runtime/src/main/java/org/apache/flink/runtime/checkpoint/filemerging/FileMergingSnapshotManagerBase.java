@@ -25,6 +25,7 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.OutputStreamAndPath;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.filemerging.LogicalFile.LogicalFileId;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
@@ -153,12 +154,16 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     /** The current space statistic, updated on file creation/deletion. */
     protected SpaceStat spaceStat;
 
+    /** The metric group for file merging snapshot manager. */
+    protected FileMergingMetricGroup metricGroup;
+
     public FileMergingSnapshotManagerBase(
             String id,
             long maxFileSize,
             PhysicalFilePool.Type filePoolType,
             float maxSpaceAmplification,
-            Executor ioExecutor) {
+            Executor ioExecutor,
+            MetricGroup parentMetricGroup) {
         this.id = id;
         this.maxPhysicalFileSize = maxFileSize;
         this.filePoolType = filePoolType;
@@ -166,6 +171,7 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                 maxSpaceAmplification < 1f ? Float.MAX_VALUE : maxSpaceAmplification;
         this.ioExecutor = ioExecutor;
         this.spaceStat = new SpaceStat();
+        this.metricGroup = new FileMergingMetricGroup(parentMetricGroup, spaceStat);
     }
 
     @Override

@@ -781,7 +781,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             jobId,
                             tdd.getExecutionAttemptId(),
                             taskManagerConfiguration.getConfiguration(),
-                            jobInformation.getJobConfiguration());
+                            jobInformation.getJobConfiguration(),
+                            jobGroup);
 
             final FileMergingSnapshotManagerClosableWrapper fileMergingSnapshotManagerClosable =
                     fileMergingSnapshotManager == null
