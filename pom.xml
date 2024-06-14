@@ -175,7 +175,7 @@ under the License.
 			to revisit the impact at that time.
 		-->
 		<minikdc.version>3.2.4</minikdc.version>
-		<hive.version>2.3.9</hive.version>
+		<hive.version>2.3.10</hive.version>
 		<orc.version>1.5.6</orc.version>
 		<japicmp.referenceVersion>1.19.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
