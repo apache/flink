@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.wmassigners;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -30,6 +31,7 @@ import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.WatermarkGenerator;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -52,11 +54,21 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
 
     private transient long watermarkInterval;
 
+    private transient long timerInterval;
+
     private transient long currentWatermark;
 
-    private transient long lastRecordTime;
+    // Last time watermark have been (periodically) emitted
+    private transient long lastWatermarkPeriodicEmitTime;
+
+    // Last time idleness status has been checked
+    private transient long timeSinceLastIdleCheck;
 
     private transient WatermarkStatus currentStatus = WatermarkStatus.ACTIVE;
+
+    private transient long processedElements;
+
+    private transient long lastIdleCheckProcessedElements = -1;
 
     /**
      * Create a watermark assigner operator.
@@ -87,11 +99,14 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
         // watermark and timestamp should start from 0
         this.currentWatermark = 0;
         this.watermarkInterval = getExecutionConfig().getAutoWatermarkInterval();
-        this.lastRecordTime = getProcessingTimeService().getCurrentProcessingTime();
+        long now = getProcessingTimeService().getCurrentProcessingTime();
+        this.lastWatermarkPeriodicEmitTime = now;
+        this.timeSinceLastIdleCheck = now;
 
-        if (watermarkInterval > 0) {
-            long now = getProcessingTimeService().getCurrentProcessingTime();
-            getProcessingTimeService().registerTimer(now + watermarkInterval, this);
+        if (watermarkInterval > 0 || idleTimeout > 0) {
+            this.timerInterval =
+                    calculateProcessingTimeTimerInterval(watermarkInterval, idleTimeout);
+            getProcessingTimeService().registerTimer(now + timerInterval, this);
         }
 
         FunctionUtils.setFunctionRuntimeContext(watermarkGenerator, getRuntimeContext());
@@ -100,12 +115,11 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
 
     @Override
     public void processElement(StreamRecord<RowData> element) throws Exception {
-        if (idleTimeout > 0) {
-            if (currentStatus.equals(WatermarkStatus.IDLE)) {
-                // mark the channel active
-                emitWatermarkStatus(WatermarkStatus.ACTIVE);
-            }
-            lastRecordTime = getProcessingTimeService().getCurrentProcessingTime();
+        processedElements++;
+
+        if (isIdlenessEnabled() && currentStatus.equals(WatermarkStatus.IDLE)) {
+            // mark the channel active
+            emitWatermarkStatus(WatermarkStatus.ACTIVE);
         }
 
         RowData row = element.getValue();
@@ -139,19 +153,28 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
 
     @Override
     public void onProcessingTime(long timestamp) throws Exception {
-        advanceWatermark();
+        // timestamp and now can be off in case TM is heavily overloaded.
+        long now = getProcessingTimeService().getCurrentProcessingTime();
 
-        if (idleTimeout > 0 && currentStatus.equals(WatermarkStatus.ACTIVE)) {
-            final long currentTime = getProcessingTimeService().getCurrentProcessingTime();
-            if (currentTime - lastRecordTime > idleTimeout) {
-                // mark the channel as idle to ignore watermarks from this channel
-                emitWatermarkStatus(WatermarkStatus.IDLE);
-            }
+        if (watermarkInterval > 0 && lastWatermarkPeriodicEmitTime + watermarkInterval <= now) {
+            lastWatermarkPeriodicEmitTime = now;
+            advanceWatermark();
+        }
+
+        if (processedElements != lastIdleCheckProcessedElements) {
+            timeSinceLastIdleCheck = now;
+            lastIdleCheckProcessedElements = processedElements;
+        }
+
+        if (isIdlenessEnabled()
+                && currentStatus.equals(WatermarkStatus.ACTIVE)
+                && timeSinceLastIdleCheck + idleTimeout <= now) {
+            // mark the channel as idle to ignore watermarks from this channel
+            emitWatermarkStatus(WatermarkStatus.IDLE);
         }
 
         // register next timer
-        long now = getProcessingTimeService().getCurrentProcessingTime();
-        getProcessingTimeService().registerTimer(now + watermarkInterval, this);
+        getProcessingTimeService().registerTimer(now + timerInterval, this);
     }
 
     /**
@@ -163,7 +186,7 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
         // if we receive a Long.MAX_VALUE watermark we forward it since it is used
         // to signal the end of input and to not block watermark progress downstream
         if (mark.getTimestamp() == Long.MAX_VALUE && currentWatermark != Long.MAX_VALUE) {
-            if (idleTimeout > 0 && currentStatus.equals(WatermarkStatus.IDLE)) {
+            if (isIdlenessEnabled() && currentStatus.equals(WatermarkStatus.IDLE)) {
                 // mark the channel active
                 emitWatermarkStatus(WatermarkStatus.ACTIVE);
             }
@@ -192,5 +215,37 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
     public void close() throws Exception {
         FunctionUtils.closeFunction(watermarkGenerator);
         super.close();
+    }
+
+    private boolean isIdlenessEnabled() {
+        return idleTimeout > 0;
+    }
+
+    @VisibleForTesting
+    static long calculateProcessingTimeTimerInterval(long watermarkInterval, long idleTimeout) {
+        checkArgument(watermarkInterval > 0 || idleTimeout > 0);
+        if (watermarkInterval <= 0) {
+            return idleTimeout;
+        }
+        if (idleTimeout <= 0) {
+            return watermarkInterval;
+        }
+
+        long smallerInterval = Math.min(watermarkInterval, idleTimeout);
+        long largerInterval = Math.max(watermarkInterval, idleTimeout);
+
+        // If one of the intervals is 5x smaller, just pick the smaller one. The firing interval
+        // for the smaller one this way will be perfectly accurate, while for the larger one it will
+        // be good enough™. For example one timer is every 2s the other every 11s, the 2nd timer
+        // will be effectively checked every 12s, which is an acceptable accuracy.
+        long timerInterval;
+        if (smallerInterval * 5 < largerInterval) {
+            timerInterval = smallerInterval;
+        } else {
+            // Otherwise, just pick an interval 5x smaller than the smaller interval. Again accuracy
+            // will be good enough™.
+            timerInterval = smallerInterval / 5;
+        }
+        return Math.max(timerInterval, 1);
     }
 }
