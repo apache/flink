@@ -27,6 +27,7 @@ import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
+import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.runtime.source.event.ReportedWatermarkEvent;
 import org.apache.flink.runtime.source.event.WatermarkAlignmentEvent;
 import org.apache.flink.streaming.api.operators.source.CollectingDataOutput;
@@ -274,6 +275,36 @@ class SourceOperatorAlignmentTest {
         operator.emitNext(actualOutput);
         context.getTimeService().advance(1);
         assertLatestReportedWatermarkEvent(record1);
+    }
+
+    @Test
+    void testWatermarkAlignmentWhileSubtaskFinished() throws Exception {
+        operator.initializeState(context.createStateContext());
+        operator.getReaderState().clear();
+        operator.open();
+
+        MockSourceSplit newSplit = new MockSourceSplit(1, 0, 1);
+        int record1 = 1;
+        newSplit.addRecord(record1);
+
+        operator.handleOperatorEvent(
+                new AddSplitEvent<>(
+                        Collections.singletonList(newSplit), new MockSourceSplitSerializer()));
+
+        CollectingDataOutput<Integer> actualOutput = new CollectingDataOutput<>();
+        List<Integer> expectedOutput = new ArrayList<>();
+
+        assertThat(operator.emitNext(actualOutput)).isEqualTo(DataInputStatus.MORE_AVAILABLE);
+        expectedOutput.add(record1);
+        assertOutput(actualOutput, expectedOutput);
+
+        // no more split event, verify that the final watermark is emitted
+        operator.handleOperatorEvent(new NoMoreSplitsEvent());
+        assertThat(operator.emitNext(actualOutput)).isEqualTo(DataInputStatus.END_OF_DATA);
+
+        assertThat(operator.emitNext(actualOutput)).isEqualTo(DataInputStatus.END_OF_INPUT);
+        context.getTimeService().advance(1);
+        assertLatestReportedWatermarkEvent(Watermark.MAX_WATERMARK.getTimestamp());
     }
 
     private void assertOutput(
