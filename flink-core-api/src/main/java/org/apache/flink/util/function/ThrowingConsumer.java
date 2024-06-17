@@ -20,6 +20,8 @@ package org.apache.flink.util.function;
 
 import org.apache.flink.annotation.Public;
 
+import java.util.function.Consumer;
+
 /**
  * This interface is basically Java's {@link java.util.function.Consumer} interface enhanced with
  * the ability to throw an exception.
@@ -38,4 +40,21 @@ public interface ThrowingConsumer<T, E extends Throwable> {
      * @throws E on errors during consumption
      */
     void accept(T t) throws E;
+
+    /**
+     * Convert a {@link ThrowingConsumer} into a {@link Consumer}.
+     *
+     * @param throwingConsumer Consumer with exception to convert into a {@link Consumer}.
+     * @param <A> input type
+     * @return {@link Consumer} which rethrows all checked exceptions as unchecked.
+     */
+    static <A> Consumer<A> unchecked(ThrowingConsumer<A, ?> throwingConsumer) {
+        return (A a) -> {
+            try {
+                throwingConsumer.accept(a);
+            } catch (Throwable t) {
+                ThrowingExceptionUtils.rethrow(t);
+            }
+        };
+    }
 }

@@ -167,6 +167,13 @@ public final class FactoryUtil {
                                     + "tasks to advance their watermarks without the need to wait for "
                                     + "watermarks from this source while it is idle.");
 
+    public static final ConfigOption<String> WORKFLOW_SCHEDULER_TYPE =
+            ConfigOptions.key("workflow-scheduler.type")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Specify the workflow scheduler type that is used for materialized table.");
+
     /**
      * Suffix for keys of {@link ConfigOption} in case a connector requires multiple formats (e.g.
      * for both key and value).
@@ -903,7 +910,7 @@ public final class FactoryUtil {
         return loadResults;
     }
 
-    private static String stringifyOption(String key, String value) {
+    public static String stringifyOption(String key, String value) {
         if (GlobalConfiguration.isSensitive(key)) {
             value = HIDDEN_CONTENT;
         }

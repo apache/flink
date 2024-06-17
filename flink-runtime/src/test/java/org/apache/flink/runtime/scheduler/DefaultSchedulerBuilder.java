@@ -48,7 +48,9 @@ import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler;
 import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchSchedulerFactory;
+import org.apache.flink.runtime.scheduler.adaptivebatch.BatchJobRecoveryHandler;
 import org.apache.flink.runtime.scheduler.adaptivebatch.BlockingResultInfo;
+import org.apache.flink.runtime.scheduler.adaptivebatch.DummyBatchJobRecoveryHandler;
 import org.apache.flink.runtime.scheduler.adaptivebatch.VertexParallelismAndInputInfosDecider;
 import org.apache.flink.runtime.scheduler.strategy.AllFinishedInputConsumableDecider;
 import org.apache.flink.runtime.scheduler.strategy.InputConsumableDecider;
@@ -118,6 +120,7 @@ public class DefaultSchedulerBuilder {
             HybridPartitionDataConsumeConstraint.UNFINISHED_PRODUCERS;
     private InputConsumableDecider.Factory inputConsumableDeciderFactory =
             AllFinishedInputConsumableDecider.Factory.INSTANCE;
+    private BatchJobRecoveryHandler jobRecoveryHandler = new DummyBatchJobRecoveryHandler();
 
     public DefaultSchedulerBuilder(
             JobGraph jobGraph,
@@ -291,6 +294,12 @@ public class DefaultSchedulerBuilder {
         return this;
     }
 
+    public DefaultSchedulerBuilder setJobRecoveryHandler(
+            BatchJobRecoveryHandler jobRecoveryHandler) {
+        this.jobRecoveryHandler = jobRecoveryHandler;
+        return this;
+    }
+
     public DefaultScheduler build() throws Exception {
         return new DefaultScheduler(
                 log,
@@ -365,7 +374,8 @@ public class DefaultSchedulerBuilder {
                 executionSlotAllocatorFactory,
                 restartBackoffTimeStrategy,
                 delayExecutor,
-                vertexParallelismAndInputInfosDecider);
+                vertexParallelismAndInputInfosDecider,
+                jobRecoveryHandler);
     }
 
     private ExecutionGraphFactory createExecutionGraphFactory(boolean isDynamicGraph) {

@@ -93,6 +93,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.configuration.CheckpointingOptions.FILE_MERGING_ENABLED;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getLatestCompletedCheckpointPath;
 import static org.apache.flink.shaded.guava31.com.google.common.collect.Iterables.get;
 import static org.apache.flink.test.util.TestUtils.loadCheckpointMetadata;
@@ -154,7 +155,10 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
             int restartAttempts,
             long materializationInterval,
             int materializationMaxFailure) {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        Configuration conf = new Configuration();
+        conf.set(
+                FILE_MERGING_ENABLED, false); // TODO: remove file merging setting after FLINK-32085
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(conf);
         env.enableCheckpointing(checkpointInterval).enableChangelogStateBackend(true);
         env.getCheckpointConfig().enableUnalignedCheckpoints(false);
         env.setStateBackend(stateBackend)

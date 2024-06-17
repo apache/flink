@@ -19,18 +19,23 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.api.common.state.v2.State;
+import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.state.InternalStateFuture;
+import org.apache.flink.runtime.asyncprocessing.EpochManager.Epoch;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
+import org.apache.flink.util.function.BiFunctionWithException;
+import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
@@ -42,6 +47,7 @@ import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.RocksDB;
 
 import java.nio.file.Path;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 /** Base class for {@link ForStDBOperation} tests. */
@@ -82,7 +88,8 @@ public class ForStDBOperationTestBase {
 
     protected ContextKey<Integer> buildContextKey(int i) {
         int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(i, 128);
-        RecordContext<Integer> recordContext = new RecordContext<>(i, i, t -> {}, keyGroup);
+        RecordContext<Integer> recordContext =
+                new RecordContext<>(i, i, t -> {}, keyGroup, new Epoch(0));
         return new ContextKey<>(recordContext);
     }
 
@@ -103,5 +110,56 @@ public class ForStDBOperationTestBase {
                 serializedKeyBuilder,
                 valueSerializerView,
                 valueDeserializerView);
+    }
+
+    static class TestStateFuture<T> implements InternalStateFuture<T> {
+
+        public CompletableFuture<T> future = new CompletableFuture<>();
+
+        @Override
+        public void complete(T result) {
+            future.complete(result);
+        }
+
+        @Override
+        public void completeExceptionally(String message, Throwable ex) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void thenSyncAccept(ThrowingConsumer<? super T, ? extends Exception> action) {
+            throw new UnsupportedOperationException();
+        }
+
+        public T getCompletedResult() throws Exception {
+            return future.get();
+        }
+
+        @Override
+        public <U> StateFuture<U> thenApply(
+                FunctionWithException<? super T, ? extends U, ? extends Exception> fn) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public StateFuture<Void> thenAccept(
+                ThrowingConsumer<? super T, ? extends Exception> action) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public <U> StateFuture<U> thenCompose(
+                FunctionWithException<? super T, ? extends StateFuture<U>, ? extends Exception>
+                        action) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public <U, V> StateFuture<V> thenCombine(
+                StateFuture<? extends U> other,
+                BiFunctionWithException<? super T, ? super U, ? extends V, ? extends Exception>
+                        fn) {
+            throw new UnsupportedOperationException();
+        }
     }
 }

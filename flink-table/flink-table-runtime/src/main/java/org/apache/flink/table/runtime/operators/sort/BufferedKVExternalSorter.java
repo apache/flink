@@ -18,6 +18,7 @@
 package org.apache.flink.table.runtime.operators.sort;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.compression.BlockCompressionFactory;
 import org.apache.flink.runtime.io.disk.iomanager.AbstractChannelWriterOutputView;
@@ -103,7 +104,7 @@ public class BufferedKVExternalSorter {
         this.compressionCodecFactory =
                 this.compressionEnabled
                         ? BlockCompressionFactory.createBlockCompressionFactory(
-                                BlockCompressionFactory.CompressionFactoryName.LZ4.toString())
+                                CompressionCodec.LZ4)
                         : null;
         this.compressionBlockSize = compressionBlockSize;
         this.ioManager = ioManager;

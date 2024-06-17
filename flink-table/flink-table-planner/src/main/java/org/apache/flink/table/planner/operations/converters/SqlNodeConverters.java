@@ -39,6 +39,9 @@ public class SqlNodeConverters {
     static {
         // register all the converters here
         register(new SqlCreateCatalogConverter());
+        register(new SqlAlterCatalogOptionsConverter());
+        register(new SqlAlterCatalogResetConverter());
+        register(new SqlAlterCatalogCommentConverter());
         register(new SqlCreateViewConverter());
         register(new SqlAlterViewRenameConverter());
         register(new SqlAlterViewPropertiesConverter());
@@ -55,6 +58,12 @@ public class SqlNodeConverters {
         register(new SqlShowDatabasesConverter());
         register(new SqlShowCreateCatalogConverter());
         register(new SqlDescribeCatalogConverter());
+        register(new SqlDescribeJobConverter());
+        register(new SqlCreateMaterializedTableConverter());
+        register(new SqlAlterMaterializedTableRefreshConverter());
+        register(new SqlAlterMaterializedTableSuspendConverter());
+        register(new SqlAlterMaterializedTableResumeConverter());
+        register(new SqlDropMaterializedTableConverter());
     }
 
     /**

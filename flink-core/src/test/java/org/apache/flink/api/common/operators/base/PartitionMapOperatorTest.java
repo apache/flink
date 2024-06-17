@@ -42,7 +42,7 @@ import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** The test for partition map operator. */
-public class PartitionMapOperatorTest implements java.io.Serializable {
+class PartitionMapOperatorTest implements java.io.Serializable {
 
     @Test
     void testMapPartitionWithRuntimeContext() throws Exception {

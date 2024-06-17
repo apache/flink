@@ -154,7 +154,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             "DispatcherRestEndpoint");
 
             final long updateInterval =
-                    configuration.get(MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL);
+                    configuration.get(MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL).toMillis();
             final MetricFetcher metricFetcher =
                     updateInterval == 0
                             ? VoidMetricFetcher.INSTANCE

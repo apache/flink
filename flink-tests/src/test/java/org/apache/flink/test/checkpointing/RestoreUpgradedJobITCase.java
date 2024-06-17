@@ -22,7 +22,9 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.SavepointFormatType;
@@ -31,7 +33,6 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -166,10 +167,13 @@ public class RestoreUpgradedJobITCase extends TestLogger {
 
     @NotNull
     private String runOriginalJob() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        Configuration conf = new Configuration();
+        // TODO: remove this after FLINK-32081
+        conf.set(CheckpointingOptions.FILE_MERGING_ENABLED, false);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(conf);
         env.getCheckpointConfig()
-                .setExternalizedCheckpointCleanup(
-                        CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+                .setExternalizedCheckpointRetention(
+                        ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
         env.getCheckpointConfig().enableUnalignedCheckpoints(false);
         env.getCheckpointConfig()
                 .setCheckpointStorage("file://" + temporaryFolder.getRoot().getAbsolutePath());
@@ -215,6 +219,7 @@ public class RestoreUpgradedJobITCase extends TestLogger {
         StreamExecutionEnvironment env;
         Configuration conf = new Configuration();
         conf.set(StateRecoveryOptions.SAVEPOINT_PATH, snapshotPath);
+        conf.set(CheckpointingOptions.FILE_MERGING_ENABLED, false);
         env = StreamExecutionEnvironment.getExecutionEnvironment(conf);
         env.setParallelism(PARALLELISM);
         env.addSource(new StringSource(allDataEmittedLatch))

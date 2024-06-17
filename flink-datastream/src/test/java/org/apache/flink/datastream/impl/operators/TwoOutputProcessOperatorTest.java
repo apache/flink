@@ -19,7 +19,7 @@
 package org.apache.flink.datastream.impl.operators;
 
 import org.apache.flink.datastream.api.common.Collector;
-import org.apache.flink.datastream.api.context.RuntimeContext;
+import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.context.TwoOutputNonPartitionedContext;
 import org.apache.flink.datastream.api.function.TwoOutputStreamProcessFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -29,8 +29,8 @@ import org.apache.flink.util.OutputTag;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -48,7 +48,7 @@ class TwoOutputProcessOperatorTest {
                                     Integer record,
                                     Collector<Integer> output1,
                                     Collector<Long> output2,
-                                    RuntimeContext ctx) {
+                                    PartitionedContext ctx) {
                                 output1.collect(record);
                                 output2.collect((long) (record * 2));
                             }
@@ -75,7 +75,7 @@ class TwoOutputProcessOperatorTest {
 
     @Test
     void testEndInput() throws Exception {
-        CompletableFuture<Void> future = new CompletableFuture<>();
+        AtomicInteger counter = new AtomicInteger();
         OutputTag<Long> sideOutputTag = new OutputTag<Long>("side-output") {};
 
         TwoOutputProcessOperator<Integer, Integer, Long> processOperator =
@@ -86,14 +86,23 @@ class TwoOutputProcessOperatorTest {
                                     Integer record,
                                     Collector<Integer> output1,
                                     Collector<Long> output2,
-                                    RuntimeContext ctx) {
+                                    PartitionedContext ctx) {
                                 // do nothing.
                             }
 
                             @Override
                             public void endInput(
                                     TwoOutputNonPartitionedContext<Integer, Long> ctx) {
-                                future.complete(null);
+                                try {
+                                    ctx.applyToAllPartitions(
+                                            (firstOutput, secondOutput, context) -> {
+                                                counter.incrementAndGet();
+                                                firstOutput.collect(1);
+                                                secondOutput.collect(2L);
+                                            });
+                                } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                }
                             }
                         },
                         sideOutputTag);
@@ -102,7 +111,12 @@ class TwoOutputProcessOperatorTest {
                 new OneInputStreamOperatorTestHarness<>(processOperator)) {
             testHarness.open();
             testHarness.endInput();
-            assertThat(future).isCompleted();
+            assertThat(counter).hasValue(1);
+            Collection<StreamRecord<Integer>> firstOutput = testHarness.getRecordOutput();
+            ConcurrentLinkedQueue<StreamRecord<Long>> secondOutput =
+                    testHarness.getSideOutput(sideOutputTag);
+            assertThat(firstOutput).containsExactly(new StreamRecord<>(1));
+            assertThat(secondOutput).containsExactly(new StreamRecord<>(2L));
         }
     }
 }

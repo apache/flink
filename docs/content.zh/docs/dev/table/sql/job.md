@@ -52,7 +52,7 @@ Flink SQL> SHOW JOBS;
 | 228d70913eab60dda85c5e7f78b5782c |    myjob | RUNNING | 2023-02-11T05:03:51.523 |
 +----------------------------------+----------+---------+-------------------------+
 
-Flink SQL> SET 'state.savepoints.dir'='file:/tmp/';
+Flink SQL> SET 'execution.checkpointing.savepoint-dir'='file:/tmp/';
 [INFO] Execute statement succeeded.
 
 Flink SQL> STOP JOB '228d70913eab60dda85c5e7f78b5782c' WITH SAVEPOINT;
@@ -85,7 +85,7 @@ STOP JOB '<job_id>' [WITH SAVEPOINT] [WITH DRAIN]
 
 **WITH SAVEPOINT**
 在作业停止之前执行 Savepoin。 Savepoint 的路径可以通过集群配置的
-[state.savepoints.dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir) 指定，
+[execution.checkpointing.savepoint-dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir) 指定，
 或者通过 `SET` 语句指定（后者有更高优先级）。
 
 **WITH DRAIN**

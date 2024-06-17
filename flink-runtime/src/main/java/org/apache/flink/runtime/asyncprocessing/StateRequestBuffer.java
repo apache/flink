@@ -23,19 +23,18 @@ import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * A buffer to hold state requests to execute state requests in batch, which can only be manipulated
@@ -198,18 +197,20 @@ public class StateRequestBuffer<K> {
      * Try to pop state requests from active queue, if the size of active queue is less than N,
      * return all the requests in active queue.
      *
-     * @param n the number of state requests to pop.
-     * @return A list of state requests.
+     * @param n The number of state requests to pop.
+     * @param requestContainerInitializer Initializer for the stateRequest container
+     * @return A StateRequestContainer which holds the popped state requests.
      */
-    List<StateRequest<?, ?, ?>> popActive(int n) {
+    Optional<StateRequestContainer> popActive(
+            int n, Supplier<StateRequestContainer> requestContainerInitializer) {
         final int count = Math.min(n, activeQueue.size());
         if (count <= 0) {
-            return Collections.emptyList();
+            return Optional.empty();
         }
-        ArrayList<StateRequest<?, ?, ?>> ret = new ArrayList<>(count);
+        StateRequestContainer stateRequestContainer = requestContainerInitializer.get();
         for (int i = 0; i < count; i++) {
-            ret.add(activeQueue.pop());
+            stateRequestContainer.offer(activeQueue.pop());
         }
-        return ret;
+        return Optional.of(stateRequestContainer);
     }
 }

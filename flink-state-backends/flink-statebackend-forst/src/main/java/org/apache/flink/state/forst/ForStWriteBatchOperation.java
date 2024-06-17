@@ -22,26 +22,19 @@ import org.rocksdb.RocksDB;
 import org.rocksdb.WriteBatch;
 import org.rocksdb.WriteOptions;
 
-import javax.annotation.Nullable;
-
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
-/**
- * The writeBatch operation implementation for ForStDB.
- *
- * @param <K> The type of key in put access request.
- * @param <V> The type of value in put access request.
- */
-public class ForStWriteBatchOperation<K, V> implements ForStDBOperation<Void> {
+/** The writeBatch operation implementation for ForStDB. */
+public class ForStWriteBatchOperation implements ForStDBOperation {
 
     private static final int PER_RECORD_ESTIMATE_BYTES = 100;
 
     private final RocksDB db;
 
-    private final List<PutRequest<K, V>> batchRequest;
+    private final List<ForStDBPutRequest<?, ?>> batchRequest;
 
     private final WriteOptions writeOptions;
 
@@ -49,7 +42,7 @@ public class ForStWriteBatchOperation<K, V> implements ForStDBOperation<Void> {
 
     ForStWriteBatchOperation(
             RocksDB db,
-            List<PutRequest<K, V>> batchRequest,
+            List<ForStDBPutRequest<?, ?>> batchRequest,
             WriteOptions writeOptions,
             Executor executor) {
         this.db = db;
@@ -64,46 +57,33 @@ public class ForStWriteBatchOperation<K, V> implements ForStDBOperation<Void> {
                 () -> {
                     try (WriteBatch writeBatch =
                             new WriteBatch(batchRequest.size() * PER_RECORD_ESTIMATE_BYTES)) {
-                        for (PutRequest<K, V> request : batchRequest) {
-                            ForStInnerTable<K, V> table = request.table;
-                            if (request.value == null) {
+                        for (ForStDBPutRequest<?, ?> request : batchRequest) {
+                            if (request.valueIsNull()) {
                                 // put(key, null) == delete(key)
                                 writeBatch.delete(
-                                        table.getColumnFamilyHandle(),
-                                        table.serializeKey(request.key));
+                                        request.getColumnFamilyHandle(),
+                                        request.buildSerializedKey());
                             } else {
                                 writeBatch.put(
-                                        table.getColumnFamilyHandle(),
-                                        table.serializeKey(request.key),
-                                        table.serializeValue(request.value));
+                                        request.getColumnFamilyHandle(),
+                                        request.buildSerializedKey(),
+                                        request.buildSerializedValue());
                             }
                         }
                         db.write(writeOptions, writeBatch);
+                        for (ForStDBPutRequest<?, ?> request : batchRequest) {
+                            request.completeStateFuture();
+                        }
                     } catch (Exception e) {
-                        throw new CompletionException("Error while adding data to ForStDB", e);
+                        String msg = "Error while write batch data to ForStDB.";
+                        for (ForStDBPutRequest<?, ?> request : batchRequest) {
+                            // fail every state request in this batch
+                            request.completeStateFutureExceptionally(msg, e);
+                        }
+                        // fail the whole batch operation
+                        throw new CompletionException(msg, e);
                     }
                 },
                 executor);
-    }
-
-    /** The Put access request for ForStDB. */
-    static class PutRequest<K, V> {
-        final K key;
-        @Nullable final V value;
-        final ForStInnerTable<K, V> table;
-
-        private PutRequest(K key, V value, ForStInnerTable<K, V> table) {
-            this.key = key;
-            this.value = value;
-            this.table = table;
-        }
-
-        /**
-         * If the value of the PutRequest is null, then the request will signify the deletion of the
-         * data associated with that key.
-         */
-        static <K, V> PutRequest<K, V> of(K key, @Nullable V value, ForStInnerTable<K, V> table) {
-            return new PutRequest<>(key, value, table);
-        }
     }
 }

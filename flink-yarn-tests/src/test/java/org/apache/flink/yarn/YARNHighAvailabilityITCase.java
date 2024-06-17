@@ -77,6 +77,7 @@ import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -328,12 +329,13 @@ class YARNHighAvailabilityITCase extends YarnTestBase {
         final Configuration flinkConfiguration = new Configuration();
         flinkConfiguration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(768));
         flinkConfiguration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
-        flinkConfiguration.set(YarnConfigOptions.APPLICATION_ATTEMPTS, "10");
+        flinkConfiguration.set(YarnConfigOptions.APPLICATION_ATTEMPTS, 10);
         flinkConfiguration.set(HighAvailabilityOptions.HA_MODE, "zookeeper");
         flinkConfiguration.set(HighAvailabilityOptions.HA_STORAGE_PATH, storageDir);
         flinkConfiguration.set(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkServer.getConnectString());
-        flinkConfiguration.set(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, 20000);
+        flinkConfiguration.set(
+                HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, Duration.ofMillis(20000));
 
         flinkConfiguration.set(RestartStrategyOptions.RESTART_STRATEGY, FIXED_DELAY.getMainValue());
         flinkConfiguration.set(

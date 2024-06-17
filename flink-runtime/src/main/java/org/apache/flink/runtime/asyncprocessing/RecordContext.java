@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.asyncprocessing;
 
+import org.apache.flink.runtime.asyncprocessing.EpochManager.Epoch;
+
 import javax.annotation.Nullable;
 
 import java.util.Objects;
@@ -46,7 +48,7 @@ public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRun
 
     /**
      * The disposer for disposing this context. This should be invoked in {@link
-     * #referenceCountReachedZero()}, which may be called once the ref count reaches zero in any
+     * #referenceCountReachedZero}, which may be called once the ref count reaches zero in any
      * thread.
      */
     private final Consumer<RecordContext<K>> disposer;
@@ -61,13 +63,18 @@ public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRun
      */
     private @Nullable volatile Object extra;
 
-    public RecordContext(Object record, K key, Consumer<RecordContext<K>> disposer, int keyGroup) {
+    /** The epoch of this context. */
+    private final Epoch epoch;
+
+    public RecordContext(
+            Object record, K key, Consumer<RecordContext<K>> disposer, int keyGroup, Epoch epoch) {
         super(0);
         this.record = record;
         this.key = key;
         this.keyOccupied = false;
         this.disposer = disposer;
         this.keyGroup = keyGroup;
+        this.epoch = epoch;
     }
 
     public Object getRecord() {
@@ -112,6 +119,10 @@ public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRun
         return extra;
     }
 
+    public Epoch getEpoch() {
+        return epoch;
+    }
+
     @Override
     public int hashCode() {
         return Objects.hash(record, key);
@@ -129,6 +140,12 @@ public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRun
         if (!Objects.equals(record, that.record)) {
             return false;
         }
+        if (!Objects.equals(keyGroup, that.keyGroup)) {
+            return false;
+        }
+        if (!Objects.equals(epoch, that.epoch)) {
+            return false;
+        }
         return Objects.equals(key, that.key);
     }
 
@@ -143,6 +160,8 @@ public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRun
                 + keyOccupied
                 + ", ref="
                 + getReferenceCount()
+                + ", epoch="
+                + epoch.id
                 + "}";
     }
 

@@ -44,26 +44,25 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 /** Integration tests for reusing persisted intermediate dataset */
-public class JobIntermediateDatasetReuseTest {
+class JobIntermediateDatasetReuseTest {
 
     private static final Logger LOG =
             LoggerFactory.getLogger(JobIntermediateDatasetReuseTest.class);
 
     @Test
-    public void testClusterPartitionReuse() throws Exception {
+    void testClusterPartitionReuse() throws Exception {
         internalTestClusterPartitionReuse(
                 1, 1, jobResult -> Assertions.assertThat(jobResult.isSuccess()).isTrue());
     }
 
     @Test
-    public void testClusterPartitionReuseMultipleParallelism() throws Exception {
+    void testClusterPartitionReuseMultipleParallelism() throws Exception {
         internalTestClusterPartitionReuse(
                 64, 64, jobResult -> Assertions.assertThat(jobResult.isSuccess()).isTrue());
     }
 
     @Test
-    public void testClusterPartitionReuseWithMoreConsumerParallelismThrowException()
-            throws Exception {
+    void testClusterPartitionReuseWithMoreConsumerParallelismThrowException() throws Exception {
         internalTestClusterPartitionReuse(
                 1,
                 2,
@@ -75,8 +74,7 @@ public class JobIntermediateDatasetReuseTest {
     }
 
     @Test
-    public void testClusterPartitionReuseWithLessConsumerParallelismThrowException()
-            throws Exception {
+    void testClusterPartitionReuseWithLessConsumerParallelismThrowException() throws Exception {
         internalTestClusterPartitionReuse(
                 2,
                 1,
@@ -118,7 +116,7 @@ public class JobIntermediateDatasetReuseTest {
     }
 
     @Test
-    public void testClusterPartitionReuseWithTMFail() throws Exception {
+    void testClusterPartitionReuseWithTMFail() throws Exception {
         final TestingMiniClusterConfiguration miniClusterConfiguration =
                 TestingMiniClusterConfiguration.newBuilder().build();
 

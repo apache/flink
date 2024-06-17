@@ -315,6 +315,54 @@ public class ExecutionConfigOptions {
                     .withDescription(
                             "Sets the window elements buffer size limit used in group window agg operator.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+    public static final ConfigOption<Boolean> TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_ENABLED =
+            ConfigOptions.key("table.exec.local-hash-agg.adaptive.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Whether to enable adaptive local hash aggregation. Adaptive local hash "
+                                    + "aggregation is an optimization of local hash aggregation, which can adaptively "
+                                    + "determine whether to continue to do local hash aggregation according to the distinct "
+                                    + "value rate of sampling data. If distinct value rate bigger than defined threshold "
+                                    + "(see parameter: table.exec.local-hash-agg.adaptive.distinct-value-rate-threshold), "
+                                    + "we will stop aggregating and just send the input data to the downstream after a simple "
+                                    + "projection. Otherwise, we will continue to do aggregation. Adaptive local hash aggregation "
+                                    + "only works in batch mode. Default value of this parameter is true.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+    public static final ConfigOption<Long> TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD =
+            ConfigOptions.key("table.exec.local-hash-agg.adaptive.sampling-threshold")
+                    .longType()
+                    .defaultValue(500000L)
+                    .withDescription(
+                            "If adaptive local hash aggregation is enabled, this value defines how "
+                                    + "many records will be used as sampled data to calculate distinct value rate "
+                                    + "(see parameter: table.exec.local-hash-agg.adaptive.distinct-value-rate-threshold) "
+                                    + "for the local aggregate. The higher the sampling threshold, the more accurate "
+                                    + "the distinct value rate is. But as the sampling threshold increases, local "
+                                    + "aggregation is meaningless when the distinct values rate is low. "
+                                    + "The default value is 500000.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+    public static final ConfigOption<Double>
+            TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_DISTINCT_VALUE_RATE_THRESHOLD =
+                    ConfigOptions.key(
+                                    "table.exec.local-hash-agg.adaptive.distinct-value-rate-threshold")
+                            .doubleType()
+                            .defaultValue(0.5d)
+                            .withDescription(
+                                    "The distinct value rate can be defined as the number of local "
+                                            + "aggregation results for the sampled data divided by the sampling "
+                                            + "threshold (see "
+                                            + TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD
+                                                    .key()
+                                            + "). "
+                                            + "If the computed result is lower than the given configuration value, "
+                                            + "the remaining input records proceed to do local aggregation, otherwise "
+                                            + "the remaining input records are subjected to simple projection which "
+                                            + "calculation cost is less than local aggregation. The default value is 0.5.");
+
     // ------------------------------------------------------------------------
     //  Async Lookup Options
     // ------------------------------------------------------------------------

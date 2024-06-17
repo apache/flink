@@ -20,7 +20,7 @@ package org.apache.flink.datastream.impl.operators;
 
 import org.apache.flink.datastream.api.common.Collector;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
-import org.apache.flink.datastream.api.context.RuntimeContext;
+import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.function.TwoInputNonBroadcastStreamProcessFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
@@ -28,7 +28,7 @@ import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -41,13 +41,15 @@ class TwoInputNonBroadcastProcessOperatorTest {
                         new TwoInputNonBroadcastStreamProcessFunction<Integer, Long, Long>() {
                             @Override
                             public void processRecordFromFirstInput(
-                                    Integer record, Collector<Long> output, RuntimeContext ctx) {
+                                    Integer record,
+                                    Collector<Long> output,
+                                    PartitionedContext ctx) {
                                 output.collect(Long.valueOf(record));
                             }
 
                             @Override
                             public void processRecordFromSecondInput(
-                                    Long record, Collector<Long> output, RuntimeContext ctx) {
+                                    Long record, Collector<Long> output, PartitionedContext ctx) {
                                 output.collect(record);
                             }
                         });
@@ -73,33 +75,49 @@ class TwoInputNonBroadcastProcessOperatorTest {
 
     @Test
     void testEndInput() throws Exception {
-        CompletableFuture<Void> firstFuture = new CompletableFuture<>();
-        CompletableFuture<Void> secondFuture = new CompletableFuture<>();
+        AtomicInteger firstInputCounter = new AtomicInteger();
+        AtomicInteger secondInputCounter = new AtomicInteger();
         TwoInputNonBroadcastProcessOperator<Integer, Long, Long> processOperator =
                 new TwoInputNonBroadcastProcessOperator<>(
                         new TwoInputNonBroadcastStreamProcessFunction<Integer, Long, Long>() {
                             @Override
                             public void processRecordFromFirstInput(
-                                    Integer record, Collector<Long> output, RuntimeContext ctx)
+                                    Integer record, Collector<Long> output, PartitionedContext ctx)
                                     throws Exception {
                                 // do nothing.
                             }
 
                             @Override
                             public void processRecordFromSecondInput(
-                                    Long record, Collector<Long> output, RuntimeContext ctx)
+                                    Long record, Collector<Long> output, PartitionedContext ctx)
                                     throws Exception {
                                 // do nothing.
                             }
 
                             @Override
                             public void endFirstInput(NonPartitionedContext<Long> ctx) {
-                                firstFuture.complete(null);
+                                try {
+                                    ctx.applyToAllPartitions(
+                                            (out, context) -> {
+                                                firstInputCounter.incrementAndGet();
+                                                out.collect(1L);
+                                            });
+                                } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                }
                             }
 
                             @Override
                             public void endSecondInput(NonPartitionedContext<Long> ctx) {
-                                secondFuture.complete(null);
+                                try {
+                                    ctx.applyToAllPartitions(
+                                            (out, context) -> {
+                                                secondInputCounter.incrementAndGet();
+                                                out.collect(2L);
+                                            });
+                                } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                }
                             }
                         });
 
@@ -107,9 +125,12 @@ class TwoInputNonBroadcastProcessOperatorTest {
                 new TwoInputStreamOperatorTestHarness<>(processOperator)) {
             testHarness.open();
             testHarness.endInput1();
-            assertThat(firstFuture).isCompleted();
+            assertThat(firstInputCounter).hasValue(1);
             testHarness.endInput2();
-            assertThat(secondFuture).isCompleted();
+            assertThat(secondInputCounter).hasValue(1);
+            Collection<StreamRecord<Long>> recordOutput = testHarness.getRecordOutput();
+            assertThat(recordOutput)
+                    .containsExactly(new StreamRecord<>(1L), new StreamRecord<>(2L));
         }
     }
 }

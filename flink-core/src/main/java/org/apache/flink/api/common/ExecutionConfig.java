@@ -262,7 +262,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      */
     @PublicEvolving
     public ExecutionConfig setLatencyTrackingInterval(long interval) {
-        configuration.set(MetricOptions.LATENCY_INTERVAL, interval);
+        configuration.set(MetricOptions.LATENCY_INTERVAL, Duration.ofMillis(interval));
         return this;
     }
 
@@ -273,7 +273,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      */
     @PublicEvolving
     public long getLatencyTrackingInterval() {
-        return configuration.get(MetricOptions.LATENCY_INTERVAL);
+        return configuration.get(MetricOptions.LATENCY_INTERVAL).toMillis();
     }
 
     @Internal
@@ -392,7 +392,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * Gets the interval (in milliseconds) between consecutive attempts to cancel a running task.
      */
     public long getTaskCancellationInterval() {
-        return configuration.get(TaskManagerOptions.TASK_CANCELLATION_INTERVAL);
+        return configuration.get(TaskManagerOptions.TASK_CANCELLATION_INTERVAL).toMillis();
     }
 
     /**
@@ -402,7 +402,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * @param interval the interval (in milliseconds).
      */
     public ExecutionConfig setTaskCancellationInterval(long interval) {
-        configuration.set(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, interval);
+        configuration.set(
+                TaskManagerOptions.TASK_CANCELLATION_INTERVAL, Duration.ofMillis(interval));
         return this;
     }
 
@@ -415,7 +416,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      */
     @PublicEvolving
     public long getTaskCancellationTimeout() {
-        return configuration.get(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT);
+        return configuration.get(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT).toMillis();
     }
 
     /**
@@ -433,7 +434,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     @PublicEvolving
     public ExecutionConfig setTaskCancellationTimeout(long timeout) {
         checkArgument(timeout >= 0, "Timeout needs to be >= 0.");
-        configuration.set(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, timeout);
+        configuration.set(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, Duration.ofMillis(timeout));
         return this;
     }
 
@@ -1288,7 +1289,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
         configuration
                 .getOptional(MetricOptions.LATENCY_INTERVAL)
-                .ifPresent(this::setLatencyTrackingInterval);
+                .ifPresent(interval -> setLatencyTrackingInterval(interval.toMillis()));
 
         configuration
                 .getOptional(StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED)
@@ -1307,10 +1308,10 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         configuration.getOptional(PipelineOptions.OBJECT_REUSE).ifPresent(this::setObjectReuse);
         configuration
                 .getOptional(TaskManagerOptions.TASK_CANCELLATION_INTERVAL)
-                .ifPresent(this::setTaskCancellationInterval);
+                .ifPresent(interval -> setTaskCancellationInterval(interval.toMillis()));
         configuration
                 .getOptional(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT)
-                .ifPresent(this::setTaskCancellationTimeout);
+                .ifPresent(timeout -> setTaskCancellationTimeout(timeout.toMillis()));
         configuration
                 .getOptional(ExecutionOptions.SNAPSHOT_COMPRESSION)
                 .ifPresent(this::setUseSnapshotCompression);

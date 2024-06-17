@@ -30,6 +30,7 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.Testi
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerClient;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerSpec;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierConsumerAgent;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.remote.TestingAvailabilityNotifier;
 
 import org.junit.jupiter.api.Test;
@@ -108,6 +109,10 @@ class TieredStorageConsumerClientTest {
 
     private TieredStorageConsumerClient createTieredStorageConsumerClient(
             TierConsumerAgent tierConsumerAgent) {
+        TierShuffleDescriptor emptyTierShuffleDescriptor =
+                new TierShuffleDescriptor() {
+                    private static final long serialVersionUID = 1L;
+                };
         return new TieredStorageConsumerClient(
                 Collections.singletonList(
                         new TestingTierFactory.Builder()
@@ -117,9 +122,11 @@ class TieredStorageConsumerClientTest {
                                 .build()),
                 Collections.singletonList(
                         new TieredStorageConsumerSpec(
+                                0,
                                 DEFAULT_PARTITION_ID,
                                 DEFAULT_INPUT_CHANNEL_ID,
                                 DEFAULT_SUBPARTITION_ID_SET)),
+                Collections.singletonList(Collections.singletonList(emptyTierShuffleDescriptor)),
                 new TestingTieredStorageNettyService.Builder().build());
     }
 }

@@ -30,13 +30,12 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -45,38 +44,32 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.sameInstance;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Unit tests for {@link DefaultSchedulingPipelinedRegion}. */
-public class DefaultSchedulingPipelinedRegionTest extends TestLogger {
+class DefaultSchedulingPipelinedRegionTest {
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+            TestingUtils.defaultExecutorExtension();
 
     @Test
-    public void gettingUnknownVertexThrowsException() {
+    void gettingUnknownVertexThrowsException() {
         final Map<IntermediateResultPartitionID, DefaultResultPartition> resultPartitionById =
                 Collections.emptyMap();
         final DefaultSchedulingPipelinedRegion pipelinedRegion =
                 new DefaultSchedulingPipelinedRegion(
                         Collections.emptySet(), resultPartitionById::get);
         final ExecutionVertexID unknownVertexId = new ExecutionVertexID(new JobVertexID(), 0);
-        try {
-            pipelinedRegion.getVertex(unknownVertexId);
-            fail("Expected exception not thrown");
-        } catch (IllegalArgumentException e) {
-            assertThat(e.getMessage(), containsString(unknownVertexId + " not found"));
-        }
+        assertThatThrownBy(() -> pipelinedRegion.getVertex(unknownVertexId))
+                .withFailMessage("Expected exception not thrown")
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(unknownVertexId + " not found");
     }
 
     @Test
-    public void returnsVertices() {
+    void returnsVertices() {
         final DefaultExecutionVertex vertex =
                 new DefaultExecutionVertex(
                         new ExecutionVertexID(new JobVertexID(), 0),
@@ -95,9 +88,9 @@ public class DefaultSchedulingPipelinedRegionTest extends TestLogger {
         final Iterator<DefaultExecutionVertex> vertexIterator =
                 pipelinedRegion.getVertices().iterator();
 
-        assertThat(vertexIterator.hasNext(), is(true));
-        assertThat(vertexIterator.next(), is(sameInstance(vertex)));
-        assertThat(vertexIterator.hasNext(), is(false));
+        assertThat(vertexIterator).hasNext();
+        assertThat(vertexIterator.next()).isSameAs(vertex);
+        assertThat(vertexIterator.hasNext()).isFalse();
     }
 
     /**
@@ -115,7 +108,7 @@ public class DefaultSchedulingPipelinedRegionTest extends TestLogger {
      * <p>Pipelined regions: {a}, {b, c, d, e}
      */
     @Test
-    public void returnsIncidentBlockingPartitions() throws Exception {
+    void returnsIncidentBlockingPartitions() throws Exception {
         final JobVertex a = ExecutionGraphTestUtils.createNoOpVertex(1);
         final JobVertex b = ExecutionGraphTestUtils.createNoOpVertex(1);
         final JobVertex c = ExecutionGraphTestUtils.createNoOpVertex(1);
@@ -130,7 +123,7 @@ public class DefaultSchedulingPipelinedRegionTest extends TestLogger {
 
         final DefaultExecutionGraph simpleTestGraph =
                 ExecutionGraphTestUtils.createExecutionGraph(
-                        EXECUTOR_RESOURCE.getExecutor(), a, b, c, d, e);
+                        EXECUTOR_EXTENSION.getExecutor(), a, b, c, d, e);
         final DefaultExecutionTopology topology =
                 DefaultExecutionTopology.fromExecutionGraph(simpleTestGraph);
 
@@ -157,11 +150,11 @@ public class DefaultSchedulingPipelinedRegionTest extends TestLogger {
         }
 
         assertThat(
-                firstPipelinedRegion
-                        .getAllNonPipelinedConsumedPartitionGroups()
-                        .iterator()
-                        .hasNext(),
-                is(false));
-        assertThat(secondPipelinedRegionConsumedResults, contains(b0ConsumedResultPartition));
+                        firstPipelinedRegion
+                                .getAllNonPipelinedConsumedPartitionGroups()
+                                .iterator()
+                                .hasNext())
+                .isFalse();
+        assertThat(secondPipelinedRegionConsumedResults).contains(b0ConsumedResultPartition);
     }
 }

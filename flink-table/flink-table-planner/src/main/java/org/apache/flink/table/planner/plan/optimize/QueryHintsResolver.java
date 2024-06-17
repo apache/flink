@@ -46,7 +46,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.singletonList;
-import static org.apache.flink.table.planner.hint.LookupJoinHintOptions.LOOKUP_TABLE;
+import static org.apache.flink.table.api.config.LookupJoinHintOptions.LOOKUP_TABLE;
 
 /**
  * Resolve and validate the query hints.

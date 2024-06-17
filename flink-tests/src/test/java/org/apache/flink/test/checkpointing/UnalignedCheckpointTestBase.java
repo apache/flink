@@ -44,6 +44,7 @@ import org.apache.flink.api.connector.source.SplitsAssignment;
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.RpcOptions;
@@ -57,7 +58,6 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -101,7 +101,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.shaded.guava31.com.google.common.collect.Iterables.getOnlyElement;
-import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -682,7 +681,8 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         int tolerableCheckpointFailures = 0;
         private final DagCreator dagCreator;
         private int alignmentTimeout = 0;
-        private Duration checkpointTimeout = CHECKPOINTING_TIMEOUT.defaultValue();
+        private Duration checkpointTimeout =
+                CheckpointingOptions.CHECKPOINTING_TIMEOUT.defaultValue();
         private int failuresAfterSourceFinishes = 0;
         private ChannelType channelType = ChannelType.MIXED;
         private int buffersPerChannel = 1;
@@ -763,9 +763,8 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             env.getCheckpointConfig().setForceUnalignedCheckpoints(true);
             if (generateCheckpoint) {
                 env.getCheckpointConfig()
-                        .setExternalizedCheckpointCleanup(
-                                CheckpointConfig.ExternalizedCheckpointCleanup
-                                        .RETAIN_ON_CANCELLATION);
+                        .setExternalizedCheckpointRetention(
+                                ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
             }
         }
 
@@ -839,7 +838,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
     }
 
     /** A mapper that fails in particular situations/attempts. */
-    protected static class FailingMapper extends RichMapFunction<Long, Long>
+    protected static class FailingMapper<T> extends RichMapFunction<T, T>
             implements CheckpointedFunction, CheckpointListener {
         private static final ListStateDescriptor<FailingMapperState>
                 FAILING_MAPPER_STATE_DESCRIPTOR =
@@ -850,7 +849,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         private final FilterFunction<FailingMapperState> failDuringSnapshot;
         private final FilterFunction<FailingMapperState> failDuringRecovery;
         private final FilterFunction<FailingMapperState> failDuringClose;
-        private long lastValue;
+        private transient Object lastValue;
 
         protected FailingMapper(
                 FilterFunction<FailingMapperState> failDuringMap,
@@ -864,8 +863,12 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         }
 
         @Override
-        public Long map(Long value) throws Exception {
-            lastValue = withoutHeader(value);
+        public T map(T value) throws Exception {
+            if (value instanceof Long) {
+                lastValue = withoutHeader((Long) value);
+            } else {
+                lastValue = value;
+            }
             checkFail(failDuringMap, "map");
             return value;
         }
@@ -1134,7 +1137,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         return value;
     }
 
-    private static class TestException extends Exception {
+    static class TestException extends Exception {
         public TestException(String s) {
             super(s);
         }

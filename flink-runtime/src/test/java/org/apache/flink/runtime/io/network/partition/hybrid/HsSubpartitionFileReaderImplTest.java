@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid;
 
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.testutils.CheckedThread;
@@ -141,9 +142,10 @@ class HsSubpartitionFileReaderImplTest {
     void testReadBufferCompressed(String compressionFactoryName, @TempDir Path tmpPath)
             throws Exception {
         BufferCompressor bufferCompressor =
-                new BufferCompressor(bufferSize, compressionFactoryName);
+                new BufferCompressor(bufferSize, CompressionCodec.valueOf(compressionFactoryName));
         BufferDecompressor bufferDecompressor =
-                new BufferDecompressor(bufferSize, compressionFactoryName);
+                new BufferDecompressor(
+                        bufferSize, CompressionCodec.valueOf(compressionFactoryName));
 
         diskIndex = createDataIndex(1, tmpPath.resolve(".index"));
         TestingSubpartitionConsumerInternalOperation viewNotifier =

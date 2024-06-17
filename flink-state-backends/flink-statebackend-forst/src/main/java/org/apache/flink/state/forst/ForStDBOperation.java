@@ -26,16 +26,14 @@ import java.util.concurrent.CompletableFuture;
  * Data access operation to ForStDB. This interface is used to encapsulate the DB access operations
  * formed after grouping state access. For more information about “Grouping state access”, please
  * refer to FLIP-426.
- *
- * @param <OUT> The type of output for DB access.
  */
 @Internal
-public interface ForStDBOperation<OUT> {
+public interface ForStDBOperation {
 
     /**
      * Process the ForStDB access requests.
      *
-     * @return Processing result.
+     * @return The future which indicates whether the operation is completed.
      */
-    CompletableFuture<OUT> process();
+    CompletableFuture<Void> process();
 }

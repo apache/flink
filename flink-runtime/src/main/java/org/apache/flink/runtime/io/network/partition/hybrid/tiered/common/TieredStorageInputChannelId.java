@@ -32,6 +32,10 @@ public class TieredStorageInputChannelId implements TieredStorageDataIdentifier,
         this.inputChannelId = inputChannelId;
     }
 
+    public int getInputChannelId() {
+        return inputChannelId;
+    }
+
     @Override
     public int hashCode() {
         return Objects.hashCode(inputChannelId);

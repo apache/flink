@@ -20,9 +20,8 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.taskexecutor.ExecutionDeploymentReport;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -34,15 +33,13 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.runtime.clusterframework.types.ResourceID.generate;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.core.IsCollectionContaining.hasItem;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link DefaultExecutionDeploymentReconciler}. */
-public class DefaultExecutionDeploymentReconcilerTest extends TestLogger {
+class DefaultExecutionDeploymentReconcilerTest {
 
     @Test
-    public void testMatchingDeployments() {
+    void testMatchingDeployments() {
         TestingExecutionDeploymentReconciliationHandler handler =
                 new TestingExecutionDeploymentReconciliationHandler();
 
@@ -57,12 +54,12 @@ public class DefaultExecutionDeploymentReconcilerTest extends TestLogger {
                 new ExecutionDeploymentReport(Collections.singleton(attemptId)),
                 Collections.singletonMap(attemptId, ExecutionDeploymentState.DEPLOYED));
 
-        assertThat(handler.getMissingExecutions(), empty());
-        assertThat(handler.getUnknownExecutions(), empty());
+        assertThat(handler.getMissingExecutions()).isEmpty();
+        assertThat(handler.getUnknownExecutions()).isEmpty();
     }
 
     @Test
-    public void testMissingDeployments() {
+    void testMissingDeployments() {
         TestingExecutionDeploymentReconciliationHandler handler =
                 new TestingExecutionDeploymentReconciliationHandler();
 
@@ -77,12 +74,12 @@ public class DefaultExecutionDeploymentReconcilerTest extends TestLogger {
                 new ExecutionDeploymentReport(Collections.emptySet()),
                 Collections.singletonMap(attemptId, ExecutionDeploymentState.DEPLOYED));
 
-        assertThat(handler.getUnknownExecutions(), empty());
-        assertThat(handler.getMissingExecutions(), hasItem(attemptId));
+        assertThat(handler.getUnknownExecutions()).isEmpty();
+        assertThat(handler.getMissingExecutions()).contains(attemptId);
     }
 
     @Test
-    public void testUnknownDeployments() {
+    void testUnknownDeployments() {
         TestingExecutionDeploymentReconciliationHandler handler =
                 new TestingExecutionDeploymentReconciliationHandler();
 
@@ -97,12 +94,12 @@ public class DefaultExecutionDeploymentReconcilerTest extends TestLogger {
                 new ExecutionDeploymentReport(Collections.singleton(attemptId)),
                 Collections.emptyMap());
 
-        assertThat(handler.getMissingExecutions(), empty());
-        assertThat(handler.getUnknownExecutions(), hasItem(attemptId));
+        assertThat(handler.getMissingExecutions()).isEmpty();
+        assertThat(handler.getUnknownExecutions()).contains(attemptId);
     }
 
     @Test
-    public void testMissingAndUnknownDeployments() {
+    void testMissingAndUnknownDeployments() {
         TestingExecutionDeploymentReconciliationHandler handler =
                 new TestingExecutionDeploymentReconciliationHandler();
 
@@ -120,12 +117,12 @@ public class DefaultExecutionDeploymentReconcilerTest extends TestLogger {
                 Stream.of(missingId, matchingId)
                         .collect(Collectors.toMap(x -> x, x -> ExecutionDeploymentState.DEPLOYED)));
 
-        assertThat(handler.getMissingExecutions(), hasItem(missingId));
-        assertThat(handler.getUnknownExecutions(), hasItem(unknownId));
+        assertThat(handler.getMissingExecutions()).contains(missingId);
+        assertThat(handler.getUnknownExecutions()).contains(unknownId);
     }
 
     @Test
-    public void testPendingDeployments() {
+    void testPendingDeployments() {
         TestingExecutionDeploymentReconciliationHandler handler =
                 new TestingExecutionDeploymentReconciliationHandler();
 
@@ -143,8 +140,8 @@ public class DefaultExecutionDeploymentReconcilerTest extends TestLogger {
                 Stream.of(matchingId, missingId)
                         .collect(Collectors.toMap(x -> x, x -> ExecutionDeploymentState.PENDING)));
 
-        assertThat(handler.getMissingExecutions(), empty());
-        assertThat(handler.getUnknownExecutions(), hasItem(unknownId));
+        assertThat(handler.getMissingExecutions()).isEmpty();
+        assertThat(handler.getUnknownExecutions()).contains(unknownId);
     }
 
     private static class TestingExecutionDeploymentReconciliationHandler

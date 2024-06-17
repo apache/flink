@@ -22,6 +22,7 @@ import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
 import org.apache.flink.table.api.{EnvironmentSettings, _}
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentImpl
+import org.apache.flink.table.api.config.AggregatePhaseStrategy
 import org.apache.flink.table.api.config.ExecutionConfigOptions.{TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, TABLE_EXEC_MINIBATCH_ENABLED, TABLE_EXEC_MINIBATCH_SIZE}
 import org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY
 import org.apache.flink.table.data.RowData
@@ -65,7 +66,7 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
         // trigger every record for easier harness test
         tableConfig.set(TABLE_EXEC_MINIBATCH_SIZE, Long.box(1L))
         // disable local-global to only test the MiniBatchGroupAggFunction
-        tableConfig.set(TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "ONE_PHASE")
+        tableConfig.set(TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, AggregatePhaseStrategy.ONE_PHASE)
       case MiniBatchOff =>
         tableConfig.getConfiguration.removeConfig(TABLE_EXEC_MINIBATCH_ALLOW_LATENCY)
     }

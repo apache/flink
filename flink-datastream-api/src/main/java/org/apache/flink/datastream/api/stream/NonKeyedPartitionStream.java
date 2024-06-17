@@ -38,7 +38,7 @@ public interface NonKeyedPartitionStream<T> extends DataStream {
      * @param processFunction to perform operation.
      * @return new stream with this operation.
      */
-    <OUT> NonKeyedPartitionStream<OUT> process(
+    <OUT> ProcessConfigurableAndNonKeyedPartitionStream<OUT> process(
             OneInputStreamProcessFunction<T, OUT> processFunction);
 
     /**
@@ -57,7 +57,7 @@ public interface NonKeyedPartitionStream<T> extends DataStream {
      * @param processFunction to perform operation.
      * @return new stream with this operation.
      */
-    <T_OTHER, OUT> NonKeyedPartitionStream<OUT> connectAndProcess(
+    <T_OTHER, OUT> ProcessConfigurableAndNonKeyedPartitionStream<OUT> connectAndProcess(
             NonKeyedPartitionStream<T_OTHER> other,
             TwoInputNonBroadcastStreamProcessFunction<T, T_OTHER, OUT> processFunction);
 
@@ -67,7 +67,7 @@ public interface NonKeyedPartitionStream<T> extends DataStream {
      * @param processFunction to perform operation.
      * @return new stream with this operation.
      */
-    <T_OTHER, OUT> NonKeyedPartitionStream<OUT> connectAndProcess(
+    <T_OTHER, OUT> ProcessConfigurableAndNonKeyedPartitionStream<OUT> connectAndProcess(
             BroadcastStream<T_OTHER> other,
             TwoInputBroadcastStreamProcessFunction<T, T_OTHER, OUT> processFunction);
 
@@ -101,7 +101,13 @@ public interface NonKeyedPartitionStream<T> extends DataStream {
      */
     BroadcastStream<T> broadcast();
 
-    void toSink(Sink<T> sink);
+    ProcessConfigurable<?> toSink(Sink<T> sink);
+
+    /** This interface represents a configurable {@link NonKeyedPartitionStream}. */
+    @Experimental
+    interface ProcessConfigurableAndNonKeyedPartitionStream<T>
+            extends NonKeyedPartitionStream<T>,
+                    ProcessConfigurable<ProcessConfigurableAndNonKeyedPartitionStream<T>> {}
 
     /**
      * This interface represents a combination of two {@link NonKeyedPartitionStream}. It will be
@@ -110,9 +116,9 @@ public interface NonKeyedPartitionStream<T> extends DataStream {
     @Experimental
     interface TwoNonKeyedPartitionStreams<T1, T2> {
         /** Get the first stream. */
-        NonKeyedPartitionStream<T1> getFirst();
+        ProcessConfigurableAndNonKeyedPartitionStream<T1> getFirst();
 
         /** Get the second stream. */
-        NonKeyedPartitionStream<T2> getSecond();
+        ProcessConfigurableAndNonKeyedPartitionStream<T2> getSecond();
     }
 }

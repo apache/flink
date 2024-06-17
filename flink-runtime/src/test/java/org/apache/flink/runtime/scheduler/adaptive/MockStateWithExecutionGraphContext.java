@@ -26,8 +26,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.function.Consumer;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class MockStateWithExecutionGraphContext implements StateWithExecutionGraph.Context, AutoCloseable {
 
@@ -82,6 +81,6 @@ class MockStateWithExecutionGraphContext implements StateWithExecutionGraph.Cont
     }
 
     protected final void assertNoStateTransition() {
-        assertThat(hadStateTransition, is(false));
+        assertThat(hadStateTransition).isFalse();
     }
 }

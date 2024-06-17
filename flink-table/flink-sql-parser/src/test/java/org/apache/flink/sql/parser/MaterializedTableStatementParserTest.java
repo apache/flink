@@ -118,7 +118,7 @@ public class MaterializedTableStatementParserTest {
                         + "FRESHNESS = ^123^\n"
                         + "AS SELECT a, b, h, t m FROM source";
         sql(sql).fails(
-                        "CREATE MATERIALIZED TABLE only supports interval type FRESHNESS, please refer to the materialized table document.");
+                        "MATERIALIZED TABLE only supports define interval type FRESHNESS, please refer to the materialized table document.");
 
         final String sql2 =
                 "CREATE MATERIALIZED TABLE tbl1\n"
@@ -197,6 +197,216 @@ public class MaterializedTableStatementParserTest {
                         + "FRESHNESS = INTERVAL '3' MINUTE\n"
                         + "AS SELECT a, b, h, t m FROM source";
         sql(sql).fails("REPLACE MATERIALIZED TABLE is not supported.");
+    }
+
+    @Test
+    void testAlterMaterializedTableSuspend() {
+        final String sql = "ALTER MATERIALIZED TABLE tb1 SUSPEND";
+        final String expect = "ALTER MATERIALIZED TABLE `TB1` SUSPEND";
+        sql(sql).ok(expect);
+
+        final String sql2 = "ALTER MATERIALIZED TABLE tb1 SUSPEND ^PARTITION^";
+        sql(sql2)
+                .fails(
+                        "Encountered \"PARTITION\" at line 1, column 38.\n"
+                                + "Was expecting:\n"
+                                + "    <EOF> \n"
+                                + "    ");
+
+        final String sql3 = "ALTER MATERIALIZED TABLE tb^1^";
+        sql(sql3)
+                .fails(
+                        "Encountered \"<EOF>\" at line 1, column 28.\n"
+                                + "Was expecting one of:\n"
+                                + "    \"RESET\" ...\n"
+                                + "    \"SET\" ...\n"
+                                + "    \"SUSPEND\" ...\n"
+                                + "    \"REFRESH\" ...\n"
+                                + "    \"RESUME\" ...\n"
+                                + "    \".\" ...\n"
+                                + "    ");
+    }
+
+    @Test
+    void testAlterMaterializedTableResume() {
+        final String sql1 =
+                "ALTER MATERIALIZED TABLE tb1 RESUME\n"
+                        + "WITH (\n"
+                        + "  'group.id' = 'testGroup',\n"
+                        + "  'topic' = 'test'\n"
+                        + ")";
+        final String expect1 =
+                "ALTER MATERIALIZED TABLE `TB1` RESUME\n"
+                        + "WITH (\n"
+                        + "  'group.id' = 'testGroup',\n"
+                        + "  'topic' = 'test'\n"
+                        + ")";
+        sql(sql1).ok(expect1);
+
+        final String sql2 = "ALTER MATERIALIZED TABLE tb1 RESUME";
+        final String expect2 = "ALTER MATERIALIZED TABLE `TB1` RESUME";
+        sql(sql2).ok(expect2);
+
+        final String sql3 = "ALTER MATERIALIZED TABLE tb1 RESUME ^PARTITION^";
+        sql(sql3)
+                .fails(
+                        "Encountered \"PARTITION\" at line 1, column 37.\n"
+                                + "Was expecting one of:\n"
+                                + "    <EOF> \n"
+                                + "    \"WITH\" ...\n"
+                                + "    ");
+    }
+
+    @Test
+    void testAlterMaterializedTableRefresh() {
+        final String sql1 = "ALTER MATERIALIZED TABLE tbl1 REFRESH";
+        final String expected1 = "ALTER MATERIALIZED TABLE `TBL1` REFRESH";
+        sql(sql1).ok(expected1);
+
+        final String sql2 =
+                "ALTER MATERIALIZED TABLE tbl1 REFRESH \n"
+                        + " PARTITION (part1 = 2023, part2 = 2024)";
+        final String expected2 =
+                "ALTER MATERIALIZED TABLE `TBL1` REFRESH "
+                        + "PARTITION (`PART1` = 2023, `PART2` = 2024)";
+        sql(sql2).ok(expected2);
+
+        final String sql3 = "ALTER MATERIALIZED TABLE tbl1 REFRESH PARTITION(^)^";
+        sql(sql3)
+                .fails(
+                        "Encountered \"\\)\" at line 1, column 49.\n"
+                                + "Was expecting one of:\n"
+                                + "    <BRACKET_QUOTED_IDENTIFIER> ...\n"
+                                + "    <QUOTED_IDENTIFIER> ...\n"
+                                + "    <BACK_QUOTED_IDENTIFIER> ...\n"
+                                + "    <BIG_QUERY_BACK_QUOTED_IDENTIFIER> ...\n"
+                                + "    <HYPHENATED_IDENTIFIER> ...\n"
+                                + "    <IDENTIFIER> ...\n"
+                                + "    <UNICODE_QUOTED_IDENTIFIER> ...\n"
+                                + "    ");
+    }
+
+    @Test
+    void testAlterMaterializedTableRefreshMode() {
+        final String sql1 = "ALTER MATERIALIZED TABLE tbl1 SET REFRESH_MODE = FULL";
+        final String expect1 = "ALTER MATERIALIZED TABLE `TBL1` SET REFRESH_MODE = FULL";
+        sql(sql1).ok(expect1);
+
+        final String sql2 = "ALTER MATERIALIZED TABLE tbl1 SET REFRESH_MODE = CONTINUOUS";
+        final String expect2 = "ALTER MATERIALIZED TABLE `TBL1` SET REFRESH_MODE = CONTINUOUS";
+        sql(sql2).ok(expect2);
+
+        final String sql3 = "ALTER MATERIALIZED TABLE tbl1 SET REFRESH_MOD^E^";
+        sql(sql3)
+                .fails(
+                        "Encountered \"<EOF>\" at line 1, column 46.\n"
+                                + "Was expecting:\n"
+                                + "    \"=\" ...\n"
+                                + "    ");
+
+        final String sql4 = "ALTER MATERIALIZED TABLE tbl1 SET REFRESH_MODE = ^NONE^";
+        sql(sql4)
+                .fails(
+                        "Encountered \"NONE\" at line 1, column 50.\n"
+                                + "Was expecting one of:\n"
+                                + "    \"FULL\" ...\n"
+                                + "    \"CONTINUOUS\" ...\n"
+                                + "    ");
+    }
+
+    @Test
+    void testAlterMaterializedTableFreshness() {
+        final String sql1 = "ALTER MATERIALIZED TABLE tbl1 SET FRESHNESS = INTERVAL '1' DAY";
+        final String expect1 = "ALTER MATERIALIZED TABLE `TBL1` SET FRESHNESS = INTERVAL '1' DAY";
+        sql(sql1).ok(expect1);
+
+        final String sql2 = "ALTER MATERIALIZED TABLE tbl1 SET FRESHNESS = INTERVAL 1 ^DAY^";
+        sql(sql2)
+                .fails(
+                        "MATERIALIZED TABLE only supports define interval type FRESHNESS, please refer to the materialized table document.");
+
+        final String sql3 = "ALTER MATERIALIZED TABLE tbl1 SET FRESHNES^S^";
+        sql(sql3)
+                .fails(
+                        "Encountered \"<EOF>\" at line 1, column 43.\n"
+                                + "Was expecting:\n"
+                                + "    \"=\" ...\n"
+                                + "    ");
+    }
+
+    @Test
+    void testAlterMaterializedTableSet() {
+        final String sql1 =
+                "ALTER MATERIALIZED TABLE tbl1 SET (\n"
+                        + "  'key1' = 'val1',\n"
+                        + "  'key2' = 'val2'\n"
+                        + ")";
+        final String expect1 =
+                "ALTER MATERIALIZED TABLE `TBL1` SET (\n"
+                        + "  'key1' = 'val1',\n"
+                        + "  'key2' = 'val2'\n"
+                        + ")";
+        sql(sql1).ok(expect1);
+
+        final String sql2 = "ALTER MATERIALIZED TABLE tbl1 SET ()";
+        final String expect2 = "ALTER MATERIALIZED TABLE `TBL1` SET (\n" + ")";
+
+        sql(sql2).ok(expect2);
+
+        final String sql3 = "ALTER MATERIALIZED TABLE tbl1 SE^T^";
+        sql(sql3)
+                .fails(
+                        "Encountered \"<EOF>\" at line 1, column 33.\n"
+                                + "Was expecting one of:\n"
+                                + "    \"FRESHNESS\" ...\n"
+                                + "    \"REFRESH_MODE\" ...\n"
+                                + "    \"\\(\" ...\n"
+                                + "    ");
+    }
+
+    @Test
+    void testAlterMaterializedTableReset() {
+        final String sql1 = "ALTER MATERIALIZED TABLE tbl1 RESET ('key1', 'key2')";
+        final String expect1 =
+                "ALTER MATERIALIZED TABLE `TBL1` RESET (\n" + "  'key1',\n" + "  'key2'\n" + ")";
+        sql(sql1).ok(expect1);
+
+        final String sql2 = "ALTER MATERIALIZED TABLE tbl1 RESET ()";
+        final String expect2 = "ALTER MATERIALIZED TABLE `TBL1` RESET (\n" + ")";
+        sql(sql2).ok(expect2);
+
+        final String sql3 = "ALTER MATERIALIZED TABLE tbl1 RESE^T^";
+        sql(sql3)
+                .fails(
+                        "Encountered \"<EOF>\" at line 1, column 35.\n"
+                                + "Was expecting:\n"
+                                + "    \"\\(\" ...\n"
+                                + "    ");
+    }
+
+    @Test
+    void testDropMaterializedTable() {
+        final String sql = "DROP MATERIALIZED TABLE tbl1";
+        final String expected = "DROP MATERIALIZED TABLE `TBL1`";
+        sql(sql).ok(expected);
+
+        final String sql2 = "DROP MATERIALIZED TABLE IF EXISTS tbl1";
+        sql(sql2).ok("DROP MATERIALIZED TABLE IF EXISTS `TBL1`");
+
+        final String sql3 = "DROP MATERIALIZED TABLE tb1 ^IF^ EXISTS";
+        sql(sql3)
+                .fails(
+                        "Encountered \"IF\" at line 1, column 29.\n"
+                                + "Was expecting one of:\n"
+                                + "    <EOF> \n"
+                                + "    \".\" ...\n"
+                                + "    ");
+    }
+
+    @Test
+    void testDropTemporaryMaterializedTable() {
+        final String sql = "DROP TEMPORARY ^MATERIALIZED^ TABLE tbl1";
+        sql(sql).fails("DROP TEMPORARY MATERIALIZED TABLE is not supported.");
     }
 
     public SqlParserFixture fixture() {

@@ -30,6 +30,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.table.utils.IntervalFreshnessUtils.convertFreshnessToDuration;
+
 /**
  * Represents the unresolved metadata of a materialized table in a {@link Catalog}.
  *
@@ -113,9 +115,18 @@ public interface CatalogMaterializedTable extends CatalogBaseTable {
     String getDefinitionQuery();
 
     /**
-     * Get the freshness of materialized table which is used to determine the physical refresh mode.
+     * Get the definition freshness of materialized table which is used to determine the physical
+     * refresh mode.
      */
-    Duration getFreshness();
+    IntervalFreshness getDefinitionFreshness();
+
+    /**
+     * Get the {@link Duration} value of materialized table definition freshness, it is converted
+     * from {@link IntervalFreshness}.
+     */
+    default Duration getFreshness() {
+        return convertFreshnessToDuration(getDefinitionFreshness());
+    }
 
     /** Get the logical refresh mode of materialized table. */
     LogicalRefreshMode getLogicalRefreshMode();
@@ -185,7 +196,7 @@ public interface CatalogMaterializedTable extends CatalogBaseTable {
         private Map<String, String> options = Collections.emptyMap();
         private @Nullable Long snapshot;
         private String definitionQuery;
-        private Duration freshness;
+        private IntervalFreshness freshness;
         private LogicalRefreshMode logicalRefreshMode;
         private RefreshMode refreshMode;
         private RefreshStatus refreshStatus;
@@ -227,7 +238,7 @@ public interface CatalogMaterializedTable extends CatalogBaseTable {
             return this;
         }
 
-        public Builder freshness(Duration freshness) {
+        public Builder freshness(IntervalFreshness freshness) {
             this.freshness = Preconditions.checkNotNull(freshness, "Freshness must not be null.");
             return this;
         }

@@ -39,10 +39,10 @@ public class OptimizerConfigOptions {
     //  Optimizer Options
     // ------------------------------------------------------------------------
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
-    public static final ConfigOption<String> TABLE_OPTIMIZER_AGG_PHASE_STRATEGY =
+    public static final ConfigOption<AggregatePhaseStrategy> TABLE_OPTIMIZER_AGG_PHASE_STRATEGY =
             key("table.optimizer.agg-phase-strategy")
-                    .stringType()
-                    .defaultValue("AUTO")
+                    .enumType(AggregatePhaseStrategy.class)
+                    .defaultValue(AggregatePhaseStrategy.AUTO)
                     .withDescription(
                             "Strategy for aggregate phase. Only AUTO, TWO_PHASE or ONE_PHASE can be set.\n"
                                     + "AUTO: No special enforcer for aggregate stage. Whether to choose two stage aggregate or one"
@@ -102,6 +102,8 @@ public class OptimizerConfigOptions {
                                     + TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED.key()
                                     + " is true.");
 
+    /** This configuration will be removed in Flink 2.0. */
+    @Deprecated
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED =
             key("table.optimizer.source.aggregate-pushdown-enabled")
@@ -111,6 +113,8 @@ public class OptimizerConfigOptions {
                             "When it is true, the optimizer will push down the local aggregates into "
                                     + "the TableSource which implements SupportsAggregatePushDown.");
 
+    /** This configuration will be removed in Flink 2.0. */
+    @Deprecated
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_SOURCE_PREDICATE_PUSHDOWN_ENABLED =
             key("table.optimizer.source.predicate-pushdown-enabled")
@@ -273,6 +277,40 @@ public class OptimizerConfigOptions {
                                             "Note: it is not recommended to turn on unless you are aware of possible side effects, "
                                                     + "such as causing the output of certain non-deterministic expressions to not meet expectations(see FLINK-20887).")
                                     .build());
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED =
+            key("table.optimizer.union-all-as-breakpoint-enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "When true, the optimizer will breakup the graph at union-all node "
+                                    + "when it's a breakpoint. When false, the optimizer will skip the union-all node "
+                                    + "even it's a breakpoint, and will try find the breakpoint in its inputs.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean>
+            TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED =
+                    key("table.optimizer.reuse-optimize-block-with-digest-enabled")
+                            .booleanType()
+                            .defaultValue(false)
+                            .withDescription(
+                                    "When true, the optimizer will try to find out duplicated sub-plans by "
+                                            + "digest to build optimize blocks (a.k.a. common sub-graphs). "
+                                            + "Each optimize block will be optimized independently.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Boolean> TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED =
+            key("table.optimizer.incremental-agg-enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "When both local aggregation and distinct aggregation splitting "
+                                    + "are enabled, a distinct aggregation will be optimized into four aggregations, "
+                                    + "i.e., local-agg1, global-agg1, local-agg2, and global-agg2. We can combine global-agg1 "
+                                    + "and local-agg2 into a single operator (we call it incremental agg because "
+                                    + "it receives incremental accumulators and outputs incremental results). "
+                                    + "In this way, we can reduce some state overhead and resources. Default is enabled.");
 
     /** Strategy for handling non-deterministic updates. */
     @PublicEvolving

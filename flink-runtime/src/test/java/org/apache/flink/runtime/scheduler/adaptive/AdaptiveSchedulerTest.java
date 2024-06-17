@@ -162,11 +162,11 @@ public class AdaptiveSchedulerTest {
     private static final Logger LOG = LoggerFactory.getLogger(AdaptiveSchedulerTest.class);
 
     @RegisterExtension
-    public static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
             TestingUtils.defaultExecutorExtension();
 
     @RegisterExtension
-    public static final TestExecutorExtension<ScheduledExecutorService> TEST_EXECUTOR_RESOURCE =
+    private static final TestExecutorExtension<ScheduledExecutorService> TEST_EXECUTOR_RESOURCE =
             new TestExecutorExtension<>(Executors::newSingleThreadScheduledExecutor);
 
     private final ManuallyTriggeredComponentMainThreadExecutor mainThreadExecutor =
@@ -378,7 +378,7 @@ public class AdaptiveSchedulerTest {
                                 .readTree(executionGraph.getJsonPlan())
                                 .get("nodes")
                                 .size())
-                .isEqualTo(1);
+                .isOne();
     }
 
     @Test
@@ -833,7 +833,7 @@ public class AdaptiveSchedulerTest {
         // transition into next state, for which the job state is still INITIALIZING
         scheduler.transitionToState(new DummyState.Factory(JobStatus.INITIALIZING));
 
-        assertThat(numStatusUpdates.get()).isEqualTo(0);
+        assertThat(numStatusUpdates).hasValue(0);
     }
 
     @Test
@@ -1012,7 +1012,7 @@ public class AdaptiveSchedulerTest {
         ArchivedExecutionJobVertex archivedVertex = executionGraph.getJobVertex(vertex.getID());
 
         // ensure that the parallelism was submitted based on what is available
-        assertThat(archivedVertex.getParallelism()).isEqualTo(1);
+        assertThat(archivedVertex.getParallelism()).isOne();
         // and that the max parallelism was submitted based on what was configured
         assertThat(archivedVertex.getMaxParallelism()).isEqualTo(expectedMaxParallelism);
 
@@ -1846,7 +1846,7 @@ public class AdaptiveSchedulerTest {
     }
 
     @Test
-    public void testRequestPartitionStateFailsInIllegalState() throws Exception {
+    void testRequestPartitionStateFailsInIllegalState() throws Exception {
         final AdaptiveScheduler scheduler =
                 new AdaptiveSchedulerBuilder(
                                 createJobGraph(),
@@ -1960,7 +1960,7 @@ public class AdaptiveSchedulerTest {
         final Duration slotIdleTimeout = Duration.ofMillis(10);
 
         final Configuration configuration = createConfigurationWithNoTimeouts();
-        configuration.set(JobManagerOptions.SLOT_IDLE_TIMEOUT, slotIdleTimeout.toMillis());
+        configuration.set(JobManagerOptions.SLOT_IDLE_TIMEOUT, slotIdleTimeout);
 
         final DeclarativeSlotPool declarativeSlotPool =
                 createDeclarativeSlotPool(jobGraph.getJobID(), slotIdleTimeout);
@@ -2027,7 +2027,7 @@ public class AdaptiveSchedulerTest {
     }
 
     @Test
-    public void testUpdateResourceRequirementsInReactiveModeIsNotSupported() throws Exception {
+    void testUpdateResourceRequirementsInReactiveModeIsNotSupported() throws Exception {
         final Configuration configuration = new Configuration();
         configuration.set(JobManagerOptions.SCHEDULER_MODE, SchedulerExecutionMode.REACTIVE);
         final AdaptiveScheduler scheduler =
@@ -2045,7 +2045,7 @@ public class AdaptiveSchedulerTest {
     }
 
     @Test
-    public void testRequestDefaultResourceRequirements() throws Exception {
+    void testRequestDefaultResourceRequirements() throws Exception {
         final JobGraph jobGraph = createJobGraph();
         final Configuration configuration = new Configuration();
         final AdaptiveScheduler scheduler =
@@ -2062,7 +2062,7 @@ public class AdaptiveSchedulerTest {
     }
 
     @Test
-    public void testRequestDefaultResourceRequirementsInReactiveMode() throws Exception {
+    void testRequestDefaultResourceRequirementsInReactiveMode() throws Exception {
         final JobGraph jobGraph = createJobGraph();
         final Configuration configuration = new Configuration();
         configuration.set(JobManagerOptions.SCHEDULER_MODE, SchedulerExecutionMode.REACTIVE);
@@ -2082,7 +2082,7 @@ public class AdaptiveSchedulerTest {
     }
 
     @Test
-    public void testRequestUpdatedResourceRequirements() throws Exception {
+    void testRequestUpdatedResourceRequirements() throws Exception {
         final JobGraph jobGraph = createJobGraph();
         final Configuration configuration = new Configuration();
         final AdaptiveScheduler scheduler =
@@ -2112,7 +2112,7 @@ public class AdaptiveSchedulerTest {
     }
 
     @Test
-    public void testScalingIntervalConfigurationIsRespected() throws Exception {
+    void testScalingIntervalConfigurationIsRespected() throws Exception {
         final JobGraph jobGraph = createJobGraph();
         final DefaultDeclarativeSlotPool declarativeSlotPool =
                 createDeclarativeSlotPool(jobGraph.getJobID());
@@ -2508,8 +2508,9 @@ public class AdaptiveSchedulerTest {
                     .isEqualTo(JobFailureMetricReporter.class.getCanonicalName());
             assertThat(span.getName()).isEqualTo("JobFailure");
             Map<String, Object> attributes = span.getAttributes();
-            assertThat(attributes).containsEntry("failureLabel.failKey", "failValue");
-            assertThat(attributes).containsEntry("canRestart", String.valueOf(canRestart));
+            assertThat(attributes)
+                    .containsEntry("failureLabel.failKey", "failValue")
+                    .containsEntry("canRestart", String.valueOf(canRestart));
         }
     }
 }

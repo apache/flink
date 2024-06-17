@@ -65,7 +65,7 @@ public class FsMergingCheckpointStorageLocationTest {
     private static final int WRITE_BUFFER_SIZE = 1024;
 
     private static final FileMergingSnapshotManager.SubtaskKey SUBTASK_KEY =
-            new FileMergingSnapshotManager.SubtaskKey("opId", 1, 1);
+            new FileMergingSnapshotManager.SubtaskKey("jobId", "opId", 1, 1);
 
     @Before
     public void prepareDirectories() {

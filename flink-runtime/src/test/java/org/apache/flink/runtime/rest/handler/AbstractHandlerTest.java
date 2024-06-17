@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.handler;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.runtime.rest.FlinkHttpObjectAggregator;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.handler.router.RouteResult;
@@ -43,10 +44,14 @@ import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPipeline;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpStatusClass;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion;
 import org.apache.flink.shaded.netty4.io.netty.util.Attribute;
 import org.apache.flink.shaded.netty4.io.netty.util.AttributeKey;
@@ -58,6 +63,7 @@ import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.net.InetAddress;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -68,6 +74,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -180,6 +187,62 @@ class AbstractHandlerTest {
         assertThat(Files.exists(file)).isTrue();
         requestProcessingCompleteFuture.complete(null);
         assertThat(Files.exists(file)).isFalse();
+    }
+
+    @Test
+    void testIgnoringUnknownFields() {
+        RestfulGateway mockRestfulGateway = new TestingRestfulGateway.Builder().build();
+
+        CompletableFuture<Void> requestProcessingCompleteFuture = new CompletableFuture<>();
+        TestHandler handler =
+                new TestHandler(requestProcessingCompleteFuture, mockGatewayRetriever);
+
+        RouteResult<?> routeResult =
+                new RouteResult<>("", "", Collections.emptyMap(), Collections.emptyMap(), "");
+        String requestBody = "{\"unknown_field_should_be_ignore\": true}";
+        HttpRequest request =
+                new DefaultFullHttpRequest(
+                        HttpVersion.HTTP_1_1,
+                        HttpMethod.POST,
+                        TestHandler.TestHeaders.INSTANCE.getTargetRestEndpointURL(),
+                        Unpooled.wrappedBuffer(requestBody.getBytes(StandardCharsets.UTF_8)));
+        RoutedRequest<?> routerRequest = new RoutedRequest<>(routeResult, request);
+
+        AtomicReference<HttpResponse> response = new AtomicReference<>();
+
+        FlinkHttpObjectAggregator aggregator =
+                new FlinkHttpObjectAggregator(
+                        RestOptions.SERVER_MAX_CONTENT_LENGTH.defaultValue(),
+                        Collections.emptyMap());
+        ChannelPipeline pipeline = mock(ChannelPipeline.class);
+        when(pipeline.get(eq(FlinkHttpObjectAggregator.class))).thenReturn(aggregator);
+
+        ChannelFuture succeededFuture = mock(ChannelFuture.class);
+        when(succeededFuture.isSuccess()).thenReturn(true);
+
+        Attribute<FileUploads> attribute = new SimpleAttribute();
+        Channel channel = mock(Channel.class);
+        when(channel.attr(any(AttributeKey.class))).thenReturn(attribute);
+
+        ChannelHandlerContext context = mock(ChannelHandlerContext.class);
+        when(context.pipeline()).thenReturn(pipeline);
+        when(context.channel()).thenReturn(channel);
+        when(context.write(any()))
+                .thenAnswer(
+                        invocation -> {
+                            if (invocation.getArguments().length > 0
+                                    && invocation.getArgument(0) instanceof HttpResponse) {
+                                response.set(invocation.getArgument(0));
+                            }
+                            return succeededFuture;
+                        });
+        when(context.writeAndFlush(any())).thenReturn(succeededFuture);
+
+        handler.respondAsLeader(context, routerRequest, mockRestfulGateway);
+        assertThat(
+                        response.get() == null
+                                || response.get().status().codeClass() == HttpStatusClass.SUCCESS)
+                .isTrue();
     }
 
     private static class SimpleAttribute implements Attribute<FileUploads> {

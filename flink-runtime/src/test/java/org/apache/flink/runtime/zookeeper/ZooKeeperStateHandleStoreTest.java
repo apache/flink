@@ -44,6 +44,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -1125,7 +1126,8 @@ class ZooKeeperStateHandleStoreTest {
         Configuration configuration = new Configuration();
         configuration.set(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperExtension.getConnectString());
-        configuration.set(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, 100);
+        configuration.set(
+                HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, Duration.ofMillis(100));
         configuration.set(HighAvailabilityOptions.HA_ZOOKEEPER_ROOT, "timeout");
 
         try (CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper =

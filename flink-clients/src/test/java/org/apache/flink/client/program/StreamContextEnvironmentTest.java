@@ -30,7 +30,6 @@ import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
-import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -83,7 +82,7 @@ class StreamContextEnvironmentTest {
                 .hasMessageContainingAll(
                         ExecutionOptions.RUNTIME_MODE.key(),
                         ExecutionOptions.SORT_INPUTS.key(),
-                        ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL.key(),
+                        CheckpointingOptions.CHECKPOINTING_INTERVAL.key(),
                         PipelineOptions.MAX_PARALLELISM.key());
     }
 

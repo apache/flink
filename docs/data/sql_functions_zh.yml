@@ -796,6 +796,12 @@ collection:
   - sql: ARRAY_CONCAT(array1, ...)
     table: array1.arrayConcat(...)
     description: 返回一个数组，该数组是连接至少一个数组的结果。该数组包含第一个数组中的所有元素，然后是第二个数组中的所有元素，依此类推，直到第 N 个数组。如果任何输入数组为 NULL，则函数返回 NULL。
+  - sql: ARRAY_EXCEPT(array1, array2)
+    table: arrayOne.arrayExcept(arrayTwo)
+    description: Returns an ARRAY that contains the elements from array1 that are not in array2, without duplicates. If no elements remain after excluding the elements in array2 from array1, the function returns an empty ARRAY. If one or both arguments are NULL, the function returns NULL. The order of the elements from array1 is kept.
+  - sql: ARRAY_INTERSECT(array1, array2)
+    table: array1.arrayIntersect(array2)
+    description: Returns an ARRAY that contains the elements from array1 that are also in array2, without duplicates. If no elements that are both in array1 and array2, the function returns an empty ARRAY. If any of the array is null, the function will return null. The order of the elements from array1 is kept.
   - sql: ARRAY_MAX(array)
     table: array.arrayMax()
     description: 返回数组中的最大值，如果数组是 null，则返回 null。
@@ -817,6 +823,9 @@ collection:
   - sql: MAP_UNION(map1, map2)
     table: map1.mapUnion(map2)
     description: 返回一个通过合并两个图 'map1' 和 'map2' 创建的图。这两个图应该具有共同的图类型。如果有重叠的键，'map2' 的值将覆盖 'map1' 的值。如果任一图为空，则返回 null。
+  - sql: SPLIT(string, delimiter)
+    table: string.split(delimiter)
+    description: Returns an array of substrings by splitting the input string based on the given delimiter. If the delimiter is not found in the string, the original string is returned as the only element in the array. If the delimiter is empty, every character in the string is split. If the string or delimiter is null, a null value is returned. If the delimiter is found at the beginning or end of the string, or there are contiguous delimiters, then an empty string is added to the array.
 
 json:
   - sql: IS JSON [ { VALUE | SCALAR | ARRAY | OBJECT } ]

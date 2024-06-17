@@ -235,6 +235,7 @@ class PrintSinkTest {
 
         @Override
         public void execute(
+                MailOptions mailOptions,
                 ThrowingRunnable<? extends Exception> command,
                 String descriptionFormat,
                 Object... descriptionArgs) {}
@@ -244,6 +245,11 @@ class PrintSinkTest {
 
         @Override
         public boolean tryYield() throws FlinkRuntimeException {
+            return false;
+        }
+
+        @Override
+        public boolean shouldInterrupt() {
             return false;
         }
     }

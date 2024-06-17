@@ -98,21 +98,21 @@ This way, you will have a checkpoint around to resume from if your job fails.
 
 ```java
 CheckpointConfig config = env.getCheckpointConfig();
-config.setExternalizedCheckpointCleanup(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+config.setExternalizedCheckpointRetention(ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
 ```
 
-The `ExternalizedCheckpointCleanup` mode configures what happens with checkpoints when you cancel the job:
+The `ExternalizedCheckpointRetention` mode configures what happens with checkpoints when you cancel the job:
 
-- **`ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION`**: Retain the checkpoint when the job is cancelled. Note that you have to manually clean up the checkpoint state after cancellation in this case.
+- **`ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION`**: Retain the checkpoint when the job is cancelled. Note that you have to manually clean up the checkpoint state after cancellation in this case.
 
-- **`ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION`**: Delete the checkpoint when the job is cancelled. The checkpoint state will only be available if the job fails.
+- **`ExternalizedCheckpointRetention.DELETE_ON_CANCELLATION`**: Delete the checkpoint when the job is cancelled. The checkpoint state will only be available if the job fails.
 
 ### Directory Structure
 
 Similarly to [savepoints]({{< ref "docs/ops/state/savepoints" >}}), a checkpoint consists
 of a meta data file and, depending on the state backend, some additional data
 files. The meta data file and data files are stored in the directory that is
-configured via `state.checkpoints.dir` in the configuration files, 
+configured via `execution.checkpointing.dir` in the configuration files, 
 and also can be specified for per job in the code.
 
 The current checkpoint directory layout ([introduced by FLINK-8531](https://issues.apache.org/jira/browse/FLINK-8531)) is as follows:
@@ -138,7 +138,7 @@ The checkpoint directory is not part of a public API and can be changed in the f
 #### Configure globally via configuration files
 
 ```yaml
-state.checkpoints.dir: hdfs:///checkpoints/
+execution.checkpointing.dir: hdfs:///checkpoints/
 ```
 
 #### Configure for per job on the checkpoint configuration

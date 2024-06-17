@@ -42,7 +42,7 @@ public class PhysicalFile {
     @FunctionalInterface
     public interface PhysicalFileDeleter {
         /** Delete the file. */
-        void perform(Path filePath) throws IOException;
+        void perform(Path filePath, long size) throws IOException;
     }
 
     /** Functional interface to create the physical file. */
@@ -66,6 +66,9 @@ public class PhysicalFile {
     /** The size of this physical file. */
     private final AtomicLong size;
 
+    /** The valid data size in this physical file. */
+    private final AtomicLong dataSize;
+
     /**
      * Deleter that will be called when delete this physical file. If null, do not delete this
      * physical file.
@@ -88,18 +91,39 @@ public class PhysicalFile {
      */
     private boolean deleted = false;
 
+    /**
+     * If a physical file is owned by current {@link FileMergingSnapshotManager}, the current {@link
+     * FileMergingSnapshotManager} should not delete or count it if not owned.
+     */
+    private boolean isOwned;
+
+    /** If this physical file could be further reused, considering the space amplification. */
+    private boolean couldReuse;
+
     public PhysicalFile(
             @Nullable FSDataOutputStream outputStream,
             Path filePath,
             @Nullable PhysicalFileDeleter deleter,
             CheckpointedStateScope scope) {
+        this(outputStream, filePath, deleter, scope, true);
+    }
+
+    public PhysicalFile(
+            @Nullable FSDataOutputStream outputStream,
+            Path filePath,
+            @Nullable PhysicalFileDeleter deleter,
+            CheckpointedStateScope scope,
+            boolean owned) {
         this.filePath = filePath;
         this.outputStream = outputStream;
         this.closed = outputStream == null;
         this.deleter = deleter;
         this.scope = scope;
         this.size = new AtomicLong(0);
+        this.dataSize = new AtomicLong(0);
+        this.couldReuse = true;
         this.logicalFileRefCount = new AtomicInteger(0);
+        this.isOwned = owned;
     }
 
     @Nullable
@@ -141,8 +165,12 @@ public class PhysicalFile {
                         LOG.warn("Fail to close output stream when deleting file: {}", filePath);
                     }
                 }
-                if (deleter != null) {
-                    deleter.perform(filePath);
+                if (deleter != null && isOwned) {
+                    deleter.perform(filePath, size.get());
+                } else {
+                    LOG.debug(
+                            "Skip deleting this file {} because it is not owned by FileMergingManager.",
+                            filePath);
                 }
                 this.deleted = true;
             }
@@ -150,16 +178,57 @@ public class PhysicalFile {
     }
 
     void incSize(long delta) {
-        this.size.addAndGet(delta);
+        dataSize.addAndGet(delta);
+        if (!closed) {
+            size.addAndGet(delta);
+        }
+    }
+
+    void decSize(long delta) {
+        dataSize.addAndGet(-delta);
     }
 
     long getSize() {
         return size.get();
     }
 
+    long wastedSize() {
+        return size.get() - dataSize.get();
+    }
+
+    void updateSize(long updated) {
+        size.set(updated);
+    }
+
+    boolean isCouldReuse() {
+        return !closed || couldReuse;
+    }
+
+    /**
+     * Check whether this physical file can be reused.
+     *
+     * @param maxAmp the max space amplification.
+     * @return true if it can be further reused.
+     */
+    boolean checkReuseOnSpaceAmplification(float maxAmp) {
+        if (!closed) {
+            return true;
+        }
+        if (couldReuse) {
+            if (dataSize.get() == 0L || dataSize.get() * maxAmp < size.get()) {
+                couldReuse = false;
+            }
+        }
+        return couldReuse;
+    }
+
     @VisibleForTesting
     int getRefCount() {
         return logicalFileRefCount.get();
+    }
+
+    public boolean closed() {
+        return closed;
     }
 
     public void close() throws IOException {
@@ -173,10 +242,15 @@ public class PhysicalFile {
      * @throws IOException if anything goes wrong with file system.
      */
     private void innerClose() throws IOException {
-        closed = true;
-        if (outputStream != null) {
-            outputStream.close();
-            outputStream = null;
+        synchronized (this) {
+            if (closed) {
+                return;
+            }
+            closed = true;
+            if (outputStream != null) {
+                outputStream.close();
+                outputStream = null;
+            }
         }
     }
 
@@ -197,6 +271,10 @@ public class PhysicalFile {
         return scope;
     }
 
+    public boolean isOwned() {
+        return isOwned;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -207,13 +285,13 @@ public class PhysicalFile {
         }
 
         PhysicalFile that = (PhysicalFile) o;
-        return filePath.equals(that.filePath);
+        return isOwned == that.isOwned && filePath.equals(that.filePath);
     }
 
     @Override
     public String toString() {
         return String.format(
-                "Physical File: [%s], closed: %s, logicalFileRefCount: %d",
-                filePath, closed, logicalFileRefCount.get());
+                "Physical File: [%s], owned: %s, closed: %s, logicalFileRefCount: %d",
+                filePath, isOwned, closed, logicalFileRefCount.get());
     }
 }

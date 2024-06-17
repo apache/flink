@@ -32,8 +32,6 @@ import org.apache.flink.util.StringUtils;
 
 import javax.annotation.Nullable;
 
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -49,6 +47,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.utils.EncodingUtils.decodeBase64ToBytes;
+import static org.apache.flink.table.utils.EncodingUtils.encodeBytesToBase64;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Utilities for de/serializing {@link Catalog} objects into a map of string properties. */
@@ -144,7 +144,11 @@ public final class CatalogPropertiesUtil {
             properties.putAll(resolvedMaterializedTable.getOptions());
 
             properties.put(DEFINITION_QUERY, resolvedMaterializedTable.getDefinitionQuery());
-            properties.put(FRESHNESS, resolvedMaterializedTable.getFreshness().toString());
+
+            IntervalFreshness intervalFreshness =
+                    resolvedMaterializedTable.getDefinitionFreshness();
+            properties.put(FRESHNESS_INTERVAL, intervalFreshness.getInterval());
+            properties.put(FRESHNESS_UNIT, intervalFreshness.getTimeUnit().name());
 
             properties.put(
                     LOGICAL_REFRESH_MODE, resolvedMaterializedTable.getLogicalRefreshMode().name());
@@ -159,9 +163,8 @@ public final class CatalogPropertiesUtil {
             if (resolvedMaterializedTable.getSerializedRefreshHandler() != null) {
                 properties.put(
                         REFRESH_HANDLER_BYTES,
-                        new String(
-                                resolvedMaterializedTable.getSerializedRefreshHandler(),
-                                StandardCharsets.UTF_8));
+                        encodeBytesToBase64(
+                                resolvedMaterializedTable.getSerializedRefreshHandler()));
             }
 
             return properties;
@@ -232,7 +235,11 @@ public final class CatalogPropertiesUtil {
             final Map<String, String> options = deserializeOptions(properties, SCHEMA);
 
             final String definitionQuery = properties.get(DEFINITION_QUERY);
-            final Duration freshness = Duration.parse(properties.get(FRESHNESS));
+
+            final String freshnessInterval = properties.get(FRESHNESS_INTERVAL);
+            final IntervalFreshness.TimeUnit timeUnit =
+                    IntervalFreshness.TimeUnit.valueOf(properties.get(FRESHNESS_UNIT));
+            final IntervalFreshness freshness = IntervalFreshness.of(freshnessInterval, timeUnit);
 
             final CatalogMaterializedTable.LogicalRefreshMode logicalRefreshMode =
                     CatalogMaterializedTable.LogicalRefreshMode.valueOf(
@@ -248,7 +255,7 @@ public final class CatalogPropertiesUtil {
             final @Nullable byte[] refreshHandlerBytes =
                     StringUtils.isNullOrWhitespaceOnly(refreshHandlerStringBytes)
                             ? null
-                            : refreshHandlerStringBytes.getBytes(StandardCharsets.UTF_8);
+                            : decodeBase64ToBytes(refreshHandlerStringBytes);
 
             CatalogMaterializedTable.Builder builder = CatalogMaterializedTable.newBuilder();
             builder.schema(schema)
@@ -318,7 +325,9 @@ public final class CatalogPropertiesUtil {
 
     private static final String DEFINITION_QUERY = "definition-query";
 
-    private static final String FRESHNESS = "freshness";
+    private static final String FRESHNESS_INTERVAL = "freshness-interval";
+
+    private static final String FRESHNESS_UNIT = "freshness-unit";
 
     private static final String LOGICAL_REFRESH_MODE = "logical-refresh-mode";
 
@@ -347,7 +356,8 @@ public final class CatalogPropertiesUtil {
 
     private static boolean isMaterializedTableAttribute(String key) {
         return key.equals(DEFINITION_QUERY)
-                || key.equals(FRESHNESS)
+                || key.equals(FRESHNESS_INTERVAL)
+                || key.equals(FRESHNESS_UNIT)
                 || key.equals(LOGICAL_REFRESH_MODE)
                 || key.equals(REFRESH_MODE)
                 || key.equals(REFRESH_STATUS)

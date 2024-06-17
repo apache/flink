@@ -388,7 +388,7 @@ class MemoryStateBackend(StateBackend):
 
     ```
     state.backend.type: hashmap
-    state.checkpoint-storage: jobmanager
+    execution.checkpointing.storage: jobmanager
     ```
 
     This state backend holds the working state in the memory (JVM heap) of the TaskManagers.

@@ -45,11 +45,12 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTS_DIRECTORY;
+import static org.apache.flink.configuration.CheckpointingOptions.FILE_MERGING_ENABLED;
 import static org.apache.flink.configuration.CheckpointingOptions.SAVEPOINT_DIRECTORY;
+import static org.apache.flink.configuration.ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION;
 import static org.apache.flink.runtime.jobgraph.SavepointRestoreSettings.forPath;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForCheckpoint;
-import static org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION;
 import static org.apache.flink.util.ExceptionUtils.findThrowableSerializedAware;
 import static org.junit.Assert.fail;
 
@@ -135,11 +136,14 @@ public class ChangelogCompatibilityITCase {
     }
 
     private StreamExecutionEnvironment initEnvironment() {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        Configuration conf = new Configuration();
+        // TODO:remove file-merging setting after FLINK-32085 & FLINK-32081 are resolved.
+        conf.set(FILE_MERGING_ENABLED, false);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(conf);
         env.enableChangelogStateBackend(testCase.startWithChangelog);
         if (testCase.restoreSource == RestoreSource.CHECKPOINT) {
             env.enableCheckpointing(50);
-            env.getCheckpointConfig().setExternalizedCheckpointCleanup(RETAIN_ON_CANCELLATION);
+            env.getCheckpointConfig().setExternalizedCheckpointRetention(RETAIN_ON_CANCELLATION);
         }
         return env;
     }
@@ -178,7 +182,10 @@ public class ChangelogCompatibilityITCase {
     }
 
     private void restoreAndValidate(String location) {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        Configuration conf = new Configuration();
+        // TODO:remove file-merging setting after FLINK-32085 & FLINK-32081 are resolved.
+        conf.set(FILE_MERGING_ENABLED, false);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(conf);
         env.enableChangelogStateBackend(testCase.restoreWithChangelog);
         JobGraph jobGraph = addGraph(env);
         jobGraph.setSavepointRestoreSettings(forPath(location));

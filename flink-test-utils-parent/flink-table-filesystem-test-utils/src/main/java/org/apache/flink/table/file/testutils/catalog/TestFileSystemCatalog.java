@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.file.testutils.catalog;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
@@ -78,6 +79,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
+import static org.apache.flink.table.file.testutils.TestFileSystemTableFactory.IDENTIFIER;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** A catalog implementation for test {@link FileSystem}. */
@@ -276,6 +279,13 @@ public class TestFileSystemCatalog extends AbstractCatalog {
         }
     }
 
+    @Internal
+    public static boolean isFileSystemTable(Map<String, String> properties) {
+        String connector = properties.get(CONNECTOR.key());
+        return StringUtils.isNullOrWhitespaceOnly(connector)
+                || IDENTIFIER.equalsIgnoreCase(connector);
+    }
+
     @Override
     public boolean tableExists(ObjectPath tablePath) throws CatalogException {
         Path path = inferTablePath(catalogPathStr, tablePath);
@@ -346,7 +356,9 @@ public class TestFileSystemCatalog extends AbstractCatalog {
             if (!fs.exists(path)) {
                 fs.mkdirs(path);
                 fs.mkdirs(tableSchemaPath);
-                fs.mkdirs(tableDataPath);
+                if (isFileSystemTable(catalogTable.getOptions())) {
+                    fs.mkdirs(tableDataPath);
+                }
             }
 
             // write table schema
@@ -649,16 +661,20 @@ public class TestFileSystemCatalog extends AbstractCatalog {
             String tableDataPath) {
         if (CatalogBaseTable.TableKind.TABLE == tableKind) {
             CatalogTable catalogTable = CatalogPropertiesUtil.deserializeCatalogTable(properties);
-            // put table data path
             Map<String, String> options = new HashMap<>(catalogTable.getOptions());
-            options.put(FileSystemConnectorOptions.PATH.key(), tableDataPath);
+            if (isFileSystemTable(catalogTable.getOptions())) {
+                // put table data path
+                options.put(FileSystemConnectorOptions.PATH.key(), tableDataPath);
+            }
             return catalogTable.copy(options);
         } else if (CatalogBaseTable.TableKind.MATERIALIZED_TABLE == tableKind) {
             CatalogMaterializedTable catalogMaterializedTable =
                     CatalogPropertiesUtil.deserializeCatalogMaterializedTable(properties);
-            // put table data path
             Map<String, String> options = new HashMap<>(catalogMaterializedTable.getOptions());
-            options.put(FileSystemConnectorOptions.PATH.key(), tableDataPath);
+            if (isFileSystemTable(catalogMaterializedTable.getOptions())) {
+                // put table data path
+                options.put(FileSystemConnectorOptions.PATH.key(), tableDataPath);
+            }
             return catalogMaterializedTable.copy(options);
         }
 

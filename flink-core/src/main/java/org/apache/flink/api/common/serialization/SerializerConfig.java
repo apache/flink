@@ -220,4 +220,6 @@ public interface SerializerConfig extends Serializable {
      * @param classLoader a class loader to use when loading classes
      */
     void configure(ReadableConfig configuration, ClassLoader classLoader);
+
+    SerializerConfig copy();
 }

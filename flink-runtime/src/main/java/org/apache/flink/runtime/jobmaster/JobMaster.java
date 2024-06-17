@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
@@ -91,6 +92,7 @@ import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.shuffle.JobShuffleContext;
 import org.apache.flink.runtime.shuffle.JobShuffleContextImpl;
 import org.apache.flink.runtime.shuffle.PartitionWithMetrics;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -116,11 +118,11 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -130,6 +132,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
@@ -228,6 +231,22 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     private HeartbeatManager<Void, Void> resourceManagerHeartbeatManager;
 
     private final BlocklistHandler blocklistHandler;
+
+    private final Map<ResultPartitionID, PartitionWithMetrics> fetchedPartitionsWithMetrics =
+            new HashMap<>();
+
+    /**
+     * A flag that indicates whether to fetch and retain partitions on task managers. This will
+     * apply to future TaskManager registrations as well as already registered TaskManagers. The
+     * flag will be set to true when starting batch job recovery and set to false after all required
+     * partitions, as defined in {@code requireToFetchPartitions}, are either fetched or when a
+     * timeout occurs.
+     */
+    private boolean fetchAndRetainPartitions = false;
+
+    private Set<ResultPartitionID> partitionsToFetch;
+
+    private CompletableFuture<Collection<PartitionWithMetrics>> fetchPartitionsFuture;
 
     // ------------------------------------------------------------------------
 
@@ -797,30 +816,41 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
             }
         }
 
-        return getRpcService()
-                .connect(
-                        taskManagerRegistrationInformation.getTaskManagerRpcAddress(),
-                        TaskExecutorGateway.class)
-                .handleAsync(
-                        (TaskExecutorGateway taskExecutorGateway, Throwable throwable) -> {
-                            if (throwable != null) {
-                                return new RegistrationResponse.Failure(throwable);
-                            }
+        CompletableFuture<RegistrationResponse> registrationResponseFuture =
+                getRpcService()
+                        .connect(
+                                taskManagerRegistrationInformation.getTaskManagerRpcAddress(),
+                                TaskExecutorGateway.class)
+                        .handleAsync(
+                                (TaskExecutorGateway taskExecutorGateway, Throwable throwable) -> {
+                                    if (throwable != null) {
+                                        return new RegistrationResponse.Failure(throwable);
+                                    }
 
-                            slotPoolService.registerTaskManager(taskManagerId);
-                            registeredTaskManagers.put(
-                                    taskManagerId,
-                                    TaskManagerRegistration.create(
-                                            taskManagerLocation, taskExecutorGateway, sessionId));
+                                    slotPoolService.registerTaskManager(taskManagerId);
+                                    registeredTaskManagers.put(
+                                            taskManagerId,
+                                            TaskManagerRegistration.create(
+                                                    taskManagerLocation,
+                                                    taskExecutorGateway,
+                                                    sessionId));
 
-                            // monitor the task manager as heartbeat target
-                            taskManagerHeartbeatManager.monitorTarget(
-                                    taskManagerId,
-                                    new TaskExecutorHeartbeatSender(taskExecutorGateway));
+                                    // monitor the task manager as heartbeat target
+                                    taskManagerHeartbeatManager.monitorTarget(
+                                            taskManagerId,
+                                            new TaskExecutorHeartbeatSender(taskExecutorGateway));
 
-                            return new JMTMRegistrationSuccess(resourceId);
-                        },
-                        getMainThreadExecutor());
+                                    return new JMTMRegistrationSuccess(resourceId);
+                                },
+                                getMainThreadExecutor());
+
+        if (fetchAndRetainPartitions) {
+            registrationResponseFuture.whenComplete(
+                    (ignored, throwable) ->
+                            fetchAndRetainPartitionWithMetricsOnTaskManager(taskManagerId));
+        }
+
+        return registrationResponseFuture;
     }
 
     @Nonnull
@@ -961,24 +991,108 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     }
 
     @Override
-    public CompletableFuture<Collection<PartitionWithMetrics>>
-            getAllPartitionWithMetricsOnTaskManagers() {
-        final List<CompletableFuture<Collection<PartitionWithMetrics>>> allFutures =
-                new ArrayList<>();
+    public CompletableFuture<Collection<PartitionWithMetrics>> getPartitionWithMetrics(
+            Duration timeout, Set<ResultPartitionID> expectedPartitions) {
+        this.partitionsToFetch = expectedPartitions;
+        this.fetchPartitionsFuture = new CompletableFuture<>();
+
+        // check already fetched partitions
+        checkPartitionOnTaskManagerReportFinished();
+
+        return FutureUtils.orTimeout(
+                        fetchPartitionsFuture, timeout.toMillis(), TimeUnit.MILLISECONDS, null)
+                .handleAsync(
+                        (metrics, throwable) -> {
+                            stopFetchAndRetainPartitionWithMetricsOnTaskManager();
+
+                            if (throwable != null) {
+                                if (throwable instanceof TimeoutException) {
+                                    log.warn(
+                                            "Timeout occurred after {} ms "
+                                                    + "while fetching partition(s) ({}) from task managers.",
+                                            timeout.toMillis(),
+                                            expectedPartitions);
+
+                                    return new ArrayList<>(fetchedPartitionsWithMetrics.values());
+                                }
+                                throw new CompletionException(throwable);
+                            }
+
+                            return new ArrayList<>(fetchedPartitionsWithMetrics.values());
+                        },
+                        getMainThreadExecutor());
+    }
+
+    @VisibleForTesting
+    Map<ResultPartitionID, PartitionWithMetrics> getPartitionWithMetricsOnTaskManagers() {
+        return fetchedPartitionsWithMetrics;
+    }
+
+    @Override
+    public void startFetchAndRetainPartitionWithMetricsOnTaskManager() {
+        fetchAndRetainPartitions = true;
+
+        // process all already registered task managers
         registeredTaskManagers
-                .values()
-                .forEach(
-                        taskManager ->
-                                allFutures.add(
-                                        taskManager
-                                                .getTaskExecutorGateway()
-                                                .getPartitionWithMetrics(jobGraph.getJobID())));
-        return FutureUtils.combineAll(allFutures)
-                .thenApply(
-                        partitions ->
-                                partitions.stream()
-                                        .flatMap(Collection::stream)
-                                        .collect(Collectors.toList()));
+                .keySet()
+                .forEach(this::fetchAndRetainPartitionWithMetricsOnTaskManager);
+    }
+
+    private void fetchAndRetainPartitionWithMetricsOnTaskManager(ResourceID resourceId) {
+        TaskManagerRegistration taskManager = registeredTaskManagers.get(resourceId);
+        checkNotNull(taskManager);
+
+        taskManager
+                .getTaskExecutorGateway()
+                .getAndRetainPartitionWithMetrics(jobGraph.getJobID())
+                .thenAccept(
+                        partitionWithMetrics -> {
+                            if (fetchAndRetainPartitions) {
+                                for (PartitionWithMetrics partitionWithMetric :
+                                        partitionWithMetrics) {
+                                    log.debug(
+                                            "Received partition metrics for {} from Task Manager {}.",
+                                            partitionWithMetric
+                                                    .getPartition()
+                                                    .getResultPartitionID(),
+                                            resourceId);
+                                    fetchedPartitionsWithMetrics.put(
+                                            partitionWithMetric
+                                                    .getPartition()
+                                                    .getResultPartitionID(),
+                                            partitionWithMetric);
+                                }
+                                checkPartitionOnTaskManagerReportFinished();
+                            } else {
+                                log.info(
+                                        "Received late report of partition metrics from {}. Release the partitions.",
+                                        resourceId);
+
+                                taskManager
+                                        .getTaskExecutorGateway()
+                                        .releasePartitions(
+                                                jobGraph.getJobID(),
+                                                partitionWithMetrics.stream()
+                                                        .map(PartitionWithMetrics::getPartition)
+                                                        .map(
+                                                                ShuffleDescriptor
+                                                                        ::getResultPartitionID)
+                                                        .collect(Collectors.toSet()));
+                            }
+                        });
+    }
+
+    private void stopFetchAndRetainPartitionWithMetricsOnTaskManager() {
+        fetchAndRetainPartitions = false;
+    }
+
+    private void checkPartitionOnTaskManagerReportFinished() {
+        if (fetchPartitionsFuture != null) {
+            if (fetchedPartitionsWithMetrics.keySet().containsAll(partitionsToFetch)
+                    && !fetchPartitionsFuture.isDone()) {
+                fetchPartitionsFuture.complete(fetchedPartitionsWithMetrics.values());
+            }
+        }
     }
 
     @Override

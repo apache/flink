@@ -20,7 +20,7 @@ package org.apache.flink.types.parser;
 
 import org.apache.flink.types.StringValue;
 
-public class QuotedStringValueParserTest extends ParserTestBase<StringValue> {
+class QuotedStringValueParserTest extends ParserTestBase<StringValue> {
 
     @Override
     public String[] getValidTestValues() {

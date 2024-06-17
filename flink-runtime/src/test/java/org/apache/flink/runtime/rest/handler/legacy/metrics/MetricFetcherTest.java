@@ -67,7 +67,7 @@ class MetricFetcherTest {
                         jobID,
                         tmRID,
                         timeout,
-                        MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue(),
+                        MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue().toMillis(),
                         0,
                         null);
 

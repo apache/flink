@@ -144,7 +144,8 @@ class BatchPhysicalSortMergeJoinRule
 object BatchPhysicalSortMergeJoinRule {
   val INSTANCE: RelOptRule = new BatchPhysicalSortMergeJoinRule
 
-  // It is a experimental config, will may be removed later.
+  /** This configuration will be removed in Flink 2.0. */
+  @Deprecated
   @Experimental
   val TABLE_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED: ConfigOption[JBoolean] =
     key("table.optimizer.smj.remove-sort-enabled")

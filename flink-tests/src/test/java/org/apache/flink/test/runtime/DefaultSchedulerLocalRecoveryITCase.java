@@ -45,6 +45,7 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -113,7 +114,7 @@ public class DefaultSchedulerLocalRecoveryITCase extends TestLogger {
 
     private ArchivedExecutionGraph executeSchedulingTest(
             Configuration configuration, int parallelism) throws Exception {
-        final long slotIdleTimeout = TIMEOUT;
+        final Duration slotIdleTimeout = Duration.ofMillis(TIMEOUT);
         configuration.set(JobManagerOptions.SLOT_IDLE_TIMEOUT, slotIdleTimeout);
 
         configuration.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("64mb"));

@@ -21,7 +21,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
-import org.apache.flink.table.planner.expressions.utils.{Func1, RichFunc1}
+import org.apache.flink.table.planner.expressions.utils.{Func1, FuncNotReducible, RichFunc1}
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.jupiter.api.Test
@@ -52,6 +52,19 @@ class ExpressionReductionRulesTest extends TableTestBase {
     // it will be executed during runtime though
     util.getTableEnv.getConfig.addJobParameter("fail-for-cached-file", "true")
     util.verifyRelPlan("SELECT myUdf(1 + 1) FROM MyTable")
+  }
+
+  @Test
+  def testExpressionReductionWithNonReducibleUDF(): Unit = {
+    util.addTemporarySystemFunction("MyUdf", FuncNotReducible)
+    util.verifyRelPlan("SELECT MyUdf(1) FROM MyTable")
+  }
+
+  @Test
+  def testExpressionReductionWithNonReducibleMultipleUDF(): Unit = {
+    util.addTemporarySystemFunction("MyUdf1", Func1)
+    util.addTemporarySystemFunction("MyUdf2", FuncNotReducible)
+    util.verifyRelPlan("SELECT MyUdf2(MyUdf1(1)), MyUdf1(MyUdf2(1)) FROM MyTable")
   }
 
   @Test

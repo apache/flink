@@ -1,0 +1,24 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>materialized-table.refresh-mode.freshness-threshold</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">30 min</td>
+            <td>Duration</td>
+            <td>Specifies a time threshold for determining the materialized table refresh mode. If the materialized table defined FRESHNESS is below this threshold, it run in continuous mode. Otherwise, it switches to full refresh mode.</td>
+        </tr>
+        <tr>
+            <td><h5>partition.fields.#.date-formatter</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Specifies the time partition formatter for the partitioned materialized table, where '#' denotes a string-based partition field name. This serves as a hint to the framework regarding which partition to refresh in full refresh mode.</td>
+        </tr>
+    </tbody>
+</table>

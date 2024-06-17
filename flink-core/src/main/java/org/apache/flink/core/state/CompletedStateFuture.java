@@ -20,50 +20,47 @@ package org.apache.flink.core.state;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.v2.StateFuture;
-import org.apache.flink.util.FlinkRuntimeException;
-
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.function.Function;
+import org.apache.flink.util.function.BiFunctionWithException;
+import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 /** A {@link StateFuture} that has already been completed when it is created. */
 @Internal
 public class CompletedStateFuture<T> implements InternalStateFuture<T> {
 
     T result;
-
     // no public access
     CompletedStateFuture(T result) {
         this.result = result;
     }
 
     @Override
-    public <U> StateFuture<U> thenApply(Function<? super T, ? extends U> fn) {
-        return StateFutureUtils.completedFuture(fn.apply(result));
+    public <U> StateFuture<U> thenApply(
+            FunctionWithException<? super T, ? extends U, ? extends Exception> fn) {
+        return StateFutureUtils.completedFuture(FunctionWithException.unchecked(fn).apply(result));
     }
 
     @Override
-    public StateFuture<Void> thenAccept(Consumer<? super T> action) {
-        action.accept(result);
+    public StateFuture<Void> thenAccept(ThrowingConsumer<? super T, ? extends Exception> action) {
+        ThrowingConsumer.unchecked(action).accept(result);
         return StateFutureUtils.completedVoidFuture();
     }
 
     @Override
-    public <U> StateFuture<U> thenCompose(Function<? super T, ? extends StateFuture<U>> action) {
-        return action.apply(result);
+    public <U> StateFuture<U> thenCompose(
+            FunctionWithException<? super T, ? extends StateFuture<U>, ? extends Exception>
+                    action) {
+        return FunctionWithException.unchecked(action).apply(result);
     }
 
     @Override
     public <U, V> StateFuture<V> thenCombine(
-            StateFuture<? extends U> other, BiFunction<? super T, ? super U, ? extends V> fn) {
+            StateFuture<? extends U> other,
+            BiFunctionWithException<? super T, ? super U, ? extends V, ? extends Exception> fn) {
         return other.thenCompose(
                 (u) -> {
-                    try {
-                        V v = fn.apply(result, u);
-                        return StateFutureUtils.completedFuture(v);
-                    } catch (Throwable e) {
-                        throw new FlinkRuntimeException("Error binding or executing callback", e);
-                    }
+                    V v = fn.apply(result, u);
+                    return StateFutureUtils.completedFuture(v);
                 });
     }
 
@@ -73,7 +70,12 @@ public class CompletedStateFuture<T> implements InternalStateFuture<T> {
     }
 
     @Override
-    public void thenSyncAccept(Consumer<? super T> action) {
-        action.accept(result);
+    public void completeExceptionally(String message, Throwable ex) {
+        throw new UnsupportedOperationException("This state future has already been completed.");
+    }
+
+    @Override
+    public void thenSyncAccept(ThrowingConsumer<? super T, ? extends Exception> action) {
+        ThrowingConsumer.unchecked(action).accept(result);
     }
 }

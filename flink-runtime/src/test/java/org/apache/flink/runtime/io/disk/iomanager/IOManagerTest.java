@@ -28,6 +28,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.List;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -84,7 +85,7 @@ class IOManagerTest {
     private static class TestIOManager extends IOManager {
 
         protected TestIOManager(String[] paths) {
-            super(paths);
+            super(paths, Executors.newSingleThreadScheduledExecutor());
         }
 
         @Override

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.entrypoint;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.ClusterOptions;
@@ -112,6 +113,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErrorHandler {
 
+    @Internal
     public static final ConfigOption<String> INTERNAL_CLUSTER_EXECUTION_MODE =
             ConfigOptions.key("internal.cluster.execution-mode")
                     .stringType()
@@ -485,7 +487,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
     protected CompletableFuture<Void> stopClusterServices(boolean cleanupHaData) {
         final long shutdownTimeout =
-                configuration.get(ClusterOptions.CLUSTER_SERVICES_SHUTDOWN_TIMEOUT);
+                configuration.get(ClusterOptions.CLUSTER_SERVICES_SHUTDOWN_TIMEOUT).toMillis();
 
         synchronized (lock) {
             Throwable exception = null;

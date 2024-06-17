@@ -113,6 +113,7 @@ import static org.apache.flink.table.functions.FunctionKind.SCALAR;
 import static org.apache.flink.table.gateway.api.results.ResultSet.ResultType.PAYLOAD;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.awaitOperationTermination;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.createInitializedSession;
+import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.fetchAllResults;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.fetchResults;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
@@ -324,7 +325,7 @@ public class SqlGatewayServiceITCase {
         awaitOperationTermination(service, sessionHandle, operationHandle);
 
         List<RowData> expectedData = getDefaultResultSet().getData();
-        List<RowData> actualData = fetchAllResults(sessionHandle, operationHandle);
+        List<RowData> actualData = fetchAllResults(service, sessionHandle, operationHandle);
         assertThat(actualData).isEqualTo(expectedData);
 
         service.closeOperation(sessionHandle, operationHandle);
@@ -401,7 +402,7 @@ public class SqlGatewayServiceITCase {
                         -1,
                         Configuration.fromMap(Collections.singletonMap(key, value)));
 
-        List<RowData> settings = fetchAllResults(sessionHandle, operationHandle);
+        List<RowData> settings = fetchAllResults(service, sessionHandle, operationHandle);
 
         assertThat(settings)
                 .contains(
@@ -436,7 +437,7 @@ public class SqlGatewayServiceITCase {
         OperationHandle insertOperationHandle =
                 service.executeStatement(sessionHandle, insertSql, -1, configuration);
 
-        List<RowData> results = fetchAllResults(sessionHandle, insertOperationHandle);
+        List<RowData> results = fetchAllResults(service, sessionHandle, insertOperationHandle);
         assertThat(results.size()).isEqualTo(1);
         String jobId = results.get(0).getString(0).toString();
 
@@ -446,7 +447,7 @@ public class SqlGatewayServiceITCase {
         OperationHandle stopOperationHandle =
                 service.executeStatement(sessionHandle, stopSql, -1, configuration);
 
-        List<RowData> stopResults = fetchAllResults(sessionHandle, stopOperationHandle);
+        List<RowData> stopResults = fetchAllResults(service, sessionHandle, stopOperationHandle);
         assertThat(stopResults.size()).isEqualTo(1);
         if (hasSavepoint) {
             String savepoint = stopResults.get(0).getString(0).toString();
@@ -485,7 +486,7 @@ public class SqlGatewayServiceITCase {
         OperationHandle insertsOperationHandle =
                 service.executeStatement(sessionHandle, insertSql, -1, configuration);
         String jobId =
-                fetchAllResults(sessionHandle, insertsOperationHandle)
+                fetchAllResults(service, sessionHandle, insertsOperationHandle)
                         .get(0)
                         .getString(0)
                         .toString();
@@ -496,7 +497,58 @@ public class SqlGatewayServiceITCase {
         OperationHandle showJobsOperationHandle1 =
                 service.executeStatement(sessionHandle, "SHOW JOBS", -1, configuration);
 
-        List<RowData> result = fetchAllResults(sessionHandle, showJobsOperationHandle1);
+        List<RowData> result = fetchAllResults(service, sessionHandle, showJobsOperationHandle1);
+        RowData jobRow =
+                result.stream()
+                        .filter(row -> jobId.equals(row.getString(0).toString()))
+                        .findFirst()
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "Test job " + jobId + " not found."));
+        assertThat(jobRow.getString(1)).hasToString(pipelineName);
+        assertThat(jobRow.getString(2)).hasToString("RUNNING");
+        assertThat(jobRow.getTimestamp(3, 3).getMillisecond())
+                .isBetween(timeOpStart, timeOpSucceed);
+    }
+
+    @Test
+    void testDescribeJobOperation(@InjectClusterClient RestClusterClient<?> restClusterClient)
+            throws Exception {
+        SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
+        Configuration configuration = new Configuration(MINI_CLUSTER.getClientConfiguration());
+
+        String pipelineName = "test-describe-job";
+        configuration.set(PipelineOptions.NAME, pipelineName);
+
+        // running jobs
+        String sourceDdl = "CREATE TABLE source (a STRING) WITH ('connector'='datagen');";
+        String sinkDdl = "CREATE TABLE sink (a STRING) WITH ('connector'='blackhole');";
+        String insertSql = "INSERT INTO sink SELECT * FROM source;";
+
+        service.executeStatement(sessionHandle, sourceDdl, -1, configuration);
+        service.executeStatement(sessionHandle, sinkDdl, -1, configuration);
+
+        long timeOpStart = System.currentTimeMillis();
+        OperationHandle insertsOperationHandle =
+                service.executeStatement(sessionHandle, insertSql, -1, configuration);
+        String jobId =
+                fetchAllResults(service, sessionHandle, insertsOperationHandle)
+                        .get(0)
+                        .getString(0)
+                        .toString();
+
+        TestUtils.waitUntilAllTasksAreRunning(restClusterClient, JobID.fromHexString(jobId));
+        long timeOpSucceed = System.currentTimeMillis();
+
+        OperationHandle describeJobOperationHandle =
+                service.executeStatement(
+                        sessionHandle,
+                        String.format("DESCRIBE JOB '%s'", jobId),
+                        -1,
+                        configuration);
+
+        List<RowData> result = fetchAllResults(service, sessionHandle, describeJobOperationHandle);
         RowData jobRow =
                 result.stream()
                         .filter(row -> jobId.equals(row.getString(0).toString()))
@@ -1112,18 +1164,5 @@ public class SqlGatewayServiceITCase {
             List<String> expectedCompletionHints) {
         assertThat(service.completeStatement(sessionHandle, incompleteSql, incompleteSql.length()))
                 .isEqualTo(expectedCompletionHints);
-    }
-
-    private List<RowData> fetchAllResults(
-            SessionHandle sessionHandle, OperationHandle operationHandle) {
-        Long token = 0L;
-        List<RowData> results = new ArrayList<>();
-        while (token != null) {
-            ResultSet result =
-                    service.fetchResults(sessionHandle, operationHandle, token, Integer.MAX_VALUE);
-            results.addAll(result.getData());
-            token = result.getNextToken();
-        }
-        return results;
     }
 }

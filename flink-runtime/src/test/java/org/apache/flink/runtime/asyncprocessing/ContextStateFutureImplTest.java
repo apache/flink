@@ -18,8 +18,13 @@
 
 package org.apache.flink.runtime.asyncprocessing;
 
+import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandler;
 import org.apache.flink.core.state.StateFutureUtils;
+import org.apache.flink.runtime.asyncprocessing.EpochManager.Epoch;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.junit.Test;
 
@@ -28,6 +33,7 @@ import java.util.Arrays;
 import java.util.LinkedList;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for {@link ContextStateFutureImpl}. */
 public class ContextStateFutureImplTest {
@@ -36,10 +42,12 @@ public class ContextStateFutureImplTest {
     public void testThenApply() {
         SingleStepRunner runner = new SingleStepRunner();
         RecordContext<String> recordContext = buildRecordContext("a", "b");
+        TestAsyncFrameworkExceptionHandler exceptionHandler =
+                new TestAsyncFrameworkExceptionHandler();
 
         // validate
         ContextStateFutureImpl<Void> future =
-                new ContextStateFutureImpl<>(runner::submit, recordContext);
+                new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
         assertThat(recordContext.getReferenceCount()).isEqualTo(1);
         future.thenApply((v) -> 1L);
         future.complete(null);
@@ -47,23 +55,46 @@ public class ContextStateFutureImplTest {
         assertThat(recordContext.getReferenceCount()).isEqualTo(0);
 
         // validate completion before callback
-        future = new ContextStateFutureImpl<>(runner::submit, recordContext);
+        future = new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
         assertThat(recordContext.getReferenceCount()).isEqualTo(1);
         future.complete(null);
         assertThat(recordContext.getReferenceCount()).isEqualTo(0);
         future.thenApply((v) -> 1L);
         assertThat(recordContext.getReferenceCount()).isEqualTo(0);
         assertThat(runner.runThrough()).isFalse();
+
+        // validate exception
+        future =
+                new ContextStateFutureImpl<>(
+                        (runnable) -> {
+                            runner.submit(() -> runnable.run());
+                        },
+                        exceptionHandler,
+                        recordContext);
+        future.thenApply(
+                (v) -> {
+                    throw new FlinkRuntimeException("Artificial exception for thenApply().");
+                });
+        future.complete(null);
+        try {
+            runner.runThrough();
+            fail("Should throw an exception.");
+        } catch (Throwable e) {
+            assertThat(e).isInstanceOf(FlinkRuntimeException.class);
+            assertThat(e.getMessage()).isEqualTo("Artificial exception for thenApply().");
+        }
     }
 
     @Test
     public void testThenAccept() {
         SingleStepRunner runner = new SingleStepRunner();
         RecordContext<String> recordContext = buildRecordContext("a", "b");
+        TestAsyncFrameworkExceptionHandler exceptionHandler =
+                new TestAsyncFrameworkExceptionHandler();
 
         // validate
         ContextStateFutureImpl<Void> future =
-                new ContextStateFutureImpl<>(runner::submit, recordContext);
+                new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
         assertThat(recordContext.getReferenceCount()).isEqualTo(1);
         future.thenAccept((v) -> {});
         future.complete(null);
@@ -71,23 +102,46 @@ public class ContextStateFutureImplTest {
         assertThat(recordContext.getReferenceCount()).isEqualTo(0);
 
         // validate completion before callback
-        future = new ContextStateFutureImpl<>(runner::submit, recordContext);
+        future = new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
         assertThat(recordContext.getReferenceCount()).isEqualTo(1);
         future.complete(null);
         assertThat(recordContext.getReferenceCount()).isEqualTo(0);
         future.thenAccept((v) -> {});
         assertThat(recordContext.getReferenceCount()).isEqualTo(0);
         assertThat(runner.runThrough()).isFalse();
+
+        // validate exception
+        future =
+                new ContextStateFutureImpl<>(
+                        (runnable) -> {
+                            runner.submit(() -> runnable.run());
+                        },
+                        exceptionHandler,
+                        recordContext);
+        try {
+            future.complete(null);
+            future.thenAccept(
+                    (v) -> {
+                        throw new FlinkRuntimeException("Artificial exception for thenAccept().");
+                    });
+            fail("Should throw an exception.");
+        } catch (Throwable e) {
+            assertThat(e).isInstanceOf(FlinkRuntimeException.class);
+            assertThat(e.getMessage()).isEqualTo("Artificial exception for thenAccept().");
+            assertThat(exceptionHandler.exception).isNull();
+        }
     }
 
     @Test
     public void testThenCompose() {
         SingleStepRunner runner = new SingleStepRunner();
         RecordContext<String> recordContext = buildRecordContext("a", "b");
+        TestAsyncFrameworkExceptionHandler exceptionHandler =
+                new TestAsyncFrameworkExceptionHandler();
 
         // validate
         ContextStateFutureImpl<Void> future =
-                new ContextStateFutureImpl<>(runner::submit, recordContext);
+                new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
         assertThat(recordContext.getReferenceCount()).isEqualTo(1);
         future.thenCompose((v) -> StateFutureUtils.completedFuture(1L));
         future.complete(null);
@@ -95,25 +149,51 @@ public class ContextStateFutureImplTest {
         assertThat(recordContext.getReferenceCount()).isEqualTo(0);
 
         // validate completion before callback
-        future = new ContextStateFutureImpl<>(runner::submit, recordContext);
+        future = new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
         assertThat(recordContext.getReferenceCount()).isEqualTo(1);
         future.complete(null);
         assertThat(recordContext.getReferenceCount()).isEqualTo(0);
         future.thenCompose((v) -> StateFutureUtils.completedFuture(1L));
         assertThat(recordContext.getReferenceCount()).isEqualTo(0);
         assertThat(runner.runThrough()).isFalse();
+
+        // validate exception
+        future =
+                new ContextStateFutureImpl<>(
+                        (runnable) -> {
+                            runner.submit(() -> runnable.run());
+                        },
+                        exceptionHandler,
+                        recordContext);
+
+        future.thenCompose(
+                (v) -> {
+                    throw new FlinkException("Artificial exception for thenCompose().");
+                });
+        future.complete(null);
+        try {
+            runner.runThrough();
+            fail("Should throw an exception.");
+        } catch (Throwable e) {
+            assertThat(e).isInstanceOf(RuntimeException.class);
+            assertThat(e.getMessage())
+                    .isEqualTo(
+                            "org.apache.flink.util.FlinkException: Artificial exception for thenCompose().");
+        }
     }
 
     @Test
     public void testThenCombine() {
         SingleStepRunner runner = new SingleStepRunner();
         RecordContext<String> recordContext = buildRecordContext("a", "b");
+        TestAsyncFrameworkExceptionHandler exceptionHandler =
+                new TestAsyncFrameworkExceptionHandler();
 
         // validate
         ContextStateFutureImpl<Void> future1 =
-                new ContextStateFutureImpl<>(runner::submit, recordContext);
+                new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
         ContextStateFutureImpl<Void> future2 =
-                new ContextStateFutureImpl<>(runner::submit, recordContext);
+                new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
         assertThat(recordContext.getReferenceCount()).isEqualTo(2);
         future1.thenCombine(future2, (v1, v2) -> 1L);
         future1.complete(null);
@@ -122,8 +202,8 @@ public class ContextStateFutureImplTest {
         assertThat(recordContext.getReferenceCount()).isEqualTo(0);
 
         // validate future1 completion before callback
-        future1 = new ContextStateFutureImpl<>(runner::submit, recordContext);
-        future2 = new ContextStateFutureImpl<>(runner::submit, recordContext);
+        future1 = new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
+        future2 = new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
         assertThat(recordContext.getReferenceCount()).isEqualTo(2);
         future1.complete(null);
         future1.thenCombine(future2, (v1, v2) -> 1L);
@@ -133,8 +213,8 @@ public class ContextStateFutureImplTest {
         assertThat(recordContext.getReferenceCount()).isEqualTo(0);
 
         // validate future2 completion before callback
-        future1 = new ContextStateFutureImpl<>(runner::submit, recordContext);
-        future2 = new ContextStateFutureImpl<>(runner::submit, recordContext);
+        future1 = new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
+        future2 = new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
         assertThat(recordContext.getReferenceCount()).isEqualTo(2);
         future2.complete(null);
         future1.thenCombine(future2, (v1, v2) -> 1L);
@@ -144,8 +224,8 @@ public class ContextStateFutureImplTest {
         assertThat(recordContext.getReferenceCount()).isEqualTo(0);
 
         // validate both future1 and future2 completion before callback
-        future1 = new ContextStateFutureImpl<>(runner::submit, recordContext);
-        future2 = new ContextStateFutureImpl<>(runner::submit, recordContext);
+        future1 = new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
+        future2 = new ContextStateFutureImpl<>(runner::submit, exceptionHandler, recordContext);
         assertThat(recordContext.getReferenceCount()).isEqualTo(2);
         future1.complete(null);
         future2.complete(null);
@@ -158,6 +238,8 @@ public class ContextStateFutureImplTest {
     public void testComplex() {
         SingleStepRunner runner = new SingleStepRunner();
         RecordContext<String> recordContext = buildRecordContext("a", "b");
+        TestAsyncFrameworkExceptionHandler exceptionHandler =
+                new TestAsyncFrameworkExceptionHandler();
 
         for (int i = 0; i < 32; i++) { // 2^5 for completion status combination
             // Each bit of 'i' represents the complete status when the user code executes.
@@ -167,7 +249,8 @@ public class ContextStateFutureImplTest {
             ArrayList<ContextStateFutureImpl<Void>> futures = new ArrayList<>(6);
             for (int j = 0; j < 5; j++) {
                 ContextStateFutureImpl<Void> future =
-                        new ContextStateFutureImpl<>(runner::submit, recordContext);
+                        new ContextStateFutureImpl<>(
+                                runner::submit, exceptionHandler, recordContext);
                 futures.add(future);
                 // Complete future before user code.
                 if (((i >>> j) & 1) == 1) {
@@ -224,24 +307,35 @@ public class ContextStateFutureImplTest {
 
     private <K> RecordContext<K> buildRecordContext(Object record, K key) {
         int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(key, 128);
-        return new RecordContext<>(record, key, (e) -> {}, keyGroup);
+        return new RecordContext<>(record, key, (e) -> {}, keyGroup, new Epoch(0));
     }
 
     /** A runner that performs single-step debugging. */
     public static class SingleStepRunner {
-        private final LinkedList<Runnable> runnables = new LinkedList<>();
+        private final LinkedList<ThrowingRunnable<? extends Exception>> runnables =
+                new LinkedList<>();
 
-        public void submit(Runnable runnable) {
+        public void submit(ThrowingRunnable<? extends Exception> runnable) {
             runnables.add(runnable);
         }
 
         public boolean runThrough() {
             boolean run = false;
             while (!runnables.isEmpty()) {
-                runnables.poll().run();
+                ThrowingRunnable.unchecked(runnables.poll()).run();
                 run = true;
             }
             return run;
+        }
+    }
+
+    static class TestAsyncFrameworkExceptionHandler implements AsyncFrameworkExceptionHandler {
+        String message;
+        Throwable exception;
+
+        public void handleException(String message, Throwable exception) {
+            this.message = message;
+            this.exception = exception;
         }
     }
 }

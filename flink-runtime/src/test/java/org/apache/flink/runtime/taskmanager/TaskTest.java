@@ -65,6 +65,7 @@ import org.junit.rules.TemporaryFolder;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -944,8 +945,8 @@ public class TaskTest extends TestLogger {
         final TaskManagerActions taskManagerActions = new ProhibitFatalErrorTaskManagerActions();
 
         final Configuration config = new Configuration();
-        config.set(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, 5L);
-        config.set(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 1000L);
+        config.set(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, Duration.ofMillis(5L));
+        config.set(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, Duration.ofMillis(1000L));
 
         final Task task =
                 createTaskBuilder()
@@ -976,7 +977,7 @@ public class TaskTest extends TestLogger {
                         .build();
 
         final Configuration config = new Configuration();
-        config.set(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 10L);
+        config.set(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, Duration.ofMillis(10L));
 
         final Task task =
                 createTaskBuilder()
@@ -1014,8 +1015,8 @@ public class TaskTest extends TestLogger {
                         .build();
 
         final Configuration config = new Configuration();
-        config.set(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, 5L);
-        config.set(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 50L);
+        config.set(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, Duration.ofMillis(5L));
+        config.set(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, Duration.ofMillis(50L));
 
         // We need to remember the original object since all changes in  `startTaskThread` applies
         // to it rather than to spy object.
@@ -1054,8 +1055,8 @@ public class TaskTest extends TestLogger {
         long timeout = interval + 19292;
 
         final Configuration config = new Configuration();
-        config.set(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, interval);
-        config.set(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, timeout);
+        config.set(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, Duration.ofMillis(interval));
+        config.set(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, Duration.ofMillis(timeout));
 
         final ExecutionConfig executionConfig = new ExecutionConfig();
         executionConfig.setTaskCancellationInterval(interval + 1337);

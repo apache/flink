@@ -25,6 +25,7 @@ import org.apache.flink.sql.parser.ddl.SqlAlterTable;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableCompact;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropColumn;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropConstraint;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableDropDistribution;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropPrimaryKey;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropWatermark;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableOptions;
@@ -447,6 +448,9 @@ public class SqlNodeToOperationConversion {
         } else if (sqlAlterTable instanceof SqlAlterTableDropColumn) {
             return alterSchemaConverter.convertAlterSchema(
                     (SqlAlterTableDropColumn) sqlAlterTable, resolvedCatalogTable);
+        } else if (sqlAlterTable instanceof SqlAlterTableDropDistribution) {
+            return convertAlterTableDropDistribution(
+                    sqlAlterTable, resolvedCatalogTable, tableIdentifier);
         } else if (sqlAlterTable instanceof SqlAlterTableDropPrimaryKey) {
             return alterSchemaConverter.convertAlterSchema(
                     (SqlAlterTableDropPrimaryKey) sqlAlterTable, resolvedCatalogTable);
@@ -592,6 +596,33 @@ public class SqlNodeToOperationConversion {
                         tableIdentifier));
     }
 
+    /** Convert ALTER TABLE DROP DISTRIBUTION statement. */
+    private static AlterTableChangeOperation convertAlterTableDropDistribution(
+            SqlAlterTable sqlAlterTable,
+            ResolvedCatalogTable resolvedCatalogTable,
+            ObjectIdentifier tableIdentifier) {
+        if (!resolvedCatalogTable.getDistribution().isPresent()) {
+            throw new ValidationException(
+                    String.format(
+                            "Table %s does not have a distribution to drop.", tableIdentifier));
+        }
+
+        List<TableChange> tableChanges = Collections.singletonList(TableChange.dropDistribution());
+        CatalogTable.Builder builder =
+                CatalogTable.newBuilder()
+                        .comment(resolvedCatalogTable.getComment())
+                        .options(resolvedCatalogTable.getOptions())
+                        .schema(resolvedCatalogTable.getUnresolvedSchema())
+                        .partitionKeys(resolvedCatalogTable.getPartitionKeys())
+                        .options(resolvedCatalogTable.getOptions());
+
+        resolvedCatalogTable.getSnapshot().ifPresent(builder::snapshot);
+
+        CatalogTable newTable = builder.build();
+        return new AlterTableChangeOperation(
+                tableIdentifier, tableChanges, newTable, sqlAlterTable.ifTableExists());
+    }
+
     /** Convert CREATE FUNCTION statement. */
     private Operation convertCreateFunction(SqlCreateFunction sqlCreateFunction) {
         UnresolvedIdentifier unresolvedIdentifier =
@@ -734,7 +765,9 @@ public class SqlNodeToOperationConversion {
 
         UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(targetTablePath);
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-        ContextResolvedTable contextResolvedTable = catalogManager.getTableOrError(identifier);
+        // If it is materialized table, convert it to catalog table for query optimize
+        ContextResolvedTable contextResolvedTable =
+                catalogManager.getTableOrError(identifier).toCatalogTable();
 
         PlannerQueryOperation query =
                 (PlannerQueryOperation)

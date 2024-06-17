@@ -21,7 +21,7 @@ package org.apache.flink.datastream.api.function;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.datastream.api.common.Collector;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
-import org.apache.flink.datastream.api.context.RuntimeContext;
+import org.apache.flink.datastream.api.context.PartitionedContext;
 
 /** This contains all logical related to process records from two non-broadcast input. */
 @Experimental
@@ -33,7 +33,7 @@ public interface TwoInputNonBroadcastStreamProcessFunction<IN1, IN2, OUT> extend
      * @param output to emit processed records.
      * @param ctx runtime context in which this function is executed.
      */
-    void processRecordFromFirstInput(IN1 record, Collector<OUT> output, RuntimeContext ctx)
+    void processRecordFromFirstInput(IN1 record, Collector<OUT> output, PartitionedContext ctx)
             throws Exception;
 
     /**
@@ -43,7 +43,7 @@ public interface TwoInputNonBroadcastStreamProcessFunction<IN1, IN2, OUT> extend
      * @param output to emit processed records.
      * @param ctx runtime context in which this function is executed.
      */
-    void processRecordFromSecondInput(IN2 record, Collector<OUT> output, RuntimeContext ctx)
+    void processRecordFromSecondInput(IN2 record, Collector<OUT> output, PartitionedContext ctx)
             throws Exception;
 
     /**
@@ -61,4 +61,13 @@ public interface TwoInputNonBroadcastStreamProcessFunction<IN1, IN2, OUT> extend
      * @param ctx the context in which this function is executed.
      */
     default void endSecondInput(NonPartitionedContext<OUT> ctx) {}
+
+    /**
+     * Callback for processing timer.
+     *
+     * @param timestamp when this callback is triggered.
+     * @param output to emit record.
+     * @param ctx runtime context in which this function is executed.
+     */
+    default void onProcessingTimer(long timestamp, Collector<OUT> output, PartitionedContext ctx) {}
 }

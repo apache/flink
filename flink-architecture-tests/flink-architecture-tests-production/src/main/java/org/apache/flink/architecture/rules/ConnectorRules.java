@@ -39,6 +39,8 @@ public class ConnectorRules {
         "org.apache.flink.connector..", "org.apache.flink.streaming.connectors.."
     };
 
+    private static final String[] UTIL_PACKAGES = {"org.apache.flink.util.."};
+
     private static DescribedPredicate<JavaClass>
             areFlinkClassesThatResideOutsideOfConnectorPackagesAndArePublic() {
         return JavaClass.Predicates.resideInAPackage("org.apache.flink..")
@@ -73,7 +75,10 @@ public class ConnectorRules {
                                                             "org.apache.flink.."))
                                             .or(
                                                     JavaClass.Predicates.resideInAnyPackage(
-                                                            CONNECTOR_PACKAGES)))
+                                                            CONNECTOR_PACKAGES))
+                                            .or(
+                                                    JavaClass.Predicates.resideInAnyPackage(
+                                                            UTIL_PACKAGES)))
                             .as(
                                     "Connector production code must depend only on public API when outside of connector packages"));
 }

@@ -629,11 +629,16 @@ If you want to enable atomicity for RTAS, then you should make sure:
 ## CREATE CATALOG
 
 ```sql
-CREATE CATALOG catalog_name
+CREATE CATALOG [IF NOT EXISTS] catalog_name
+  [COMMENT catalog_comment]
   WITH (key1=val1, key2=val2, ...)
 ```
 
 Create a catalog with the given catalog properties. If a catalog with the same name already exists, an exception is thrown.
+
+**IF NOT EXISTS**
+
+If the catalog already exists, nothing happens.
 
 **WITH OPTIONS**
 

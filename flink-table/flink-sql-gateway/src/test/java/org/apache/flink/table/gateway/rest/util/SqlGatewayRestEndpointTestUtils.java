@@ -41,7 +41,7 @@ public class SqlGatewayRestEndpointTestUtils {
                         null, flinkConf, getEndpointConfig(flinkConf, IDENTIFIER));
 
         return rebuildRestEndpointOptions(
-                context.getEndpointOptions(), context.getFlinkConfigurationOptions());
+                context.getEndpointOptions(), context.getFlinkConfiguration().toMap());
     }
 
     /** Create the configuration generated from config.yaml. */

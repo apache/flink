@@ -40,6 +40,16 @@ import java.io.Serializable;
  */
 @Internal
 public interface InternalTimeServiceManager<K> {
+
+    /** Signals whether the watermark should continue advancing. */
+    @Internal
+    @FunctionalInterface
+    interface ShouldStopAdvancingFn {
+
+        /** @return {@code true} if firing timers should be interrupted. */
+        boolean test();
+    }
+
     /**
      * Creates an {@link InternalTimerService} for handling a group of timers identified by the
      * given {@code name}. The timers are scoped to a key and namespace.
@@ -72,6 +82,15 @@ public interface InternalTimeServiceManager<K> {
      * potentially firing event time timers.
      */
     void advanceWatermark(Watermark watermark) throws Exception;
+
+    /**
+     * Try to {@link #advanceWatermark(Watermark)}, but if {@link ShouldStopAdvancingFn} returns
+     * {@code true}, stop the advancement and return as soon as possible.
+     *
+     * @return true if {@link Watermark} has been fully processed, false otherwise.
+     */
+    boolean tryAdvanceWatermark(Watermark watermark, ShouldStopAdvancingFn shouldStopAdvancingFn)
+            throws Exception;
 
     /**
      * Snapshots the timers to raw keyed state.

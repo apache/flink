@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.physical.stream;
 
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.config.AggregatePhaseStrategy;
 import org.apache.flink.table.planner.plan.logical.SessionWindowSpec;
 import org.apache.flink.table.planner.plan.logical.SliceAttachedWindowingStrategy;
 import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy;
@@ -33,7 +34,6 @@ import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionR
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistributionTraitDef;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
-import org.apache.flink.table.planner.utils.AggregatePhaseStrategy;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;

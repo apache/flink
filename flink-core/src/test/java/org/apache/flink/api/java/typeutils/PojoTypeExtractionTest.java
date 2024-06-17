@@ -34,8 +34,7 @@ import org.apache.flink.types.Value;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -44,6 +43,9 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Pojo Type tests.
@@ -71,9 +73,9 @@ public class PojoTypeExtractionTest {
     }
 
     @Test
-    public void testDuplicateFieldException() {
+    void testDuplicateFieldException() {
         TypeInformation<?> ti = TypeExtractor.createTypeInfo(HasDuplicateField.class);
-        Assert.assertTrue(ti instanceof GenericTypeInfo<?>);
+        assertThat(ti).isInstanceOf(GenericTypeInfo.class);
     }
 
     // test with correct pojo types
@@ -188,10 +190,10 @@ public class PojoTypeExtractionTest {
     }
 
     @Test
-    public void testPojoWithGenericFields() {
+    void testPojoWithGenericFields() {
         TypeInformation<?> typeForClass = TypeExtractor.createTypeInfo(PojoWithGenericFields.class);
 
-        Assert.assertTrue(typeForClass instanceof PojoTypeInfo<?>);
+        assertThat(typeForClass).isInstanceOf(PojoTypeInfo.class);
     }
 
     // in this test, the location of the getters and setters is mixed across the type hierarchy.
@@ -210,25 +212,25 @@ public class PojoTypeExtractionTest {
     }
 
     @Test
-    public void testIncorrectPojos() {
+    void testIncorrectPojos() {
         TypeInformation<?> typeForClass = TypeExtractor.createTypeInfo(IncorrectPojo.class);
-        Assert.assertTrue(typeForClass instanceof GenericTypeInfo<?>);
+        assertThat(typeForClass).isInstanceOf(GenericTypeInfo.class);
 
         typeForClass = TypeExtractor.createTypeInfo(WrongCtorPojo.class);
-        Assert.assertTrue(typeForClass instanceof GenericTypeInfo<?>);
+        assertThat(typeForClass).isInstanceOf(GenericTypeInfo.class);
     }
 
     @Test
-    public void testCorrectPojos() {
+    void testCorrectPojos() {
         TypeInformation<?> typeForClass = TypeExtractor.createTypeInfo(BeanStylePojo.class);
-        Assert.assertTrue(typeForClass instanceof PojoTypeInfo<?>);
+        assertThat(typeForClass).isInstanceOf(PojoTypeInfo.class);
 
         typeForClass = TypeExtractor.createTypeInfo(TypedPojoGetterSetterCheck.class);
-        Assert.assertTrue(typeForClass instanceof PojoTypeInfo<?>);
+        assertThat(typeForClass).isInstanceOf(PojoTypeInfo.class);
     }
 
     @Test
-    public void testPojoWC() {
+    void testPojoWC() {
         TypeInformation<?> typeForClass = TypeExtractor.createTypeInfo(WC.class);
         checkWCPojoAsserts(typeForClass);
 
@@ -240,10 +242,10 @@ public class PojoTypeExtractionTest {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private void checkWCPojoAsserts(TypeInformation<?> typeInfo) {
-        Assert.assertFalse(typeInfo.isBasicType());
-        Assert.assertFalse(typeInfo.isTupleType());
-        Assert.assertEquals(10, typeInfo.getTotalFields());
-        Assert.assertTrue(typeInfo instanceof PojoTypeInfo);
+        assertThat(typeInfo.isBasicType()).isFalse();
+        assertThat(typeInfo.isTupleType()).isFalse();
+        assertThat(typeInfo.getTotalFields()).isEqualTo(10);
+        assertThat(typeInfo).isInstanceOf(PojoTypeInfo.class);
         PojoTypeInfo<?> pojoType = (PojoTypeInfo<?>) typeInfo;
 
         List<FlatFieldDescriptor> ffd = new ArrayList<FlatFieldDescriptor>();
@@ -260,99 +262,95 @@ public class PojoTypeExtractionTest {
             "complex.word.f2"
         };
         int[] positions = {9, 1, 0, 2, 3, 4, 5, 6, 7, 8};
-        Assert.assertEquals(fields.length, positions.length);
+        assertThat(fields).hasSameSizeAs(positions);
         for (int i = 0; i < fields.length; i++) {
             pojoType.getFlatFields(fields[i], 0, ffd);
-            Assert.assertEquals("Too many keys returned", 1, ffd.size());
-            Assert.assertEquals(
-                    "position of field " + fields[i] + " wrong",
-                    positions[i],
-                    ffd.get(0).getPosition());
+            assertThat(ffd).as("Too many keys returned").hasSize(1);
+            assertThat(ffd.get(0).getPosition())
+                    .as("position of field " + fields[i] + " wrong")
+                    .isEqualTo(positions[i]);
             ffd.clear();
         }
 
         pojoType.getFlatFields("complex.word.*", 0, ffd);
-        Assert.assertEquals(3, ffd.size());
+        assertThat(ffd).hasSize(3);
         // check if it returns 5,6,7
         for (FlatFieldDescriptor ffdE : ffd) {
             final int pos = ffdE.getPosition();
-            Assert.assertTrue(pos <= 8);
-            Assert.assertTrue(6 <= pos);
+            assertThat(pos).isGreaterThanOrEqualTo(6).isLessThanOrEqualTo(8);
             if (pos == 6) {
-                Assert.assertEquals(Long.class, ffdE.getType().getTypeClass());
+                assertThat(ffdE.getType().getTypeClass()).isEqualTo(Long.class);
             }
             if (pos == 7) {
-                Assert.assertEquals(Long.class, ffdE.getType().getTypeClass());
+                assertThat(ffdE.getType().getTypeClass()).isEqualTo(Long.class);
             }
             if (pos == 8) {
-                Assert.assertEquals(String.class, ffdE.getType().getTypeClass());
+                assertThat(ffdE.getType().getTypeClass()).isEqualTo(String.class);
             }
         }
         ffd.clear();
 
         // scala style full tuple selection for pojos
         pojoType.getFlatFields("complex.word._", 0, ffd);
-        Assert.assertEquals(3, ffd.size());
+        assertThat(ffd).hasSize(3);
         ffd.clear();
 
         pojoType.getFlatFields("complex.*", 0, ffd);
-        Assert.assertEquals(9, ffd.size());
+        assertThat(ffd).hasSize(9);
         // check if it returns 0-7
         for (FlatFieldDescriptor ffdE : ffd) {
             final int pos = ffdE.getPosition();
-            Assert.assertTrue(ffdE.getPosition() <= 8);
-            Assert.assertTrue(0 <= ffdE.getPosition());
-
+            assertThat(ffdE.getPosition()).isGreaterThanOrEqualTo(0).isLessThanOrEqualTo(8);
             if (pos == 0) {
-                Assert.assertEquals(List.class, ffdE.getType().getTypeClass());
+                assertThat(ffdE.getType().getTypeClass()).isEqualTo(List.class);
             }
             if (pos == 1) {
-                Assert.assertEquals(Date.class, ffdE.getType().getTypeClass());
+                assertThat(ffdE.getType().getTypeClass()).isEqualTo(Date.class);
             }
             if (pos == 2) {
-                Assert.assertEquals(Object.class, ffdE.getType().getTypeClass());
+                assertThat(ffdE.getType().getTypeClass()).isEqualTo(Object.class);
             }
             if (pos == 3) {
-                Assert.assertEquals(Float.class, ffdE.getType().getTypeClass());
+                assertThat(ffdE.getType().getTypeClass()).isEqualTo(Float.class);
             }
             if (pos == 4) {
-                Assert.assertEquals(Integer.class, ffdE.getType().getTypeClass());
+                assertThat(ffdE.getType().getTypeClass()).isEqualTo(Integer.class);
             }
             if (pos == 5) {
-                Assert.assertEquals(MyValue.class, ffdE.getType().getTypeClass());
+                assertThat(ffdE.getType().getTypeClass()).isEqualTo(MyValue.class);
             }
             if (pos == 6) {
-                Assert.assertEquals(Long.class, ffdE.getType().getTypeClass());
+                assertThat(ffdE.getType().getTypeClass()).isEqualTo(Long.class);
             }
             if (pos == 7) {
-                Assert.assertEquals(Long.class, ffdE.getType().getTypeClass());
+                assertThat(ffdE.getType().getTypeClass()).isEqualTo(Long.class);
             }
             if (pos == 8) {
-                Assert.assertEquals(String.class, ffdE.getType().getTypeClass());
+                assertThat(ffdE.getType().getTypeClass()).isEqualTo(String.class);
             }
             if (pos == 9) {
-                Assert.assertEquals(Integer.class, ffdE.getType().getTypeClass());
+                assertThat(ffdE.getType().getTypeClass()).isEqualTo(Integer.class);
             }
         }
         ffd.clear();
 
         pojoType.getFlatFields("*", 0, ffd);
-        Assert.assertEquals(10, ffd.size());
+        assertThat(ffd).hasSize(10);
         // check if it returns 0-8
         for (FlatFieldDescriptor ffdE : ffd) {
-            Assert.assertTrue(ffdE.getPosition() <= 9);
-            Assert.assertTrue(0 <= ffdE.getPosition());
+            assertThat(ffdE.getPosition() <= 9).isTrue();
+            assertThat(0 <= ffdE.getPosition()).isTrue();
             if (ffdE.getPosition() == 9) {
-                Assert.assertEquals(Integer.class, ffdE.getType().getTypeClass());
+                assertThat(ffdE.getType().getTypeClass()).isEqualTo(Integer.class);
             }
         }
         ffd.clear();
 
         TypeInformation<?> typeComplexNested = pojoType.getTypeAt(0); // ComplexNestedClass complex
-        Assert.assertTrue(typeComplexNested instanceof PojoTypeInfo);
+        assertThat(typeComplexNested).isInstanceOf(PojoTypeInfo.class);
 
-        Assert.assertEquals(7, typeComplexNested.getArity());
-        Assert.assertEquals(9, typeComplexNested.getTotalFields());
+        assertThat(typeComplexNested.getArity()).isEqualTo(7);
+        assertThat(typeComplexNested.getTotalFields()).isEqualTo(9);
         PojoTypeInfo<?> pojoTypeComplexNested = (PojoTypeInfo<?>) typeComplexNested;
 
         boolean dateSeen = false,
@@ -367,84 +365,85 @@ public class PojoTypeExtractionTest {
             String name = field.getField().getName();
             if (name.equals("date")) {
                 if (dateSeen) {
-                    Assert.fail("already seen");
+                    fail("already seen");
                 }
                 dateSeen = true;
-                Assert.assertEquals(BasicTypeInfo.DATE_TYPE_INFO, field.getTypeInformation());
-                Assert.assertEquals(Date.class, field.getTypeInformation().getTypeClass());
+                assertThat(field.getTypeInformation()).isEqualTo(BasicTypeInfo.DATE_TYPE_INFO);
+                assertThat(field.getTypeInformation().getTypeClass()).isEqualTo(Date.class);
             } else if (name.equals("someNumberWithÜnicödeNäme")) {
                 if (intSeen) {
-                    Assert.fail("already seen");
+                    fail("already seen");
                 }
                 intSeen = true;
-                Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, field.getTypeInformation());
-                Assert.assertEquals(Integer.class, field.getTypeInformation().getTypeClass());
+                assertThat(field.getTypeInformation()).isEqualTo(BasicTypeInfo.INT_TYPE_INFO);
+                assertThat(field.getTypeInformation().getTypeClass()).isEqualTo(Integer.class);
             } else if (name.equals("someFloat")) {
                 if (floatSeen) {
-                    Assert.fail("already seen");
+                    fail("already seen");
                 }
                 floatSeen = true;
-                Assert.assertEquals(BasicTypeInfo.FLOAT_TYPE_INFO, field.getTypeInformation());
-                Assert.assertEquals(Float.class, field.getTypeInformation().getTypeClass());
+                assertThat(field.getTypeInformation()).isEqualTo(BasicTypeInfo.FLOAT_TYPE_INFO);
+                assertThat(field.getTypeInformation().getTypeClass()).isEqualTo(Float.class);
             } else if (name.equals("word")) {
                 if (tupleSeen) {
-                    Assert.fail("already seen");
+                    fail("already seen");
                 }
                 tupleSeen = true;
-                Assert.assertTrue(field.getTypeInformation() instanceof TupleTypeInfo<?>);
-                Assert.assertEquals(Tuple3.class, field.getTypeInformation().getTypeClass());
+                assertThat(field.getTypeInformation() instanceof TupleTypeInfo<?>).isTrue();
+                assertThat(field.getTypeInformation().getTypeClass()).isEqualTo(Tuple3.class);
                 // do some more advanced checks on the tuple
                 TupleTypeInfo<?> tupleTypeFromComplexNested =
                         (TupleTypeInfo<?>) field.getTypeInformation();
-                Assert.assertEquals(
-                        BasicTypeInfo.LONG_TYPE_INFO, tupleTypeFromComplexNested.getTypeAt(0));
-                Assert.assertEquals(
-                        BasicTypeInfo.LONG_TYPE_INFO, tupleTypeFromComplexNested.getTypeAt(1));
-                Assert.assertEquals(
-                        BasicTypeInfo.STRING_TYPE_INFO, tupleTypeFromComplexNested.getTypeAt(2));
+                assertThat(tupleTypeFromComplexNested.getTypeAt(0))
+                        .isEqualTo(BasicTypeInfo.LONG_TYPE_INFO);
+                assertThat(tupleTypeFromComplexNested.getTypeAt(1))
+                        .isEqualTo(BasicTypeInfo.LONG_TYPE_INFO);
+                assertThat(tupleTypeFromComplexNested.getTypeAt(2))
+                        .isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
             } else if (name.equals("nothing")) {
                 if (objectSeen) {
-                    Assert.fail("already seen");
+                    fail("already seen");
                 }
                 objectSeen = true;
-                Assert.assertEquals(
-                        new GenericTypeInfo<Object>(Object.class), field.getTypeInformation());
-                Assert.assertEquals(Object.class, field.getTypeInformation().getTypeClass());
+                assertThat(field.getTypeInformation())
+                        .isEqualTo(new GenericTypeInfo<Object>(Object.class));
+                assertThat(field.getTypeInformation().getTypeClass()).isEqualTo(Object.class);
             } else if (name.equals("valueType")) {
                 if (writableSeen) {
-                    Assert.fail("already seen");
+                    fail("already seen");
                 }
                 writableSeen = true;
-                Assert.assertEquals(new ValueTypeInfo<>(MyValue.class), field.getTypeInformation());
-                Assert.assertEquals(MyValue.class, field.getTypeInformation().getTypeClass());
+                assertThat(field.getTypeInformation())
+                        .isEqualTo(new ValueTypeInfo<>(MyValue.class));
+                assertThat(field.getTypeInformation().getTypeClass()).isEqualTo(MyValue.class);
             } else if (name.equals("collection")) {
                 if (collectionSeen) {
-                    Assert.fail("already seen");
+                    fail("already seen");
                 }
                 collectionSeen = true;
-                Assert.assertEquals(new GenericTypeInfo(List.class), field.getTypeInformation());
+                assertThat(field.getTypeInformation()).isEqualTo(new GenericTypeInfo(List.class));
 
             } else {
-                Assert.fail("field " + field + " is not expected");
+                fail("Unexpected field " + field);
             }
         }
-        Assert.assertTrue("Field was not present", dateSeen);
-        Assert.assertTrue("Field was not present", intSeen);
-        Assert.assertTrue("Field was not present", floatSeen);
-        Assert.assertTrue("Field was not present", tupleSeen);
-        Assert.assertTrue("Field was not present", objectSeen);
-        Assert.assertTrue("Field was not present", writableSeen);
-        Assert.assertTrue("Field was not present", collectionSeen);
+        assertThat(dateSeen).as("Field was not present").isTrue();
+        assertThat(intSeen).as("Field was not present").isTrue();
+        assertThat(floatSeen).as("Field was not present").isTrue();
+        assertThat(tupleSeen).as("Field was not present").isTrue();
+        assertThat(objectSeen).as("Field was not present").isTrue();
+        assertThat(writableSeen).as("Field was not present").isTrue();
+        assertThat(collectionSeen).as("Field was not present").isTrue();
 
         TypeInformation<?> typeAtOne = pojoType.getTypeAt(1); // int count
-        Assert.assertTrue(typeAtOne instanceof BasicTypeInfo);
+        assertThat(typeAtOne).isInstanceOf(BasicTypeInfo.class);
 
-        Assert.assertEquals(typeInfo.getTypeClass(), WC.class);
-        Assert.assertEquals(typeInfo.getArity(), 2);
+        assertThat(typeInfo.getTypeClass()).isEqualTo(WC.class);
+        assertThat(typeInfo.getArity()).isEqualTo(2);
     }
 
     @Test
-    public void testPojoAllPublic() {
+    void testPojoAllPublic() {
         TypeInformation<?> typeForClass = TypeExtractor.createTypeInfo(AllPublic.class);
         checkAllPublicAsserts(typeForClass);
 
@@ -453,9 +452,9 @@ public class PojoTypeExtractionTest {
     }
 
     private void checkAllPublicAsserts(TypeInformation<?> typeInformation) {
-        Assert.assertTrue(typeInformation instanceof PojoTypeInfo);
-        Assert.assertEquals(10, typeInformation.getArity());
-        Assert.assertEquals(12, typeInformation.getTotalFields());
+        assertThat(typeInformation).isInstanceOf(PojoTypeInfo.class);
+        assertThat(typeInformation.getArity()).isEqualTo(10);
+        assertThat(typeInformation.getTotalFields()).isEqualTo(12);
         // check if the three additional fields are identified correctly
         boolean arrayListSeen = false, multisetSeen = false, strArraySeen = false;
         PojoTypeInfo<?> pojoTypeForClass = (PojoTypeInfo<?>) typeInformation;
@@ -464,27 +463,27 @@ public class PojoTypeExtractionTest {
             String name = field.getField().getName();
             if (name.equals("somethingFancy")) {
                 if (arrayListSeen) {
-                    Assert.fail("already seen");
+                    fail("already seen");
                 }
                 arrayListSeen = true;
-                Assert.assertTrue(field.getTypeInformation() instanceof GenericTypeInfo);
-                Assert.assertEquals(ArrayList.class, field.getTypeInformation().getTypeClass());
+                assertThat(field.getTypeInformation() instanceof GenericTypeInfo).isTrue();
+                assertThat(field.getTypeInformation().getTypeClass()).isEqualTo(ArrayList.class);
             } else if (name.equals("fancyIds")) {
                 if (multisetSeen) {
-                    Assert.fail("already seen");
+                    fail("already seen");
                 }
                 multisetSeen = true;
-                Assert.assertTrue(field.getTypeInformation() instanceof GenericTypeInfo);
-                Assert.assertEquals(
-                        FancyCollectionSubtype.class, field.getTypeInformation().getTypeClass());
+                assertThat(field.getTypeInformation() instanceof GenericTypeInfo).isTrue();
+                assertThat(field.getTypeInformation().getTypeClass())
+                        .isEqualTo(FancyCollectionSubtype.class);
             } else if (name.equals("fancyArray")) {
                 if (strArraySeen) {
-                    Assert.fail("already seen");
+                    fail("already seen");
                 }
                 strArraySeen = true;
-                Assert.assertEquals(
-                        BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO, field.getTypeInformation());
-                Assert.assertEquals(String[].class, field.getTypeInformation().getTypeClass());
+                assertThat(field.getTypeInformation())
+                        .isEqualTo(BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO);
+                assertThat(field.getTypeInformation().getTypeClass()).isEqualTo(String[].class);
             } else if (Arrays.asList(
                             "date",
                             "someNumberWithÜnicödeNäme",
@@ -496,16 +495,16 @@ public class PojoTypeExtractionTest {
                     .contains(name)) {
                 // ignore these, they are inherited from the ComplexNestedClass
             } else {
-                Assert.fail("field " + field + " is not expected");
+                fail("Unexpected field " + field);
             }
         }
-        Assert.assertTrue("Field was not present", arrayListSeen);
-        Assert.assertTrue("Field was not present", multisetSeen);
-        Assert.assertTrue("Field was not present", strArraySeen);
+        assertThat(arrayListSeen).as("Field was not present").isTrue();
+        assertThat(multisetSeen).as("Field was not present").isTrue();
+        assertThat(strArraySeen).as("Field was not present").isTrue();
     }
 
     @Test
-    public void testPojoExtendingTuple() {
+    void testPojoExtendingTuple() {
         TypeInformation<?> typeForClass = TypeExtractor.createTypeInfo(FromTuple.class);
         checkFromTuplePojo(typeForClass);
 
@@ -518,91 +517,88 @@ public class PojoTypeExtractionTest {
     }
 
     private void checkFromTuplePojo(TypeInformation<?> typeInformation) {
-        Assert.assertTrue(typeInformation instanceof PojoTypeInfo<?>);
-        Assert.assertEquals(4, typeInformation.getTotalFields());
+        assertThat(typeInformation).isInstanceOf(PojoTypeInfo.class);
+        assertThat(typeInformation.getTotalFields()).isEqualTo(4);
         PojoTypeInfo<?> pojoTypeForClass = (PojoTypeInfo<?>) typeInformation;
         for (int i = 0; i < pojoTypeForClass.getArity(); i++) {
             PojoField field = pojoTypeForClass.getPojoFieldAt(i);
             String name = field.getField().getName();
             if (name.equals("special")) {
-                Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, field.getTypeInformation());
+                assertThat(field.getTypeInformation()).isEqualTo(BasicTypeInfo.INT_TYPE_INFO);
             } else if (name.equals("f0") || name.equals("f1")) {
-                Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, field.getTypeInformation());
+                assertThat(field.getTypeInformation()).isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
             } else if (name.equals("f2")) {
-                Assert.assertEquals(BasicTypeInfo.LONG_TYPE_INFO, field.getTypeInformation());
+                assertThat(field.getTypeInformation()).isEqualTo(BasicTypeInfo.LONG_TYPE_INFO);
             } else {
-                Assert.fail("unexpected field");
+                fail("unexpected field");
             }
         }
     }
 
     @Test
-    public void testPojoWithGenerics() {
+    void testPojoWithGenerics() {
         TypeInformation<?> typeForClass = TypeExtractor.createTypeInfo(ParentSettingGenerics.class);
-        Assert.assertTrue(typeForClass instanceof PojoTypeInfo<?>);
+        assertThat(typeForClass).isInstanceOf(PojoTypeInfo.class);
         PojoTypeInfo<?> pojoTypeForClass = (PojoTypeInfo<?>) typeForClass;
         for (int i = 0; i < pojoTypeForClass.getArity(); i++) {
             PojoField field = pojoTypeForClass.getPojoFieldAt(i);
             String name = field.getField().getName();
             if (name.equals("field1")) {
-                Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, field.getTypeInformation());
+                assertThat(field.getTypeInformation()).isEqualTo(BasicTypeInfo.INT_TYPE_INFO);
             } else if (name.equals("field2")) {
-                Assert.assertEquals(BasicTypeInfo.LONG_TYPE_INFO, field.getTypeInformation());
+                assertThat(field.getTypeInformation()).isEqualTo(BasicTypeInfo.LONG_TYPE_INFO);
             } else if (name.equals("field3")) {
-                Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, field.getTypeInformation());
+                assertThat(field.getTypeInformation()).isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
             } else if (name.equals("key")) {
-                Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, field.getTypeInformation());
+                assertThat(field.getTypeInformation()).isEqualTo(BasicTypeInfo.INT_TYPE_INFO);
             } else {
-                Assert.fail("Unexpected field " + field);
+                fail("Unexpected field " + field);
             }
         }
     }
 
     /** Test if the TypeExtractor is accepting untyped generics, making them GenericTypes */
     @Test
-    public void testPojoWithGenericsSomeFieldsGeneric() {
+    void testPojoWithGenericsSomeFieldsGeneric() {
         TypeInformation<?> typeForClass = TypeExtractor.createTypeInfo(PojoWithGenerics.class);
-        Assert.assertTrue(typeForClass instanceof PojoTypeInfo<?>);
+        assertThat(typeForClass).isInstanceOf(PojoTypeInfo.class);
         PojoTypeInfo<?> pojoTypeForClass = (PojoTypeInfo<?>) typeForClass;
         for (int i = 0; i < pojoTypeForClass.getArity(); i++) {
             PojoField field = pojoTypeForClass.getPojoFieldAt(i);
             String name = field.getField().getName();
             if (name.equals("field1")) {
-                Assert.assertEquals(
-                        new GenericTypeInfo<Object>(Object.class), field.getTypeInformation());
+                assertThat(field.getTypeInformation())
+                        .isEqualTo(new GenericTypeInfo<Object>(Object.class));
             } else if (name.equals("field2")) {
-                Assert.assertEquals(
-                        new GenericTypeInfo<Object>(Object.class), field.getTypeInformation());
+                assertThat(field.getTypeInformation())
+                        .isEqualTo(new GenericTypeInfo<Object>(Object.class));
             } else if (name.equals("key")) {
-                Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, field.getTypeInformation());
+                assertThat(field.getTypeInformation()).isEqualTo(BasicTypeInfo.INT_TYPE_INFO);
             } else {
-                Assert.fail("Unexpected field " + field);
+                fail("Unexpected field " + field);
             }
         }
     }
 
     @Test
-    public void testPojoWithComplexHierarchy() {
+    void testPojoWithComplexHierarchy() {
         TypeInformation<?> typeForClass = TypeExtractor.createTypeInfo(ComplexHierarchyTop.class);
-        Assert.assertTrue(typeForClass instanceof PojoTypeInfo<?>);
+        assertThat(typeForClass).isInstanceOf(PojoTypeInfo.class);
         PojoTypeInfo<?> pojoTypeForClass = (PojoTypeInfo<?>) typeForClass;
         for (int i = 0; i < pojoTypeForClass.getArity(); i++) {
             PojoField field = pojoTypeForClass.getPojoFieldAt(i);
             String name = field.getField().getName();
             if (name.equals("field1")) {
-                Assert.assertTrue(
-                        field.getTypeInformation()
-                                instanceof PojoTypeInfo<?>); // From tuple is pojo (not tuple type!)
+                assertThat(field.getTypeInformation() instanceof PojoTypeInfo<?>)
+                        .isTrue(); // From tuple is pojo (not tuple type!)
             } else if (name.equals("field2")) {
-                Assert.assertTrue(field.getTypeInformation() instanceof TupleTypeInfo<?>);
-                Assert.assertTrue(
-                        ((TupleTypeInfo<?>) field.getTypeInformation())
-                                .getTypeAt(0)
-                                .equals(BasicTypeInfo.STRING_TYPE_INFO));
+                assertThat(field.getTypeInformation() instanceof TupleTypeInfo<?>).isTrue();
+                assertThat(((TupleTypeInfo<?>) field.getTypeInformation()).getTypeAt(0))
+                        .isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
             } else if (name.equals("key")) {
-                Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, field.getTypeInformation());
+                assertThat(field.getTypeInformation()).isEqualTo(BasicTypeInfo.INT_TYPE_INFO);
             } else {
-                Assert.fail("Unexpected field " + field);
+                fail("Unexpected field " + field);
             }
         }
     }
@@ -618,7 +614,7 @@ public class PojoTypeExtractionTest {
     }
 
     @Test
-    public void testGenericPojoTypeInference1() {
+    void testGenericPojoTypeInference1() {
         MyMapper<String> function = new MyMapper<>();
 
         TypeInformation<?> ti =
@@ -626,19 +622,19 @@ public class PojoTypeExtractionTest {
                         function,
                         TypeInformation.of(new TypeHint<PojoWithGenerics<Long, String>>() {}));
 
-        Assert.assertTrue(ti instanceof PojoTypeInfo<?>);
+        assertThat(ti).isInstanceOf(PojoTypeInfo.class);
         PojoTypeInfo<?> pti = (PojoTypeInfo<?>) ti;
         for (int i = 0; i < pti.getArity(); i++) {
             PojoField field = pti.getPojoFieldAt(i);
             String name = field.getField().getName();
             if (name.equals("field1")) {
-                Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, field.getTypeInformation());
+                assertThat(field.getTypeInformation()).isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
             } else if (name.equals("field2")) {
-                Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, field.getTypeInformation());
+                assertThat(field.getTypeInformation()).isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
             } else if (name.equals("key")) {
-                Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, field.getTypeInformation());
+                assertThat(field.getTypeInformation()).isEqualTo(BasicTypeInfo.INT_TYPE_INFO);
             } else {
-                Assert.fail("Unexpected field " + field);
+                fail("Unexpected field " + field);
             }
         }
     }
@@ -660,7 +656,7 @@ public class PojoTypeExtractionTest {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Test
-    public void testGenericPojoTypeInference2() {
+    void testGenericPojoTypeInference2() {
         MyMapper2<Boolean, Character> function = new MyMapper2<>();
 
         TypeInformation<?> ti =
@@ -668,21 +664,21 @@ public class PojoTypeExtractionTest {
                         function,
                         TypeInformation.of(new TypeHint<Tuple2<Character, Boolean>>() {}));
 
-        Assert.assertTrue(ti instanceof PojoTypeInfo<?>);
+        assertThat(ti).isInstanceOf(PojoTypeInfo.class);
         PojoTypeInfo<?> pti = (PojoTypeInfo<?>) ti;
         for (int i = 0; i < pti.getArity(); i++) {
             PojoField field = pti.getPojoFieldAt(i);
             String name = field.getField().getName();
             if (name.equals("extraField")) {
-                Assert.assertEquals(BasicTypeInfo.CHAR_TYPE_INFO, field.getTypeInformation());
+                assertThat(field.getTypeInformation()).isEqualTo(BasicTypeInfo.CHAR_TYPE_INFO);
             } else if (name.equals("f0")) {
-                Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, field.getTypeInformation());
+                assertThat(field.getTypeInformation()).isEqualTo(BasicTypeInfo.BOOLEAN_TYPE_INFO);
             } else if (name.equals("f1")) {
-                Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, field.getTypeInformation());
+                assertThat(field.getTypeInformation()).isEqualTo(BasicTypeInfo.BOOLEAN_TYPE_INFO);
             } else if (name.equals("f2")) {
-                Assert.assertEquals(BasicTypeInfo.LONG_TYPE_INFO, field.getTypeInformation());
+                assertThat(field.getTypeInformation()).isEqualTo(BasicTypeInfo.LONG_TYPE_INFO);
             } else {
-                Assert.fail("Unexpected field " + field);
+                fail("Unexpected field " + field);
             }
         }
     }
@@ -698,7 +694,7 @@ public class PojoTypeExtractionTest {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Test
-    public void testGenericPojoTypeInference3() {
+    void testGenericPojoTypeInference3() {
         MyMapper3<Boolean, Character> function = new MyMapper3<>();
 
         TypeInformation<?> ti =
@@ -707,10 +703,10 @@ public class PojoTypeExtractionTest {
                         TypeInformation.of(
                                 new TypeHint<PojoTuple<Character, Boolean, Boolean>>() {}));
 
-        Assert.assertTrue(ti instanceof TupleTypeInfo<?>);
+        assertThat(ti).isInstanceOf(TupleTypeInfo.class);
         TupleTypeInfo<?> tti = (TupleTypeInfo<?>) ti;
-        Assert.assertEquals(BasicTypeInfo.CHAR_TYPE_INFO, tti.getTypeAt(0));
-        Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, tti.getTypeAt(1));
+        assertThat(tti.getTypeAt(0)).isEqualTo(BasicTypeInfo.CHAR_TYPE_INFO);
+        assertThat(tti.getTypeAt(1)).isEqualTo(BasicTypeInfo.BOOLEAN_TYPE_INFO);
     }
 
     public static class PojoWithParameterizedFields1<Z> {
@@ -728,14 +724,14 @@ public class PojoTypeExtractionTest {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Test
-    public void testGenericPojoTypeInference4() {
+    void testGenericPojoTypeInference4() {
         MyMapper4<Byte> function = new MyMapper4<>();
 
         TypeInformation<?> ti =
                 TypeExtractor.getMapReturnTypes(
                         function,
                         TypeInformation.of(new TypeHint<PojoWithParameterizedFields1<Byte>>() {}));
-        Assert.assertEquals(BasicTypeInfo.BYTE_TYPE_INFO, ti);
+        assertThat(ti).isEqualTo(BasicTypeInfo.BYTE_TYPE_INFO);
     }
 
     public static class PojoWithParameterizedFields2<Z> {
@@ -753,14 +749,14 @@ public class PojoTypeExtractionTest {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Test
-    public void testGenericPojoTypeInference5() {
+    void testGenericPojoTypeInference5() {
         MyMapper5<Byte> function = new MyMapper5<>();
 
         TypeInformation<?> ti =
                 TypeExtractor.getMapReturnTypes(
                         function,
                         TypeInformation.of(new TypeHint<PojoWithParameterizedFields2<Byte>>() {}));
-        Assert.assertEquals(BasicTypeInfo.BYTE_TYPE_INFO, ti);
+        assertThat(ti).isEqualTo(BasicTypeInfo.BYTE_TYPE_INFO);
     }
 
     public static class PojoWithParameterizedFields3<Z> {
@@ -778,7 +774,7 @@ public class PojoTypeExtractionTest {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Test
-    public void testGenericPojoTypeInference6() {
+    void testGenericPojoTypeInference6() {
         MyMapper6<Integer> function = new MyMapper6<>();
 
         TypeInformation<?> ti =
@@ -786,7 +782,7 @@ public class PojoTypeExtractionTest {
                         function,
                         TypeInformation.of(
                                 new TypeHint<PojoWithParameterizedFields3<Integer>>() {}));
-        Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, ti);
+        assertThat(ti).isEqualTo(BasicTypeInfo.INT_TYPE_INFO);
     }
 
     public static class MyMapper7<A> implements MapFunction<PojoWithParameterizedFields4<A>, A> {
@@ -804,7 +800,7 @@ public class PojoTypeExtractionTest {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Test
-    public void testGenericPojoTypeInference7() {
+    void testGenericPojoTypeInference7() {
         MyMapper7<Integer> function = new MyMapper7<>();
 
         TypeInformation<?> ti =
@@ -813,7 +809,7 @@ public class PojoTypeExtractionTest {
                         TypeInformation.of(
                                 new TypeHint<PojoWithParameterizedFields4<Integer>>() {}));
 
-        Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, ti);
+        assertThat(ti).isEqualTo(BasicTypeInfo.INT_TYPE_INFO);
     }
 
     public static class RecursivePojo1 {
@@ -833,37 +829,35 @@ public class PojoTypeExtractionTest {
     }
 
     @Test
-    public void testRecursivePojo1() {
+    void testRecursivePojo1() {
         TypeInformation<?> ti = TypeExtractor.createTypeInfo(RecursivePojo1.class);
-        Assert.assertTrue(ti instanceof PojoTypeInfo);
-        Assert.assertEquals(
-                GenericTypeInfo.class,
-                ((PojoTypeInfo) ti).getPojoFieldAt(0).getTypeInformation().getClass());
+        assertThat(ti).isInstanceOf(PojoTypeInfo.class);
+        assertThat(((PojoTypeInfo) ti).getPojoFieldAt(0).getTypeInformation().getClass())
+                .isEqualTo(GenericTypeInfo.class);
     }
 
     @Test
-    public void testRecursivePojo2() {
+    void testRecursivePojo2() {
         TypeInformation<?> ti = TypeExtractor.createTypeInfo(RecursivePojo2.class);
-        Assert.assertTrue(ti instanceof PojoTypeInfo);
+        assertThat(ti).isInstanceOf(PojoTypeInfo.class);
         PojoField pf = ((PojoTypeInfo) ti).getPojoFieldAt(0);
-        Assert.assertTrue(pf.getTypeInformation() instanceof TupleTypeInfo);
-        Assert.assertEquals(
-                GenericTypeInfo.class,
-                ((TupleTypeInfo) pf.getTypeInformation()).getTypeAt(0).getClass());
+        assertThat(pf.getTypeInformation() instanceof TupleTypeInfo).isTrue();
+        assertThat(((TupleTypeInfo) pf.getTypeInformation()).getTypeAt(0).getClass())
+                .isEqualTo(GenericTypeInfo.class);
     }
 
     @Test
-    public void testRecursivePojo3() {
+    void testRecursivePojo3() {
         TypeInformation<?> ti = TypeExtractor.createTypeInfo(RecursivePojo3.class);
-        Assert.assertTrue(ti instanceof PojoTypeInfo);
+        assertThat(ti).isInstanceOf(PojoTypeInfo.class);
         PojoField pf = ((PojoTypeInfo) ti).getPojoFieldAt(0);
-        Assert.assertTrue(pf.getTypeInformation() instanceof PojoTypeInfo);
-        Assert.assertEquals(
-                GenericTypeInfo.class,
-                ((PojoTypeInfo) pf.getTypeInformation())
-                        .getPojoFieldAt(0)
-                        .getTypeInformation()
-                        .getClass());
+        assertThat(pf.getTypeInformation() instanceof PojoTypeInfo).isTrue();
+        assertThat(
+                        ((PojoTypeInfo) pf.getTypeInformation())
+                                .getPojoFieldAt(0)
+                                .getTypeInformation()
+                                .getClass())
+                .isEqualTo(GenericTypeInfo.class);
     }
 
     public static class FooBarPojo {
@@ -881,15 +875,15 @@ public class PojoTypeExtractionTest {
     }
 
     @Test
-    public void testDualUseOfPojo() {
+    void testDualUseOfPojo() {
         MapFunction<?, ?> function = new DuplicateMapper();
         TypeInformation<?> ti =
                 TypeExtractor.getMapReturnTypes(
                         function, (TypeInformation) TypeExtractor.createTypeInfo(FooBarPojo.class));
-        Assert.assertTrue(ti instanceof TupleTypeInfo);
+        assertThat(ti).isInstanceOf(TupleTypeInfo.class);
         TupleTypeInfo<?> tti = ((TupleTypeInfo) ti);
-        Assert.assertTrue(tti.getTypeAt(0) instanceof PojoTypeInfo);
-        Assert.assertTrue(tti.getTypeAt(1) instanceof PojoTypeInfo);
+        assertThat(tti.getTypeAt(0) instanceof PojoTypeInfo).isTrue();
+        assertThat(tti.getTypeAt(1) instanceof PojoTypeInfo).isTrue();
     }
 
     public static class PojoWithRecursiveGenericField<K, V> {
@@ -899,12 +893,11 @@ public class PojoTypeExtractionTest {
     }
 
     @Test
-    public void testPojoWithRecursiveGenericField() {
+    void testPojoWithRecursiveGenericField() {
         TypeInformation<?> ti = TypeExtractor.createTypeInfo(PojoWithRecursiveGenericField.class);
-        Assert.assertTrue(ti instanceof PojoTypeInfo);
-        Assert.assertEquals(
-                GenericTypeInfo.class,
-                ((PojoTypeInfo) ti).getPojoFieldAt(0).getTypeInformation().getClass());
+        assertThat(ti).isInstanceOf(PojoTypeInfo.class);
+        assertThat(((PojoTypeInfo) ti).getPojoFieldAt(0).getTypeInformation().getClass())
+                .isEqualTo(GenericTypeInfo.class);
     }
 
     public static class MutualPojoA {
@@ -916,14 +909,13 @@ public class PojoTypeExtractionTest {
     }
 
     @Test
-    public void testPojosWithMutualRecursion() {
+    void testPojosWithMutualRecursion() {
         TypeInformation<?> ti = TypeExtractor.createTypeInfo(MutualPojoB.class);
-        Assert.assertTrue(ti instanceof PojoTypeInfo);
+        assertThat(ti).isInstanceOf(PojoTypeInfo.class);
         TypeInformation<?> pti = ((PojoTypeInfo) ti).getPojoFieldAt(0).getTypeInformation();
-        Assert.assertTrue(pti instanceof PojoTypeInfo);
-        Assert.assertEquals(
-                GenericTypeInfo.class,
-                ((PojoTypeInfo) pti).getPojoFieldAt(0).getTypeInformation().getClass());
+        assertThat(pti).isInstanceOf(PojoTypeInfo.class);
+        assertThat(((PojoTypeInfo) pti).getPojoFieldAt(0).getTypeInformation().getClass())
+                .isEqualTo(GenericTypeInfo.class);
     }
 
     public static class Container<T> {
@@ -933,14 +925,13 @@ public class PojoTypeExtractionTest {
     public static class MyType extends Container<Container<Object>> {}
 
     @Test
-    public void testRecursivePojoWithTypeVariable() {
+    void testRecursivePojoWithTypeVariable() {
         TypeInformation<?> ti = TypeExtractor.createTypeInfo(MyType.class);
-        Assert.assertTrue(ti instanceof PojoTypeInfo);
+        assertThat(ti).isInstanceOf(PojoTypeInfo.class);
         TypeInformation<?> pti = ((PojoTypeInfo) ti).getPojoFieldAt(0).getTypeInformation();
-        Assert.assertTrue(pti instanceof PojoTypeInfo);
-        Assert.assertEquals(
-                GenericTypeInfo.class,
-                ((PojoTypeInfo) pti).getPojoFieldAt(0).getTypeInformation().getClass());
+        assertThat(pti).isInstanceOf(PojoTypeInfo.class);
+        assertThat(((PojoTypeInfo) pti).getPojoFieldAt(0).getTypeInformation().getClass())
+                .isEqualTo(GenericTypeInfo.class);
     }
 
     /** POJO generated using Lombok. */
@@ -953,12 +944,12 @@ public class PojoTypeExtractionTest {
     }
 
     @Test
-    public void testLombokPojo() {
+    void testLombokPojo() {
         TypeInformation<TestLombok> ti = TypeExtractor.getForClass(TestLombok.class);
-        Assert.assertTrue(ti instanceof PojoTypeInfo);
+        assertThat(ti).isInstanceOf(PojoTypeInfo.class);
 
         PojoTypeInfo<TestLombok> pti = (PojoTypeInfo<TestLombok>) ti;
-        Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, pti.getTypeAt(0));
-        Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, pti.getTypeAt(1));
+        assertThat(pti.getTypeAt(0)).isEqualTo(BasicTypeInfo.INT_TYPE_INFO);
+        assertThat(pti.getTypeAt(1)).isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
     }
 }

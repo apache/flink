@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
@@ -140,7 +141,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         implements DispatcherGateway {
 
-    @VisibleForTesting
+    @VisibleForTesting @Internal
     public static final ConfigOption<Duration> CLIENT_ALIVENESS_CHECK_DURATION =
             ConfigOptions.key("$internal.dispatcher.client-aliveness-check.interval")
                     .durationType()
@@ -326,7 +327,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         this.globalResourceCleaner =
                 resourceCleanerFactory.createGlobalResourceCleaner(this.getMainThreadExecutor());
 
-        this.webTimeout = Time.milliseconds(configuration.get(WebOptions.TIMEOUT));
+        this.webTimeout = Time.fromDuration(configuration.get(WebOptions.TIMEOUT));
 
         this.jobClientAlivenessCheckInterval =
                 configuration.get(CLIENT_ALIVENESS_CHECK_DURATION).toMillis();

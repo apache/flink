@@ -24,8 +24,8 @@ import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.hint.JoinStrategy;
-import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder;
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
 import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.PlanKind;
@@ -680,8 +680,8 @@ public abstract class JoinHintTestBase extends TableTestBase {
         util.tableEnv()
                 .getConfig()
                 .set(
-                        RelNodeBlockPlanBuilder
-                                .TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED(),
+                        OptimizerConfigOptions
+                                .TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
                         true);
 
         // the build side in this view is left
@@ -731,8 +731,8 @@ public abstract class JoinHintTestBase extends TableTestBase {
         util.tableEnv()
                 .getConfig()
                 .set(
-                        RelNodeBlockPlanBuilder
-                                .TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED(),
+                        OptimizerConfigOptions
+                                .TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
                         true);
 
         // the build side in this view is left

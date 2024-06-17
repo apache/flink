@@ -18,6 +18,7 @@
 
 package org.apache.flink.datastream.impl.stream;
 
+import org.apache.flink.api.common.state.StateDeclaration;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -25,13 +26,20 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.datastream.api.function.TwoInputBroadcastStreamProcessFunction;
 import org.apache.flink.datastream.api.stream.BroadcastStream;
 import org.apache.flink.datastream.api.stream.KeyedPartitionStream;
+import org.apache.flink.datastream.api.stream.KeyedPartitionStream.ProcessConfigurableAndKeyedPartitionStream;
 import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream;
+import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream.ProcessConfigurableAndNonKeyedPartitionStream;
 import org.apache.flink.datastream.impl.ExecutionEnvironmentImpl;
 import org.apache.flink.datastream.impl.operators.KeyedTwoInputBroadcastProcessOperator;
 import org.apache.flink.datastream.impl.operators.TwoInputBroadcastProcessOperator;
 import org.apache.flink.datastream.impl.utils.StreamUtils;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
+
+import java.util.Collections;
+import java.util.HashSet;
+
+import static org.apache.flink.datastream.impl.utils.StreamUtils.validateStates;
 
 /** The implementation of {@link BroadcastStream}. */
 public class BroadcastStreamImpl<T> extends AbstractDataStream<T> implements BroadcastStream<T> {
@@ -48,9 +56,12 @@ public class BroadcastStreamImpl<T> extends AbstractDataStream<T> implements Bro
     }
 
     @Override
-    public <K, T_OTHER, OUT> NonKeyedPartitionStream<OUT> connectAndProcess(
+    public <K, T_OTHER, OUT> ProcessConfigurableAndNonKeyedPartitionStream<OUT> connectAndProcess(
             KeyedPartitionStream<K, T_OTHER> other,
             TwoInputBroadcastStreamProcessFunction<T_OTHER, T, OUT> processFunction) {
+        // no state redistribution mode check is required here, since all redistribution modes are
+        // acceptable
+
         TypeInformation<OUT> outTypeInfo =
                 StreamUtils.getOutputTypeForTwoInputBroadcastProcessFunction(
                         processFunction,
@@ -67,13 +78,18 @@ public class BroadcastStreamImpl<T> extends AbstractDataStream<T> implements Bro
                         outTypeInfo,
                         processOperator);
         environment.addOperator(outTransformation);
-        return new NonKeyedPartitionStreamImpl<>(environment, outTransformation);
+        return StreamUtils.wrapWithConfigureHandle(
+                new NonKeyedPartitionStreamImpl<>(environment, outTransformation));
     }
 
     @Override
-    public <T_OTHER, OUT> NonKeyedPartitionStream<OUT> connectAndProcess(
+    public <T_OTHER, OUT> ProcessConfigurableAndNonKeyedPartitionStream<OUT> connectAndProcess(
             NonKeyedPartitionStream<T_OTHER> other,
             TwoInputBroadcastStreamProcessFunction<T_OTHER, T, OUT> processFunction) {
+        validateStates(
+                processFunction.usesStates(),
+                new HashSet<>(Collections.singletonList(StateDeclaration.RedistributionMode.NONE)));
+
         TypeInformation<OUT> outTypeInfo =
                 StreamUtils.getOutputTypeForTwoInputBroadcastProcessFunction(
                         processFunction,
@@ -90,11 +106,12 @@ public class BroadcastStreamImpl<T> extends AbstractDataStream<T> implements Bro
                         outTypeInfo,
                         processOperator);
         environment.addOperator(outTransformation);
-        return new NonKeyedPartitionStreamImpl<>(environment, outTransformation);
+        return StreamUtils.wrapWithConfigureHandle(
+                new NonKeyedPartitionStreamImpl<>(environment, outTransformation));
     }
 
     @Override
-    public <K, T_OTHER, OUT> KeyedPartitionStream<K, OUT> connectAndProcess(
+    public <K, T_OTHER, OUT> ProcessConfigurableAndKeyedPartitionStream<K, OUT> connectAndProcess(
             KeyedPartitionStream<K, T_OTHER> other,
             TwoInputBroadcastStreamProcessFunction<T_OTHER, T, OUT> processFunction,
             KeySelector<OUT, K> newKeySelector) {
@@ -118,10 +135,11 @@ public class BroadcastStreamImpl<T> extends AbstractDataStream<T> implements Bro
                 new NonKeyedPartitionStreamImpl<>(environment, outTransformation);
         environment.addOperator(outTransformation);
         // Construct a keyed stream directly without partitionTransformation to avoid shuffle.
-        return new KeyedPartitionStreamImpl<>(
-                outputStream,
-                outTransformation,
-                newKeySelector,
-                TypeExtractor.getKeySelectorTypes(newKeySelector, outputStream.getType()));
+        return StreamUtils.wrapWithConfigureHandle(
+                new KeyedPartitionStreamImpl<>(
+                        outputStream,
+                        outTransformation,
+                        newKeySelector,
+                        TypeExtractor.getKeySelectorTypes(newKeySelector, outputStream.getType())));
     }
 }

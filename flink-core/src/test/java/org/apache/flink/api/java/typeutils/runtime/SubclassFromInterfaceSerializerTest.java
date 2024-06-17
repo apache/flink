@@ -36,7 +36,7 @@ import java.util.Random;
  */
 class SubclassFromInterfaceSerializerTest
         extends SerializerTestBase<SubclassFromInterfaceSerializerTest.TestUserInterface> {
-    private TypeInformation<TestUserInterface> type =
+    private final TypeInformation<TestUserInterface> type =
             TypeExtractor.getForClass(TestUserInterface.class);
 
     @Override
@@ -103,10 +103,7 @@ class SubclassFromInterfaceSerializerTest
             if (dumm1 != otherTUC.dumm1) {
                 return false;
             }
-            if (!dumm2.equals(otherTUC.dumm2)) {
-                return false;
-            }
-            return true;
+            return dumm2.equals(otherTUC.dumm2);
         }
     }
 
@@ -132,10 +129,7 @@ class SubclassFromInterfaceSerializerTest
             if (!dumm2.equals(otherTUC.dumm2)) {
                 return false;
             }
-            if (dumm3 != otherTUC.dumm3) {
-                return false;
-            }
-            return true;
+            return dumm3 == otherTUC.dumm3;
         }
     }
 
@@ -161,10 +155,7 @@ class SubclassFromInterfaceSerializerTest
             if (!dumm2.equals(otherTUC.dumm2)) {
                 return false;
             }
-            if (dumm4 != otherTUC.dumm4) {
-                return false;
-            }
-            return true;
+            return dumm4 == otherTUC.dumm4;
         }
     }
 }

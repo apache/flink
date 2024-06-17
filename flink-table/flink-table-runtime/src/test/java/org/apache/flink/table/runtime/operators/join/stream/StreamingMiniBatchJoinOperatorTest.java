@@ -25,13 +25,13 @@ import org.apache.flink.table.runtime.operators.bundle.trigger.CountCoBundleTrig
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 import org.apache.flink.types.RowKind;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
@@ -54,27 +54,6 @@ public final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOpera
 
     private RowDataKeySelector leftUniqueKeySelector;
     private RowDataKeySelector rightUniqueKeySelector;
-
-    @BeforeEach
-    public void beforeEach(TestInfo testInfo) throws Exception {
-        rightTypeInfo =
-                InternalTypeInfo.of(
-                        RowType.of(
-                                new LogicalType[] {
-                                    new CharType(false, 20),
-                                    new CharType(false, 20),
-                                    new CharType(true, 10)
-                                },
-                                new String[] {
-                                    "order_id#", "line_order_id0", "line_order_ship_mode"
-                                }));
-
-        rightKeySelector =
-                HandwrittenSelectorUtil.getRowDataSelector(
-                        new int[] {1},
-                        rightTypeInfo.toRowType().getChildren().toArray(new LogicalType[0]));
-        super.beforeEach(testInfo);
-    }
 
     @Tag("miniBatchSize=3")
     @Test
@@ -847,6 +826,17 @@ public final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOpera
                         "Ord#1",
                         "LineOrd#2",
                         "4 Bellevue Drive, Pottstown, PB 19464"));
+    }
+
+    @Tag("miniBatchSize=4")
+    @Test
+    public void testInnerJoinWithNoUniqueKeyHashCollisionSimpleSchema() throws Exception {
+        testHarness.processElement2(insertRecord("1", 1L));
+        testHarness.processElement1(insertRecord("1", 4294967296L));
+        testHarness.processElement2(insertRecord("1", 4294967296L));
+        testHarness.processElement2(deleteRecord("1", 1L));
+        assertor.shouldEmit(
+                testHarness, rowOfKind(RowKind.INSERT, "1", 4294967296L, "1", 4294967296L));
     }
 
     @Tag("miniBatchSize=6")
@@ -1828,6 +1818,10 @@ public final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOpera
 
     @Override
     public MiniBatchStreamingJoinOperator createJoinOperator(TestInfo testInfo) {
+        leftTypeInfo = leftTypeInfoExtractor.apply(testInfo.getDisplayName());
+        rightTypeInfo = rightTypeInfoExtractor.apply(testInfo.getDisplayName());
+        leftKeySelector = leftKeySelectorExtractor.apply(testInfo.getDisplayName());
+        rightKeySelector = rightKeySelectorExtractor.apply(testInfo.getDisplayName());
         RowDataKeySelector[] keySelectors = ukSelectorExtractor.apply(testInfo.getDisplayName());
         leftUniqueKeySelector = keySelectors[0];
         rightUniqueKeySelector = keySelectors[1];
@@ -1951,6 +1945,63 @@ public final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOpera
                     return FlinkJoinType.RIGHT;
                 } else {
                     return FlinkJoinType.FULL;
+                }
+            };
+
+    private final Function<String, InternalTypeInfo<RowData>> leftTypeInfoExtractor =
+            (testDisplayName) -> {
+                if (testDisplayName.contains("SimpleSchema")) {
+                    return InternalTypeInfo.of(
+                            RowType.of(
+                                    new LogicalType[] {new CharType(false, 1), new BigIntType()},
+                                    new String[] {"id1", "val1"}));
+                } else {
+                    return leftTypeInfo;
+                }
+            };
+
+    private final Function<String, InternalTypeInfo<RowData>> rightTypeInfoExtractor =
+            (testDisplayName) -> {
+                if (testDisplayName.contains("SimpleSchema")) {
+                    return InternalTypeInfo.of(
+                            RowType.of(
+                                    new LogicalType[] {new CharType(false, 1), new BigIntType()},
+                                    new String[] {"id2", "val2"}));
+                } else {
+                    return InternalTypeInfo.of(
+                            RowType.of(
+                                    new LogicalType[] {
+                                        new CharType(false, 20),
+                                        new CharType(false, 20),
+                                        new CharType(true, 10)
+                                    },
+                                    new String[] {
+                                        "order_id#", "line_order_id0", "line_order_ship_mode"
+                                    }));
+                }
+            };
+
+    private final Function<String, RowDataKeySelector> leftKeySelectorExtractor =
+            (testDisplayName) -> {
+                if (testDisplayName.contains("SimpleSchema")) {
+                    return HandwrittenSelectorUtil.getRowDataSelector(
+                            new int[] {0},
+                            leftTypeInfo.toRowType().getChildren().toArray(new LogicalType[0]));
+                } else {
+                    return leftKeySelector;
+                }
+            };
+
+    private final Function<String, RowDataKeySelector> rightKeySelectorExtractor =
+            (testDisplayName) -> {
+                if (testDisplayName.contains("SimpleSchema")) {
+                    return HandwrittenSelectorUtil.getRowDataSelector(
+                            new int[] {0},
+                            rightTypeInfo.toRowType().getChildren().toArray(new LogicalType[0]));
+                } else {
+                    return HandwrittenSelectorUtil.getRowDataSelector(
+                            new int[] {1},
+                            rightTypeInfo.toRowType().getChildren().toArray(new LogicalType[0]));
                 }
             };
 }

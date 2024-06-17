@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThatComparable;
 
 /** Tests for {@link Resource}. */
 @SuppressWarnings("rawtypes")
@@ -176,10 +177,10 @@ class ResourceTest {
         final Resource resource2 = new TestResource(0.0);
         final Resource resource3 = new TestResource(1.0);
 
-        assertThat(resource1.compareTo(resource1)).isZero();
-        assertThat(resource1.compareTo(resource2)).isZero();
-        assertThat(resource1.compareTo(resource3)).isNegative();
-        assertThat(resource3.compareTo(resource1)).isPositive();
+        assertThatComparable(resource1).isEqualByComparingTo(resource1);
+        assertThatComparable(resource2).isEqualByComparingTo(resource1);
+        assertThatComparable(resource1).isLessThan(resource3);
+        assertThatComparable(resource3).isGreaterThan(resource1);
     }
 
     @Test

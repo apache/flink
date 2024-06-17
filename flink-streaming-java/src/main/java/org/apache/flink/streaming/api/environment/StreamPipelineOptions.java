@@ -30,7 +30,10 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 /**
  * The {@link ConfigOption configuration options} for job execution. Those are stream specific
  * options. See also {@link org.apache.flink.configuration.PipelineOptions}.
+ *
+ * @deprecated This option class is deprecated in 1.20 and will be removed in 2.0.
  */
+@Deprecated
 @PublicEvolving
 public class StreamPipelineOptions {
 

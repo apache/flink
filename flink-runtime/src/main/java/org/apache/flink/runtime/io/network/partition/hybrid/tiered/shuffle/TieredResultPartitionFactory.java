@@ -29,6 +29,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageConfiguration;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageIdMappingUtils;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageUtils;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyServiceImpl;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.BufferAccumulator;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.HashBufferAccumulator;
@@ -40,6 +41,7 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.Tiere
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageResourceRegistry;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierFactory;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierProducerAgent;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.memory.MemoryTierFactory;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -47,8 +49,11 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** {@link TieredResultPartitionFactory} contains the components to set up tiered storage. */
 public class TieredResultPartitionFactory {
@@ -83,11 +88,15 @@ public class TieredResultPartitionFactory {
             int partitionIndex,
             ResultPartitionID partitionId,
             ResultPartitionType partitionType,
+            int numPartitions,
             int numSubpartitions,
             int maxParallelism,
+            int bufferSizeBytes,
             Boolean isBroadCastOnly,
+            boolean memoryDecouplingEnabled,
             ResultPartitionManager partitionManager,
             @Nullable BufferCompressor bufferCompressor,
+            List<TierShuffleDescriptor> tierShuffleDescriptors,
             SupplierWithException<BufferPool, IOException> bufferPoolFactory,
             FileChannelManager fileChannelManager,
             BatchShuffleReadBufferPool batchShuffleReadBufferPool,
@@ -97,16 +106,16 @@ public class TieredResultPartitionFactory {
         // Create memory manager.
         TieredStorageMemoryManager memoryManager =
                 new TieredStorageMemoryManagerImpl(
-                        tieredStorageConfiguration.getNumBuffersTriggerFlushRatio(), true);
+                        TieredStorageUtils.getNumBuffersTriggerFlushRatio(), true);
 
         // Create buffer accumulator.
-        int numAccumulatorExclusiveBuffers =
-                tieredStorageConfiguration.getAccumulatorExclusiveBuffers();
+        int numAccumulatorExclusiveBuffers = TieredStorageUtils.getAccumulatorExclusiveBuffers();
         BufferAccumulator bufferAccumulator =
                 createBufferAccumulator(
                         numSubpartitions,
+                        bufferSizeBytes,
                         numAccumulatorExclusiveBuffers,
-                        tieredStorageConfiguration.getMemoryDecouplingEnabled(),
+                        memoryDecouplingEnabled,
                         memoryManager,
                         isNumberOfPartitionConsumerUndefined);
 
@@ -114,12 +123,14 @@ public class TieredResultPartitionFactory {
         Tuple2<List<TierProducerAgent>, List<TieredStorageMemorySpec>>
                 producerAgentsAndMemorySpecs =
                         createTierProducerAgentsAndMemorySpecs(
+                                numPartitions,
                                 numSubpartitions,
                                 isBroadCastOnly,
                                 TieredStorageIdMappingUtils.convertId(partitionId),
                                 memoryManager,
                                 bufferAccumulator,
                                 partitionType == ResultPartitionType.HYBRID_SELECTIVE,
+                                tierShuffleDescriptors,
                                 fileChannelManager,
                                 batchShuffleReadBufferPool,
                                 batchShuffleReadIOExecutor);
@@ -153,12 +164,12 @@ public class TieredResultPartitionFactory {
 
     private BufferAccumulator createBufferAccumulator(
             int numSubpartitions,
+            int bufferSizeBytes,
             int numAccumulatorExclusiveBuffers,
             boolean enableMemoryDecoupling,
             TieredStorageMemoryManager storageMemoryManager,
             boolean isNumberOfPartitionConsumerUndefined) {
-        int bufferSize = tieredStorageConfiguration.getTieredStorageBufferSize();
-        long poolSizeCheckInterval = tieredStorageConfiguration.getPoolSizeCheckInterval();
+        long poolSizeCheckInterval = TieredStorageUtils.getPoolSizeCheckInterval();
 
         BufferAccumulator bufferAccumulator;
         if (enableMemoryDecoupling || (numSubpartitions + 1) > numAccumulatorExclusiveBuffers) {
@@ -166,7 +177,7 @@ public class TieredResultPartitionFactory {
                     new SortBufferAccumulator(
                             numSubpartitions,
                             numAccumulatorExclusiveBuffers,
-                            bufferSize,
+                            bufferSizeBytes,
                             enableMemoryDecoupling ? poolSizeCheckInterval : 0,
                             storageMemoryManager,
                             !isNumberOfPartitionConsumerUndefined);
@@ -174,7 +185,7 @@ public class TieredResultPartitionFactory {
             bufferAccumulator =
                     new HashBufferAccumulator(
                             numSubpartitions,
-                            bufferSize,
+                            bufferSizeBytes,
                             storageMemoryManager,
                             !isNumberOfPartitionConsumerUndefined);
         }
@@ -183,12 +194,14 @@ public class TieredResultPartitionFactory {
 
     private Tuple2<List<TierProducerAgent>, List<TieredStorageMemorySpec>>
             createTierProducerAgentsAndMemorySpecs(
+                    int numberOfPartitions,
                     int numberOfSubpartitions,
                     boolean isBroadcastOnly,
                     TieredStoragePartitionId partitionID,
                     TieredStorageMemoryManager memoryManager,
                     BufferAccumulator bufferAccumulator,
                     boolean isHybridSelective,
+                    List<TierShuffleDescriptor> tierShuffleDescriptors,
                     FileChannelManager fileChannelManager,
                     BatchShuffleReadBufferPool batchShuffleReadBufferPool,
                     ScheduledExecutorService batchShuffleReadIOExecutor) {
@@ -204,13 +217,12 @@ public class TieredResultPartitionFactory {
                         2
                                 * Math.min(
                                         numberOfSubpartitions + 1,
-                                        tieredStorageConfiguration
-                                                .getAccumulatorExclusiveBuffers()),
+                                        TieredStorageUtils.getAccumulatorExclusiveBuffers()),
                         true));
-        List<Integer> tierExclusiveBuffers =
-                tieredStorageConfiguration.getEachTierExclusiveBufferNum();
 
         List<TierFactory> tierFactories = tieredStorageConfiguration.getTierFactories();
+        checkState(tierFactories.size() == tierShuffleDescriptors.size());
+
         for (int index = 0; index < tierFactories.size(); ++index) {
             TierFactory tierFactory = tierFactories.get(index);
             if (!isHybridSelective && tierFactory.getClass() == MemoryTierFactory.class) {
@@ -218,6 +230,7 @@ public class TieredResultPartitionFactory {
             }
             TierProducerAgent producerAgent =
                     tierFactory.createProducerAgent(
+                            numberOfPartitions,
                             numberOfSubpartitions,
                             partitionID,
                             fileChannelManager.createChannel().getPath(),
@@ -227,21 +240,12 @@ public class TieredResultPartitionFactory {
                             tieredStorageResourceRegistry,
                             batchShuffleReadBufferPool,
                             batchShuffleReadIOExecutor,
+                            Collections.singletonList(tierShuffleDescriptors.get(index)),
                             Math.max(
                                     2 * batchShuffleReadBufferPool.getNumBuffersPerRequest(),
-                                    numberOfSubpartitions),
-                            tieredStorageConfiguration.getDiskIOSchedulerBufferRequestTimeout());
+                                    numberOfSubpartitions));
             tierProducerAgents.add(producerAgent);
-
-            if (tierFactory.getClass() == MemoryTierFactory.class) {
-                tieredStorageMemorySpecs.add(
-                        new TieredStorageMemorySpec(
-                                producerAgent, tierExclusiveBuffers.get(index), false));
-            } else {
-                tieredStorageMemorySpecs.add(
-                        new TieredStorageMemorySpec(
-                                producerAgent, tierExclusiveBuffers.get(index), true));
-            }
+            tieredStorageMemorySpecs.add(tierFactory.getProducerAgentMemorySpec());
         }
         return Tuple2.of(tierProducerAgents, tieredStorageMemorySpecs);
     }

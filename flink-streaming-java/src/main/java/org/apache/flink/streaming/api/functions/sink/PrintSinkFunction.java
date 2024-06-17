@@ -33,7 +33,10 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
  * no {@code sinkIdentifier} provided, parallelism == 1
  *
  * @param <IN> Input record type
+ * @deprecated This interface will be removed in future versions. Use the new {@link PrintSink}
+ *     interface instead.
  */
+@Deprecated
 @PublicEvolving
 public class PrintSinkFunction<IN> extends RichSinkFunction<IN>
         implements SupportsConcurrentExecutionAttempts {

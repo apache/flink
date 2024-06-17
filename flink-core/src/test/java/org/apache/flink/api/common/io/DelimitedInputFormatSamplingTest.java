@@ -38,7 +38,7 @@ import java.nio.file.Path;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Fail.fail;
 
-public class DelimitedInputFormatSamplingTest {
+class DelimitedInputFormatSamplingTest {
 
     private static final String TEST_DATA1 =
             "123456789\n"
@@ -77,7 +77,7 @@ public class DelimitedInputFormatSamplingTest {
     // ========================================================================
 
     @BeforeAll
-    public static void initialize() {
+    static void initialize() {
         try {
             testTempFolder = TempDirUtils.newFolder(tempDir);
             // make sure we do 4 samples

@@ -263,7 +263,7 @@ public class ExecutionConfigTest {
         configFromConfiguration.configure(
                 configuration, Thread.currentThread().getContextClassLoader());
 
-        assertThat(configFromConfiguration.getSchedulerType()).contains(schedulerType);
+        assertThat(configFromConfiguration.getSchedulerType()).hasValue(schedulerType);
     }
 
     @Test

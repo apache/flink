@@ -18,10 +18,12 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.remote;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageIdMappingUtils;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageResourceRegistry;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -39,8 +41,9 @@ class RemoteTierMasterAgentTest {
 
     @Test
     void testAddAndReleasePartition() throws IOException {
+        ResultPartitionID resultPartitionID = new ResultPartitionID();
         TieredStoragePartitionId partitionId =
-                TieredStorageIdMappingUtils.convertId(new ResultPartitionID());
+                TieredStorageIdMappingUtils.convertId(resultPartitionID);
         File partitionFile = new File(getPartitionPath(partitionId, tempFolder.getAbsolutePath()));
         assertThat(partitionFile.createNewFile()).isTrue();
         assertThat(partitionFile.exists()).isTrue();
@@ -48,9 +51,10 @@ class RemoteTierMasterAgentTest {
         TieredStorageResourceRegistry resourceRegistry = new TieredStorageResourceRegistry();
         RemoteTierMasterAgent masterAgent =
                 new RemoteTierMasterAgent(tempFolder.getAbsolutePath(), resourceRegistry);
-        masterAgent.addPartition(partitionId);
+        TierShuffleDescriptor tierShuffleDescriptor =
+                masterAgent.addPartitionAndGetShuffleDescriptor(new JobID(), resultPartitionID);
         assertThat(partitionFile.exists()).isTrue();
-        masterAgent.releasePartition(partitionId);
+        masterAgent.releasePartition(tierShuffleDescriptor);
 
         assertThat(partitionFile.exists()).isFalse();
     }

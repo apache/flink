@@ -57,6 +57,7 @@ import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -388,7 +389,9 @@ class HistoryServerTest {
                 HistoryServerOptions.HISTORY_SERVER_ARCHIVE_DIRS, jmDirectory.toURI().toString());
         historyServerConfig.set(
                 HistoryServerOptions.HISTORY_SERVER_WEB_DIR, hsDirectory.getAbsolutePath());
-        historyServerConfig.set(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL, 100L);
+        historyServerConfig.set(
+                HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL,
+                Duration.ofMillis(100L));
 
         historyServerConfig.set(
                 HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS, cleanupExpiredJobs);

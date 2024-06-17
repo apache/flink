@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
@@ -339,8 +340,10 @@ class SingleInputGateTest extends InputGateTestBase {
     @ValueSource(strings = {"LZ4", "LZO", "ZSTD"})
     void testGetCompressedBuffer(final String compressionCodec) throws Exception {
         int bufferSize = 1024;
-        BufferCompressor compressor = new BufferCompressor(bufferSize, compressionCodec);
-        BufferDecompressor decompressor = new BufferDecompressor(bufferSize, compressionCodec);
+        BufferCompressor compressor =
+                new BufferCompressor(bufferSize, CompressionCodec.valueOf(compressionCodec));
+        BufferDecompressor decompressor =
+                new BufferDecompressor(bufferSize, CompressionCodec.valueOf(compressionCodec));
 
         try (SingleInputGate inputGate =
                 new SingleInputGateBuilder().setBufferDecompressor(decompressor).build()) {

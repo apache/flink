@@ -136,5 +136,5 @@ function set_conf_ssl {
 }
 
 function rollback_openssl_lib() {
-  rm $FLINK_DIR/lib/flink-shaded-netty-tcnative-{dynamic,static}-*.jar
+  rm -f $FLINK_DIR/lib/flink-shaded-netty-tcnative-{dynamic,static}-*.jar
 }

@@ -79,11 +79,11 @@ public class TaskStateManagerImpl implements TaskStateManager {
     /** The local state store to which this manager reports local state snapshots. */
     private final TaskLocalStateStore localStateStore;
 
+    /** The file merging snapshot manager */
+    @Nullable private final FileMergingSnapshotManagerClosableWrapper fileMergingSnapshotManager;
+
     /** The changelog storage where the manager reads and writes the changelog */
     @Nullable private final StateChangelogStorage<?> stateChangelogStorage;
-
-    /** The file merging snapshot */
-    @Nullable private final FileMergingSnapshotManager fileMergingSnapshotManager;
 
     private final TaskExecutorStateChangelogStoragesManager changelogStoragesManager;
 
@@ -96,7 +96,7 @@ public class TaskStateManagerImpl implements TaskStateManager {
             @Nonnull JobID jobId,
             @Nonnull ExecutionAttemptID executionAttemptID,
             @Nonnull TaskLocalStateStore localStateStore,
-            @Nullable FileMergingSnapshotManager fileMergingSnapshotManager,
+            @Nullable FileMergingSnapshotManagerClosableWrapper fileMergingSnapshotManager,
             @Nullable StateChangelogStorage<?> stateChangelogStorage,
             @Nonnull TaskExecutorStateChangelogStoragesManager changelogStoragesManager,
             @Nullable JobManagerTaskRestore jobManagerTaskRestore,
@@ -120,7 +120,7 @@ public class TaskStateManagerImpl implements TaskStateManager {
             @Nonnull JobID jobId,
             @Nonnull ExecutionAttemptID executionAttemptID,
             @Nonnull TaskLocalStateStore localStateStore,
-            @Nullable FileMergingSnapshotManager fileMergingSnapshotManager,
+            @Nullable FileMergingSnapshotManagerClosableWrapper fileMergingSnapshotManager,
             @Nullable StateChangelogStorage<?> stateChangelogStorage,
             @Nonnull TaskExecutorStateChangelogStoragesManager changelogStoragesManager,
             @Nullable JobManagerTaskRestore jobManagerTaskRestore,
@@ -253,6 +253,17 @@ public class TaskStateManagerImpl implements TaskStateManager {
         return builder.build();
     }
 
+    public Optional<OperatorSubtaskState> getSubtaskJobManagerRestoredState(OperatorID operatorID) {
+        if (jobManagerTaskRestore == null) {
+            return Optional.empty();
+        }
+        OperatorSubtaskState state =
+                jobManagerTaskRestore
+                        .getTaskStateSnapshot()
+                        .getSubtaskStateByOperatorID(operatorID);
+        return (state == null) ? Optional.empty() : Optional.of(state);
+    }
+
     @Nonnull
     @Override
     public LocalRecoveryConfig createLocalRecoveryConfig() {
@@ -288,7 +299,7 @@ public class TaskStateManagerImpl implements TaskStateManager {
     @Nullable
     @Override
     public FileMergingSnapshotManager getFileMergingSnapshotManager() {
-        return fileMergingSnapshotManager;
+        return fileMergingSnapshotManager == null ? null : fileMergingSnapshotManager.get();
     }
 
     /** Tracking when local state can be confirmed and disposed. */
@@ -306,5 +317,8 @@ public class TaskStateManagerImpl implements TaskStateManager {
     @Override
     public void close() throws Exception {
         sequentialChannelStateReader.close();
+        if (fileMergingSnapshotManager != null) {
+            fileMergingSnapshotManager.close();
+        }
     }
 }

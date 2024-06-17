@@ -75,12 +75,6 @@
             <td>Controls the maximum number of execution attempts of each operator that can execute concurrently, including the original one and speculative ones.</td>
         </tr>
         <tr>
-            <td><h5>fine-grained.shuffle-mode.all-blocking</h5></td>
-            <td style="word-wrap: break-word;">false</td>
-            <td>Boolean</td>
-            <td>Whether to convert all PIPELINE edges to BLOCKING when apply fine-grained resource management in batch jobs.</td>
-        </tr>
-        <tr>
             <td><h5>job-event.store.write-buffer.flush-interval</h5></td>
             <td style="word-wrap: break-word;">1 s</td>
             <td>Duration</td>
@@ -142,15 +136,15 @@
         </tr>
         <tr>
             <td><h5>slot.idle.timeout</h5></td>
-            <td style="word-wrap: break-word;">50000</td>
-            <td>Long</td>
-            <td>The timeout in milliseconds for a idle slot in Slot Pool.</td>
+            <td style="word-wrap: break-word;">50 s</td>
+            <td>Duration</td>
+            <td>The timeout for a idle slot in Slot Pool.</td>
         </tr>
         <tr>
             <td><h5>slot.request.timeout</h5></td>
-            <td style="word-wrap: break-word;">300000</td>
-            <td>Long</td>
-            <td>The timeout in milliseconds for requesting a slot from Slot Pool.</td>
+            <td style="word-wrap: break-word;">5 min</td>
+            <td>Duration</td>
+            <td>The timeout for requesting a slot from Slot Pool.</td>
         </tr>
         <tr>
             <td><h5>slotmanager.max-total-resource.cpu</h5></td>

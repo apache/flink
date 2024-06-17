@@ -116,8 +116,8 @@ env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
 
 // enable externalized checkpoints which are retained
 // after job cancellation
-env.getCheckpointConfig().setExternalizedCheckpointCleanup(
-    ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+env.getCheckpointConfig().setExternalizedCheckpointRetention(
+    ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
 
 // enables the unaligned checkpoints
 env.getCheckpointConfig().enableUnalignedCheckpoints();
@@ -130,7 +130,7 @@ env.configure(config);
 
 // enable checkpointing with finished tasks
 Configuration config = new Configuration();
-config.set(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true);
+config.set(CheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true);
 env.configure(config);
 ```
 {{< /tab >}}
@@ -160,8 +160,8 @@ env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
 
 // enable externalized checkpoints which are retained 
 // after job cancellation
-env.getCheckpointConfig().setExternalizedCheckpointCleanup(
-    ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
+env.getCheckpointConfig().setExternalizedCheckpointRetention(
+    ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION)
 
 // enables the unaligned checkpoints
 env.getCheckpointConfig.enableUnalignedCheckpoints()
@@ -171,7 +171,7 @@ env.getCheckpointConfig.setCheckpointStorage("hdfs:///my/checkpoint/dir")
 
 // enable checkpointing with finished tasks
 val config = new Configuration()
-config.set(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true)
+config.set(CheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true)
 env.configure(config)
 ```
 {{< /tab >}}
@@ -200,7 +200,7 @@ env.get_checkpoint_config().set_tolerable_checkpoint_failure_number(2)
 env.get_checkpoint_config().set_max_concurrent_checkpoints(1)
 
 # enable externalized checkpoints which are retained after job cancellation
-env.get_checkpoint_config().enable_externalized_checkpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
+env.get_checkpoint_config().enable_externalized_checkpoints(ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION)
 
 # enables the unaligned checkpoints
 env.get_checkpoint_config().enable_unaligned_checkpoints()
@@ -251,7 +251,7 @@ is enabled by default since 1.15, and it could be disabled via a feature flag:
 
 ```java
 Configuration config = new Configuration();
-config.set(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, false);
+config.set(CheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, false);
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 ```
 
@@ -291,5 +291,27 @@ the tasks would wait for the final checkpoint completed successfully after all t
 The final checkpoint would be triggered immediately after all operators have reached end of data, 
 without waiting for periodic triggering, but the job will need to wait for this final checkpoint 
 to be completed.
+
+## Unify file merging mechanism for checkpoints (Experimental)
+
+The unified file merging mechanism for checkpointing is introduced to Flink 1.20 as an MVP ("minimum viable product") feature, 
+which allows scattered small checkpoint files to be written into larger files, reducing the number of file creations 
+and file deletions, which alleviates the pressure of file system metadata management raised by the file flooding problem during checkpoints.
+The mechanism can be enabled by setting `state.checkpoints.file-merging.enabled` to `true`.
+**Note** that as a trade-off, enabling this mechanism may lead to space amplification, that is, the actual occupation on the file system
+will be larger than actual state size. `state.checkpoints.file-merging.max-space-amplification` 
+can be used to limit the upper bound of space amplification.
+
+This mechanism is applicable to keyed state, operator state and channel state in Flink. Merging at subtask level is 
+provided for shared scope state; Merging at TaskManager level is provided for private scope state. The maximum number of subtasks
+allowed to be written to a single file can be configured through the `state.checkpoints.file-merging.max-subtasks-per-file` option.
+
+This feature also supports merging files across checkpoints. To enable this, set
+`state.checkpoints.file-merging.across-checkpoint-boundary` to `true`.
+
+This mechanism introduces a file pool to handle concurrent writing scenarios. There are two modes, the non-blocking mode will 
+always provide usable physical file without blocking when receive a file request, it may create many physical files if poll 
+file frequently; while the blocking mode will be blocked until there are returned files available in the file pool. This can be configured via
+setting `state.checkpoints.file-merging.pool-blocking` as `true` for blocking or `false` for non-blocking.
 
 {{< top >}}

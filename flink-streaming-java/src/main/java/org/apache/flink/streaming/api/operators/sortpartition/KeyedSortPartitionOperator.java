@@ -250,7 +250,10 @@ public class KeyedSortPartitionOperator<INPUT, KEY> extends AbstractStreamOperat
 
     @Override
     public OperatorAttributes getOperatorAttributes() {
-        return new OperatorAttributesBuilder().setOutputOnlyAfterEndOfStream(true).build();
+        return new OperatorAttributesBuilder()
+                .setOutputOnlyAfterEndOfStream(true)
+                .setInternalSorterSupported(true)
+                .build();
     }
 
     /**

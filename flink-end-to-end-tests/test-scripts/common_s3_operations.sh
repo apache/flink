@@ -29,12 +29,23 @@
 #   AWSCLI_CONTAINER_ID
 ###################################
 function aws_cli_start() {
-  export AWSCLI_CONTAINER_ID=$(docker run -d \
+  local CONTAINER_ID
+  CONTAINER_ID=$(docker run -d \
     --network host \
     --mount type=bind,source="$TEST_INFRA_DIR",target=/hostdir \
     -e AWS_REGION -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY \
     --entrypoint python \
     -it banst/awscli)
+  if [ $? -ne 0 ]; then
+    echo "running aws cli container failed"
+    if [ -n "$CONTAINER_ID" ]
+    then
+      docker kill "$CONTAINER_ID"
+      docker rm "$CONTAINER_ID"
+    fi
+    return 1
+  fi
+  export AWSCLI_CONTAINER_ID="$CONTAINER_ID"
 
   while [[ "$(docker inspect -f {{.State.Running}} "$AWSCLI_CONTAINER_ID")" -ne "true" ]]; do
     sleep 0.1
@@ -58,7 +69,11 @@ function aws_cli_stop() {
 if [[ $AWSCLI_CONTAINER_ID ]]; then
   aws_cli_stop
 fi
-aws_cli_start
+aws_cli_start || aws_cli_start
+if [ $? -ne 0 ]; then
+    echo "running the aws cli container failed"
+    exit 1
+fi
 
 ###################################
 # Runs an aws command on the previously started container.
@@ -135,7 +150,7 @@ function s3_get_number_of_lines_by_prefix() {
 
   # find all files that have the given prefix
   parts=$(aws_cli s3api list-objects --bucket "$IT_CASE_S3_BUCKET" --prefix "$1" |
-    docker run -i stedolan/jq -r '[.Contents[].Key] | join(" ")')
+    docker run -i --rm ghcr.io/jqlang/jq:1.7.1 -r '[.Contents[].Key] | join(" ")')
 
   # in parallel (N tasks), query the number of lines, store result in a file named lines
   N=10

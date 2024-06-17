@@ -22,7 +22,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.api.config.{AggregatePhaseStrategy, OptimizerConfigOptions}
 import org.apache.flink.table.data.{RowData, TimestampData}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.harness.WindowAggregateHarnessTest.{CUMULATE, HOP, TUMBLE}
@@ -645,7 +645,9 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
                        |)
                        |""".stripMargin)
 
-    tEnv.getConfig.set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
+    tEnv.getConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
+      AggregatePhaseStrategy.TWO_PHASE)
 
     val sql =
       """

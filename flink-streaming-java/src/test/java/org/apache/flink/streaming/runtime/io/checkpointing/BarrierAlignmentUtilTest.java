@@ -63,7 +63,7 @@ class BarrierAlignmentUtilTest {
         timerService.advance(delay.toMillis());
 
         assertThatThrownBy(mailboxProcessor::runMailboxStep)
-                .as("BarrierAlignmentUtil.DelayableTimer should not hidden exception")
+                .as("BarrierAlignmentUtil.DelayableTimer should not hide exceptions")
                 .isInstanceOf(ExpectedTestException.class);
     }
 }

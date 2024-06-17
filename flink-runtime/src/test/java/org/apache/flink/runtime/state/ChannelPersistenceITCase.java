@@ -81,6 +81,8 @@ class ChannelPersistenceITCase {
     private static final JobVertexID JOB_VERTEX_ID = new JobVertexID();
     private static final int SUBTASK_INDEX = 0;
 
+    private static final CheckpointStorage CHECKPOINT_STORAGE = new JobManagerCheckpointStorage();
+
     @Test
     void testUpstreamBlocksAfterRecoveringState() throws Exception {
         upstreamBlocksAfterRecoveringState(ResultPartitionType.PIPELINED);
@@ -264,7 +266,7 @@ class ChannelPersistenceITCase {
                         JOB_VERTEX_ID,
                         "test",
                         SUBTASK_INDEX,
-                        new JobManagerCheckpointStorage(maxStateSize),
+                        () -> CHECKPOINT_STORAGE.createCheckpointStorage(JOB_ID),
                         new ChannelStateWriteRequestExecutorFactory(JOB_ID),
                         5)) {
             writer.start(

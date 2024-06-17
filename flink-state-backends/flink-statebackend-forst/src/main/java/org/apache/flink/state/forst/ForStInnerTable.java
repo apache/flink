@@ -18,6 +18,8 @@
 
 package org.apache.flink.state.forst;
 
+import org.apache.flink.runtime.asyncprocessing.StateRequest;
+
 import org.rocksdb.ColumnFamilyHandle;
 
 import java.io.IOException;
@@ -63,4 +65,22 @@ public interface ForStInnerTable<K, V> {
      * @throws IOException Thrown if the deserialization encountered an I/O related error.
      */
     V deserializeValue(byte[] value) throws IOException;
+
+    /**
+     * Build a {@link ForStDBGetRequest} that belong to this {@code ForStInnerTable} with the given
+     * stateRequest.
+     *
+     * @param stateRequest The given stateRequest.
+     * @return The corresponding ForSt GetRequest.
+     */
+    ForStDBGetRequest<K, V> buildDBGetRequest(StateRequest<?, ?, ?> stateRequest);
+
+    /**
+     * Build a {@link ForStDBPutRequest} that belong to {@code ForStInnerTable} with the given
+     * stateRequest.
+     *
+     * @param stateRequest The given stateRequest.
+     * @return The corresponding ForSt PutRequest.
+     */
+    ForStDBPutRequest<K, V> buildDBPutRequest(StateRequest<?, ?, ?> stateRequest);
 }

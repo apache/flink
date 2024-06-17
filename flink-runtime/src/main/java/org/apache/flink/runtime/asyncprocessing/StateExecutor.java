@@ -22,15 +22,29 @@ import org.apache.flink.annotation.Internal;
 
 import java.util.concurrent.CompletableFuture;
 
-/** Executor for executing batch {@link StateRequest}s. */
+/**
+ * Executor for executing batch {@link StateRequest}s.
+ *
+ * <p>Notice that the owner who create the {@code StateExecutor} is responsible for shutting down it
+ * when it is no longer in use.
+ */
 @Internal
 public interface StateExecutor {
     /**
      * Execute a batch of state requests.
      *
-     * @param processingRequests the given batch of processing requests
+     * @param stateRequestContainer The StateRequestContainer which holds the given batch of
+     *     processing requests.
      * @return A future can determine whether execution has completed.
      */
-    CompletableFuture<Boolean> executeBatchRequests(
-            Iterable<StateRequest<?, ?, ?>> processingRequests);
+    CompletableFuture<Void> executeBatchRequests(StateRequestContainer stateRequestContainer);
+
+    /**
+     * Create a {@link StateRequestContainer} which is used to hold the batched {@link
+     * StateRequest}.
+     */
+    StateRequestContainer createStateRequestContainer();
+
+    /** Shutdown the StateExecutor, and new committed state execution requests will be rejected. */
+    void shutdown();
 }

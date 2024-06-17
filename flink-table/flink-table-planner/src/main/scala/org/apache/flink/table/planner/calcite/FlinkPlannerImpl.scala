@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.sql.parser.ExtendedSqlNode
 import org.apache.flink.sql.parser.ddl.{SqlCompilePlan, SqlReset, SqlSet, SqlUseModules}
-import org.apache.flink.sql.parser.dml.{RichSqlInsert, SqlBeginStatementSet, SqlCompileAndExecutePlan, SqlEndStatementSet, SqlExecute, SqlExecutePlan, SqlStatementSet, SqlTruncateTable}
+import org.apache.flink.sql.parser.dml._
 import org.apache.flink.sql.parser.dql._
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.planner.hint.FlinkHints
@@ -138,6 +138,7 @@ class FlinkPlannerImpl(
         || sqlNode.isInstanceOf[SqlShowDatabases]
         || sqlNode.isInstanceOf[SqlShowCurrentDatabase]
         || sqlNode.isInstanceOf[SqlShowTables]
+        || sqlNode.isInstanceOf[SqlShowModels]
         || sqlNode.isInstanceOf[SqlShowFunctions]
         || sqlNode.isInstanceOf[SqlShowJars]
         || sqlNode.isInstanceOf[SqlShowModules]
@@ -146,6 +147,8 @@ class FlinkPlannerImpl(
         || sqlNode.isInstanceOf[SqlShowPartitions]
         || sqlNode.isInstanceOf[SqlShowProcedures]
         || sqlNode.isInstanceOf[SqlShowJobs]
+        || sqlNode.isInstanceOf[SqlDescribeJob]
+        || sqlNode.isInstanceOf[SqlRichDescribeModel]
         || sqlNode.isInstanceOf[SqlRichDescribeTable]
         || sqlNode.isInstanceOf[SqlUnloadModule]
         || sqlNode.isInstanceOf[SqlUseModules]

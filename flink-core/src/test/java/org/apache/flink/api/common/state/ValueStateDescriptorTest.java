@@ -31,7 +31,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link ValueStateDescriptor}. */
-public class ValueStateDescriptorTest {
+class ValueStateDescriptorTest {
 
     @Test
     void testHashCodeEquals() throws Exception {

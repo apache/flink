@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.CloseableRegistry;
@@ -61,6 +62,7 @@ import org.rocksdb.util.SizeUnit;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -154,8 +156,35 @@ public class ForStStateBackendConfigTest {
             assertNull(forStStateBackend.getLocalDbStoragePaths());
         } finally {
             keyedBackend.dispose();
+            keyedBackend.close();
             env.close();
         }
+    }
+
+    @Test
+    public void testConfigureForStCompressionPerLevel() throws Exception {
+        GlobalConfiguration.setStandardYaml(false);
+        final MockEnvironment env = getMockEnvironment(tempFolder.newFolder());
+        ForStStateBackend forStStateBackend = new ForStStateBackend();
+        CompressionType[] compressionTypes = {
+            CompressionType.NO_COMPRESSION, CompressionType.SNAPPY_COMPRESSION
+        };
+        Configuration conf = new Configuration();
+        conf.set(
+                ForStConfigurableOptions.COMPRESSION_PER_LEVEL,
+                new ArrayList<>(Arrays.asList(compressionTypes)));
+
+        forStStateBackend =
+                forStStateBackend.configure(conf, Thread.currentThread().getContextClassLoader());
+
+        ForStResourceContainer resourceContainer =
+                forStStateBackend.createOptionsAndResourceContainer(tempFolder.newFile());
+        ColumnFamilyOptions columnFamilyOptions = resourceContainer.getColumnOptions();
+        assertArrayEquals(compressionTypes, columnFamilyOptions.compressionPerLevel().toArray());
+
+        resourceContainer.close();
+        env.close();
+        GlobalConfiguration.setStandardYaml(true);
     }
 
     @Test
@@ -216,6 +245,7 @@ public class ForStStateBackendConfigTest {
             assertNull(forStBackend.getLocalDbStoragePaths());
         } finally {
             keyedBackend.dispose();
+            keyedBackend.close();
             env.close();
         }
     }
@@ -281,6 +311,7 @@ public class ForStStateBackendConfigTest {
             }
         } finally {
             keyedBackend.dispose();
+            keyedBackend.close();
             env.close();
         }
 
@@ -311,7 +342,7 @@ public class ForStStateBackendConfigTest {
         TaskKvStateRegistry kvStateRegistry = env.getTaskKvStateRegistry();
         CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
         ForStKeyedStateBackend<Integer> keyedBackend =
-                forStStateBackend.createForStKeyedStateBackend(
+                forStStateBackend.createAsyncKeyedStateBackend(
                         new KeyedStateBackendParametersImpl<>(
                                 env,
                                 jobID,
@@ -330,6 +361,7 @@ public class ForStStateBackendConfigTest {
             assertThat(instanceBasePath.getAbsolutePath(), startsWith(dir1.getAbsolutePath()));
         } finally {
             keyedBackend.dispose();
+            keyedBackend.close();
             env.close();
         }
     }
@@ -357,7 +389,7 @@ public class ForStStateBackendConfigTest {
                 TaskKvStateRegistry kvStateRegistry =
                         new KvStateRegistry().createTaskRegistry(env.getJobID(), new JobVertexID());
                 CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
-                forStStateBackend.createForStKeyedStateBackend(
+                forStStateBackend.createAsyncKeyedStateBackend(
                         new KeyedStateBackendParametersImpl<>(
                                 env,
                                 jobID,
@@ -403,7 +435,7 @@ public class ForStStateBackendConfigTest {
                         new KvStateRegistry().createTaskRegistry(env.getJobID(), new JobVertexID());
                 CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
                 ForStKeyedStateBackend<Integer> keyedStateBackend =
-                        forStStateBackend.createForStKeyedStateBackend(
+                        forStStateBackend.createAsyncKeyedStateBackend(
                                 new KeyedStateBackendParametersImpl<>(
                                         env,
                                         jobID,
@@ -418,6 +450,7 @@ public class ForStStateBackendConfigTest {
                                         cancelStreamRegistry));
 
                 keyedStateBackend.dispose();
+                keyedStateBackend.close();
             } catch (Exception e) {
                 e.printStackTrace();
                 fail("Backend initialization failed even though some paths were available");
@@ -727,6 +760,7 @@ public class ForStStateBackendConfigTest {
         } finally {
             if (keyedBackend != null) {
                 keyedBackend.dispose();
+                keyedBackend.close();
             }
         }
     }

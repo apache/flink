@@ -30,9 +30,11 @@ public class OperatorAttributes implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private final boolean outputOnlyAfterEndOfStream;
+    private final boolean internalSorterSupported;
 
-    OperatorAttributes(boolean outputOnlyAfterEndOfStream) {
+    OperatorAttributes(boolean outputOnlyAfterEndOfStream, boolean internalSorterSupported) {
         this.outputOnlyAfterEndOfStream = outputOnlyAfterEndOfStream;
+        this.internalSorterSupported = internalSorterSupported;
     }
 
     /**
@@ -48,5 +50,13 @@ public class OperatorAttributes implements Serializable {
      */
     public boolean isOutputOnlyAfterEndOfStream() {
         return outputOnlyAfterEndOfStream;
+    }
+
+    /**
+     * Returns true iff the operator uses an internal sorter to sort inputs by key. When it is true,
+     * the input records will not to be sorted externally before being fed into this operator.
+     */
+    public boolean isInternalSorterSupported() {
+        return internalSorterSupported;
     }
 }

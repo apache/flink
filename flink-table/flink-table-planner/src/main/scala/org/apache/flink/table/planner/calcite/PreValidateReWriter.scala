@@ -241,8 +241,12 @@ object PreValidateReWriter {
         }
         rewriteSelect(validator, sqlSelect, targetRowType, assignedFields, targetPosition)
       case SqlKind.VALUES =>
-        if (targetPosition.nonEmpty && call.operandCount() != targetPosition.size()) {
-          throw newValidationError(call, RESOURCE.columnCountMismatch())
+        call.getOperandList.toSeq.foreach {
+          case sqlCall: SqlCall => {
+            if (targetPosition.nonEmpty && sqlCall.getOperandList.size() != targetPosition.size()) {
+              throw newValidationError(call, RESOURCE.columnCountMismatch())
+            }
+          }
         }
         rewriteValues(call, targetRowType, assignedFields, targetPosition)
       case kind if SqlKind.SET_QUERY.contains(kind) =>

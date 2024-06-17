@@ -23,18 +23,24 @@ import org.apache.flink.connector.base.sink.writer.strategy.AIMDScalingStrategy;
 import org.apache.flink.connector.base.sink.writer.strategy.CongestionControlRateLimitingStrategy;
 import org.apache.flink.connector.base.sink.writer.strategy.RateLimitingStrategy;
 
+import java.time.Duration;
+
 /**
  * {@link AsyncSinkWriterConfiguration} to configure the {@link
  * org.apache.flink.connector.base.sink.writer.AsyncSinkWriter}.
  */
 @PublicEvolving
 public class AsyncSinkWriterConfiguration {
+    public static final long DEFAULT_REQUEST_TIMEOUT_MS = Duration.ofMinutes(10).toMillis();
+    public static final boolean DEFAULT_FAIL_ON_TIMEOUT = false;
     private final int maxBatchSize;
     private final int maxInFlightRequests;
     private final int maxBufferedRequests;
     private final long maxBatchSizeInBytes;
     private final long maxTimeInBufferMS;
     private final long maxRecordSizeInBytes;
+    private final long requestTimeoutMS;
+    private final boolean failOnTimeout;
     private final RateLimitingStrategy rateLimitingStrategy;
 
     private AsyncSinkWriterConfiguration(
@@ -44,6 +50,8 @@ public class AsyncSinkWriterConfiguration {
             long maxBatchSizeInBytes,
             long maxTimeInBufferMS,
             long maxRecordSizeInBytes,
+            long requestTimeoutMS,
+            boolean failOnTimeout,
             RateLimitingStrategy rateLimitingStrategy) {
         this.maxBatchSize = maxBatchSize;
         this.maxInFlightRequests = maxInFlightRequests;
@@ -52,6 +60,8 @@ public class AsyncSinkWriterConfiguration {
         this.maxTimeInBufferMS = maxTimeInBufferMS;
         this.maxRecordSizeInBytes = maxRecordSizeInBytes;
         this.rateLimitingStrategy = rateLimitingStrategy;
+        this.requestTimeoutMS = requestTimeoutMS;
+        this.failOnTimeout = failOnTimeout;
     }
 
     public int getMaxBatchSize() {
@@ -82,6 +92,14 @@ public class AsyncSinkWriterConfiguration {
         return rateLimitingStrategy;
     }
 
+    public long getRequestTimeoutMS() {
+        return requestTimeoutMS;
+    }
+
+    public boolean isFailOnTimeout() {
+        return failOnTimeout;
+    }
+
     @PublicEvolving
     public static ConfigurationMaxBatchSize builder() {
         return new AsyncSinkWriterConfigurationBuilder();
@@ -103,6 +121,8 @@ public class AsyncSinkWriterConfiguration {
         private long maxBatchSizeInBytes;
         private long maxTimeInBufferMS;
         private long maxRecordSizeInBytes;
+        private long requestTimeoutMS = DEFAULT_REQUEST_TIMEOUT_MS;
+        private boolean failOnTimeout = DEFAULT_FAIL_ON_TIMEOUT;
         private RateLimitingStrategy rateLimitingStrategy;
 
         @Override
@@ -142,6 +162,16 @@ public class AsyncSinkWriterConfiguration {
             return this;
         }
 
+        public AsyncSinkWriterConfigurationBuilder setRequestTimeoutMS(long requestTimeoutMS) {
+            this.requestTimeoutMS = requestTimeoutMS;
+            return this;
+        }
+
+        public AsyncSinkWriterConfigurationBuilder setFailOnTimeout(boolean failOnTimeout) {
+            this.failOnTimeout = failOnTimeout;
+            return this;
+        }
+
         public AsyncSinkWriterConfigurationBuilder setRateLimitingStrategy(
                 RateLimitingStrategy rateLimitingStrategy) {
             this.rateLimitingStrategy = rateLimitingStrategy;
@@ -168,6 +198,8 @@ public class AsyncSinkWriterConfiguration {
                     maxBatchSizeInBytes,
                     maxTimeInBufferMS,
                     maxRecordSizeInBytes,
+                    requestTimeoutMS,
+                    failOnTimeout,
                     rateLimitingStrategy);
         }
     }

@@ -36,6 +36,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.time.Duration;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -88,8 +89,10 @@ class ZooKeeperLeaderElectionConnectionHandlingTest {
     @Test
     void testLoseLeadershipOnLostConnectionIfTolerateSuspendedConnectionsIsEnabled()
             throws Exception {
-        configuration.set(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, 1000);
-        configuration.set(HighAvailabilityOptions.ZOOKEEPER_CONNECTION_TIMEOUT, 1000);
+        configuration.set(
+                HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, Duration.ofMillis(1000));
+        configuration.set(
+                HighAvailabilityOptions.ZOOKEEPER_CONNECTION_TIMEOUT, Duration.ofMillis(1000));
         configuration.set(HighAvailabilityOptions.ZOOKEEPER_TOLERATE_SUSPENDED_CONNECTIONS, true);
         runTestWithLostZooKeeperConnection(
                 configuration,

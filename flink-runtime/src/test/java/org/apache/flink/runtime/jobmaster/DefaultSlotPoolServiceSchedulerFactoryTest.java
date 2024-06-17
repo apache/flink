@@ -43,10 +43,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link DefaultSlotPoolServiceSchedulerFactory}. */
 @ExtendWith(TestLoggerExtension.class)
-public class DefaultSlotPoolServiceSchedulerFactoryTest {
+class DefaultSlotPoolServiceSchedulerFactoryTest {
 
     @Test
-    public void testFallsBackToDefaultSchedulerIfAdaptiveSchedulerInBatchJob() {
+    void testFallsBackToDefaultSchedulerIfAdaptiveSchedulerInBatchJob() {
         final Configuration configuration = new Configuration();
         configuration.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
 
@@ -61,7 +61,7 @@ public class DefaultSlotPoolServiceSchedulerFactoryTest {
     }
 
     @Test
-    public void testAdaptiveSchedulerForReactiveMode() {
+    void testAdaptiveSchedulerForReactiveMode() {
         final Configuration configuration = new Configuration();
         configuration.set(JobManagerOptions.SCHEDULER_MODE, SchedulerExecutionMode.REACTIVE);
 
@@ -76,7 +76,7 @@ public class DefaultSlotPoolServiceSchedulerFactoryTest {
     }
 
     @Test
-    public void testFallBackSchedulerWithAdaptiveSchedulerTestProperty() {
+    void testFallBackSchedulerWithAdaptiveSchedulerTestProperty() {
         String propertyValue = saveAdaptiveSchedulerTestPropertyValue();
         System.setProperty("flink.tests.enable-adaptive-scheduler", "true");
 
@@ -102,7 +102,7 @@ public class DefaultSlotPoolServiceSchedulerFactoryTest {
     }
 
     @Test
-    public void testFallBackSchedulerWithoutAdaptiveSchedulerTestProperty() {
+    void testFallBackSchedulerWithoutAdaptiveSchedulerTestProperty() {
         String propertyValue = saveAdaptiveSchedulerTestPropertyValue();
         System.clearProperty("flink.tests.enable-adaptive-scheduler");
 

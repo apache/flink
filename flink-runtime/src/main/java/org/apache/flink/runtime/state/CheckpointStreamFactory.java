@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
+
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -78,5 +80,19 @@ public interface CheckpointStreamFactory {
      */
     default void reusePreviousStateHandle(Collection<? extends StreamStateHandle> previousHandle) {
         // Does nothing for normal stream factory
+    }
+
+    /**
+     * A pre-check hook before the checkpoint writer want to reuse a state handle, if this returns
+     * false, it is not recommended for the writer to rewrite the state file considering the space
+     * amplification.
+     *
+     * @param stateHandle the handle to be reused.
+     * @return true if it can be reused.
+     */
+    default boolean couldReuseStateHandle(StreamStateHandle stateHandle) {
+        // By default, the CheckpointStreamFactory doesn't support snapshot-file-merging, so the
+        // SegmentFileStateHandle type of stateHandle can not be reused.
+        return !FileMergingSnapshotManager.isFileMergingHandle(stateHandle);
     }
 }

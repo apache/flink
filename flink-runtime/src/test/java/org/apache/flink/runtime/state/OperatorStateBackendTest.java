@@ -452,7 +452,7 @@ class OperatorStateBackendTest {
                         AbstractFsCheckpointStorageAccess.CHECKPOINT_TASK_OWNED_STATE_DIR);
 
         final FileMergingSnapshotManager.SubtaskKey subtaskKey =
-                new FileMergingSnapshotManager.SubtaskKey("opId", 1, 1);
+                new FileMergingSnapshotManager.SubtaskKey("jobId", "opId", 1, 1);
         LocalFileSystem fs = getSharedInstance();
         CheckpointStorageLocationReference cslReference =
                 AbstractFsCheckpointStorageAccess.encodePathAsReference(

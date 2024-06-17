@@ -26,6 +26,7 @@ import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
@@ -41,7 +42,6 @@ import org.apache.flink.table.refresh.RefreshHandler;
 
 import org.junit.jupiter.api.Test;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -92,7 +92,7 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
                     CREATE_RESOLVED_SCHEMA);
 
     private static final String DEFINITION_QUERY = "SELECT id, region, county FROM T";
-    private static final Duration FRESHNESS = Duration.ofMinutes(3);
+    private static final IntervalFreshness FRESHNESS = IntervalFreshness.ofMinute("3");
     private static final ResolvedCatalogMaterializedTable EXPECTED_CATALOG_MATERIALIZED_TABLE =
             new ResolvedCatalogMaterializedTable(
                     CatalogMaterializedTable.newBuilder()
@@ -235,7 +235,7 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
         // validate definition query
         assertThat(actualMaterializedTable.getDefinitionQuery()).isEqualTo(DEFINITION_QUERY);
         // validate freshness
-        assertThat(actualMaterializedTable.getFreshness()).isEqualTo(FRESHNESS);
+        assertThat(actualMaterializedTable.getDefinitionFreshness()).isEqualTo(FRESHNESS);
         // validate logical refresh mode
         assertThat(actualMaterializedTable.getLogicalRefreshMode())
                 .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC);
@@ -254,6 +254,44 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
         assertThrows(
                 TableAlreadyExistException.class,
                 () -> catalog.createTable(tablePath, EXPECTED_CATALOG_MATERIALIZED_TABLE, false));
+    }
+
+    @Test
+    public void testCreateAndGetGenericTable() throws Exception {
+        ObjectPath tablePath = new ObjectPath(TEST_DEFAULT_DATABASE, "tb1");
+        // test create datagen table
+        Map<String, String> options = new HashMap<>();
+        options.put("connector", "datagen");
+        options.put("number-of-rows", "10");
+        ResolvedCatalogTable datagenResolvedTable =
+                new ResolvedCatalogTable(
+                        CatalogTable.newBuilder()
+                                .schema(CREATE_SCHEMA)
+                                .comment("test generic table")
+                                .options(options)
+                                .build(),
+                        CREATE_RESOLVED_SCHEMA);
+
+        catalog.createTable(tablePath, datagenResolvedTable, true);
+
+        // test table exist
+        assertThat(catalog.tableExists(tablePath)).isTrue();
+
+        // test get table
+        CatalogBaseTable actualTable = catalog.getTable(tablePath);
+
+        // validate table type
+        assertThat(actualTable.getTableKind()).isEqualTo(CatalogBaseTable.TableKind.TABLE);
+        // validate schema
+        assertThat(actualTable.getUnresolvedSchema().resolve(new TestSchemaResolver()))
+                .isEqualTo(CREATE_RESOLVED_SCHEMA);
+        // validate options
+        assertThat(actualTable.getOptions()).isEqualTo(options);
+
+        // test create exist table
+        assertThrows(
+                TableAlreadyExistException.class,
+                () -> catalog.createTable(tablePath, datagenResolvedTable, false));
     }
 
     @Test

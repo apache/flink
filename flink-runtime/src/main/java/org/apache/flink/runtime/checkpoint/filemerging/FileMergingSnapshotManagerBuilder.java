@@ -17,6 +17,8 @@
 
 package org.apache.flink.runtime.checkpoint.filemerging;
 
+import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -38,7 +40,12 @@ public class FileMergingSnapshotManagerBuilder {
     /** Type of physical file pool. */
     private PhysicalFilePool.Type filePoolType = PhysicalFilePool.Type.NON_BLOCKING;
 
+    /** The max space amplification that the manager should control. */
+    private float maxSpaceAmplification = Float.MAX_VALUE;
+
     @Nullable private Executor ioExecutor = null;
+
+    @Nullable private TaskManagerJobMetricGroup metricGroup;
 
     /**
      * Initialize the builder.
@@ -63,12 +70,28 @@ public class FileMergingSnapshotManagerBuilder {
         return this;
     }
 
+    public FileMergingSnapshotManagerBuilder setMaxSpaceAmplification(float amplification) {
+        if (amplification < 1) {
+            // only valid number counts. If not valid, disable space control by setting this to
+            // Float.MAX_VALUE.
+            this.maxSpaceAmplification = Float.MAX_VALUE;
+        } else {
+            this.maxSpaceAmplification = amplification;
+        }
+        return this;
+    }
+
     /**
      * Set the executor for io operation in manager. If null(default), all io operation will be
      * executed synchronously.
      */
     public FileMergingSnapshotManagerBuilder setIOExecutor(@Nullable Executor ioExecutor) {
         this.ioExecutor = ioExecutor;
+        return this;
+    }
+
+    public FileMergingSnapshotManagerBuilder setMetricGroup(TaskManagerJobMetricGroup metricGroup) {
+        this.metricGroup = metricGroup;
         return this;
     }
 
@@ -84,13 +107,23 @@ public class FileMergingSnapshotManagerBuilder {
                         id,
                         maxFileSize,
                         filePoolType,
-                        ioExecutor == null ? Runnable::run : ioExecutor);
+                        maxSpaceAmplification,
+                        ioExecutor == null ? Runnable::run : ioExecutor,
+                        metricGroup == null
+                                ? new UnregisteredMetricGroups
+                                        .UnregisteredTaskManagerJobMetricGroup()
+                                : metricGroup);
             case MERGE_ACROSS_CHECKPOINT:
                 return new AcrossCheckpointFileMergingSnapshotManager(
                         id,
                         maxFileSize,
                         filePoolType,
-                        ioExecutor == null ? Runnable::run : ioExecutor);
+                        maxSpaceAmplification,
+                        ioExecutor == null ? Runnable::run : ioExecutor,
+                        metricGroup == null
+                                ? new UnregisteredMetricGroups
+                                        .UnregisteredTaskManagerJobMetricGroup()
+                                : metricGroup);
             default:
                 throw new UnsupportedOperationException(
                         String.format(

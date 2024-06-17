@@ -35,6 +35,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.net.URI;
+import java.time.Duration;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -47,7 +48,7 @@ public class RemoteEnvironmentITCase extends TestLogger {
 
     private static final int USER_DOP = 2;
 
-    private static final String VALID_STARTUP_TIMEOUT = "100 s";
+    private static final Duration VALID_STARTUP_TIMEOUT = Duration.ofSeconds(100);
 
     @ClassRule
     public static final MiniClusterResource MINI_CLUSTER_RESOURCE =

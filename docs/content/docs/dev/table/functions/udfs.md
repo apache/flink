@@ -263,7 +263,7 @@ function is not stateful (i.e. containing only transient and static fields).
 
 ### Evaluation Methods
 
-The base class provides a set of methods that can be overridden such as `open()`, `close()`, or `isDeterministic()`.
+The base class provides a set of methods that can be overridden such as `open()`, `close()`, `isDeterministic()` or `supportsConstantFolding()`.
 
 However, in addition to those declared methods, the main runtime logic that is applied to every incoming record must be implemented through specialized _evaluation methods_.
 
@@ -809,6 +809,24 @@ The following system temporal functions are dynamic, which will be pre-evaluated
 - LOCALTIMESTAMP
 
 Note: `isDynamicFunction` is only applicable for system functions.
+
+### Constant Expression Reduction
+
+User-defined functions can declare whether they allow for constant expression reduction by 
+overriding the method `supportsConstantFolding()`. Calls to functions with constant arguments can be 
+reduced and simplified in some cases. An example could be the user-defined function call `PlusOne(10)` might just be simplified to `11` in an
+expression. This optimization happens at planning time, resulting in a plan only utilizing the
+reduced value. This generally is desirable, and therefore is enabled by default, though there are some
+cases where it should be disabled.
+
+One is if the function call is not deterministic, which is covered in more detail in the 
+Determinism section above. Setting a function as non deterministic will have the effect of 
+preventing function call expression reduction, even if `supportsConstantFolding()` is true.
+
+A function call may also have some side effects, even if it always returns deterministic results. 
+This may mean that the correctness of the query within Flink may allow for constant expression reduction, but it may not
+be desired anyway. In this case, setting the method `supportsConstantFolding()` to return false also 
+has the effect of preventing constant expression reduction and ensuring invocation at runtime.
 
 ### Runtime Integration
 

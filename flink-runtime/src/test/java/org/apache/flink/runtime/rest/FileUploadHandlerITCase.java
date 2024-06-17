@@ -331,8 +331,8 @@ class FileUploadHandlerITCase {
                         fileHandler.getMessageHeaders().getTargetRestEndpointURL(),
                         new MultipartUploadExtension.TestRequestBody());
         try (Response response = client.newCall(jsonRequest).execute()) {
-            // JSON payload did not match expected format
-            assertThat(response.code()).isEqualTo(HttpResponseStatus.BAD_REQUEST.code());
+            // explicitly rejected by the test handler implementation
+            assertThat(response.code()).isEqualTo(HttpResponseStatus.INTERNAL_SERVER_ERROR.code());
         }
 
         Request fileRequest =
@@ -347,8 +347,9 @@ class FileUploadHandlerITCase {
                         fileHandler.getMessageHeaders().getTargetRestEndpointURL(),
                         new MultipartUploadExtension.TestRequestBody());
         try (Response response = client.newCall(mixedRequest).execute()) {
-            // JSON payload did not match expected format
-            assertThat(response.code()).isEqualTo(HttpResponseStatus.BAD_REQUEST.code());
+            // unknown field in TestRequestBody is ignored
+            assertThat(response.code())
+                    .isEqualTo(fileHandler.getMessageHeaders().getResponseStatusCode().code());
         }
 
         verifyNoFileIsRegisteredToDeleteOnExitHook();

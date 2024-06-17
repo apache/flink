@@ -30,17 +30,36 @@ import java.util.Set;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
-/** This {@link LookupJoinHintOptions} defines valid hint options of lookup join hint. */
+/**
+ * This {@link LookupJoinHintOptions} defines valid hint options of lookup join hint.
+ *
+ * @deprecated The configurations have been deprecated as part of FLIP-457 and will be removed in
+ *     Flink 2.0. Please use {@link org.apache.flink.table.api.config.LookupJoinHintOptions}
+ *     instead.
+ */
+@Deprecated
 @Internal
 public class LookupJoinHintOptions {
     private LookupJoinHintOptions() {}
 
+    /**
+     * @deprecated This configuration has been deprecated as part of FLIP-457 and will be removed in
+     *     Flink 2.0. Please use {@link
+     *     org.apache.flink.table.api.config.LookupJoinHintOptions#LOOKUP_TABLE} instead.
+     */
+    @Deprecated
     public static final ConfigOption<String> LOOKUP_TABLE =
             key("table")
                     .stringType()
                     .noDefaultValue()
                     .withDescription("The table name of the lookup source.");
 
+    /**
+     * @deprecated This configuration has been deprecated as part of FLIP-457 and will be removed in
+     *     Flink 2.0. Please use {@link
+     *     org.apache.flink.table.api.config.LookupJoinHintOptions#ASYNC_LOOKUP} instead.
+     */
+    @Deprecated
     public static final ConfigOption<Boolean> ASYNC_LOOKUP =
             key("async")
                     .booleanType()
@@ -50,6 +69,12 @@ public class LookupJoinHintOptions {
                                     + " lookup function. If the backend lookup source does not support the"
                                     + " suggested lookup mode, it will take no effect.");
 
+    /**
+     * @deprecated This configuration has been deprecated as part of FLIP-457 and will be removed in
+     *     Flink 2.0. Please use {@link
+     *     org.apache.flink.table.api.config.LookupJoinHintOptions#ASYNC_OUTPUT_MODE} instead.
+     */
+    @Deprecated
     public static final ConfigOption<ExecutionConfigOptions.AsyncOutputMode> ASYNC_OUTPUT_MODE =
             key("output-mode")
                     .enumType(ExecutionConfigOptions.AsyncOutputMode.class)
@@ -59,6 +84,12 @@ public class LookupJoinHintOptions {
                                     + "If set to ALLOW_UNORDERED, will attempt to use {@see AsyncDataStream.OutputMode.UNORDERED} when it does not "
                                     + "affect the correctness of the result, otherwise ORDERED will be still used.");
 
+    /**
+     * @deprecated This configuration has been deprecated as part of FLIP-457 and will be removed in
+     *     Flink 2.0. Please use {@link
+     *     org.apache.flink.table.api.config.LookupJoinHintOptions#ASYNC_CAPACITY} instead.
+     */
+    @Deprecated
     public static final ConfigOption<Integer> ASYNC_CAPACITY =
             key("capacity")
                     .intType()
@@ -66,6 +97,12 @@ public class LookupJoinHintOptions {
                     .withDescription(
                             "The max number of async i/o operation that the async lookup join can trigger.");
 
+    /**
+     * @deprecated This configuration has been deprecated as part of FLIP-457 and will be removed in
+     *     Flink 2.0. Please use {@link
+     *     org.apache.flink.table.api.config.LookupJoinHintOptions#ASYNC_TIMEOUT} instead.
+     */
+    @Deprecated
     public static final ConfigOption<Duration> ASYNC_TIMEOUT =
             key("timeout")
                     .durationType()
@@ -73,6 +110,13 @@ public class LookupJoinHintOptions {
                     .withDescription(
                             "Timeout from first invoke to final completion of asynchronous operation, may include multiple"
                                     + " retries, and will be reset in case of failover.");
+
+    /**
+     * @deprecated This configuration has been deprecated as part of FLIP-457 and will be removed in
+     *     Flink 2.0. Please use {@link
+     *     org.apache.flink.table.api.config.LookupJoinHintOptions#RETRY_PREDICATE} instead.
+     */
+    @Deprecated
     public static final ConfigOption<String> RETRY_PREDICATE =
             key("retry-predicate")
                     .stringType()
@@ -81,18 +125,36 @@ public class LookupJoinHintOptions {
                             "A predicate expresses the retry condition, can be 'lookup-miss' which will"
                                     + " enable retry if lookup result is empty.");
 
+    /**
+     * @deprecated This configuration has been deprecated as part of FLIP-457 and will be removed in
+     *     Flink 2.0. Please use {@link
+     *     org.apache.flink.table.api.config.LookupJoinHintOptions#RETRY_STRATEGY} instead.
+     */
+    @Deprecated
     public static final ConfigOption<RetryStrategy> RETRY_STRATEGY =
             key("retry-strategy")
                     .enumType(RetryStrategy.class)
                     .noDefaultValue()
                     .withDescription("The retry strategy name, can be 'fixed-delay' for now.");
 
+    /**
+     * @deprecated This configuration has been deprecated as part of FLIP-457 and will be removed in
+     *     Flink 2.0. Please use {@link
+     *     org.apache.flink.table.api.config.LookupJoinHintOptions#FIXED_DELAY} instead.
+     */
+    @Deprecated
     public static final ConfigOption<Duration> FIXED_DELAY =
             key("fixed-delay")
                     .durationType()
                     .noDefaultValue()
                     .withDescription("Delay time for the 'fixed-delay' retry strategy.");
 
+    /**
+     * @deprecated This configuration has been deprecated as part of FLIP-457 and will be removed in
+     *     Flink 2.0. Please use {@link
+     *     org.apache.flink.table.api.config.LookupJoinHintOptions#MAX_ATTEMPTS} instead.
+     */
+    @Deprecated
     public static final ConfigOption<Integer> MAX_ATTEMPTS =
             key("max-attempts")
                     .intType()
@@ -126,7 +188,14 @@ public class LookupJoinHintOptions {
         return ImmutableSet.copyOf(supportedKeys);
     }
 
-    /** Supported retry strategies. */
+    /**
+     * Supported retry strategies.
+     *
+     * @deprecated This strategy has been deprecated as a part of FLIP-457 and will be removed in
+     *     Flink 2.0. Please use {@link
+     *     org.apache.flink.table.api.config.LookupJoinHintOptions.RetryStrategy} instead.
+     */
+    @Deprecated
     public enum RetryStrategy {
         /** Fixed-delay retry strategy. */
         FIXED_DELAY

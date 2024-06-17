@@ -17,6 +17,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -27,6 +28,7 @@ import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.ThrowingRunnable;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
@@ -38,10 +40,16 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /** Help class for downloading RocksDB state files. */
-public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
+public class RocksDBStateDownloader implements Closeable {
+    private final RocksDBStateDataTransferHelper transfer;
 
+    @VisibleForTesting
     public RocksDBStateDownloader(int restoringThreadNum) {
-        super(restoringThreadNum);
+        this(RocksDBStateDataTransferHelper.forThreadNum(restoringThreadNum));
+    }
+
+    public RocksDBStateDownloader(RocksDBStateDataTransferHelper transfer) {
+        this.transfer = transfer;
     }
 
     /**
@@ -116,7 +124,10 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
                                                                             remoteFileHandle,
                                                                             closeableRegistry));
                                                 }))
-                .map(runnable -> CompletableFuture.runAsync(runnable, executorService));
+                .map(
+                        runnable ->
+                                CompletableFuture.runAsync(
+                                        runnable, transfer.getExecutorService()));
     }
 
     /** Copies the file from a single state handle to the given path. */
@@ -154,5 +165,10 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
             IOUtils.closeQuietly(closeableRegistry);
             throw new IOException(ex);
         }
+    }
+
+    @Override
+    public void close() throws IOException {
+        this.transfer.close();
     }
 }

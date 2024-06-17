@@ -26,8 +26,8 @@ import java.util.Optional;
 
 /**
  * Encapsulates the logic to subsume older checkpoints by {@link CompletedCheckpointStore checkpoint
- * stores}. In general, checkpoints should be subsumed whenever state.checkpoints.num-retained is
- * exceeded.
+ * stores}. In general, checkpoints should be subsumed whenever execution.checkpointing.num-retained
+ * is exceeded.
  *
  * <p>Additional considerations:
  *

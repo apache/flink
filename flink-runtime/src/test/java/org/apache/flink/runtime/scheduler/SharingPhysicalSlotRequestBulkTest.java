@@ -22,9 +22,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,12 +36,10 @@ import java.util.function.BiConsumer;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createRandomExecutionVertexId;
 import static org.apache.flink.runtime.scheduler.SharedSlotTestingUtils.createExecutionSlotSharingGroup;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.hasSize;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test suite for {@link SharingPhysicalSlotRequestBulk}. */
-public class SharingPhysicalSlotRequestBulkTest extends TestLogger {
+class SharingPhysicalSlotRequestBulkTest {
     private static final ExecutionVertexID EV1 = createRandomExecutionVertexId();
     private static final ExecutionVertexID EV2 = createRandomExecutionVertexId();
     private static final ExecutionVertexID EV3 = createRandomExecutionVertexId();
@@ -59,39 +56,37 @@ public class SharingPhysicalSlotRequestBulkTest extends TestLogger {
             ResourceProfile.newBuilder().setCpuCores(2.0).build();
 
     @Test
-    public void testCreation() {
+    void testCreation() {
         SharingPhysicalSlotRequestBulk bulk = createBulk();
-        assertThat(bulk.getPendingRequests(), containsInAnyOrder(RP1, RP2));
-        assertThat(bulk.getAllocationIdsOfFulfilledRequests(), hasSize(0));
+        assertThat(bulk.getPendingRequests()).contains(RP1, RP2);
+        assertThat(bulk.getAllocationIdsOfFulfilledRequests()).isEmpty();
     }
 
     @Test
-    public void testMarkFulfilled() {
+    void testMarkFulfilled() {
         SharingPhysicalSlotRequestBulk bulk = createBulk();
         AllocationID allocationId = new AllocationID();
         bulk.markFulfilled(SG1, allocationId);
-        assertThat(bulk.getPendingRequests(), containsInAnyOrder(RP2));
-        assertThat(bulk.getAllocationIdsOfFulfilledRequests(), containsInAnyOrder(allocationId));
+        assertThat(bulk.getPendingRequests()).contains(RP2);
+        assertThat(bulk.getAllocationIdsOfFulfilledRequests()).contains(allocationId);
     }
 
     @Test
-    public void testCancel() {
+    void testCancel() {
         LogicalSlotRequestCanceller canceller = new LogicalSlotRequestCanceller();
         SharingPhysicalSlotRequestBulk bulk = createBulk(canceller);
         bulk.markFulfilled(SG1, new AllocationID());
         Throwable cause = new Throwable();
         bulk.cancel(cause);
-        assertThat(
-                canceller.cancellations,
-                containsInAnyOrder(
-                        Tuple2.of(EV1, cause), Tuple2.of(EV2, cause), Tuple2.of(EV4, cause)));
+        assertThat(canceller.cancellations)
+                .contains(Tuple2.of(EV1, cause), Tuple2.of(EV2, cause), Tuple2.of(EV4, cause));
     }
 
     @Test
-    public void testClearPendingRequests() {
+    void testClearPendingRequests() {
         SharingPhysicalSlotRequestBulk bulk = createBulk();
         bulk.clearPendingRequests();
-        assertThat(bulk.getPendingRequests(), hasSize(0));
+        assertThat(bulk.getPendingRequests()).isEmpty();
     }
 
     private static class LogicalSlotRequestCanceller

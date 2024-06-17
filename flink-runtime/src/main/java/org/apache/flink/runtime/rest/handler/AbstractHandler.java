@@ -76,7 +76,7 @@ public abstract class AbstractHandler<
 
     protected final Logger log = LoggerFactory.getLogger(getClass());
 
-    protected static final ObjectMapper MAPPER = RestMapperUtils.getStrictObjectMapper();
+    protected static final ObjectMapper MAPPER = RestMapperUtils.getFlexibleObjectMapper();
 
     /**
      * Other response payload overhead (in bytes). If we truncate response payload, we should leave

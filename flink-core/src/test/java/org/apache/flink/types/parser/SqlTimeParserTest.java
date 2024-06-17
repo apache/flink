@@ -20,7 +20,7 @@ package org.apache.flink.types.parser;
 
 import java.sql.Time;
 
-public class SqlTimeParserTest extends ParserTestBase<Time> {
+class SqlTimeParserTest extends ParserTestBase<Time> {
 
     @Override
     public String[] getValidTestValues() {

@@ -36,6 +36,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -50,7 +51,7 @@ class JarPlanHandlerParameterTest
     private static JarPlanHandler handler;
     private static final Configuration FLINK_CONFIGURATION =
             new Configuration()
-                    .set(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 120000L)
+                    .set(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, Duration.ofMillis(120000L))
                     .set(CoreOptions.DEFAULT_PARALLELISM, 57);
 
     @RegisterExtension
@@ -155,6 +156,9 @@ class JarPlanHandlerParameterTest
         assertThat(executionConfig.getParallelism())
                 .isEqualTo(FLINK_CONFIGURATION.get(CoreOptions.DEFAULT_PARALLELISM));
         assertThat(executionConfig.getTaskCancellationTimeout())
-                .isEqualTo(FLINK_CONFIGURATION.get(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT));
+                .isEqualTo(
+                        FLINK_CONFIGURATION
+                                .get(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT)
+                                .toMillis());
     }
 }

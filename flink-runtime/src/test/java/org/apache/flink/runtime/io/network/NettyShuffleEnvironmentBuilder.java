@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
@@ -82,7 +83,7 @@ public class NettyShuffleEnvironmentBuilder {
 
     private int maxOverdraftBuffersPerGate = 0;
 
-    private String compressionCodec = "LZ4";
+    private CompressionCodec compressionCodec = CompressionCodec.LZ4;
 
     private ResourceID taskManagerLocation = ResourceID.generate();
 
@@ -100,6 +101,8 @@ public class NettyShuffleEnvironmentBuilder {
     private int maxNumberOfConnections = 1;
 
     private long hybridShuffleNumRetainedInMemoryRegionsMax = Long.MAX_VALUE;
+
+    private boolean isMemoryDecouplingEnabled = false;
 
     private int hybridShuffleSpilledIndexSegmentSize = 256;
 
@@ -195,7 +198,7 @@ public class NettyShuffleEnvironmentBuilder {
         return this;
     }
 
-    public NettyShuffleEnvironmentBuilder setCompressionCodec(String compressionCodec) {
+    public NettyShuffleEnvironmentBuilder setCompressionCodec(CompressionCodec compressionCodec) {
         this.compressionCodec = compressionCodec;
         return this;
     }
@@ -239,6 +242,12 @@ public class NettyShuffleEnvironmentBuilder {
         return this;
     }
 
+    public NettyShuffleEnvironmentBuilder setIsMemoryDecouplingEnabled(
+            boolean isMemoryDecouplingEnabled) {
+        this.isMemoryDecouplingEnabled = isMemoryDecouplingEnabled;
+        return this;
+    }
+
     public NettyShuffleEnvironmentBuilder setHybridShuffleSpilledIndexSegmentSize(
             int hybridShuffleSpilledIndexSegmentSize) {
         this.hybridShuffleSpilledIndexSegmentSize = hybridShuffleSpilledIndexSegmentSize;
@@ -279,6 +288,7 @@ public class NettyShuffleEnvironmentBuilder {
                         maxOverdraftBuffersPerGate,
                         hybridShuffleSpilledIndexSegmentSize,
                         hybridShuffleNumRetainedInMemoryRegionsMax,
+                        isMemoryDecouplingEnabled,
                         tieredStorageConfiguration),
                 taskManagerLocation,
                 new TaskEventDispatcher(),

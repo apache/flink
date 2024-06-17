@@ -19,15 +19,22 @@
 package org.apache.flink.datastream.api.context;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.metrics.MetricGroup;
 
 /**
  * A RuntimeContext contains information about the context in which process functions are executed.
- * Each parallel instance of the function will have a context through which it can access contextual
- * information, such as the current key and execution mode. Through this context, we can also
- * interact with the execution layer, such as getting state, emitting watermark, registering timer,
- * etc.
+ *
+ * <p>Each parallel instance of the function will have a context through which it can access
+ * contextual information.
  */
 @Experimental
 public interface RuntimeContext {
-    // TODO Introduce related methods in the subsequent RP.
+    /** Get the {@link JobInfo} of this process function. */
+    JobInfo getJobInfo();
+
+    /** Get the {@link TaskInfo} of this process function. */
+    TaskInfo getTaskInfo();
+
+    /** Get the metric group of this process function. */
+    MetricGroup getMetricGroup();
 }

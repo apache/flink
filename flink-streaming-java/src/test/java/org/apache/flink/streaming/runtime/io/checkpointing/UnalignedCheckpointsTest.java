@@ -548,7 +548,7 @@ class UnalignedCheckpointsTest {
     }
 
     @Test
-    void testNotifyAbortCheckpointBeforeCanellingAsyncCheckpoint() throws Exception {
+    public void testNotifyAbortCheckpointBeforeCancellingAsyncCheckpoint() throws Exception {
         ValidateAsyncFutureNotCompleted handler = new ValidateAsyncFutureNotCompleted(1);
         inputGate = createInputGate(2, handler);
         handler.setInputGate(inputGate);
@@ -699,7 +699,7 @@ class UnalignedCheckpointsTest {
      * Tests {@link
      * SingleCheckpointBarrierHandler#processCancellationBarrier(CancelCheckpointMarker,
      * InputChannelInfo)} abort the current pending checkpoint triggered by {@link
-     * CheckpointBarrierHandler#processBarrier(CheckpointBarrier, InputChannelInfo)}.
+     * CheckpointBarrierHandler#processBarrier(CheckpointBarrier, InputChannelInfo, boolean)}.
      */
     @Test
     void testProcessCancellationBarrierAfterProcessBarrier() throws Exception {

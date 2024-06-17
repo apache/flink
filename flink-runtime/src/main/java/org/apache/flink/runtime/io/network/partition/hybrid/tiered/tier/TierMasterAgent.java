@@ -18,22 +18,29 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier;
 
-import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 
 /** The master-side agent of a Tier. */
 public interface TierMasterAgent {
 
-    /**
-     * Add a new tiered storage partition.
-     *
-     * @param partitionId the identifier of the new partition
-     */
-    void addPartition(TieredStoragePartitionId partitionId);
+    /** Register a job id with a {@link TierShuffleHandler}. */
+    void registerJob(JobID jobID, TierShuffleHandler tierShuffleHandler);
+
+    /** Unregister a job id. */
+    void unregisterJob(JobID jobID);
+
+    /** Add a new tiered storage partition and get the {@link TierShuffleDescriptor}. */
+    TierShuffleDescriptor addPartitionAndGetShuffleDescriptor(
+            JobID jobID, ResultPartitionID resultPartitionID);
 
     /**
      * Release a tiered storage partition.
      *
-     * @param partitionId the identifier of partition to be released
+     * @param shuffleDescriptor the partition shuffle descriptor to be released
      */
-    void releasePartition(TieredStoragePartitionId partitionId);
+    void releasePartition(TierShuffleDescriptor shuffleDescriptor);
+
+    /** Close this tier master agent. */
+    void close();
 }

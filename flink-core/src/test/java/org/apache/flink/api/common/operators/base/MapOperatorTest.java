@@ -44,7 +44,7 @@ import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** The test for map operator. */
-public class MapOperatorTest implements java.io.Serializable {
+class MapOperatorTest implements java.io.Serializable {
 
     @Test
     void testMapPlain() throws Exception {

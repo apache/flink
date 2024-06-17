@@ -73,7 +73,7 @@ public class NoFetchingInput extends Input {
         position = 0;
         int bytesRead = 0;
         int count;
-        while (bytesRead < required) {
+        while (true) {
             count = fill(buffer, bytesRead, required - bytesRead);
 
             if (count == -1) {
@@ -81,6 +81,9 @@ public class NoFetchingInput extends Input {
             }
 
             bytesRead += count;
+            if (bytesRead == required) {
+                break;
+            }
         }
         limit = required;
         return required;
@@ -114,11 +117,15 @@ public class NoFetchingInput extends Input {
             throw new IllegalArgumentException("bytes cannot be null.");
         }
 
+        if (count == 0) {
+            return;
+        }
+
         try {
             int bytesRead = 0;
             int c;
 
-            while (bytesRead < count) {
+            while (true) {
                 c = inputStream.read(bytes, offset + bytesRead, count - bytesRead);
 
                 if (c == -1) {
@@ -126,6 +133,10 @@ public class NoFetchingInput extends Input {
                 }
 
                 bytesRead += c;
+
+                if (bytesRead == count) {
+                    break;
+                }
             }
         } catch (IOException ex) {
             throw new KryoException(ex);

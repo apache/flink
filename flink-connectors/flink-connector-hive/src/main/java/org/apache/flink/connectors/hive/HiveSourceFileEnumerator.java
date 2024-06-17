@@ -202,6 +202,10 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
         return numFiles;
     }
 
+    public List<HiveTablePartition> getPartitions() {
+        return this.partitions;
+    }
+
     private static long getSplitMaxSize(JobConf jobConf) {
         return jobConf.getLong(
                 HiveOptions.TABLE_EXEC_HIVE_SPLIT_MAX_BYTES.key(),

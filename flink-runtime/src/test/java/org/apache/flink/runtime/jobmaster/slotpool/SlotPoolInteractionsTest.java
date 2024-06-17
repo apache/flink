@@ -23,37 +23,34 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.TestingComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link DeclarativeSlotPoolBridge} interactions. */
-public class SlotPoolInteractionsTest extends TestLogger {
+class SlotPoolInteractionsTest {
 
     private static final Time fastTimeout = Time.milliseconds(1L);
 
-    @ClassRule
-    public static final TestingComponentMainThreadExecutor.Resource EXECUTOR_RESOURCE =
-            new TestingComponentMainThreadExecutor.Resource(10L);
+    @RegisterExtension
+    private static final TestingComponentMainThreadExecutor.Extension EXECUTOR_EXTENSION =
+            new TestingComponentMainThreadExecutor.Extension(10L);
 
     private final TestingComponentMainThreadExecutor testMainThreadExecutor =
-            EXECUTOR_RESOURCE.getComponentMainThreadTestExecutor();
+            EXECUTOR_EXTENSION.getComponentMainThreadTestExecutor();
 
     // ------------------------------------------------------------------------
     //  tests
     // ------------------------------------------------------------------------
 
     @Test
-    public void testSlotAllocationNoResourceManager() throws Exception {
+    void testSlotAllocationNoResourceManager() throws Exception {
 
         try (SlotPool pool = createAndSetUpSlotPoolWithoutResourceManager()) {
 
@@ -65,17 +62,15 @@ public class SlotPoolInteractionsTest extends TestLogger {
                                             ResourceProfile.UNKNOWN,
                                             fastTimeout));
 
-            try {
-                future.get();
-                fail("We expected an ExecutionException.");
-            } catch (ExecutionException e) {
-                assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
-            }
+            assertThatThrownBy(future::get)
+                    .withFailMessage("We expected an ExecutionException.")
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(TimeoutException.class);
         }
     }
 
     @Test
-    public void testCancelSlotAllocationWithoutResourceManager() throws Exception {
+    void testCancelSlotAllocationWithoutResourceManager() throws Exception {
 
         try (DeclarativeSlotPoolBridge pool = createAndSetUpSlotPoolWithoutResourceManager()) {
 
@@ -87,12 +82,10 @@ public class SlotPoolInteractionsTest extends TestLogger {
                                             ResourceProfile.UNKNOWN,
                                             fastTimeout));
 
-            try {
-                future.get();
-                fail("We expected a TimeoutException.");
-            } catch (ExecutionException e) {
-                assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
-            }
+            assertThatThrownBy(future::get)
+                    .withFailMessage("We expected a TimeoutException.")
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(TimeoutException.class);
 
             CommonTestUtils.waitUntilCondition(() -> pool.getNumPendingRequests() == 0);
         }
@@ -100,7 +93,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
 
     /** Tests that a slot allocation times out wrt to the specified time out. */
     @Test
-    public void testSlotAllocationTimeout() throws Exception {
+    void testSlotAllocationTimeout() throws Exception {
 
         try (DeclarativeSlotPoolBridge pool = createAndSetUpSlotPool()) {
 
@@ -112,12 +105,10 @@ public class SlotPoolInteractionsTest extends TestLogger {
                                             ResourceProfile.UNKNOWN,
                                             fastTimeout));
 
-            try {
-                future.get();
-                fail("We expected a TimeoutException.");
-            } catch (ExecutionException e) {
-                assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
-            }
+            assertThatThrownBy(future::get)
+                    .withFailMessage("We expected a TimeoutException.")
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(TimeoutException.class);
 
             CommonTestUtils.waitUntilCondition(() -> pool.getNumPendingRequests() == 0);
         }

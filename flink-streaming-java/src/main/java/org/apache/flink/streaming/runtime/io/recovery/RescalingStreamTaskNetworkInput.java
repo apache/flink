@@ -232,7 +232,9 @@ public final class RescalingStreamTaskNetworkInput<T>
                             channelInfo.getGateIdx(), this::createPartitioner);
             // use a copy of partitioner to ensure that the filter of ambiguous virtual channels
             // have the same state across several subtasks
-            return new RecordFilter<>(partitioner.copy(), inputSerializer, subtaskIndex);
+            StreamPartitioner<T> partitionerCopy = partitioner.copy();
+            partitionerCopy.setup(numberOfChannels);
+            return new RecordFilter<>(partitionerCopy, inputSerializer, subtaskIndex);
         }
 
         private StreamPartitioner<T> createPartitioner(Integer index) {

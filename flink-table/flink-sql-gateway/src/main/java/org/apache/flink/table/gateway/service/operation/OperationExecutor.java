@@ -83,6 +83,7 @@ import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseOperation;
 import org.apache.flink.table.operations.command.AddJarOperation;
+import org.apache.flink.table.operations.command.DescribeJobOperation;
 import org.apache.flink.table.operations.command.ExecutePlanOperation;
 import org.apache.flink.table.operations.command.RemoveJarOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
@@ -95,6 +96,7 @@ import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateOperation;
 import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropOperation;
+import org.apache.flink.table.operations.materializedtable.MaterializedTableOperation;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.util.CollectionUtil;
@@ -103,6 +105,8 @@ import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.lang.reflect.Method;
 import java.time.Duration;
@@ -192,9 +196,14 @@ public class OperationExecutor {
     }
 
     public ResultFetcher executeStatement(OperationHandle handle, String statement) {
+        return executeStatement(handle, new Configuration(), statement);
+    }
+
+    public ResultFetcher executeStatement(
+            OperationHandle handle, Configuration customConfig, String statement) {
         // Instantiate the TableEnvironment lazily
         ResourceManager resourceManager = sessionContext.getSessionState().resourceManager.copy();
-        TableEnvironmentInternal tableEnv = getTableEnvironment(resourceManager);
+        TableEnvironmentInternal tableEnv = getTableEnvironment(resourceManager, customConfig);
         PlanCacheManager planCacheManager = sessionContext.getPlanCacheManager();
         CachedPlan cachedPlan = null;
         Operation op = null;
@@ -273,6 +282,15 @@ public class OperationExecutor {
         }
     }
 
+    public boolean tableExists(ObjectIdentifier tableIdentifier) {
+        return sessionContext
+                .getSessionState()
+                .catalogManager
+                .getCatalog(tableIdentifier.getCatalogName())
+                .map(catalog -> catalog.tableExists(tableIdentifier.toObjectPath()))
+                .orElse(false);
+    }
+
     public ResolvedCatalogBaseTable<?> getTable(ObjectIdentifier tableIdentifier) {
         return getTableEnvironment()
                 .getCatalogManager()
@@ -343,13 +361,16 @@ public class OperationExecutor {
     // --------------------------------------------------------------------------------------------
 
     public TableEnvironmentInternal getTableEnvironment() {
-        return getTableEnvironment(sessionContext.getSessionState().resourceManager);
+        return getTableEnvironment(
+                sessionContext.getSessionState().resourceManager, new Configuration());
     }
 
-    public TableEnvironmentInternal getTableEnvironment(ResourceManager resourceManager) {
+    public TableEnvironmentInternal getTableEnvironment(
+            ResourceManager resourceManager, Configuration customConfig) {
         // checks the value of RUNTIME_MODE
         Configuration operationConfig = sessionContext.getSessionConf().clone();
         operationConfig.addAll(executionConfig);
+        operationConfig.addAll(customConfig);
         final EnvironmentSettings settings =
                 EnvironmentSettings.newInstance().withConfiguration(operationConfig).build();
 
@@ -481,6 +502,8 @@ public class OperationExecutor {
             return callStopJobOperation(tableEnv, handle, (StopJobOperation) op);
         } else if (op instanceof ShowJobsOperation) {
             return callShowJobsOperation(tableEnv, handle, (ShowJobsOperation) op);
+        } else if (op instanceof DescribeJobOperation) {
+            return callDescribeJobOperation(tableEnv, handle, (DescribeJobOperation) op);
         } else if (op instanceof RemoveJarOperation) {
             return callRemoveJar(handle, ((RemoveJarOperation) op).getPath());
         } else if (op instanceof AddJarOperation
@@ -489,12 +512,18 @@ public class OperationExecutor {
                 || op instanceof CreateCatalogFunctionOperation
                 || op instanceof ShowFunctionsOperation) {
             return callExecutableOperation(handle, (ExecutableOperation) op);
+        } else if (op instanceof MaterializedTableOperation) {
+            return sessionContext
+                    .getSessionState()
+                    .materializedTableManager
+                    .callMaterializedTableOperation(
+                            this, handle, (MaterializedTableOperation) op, statement);
         } else {
             return callOperation(tableEnv, handle, op);
         }
     }
 
-    private ResultFetcher callExecutableOperation(OperationHandle handle, ExecutableOperation op) {
+    public ResultFetcher callExecutableOperation(OperationHandle handle, ExecutableOperation op) {
         TableResultInternal result =
                 op.execute(
                         new ExecutableOperationContextImpl(
@@ -507,6 +536,31 @@ public class OperationExecutor {
         return ResultFetcher.fromTableResult(handle, result, false);
     }
 
+    public ResultFetcher refreshMaterializedTable(
+            OperationHandle handle,
+            String materializedTableIdentifier,
+            boolean isPeriodic,
+            @Nullable String scheduleTime,
+            Map<String, String> staticPartitions,
+            Map<String, String> dynamicOptions) {
+        TableEnvironmentInternal tEnv = getTableEnvironment();
+        UnresolvedIdentifier unresolvedIdentifier =
+                tEnv.getParser().parseIdentifier(materializedTableIdentifier);
+        ObjectIdentifier objectIdentifier =
+                tEnv.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
+        return sessionContext
+                .getSessionState()
+                .materializedTableManager
+                .refreshMaterializedTable(
+                        this,
+                        handle,
+                        objectIdentifier,
+                        staticPartitions,
+                        dynamicOptions,
+                        isPeriodic,
+                        scheduleTime);
+    }
+
     private TableConfig tableConfig() {
         Configuration operationConfig = sessionContext.getSessionConf().clone();
         operationConfig.addAll(executionConfig);
@@ -516,6 +570,10 @@ public class OperationExecutor {
         tableConfig.addConfiguration(operationConfig);
 
         return tableConfig;
+    }
+
+    public SessionContext getSessionContext() {
+        return sessionContext;
     }
 
     private ResultFetcher callSetOperation(
@@ -772,6 +830,56 @@ public class OperationExecutor {
                         Column.physical(STATUS, DataTypes.STRING()),
                         Column.physical(START_TIME, DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE())),
                 resultRows);
+    }
+
+    public ResultFetcher callDescribeJobOperation(
+            TableEnvironmentInternal tableEnv,
+            OperationHandle operationHandle,
+            DescribeJobOperation describeJobOperation)
+            throws SqlExecutionException {
+        Configuration configuration = tableEnv.getConfig().getConfiguration();
+        Duration clientTimeout = configuration.get(ClientOptions.CLIENT_TIMEOUT);
+        String jobId = describeJobOperation.getJobId();
+        Optional<JobStatusMessage> jobStatusOp =
+                runClusterAction(
+                        configuration,
+                        operationHandle,
+                        clusterClient -> {
+                            try {
+                                JobID expectedJobId = JobID.fromHexString(jobId);
+                                return clusterClient.listJobs()
+                                        .get(clientTimeout.toMillis(), TimeUnit.MILLISECONDS)
+                                        .stream()
+                                        .filter(job -> expectedJobId.equals(job.getJobId()))
+                                        .findFirst();
+                            } catch (Exception e) {
+                                throw new SqlExecutionException(
+                                        String.format(
+                                                "Failed to get job %s in the cluster.", jobId),
+                                        e);
+                            }
+                        });
+
+        if (!jobStatusOp.isPresent()) {
+            throw new SqlExecutionException(
+                    String.format("Described job %s does not exist in the cluster.", jobId));
+        }
+        JobStatusMessage job = jobStatusOp.get();
+
+        RowData resultRow =
+                GenericRowData.of(
+                        StringData.fromString(jobId),
+                        StringData.fromString(job.getJobName()),
+                        StringData.fromString(job.getJobState().toString()),
+                        DateTimeUtils.toTimestampData(job.getStartTime(), 3));
+        return ResultFetcher.fromResults(
+                operationHandle,
+                ResolvedSchema.of(
+                        Column.physical(JOB_ID, DataTypes.STRING()),
+                        Column.physical(JOB_NAME, DataTypes.STRING()),
+                        Column.physical(STATUS, DataTypes.STRING()),
+                        Column.physical(START_TIME, DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE())),
+                Collections.singletonList(resultRow));
     }
 
     /**

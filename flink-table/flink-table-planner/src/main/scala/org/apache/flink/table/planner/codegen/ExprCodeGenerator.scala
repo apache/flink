@@ -762,6 +762,8 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
       case JSON_VALUE => new JsonValueCallGen().generate(ctx, operands, resultType)
 
+      case JSON_QUERY => new JsonQueryCallGen().generate(ctx, operands, resultType)
+
       case JSON_OBJECT => new JsonObjectCallGen(call).generate(ctx, operands, resultType)
 
       case JSON_ARRAY => new JsonArrayCallGen(call).generate(ctx, operands, resultType)
@@ -773,7 +775,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
              |${operands.map(_.code).mkString("\n")}
              |${nullValue.code}
              |org.apache.flink.util.ExceptionUtils.rethrow(
-             |  new RuntimeException(${operands.head.resultTerm}.toString()));
+             |  new org.apache.flink.table.api.TableRuntimeException(${operands.head.resultTerm}.toString()));
              |""".stripMargin
         GeneratedExpression(nullValue.resultTerm, nullValue.nullTerm, code, resultType)
 

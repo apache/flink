@@ -22,8 +22,9 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.core.state.InternalStateFuture;
+import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandler;
+import org.apache.flink.runtime.asyncprocessing.EpochManager.ParallelMode;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -32,7 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -76,6 +77,9 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
      */
     private final MailboxExecutor mailboxExecutor;
 
+    /** Exception handler to handle the exception thrown by asynchronous framework. */
+    private final AsyncFrameworkExceptionHandler exceptionHandler;
+
     /** The key accounting unit which is used to detect the key conflict. */
     final KeyAccountingUnit<K> keyAccountingUnit;
 
@@ -86,7 +90,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
     private final StateFutureFactory<K> stateFutureFactory;
 
     /** The state executor where the {@link StateRequest} is actually executed. */
-    StateExecutor stateExecutor;
+    private final StateExecutor stateExecutor;
 
     /** The corresponding context that currently runs in task thread. */
     RecordContext<K> currentContext;
@@ -102,8 +106,18 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
     /** Max parallelism of the job. */
     private final int maxParallelism;
 
+    /** The reference of epoch manager. */
+    final EpochManager epochManager;
+
+    /**
+     * The parallel mode of epoch execution. Keep this field internal for now, until we could see
+     * the concrete need for {@link ParallelMode#PARALLEL_BETWEEN_EPOCH} from average users.
+     */
+    final ParallelMode epochParallelMode = ParallelMode.SERIAL_BETWEEN_EPOCH;
+
     public AsyncExecutionController(
             MailboxExecutor mailboxExecutor,
+            AsyncFrameworkExceptionHandler exceptionHandler,
             StateExecutor stateExecutor,
             int maxParallelism,
             int batchSize,
@@ -111,7 +125,8 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
             int maxInFlightRecords) {
         this.keyAccountingUnit = new KeyAccountingUnit<>(maxInFlightRecords);
         this.mailboxExecutor = mailboxExecutor;
-        this.stateFutureFactory = new StateFutureFactory<>(this, mailboxExecutor);
+        this.exceptionHandler = exceptionHandler;
+        this.stateFutureFactory = new StateFutureFactory<>(this, mailboxExecutor, exceptionHandler);
         this.stateExecutor = stateExecutor;
         this.batchSize = batchSize;
         this.bufferTimeout = bufferTimeout;
@@ -130,11 +145,13 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
                                         },
                                         "AEC-buffer-timeout"));
 
+        this.epochManager = new EpochManager(this);
         LOG.info(
-                "Create AsyncExecutionController: batchSize {}, bufferTimeout {}, maxInFlightRecordNum {}",
+                "Create AsyncExecutionController: batchSize {}, bufferTimeout {}, maxInFlightRecordNum {}, epochParallelMode {}",
                 this.batchSize,
                 this.bufferTimeout,
-                this.maxInFlightRecordNum);
+                this.maxInFlightRecordNum,
+                this.epochParallelMode);
     }
 
     /**
@@ -151,13 +168,15 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
                     RecordContext.EMPTY_RECORD,
                     key,
                     this::disposeContext,
-                    KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelism));
+                    KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelism),
+                    epochManager.onRecord());
         }
         return new RecordContext<>(
                 record,
                 key,
                 this::disposeContext,
-                KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelism));
+                KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelism),
+                epochManager.onRecord());
     }
 
     /**
@@ -176,6 +195,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
      * @param toDispose the context to dispose.
      */
     void disposeContext(RecordContext<K> toDispose) {
+        epochManager.completeOneRecord(toDispose.getEpoch());
         keyAccountingUnit.release(toDispose.getRecord(), toDispose.getKey());
         inFlightRecordNum.decrementAndGet();
         RecordContext<K> nextRecordCtx =
@@ -248,12 +268,18 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
      *
      * @param force whether to trigger requests in force.
      */
-    void triggerIfNeeded(boolean force) {
+    public void triggerIfNeeded(boolean force) {
         if (!force && stateRequestsBuffer.activeQueueSize() < batchSize) {
             return;
         }
-        List<StateRequest<?, ?, ?>> toRun = stateRequestsBuffer.popActive(batchSize);
-        stateExecutor.executeBatchRequests(toRun);
+
+        Optional<StateRequestContainer> toRun =
+                stateRequestsBuffer.popActive(
+                        batchSize, () -> stateExecutor.createStateRequestContainer());
+        if (!toRun.isPresent() || toRun.get().isEmpty()) {
+            return;
+        }
+        stateExecutor.executeBatchRequests(toRun.get());
         stateRequestsBuffer.advanceSeq();
     }
 
@@ -281,16 +307,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
      * @param callback the callback to run if it finishes (once the record is not blocked).
      */
     public void syncPointRequestWithCallback(ThrowingRunnable<Exception> callback) {
-        handleRequest(null, StateRequestType.SYNC_POINT, null)
-                .thenAccept(
-                        v -> {
-                            try {
-                                callback.run();
-                            } catch (Exception e) {
-                                // TODO: Properly handle the exception and fail the entire job.
-                                throw new FlinkRuntimeException("Unexpected runtime exception", e);
-                            }
-                        });
+        handleRequest(null, StateRequestType.SYNC_POINT, null).thenAccept(v -> callback.run());
     }
 
     /**
@@ -313,9 +330,21 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
         }
     }
 
+    public void processNonRecord(ThrowingRunnable<? extends Exception> action) {
+        Runnable wrappedAction =
+                () -> {
+                    try {
+                        action.run();
+                    } catch (Exception e) {
+                        exceptionHandler.handleException("Failed to process non-record.", e);
+                    }
+                };
+        epochManager.onNonRecord(wrappedAction, epochParallelMode);
+    }
+
     @VisibleForTesting
-    public void setStateExecutor(StateExecutor stateExecutor) {
-        this.stateExecutor = stateExecutor;
+    public StateExecutor getStateExecutor() {
+        return stateExecutor;
     }
 
     @VisibleForTesting

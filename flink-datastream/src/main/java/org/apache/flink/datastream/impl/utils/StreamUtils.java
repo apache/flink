@@ -18,6 +18,8 @@
 
 package org.apache.flink.datastream.impl.utils;
 
+import org.apache.flink.api.common.state.IllegalRedistributionModeException;
+import org.apache.flink.api.common.state.StateDeclaration;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.dsv2.Sink;
 import org.apache.flink.api.connector.dsv2.WrappedSink;
@@ -29,9 +31,16 @@ import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
 import org.apache.flink.datastream.api.function.TwoInputBroadcastStreamProcessFunction;
 import org.apache.flink.datastream.api.function.TwoInputNonBroadcastStreamProcessFunction;
 import org.apache.flink.datastream.api.function.TwoOutputStreamProcessFunction;
+import org.apache.flink.datastream.api.stream.GlobalStream.ProcessConfigurableAndGlobalStream;
+import org.apache.flink.datastream.api.stream.KeyedPartitionStream.ProcessConfigurableAndKeyedPartitionStream;
+import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream.ProcessConfigurableAndNonKeyedPartitionStream;
 import org.apache.flink.datastream.impl.stream.AbstractDataStream;
+import org.apache.flink.datastream.impl.stream.GlobalStreamImpl;
 import org.apache.flink.datastream.impl.stream.KeyedPartitionStreamImpl;
 import org.apache.flink.datastream.impl.stream.NonKeyedPartitionStreamImpl;
+import org.apache.flink.datastream.impl.stream.ProcessConfigurableAndGlobalStreamImpl;
+import org.apache.flink.datastream.impl.stream.ProcessConfigurableAndKeyedPartitionStreamImpl;
+import org.apache.flink.datastream.impl.stream.ProcessConfigurableAndNonKeyedPartitionStreamImpl;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.SimpleUdfStreamOperatorFactory;
@@ -40,6 +49,8 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.DataStreamV2SinkTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
+
+import java.util.Set;
 
 /**
  * This class encapsulates the common logic for all type of streams. It can be used to handle things
@@ -284,5 +295,37 @@ public final class StreamUtils {
                         false);
         inputStream.getEnvironment().addOperator(sinkTransformation);
         return sinkTransformation;
+    }
+
+    /** Wrap a {@link NonKeyedPartitionStreamImpl} with configure handle. */
+    public static <T> ProcessConfigurableAndNonKeyedPartitionStream<T> wrapWithConfigureHandle(
+            NonKeyedPartitionStreamImpl<T> stream) {
+        return new ProcessConfigurableAndNonKeyedPartitionStreamImpl<>(stream);
+    }
+
+    /** Wrap a {@link KeyedPartitionStreamImpl} with configure handle. */
+    public static <K, T> ProcessConfigurableAndKeyedPartitionStream<K, T> wrapWithConfigureHandle(
+            KeyedPartitionStreamImpl<K, T> stream) {
+        return new ProcessConfigurableAndKeyedPartitionStreamImpl<>(stream);
+    }
+
+    /** Wrap a {@link GlobalStreamImpl} with configure handle. */
+    public static <T> ProcessConfigurableAndGlobalStream<T> wrapWithConfigureHandle(
+            GlobalStreamImpl<T> stream) {
+        return new ProcessConfigurableAndGlobalStreamImpl<>(stream);
+    }
+
+    /** Wrap a {@link GlobalStreamImpl} with configure handle. */
+    public static void validateStates(
+            Set<StateDeclaration> inputStateDeclarations,
+            Set<StateDeclaration.RedistributionMode> invalidStateDeclarations) {
+        inputStateDeclarations.stream()
+                .map(StateDeclaration::getRedistributionMode)
+                .forEach(
+                        mode -> {
+                            if (invalidStateDeclarations.contains(mode)) {
+                                throw new IllegalRedistributionModeException(mode);
+                            }
+                        });
     }
 }

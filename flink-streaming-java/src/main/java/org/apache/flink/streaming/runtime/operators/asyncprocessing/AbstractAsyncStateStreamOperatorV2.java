@@ -20,13 +20,14 @@ package org.apache.flink.streaming.runtime.operators.asyncprocessing;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
+import org.apache.flink.runtime.asyncprocessing.AsyncStateException;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
@@ -36,7 +37,9 @@ import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.Triggerable;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -52,8 +55,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractStreamOperatorV2<OUT>
         implements AsyncStateProcessingOperator {
 
-    private final MailboxExecutor mailboxExecutor;
-
+    private final Environment environment;
     private AsyncExecutionController asyncExecutionController;
 
     private RecordContext currentProcessingContext;
@@ -61,8 +63,7 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
     public AbstractAsyncStateStreamOperatorV2(
             StreamOperatorParameters<OUT> parameters, int numberOfInputs) {
         super(parameters, numberOfInputs);
-        final Environment environment = parameters.getContainingTask().getEnvironment();
-        this.mailboxExecutor = environment.getMainMailboxExecutor();
+        this.environment = parameters.getContainingTask().getEnvironment();
     }
 
     /** Initialize necessary state components for {@link AbstractStreamOperatorV2}. */
@@ -70,19 +71,33 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
     public final void initializeState(StreamTaskStateInitializer streamTaskStateManager)
             throws Exception {
         super.initializeState(streamTaskStateManager);
+        getRuntimeContext().setKeyedStateStoreV2(stateHandler.getKeyedStateStoreV2().orElse(null));
 
         final int inFlightRecordsLimit = getExecutionConfig().getAsyncInflightRecordsLimit();
         final int asyncBufferSize = getExecutionConfig().getAsyncStateBufferSize();
         final long asyncBufferTimeout = getExecutionConfig().getAsyncStateBufferTimeout();
         int maxParallelism = getExecutionConfig().getMaxParallelism();
-        this.asyncExecutionController =
-                new AsyncExecutionController(
-                        mailboxExecutor,
-                        null,
-                        maxParallelism,
-                        asyncBufferSize,
-                        asyncBufferTimeout,
-                        inFlightRecordsLimit);
+
+        AsyncKeyedStateBackend asyncKeyedStateBackend = stateHandler.getAsyncKeyedStateBackend();
+        if (asyncKeyedStateBackend != null) {
+            this.asyncExecutionController =
+                    new AsyncExecutionController(
+                            environment.getMainMailboxExecutor(),
+                            this::handleAsyncStateException,
+                            asyncKeyedStateBackend.createStateExecutor(),
+                            maxParallelism,
+                            asyncBufferSize,
+                            asyncBufferTimeout,
+                            inFlightRecordsLimit);
+            asyncKeyedStateBackend.setup(asyncExecutionController);
+        } else if (stateHandler.getKeyedStateBackend() != null) {
+            throw new UnsupportedOperationException(
+                    "Current State Backend doesn't support async access, AsyncExecutionController could not work");
+        }
+    }
+
+    private void handleAsyncStateException(String message, Throwable exception) {
+        environment.failExternally(new AsyncStateException(message, exception));
     }
 
     @Override
@@ -173,6 +188,35 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
                 namespaceSerializer,
                 triggerable,
                 (AsyncExecutionController<K>) asyncExecutionController);
+    }
+
+    @Override
+    public void processWatermark(Watermark mark) throws Exception {
+        if (!isAsyncStateProcessingEnabled()) {
+            super.processWatermark(mark);
+            return;
+        }
+        asyncExecutionController.processNonRecord(() -> super.processWatermark(mark));
+    }
+
+    @Override
+    public void processWatermarkStatus(WatermarkStatus watermarkStatus, int inputId)
+            throws Exception {
+        if (!isAsyncStateProcessingEnabled()) {
+            super.processWatermarkStatus(watermarkStatus, inputId);
+            return;
+        }
+        asyncExecutionController.processNonRecord(
+                () -> {
+                    boolean wasIdle = combinedWatermark.isIdle();
+                    if (combinedWatermark.updateStatus(inputId - 1, watermarkStatus.isIdle())) {
+                        super.processWatermark(
+                                new Watermark(combinedWatermark.getCombinedWatermark()));
+                    }
+                    if (wasIdle != combinedWatermark.isIdle()) {
+                        output.emitWatermarkStatus(watermarkStatus);
+                    }
+                });
     }
 
     @VisibleForTesting

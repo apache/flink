@@ -23,21 +23,19 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
+import org.apache.flink.api.common.typeutils.TypeSerializerConditions;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
-import org.hamcrest.Matcher;
+import org.assertj.core.api.Condition;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-
-import static org.hamcrest.Matchers.is;
 
 /** A {@link TypeSerializerUpgradeTestBase} for {@link RowSerializer}. */
 @VisibleForTesting
@@ -114,22 +112,24 @@ public class RowSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Row,
         }
 
         @Override
-        public Matcher<Row> testDataMatcher() {
+        public Condition<Row> testDataCondition() {
             Row row = new Row(RowKind.INSERT, 4);
             row.setField(0, null);
             row.setField(1, 42L);
             row.setField(2, "My string.");
             row.setField(3, null);
-            return is(row);
+            return new Condition<>(
+                    row::equals,
+                    "a row with kind INSERT and fields [null, 42, 'My string.', null]");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<Row>> schemaCompatibilityMatcher(
+        public Condition<TypeSerializerSchemaCompatibility<Row>> schemaCompatibilityCondition(
                 FlinkVersion version) {
             if (version.isNewerVersionThan(FlinkVersion.v1_10)) {
-                return TypeSerializerMatchers.isCompatibleAsIs();
+                return TypeSerializerConditions.isCompatibleAsIs();
             }
-            return TypeSerializerMatchers.isCompatibleAfterMigration();
+            return TypeSerializerConditions.isCompatibleAfterMigration();
         }
     }
 }

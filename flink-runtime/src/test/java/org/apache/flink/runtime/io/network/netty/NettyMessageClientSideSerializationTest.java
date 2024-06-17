@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.TestingPartitionRequestClient;
@@ -149,8 +150,9 @@ class NettyMessageClientSideSerializationTest {
     @ParameterizedTest
     @ValueSource(strings = {"LZ4", "LZO", "ZSTD"})
     void testCompressedBufferResponse(final String codecFactoryName) {
-        compressor = new BufferCompressor(BUFFER_SIZE, codecFactoryName);
-        decompressor = new BufferDecompressor(BUFFER_SIZE, codecFactoryName);
+        compressor = new BufferCompressor(BUFFER_SIZE, CompressionCodec.valueOf(codecFactoryName));
+        decompressor =
+                new BufferDecompressor(BUFFER_SIZE, CompressionCodec.valueOf(codecFactoryName));
         testBufferResponse(false, true);
     }
 

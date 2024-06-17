@@ -19,8 +19,7 @@ package org.apache.flink.table.planner.runtime.batch.sql.agg
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.DataTypes
-import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
-import org.apache.flink.table.planner.codegen.agg.batch.HashAggCodeGenerator
+import org.apache.flink.table.api.config.{AggregatePhaseStrategy, ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData.{data1, nullablesOfData1, type1}
@@ -51,12 +50,14 @@ class HashAggITCase extends AggregateITCaseBase("HashAggregate") {
     tEnv.getConfig.set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg")
     if (adaptiveLocalHashAggEnable) {
       tEnv.getConfig
-        .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
+        .set(
+          OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
+          AggregatePhaseStrategy.TWO_PHASE)
       tEnv.getConfig.set(
-        HashAggCodeGenerator.TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_ENABLED,
+        ExecutionConfigOptions.TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_ENABLED,
         Boolean.box(true))
       tEnv.getConfig.set(
-        HashAggCodeGenerator.TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD,
+        ExecutionConfigOptions.TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD,
         Long.box(3L))
     }
   }

@@ -68,7 +68,7 @@ public class NettyShuffleServiceFactory
 
     @Override
     public NettyShuffleMaster createShuffleMaster(ShuffleMasterContext shuffleMasterContext) {
-        return new NettyShuffleMaster(shuffleMasterContext.getConfiguration());
+        return new NettyShuffleMaster(shuffleMasterContext);
     }
 
     @Override
@@ -238,6 +238,7 @@ public class NettyShuffleServiceFactory
                         config.getMaxOverdraftBuffersPerGate(),
                         config.getHybridShuffleSpilledIndexRegionGroupSize(),
                         config.getHybridShuffleNumRetainedInMemoryRegionsMax(),
+                        config.isMemoryDecouplingEnabled(),
                         tieredResultPartitionFactory);
 
         SingleInputGateFactory singleInputGateFactory =

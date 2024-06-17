@@ -95,7 +95,7 @@ public class FromElementsGeneratorFunction<OUT>
 
     private void serializeElements(Iterable<OUT> elements) throws IOException {
         Preconditions.checkState(serializer != null, "serializer not set");
-        LOG.info("Serializing elements using  " + serializer);
+        LOG.info("Serializing elements using  {}", serializer);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         DataOutputViewStreamWrapper wrapper = new DataOutputViewStreamWrapper(baos);
 

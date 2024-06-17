@@ -41,6 +41,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
@@ -167,6 +168,7 @@ class JvmExitOnFatalErrorTest {
                 final JobInformation jobInformation =
                         new JobInformation(
                                 jid,
+                                JobType.STREAMING,
                                 "Test Job",
                                 execConfig,
                                 new Configuration(),

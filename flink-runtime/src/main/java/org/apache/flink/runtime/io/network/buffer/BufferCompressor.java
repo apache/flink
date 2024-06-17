@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.compression.BlockCompressionFactory;
@@ -39,7 +40,7 @@ public class BufferCompressor {
     /** The backup array of intermediate buffer. */
     private final byte[] internalBufferArray;
 
-    public BufferCompressor(int bufferSize, String factoryName) {
+    public BufferCompressor(int bufferSize, CompressionCodec factoryName) {
         checkArgument(bufferSize > 0);
         checkNotNull(factoryName);
         // the size of this intermediate heap buffer will be gotten from the

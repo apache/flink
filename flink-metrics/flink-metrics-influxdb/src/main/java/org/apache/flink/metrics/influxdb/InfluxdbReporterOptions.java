@@ -18,6 +18,7 @@
 
 package org.apache.flink.metrics.influxdb;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
@@ -28,7 +29,10 @@ import org.apache.flink.metrics.MetricConfig;
 
 import org.influxdb.InfluxDB;
 
+import java.time.Duration;
+
 /** Config options for {@link InfluxdbReporter}. */
+@PublicEvolving
 @Documentation.SuffixOption(ConfigConstants.METRICS_REPORTER_PREFIX + "influxdb")
 public class InfluxdbReporterOptions {
 
@@ -81,16 +85,16 @@ public class InfluxdbReporterOptions {
                     .defaultValue(InfluxDB.ConsistencyLevel.ONE)
                     .withDescription("(optional) the InfluxDB consistency level for metrics");
 
-    public static final ConfigOption<Integer> CONNECT_TIMEOUT =
+    public static final ConfigOption<Duration> CONNECT_TIMEOUT =
             ConfigOptions.key("connectTimeout")
-                    .intType()
-                    .defaultValue(10000)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(10000))
                     .withDescription("(optional) the InfluxDB connect timeout for metrics");
 
-    public static final ConfigOption<Integer> WRITE_TIMEOUT =
+    public static final ConfigOption<Duration> WRITE_TIMEOUT =
             ConfigOptions.key("writeTimeout")
-                    .intType()
-                    .defaultValue(10000)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(10000))
                     .withDescription("(optional) the InfluxDB write timeout for metrics");
 
     static String getString(MetricConfig config, ConfigOption<String> key) {
@@ -99,6 +103,10 @@ public class InfluxdbReporterOptions {
 
     static int getInteger(MetricConfig config, ConfigOption<Integer> key) {
         return config.getInteger(key.key(), key.defaultValue());
+    }
+
+    static Duration getDuration(MetricConfig config, ConfigOption<Duration> key) {
+        return (Duration) config.getOrDefault(key.key(), key.defaultValue());
     }
 
     static InfluxDB.ConsistencyLevel getConsistencyLevel(

@@ -42,7 +42,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** The test for flat map operator. */
-public class FlatMapOperatorCollectionTest implements Serializable {
+class FlatMapOperatorCollectionTest implements Serializable {
 
     @Test
     void testExecuteOnCollection() throws Exception {

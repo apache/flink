@@ -39,6 +39,7 @@ import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.TestTaskStateManagerBuilder;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
@@ -252,6 +253,9 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
         Queue<Object> outputList = new ArrayDeque<>();
         streamMockEnvironment.addOutput(outputList, outputStreamRecordSerializer);
         streamMockEnvironment.setTaskMetricGroup(taskMetricGroup);
+        streamMockEnvironment.setCheckpointStorageAccess(
+                new JobManagerCheckpointStorage()
+                        .createCheckpointStorage(streamMockEnvironment.getJobID()));
 
         for (ResultPartitionWriter writer : additionalOutputs) {
             streamMockEnvironment.addOutput(writer);

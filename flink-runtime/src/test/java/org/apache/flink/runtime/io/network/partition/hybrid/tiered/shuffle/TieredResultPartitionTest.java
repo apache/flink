@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.shuffle;
 
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
@@ -40,8 +42,10 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.Tiered
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyServiceImpl;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageProducerClient;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageResourceRegistry;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.util.NoOpTierShuffleDescriptor;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.IgnoreShutdownRejectedExecutionHandler;
 
@@ -52,7 +56,9 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
@@ -241,7 +247,7 @@ class TieredResultPartitionTest {
                         numSubpartitions,
                         numSubpartitions,
                         new ResultPartitionManager(),
-                        new BufferCompressor(NETWORK_BUFFER_SIZE, "LZ4"),
+                        new BufferCompressor(NETWORK_BUFFER_SIZE, CompressionCodec.LZ4),
                         () -> bufferPool,
                         new TieredStorageProducerClient(
                                 numSubpartitions,
@@ -264,9 +270,7 @@ class TieredResultPartitionTest {
             int numSubpartitions, BufferPool bufferPool, boolean isBroadcastOnly)
             throws IOException {
         TieredStorageConfiguration tieredStorageConfiguration =
-                TieredStorageConfiguration.builder(null)
-                        .setMemoryTierSubpartitionMaxQueuedBuffers(10)
-                        .build();
+                TieredStorageConfiguration.fromConfiguration(new Configuration());
         TieredStorageResourceRegistry tieredStorageResourceRegistry =
                 new TieredStorageResourceRegistry();
         TieredStorageNettyServiceImpl tieredStorageNettyService =
@@ -277,6 +281,10 @@ class TieredResultPartitionTest {
                         tieredStorageNettyService,
                         tieredStorageResourceRegistry);
 
+        List<TierShuffleDescriptor> tierShuffleDescriptors =
+                Arrays.asList(
+                        NoOpTierShuffleDescriptor.INSTANCE, NoOpTierShuffleDescriptor.INSTANCE);
+
         TieredResultPartition resultPartition =
                 tieredResultPartitionFactory.createTieredResultPartition(
                         "TieredStoreResultPartitionTest",
@@ -285,9 +293,13 @@ class TieredResultPartitionTest {
                         ResultPartitionType.HYBRID_SELECTIVE,
                         numSubpartitions,
                         numSubpartitions,
+                        Integer.MAX_VALUE,
+                        NETWORK_BUFFER_SIZE,
                         isBroadcastOnly,
+                        true,
                         new ResultPartitionManager(),
-                        new BufferCompressor(NETWORK_BUFFER_SIZE, "LZ4"),
+                        new BufferCompressor(NETWORK_BUFFER_SIZE, CompressionCodec.LZ4),
+                        tierShuffleDescriptors,
                         () -> bufferPool,
                         fileChannelManager,
                         readBufferPool,

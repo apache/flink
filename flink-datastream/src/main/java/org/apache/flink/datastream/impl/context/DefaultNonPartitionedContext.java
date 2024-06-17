@@ -18,14 +18,75 @@
 
 package org.apache.flink.datastream.impl.context;
 
+import org.apache.flink.datastream.api.common.Collector;
+import org.apache.flink.datastream.api.context.JobInfo;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
+import org.apache.flink.datastream.api.context.TaskInfo;
 import org.apache.flink.datastream.api.function.ApplyPartitionFunction;
+import org.apache.flink.metrics.MetricGroup;
+
+import java.util.Set;
 
 /** The default implementation of {@link NonPartitionedContext}. */
 public class DefaultNonPartitionedContext<OUT> implements NonPartitionedContext<OUT> {
+    private final DefaultRuntimeContext context;
+
+    private final DefaultPartitionedContext partitionedContext;
+
+    private final Collector<OUT> collector;
+
+    private final boolean isKeyed;
+
+    private final Set<Object> keySet;
+
+    public DefaultNonPartitionedContext(
+            DefaultRuntimeContext context,
+            DefaultPartitionedContext partitionedContext,
+            Collector<OUT> collector,
+            boolean isKeyed,
+            Set<Object> keySet) {
+        this.context = context;
+        this.partitionedContext = partitionedContext;
+        this.collector = collector;
+        this.isKeyed = isKeyed;
+        this.keySet = keySet;
+    }
 
     @Override
-    public void applyToAllPartitions(ApplyPartitionFunction<OUT> applyPartitionFunction) {
-        // TODO implements this method.
+    public void applyToAllPartitions(ApplyPartitionFunction<OUT> applyPartitionFunction)
+            throws Exception {
+        if (isKeyed) {
+            for (Object key : keySet) {
+                partitionedContext
+                        .getStateManager()
+                        .executeInKeyContext(
+                                () -> {
+                                    try {
+                                        applyPartitionFunction.apply(collector, partitionedContext);
+                                    } catch (Exception e) {
+                                        throw new RuntimeException(e);
+                                    }
+                                },
+                                key);
+            }
+        } else {
+            // non-keyed operator has only one partition.
+            applyPartitionFunction.apply(collector, partitionedContext);
+        }
+    }
+
+    @Override
+    public JobInfo getJobInfo() {
+        return context.getJobInfo();
+    }
+
+    @Override
+    public TaskInfo getTaskInfo() {
+        return context.getTaskInfo();
+    }
+
+    @Override
+    public MetricGroup getMetricGroup() {
+        return context.getMetricGroup();
     }
 }

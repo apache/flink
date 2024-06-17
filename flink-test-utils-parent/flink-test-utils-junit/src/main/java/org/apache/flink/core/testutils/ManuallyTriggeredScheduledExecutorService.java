@@ -32,6 +32,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -349,6 +350,9 @@ public class ManuallyTriggeredScheduledExecutorService implements ScheduledExecu
         final ScheduledTask<V> scheduledTask =
                 new ScheduledTask<>(callable, unit.convert(delay, TimeUnit.MILLISECONDS));
 
+        if (shutdown) {
+            throw new RejectedExecutionException();
+        }
         nonPeriodicScheduledTasks.offer(scheduledTask);
 
         return scheduledTask;

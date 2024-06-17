@@ -343,7 +343,11 @@ public class CheckpointTestUtils {
     private static StreamStateHandle createDummySegmentFileStateHandle(
             Random rnd, boolean isEmpty) {
         return isEmpty
-                ? TestingSegmentFileStateHandle.EMPTY_INSTANCE
+                ? new TestingSegmentFileStateHandle(
+                        new Path(UUID.randomUUID().toString()),
+                        0,
+                        0,
+                        CheckpointedStateScope.EXCLUSIVE)
                 : new TestingSegmentFileStateHandle(
                         new Path(String.valueOf(createRandomUUID(rnd))),
                         0,
@@ -355,10 +359,6 @@ public class CheckpointTestUtils {
             implements DiscardRecordedStateObject {
 
         private static final long serialVersionUID = 1L;
-
-        private static final TestingSegmentFileStateHandle EMPTY_INSTANCE =
-                new TestingSegmentFileStateHandle(
-                        new Path("empty"), 0, 0, CheckpointedStateScope.EXCLUSIVE);
 
         private boolean disposed;
 

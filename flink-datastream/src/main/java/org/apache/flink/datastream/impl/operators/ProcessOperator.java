@@ -18,25 +18,33 @@
 
 package org.apache.flink.datastream.impl.operators;
 
+import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.datastream.api.context.NonPartitionedContext;
+import org.apache.flink.datastream.api.context.ProcessingTimeManager;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
 import org.apache.flink.datastream.impl.common.OutputCollector;
 import org.apache.flink.datastream.impl.common.TimestampCollector;
 import org.apache.flink.datastream.impl.context.DefaultNonPartitionedContext;
+import org.apache.flink.datastream.impl.context.DefaultPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultRuntimeContext;
+import org.apache.flink.datastream.impl.context.UnsupportedProcessingTimeManager;
+import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.runtime.operators.asyncprocessing.AbstractAsyncStateUdfStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /** Operator for {@link OneInputStreamProcessFunction}. */
 public class ProcessOperator<IN, OUT>
-        extends AbstractAsyncStateUdfStreamOperator<OUT, OneInputStreamProcessFunction<IN, OUT>>
+        extends AbstractUdfStreamOperator<OUT, OneInputStreamProcessFunction<IN, OUT>>
         implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
 
     protected transient DefaultRuntimeContext context;
 
-    protected transient DefaultNonPartitionedContext<OUT> nonPartitionedContext;
+    protected transient DefaultPartitionedContext partitionedContext;
+
+    protected transient NonPartitionedContext<OUT> nonPartitionedContext;
 
     protected transient TimestampCollector<OUT> outputCollector;
 
@@ -49,15 +57,32 @@ public class ProcessOperator<IN, OUT>
     @Override
     public void open() throws Exception {
         super.open();
-        context = new DefaultRuntimeContext();
-        nonPartitionedContext = new DefaultNonPartitionedContext<>();
+        StreamingRuntimeContext operatorContext = getRuntimeContext();
+        TaskInfo taskInfo = operatorContext.getTaskInfo();
+        context =
+                new DefaultRuntimeContext(
+                        operatorContext.getJobInfo().getJobName(),
+                        operatorContext.getJobType(),
+                        taskInfo.getNumberOfParallelSubtasks(),
+                        taskInfo.getMaxNumberOfParallelSubtasks(),
+                        taskInfo.getTaskName(),
+                        operatorContext.getMetricGroup());
+        partitionedContext =
+                new DefaultPartitionedContext(
+                        context,
+                        this::currentKey,
+                        this::setCurrentKey,
+                        getProcessingTimeManager(),
+                        operatorContext,
+                        getOperatorStateBackend());
         outputCollector = getOutputCollector();
+        nonPartitionedContext = getNonPartitionedContext();
     }
 
     @Override
     public void processElement(StreamRecord<IN> element) throws Exception {
         outputCollector.setTimestampFromStreamRecord(element);
-        userFunction.processRecord(element.getValue(), outputCollector, context);
+        userFunction.processRecord(element.getValue(), outputCollector, partitionedContext);
     }
 
     protected TimestampCollector<OUT> getOutputCollector() {
@@ -67,5 +92,18 @@ public class ProcessOperator<IN, OUT>
     @Override
     public void endInput() throws Exception {
         userFunction.endInput(nonPartitionedContext);
+    }
+
+    protected Object currentKey() {
+        throw new UnsupportedOperationException("The key is only defined for keyed operator");
+    }
+
+    protected ProcessingTimeManager getProcessingTimeManager() {
+        return UnsupportedProcessingTimeManager.INSTANCE;
+    }
+
+    protected NonPartitionedContext<OUT> getNonPartitionedContext() {
+        return new DefaultNonPartitionedContext<>(
+                context, partitionedContext, outputCollector, false, null);
     }
 }

@@ -96,15 +96,26 @@ public class InputSideHasNoUniqueKeyBundle extends BufferBundle<Map<Integer, Lis
             RowData rec = iterator.previous();
             if ((RowDataUtil.isAccumulateMsg(record) && RowDataUtil.isRetractMsg(rec))
                     || (RowDataUtil.isRetractMsg(record) && RowDataUtil.isAccumulateMsg(rec))) {
-                iterator.remove();
-                actualSize--;
-                if (list.isEmpty()) {
-                    bundle.get(joinKey).remove(hashKey);
-                    if (bundle.get(joinKey).isEmpty()) {
-                        bundle.remove(joinKey);
+                // here it's necessary to additionally check that record == rec because hashKey of
+                // these two records might collide. For this purpose here RowKind is set to +I and
+                // after all it is returned to original value.
+                RowKind recRowKind = rec.getRowKind();
+                RowKind recordRowKind = record.getRowKind();
+                rec.setRowKind(RowKind.INSERT);
+                record.setRowKind(RowKind.INSERT);
+                if (record.equals(rec)) {
+                    iterator.remove();
+                    actualSize--;
+                    if (list.isEmpty()) {
+                        bundle.get(joinKey).remove(hashKey);
+                        if (bundle.get(joinKey).isEmpty()) {
+                            bundle.remove(joinKey);
+                        }
                     }
+                    return true;
                 }
-                return true;
+                rec.setRowKind(recRowKind);
+                record.setRowKind(recordRowKind);
             }
         }
         return false;

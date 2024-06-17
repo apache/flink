@@ -18,7 +18,7 @@
 
 package org.apache.flink.configuration;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
@@ -29,7 +29,7 @@ import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
 
 /** Configuration parameters for REST communication. */
-@Internal
+@PublicEvolving
 public class RestOptions {
 
     private static final String REST_PORT_KEY = "rest.port";
@@ -111,12 +111,12 @@ public class RestOptions {
      * WebMonitorEndpoint.
      */
     @Documentation.Section(Documentation.Sections.EXPERT_REST)
-    public static final ConfigOption<Long> AWAIT_LEADER_TIMEOUT =
+    public static final ConfigOption<Duration> AWAIT_LEADER_TIMEOUT =
             key("rest.await-leader-timeout")
-                    .longType()
-                    .defaultValue(30_000L)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(30_000L))
                     .withDescription(
-                            "The time in ms that the client waits for the leader address, e.g., "
+                            "The time that the client waits for the leader address, e.g., "
                                     + "Dispatcher or WebMonitorEndpoint");
 
     /**
@@ -139,33 +139,33 @@ public class RestOptions {
      * @see #RETRY_MAX_ATTEMPTS
      */
     @Documentation.Section(Documentation.Sections.EXPERT_REST)
-    public static final ConfigOption<Long> RETRY_DELAY =
+    public static final ConfigOption<Duration> RETRY_DELAY =
             key("rest.retry.delay")
-                    .longType()
-                    .defaultValue(3_000L)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(3_000L))
                     .withDescription(
                             String.format(
-                                    "The time in ms that the client waits between retries "
+                                    "The time that the client waits between retries "
                                             + "(See also `%s`).",
                                     RETRY_MAX_ATTEMPTS.key()));
 
     /** The maximum time in ms for the client to establish a TCP connection. */
     @Documentation.Section(Documentation.Sections.EXPERT_REST)
-    public static final ConfigOption<Long> CONNECTION_TIMEOUT =
+    public static final ConfigOption<Duration> CONNECTION_TIMEOUT =
             key("rest.connection-timeout")
-                    .longType()
-                    .defaultValue(15_000L)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(15_000L))
                     .withDescription(
-                            "The maximum time in ms for the client to establish a TCP connection.");
+                            "The maximum time for the client to establish a TCP connection.");
 
     /** The maximum time in ms for a connection to stay idle before failing. */
     @Documentation.Section(Documentation.Sections.EXPERT_REST)
-    public static final ConfigOption<Long> IDLENESS_TIMEOUT =
+    public static final ConfigOption<Duration> IDLENESS_TIMEOUT =
             key("rest.idleness-timeout")
-                    .longType()
-                    .defaultValue(5L * 60L * 1_000L) // 5 minutes
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(5))
                     .withDescription(
-                            "The maximum time in ms for a connection to stay idle before failing.");
+                            "The maximum time for a connection to stay idle before failing.");
 
     /** The maximum content length that the server will handle. */
     @Documentation.Section(Documentation.Sections.EXPERT_REST)
@@ -208,7 +208,7 @@ public class RestOptions {
     public static final ConfigOption<Duration> CACHE_CHECKPOINT_STATISTICS_TIMEOUT =
             key("rest.cache.checkpoint-statistics.timeout")
                     .durationType()
-                    .defaultValue(Duration.ofMillis(WebOptions.REFRESH_INTERVAL.defaultValue()))
+                    .defaultValue(WebOptions.REFRESH_INTERVAL.defaultValue())
                     .withFallbackKeys(WebOptions.REFRESH_INTERVAL.key())
                     .withDescription(
                             Description.builder()

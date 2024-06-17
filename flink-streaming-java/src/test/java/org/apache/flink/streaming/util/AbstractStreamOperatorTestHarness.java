@@ -50,7 +50,9 @@ import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.StateBackendTestUtils;
 import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.ttl.MockTtlTimeProvider;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
@@ -73,6 +75,7 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactoryUtil;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessing;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -302,6 +305,14 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
         ttlTimeProvider = new MockTtlTimeProvider();
         ttlTimeProvider.setCurrentTimestamp(0);
+
+        if (operator instanceof AsyncStateProcessing
+                || (factory instanceof SimpleOperatorFactory
+                        && ((SimpleOperatorFactory<OUT>) factory).getOperator()
+                                instanceof AsyncStateProcessing)) {
+            setStateBackend(
+                    StateBackendTestUtils.buildAsyncStateBackend(new HashMapStateBackend()));
+        }
 
         this.streamTaskStateInitializer =
                 createStreamTaskStateManager(

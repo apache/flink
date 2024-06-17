@@ -66,7 +66,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Unit tests for {@link DefaultExecutionTopology}. */
 class DefaultExecutionTopologyTest {
     @RegisterExtension
-    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
             TestingUtils.defaultExecutorExtension();
 
     private DefaultExecutionGraph executionGraph;
@@ -154,7 +154,7 @@ class DefaultExecutionTopologyTest {
     }
 
     @Test
-    void testErrorIfCoLocatedTasksAreNotInSameRegion() throws Exception {
+    void testErrorIfCoLocatedTasksAreNotInSameRegion() {
         int parallelism = 3;
         final JobVertex v1 = createNoOpVertex(parallelism);
         final JobVertex v2 = createNoOpVertex(parallelism);

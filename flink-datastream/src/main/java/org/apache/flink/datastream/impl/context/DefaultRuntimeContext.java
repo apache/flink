@@ -18,9 +18,44 @@
 
 package org.apache.flink.datastream.impl.context;
 
+import org.apache.flink.datastream.api.context.JobInfo;
 import org.apache.flink.datastream.api.context.RuntimeContext;
+import org.apache.flink.datastream.api.context.TaskInfo;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.jobgraph.JobType;
 
 /** The default implementation of {@link RuntimeContext}. */
 public class DefaultRuntimeContext implements RuntimeContext {
-    // TODO implements this class
+    private final DefaultJobInfo jobInfo;
+
+    private final DefaultTaskInfo taskInfo;
+
+    private final MetricGroup metricGroup;
+
+    public DefaultRuntimeContext(
+            String jobName,
+            JobType jobType,
+            int parallelism,
+            int maxParallelism,
+            String taskName,
+            MetricGroup metricGroup) {
+        this.jobInfo = new DefaultJobInfo(jobName, jobType);
+        this.taskInfo = new DefaultTaskInfo(parallelism, maxParallelism, taskName);
+        this.metricGroup = metricGroup;
+    }
+
+    @Override
+    public JobInfo getJobInfo() {
+        return jobInfo;
+    }
+
+    @Override
+    public TaskInfo getTaskInfo() {
+        return taskInfo;
+    }
+
+    @Override
+    public MetricGroup getMetricGroup() {
+        return metricGroup;
+    }
 }

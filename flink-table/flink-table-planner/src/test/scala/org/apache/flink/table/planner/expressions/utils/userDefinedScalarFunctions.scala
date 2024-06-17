@@ -57,6 +57,15 @@ object Func1 extends ScalarFunction {
 }
 
 @SerialVersionUID(1L)
+object FuncNotReducible extends ScalarFunction {
+  def eval(index: Integer): Integer = {
+    index + 1
+  }
+
+  override def supportsConstantFolding: Boolean = false
+}
+
+@SerialVersionUID(1L)
 object Func3 extends ScalarFunction {
   def eval(index: Integer, str: String): String = {
     s"$index and $str"

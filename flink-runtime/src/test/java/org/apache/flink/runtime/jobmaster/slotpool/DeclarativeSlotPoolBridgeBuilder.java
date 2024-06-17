@@ -38,7 +38,7 @@ public class DeclarativeSlotPoolBridgeBuilder {
 
     private JobID jobId = new JobID();
     private Time batchSlotTimeout =
-            Time.milliseconds(JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue());
+            Time.fromDuration(JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue());
     private Time idleSlotTimeout = TestingUtils.infiniteTime();
     private Clock clock = SystemClock.getInstance();
 

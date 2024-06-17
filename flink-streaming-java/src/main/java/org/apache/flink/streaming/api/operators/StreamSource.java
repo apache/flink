@@ -84,7 +84,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
         final long latencyTrackingInterval =
                 getExecutionConfig().isLatencyTrackingConfigured()
                         ? getExecutionConfig().getLatencyTrackingInterval()
-                        : configuration.get(MetricOptions.LATENCY_INTERVAL);
+                        : configuration.get(MetricOptions.LATENCY_INTERVAL).toMillis();
 
         LatencyMarkerEmitter<OUT> latencyEmitter = null;
         if (latencyTrackingInterval > 0) {

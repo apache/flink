@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.fs.hdfs;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter.CommitRecoverable;
@@ -28,6 +29,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -66,6 +68,15 @@ class HadoopRecoverableFsDataOutputStream extends BaseHadoopFsRecoverableFsDataO
         this.out = fs.create(tempFile);
     }
 
+    @VisibleForTesting
+    HadoopRecoverableFsDataOutputStream(
+            FileSystem fs, Path targetFile, Path tempFile, FSDataOutputStream out) {
+        this.fs = checkNotNull(fs);
+        this.targetFile = checkNotNull(targetFile);
+        this.tempFile = checkNotNull(tempFile);
+        this.out = out;
+    }
+
     HadoopRecoverableFsDataOutputStream(FileSystem fs, HadoopFsRecoverable recoverable)
             throws IOException {
 
@@ -95,10 +106,8 @@ class HadoopRecoverableFsDataOutputStream extends BaseHadoopFsRecoverableFsDataO
     }
 
     @Override
-    public Committer closeForCommit() throws IOException {
-        final long pos = getPos();
-        close();
-        return new HadoopFsCommitter(fs, createHadoopFsRecoverable(pos));
+    protected Committer createCommitterFromResumeRecoverable(HadoopFsRecoverable recoverable) {
+        return new HadoopFsCommitter(fs, recoverable);
     }
 
     // ------------------------------------------------------------------------

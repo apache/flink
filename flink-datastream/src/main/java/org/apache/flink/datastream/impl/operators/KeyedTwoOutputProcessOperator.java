@@ -19,18 +19,38 @@
 package org.apache.flink.datastream.impl.operators;
 
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.datastream.api.context.ProcessingTimeManager;
+import org.apache.flink.datastream.api.context.TwoOutputNonPartitionedContext;
 import org.apache.flink.datastream.api.function.TwoOutputStreamProcessFunction;
 import org.apache.flink.datastream.impl.common.KeyCheckedOutputCollector;
 import org.apache.flink.datastream.impl.common.OutputCollector;
 import org.apache.flink.datastream.impl.common.TimestampCollector;
+import org.apache.flink.datastream.impl.context.DefaultProcessingTimeManager;
+import org.apache.flink.datastream.impl.context.DefaultTwoOutputNonPartitionedContext;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.streaming.api.operators.InternalTimer;
+import org.apache.flink.streaming.api.operators.InternalTimerService;
+import org.apache.flink.streaming.api.operators.Triggerable;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.util.HashSet;
+import java.util.Set;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /** */
 public class KeyedTwoOutputProcessOperator<KEY, IN, OUT_MAIN, OUT_SIDE>
-        extends TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE> {
+        extends TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
+        implements Triggerable<KEY, VoidNamespace> {
+    private transient InternalTimerService<VoidNamespace> timerService;
+
+    // TODO Restore this keySet when task initialized from checkpoint.
+    private transient Set<Object> keySet;
 
     @Nullable private final KeySelector<OUT_MAIN, KEY> mainOutKeySelector;
 
@@ -57,6 +77,14 @@ public class KeyedTwoOutputProcessOperator<KEY, IN, OUT_MAIN, OUT_SIDE>
     }
 
     @Override
+    public void open() throws Exception {
+        this.timerService =
+                getInternalTimerService("processing timer", VoidNamespaceSerializer.INSTANCE, this);
+        this.keySet = new HashSet<>();
+        super.open();
+    }
+
+    @Override
     protected TimestampCollector<OUT_MAIN> getMainCollector() {
         return mainOutKeySelector != null && sideOutKeySelector != null
                 ? new KeyCheckedOutputCollector<>(
@@ -74,5 +102,54 @@ public class KeyedTwoOutputProcessOperator<KEY, IN, OUT_MAIN, OUT_SIDE>
                         sideOutKeySelector,
                         () -> (KEY) getCurrentKey())
                 : new SideOutputCollector(output);
+    }
+
+    @Override
+    protected Object currentKey() {
+        return getCurrentKey();
+    }
+
+    protected ProcessingTimeManager getProcessingTimeManager() {
+        return new DefaultProcessingTimeManager(timerService);
+    }
+
+    @Override
+    public void onEventTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
+        // do nothing at the moment.
+    }
+
+    @Override
+    public void onProcessingTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
+        // align the key context with the registered timer.
+        partitionedContext
+                .getStateManager()
+                .executeInKeyContext(
+                        () ->
+                                userFunction.onProcessingTimer(
+                                        timer.getTimestamp(),
+                                        getMainCollector(),
+                                        getSideCollector(),
+                                        partitionedContext),
+                        timer.getKey());
+    }
+
+    @Override
+    protected TwoOutputNonPartitionedContext<OUT_MAIN, OUT_SIDE> getNonPartitionedContext() {
+        return new DefaultTwoOutputNonPartitionedContext<>(
+                context, partitionedContext, mainCollector, sideCollector, true, keySet);
+    }
+
+    @Override
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public void setKeyContextElement1(StreamRecord record) throws Exception {
+        setKeyContextElement(record, getStateKeySelector1());
+    }
+
+    private <T> void setKeyContextElement(StreamRecord<T> record, KeySelector<T, ?> selector)
+            throws Exception {
+        checkNotNull(selector);
+        Object key = selector.getKey(record.getValue());
+        setCurrentKey(key);
+        keySet.add(key);
     }
 }

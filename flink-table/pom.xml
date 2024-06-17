@@ -85,5 +85,6 @@ under the License.
 		<janino.version>3.1.10</janino.version>
 		<jsonpath.version>2.7.0</jsonpath.version>
 		<guava.version>32.1.3-jre</guava.version>
+		<quartz.version>2.3.2</quartz.version>
 	</properties>
 </project>

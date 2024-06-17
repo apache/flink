@@ -23,7 +23,6 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -125,8 +124,8 @@ public class ResolvedCatalogMaterializedTable
     }
 
     @Override
-    public Duration getFreshness() {
-        return origin.getFreshness();
+    public IntervalFreshness getDefinitionFreshness() {
+        return origin.getDefinitionFreshness();
     }
 
     @Override
@@ -181,5 +180,18 @@ public class ResolvedCatalogMaterializedTable
                 + ", resolvedSchema="
                 + resolvedSchema
                 + '}';
+    }
+
+    /** Convert this object to a {@link ResolvedCatalogTable} object for planner optimize query. */
+    public ResolvedCatalogTable toResolvedCatalogTable() {
+        return new ResolvedCatalogTable(
+                CatalogTable.newBuilder()
+                        .schema(getUnresolvedSchema())
+                        .comment(getComment())
+                        .partitionKeys(getPartitionKeys())
+                        .options(getOptions())
+                        .snapshot(getSnapshot().orElse(null))
+                        .build(),
+                getResolvedSchema());
     }
 }

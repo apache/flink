@@ -20,6 +20,8 @@ package org.apache.flink.util.function;
 
 import org.apache.flink.annotation.Public;
 
+import java.util.function.Function;
+
 /**
  * A functional interface for a {@link java.util.function.Function} that may throw exceptions.
  *
@@ -39,4 +41,24 @@ public interface FunctionWithException<T, R, E extends Throwable> {
      * @throws E This function may throw an exception.
      */
     R apply(T value) throws E;
+
+    /**
+     * Convert at {@link FunctionWithException} into a {@link Function}.
+     *
+     * @param functionWithException function with exception to convert into a function
+     * @param <A> input type
+     * @param <B> output type
+     * @return {@link Function} which throws all checked exception as an unchecked exception.
+     */
+    static <A, B> Function<A, B> unchecked(FunctionWithException<A, B, ?> functionWithException) {
+        return (A a) -> {
+            try {
+                return functionWithException.apply(a);
+            } catch (Throwable t) {
+                ThrowingExceptionUtils.rethrow(t);
+                // we need this to appease the compiler :-(
+                return null;
+            }
+        };
+    }
 }

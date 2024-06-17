@@ -143,12 +143,32 @@ public final class ContextResolvedTable {
     }
 
     /**
+     * Convert the {@link ResolvedCatalogMaterializedTable} in {@link ContextResolvedTable} to
+     * {@link ResolvedCatalogTable }.
+     */
+    public ContextResolvedTable toCatalogTable() {
+        if (resolvedTable.getTableKind() == CatalogBaseTable.TableKind.MATERIALIZED_TABLE) {
+            return ContextResolvedTable.permanent(
+                    objectIdentifier,
+                    catalog,
+                    ((ResolvedCatalogMaterializedTable) resolvedTable).toResolvedCatalogTable());
+        }
+        return this;
+    }
+
+    /**
      * Copy the {@link ContextResolvedTable}, replacing the underlying {@link CatalogTable} options.
      */
     public ContextResolvedTable copy(Map<String, String> newOptions) {
         if (resolvedTable.getTableKind() == CatalogBaseTable.TableKind.VIEW) {
             throw new ValidationException(
                     String.format("View '%s' cannot be enriched with new options.", this));
+        }
+        if (resolvedTable.getTableKind() == CatalogBaseTable.TableKind.MATERIALIZED_TABLE) {
+            return ContextResolvedTable.permanent(
+                    objectIdentifier,
+                    catalog,
+                    ((ResolvedCatalogMaterializedTable) resolvedTable).copy(newOptions));
         }
         return new ContextResolvedTable(
                 objectIdentifier,
@@ -159,6 +179,12 @@ public final class ContextResolvedTable {
 
     /** Copy the {@link ContextResolvedTable}, replacing the underlying {@link ResolvedSchema}. */
     public ContextResolvedTable copy(ResolvedSchema newSchema) {
+        if (resolvedTable.getTableKind() == CatalogBaseTable.TableKind.MATERIALIZED_TABLE) {
+            throw new ValidationException(
+                    String.format(
+                            "Materialized table '%s' cannot be copied with new schema %s.",
+                            this, newSchema));
+        }
         return new ContextResolvedTable(
                 objectIdentifier,
                 catalog,

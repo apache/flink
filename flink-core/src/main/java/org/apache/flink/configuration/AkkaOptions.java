@@ -58,10 +58,10 @@ public class AkkaOptions {
                     .withDescription(RpcOptions.ASK_TIMEOUT_DURATION.description());
 
     /** The Pekko tcp connection timeout. */
-    public static final ConfigOption<String> TCP_TIMEOUT = RpcOptions.TCP_TIMEOUT;
+    public static final ConfigOption<Duration> TCP_TIMEOUT = RpcOptions.TCP_TIMEOUT;
 
     /** Timeout for the startup of the actor system. */
-    public static final ConfigOption<String> STARTUP_TIMEOUT = RpcOptions.STARTUP_TIMEOUT;
+    public static final ConfigOption<Duration> STARTUP_TIMEOUT = RpcOptions.STARTUP_TIMEOUT;
 
     /** Override SSL support for the Pekko transport. */
     public static final ConfigOption<Boolean> SSL_ENABLED = RpcOptions.SSL_ENABLED;

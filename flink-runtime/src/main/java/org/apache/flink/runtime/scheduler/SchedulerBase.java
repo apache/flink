@@ -756,8 +756,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     }
 
     @Override
-    public final boolean updateTaskExecutionState(
-            final TaskExecutionStateTransition taskExecutionState) {
+    public boolean updateTaskExecutionState(final TaskExecutionStateTransition taskExecutionState) {
 
         final ExecutionAttemptID attemptId = taskExecutionState.getID();
         final Execution execution = executionGraph.getRegisteredExecutions().get(attemptId);
@@ -1142,7 +1141,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     // ------------------------------------------------------------------------
 
     @VisibleForTesting
-    JobID getJobId() {
+    protected JobID getJobId() {
         return jobGraph.getJobID();
     }
 

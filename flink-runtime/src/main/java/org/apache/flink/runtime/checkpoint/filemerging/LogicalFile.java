@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.checkpoint.filemerging;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.StringBasedID;
 
 import javax.annotation.Nonnull;
@@ -40,10 +39,6 @@ public class LogicalFile {
 
         public LogicalFileId(String keyString) {
             super(keyString);
-        }
-
-        public Path getFilePath() {
-            return new Path(getKeyString());
         }
 
         public static LogicalFileId generateRandomId() {
@@ -90,6 +85,7 @@ public class LogicalFile {
         this.length = length;
         this.subtaskKey = subtaskKey;
         physicalFile.incRefCount();
+        physicalFile.incSize(length);
     }
 
     public LogicalFileId getFileId() {
@@ -120,6 +116,7 @@ public class LogicalFile {
     public void discardWithCheckpointId(long checkpointId) throws IOException {
         if (!discarded && checkpointId >= lastUsedCheckpointID) {
             physicalFile.decRefCount();
+            physicalFile.decSize(length);
             discarded = true;
         }
     }

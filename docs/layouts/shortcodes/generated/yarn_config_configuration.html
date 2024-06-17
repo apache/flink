@@ -35,7 +35,7 @@
         <tr>
             <td><h5>yarn.application-attempts</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
+            <td>Integer</td>
             <td>Number of ApplicationMaster restarts. By default, the value will be set to 1. If high availability is enabled, then the default value will be 2. The restart number is also limited by YARN (configured via <a href="https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-common/yarn-default.xml">yarn.resourcemanager.am.max-attempts</a>). Note that the entire Flink cluster will restart and the YARN Client will lose the connection.</td>
         </tr>
         <tr>
@@ -118,9 +118,9 @@
         </tr>
         <tr>
             <td><h5>yarn.heartbeat.container-request-interval</h5></td>
-            <td style="word-wrap: break-word;">500</td>
-            <td>Integer</td>
-            <td>Time between heartbeats with the ResourceManager in milliseconds if Flink requests containers:<ul><li>The lower this value is, the faster Flink will get notified about container allocations since requests and allocations are transmitted via heartbeats.</li><li>The lower this value is, the more excessive containers might get allocated which will eventually be released but put pressure on Yarn.</li></ul>If you observe too many container allocations on the ResourceManager, then it is recommended to increase this value. See <a href="https://issues.apache.org/jira/browse/YARN-1902">this link</a> for more information.</td>
+            <td style="word-wrap: break-word;">500 ms</td>
+            <td>Duration</td>
+            <td>Time between heartbeats with the ResourceManager if Flink requests containers:<ul><li>The lower this value is, the faster Flink will get notified about container allocations since requests and allocations are transmitted via heartbeats.</li><li>The lower this value is, the more excessive containers might get allocated which will eventually be released but put pressure on Yarn.</li></ul>If you observe too many container allocations on the ResourceManager, then it is recommended to increase this value. See <a href="https://issues.apache.org/jira/browse/YARN-1902">this link</a> for more information.</td>
         </tr>
         <tr>
             <td><h5>yarn.heartbeat.interval</h5></td>
@@ -151,6 +151,12 @@
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>The provided usrlib directory in remote. It should be pre-uploaded and world-readable. Flink will use it to exclude the local usrlib directory(i.e. usrlib/ under the parent directory of FLINK_LIB_DIR). Unlike yarn.provided.lib.dirs, YARN will not cache it on the nodes as it is for each application. An example could be hdfs://$namenode_address/path/of/flink/usrlib</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.security.appmaster.delegation.token.services</h5></td>
+            <td style="word-wrap: break-word;">"hadoopfs"</td>
+            <td>List&lt;String&gt;</td>
+            <td>The delegation token provider services are allowed to pass obtained tokens to YARN application master. For backward compatibility to make log aggregation to work, we add tokens obtained by `hadoopfs` provider to AM by default.</td>
         </tr>
         <tr>
             <td><h5>yarn.security.kerberos.localized-keytab-path</h5></td>

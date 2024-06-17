@@ -70,6 +70,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.readAndVerifyCoordinatorSerdeVersion;
@@ -197,12 +198,16 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                 subTaskIds,
                 operatorName);
 
-        // Subtask maybe during deploying or restarting, so we only send WatermarkAlignmentEvent
-        // to ready task to avoid period task fail (Java-ThreadPoolExecutor will not schedule
-        // the period task if it throws an exception).
         for (Integer subtaskId : subTaskIds) {
-            context.sendEventToSourceOperatorIfTaskReady(
-                    subtaskId, new WatermarkAlignmentEvent(maxAllowedWatermark));
+            // when subtask have been finished, do not send event.
+            if (!context.hasNoMoreSplits(subtaskId)) {
+                // Subtask maybe during deploying or restarting, so we only send
+                // WatermarkAlignmentEvent to ready task to avoid period task fail
+                // (Java-ThreadPoolExecutor will not schedule the period task if it throws an
+                // exception).
+                context.sendEventToSourceOperatorIfTaskReady(
+                        subtaskId, new WatermarkAlignmentEvent(maxAllowedWatermark));
+            }
         }
     }
 
@@ -546,13 +551,18 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
 
     // ---------------------------------------------------
     @VisibleForTesting
-    SplitEnumerator<SplitT, EnumChkT> getEnumerator() {
+    public SplitEnumerator<SplitT, EnumChkT> getEnumerator() {
         return enumerator;
     }
 
     @VisibleForTesting
     SourceCoordinatorContext<SplitT> getContext() {
         return context;
+    }
+
+    @VisibleForTesting
+    public ExecutorService getCoordinatorExecutor() {
+        return context.getCoordinatorExecutor();
     }
 
     // --------------------- Serde -----------------------

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.util.SerializedValue;
 
 import java.io.IOException;
@@ -35,6 +36,7 @@ public class DummyJobInformation extends JobInformation {
     public DummyJobInformation(JobID jobId, String jobName) throws IOException {
         super(
                 jobId,
+                JobType.STREAMING,
                 jobName,
                 new SerializedValue<>(new ExecutionConfig()),
                 new Configuration(),

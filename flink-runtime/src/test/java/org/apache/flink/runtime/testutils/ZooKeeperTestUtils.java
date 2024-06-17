@@ -113,8 +113,11 @@ public class ZooKeeperTestUtils {
             connTimeout = 30000;
         }
 
-        config.set(HighAvailabilityOptions.ZOOKEEPER_CONNECTION_TIMEOUT, connTimeout);
-        config.set(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, connTimeout);
+        config.set(
+                HighAvailabilityOptions.ZOOKEEPER_CONNECTION_TIMEOUT,
+                Duration.ofMillis(connTimeout));
+        config.set(
+                HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, Duration.ofMillis(connTimeout));
 
         // File system state backend
         config.set(StateBackendOptions.STATE_BACKEND, "FILESYSTEM");

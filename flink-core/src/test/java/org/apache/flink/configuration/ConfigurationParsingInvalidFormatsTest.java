@@ -28,7 +28,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import java.time.Duration;
 import java.util.Collections;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for reading configuration parameters with invalid formats. */
 @ExtendWith(ParameterizedTestExtension.class)
@@ -73,28 +73,32 @@ class ConfigurationParsingInvalidFormatsTest {
 
     @TestTemplate
     void testInvalidStringParsingWithGetOptional() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> {
-                    Configuration configuration = new Configuration();
-                    configuration.setString(option.key(), invalidString);
-                    configuration.getOptional(option);
-                },
-                String.format(
-                        "Could not parse value '%s' for key '%s'", invalidString, option.key()));
+        assertThatThrownBy(
+                        () -> {
+                            Configuration configuration = new Configuration();
+                            configuration.setString(option.key(), invalidString);
+                            configuration.getOptional(option);
+                        })
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(
+                        String.format(
+                                "Could not parse value '%s' for key '%s'",
+                                invalidString, option.key()));
     }
 
     @TestTemplate
     void testInvalidStringParsingWithGet() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> {
-                    Configuration configuration = new Configuration();
-                    configuration.setString(option.key(), invalidString);
-                    configuration.get(option);
-                },
-                String.format(
-                        "Could not parse value '%s' for key '%s'", invalidString, option.key()));
+        assertThatThrownBy(
+                        () -> {
+                            Configuration configuration = new Configuration();
+                            configuration.setString(option.key(), invalidString);
+                            configuration.get(option);
+                        })
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(
+                        String.format(
+                                "Could not parse value '%s' for key '%s'",
+                                invalidString, option.key()));
     }
 
     private enum TestEnum {

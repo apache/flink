@@ -20,9 +20,9 @@ package org.apache.flink.table.planner.plan.stream.sql.agg
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.api.config.{AggregatePhaseStrategy, OptimizerConfigOptions}
 import org.apache.flink.table.planner.plan.rules.physical.stream.IncrementalAggregateRule
-import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, StreamTableTestUtil, TableTestBase}
+import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
@@ -45,13 +45,13 @@ class DistinctAggregateTest(
     util.tableEnv.getConfig.setIdleStateRetention(Duration.ofHours(1))
     util.enableMiniBatch()
     util.tableEnv.getConfig
-      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, aggPhaseEnforcer.toString)
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, aggPhaseEnforcer)
     util.tableEnv.getConfig.set(
       OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED,
       Boolean.box(splitDistinctAggEnabled))
     // disable incremental agg
     util.tableEnv.getConfig
-      .set(IncrementalAggregateRule.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED, Boolean.box(false))
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED, Boolean.box(false))
   }
 
   @TestTemplate

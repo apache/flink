@@ -43,7 +43,7 @@ class TypeHintTest {
 
         assertThat(stringInfo2).hasSameHashCodeAs(stringInfo1);
         assertThat(stringInfo2).isEqualTo(stringInfo1);
-        assertThat(stringInfo2.toString()).isEqualTo(stringInfo1.toString());
+        assertThat(stringInfo2).hasToString(stringInfo1.toString());
 
         // generic case
         TypeHint<Tuple3<String, Double, Boolean>> generic =

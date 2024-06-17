@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
@@ -48,9 +49,7 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URI;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -71,9 +70,9 @@ public final class ForStResourceContainer implements AutoCloseable {
 
     private static final String DB_DIR_STRING = "db";
 
-    @Nullable private final URI remoteBasePath;
+    @Nullable private final Path remoteBasePath;
 
-    @Nullable private final URI remoteForStPath;
+    @Nullable private final Path remoteForStPath;
 
     @Nullable private final File localBasePath;
 
@@ -97,7 +96,7 @@ public final class ForStResourceContainer implements AutoCloseable {
     /** The handles to be closed when the container is closed. */
     private final ArrayList<AutoCloseable> handlesToClose;
 
-    @Nullable private Path relocatedDbLogBaseDir;
+    @Nullable private java.nio.file.Path relocatedDbLogBaseDir;
 
     @VisibleForTesting
     public ForStResourceContainer() {
@@ -121,7 +120,7 @@ public final class ForStResourceContainer implements AutoCloseable {
             @Nullable ForStOptionsFactory optionsFactory,
             @Nullable OpaqueMemoryResource<ForStSharedResources> sharedResources,
             @Nullable File localBasePath,
-            @Nullable URI remoteBasePath,
+            @Nullable Path remoteBasePath,
             boolean enableStatistics) {
 
         this.configuration = configuration;
@@ -132,7 +131,7 @@ public final class ForStResourceContainer implements AutoCloseable {
         this.localForStPath = localBasePath != null ? new File(localBasePath, DB_DIR_STRING) : null;
         this.remoteBasePath = remoteBasePath;
         this.remoteForStPath =
-                remoteBasePath != null ? remoteBasePath.resolve(DB_DIR_STRING) : null;
+                remoteBasePath != null ? new Path(remoteBasePath, DB_DIR_STRING) : null;
 
         this.enableStatistics = enableStatistics;
         this.handlesToClose = new ArrayList<>();
@@ -259,8 +258,13 @@ public final class ForStResourceContainer implements AutoCloseable {
     }
 
     @Nullable
-    public URI getRemoteBasePath() {
+    public Path getRemoteBasePath() {
         return remoteBasePath;
+    }
+
+    @Nullable
+    public Path getRemoteForStPath() {
+        return remoteForStPath;
     }
 
     /**
@@ -273,28 +277,27 @@ public final class ForStResourceContainer implements AutoCloseable {
             prepareDirectories(remoteBasePath, remoteForStPath);
         }
         if (localBasePath != null && localForStPath != null) {
-            prepareDirectories(new URI(localBasePath.getPath()), new URI(localForStPath.getPath()));
+            prepareDirectories(
+                    new Path(localBasePath.getPath()), new Path(localForStPath.getPath()));
         }
     }
 
-    private static void prepareDirectories(URI basePath, URI dbPath) throws IOException {
-        FileSystem fileSystem = FileSystem.get(basePath);
-        org.apache.flink.core.fs.Path tempBasePath = new org.apache.flink.core.fs.Path(basePath),
-                tempDBPath = new org.apache.flink.core.fs.Path(dbPath);
-        if (fileSystem.exists(tempBasePath)) {
-            if (!fileSystem.getFileStatus(tempBasePath).isDir()) {
-                throw new IOException("Not a directory: " + tempBasePath);
+    private static void prepareDirectories(Path basePath, Path dbPath) throws IOException {
+        FileSystem fileSystem = basePath.getFileSystem();
+        if (fileSystem.exists(basePath)) {
+            if (!fileSystem.getFileStatus(basePath).isDir()) {
+                throw new IOException("Not a directory: " + basePath);
             }
-        } else if (!fileSystem.mkdirs(tempBasePath)) {
+        } else if (!fileSystem.mkdirs(basePath)) {
             throw new IOException(
-                    String.format("Could not create ForSt directory at %s.", tempBasePath));
+                    String.format("Could not create ForSt directory at %s.", basePath));
         }
-        if (fileSystem.exists(tempDBPath)) {
-            fileSystem.delete(tempDBPath, true);
+        if (fileSystem.exists(dbPath)) {
+            fileSystem.delete(dbPath, true);
         }
-        if (!fileSystem.mkdirs(tempDBPath)) {
+        if (!fileSystem.mkdirs(dbPath)) {
             throw new IOException(
-                    String.format("Could not create ForSt db directory at %s.", tempDBPath));
+                    String.format("Could not create ForSt db directory at %s.", dbPath));
         }
     }
 
@@ -308,15 +311,14 @@ public final class ForStResourceContainer implements AutoCloseable {
             clearDirectories(remoteBasePath);
         }
         if (localBasePath != null) {
-            clearDirectories(new URI(localBasePath.getPath()));
+            clearDirectories(new Path(localBasePath.getPath()));
         }
     }
 
-    private static void clearDirectories(URI basePath) throws IOException {
-        FileSystem fileSystem = FileSystem.get(basePath);
-        org.apache.flink.core.fs.Path tempBasePath = new org.apache.flink.core.fs.Path(basePath);
-        if (fileSystem.exists(tempBasePath)) {
-            fileSystem.delete(tempBasePath, true);
+    private static void clearDirectories(Path basePath) throws IOException {
+        FileSystem fileSystem = basePath.getFileSystem();
+        if (fileSystem.exists(basePath)) {
+            fileSystem.delete(basePath, true);
         }
     }
 
@@ -493,7 +495,27 @@ public final class ForStResourceContainer implements AutoCloseable {
                 String relocatedDbLogDir = logFile.getParent();
                 this.relocatedDbLogBaseDir = new File(relocatedDbLogDir).toPath();
                 dbOptions.setDbLogDir(relocatedDbLogDir);
+            } else {
+                setLocalForStPathAsLogDir(dbOptions);
             }
+        } else {
+            setLocalForStPathAsLogDir(dbOptions);
+        }
+    }
+
+    private void setLocalForStPathAsLogDir(DBOptions dbOptions) {
+        // Currently, ForStDB does not support mixing local-dir and remote-dir, and ForStDB will
+        // concatenates the dfs directory with the local directory as working dir when using flink
+        // env. We expect to directly use the dfs directory in flink env or local directory as
+        // working dir. We will implement this in ForStDB later, but before that, we achieved this
+        // by setting the dbPath to "/" when the dfs directory existed. Another problem is that when
+        // the system property "log.file" is not set, ForSt directly uses the instance path as the
+        // log dir, which results in "/" being used as the log directory. This often has permission
+        // issues, so the db log dir is temporarily set explicitly here.
+        // TODO: remove this method after ForSt deal log dir well
+        if (localForStPath != null) {
+            this.relocatedDbLogBaseDir = localForStPath.toPath();
+            dbOptions.setDbLogDir(localForStPath.getPath());
         }
     }
 

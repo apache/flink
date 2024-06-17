@@ -32,7 +32,6 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStateToolset;
-import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -50,6 +49,7 @@ import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.function.BiFunctionWithException;
+import org.apache.flink.util.function.SupplierWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -131,40 +131,6 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 
     @Nullable private final FileMergingSnapshotManager fileMergingSnapshotManager;
 
-    SubtaskCheckpointCoordinatorImpl(
-            CheckpointStorage checkpointStorage,
-            CheckpointStorageWorkerView checkpointStorageView,
-            String taskName,
-            StreamTaskActionExecutor actionExecutor,
-            ExecutorService asyncOperationsThreadPool,
-            Environment env,
-            AsyncExceptionHandler asyncExceptionHandler,
-            boolean unalignedCheckpointEnabled,
-            boolean enableCheckpointAfterTasksFinished,
-            BiFunctionWithException<
-                            ChannelStateWriter, Long, CompletableFuture<Void>, CheckpointException>
-                    prepareInputSnapshot,
-            int maxRecordAbortedCheckpoints,
-            DelayableTimer registerTimer,
-            int maxSubtasksPerChannelStateFile) {
-        this(
-                checkpointStorageView,
-                taskName,
-                actionExecutor,
-                asyncOperationsThreadPool,
-                env,
-                asyncExceptionHandler,
-                prepareInputSnapshot,
-                maxRecordAbortedCheckpoints,
-                unalignedCheckpointEnabled
-                        ? openChannelStateWriter(
-                                taskName, checkpointStorage, env, maxSubtasksPerChannelStateFile)
-                        : ChannelStateWriter.NO_OP,
-                enableCheckpointAfterTasksFinished,
-                registerTimer,
-                env.getTaskStateManager().getFileMergingSnapshotManager());
-    }
-
     @VisibleForTesting
     SubtaskCheckpointCoordinatorImpl(
             CheckpointStorageWorkerView checkpointStorage,
@@ -232,16 +198,17 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
         this.fileMergingSnapshotManager = fileMergingSnapshotManager;
     }
 
-    private static ChannelStateWriter openChannelStateWriter(
+    public static ChannelStateWriter openChannelStateWriter(
             String taskName,
-            CheckpointStorage checkpointStorage,
+            SupplierWithException<CheckpointStorageWorkerView, ? extends IOException>
+                    checkpointStorageWorkerView,
             Environment env,
             int maxSubtasksPerChannelStateFile) {
         return new ChannelStateWriterImpl(
                 env.getJobVertexId(),
                 taskName,
                 env.getTaskInfo().getIndexOfThisSubtask(),
-                checkpointStorage,
+                checkpointStorageWorkerView,
                 env.getChannelStateExecutorFactory(),
                 maxSubtasksPerChannelStateFile);
     }

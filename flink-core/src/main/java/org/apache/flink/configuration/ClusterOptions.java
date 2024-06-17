@@ -24,6 +24,8 @@ import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.configuration.description.TextElement;
 
+import java.time.Duration;
+
 import static org.apache.flink.configuration.ClusterOptions.UserSystemExitMode.THROW;
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.LinkElement.link;
@@ -35,44 +37,40 @@ import static org.apache.flink.configuration.description.TextElement.text;
 public class ClusterOptions {
 
     @Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
-    public static final ConfigOption<Long> INITIAL_REGISTRATION_TIMEOUT =
+    public static final ConfigOption<Duration> INITIAL_REGISTRATION_TIMEOUT =
             ConfigOptions.key("cluster.registration.initial-timeout")
-                    .longType()
-                    .defaultValue(100L)
-                    .withDescription(
-                            "Initial registration timeout between cluster components in milliseconds.");
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(100))
+                    .withDescription("Initial registration timeout between cluster components.");
 
     @Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
-    public static final ConfigOption<Long> MAX_REGISTRATION_TIMEOUT =
-            ConfigOptions.key("cluster.registration.max-timeout")
-                    .longType()
-                    .defaultValue(30000L)
-                    .withDescription(
-                            "Maximum registration timeout between cluster components in milliseconds.");
+    public static final ConfigOption<Duration> MAX_REGISTRATION_TIMEOUT =
+            key("cluster.registration.max-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(30000))
+                    .withDescription("Maximum registration timeout between cluster components.");
 
     @Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
-    public static final ConfigOption<Long> ERROR_REGISTRATION_DELAY =
+    public static final ConfigOption<Duration> ERROR_REGISTRATION_DELAY =
             ConfigOptions.key("cluster.registration.error-delay")
-                    .longType()
-                    .defaultValue(10000L)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(10000L))
                     .withDescription(
-                            "The pause made after an registration attempt caused an exception (other than timeout) in milliseconds.");
+                            "The pause made after an registration attempt caused an exception (other than timeout).");
 
     @Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
-    public static final ConfigOption<Long> REFUSED_REGISTRATION_DELAY =
+    public static final ConfigOption<Duration> REFUSED_REGISTRATION_DELAY =
             ConfigOptions.key("cluster.registration.refused-registration-delay")
-                    .longType()
-                    .defaultValue(30000L)
-                    .withDescription(
-                            "The pause made after the registration attempt was refused in milliseconds.");
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(30000L))
+                    .withDescription("The pause made after the registration attempt was refused.");
 
     @Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
-    public static final ConfigOption<Long> CLUSTER_SERVICES_SHUTDOWN_TIMEOUT =
+    public static final ConfigOption<Duration> CLUSTER_SERVICES_SHUTDOWN_TIMEOUT =
             ConfigOptions.key("cluster.services.shutdown-timeout")
-                    .longType()
-                    .defaultValue(30000L)
-                    .withDescription(
-                            "The shutdown timeout for cluster services like executors in milliseconds.");
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(30000L))
+                    .withDescription("The shutdown timeout for cluster services like executors.");
 
     @Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
     public static final ConfigOption<Integer> CLUSTER_IO_EXECUTOR_POOL_SIZE =
@@ -143,7 +141,10 @@ public class ClusterOptions {
                     .withDescription(
                             "The maximum stacktrace depth of TaskManager and JobManager's thread dump web-frontend displayed.");
 
-    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+    /**
+     * @deprecated The option is unnecessary. It is deprecated in 1.20 and will be removed in 2.0.
+     */
+    @Deprecated
     public static final ConfigOption<Boolean> FINE_GRAINED_SHUFFLE_MODE_ALL_BLOCKING =
             ConfigOptions.key("fine-grained.shuffle-mode.all-blocking")
                     .booleanType()

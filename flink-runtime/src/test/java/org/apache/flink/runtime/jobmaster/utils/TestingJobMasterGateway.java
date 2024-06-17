@@ -55,6 +55,7 @@ import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.shuffle.PartitionWithMetrics;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
@@ -68,7 +69,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.Collection;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -172,6 +175,13 @@ public class TestingJobMasterGateway implements JobMasterGateway {
                     Tuple4<JobID, JobVertexID, KeyGroupRange, String>,
                     CompletableFuture<Acknowledge>>
             notifyKvStateUnregisteredFunction;
+
+    @Nonnull
+    private final BiFunction<
+                    Duration,
+                    Set<ResultPartitionID>,
+                    CompletableFuture<Collection<PartitionWithMetrics>>>
+            getPartitionWithMetricsFunction;
 
     @Nonnull TriFunction<String, Object, byte[], CompletableFuture<Object>> updateAggregateFunction;
 
@@ -312,7 +322,13 @@ public class TestingJobMasterGateway implements JobMasterGateway {
                             requestJobResourceRequirementsSupplier,
             @Nonnull
                     Function<JobResourceRequirements, CompletableFuture<Acknowledge>>
-                            updateJobResourceRequirementsFunction) {
+                            updateJobResourceRequirementsFunction,
+            @Nonnull
+                    BiFunction<
+                                    Duration,
+                                    Set<ResultPartitionID>,
+                                    CompletableFuture<Collection<PartitionWithMetrics>>>
+                            getPartitionWithMetricsFunction) {
         this.address = address;
         this.hostname = hostname;
         this.cancelFunction = cancelFunction;
@@ -345,6 +361,13 @@ public class TestingJobMasterGateway implements JobMasterGateway {
         this.notifyNewBlockedNodesFunction = notifyNewBlockedNodesFunction;
         this.requestJobResourceRequirementsSupplier = requestJobResourceRequirementsSupplier;
         this.updateJobResourceRequirementsFunction = updateJobResourceRequirementsFunction;
+        this.getPartitionWithMetricsFunction = getPartitionWithMetricsFunction;
+    }
+
+    @Override
+    public CompletableFuture<Collection<PartitionWithMetrics>> getPartitionWithMetrics(
+            Duration timeout, Set<ResultPartitionID> expectedPartitions) {
+        return getPartitionWithMetricsFunction.apply(timeout, expectedPartitions);
     }
 
     @Override

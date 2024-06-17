@@ -75,4 +75,12 @@ public interface FunctionDefinition {
     default boolean isDeterministic() {
         return true;
     }
+
+    /**
+     * If the constant-folding should be run during planning time on calls to this function. If not,
+     * the expression will be left as-is and the call will be made during runtime.
+     */
+    default boolean supportsConstantFolding() {
+        return true;
+    }
 }

@@ -17,8 +17,10 @@
 
 package org.apache.flink.state.forst;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
@@ -35,6 +37,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
 
@@ -86,6 +89,46 @@ public class ForStOperationUtils {
                 1 + stateColumnFamilyDescriptors.size() == stateColumnFamilyHandles.size(),
                 "Not all requested column family handles have been created");
         return dbRef;
+    }
+
+    /** Creates a column family handle from a state id. */
+    public static ColumnFamilyHandle createColumnFamilyHandle(
+            String stateId,
+            RocksDB db,
+            Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory) {
+
+        ColumnFamilyDescriptor columnFamilyDescriptor =
+                createColumnFamilyDescriptor(stateId, columnFamilyOptionsFactory);
+
+        final ColumnFamilyHandle columnFamilyHandle;
+        try {
+            columnFamilyHandle = createColumnFamily(columnFamilyDescriptor, db);
+        } catch (Exception ex) {
+            IOUtils.closeQuietly(columnFamilyDescriptor.getOptions());
+            throw new FlinkRuntimeException("Error creating ColumnFamilyHandle.", ex);
+        }
+
+        return columnFamilyHandle;
+    }
+
+    /** Creates a column descriptor for a state column family. */
+    public static ColumnFamilyDescriptor createColumnFamilyDescriptor(
+            String stateId, Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory) {
+
+        byte[] nameBytes = stateId.getBytes(ConfigConstants.DEFAULT_CHARSET);
+        Preconditions.checkState(
+                !Arrays.equals(RocksDB.DEFAULT_COLUMN_FAMILY, nameBytes),
+                "The chosen state name 'default' collides with the name of the default column family!");
+
+        ColumnFamilyOptions options =
+                createColumnFamilyOptions(columnFamilyOptionsFactory, stateId);
+
+        return new ColumnFamilyDescriptor(nameBytes, options);
+    }
+
+    private static ColumnFamilyHandle createColumnFamily(
+            ColumnFamilyDescriptor columnDescriptor, RocksDB db) throws RocksDBException {
+        return db.createColumnFamily(columnDescriptor);
     }
 
     public static ColumnFamilyOptions createColumnFamilyOptions(

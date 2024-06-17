@@ -306,13 +306,13 @@ Note that it is possible to also manually delete a savepoint via regular file sy
 
 ### Configuration
 
-You can configure a default savepoint target directory via the `state.savepoints.dir` key or `StreamExecutionEnvironment`. When triggering savepoints, this directory will be used to store the savepoint. You can overwrite the default by specifying a custom target directory with the trigger commands (see the [`:targetDirectory` argument](#trigger-a-savepoint)).
+You can configure a default savepoint target directory via the `execution.checkpointing.savepoint-dir` key or `StreamExecutionEnvironment`. When triggering savepoints, this directory will be used to store the savepoint. You can overwrite the default by specifying a custom target directory with the trigger commands (see the [`:targetDirectory` argument](#trigger-a-savepoint)).
 
 {{< tabs "config" >}}
 {{< tab "config.yaml" >}}
 ```yaml
 # Default savepoint target directory
-state.savepoints.dir: hdfs:///flink/savepoints
+execution.checkpointing.savepoint-dir: hdfs:///flink/savepoints
 ```
 {{< /tab >}}
 {{< tab "Java" >}}

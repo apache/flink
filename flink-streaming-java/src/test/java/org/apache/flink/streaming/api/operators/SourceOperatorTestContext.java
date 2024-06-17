@@ -47,7 +47,9 @@ import org.apache.flink.streaming.util.MockOutput;
 import org.apache.flink.streaming.util.MockStreamConfig;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -73,15 +75,22 @@ public class SourceOperatorTestContext implements AutoCloseable {
 
     public SourceOperatorTestContext(boolean idle, WatermarkStrategy<Integer> watermarkStrategy)
             throws Exception {
-        this(idle, watermarkStrategy, new MockOutput<>(new ArrayList<>()));
+        this(idle, false, watermarkStrategy, new MockOutput<>(new ArrayList<>()));
     }
 
     public SourceOperatorTestContext(
             boolean idle,
+            boolean usePerSplitOutputs,
             WatermarkStrategy<Integer> watermarkStrategy,
             Output<StreamRecord<Integer>> output)
             throws Exception {
-        mockSourceReader = new MockSourceReader(idle, idle);
+        mockSourceReader =
+                new MockSourceReader(
+                        idle
+                                ? MockSourceReader.WaitingForSplits.WAIT_UNTIL_ALL_SPLITS_ASSIGNED
+                                : MockSourceReader.WaitingForSplits.DO_NOT_WAIT_FOR_SPLITS,
+                        idle,
+                        usePerSplitOutputs);
         mockGateway = new MockOperatorEventGateway();
         timeService = new TestProcessingTimeService();
         operator =
@@ -124,10 +133,18 @@ public class SourceOperatorTestContext implements AutoCloseable {
     }
 
     public StateInitializationContext createStateContext() throws Exception {
-        // Create a mock split.
-        byte[] serializedSplitWithVersion =
-                SimpleVersionedSerialization.writeVersionAndSerialize(
-                        new MockSourceSplitSerializer(), MOCK_SPLIT);
+        return createStateContext(Collections.singletonList(MOCK_SPLIT));
+    }
+
+    public StateInitializationContext createStateContext(Collection<MockSourceSplit> initialSplits)
+            throws Exception {
+
+        List<byte[]> serializedSplits = new ArrayList<>();
+        for (MockSourceSplit initialSplit : initialSplits) {
+            serializedSplits.add(
+                    SimpleVersionedSerialization.writeVersionAndSerialize(
+                            new MockSourceSplitSerializer(), initialSplit));
+        }
 
         // Crate the state context.
         OperatorStateStore operatorStateStore = createOperatorStateStore();
@@ -138,7 +155,7 @@ public class SourceOperatorTestContext implements AutoCloseable {
         stateContext
                 .getOperatorStateStore()
                 .getListState(SourceOperator.SPLITS_STATE_DESC)
-                .update(Collections.singletonList(serializedSplitWithVersion));
+                .update(serializedSplits);
 
         return stateContext;
     }

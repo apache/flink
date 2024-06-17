@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn.configuration;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.ExternalResourceOptions;
@@ -25,6 +26,7 @@ import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.InlineElement;
 
+import java.time.Duration;
 import java.util.List;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
@@ -38,6 +40,7 @@ import static org.apache.flink.yarn.configuration.YarnConfigOptions.UserJarInclu
  *
  * <p>These options are not expected to be ever configured by users explicitly.
  */
+@PublicEvolving
 public class YarnConfigOptions {
 
     /** The vcores used by YARN application master. */
@@ -87,9 +90,9 @@ public class YarnConfigOptions {
      * <p>>Note: This option returns a String since Integer options must have a static default
      * value.
      */
-    public static final ConfigOption<String> APPLICATION_ATTEMPTS =
+    public static final ConfigOption<Integer> APPLICATION_ATTEMPTS =
             key("yarn.application-attempts")
-                    .stringType()
+                    .intType()
                     .noDefaultValue()
                     .withDescription(
                             Description.builder()
@@ -133,14 +136,14 @@ public class YarnConfigOptions {
      * The heartbeat interval between the Application Master and the YARN Resource Manager if Flink
      * is requesting containers.
      */
-    public static final ConfigOption<Integer> CONTAINER_REQUEST_HEARTBEAT_INTERVAL_MILLISECONDS =
+    public static final ConfigOption<Duration> CONTAINER_REQUEST_HEARTBEAT_INTERVAL_MILLISECONDS =
             key("yarn.heartbeat.container-request-interval")
-                    .intType()
-                    .defaultValue(500)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(500))
                     .withDescription(
                             new Description.DescriptionBuilder()
                                     .text(
-                                            "Time between heartbeats with the ResourceManager in milliseconds if Flink requests containers:")
+                                            "Time between heartbeats with the ResourceManager if Flink requests containers:")
                                     .list(
                                             text(
                                                     "The lower this value is, the faster Flink will get notified about container allocations since requests and allocations are transmitted via heartbeats."),
@@ -360,6 +363,16 @@ public class YarnConfigOptions {
                                     + "resource. In this case, the path is relative to the local "
                                     + "resource directory. If set to false, Flink"
                                     + " will try to directly locate the keytab from the path itself.");
+
+    public static final ConfigOption<List<String>> APP_MASTER_TOKEN_SERVICES =
+            key("yarn.security.appmaster.delegation.token.services")
+                    .stringType()
+                    .asList()
+                    .defaultValues("hadoopfs")
+                    .withDescription(
+                            "The delegation token provider services are allowed to pass obtained tokens to YARN application master."
+                                    + " For backward compatibility to make log aggregation to work, we add tokens obtained"
+                                    + " by `hadoopfs` provider to AM by default.");
 
     public static final ConfigOption<List<String>> PROVIDED_LIB_DIRS =
             key("yarn.provided.lib.dirs")

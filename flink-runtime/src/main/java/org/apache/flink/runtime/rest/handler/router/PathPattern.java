@@ -93,6 +93,11 @@ final class PathPattern {
         return tokens;
     }
 
+    @Override
+    public String toString() {
+        return pattern;
+    }
+
     // --------------------------------------------------------------------------
     // Instances of this class can be conveniently used as Map keys.
 

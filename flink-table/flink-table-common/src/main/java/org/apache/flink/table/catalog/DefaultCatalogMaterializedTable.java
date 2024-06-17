@@ -23,7 +23,6 @@ import org.apache.flink.table.api.Schema;
 
 import javax.annotation.Nullable;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -45,7 +44,7 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
     private final @Nullable Long snapshot;
 
     private final String definitionQuery;
-    private final Duration freshness;
+    private final IntervalFreshness freshness;
     private final LogicalRefreshMode logicalRefreshMode;
     private final RefreshMode refreshMode;
     private final RefreshStatus refreshStatus;
@@ -59,7 +58,7 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
             Map<String, String> options,
             @Nullable Long snapshot,
             String definitionQuery,
-            Duration freshness,
+            IntervalFreshness freshness,
             LogicalRefreshMode logicalRefreshMode,
             RefreshMode refreshMode,
             RefreshStatus refreshStatus,
@@ -185,7 +184,7 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
     }
 
     @Override
-    public Duration getFreshness() {
+    public IntervalFreshness getDefinitionFreshness() {
         return freshness;
     }
 

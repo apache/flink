@@ -111,6 +111,7 @@
 									<include>org.apache.flink:flink-table-common</include>
 									<include>org.apache.flink:flink-annotations</include>
 									<include>org.apache.flink:flink-core</include>
+									<include>org.apache.flink:flink-core-api</include>
 									<include>org.apache.flink:flink-runtime</include>
 									<include>org.apache.flink:flink-clients</include>
 									<include>org.apache.flink:flink-table-api-java</include>

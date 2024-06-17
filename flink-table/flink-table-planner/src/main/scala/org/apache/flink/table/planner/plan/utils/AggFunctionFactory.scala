@@ -532,18 +532,23 @@ class AggFunctionFactory(
   }
 
   private def createRankAggFunction(argTypes: Array[LogicalType]): UserDefinedFunction = {
-    val argTypes = orderKeyIndexes.map(inputRowType.getChildren.get(_))
-    new RankAggFunction(argTypes)
+    new RankAggFunction(getArgTypesOrEmpty())
   }
 
   private def createDenseRankAggFunction(argTypes: Array[LogicalType]): UserDefinedFunction = {
-    val argTypes = orderKeyIndexes.map(inputRowType.getChildren.get(_))
-    new DenseRankAggFunction(argTypes)
+    new DenseRankAggFunction(getArgTypesOrEmpty())
   }
 
   private def createPercentRankAggFunction(argTypes: Array[LogicalType]): UserDefinedFunction = {
-    val argTypes = orderKeyIndexes.map(inputRowType.getChildren.get(_))
-    new PercentRankAggFunction(argTypes)
+    new PercentRankAggFunction(getArgTypesOrEmpty())
+  }
+
+  private def getArgTypesOrEmpty(): Array[LogicalType] = {
+    if (orderKeyIndexes != null) {
+      orderKeyIndexes.map(inputRowType.getChildren.get(_))
+    } else {
+      Array[LogicalType]()
+    }
   }
 
   private def createNTILEAggFUnction(argTypes: Array[LogicalType]): UserDefinedFunction = {

@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.checkpoint.filemerging;
 
 import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 
 import javax.annotation.Nonnull;
@@ -31,8 +32,13 @@ public class AcrossCheckpointFileMergingSnapshotManager extends FileMergingSnaps
     private final PhysicalFilePool filePool;
 
     public AcrossCheckpointFileMergingSnapshotManager(
-            String id, long maxFileSize, PhysicalFilePool.Type filePoolType, Executor ioExecutor) {
-        super(id, maxFileSize, filePoolType, ioExecutor);
+            String id,
+            long maxFileSize,
+            PhysicalFilePool.Type filePoolType,
+            float maxSpaceAmplification,
+            Executor ioExecutor,
+            MetricGroup metricGroup) {
+        super(id, maxFileSize, filePoolType, maxSpaceAmplification, ioExecutor, metricGroup);
         filePool = createPhysicalPool();
     }
 
@@ -43,9 +49,6 @@ public class AcrossCheckpointFileMergingSnapshotManager extends FileMergingSnaps
             throws IOException {
         return filePool.pollFile(subtaskKey, scope);
     }
-
-    @Override
-    protected void discardCheckpoint(long checkpointId) {}
 
     @Override
     protected void returnPhysicalFileForNextReuse(

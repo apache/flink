@@ -77,10 +77,8 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.finishJobVertex;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** A utility class to create {@link DefaultScheduler} instances for testing. */
 public class SchedulerTestingUtils {
@@ -224,7 +222,7 @@ public class SchedulerTestingUtils {
                     scheduler.updateTaskExecutionState(
                             new TaskExecutionState(attemptId, ExecutionState.CANCELED));
 
-            assertTrue("could not switch task to RUNNING", setToRunning);
+            assertThat(setToRunning).as("could not switch task to RUNNING").isTrue();
         }
     }
 
@@ -249,8 +247,9 @@ public class SchedulerTestingUtils {
 
     public static void acknowledgeCurrentCheckpoint(DefaultScheduler scheduler) {
         final CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(scheduler);
-        assertEquals(
-                "Coordinator has not ", 1, checkpointCoordinator.getNumberOfPendingCheckpoints());
+        assertThat(checkpointCoordinator.getNumberOfPendingCheckpoints())
+                .as("Coordinator has not ")
+                .isOne();
 
         final PendingCheckpoint pc =
                 checkpointCoordinator.getPendingCheckpoints().values().iterator().next();
@@ -283,10 +282,9 @@ public class SchedulerTestingUtils {
         final CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(scheduler);
         checkpointCoordinator.triggerCheckpoint(false);
 
-        assertEquals(
-                "test setup inconsistent",
-                1,
-                checkpointCoordinator.getNumberOfPendingCheckpoints());
+        assertThat(checkpointCoordinator.getNumberOfPendingCheckpoints())
+                .as("test setup inconsistent")
+                .isOne();
         final PendingCheckpoint checkpoint =
                 checkpointCoordinator.getPendingCheckpoints().values().iterator().next();
         final CompletableFuture<CompletedCheckpoint> future = checkpoint.getCompletionFuture();
@@ -294,7 +292,7 @@ public class SchedulerTestingUtils {
         acknowledgePendingCheckpoint(scheduler, checkpoint.getCheckpointID());
 
         CompletedCheckpoint completed = future.getNow(null);
-        assertNotNull("checkpoint not complete", completed);
+        assertThat(completed).withFailMessage("checkpoint not complete").isNotNull();
         return completed;
     }
 

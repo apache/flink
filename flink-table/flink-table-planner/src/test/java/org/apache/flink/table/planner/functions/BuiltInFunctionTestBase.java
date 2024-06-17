@@ -216,6 +216,15 @@ abstract class BuiltInFunctionTestBase {
             return this;
         }
 
+        TestSetSpec testTableApiRuntimeError(
+                Expression expression,
+                Class<? extends Throwable> exceptionError,
+                String errorMessage) {
+            testItems.add(
+                    new TableApiErrorTestItem(expression, exceptionError, errorMessage, false));
+            return this;
+        }
+
         TestSetSpec testSqlResult(String expression, Object result, AbstractDataType<?> dataType) {
             return testSqlResult(expression, singletonList(result), singletonList(dataType));
         }
@@ -245,6 +254,12 @@ abstract class BuiltInFunctionTestBase {
         TestSetSpec testSqlRuntimeError(
                 String expression, Class<? extends Throwable> exceptionError) {
             testItems.add(new SqlErrorTestItem(expression, exceptionError, null, false));
+            return this;
+        }
+
+        TestSetSpec testSqlRuntimeError(
+                String expression, Class<? extends Throwable> exceptionError, String errorMessage) {
+            testItems.add(new SqlErrorTestItem(expression, exceptionError, errorMessage, false));
             return this;
         }
 

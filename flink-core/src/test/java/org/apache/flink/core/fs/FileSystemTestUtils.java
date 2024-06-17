@@ -20,7 +20,7 @@ package org.apache.flink.core.fs;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Various utility functions for testing {@link FileSystem} implementations. */
 public class FileSystemTestUtils {
@@ -38,6 +38,6 @@ public class FileSystemTestUtils {
                 && System.nanoTime() - deadline < 0) {
             Thread.sleep(10);
         }
-        assertEquals(expectedExists, dirExists);
+        assertThat(dirExists).isEqualTo(expectedExists);
     }
 }

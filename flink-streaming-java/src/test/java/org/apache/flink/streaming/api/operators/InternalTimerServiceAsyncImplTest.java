@@ -21,10 +21,10 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandler;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
+import org.apache.flink.runtime.asyncprocessing.MockStateExecutor;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
-import org.apache.flink.runtime.asyncprocessing.StateExecutor;
-import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
@@ -39,8 +39,6 @@ import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.CompletableFuture;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link InternalTimerServiceAsyncImpl}. */
@@ -50,11 +48,25 @@ class InternalTimerServiceAsyncImplTest {
     private TestProcessingTimeService processingTimeService;
     private InternalTimerServiceAsyncImpl<Integer, String> service;
 
+    private AsyncFrameworkExceptionHandler exceptionHandler =
+            new AsyncFrameworkExceptionHandler() {
+                @Override
+                public void handleException(String message, Throwable exception) {
+                    throw new RuntimeException(message, exception);
+                }
+            };
+
     @BeforeEach
     void setup() throws Exception {
         asyncExecutionController =
                 new AsyncExecutionController(
-                        new SyncMailboxExecutor(), new TestStateExecutor(), 128, 2, 1000L, 10);
+                        new SyncMailboxExecutor(),
+                        exceptionHandler,
+                        new MockStateExecutor(),
+                        128,
+                        2,
+                        1000L,
+                        10);
         // ensure arbitrary key is in the key group
         int totalKeyGroups = 128;
         KeyGroupRange testKeyGroupList = new KeyGroupRange(0, totalKeyGroups - 1);
@@ -206,16 +218,6 @@ class InternalTimerServiceAsyncImplTest {
         @Override
         public Object getCurrentKey() {
             return key;
-        }
-    }
-
-    private static class TestStateExecutor implements StateExecutor {
-        public TestStateExecutor() {}
-
-        @Override
-        public CompletableFuture<Boolean> executeBatchRequests(
-                Iterable<StateRequest<?, ?, ?>> processingRequests) {
-            return CompletableFuture.completedFuture(true);
         }
     }
 }

@@ -1614,9 +1614,30 @@ class Expression(Generic[T]):
         Returns an ARRAY that contains the elements from array1 that are not in array2.
         If no elements remain after excluding the elements in array2 from array1,
         the function returns an empty ARRAY. If one or both arguments are NULL,
-        the function returns NULL. The order of the elements from array1 is kept.
+        the function returns NULL. The order of the elements from array1 is kept
+        however the duplicates are removed.
         """
         return _binary_op("arrayExcept")(self, array)
+
+    def array_intersect(self, array) -> 'Expression':
+        """
+        Returns an ARRAY that contains the elements from array1 that are also in array2,
+        without duplicates. If no elements are both in array1 and array2, the function
+        returns an empty ARRAY. If one or both arguments are NULL, the function returns NULL.
+        The order of the elements from array1 is kept.
+        """
+        return _binary_op("arrayIntersect")(self, array)
+
+    def split(self, delimiter) -> 'Expression':
+        """
+        Returns an array of substrings by splitting the input string based on the given delimiter.
+        If the delimiter is not found in the string, the original string is returned as the only
+        element in the array. If the delimiter is empty, every character in the string is split.
+        If the string or delimiter is null, a null value is returned. If the delimiter is found a
+        t the beginning or end of the string, or there are contiguous delimiters, then an empty
+        string is added to the array.
+        """
+        return _binary_op("split")(self, delimiter)
 
     @property
     def map_keys(self) -> 'Expression':

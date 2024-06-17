@@ -18,6 +18,10 @@
 
 package org.apache.flink.docs.configuration;
 
+import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
 import org.apache.flink.annotation.docs.Documentation;
@@ -46,6 +50,8 @@ import java.util.Map;
 
 import static org.apache.flink.configuration.description.TextElement.text;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatException;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 
 /** Tests for the {@link ConfigOptionsDocGenerator}. */
 @SuppressWarnings("unused")
@@ -724,6 +730,47 @@ class ConfigOptionsDocGeneratorTest {
         assertThat(ConfigOptionsDocGenerator.toSnakeCase("RocksDBOptions"))
                 .isEqualTo("rocksdb_options");
         assertThat(ConfigOptionsDocGenerator.toSnakeCase("DBOptions")).isEqualTo("db_options");
+    }
+
+    @Public
+    static class PublicOptions {}
+
+    @PublicEvolving
+    static class PublicEvolvingOptions {}
+
+    @Experimental
+    static class ExperimentalOptions {}
+
+    @Internal
+    static class InternalOptions {}
+
+    static class OptionsWithoutAnnotation {}
+
+    @Test
+    void testVerifyClassAnnotation() {
+        assertThatNoException()
+                .isThrownBy(
+                        () -> ConfigOptionsDocGenerator.verifyClassAnnotation(PublicOptions.class));
+        assertThatNoException()
+                .isThrownBy(
+                        () ->
+                                ConfigOptionsDocGenerator.verifyClassAnnotation(
+                                        PublicEvolvingOptions.class));
+        assertThatNoException()
+                .isThrownBy(
+                        () ->
+                                ConfigOptionsDocGenerator.verifyClassAnnotation(
+                                        ExperimentalOptions.class));
+        assertThatException()
+                .isThrownBy(
+                        () ->
+                                ConfigOptionsDocGenerator.verifyClassAnnotation(
+                                        OptionsWithoutAnnotation.class));
+        assertThatException()
+                .isThrownBy(
+                        () ->
+                                ConfigOptionsDocGenerator.verifyClassAnnotation(
+                                        InternalOptions.class));
     }
 
     static String getProjectRootDir() {

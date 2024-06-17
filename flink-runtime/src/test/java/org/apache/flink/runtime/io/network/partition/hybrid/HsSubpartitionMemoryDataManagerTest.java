@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.hybrid;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -134,11 +135,13 @@ class HsSubpartitionMemoryDataManagerTest {
         BufferCompressor bufferCompressor =
                 compressionFactoryName.equals("NULL")
                         ? null
-                        : new BufferCompressor(bufferSize, compressionFactoryName);
+                        : new BufferCompressor(
+                                bufferSize, CompressionCodec.valueOf(compressionFactoryName));
         BufferDecompressor bufferDecompressor =
                 compressionFactoryName.equals("NULL")
                         ? null
-                        : new BufferDecompressor(bufferSize, compressionFactoryName);
+                        : new BufferDecompressor(
+                                bufferSize, CompressionCodec.valueOf(compressionFactoryName));
 
         List<BufferIndexAndChannel> consumedBufferIndexAndChannel = new ArrayList<>();
         TestingMemoryDataManagerOperation memoryDataManagerOperation =

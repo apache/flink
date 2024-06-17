@@ -98,7 +98,7 @@ class ExecutionTimeBasedSlowTaskDetectorTest {
         final Map<ExecutionVertexID, Collection<ExecutionAttemptID>> slowTasks =
                 slowTaskDetector.findSlowTasks(executionGraph);
 
-        assertThat(slowTasks.size()).isZero();
+        assertThat(slowTasks).isEmpty();
     }
 
     @Test
@@ -316,7 +316,7 @@ class ExecutionTimeBasedSlowTaskDetectorTest {
                 slowTaskDetector.findSlowTasks(executionGraph);
 
         // no task will be detected as slow task
-        assertThat(slowTasks).hasSize(0);
+        assertThat(slowTasks).isEmpty();
     }
 
     @Test
@@ -368,15 +368,13 @@ class ExecutionTimeBasedSlowTaskDetectorTest {
         ExecutionTimeWithInputBytes executionTimeWithInputBytes7 =
                 new ExecutionTimeWithInputBytes(1, 0);
 
-        assertThat(executionTimeWithInputBytes7.compareTo(executionTimeWithInputBytes1))
-                .isEqualTo(1);
+        assertThat(executionTimeWithInputBytes7).isGreaterThan(executionTimeWithInputBytes1);
 
         // executions with 0 input bytes and 0 execution time
         ExecutionTimeWithInputBytes executionTimeWithInputBytes8 =
                 new ExecutionTimeWithInputBytes(0, 0);
 
-        assertThat(executionTimeWithInputBytes8.compareTo(executionTimeWithInputBytes1))
-                .isEqualTo(-1);
+        assertThat(executionTimeWithInputBytes8).isLessThan(executionTimeWithInputBytes1);
 
         // executions with assigned input bytes mixed with UNKNOWN input bytes
         ExecutionTimeWithInputBytes executionTimeWithInputBytes9 =

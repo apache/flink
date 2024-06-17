@@ -149,6 +149,12 @@ The following options can be used to adjust the behavior of the table planner.
 
 {{< generated/table_config_configuration >}}
 
+### Materialized Table Options
+
+The following options can be used to adjust the behavior of the materialized table.
+
+{{< generated/materialized_table_config_configuration >}}
+
 ### SQL Client Options
 
 The following options can be used to adjust the behavior of the sql client.

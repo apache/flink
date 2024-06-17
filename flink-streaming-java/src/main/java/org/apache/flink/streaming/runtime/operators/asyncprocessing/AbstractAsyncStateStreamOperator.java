@@ -24,25 +24,29 @@ import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
+import org.apache.flink.runtime.asyncprocessing.AsyncStateException;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
-import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.util.function.ThrowingRunnable;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -59,14 +63,16 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
 
     private RecordContext currentProcessingContext;
 
+    private Environment environment;
+
     /** Initialize necessary state components for {@link AbstractStreamOperator}. */
     @Override
-    public void setup(
-            StreamTask<?, ?> containingTask,
-            StreamConfig config,
-            Output<StreamRecord<OUT>> output) {
-        super.setup(containingTask, config, output);
-        final Environment environment = containingTask.getEnvironment();
+    public void initializeState(StreamTaskStateInitializer streamTaskStateManager)
+            throws Exception {
+        super.initializeState(streamTaskStateManager);
+        getRuntimeContext().setKeyedStateStoreV2(stateHandler.getKeyedStateStoreV2().orElse(null));
+        final StreamTask<?, ?> containingTask = checkNotNull(getContainingTask());
+        environment = containingTask.getEnvironment();
         final MailboxExecutor mailboxExecutor = environment.getMainMailboxExecutor();
         final int maxParallelism = environment.getTaskInfo().getMaxNumberOfParallelSubtasks();
         final int inFlightRecordsLimit =
@@ -74,15 +80,27 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
         final int asyncBufferSize = environment.getExecutionConfig().getAsyncStateBufferSize();
         final long asyncBufferTimeout =
                 environment.getExecutionConfig().getAsyncStateBufferTimeout();
-        // TODO: initial state executor and set state executor for aec
-        this.asyncExecutionController =
-                new AsyncExecutionController(
-                        mailboxExecutor,
-                        null,
-                        maxParallelism,
-                        asyncBufferSize,
-                        asyncBufferTimeout,
-                        inFlightRecordsLimit);
+
+        AsyncKeyedStateBackend asyncKeyedStateBackend = stateHandler.getAsyncKeyedStateBackend();
+        if (asyncKeyedStateBackend != null) {
+            this.asyncExecutionController =
+                    new AsyncExecutionController(
+                            mailboxExecutor,
+                            this::handleAsyncStateException,
+                            asyncKeyedStateBackend.createStateExecutor(),
+                            maxParallelism,
+                            asyncBufferSize,
+                            asyncBufferTimeout,
+                            inFlightRecordsLimit);
+            asyncKeyedStateBackend.setup(asyncExecutionController);
+        } else if (stateHandler.getKeyedStateBackend() != null) {
+            throw new UnsupportedOperationException(
+                    "Current State Backend doesn't support async access, AsyncExecutionController could not work");
+        }
+    }
+
+    private void handleAsyncStateException(String message, Throwable exception) {
+        environment.failExternally(new AsyncStateException(message, exception));
     }
 
     @Override
@@ -218,6 +236,50 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
                 namespaceSerializer,
                 triggerable,
                 (AsyncExecutionController<K>) asyncExecutionController);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void setKeyContextElement1(StreamRecord record) throws Exception {
+        super.setKeyContextElement1(record);
+        if (stateKeySelector1 != null) {
+            setAsyncKeyedContextElement(record, stateKeySelector1);
+        }
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void setKeyContextElement2(StreamRecord record) throws Exception {
+        super.setKeyContextElement2(record);
+        if (stateKeySelector2 != null) {
+            setAsyncKeyedContextElement(record, stateKeySelector2);
+        }
+    }
+
+    @Override
+    public Object getCurrentKey() {
+        return currentProcessingContext.getKey();
+    }
+
+    @Override
+    public void processWatermark(Watermark mark) throws Exception {
+        if (!isAsyncStateProcessingEnabled()) {
+            // If async state processing is disabled, fallback to the super class.
+            super.processWatermark(mark);
+            return;
+        }
+        asyncExecutionController.processNonRecord(() -> super.processWatermark(mark));
+    }
+
+    @Override
+    public void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+        if (!isAsyncStateProcessingEnabled()) {
+            // If async state processing is disabled, fallback to the super class.
+            super.processWatermarkStatus(watermarkStatus);
+            return;
+        }
+        asyncExecutionController.processNonRecord(
+                () -> super.processWatermarkStatus(watermarkStatus));
     }
 
     @VisibleForTesting

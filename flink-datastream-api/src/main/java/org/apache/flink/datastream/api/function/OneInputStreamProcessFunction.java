@@ -21,7 +21,7 @@ package org.apache.flink.datastream.api.function;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.datastream.api.common.Collector;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
-import org.apache.flink.datastream.api.context.RuntimeContext;
+import org.apache.flink.datastream.api.context.PartitionedContext;
 
 /** This contains all logical related to process records from single input. */
 @Experimental
@@ -33,7 +33,7 @@ public interface OneInputStreamProcessFunction<IN, OUT> extends ProcessFunction 
      * @param output to emit processed records.
      * @param ctx runtime context in which this function is executed.
      */
-    void processRecord(IN record, Collector<OUT> output, RuntimeContext ctx) throws Exception;
+    void processRecord(IN record, Collector<OUT> output, PartitionedContext ctx) throws Exception;
 
     /**
      * This is a life-cycle method indicates that this function will no longer receive any data from
@@ -42,4 +42,13 @@ public interface OneInputStreamProcessFunction<IN, OUT> extends ProcessFunction 
      * @param ctx the context in which this function is executed.
      */
     default void endInput(NonPartitionedContext<OUT> ctx) {}
+
+    /**
+     * Callback for processing timer.
+     *
+     * @param timestamp when this callback is triggered.
+     * @param output to emit record.
+     * @param ctx runtime context in which this function is executed.
+     */
+    default void onProcessingTimer(long timestamp, Collector<OUT> output, PartitionedContext ctx) {}
 }

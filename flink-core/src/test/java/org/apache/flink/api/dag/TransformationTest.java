@@ -42,7 +42,7 @@ class TransformationTest {
     private Transformation<Void> transformation;
 
     @BeforeEach
-    public void setUp() {
+    void setUp() {
         transformation = new TestTransformation<>("t", null, 1);
     }
 
@@ -82,7 +82,7 @@ class TransformationTest {
         final Set<Integer> deduplicatedIds =
                 idLists.stream().flatMap(List::stream).collect(Collectors.toSet());
 
-        assertThat(numThreads * numIdsPerThread).isEqualTo(deduplicatedIds.size());
+        assertThat(deduplicatedIds).hasSize(numThreads * numIdsPerThread);
     }
 
     @Test
@@ -90,13 +90,10 @@ class TransformationTest {
         transformation.declareManagedMemoryUseCaseAtOperatorScope(
                 ManagedMemoryUseCase.OPERATOR, 123);
         transformation.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.STATE_BACKEND);
-        assertThat(
-                        transformation
-                                .getManagedMemoryOperatorScopeUseCaseWeights()
-                                .get(ManagedMemoryUseCase.OPERATOR))
-                .isEqualTo(123);
+        assertThat(transformation.getManagedMemoryOperatorScopeUseCaseWeights())
+                .containsEntry(ManagedMemoryUseCase.OPERATOR, 123);
         assertThat(transformation.getManagedMemorySlotScopeUseCases())
-                .contains(ManagedMemoryUseCase.STATE_BACKEND);
+                .containsExactly(ManagedMemoryUseCase.STATE_BACKEND);
     }
 
     @Test

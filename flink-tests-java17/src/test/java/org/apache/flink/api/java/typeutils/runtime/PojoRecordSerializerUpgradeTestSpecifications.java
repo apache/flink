@@ -22,15 +22,14 @@ import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.ClassRelocator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
+import org.apache.flink.api.common.typeutils.TypeSerializerConditions;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
-import org.hamcrest.Matcher;
+import org.assertj.core.api.Condition;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertSame;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** A {@link TypeSerializerUpgradeTestBase} for the {@link PojoSerializer}. */
 class PojoRecordSerializerUpgradeTestSpecifications {
@@ -58,7 +57,7 @@ class PojoRecordSerializerUpgradeTestSpecifications {
             TypeSerializer<PojoBeforeUpgrade> serializer =
                     TypeExtractor.createTypeInfo(PojoBeforeUpgrade.class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(PojoSerializer.class, serializer.getClass());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -81,19 +80,20 @@ class PojoRecordSerializerUpgradeTestSpecifications {
             TypeSerializer<PojoAfterUpgrade> serializer =
                     TypeExtractor.createTypeInfo(PojoAfterUpgrade.class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(PojoSerializer.class, serializer.getClass());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
         @Override
-        public Matcher<PojoAfterUpgrade> testDataMatcher() {
-            return is(new PojoAfterUpgrade(911108, "Gordon"));
+        public Condition<PojoAfterUpgrade> testDataCondition() {
+            return new Condition<>(
+                    new PojoAfterUpgrade(911108, "Gordon")::equals, "value is (911108, Gordon)");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<PojoAfterUpgrade>>
-                schemaCompatibilityMatcher(FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+        public Condition<TypeSerializerSchemaCompatibility<PojoAfterUpgrade>>
+                schemaCompatibilityCondition(FlinkVersion version) {
+            return TypeSerializerConditions.isCompatibleAsIs();
         }
     }
 
@@ -110,7 +110,7 @@ class PojoRecordSerializerUpgradeTestSpecifications {
             TypeSerializer<RecordBeforeMigration> serializer =
                     TypeExtractor.createTypeInfo(RecordBeforeMigration.class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(PojoSerializer.class, serializer.getClass());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
@@ -133,19 +133,21 @@ class PojoRecordSerializerUpgradeTestSpecifications {
             TypeSerializer<RecordAfterSchemaUpgrade> serializer =
                     TypeExtractor.createTypeInfo(RecordAfterSchemaUpgrade.class)
                             .createSerializer(new SerializerConfigImpl());
-            assertSame(PojoSerializer.class, serializer.getClass());
+            assertThat(serializer.getClass()).isSameAs(PojoSerializer.class);
             return serializer;
         }
 
         @Override
-        public Matcher<RecordAfterSchemaUpgrade> testDataMatcher() {
-            return is(new RecordAfterSchemaUpgrade("Gordon", 0, null));
+        public Condition<RecordAfterSchemaUpgrade> testDataCondition() {
+            return new Condition<>(
+                    new RecordAfterSchemaUpgrade("Gordon", 0, null)::equals,
+                    "value is (Gordon, 0 ,null)");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<RecordAfterSchemaUpgrade>>
-                schemaCompatibilityMatcher(FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAfterMigration();
+        public Condition<TypeSerializerSchemaCompatibility<RecordAfterSchemaUpgrade>>
+                schemaCompatibilityCondition(FlinkVersion version) {
+            return TypeSerializerConditions.isCompatibleAfterMigration();
         }
     }
 }

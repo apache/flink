@@ -245,6 +245,22 @@ public class MailboxProcessor implements Closeable {
      * @return true if something was processed.
      */
     @VisibleForTesting
+    public boolean runSingleMailboxLoop() throws Exception {
+        suspended = !mailboxLoopRunning;
+        boolean processed = processMail(mailbox, true);
+        if (isDefaultActionAvailable() && isNextLoopPossible()) {
+            mailboxDefaultAction.runDefaultAction(new MailboxController(this));
+            processed = true;
+        }
+        return processed;
+    }
+
+    /**
+     * Execute a single (as small as possible) step of the mailbox.
+     *
+     * @return true if something was processed.
+     */
+    @VisibleForTesting
     public boolean runMailboxStep() throws Exception {
         suspended = !mailboxLoopRunning;
 

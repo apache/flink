@@ -18,6 +18,8 @@
 package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.operators.MailOptionsImpl;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingRunnable;
@@ -30,6 +32,7 @@ import java.util.concurrent.Future;
  */
 @Internal
 public class Mail {
+    private final MailOptionsImpl mailOptions;
     /** The action to execute. */
     private final ThrowingRunnable<? extends Exception> runnable;
     /**
@@ -50,6 +53,7 @@ public class Mail {
             String descriptionFormat,
             Object... descriptionArgs) {
         this(
+                MailboxExecutor.MailOptions.options(),
                 runnable,
                 priority,
                 StreamTaskActionExecutor.IMMEDIATE,
@@ -58,11 +62,13 @@ public class Mail {
     }
 
     public Mail(
+            MailboxExecutor.MailOptions mailOptions,
             ThrowingRunnable<? extends Exception> runnable,
             int priority,
             StreamTaskActionExecutor actionExecutor,
             String descriptionFormat,
             Object... descriptionArgs) {
+        this.mailOptions = (MailOptionsImpl) mailOptions;
         this.runnable = Preconditions.checkNotNull(runnable);
         this.priority = priority;
         this.descriptionFormat =
@@ -71,8 +77,13 @@ public class Mail {
         this.actionExecutor = actionExecutor;
     }
 
+    public MailboxExecutor.MailOptions getMailOptions() {
+        return mailOptions;
+    }
+
     public int getPriority() {
-        return priority;
+        /** See {@link MailboxExecutor.MailOptions#deferrable()} ()}. */
+        return mailOptions.isDeferrable() ? TaskMailbox.MIN_PRIORITY : priority;
     }
 
     public void tryCancel(boolean mayInterruptIfRunning) {

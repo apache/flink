@@ -76,6 +76,7 @@ import org.junit.rules.TemporaryFolder;
 import javax.annotation.Nullable;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -109,8 +110,8 @@ public class AdaptiveSchedulerITCase extends TestLogger {
     private static Configuration getConfiguration() {
         final Configuration conf = new Configuration();
         conf.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
-        conf.set(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, 1_000L);
-        conf.set(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT, 5_000L);
+        conf.set(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, Duration.ofMillis(1_000L));
+        conf.set(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT, Duration.ofMillis(5_000L));
         return conf;
     }
 

@@ -20,19 +20,24 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyService;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierConsumerAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierFactory;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** {@link TieredStorageConsumerClient} is used to read buffer from tiered store. */
 public class TieredStorageConsumerClient {
@@ -56,10 +61,18 @@ public class TieredStorageConsumerClient {
     public TieredStorageConsumerClient(
             List<TierFactory> tierFactories,
             List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs,
+            List<List<TierShuffleDescriptor>> tierShuffleDescriptors,
             TieredStorageNettyService nettyService) {
         this.tierFactories = tierFactories;
         this.nettyService = nettyService;
-        this.tierConsumerAgents = createTierConsumerAgents(tieredStorageConsumerSpecs);
+        this.tierConsumerAgents =
+                createTierConsumerAgents(tieredStorageConsumerSpecs, tierShuffleDescriptors);
+    }
+
+    public void setup(BufferPool bufferPool) {
+        TieredStorageMemoryManagerImpl memoryManager = new TieredStorageMemoryManagerImpl(0, false);
+        memoryManager.setup(bufferPool, Collections.emptyList());
+        tierConsumerAgents.forEach(tierConsumerAgent -> tierConsumerAgent.setup(memoryManager));
     }
 
     public void start() {
@@ -90,7 +103,8 @@ public class TieredStorageConsumerClient {
     }
 
     public Optional<Buffer> getNextBuffer(
-            TieredStoragePartitionId partitionId, TieredStorageSubpartitionId subpartitionId) {
+            TieredStoragePartitionId partitionId, TieredStorageSubpartitionId subpartitionId)
+            throws IOException {
         Tuple2<TierConsumerAgent, Integer> currentConsumerAgentAndSegmentId =
                 currentConsumerAgentAndSegmentIds
                         .computeIfAbsent(partitionId, ignore -> new HashMap<>())
@@ -148,12 +162,53 @@ public class TieredStorageConsumerClient {
     // --------------------------------------------------------------------------------------------
 
     private List<TierConsumerAgent> createTierConsumerAgents(
-            List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs) {
+            List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs,
+            List<List<TierShuffleDescriptor>> shuffleDescriptors) {
         ArrayList<TierConsumerAgent> tierConsumerAgents = new ArrayList<>();
-        for (TierFactory tierFactory : tierFactories) {
+
+        List<List<TierShuffleDescriptor>> transformedTierShuffleDescriptors =
+                transformTierShuffleDescriptors(shuffleDescriptors);
+        // Each tier only requires one inner list of transformedTierShuffleDescriptors, so the size
+        // of transformedTierShuffleDescriptors and the size of tierFactories are the same.
+        checkState(transformedTierShuffleDescriptors.size() == tierFactories.size());
+        for (int i = 0; i < tierFactories.size(); i++) {
             tierConsumerAgents.add(
-                    tierFactory.createConsumerAgent(tieredStorageConsumerSpecs, nettyService));
+                    tierFactories
+                            .get(i)
+                            .createConsumerAgent(
+                                    tieredStorageConsumerSpecs,
+                                    transformedTierShuffleDescriptors.get(i),
+                                    nettyService));
         }
         return tierConsumerAgents;
+    }
+
+    /**
+     * Before transforming the shuffle descriptors, the number of tier shuffle descriptors is
+     * numPartitions * numTiers (That means shuffleDescriptors.size() is numPartitions, while the
+     * shuffleDescriptors.get(0).size() is numTiers). After transforming, the number of tier shuffle
+     * descriptors is numTiers * numPartitions (That means transformedList.size() is numTiers, while
+     * transformedList.get(0).size() is numPartitions).
+     */
+    private static List<List<TierShuffleDescriptor>> transformTierShuffleDescriptors(
+            List<List<TierShuffleDescriptor>> shuffleDescriptors) {
+        int numTiers = 0;
+        int numPartitions = shuffleDescriptors.size();
+        for (List<TierShuffleDescriptor> tierShuffleDescriptors : shuffleDescriptors) {
+            if (numTiers == 0) {
+                numTiers = tierShuffleDescriptors.size();
+            }
+            checkState(numTiers == tierShuffleDescriptors.size());
+        }
+
+        List<List<TierShuffleDescriptor>> transformedList = new ArrayList<>();
+        for (int i = 0; i < numTiers; i++) {
+            List<TierShuffleDescriptor> innerList = new ArrayList<>();
+            for (int j = 0; j < numPartitions; j++) {
+                innerList.add(shuffleDescriptors.get(j).get(i));
+            }
+            transformedList.add(innerList);
+        }
+        return transformedList;
     }
 }

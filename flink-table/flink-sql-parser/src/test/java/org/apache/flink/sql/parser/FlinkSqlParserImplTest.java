@@ -26,12 +26,15 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParserFixture;
 import org.apache.calcite.sql.parser.SqlParserTest;
+import org.apache.commons.lang3.StringUtils;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -63,6 +66,14 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
         sql("desc catalog a").ok("DESCRIBE CATALOG `A`");
         sql("desc catalog extended a").ok("DESCRIBE CATALOG EXTENDED `A`");
+    }
+
+    @Test
+    void testAlterCatalog() {
+        sql("alter catalog a set ('k1'='v1', 'k2'='v2')")
+                .ok("ALTER CATALOG `A` SET (\n" + "  'k1' = 'v1',\n" + "  'k2' = 'v2'\n" + ")");
+        sql("alter catalog a reset ('k1')").ok("ALTER CATALOG `A` RESET (\n" + "  'k1'\n" + ")");
+        sql("alter catalog a comment 'comment1'").ok("ALTER CATALOG `A` COMMENT 'comment1'");
     }
 
     @Test
@@ -114,15 +125,25 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         sql("use catalog a").ok("USE CATALOG `A`");
     }
 
-    @Test
-    void testCreateCatalog() {
-        sql("create catalog c1\n"
+    @ParameterizedTest
+    @CsvSource({"true,true", "true,false", "false,true", "false,false"})
+    void testCreateCatalog(boolean ifNotExists, boolean comment) {
+        String ifNotExistsClause = ifNotExists ? "if not exists " : "";
+        String commentClause = comment ? "\ncomment 'HELLO' " : " ";
+
+        sql("create catalog "
+                        + ifNotExistsClause
+                        + "c1"
+                        + commentClause
                         + " WITH (\n"
                         + "  'key1'='value1',\n"
                         + "  'key2'='value2'\n"
                         + " )\n")
                 .ok(
-                        "CREATE CATALOG `C1` "
+                        "CREATE CATALOG "
+                                + StringUtils.upperCase(ifNotExistsClause)
+                                + "`C1`"
+                                + StringUtils.upperCase(commentClause)
                                 + "WITH (\n"
                                 + "  'key1' = 'value1',\n"
                                 + "  'key2' = 'value2'\n"
@@ -389,6 +410,12 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testShowCreateModel() {
+        sql("show create model m1").ok("SHOW CREATE MODEL `M1`");
+        sql("show create model catalog1.db1.m1").ok("SHOW CREATE MODEL `CATALOG1`.`DB1`.`M1`");
+    }
+
+    @Test
     void testShowCreateTable() {
         sql("show create table tbl").ok("SHOW CREATE TABLE `TBL`");
         sql("show create table catalog1.db1.tbl").ok("SHOW CREATE TABLE `CATALOG1`.`DB1`.`TBL`");
@@ -410,6 +437,15 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         sql("desc tbl").ok("DESCRIBE `TBL`");
         sql("desc catalog1.db1.tbl").ok("DESCRIBE `CATALOG1`.`DB1`.`TBL`");
         sql("desc extended db1").ok("DESCRIBE EXTENDED `DB1`");
+    }
+
+    @Test
+    void testDescribeModel() {
+        sql("describe model mdl").ok("DESCRIBE MODEL `MDL`");
+        sql("describe model catalog1.db1.mdl").ok("DESCRIBE MODEL `CATALOG1`.`DB1`.`MDL`");
+
+        sql("desc model mdl").ok("DESCRIBE MODEL `MDL`");
+        sql("desc model catalog1.db1.mdl").ok("DESCRIBE MODEL `CATALOG1`.`DB1`.`MDL`");
     }
 
     @Test
@@ -588,6 +624,59 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "^watermark^ for f1 as now()\n"
                         + ")")
                 .fails("Multiple WATERMARK statements is not supported yet.");
+    }
+
+    @Test
+    void testAlterTableAddDistribution() {
+        sql("alter table t1 add DISTRIBUTION BY HASH(a) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `T1` ADD DISTRIBUTION BY HASH(`A`) INTO 6 BUCKETS");
+
+        sql("alter table t1 add DISTRIBUTION BY HASH(a, h) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `T1` ADD DISTRIBUTION BY HASH(`A`, `H`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 add DISTRIBUTION BY RANGE(a, h) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `TBL1` ADD DISTRIBUTION BY RANGE(`A`, `H`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 add DISTRIBUTION BY ^RANDOM^(a, h) INTO 6 BUCKETS")
+                .fails("(?s).*Encountered \"RANDOM\" at line 1, column 38.*");
+
+        sql("alter table tbl1 add DISTRIBUTION BY (a, h) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `TBL1` ADD DISTRIBUTION BY (`A`, `H`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 add DISTRIBUTION BY RANGE(a, h)")
+                .ok("ALTER TABLE `TBL1` ADD DISTRIBUTION BY RANGE(`A`, `H`)");
+
+        sql("alter table tbl1 add DISTRIBUTION BY (a, h)")
+                .ok("ALTER TABLE `TBL1` ADD DISTRIBUTION BY (`A`, `H`)");
+    }
+
+    @Test
+    void testAlterTableModifyDistribution() {
+        sql("alter table t1 modify DISTRIBUTION BY HASH(a) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `T1` MODIFY DISTRIBUTION BY HASH(`A`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY HASH(a, h) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `TBL1` MODIFY DISTRIBUTION BY HASH(`A`, `H`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY RANGE(a, h) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `TBL1` MODIFY DISTRIBUTION BY RANGE(`A`, `H`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY ^RANDOM^(a, h) INTO 6 BUCKETS")
+                .fails("(?s).*Encountered \"RANDOM\" at line 1, column 41.*");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY (a, h) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `TBL1` MODIFY DISTRIBUTION BY (`A`, `H`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY RANGE(a, h)")
+                .ok("ALTER TABLE `TBL1` MODIFY DISTRIBUTION BY RANGE(`A`, `H`)");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY (a, h)")
+                .ok("ALTER TABLE `TBL1` MODIFY DISTRIBUTION BY (`A`, `H`)");
+    }
+
+    @Test
+    void testAlterTableDropDistribution() {
+        sql("alter table t1 drop DISTRIBUTION").ok("ALTER TABLE `T1` DROP DISTRIBUTION");
     }
 
     @Test
@@ -948,7 +1037,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     void testCreateTableWithDistribution() {
-        final String sql = buildDistributionInput("DISTRIBUTED BY HASH(a, h) INTO 6 BUCKETS\n");
+        final String sql = buildDistributionInput("DISTRIBUTED BY HASH(a, h) INTO 6 BUCKETS");
         final String expected =
                 buildDistributionOutput("DISTRIBUTED BY HASH(`A`, `H`) INTO 6 BUCKETS\n");
         sql(sql).ok(expected);
@@ -1041,7 +1130,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "  h varchar, \n"
                         + "  PRIMARY KEY (a, b)\n"
                         + ")\n"
-                        + "DISTRIBUTED BY HASH(a, h) INTO 6 BUCKETS\n"
+                        + "DISTRIBUTED BY HASH(a, h) INTO 6 BUCKETS"
                         + "  with (\n"
                         + "    'connector' = 'kafka', \n"
                         + "    'kafka.topic' = 'log.test'\n"
@@ -2956,6 +3045,12 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testDescribeJob() {
+        sql("DESCRIBE JOB 'myjob'").ok("DESCRIBE JOB 'myjob'");
+        sql("DESC JOB 'myjob'").ok("DESCRIBE JOB 'myjob'");
+    }
+
+    @Test
     void testTruncateTable() {
         sql("truncate table t1").ok("TRUNCATE TABLE `T1`");
     }
@@ -2988,6 +3083,196 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 description.appendText(validatedSql);
             }
         };
+    }
+
+    @Test
+    void testShowModels() {
+        sql("show models").ok("SHOW MODELS");
+        sql("show models from db1").ok("SHOW MODELS FROM `DB1`");
+        sql("show models from catalog1.db1").ok("SHOW MODELS FROM `CATALOG1`.`DB1`");
+        sql("show models in db1").ok("SHOW MODELS IN `DB1`");
+        sql("show models in catalog1.db1").ok("SHOW MODELS IN `CATALOG1`.`DB1`");
+    }
+
+    @Test
+    void testDropModel() {
+        sql("drop model m1").ok("DROP MODEL `M1`");
+        sql("drop model db1.m1").ok("DROP MODEL `DB1`.`M1`");
+        sql("drop model catalog1.db1.m1").ok("DROP MODEL `CATALOG1`.`DB1`.`M1`");
+    }
+
+    @Test
+    void testDropModelIfExists() {
+        sql("drop model if exists catalog1.db1.m1")
+                .ok("DROP MODEL IF EXISTS `CATALOG1`.`DB1`.`M1`");
+    }
+
+    @Test
+    void testAlterModel() {
+        final String sql = "alter model m1 set ('key1' = 'value1','key2' = 'value2')";
+        final String expected =
+                "ALTER MODEL `M1` SET (\n"
+                        + "  'key1' = 'value1',\n"
+                        + "  'key2' = 'value2'\n"
+                        + ")";
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testAlterModelIfExists() {
+        final String sql = "alter model if exists m1 set ('key1' = 'value1','key2' = 'value2')";
+        final String expected =
+                "ALTER MODEL IF EXISTS `M1` SET (\n"
+                        + "  'key1' = 'value1',\n"
+                        + "  'key2' = 'value2'\n"
+                        + ")";
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testAlterModelRename() {
+        final String sql = "alter model m1 rename to m2";
+        final String expected = "ALTER MODEL `M1` RENAME TO `M2`";
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testAlterModelRenameIfExists() {
+        final String sql = "alter model if exists m1 rename to m2";
+        final String expected = "ALTER MODEL IF EXISTS `M1` RENAME TO `M2`";
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testCreateModel() {
+        sql("create model m1\n"
+                        + " INPUT(col1 INT, col2 STRING)\n"
+                        + " OUTPUT(label DOUBLE)\n"
+                        + " COMMENT 'model_comment'\n"
+                        + " WITH (\n"
+                        + "  'key1'='value1',\n"
+                        + "  'key2'='value2'\n"
+                        + " )\n")
+                .ok(
+                        "CREATE MODEL `M1` INPUT (\n"
+                                + "  `COL1` INTEGER,\n"
+                                + "  `COL2` STRING\n"
+                                + ") OUTPUT (\n"
+                                + "  `LABEL` DOUBLE\n"
+                                + ")\n"
+                                + "COMMENT 'model_comment' WITH (\n"
+                                + "  'key1' = 'value1',\n"
+                                + "  'key2' = 'value2'\n"
+                                + ")");
+    }
+
+    @Test
+    void testCreateModelIfNotExists() {
+        sql("create model if not exists m1\n"
+                        + " INPUT(col1 INT, col2 STRING)\n"
+                        + " OUTPUT(label DOUBLE)\n"
+                        + " COMMENT 'model_comment'\n"
+                        + " WITH (\n"
+                        + "  'key1'='value1',\n"
+                        + "  'key2'='value2'\n"
+                        + " )\n")
+                .ok(
+                        "CREATE MODEL IF NOT EXISTS `M1` INPUT (\n"
+                                + "  `COL1` INTEGER,\n"
+                                + "  `COL2` STRING\n"
+                                + ") OUTPUT (\n"
+                                + "  `LABEL` DOUBLE\n"
+                                + ")\n"
+                                + "COMMENT 'model_comment' WITH (\n"
+                                + "  'key1' = 'value1',\n"
+                                + "  'key2' = 'value2'\n"
+                                + ")");
+    }
+
+    @Test
+    void testCreateModelAs() {
+        sql("create model m1\n"
+                        + " WITH (\n"
+                        + "  'key1'='value1',\n"
+                        + "  'key2'='value2'\n"
+                        + " ) as select f1, f2 from t1\n")
+                .ok(
+                        "CREATE MODEL `M1` WITH (\n"
+                                + "  'key1' = 'value1',\n"
+                                + "  'key2' = 'value2'\n"
+                                + ")\n"
+                                + "AS\n"
+                                + "SELECT `F1`, `F2`\n"
+                                + "FROM `T1`");
+    }
+
+    @Test
+    void testCreateModelAsIfNotExists() {
+        sql("create model if not exists m1\n"
+                        + " WITH (\n"
+                        + "  'key1'='value1',\n"
+                        + "  'key2'='value2'\n"
+                        + " ) as select f1, f2 from t1\n")
+                .ok(
+                        "CREATE MODEL IF NOT EXISTS `M1` WITH (\n"
+                                + "  'key1' = 'value1',\n"
+                                + "  'key2' = 'value2'\n"
+                                + ")\n"
+                                + "AS\n"
+                                + "SELECT `F1`, `F2`\n"
+                                + "FROM `T1`");
+    }
+
+    @Test
+    void testCreateModelAsWithInput() {
+        sql("create model if not exists m1\n"
+                        + " INPUT(col1 INT, col2 STRING)\n"
+                        + " OUTPUT(label DOUBLE)\n"
+                        + " WITH (\n"
+                        + "  'key1'='value1',\n"
+                        + "  'key2'='value2'\n"
+                        + " ) as select f1, f2 from t1\n")
+                .ok(
+                        "CREATE MODEL IF NOT EXISTS `M1` INPUT (\n"
+                                + "  `COL1` INTEGER,\n"
+                                + "  `COL2` STRING\n"
+                                + ") OUTPUT (\n"
+                                + "  `LABEL` DOUBLE\n"
+                                + ") WITH (\n"
+                                + "  'key1' = 'value1',\n"
+                                + "  'key2' = 'value2'\n"
+                                + ")\n"
+                                + "AS\n"
+                                + "SELECT `F1`, `F2`\n"
+                                + "FROM `T1`")
+                .node(
+                        new ValidationMatcher()
+                                .fails(
+                                        "CREATE MODEL AS SELECT syntax does not support to specify explicit input columns."));
+    }
+
+    @Test
+    void testCreateModelAsWithOutput() {
+        sql("create model if not exists m1\n"
+                        + " OUTPUT(label DOUBLE)\n"
+                        + " WITH (\n"
+                        + "  'key1'='value1',\n"
+                        + "  'key2'='value2'\n"
+                        + " ) as select f1, f2 from t1\n")
+                .ok(
+                        "CREATE MODEL IF NOT EXISTS `M1` OUTPUT (\n"
+                                + "  `LABEL` DOUBLE\n"
+                                + ") WITH (\n"
+                                + "  'key1' = 'value1',\n"
+                                + "  'key2' = 'value2'\n"
+                                + ")\n"
+                                + "AS\n"
+                                + "SELECT `F1`, `F2`\n"
+                                + "FROM `T1`")
+                .node(
+                        new ValidationMatcher()
+                                .fails(
+                                        "CREATE MODEL AS SELECT syntax does not support to specify explicit output columns."));
     }
 
     /** Matcher that invokes the #validate() of the {@link ExtendedSqlNode} instance. * */

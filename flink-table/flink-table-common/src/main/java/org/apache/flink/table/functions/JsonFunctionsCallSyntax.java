@@ -99,16 +99,17 @@ class JsonFunctionsCallSyntax {
     static final SqlCallSyntax JSON_QUERY =
             (sqlName, operands) -> {
                 final JsonQueryWrapper wrapper =
-                        getSymbolLiteral(operands.get(2), JsonQueryWrapper.class);
+                        getSymbolLiteral(operands.get(3), JsonQueryWrapper.class);
                 final JsonQueryOnEmptyOrError onEmpty =
-                        getSymbolLiteral(operands.get(3), JsonQueryOnEmptyOrError.class);
-                final JsonQueryOnEmptyOrError onError =
                         getSymbolLiteral(operands.get(4), JsonQueryOnEmptyOrError.class);
+                final JsonQueryOnEmptyOrError onError =
+                        getSymbolLiteral(operands.get(5), JsonQueryOnEmptyOrError.class);
 
                 return String.format(
-                        "JSON_QUERY(%s, %s %s WRAPPER %s ON EMPTY %s ON ERROR)",
+                        "JSON_QUERY(%s, %s RETURNING %s %s WRAPPER %s ON EMPTY %s ON ERROR)",
                         operands.get(0).asSerializableString(),
                         operands.get(1).asSerializableString(),
+                        operands.get(2).asSerializableString(),
                         toString(wrapper),
                         onEmpty.toString().replaceAll("_", " "),
                         onError.toString().replaceAll("_", " "));

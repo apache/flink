@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.plan.stream.table
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
-import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, StreamTableTestUtil, TableTestBase}
+import org.apache.flink.table.api.config.{AggregatePhaseStrategy, ExecutionConfigOptions, OptimizerConfigOptions}
+import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
 import org.junit.jupiter.api.{BeforeEach, Test}
 
@@ -41,7 +41,7 @@ class TwoStageAggregateTest extends TableTestBase {
       .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, Long.box(3))
       .set(
         OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
-        AggregatePhaseStrategy.TWO_PHASE.toString)
+        AggregatePhaseStrategy.TWO_PHASE)
   }
 
   @Test

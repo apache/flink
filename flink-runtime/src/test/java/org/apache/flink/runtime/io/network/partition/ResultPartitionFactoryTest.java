@@ -17,6 +17,8 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
@@ -211,7 +213,7 @@ class ResultPartitionFactoryTest {
                         1,
                         SEGMENT_SIZE,
                         false,
-                        "LZ4",
+                        CompressionCodec.LZ4,
                         Integer.MAX_VALUE,
                         10,
                         sortShuffleMinParallelism,
@@ -219,6 +221,7 @@ class ResultPartitionFactoryTest {
                         0,
                         256,
                         Long.MAX_VALUE,
+                        false,
                         tieredStorage);
 
         final ResultPartitionDeploymentDescriptor descriptor =
@@ -241,7 +244,7 @@ class ResultPartitionFactoryTest {
 
     private Optional<TieredResultPartitionFactory> createTieredResultPartitionFactory() {
         TieredStorageConfiguration tieredStorageConfiguration =
-                TieredStorageConfiguration.builder(null).build();
+                TieredStorageConfiguration.fromConfiguration(new Configuration());
         TieredStorageResourceRegistry tieredStorageResourceRegistry =
                 new TieredStorageResourceRegistry();
         TieredStorageNettyServiceImpl tieredStorageNettyService =

@@ -312,6 +312,9 @@ public class SingleInputGate extends IndexedInputGate {
 
         BufferPool bufferPool = bufferPoolFactory.get();
         setBufferPool(bufferPool);
+        if (tieredStorageConsumerClient != null) {
+            tieredStorageConsumerClient.setup(bufferPool);
+        }
 
         setupChannels();
     }
@@ -1301,39 +1304,22 @@ public class SingleInputGate extends IndexedInputGate {
     /** The default implementation of {@link AvailabilityNotifier}. */
     private class AvailabilityNotifierImpl implements AvailabilityNotifier {
 
-        private final Map<TieredStoragePartitionId, Map<TieredStorageSubpartitionId, Integer>>
-                subpartitionIdMap;
-
-        private final Map<TieredStoragePartitionId, Map<TieredStorageInputChannelId, Integer>>
-                channelIdMap;
-
-        private AvailabilityNotifierImpl() {
-            this.subpartitionIdMap = new HashMap<>();
-            this.channelIdMap = new HashMap<>();
-            for (int index = 0; index < checkNotNull(tieredStorageConsumerSpecs).size(); index++) {
-                TieredStorageConsumerSpec spec = tieredStorageConsumerSpecs.get(index);
-                for (int subpartitionId : spec.getSubpartitionIds().values()) {
-                    subpartitionIdMap
-                            .computeIfAbsent(spec.getPartitionId(), ignore -> new HashMap<>())
-                            .put(new TieredStorageSubpartitionId(subpartitionId), index);
-                }
-                channelIdMap
-                        .computeIfAbsent(spec.getPartitionId(), ignore -> new HashMap<>())
-                        .put(spec.getInputChannelId(), index);
-            }
-        }
-
-        @Override
-        public void notifyAvailable(
-                TieredStoragePartitionId partitionId, TieredStorageSubpartitionId subpartitionId) {
-            queueChannel(
-                    channels[subpartitionIdMap.get(partitionId).get(subpartitionId)], null, false);
-        }
+        private AvailabilityNotifierImpl() {}
 
         @Override
         public void notifyAvailable(
                 TieredStoragePartitionId partitionId, TieredStorageInputChannelId inputChannelId) {
-            queueChannel(channels[channelIdMap.get(partitionId).get(inputChannelId)], null, false);
+            Map<InputChannelInfo, InputChannel> channels =
+                    inputChannels.get(partitionId.getPartitionID().getPartitionId());
+            if (channels == null) {
+                return;
+            }
+            InputChannelInfo inputChannelInfo =
+                    new InputChannelInfo(gateIndex, inputChannelId.getInputChannelId());
+            InputChannel inputChannel = channels.get(inputChannelInfo);
+            if (inputChannel != null) {
+                queueChannel(inputChannel, null, false);
+            }
         }
     }
 

@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.datastream.api.common.Collector;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
-import org.apache.flink.datastream.api.context.RuntimeContext;
+import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
@@ -30,7 +30,7 @@ import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -44,7 +44,9 @@ class KeyedProcessOperatorTest {
                         new OneInputStreamProcessFunction<Integer, Integer>() {
                             @Override
                             public void processRecord(
-                                    Integer record, Collector<Integer> output, RuntimeContext ctx) {
+                                    Integer record,
+                                    Collector<Integer> output,
+                                    PartitionedContext ctx) {
                                 output.collect(record + 1);
                             }
                         });
@@ -68,19 +70,31 @@ class KeyedProcessOperatorTest {
 
     @Test
     void testEndInput() throws Exception {
-        CompletableFuture<Void> future = new CompletableFuture<>();
+        AtomicInteger counter = new AtomicInteger();
         KeyedProcessOperator<Integer, Integer, Integer> processOperator =
                 new KeyedProcessOperator<>(
                         new OneInputStreamProcessFunction<Integer, Integer>() {
                             @Override
                             public void processRecord(
-                                    Integer record, Collector<Integer> output, RuntimeContext ctx) {
+                                    Integer record,
+                                    Collector<Integer> output,
+                                    PartitionedContext ctx) {
                                 // do nothing.
                             }
 
                             @Override
                             public void endInput(NonPartitionedContext<Integer> ctx) {
-                                future.complete(null);
+                                try {
+                                    ctx.applyToAllPartitions(
+                                            (out, context) -> {
+                                                counter.incrementAndGet();
+                                                Integer currentKey =
+                                                        context.getStateManager().getCurrentKey();
+                                                out.collect(currentKey);
+                                            });
+                                } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                }
                             }
                         });
 
@@ -90,8 +104,15 @@ class KeyedProcessOperatorTest {
                         (KeySelector<Integer, Integer>) value -> value,
                         Types.INT)) {
             testHarness.open();
+            testHarness.processElement(new StreamRecord<>(1)); // key is 1
+            testHarness.processElement(new StreamRecord<>(2)); // key is 2
+            testHarness.processElement(new StreamRecord<>(3)); // key is 3
             testHarness.endInput();
-            assertThat(future).isCompleted();
+            assertThat(counter).hasValue(3);
+            Collection<StreamRecord<Integer>> recordOutput = testHarness.getRecordOutput();
+            assertThat(recordOutput)
+                    .containsExactly(
+                            new StreamRecord<>(1), new StreamRecord<>(2), new StreamRecord<>(3));
         }
     }
 
@@ -102,7 +123,9 @@ class KeyedProcessOperatorTest {
                         new OneInputStreamProcessFunction<Integer, Integer>() {
                             @Override
                             public void processRecord(
-                                    Integer record, Collector<Integer> output, RuntimeContext ctx) {
+                                    Integer record,
+                                    Collector<Integer> output,
+                                    PartitionedContext ctx) {
                                 // forward the record to check input key.
                                 output.collect(record);
                             }

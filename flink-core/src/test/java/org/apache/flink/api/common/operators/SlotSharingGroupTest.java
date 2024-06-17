@@ -45,10 +45,10 @@ class SlotSharingGroupTest {
                         .build();
 
         assertThat(slotSharingGroup.getName()).isEqualTo(name);
-        assertThat(slotSharingGroup.getCpuCores()).contains(1.0);
-        assertThat(slotSharingGroup.getTaskHeapMemory()).contains(heap);
-        assertThat(slotSharingGroup.getTaskOffHeapMemory()).contains(offHeap);
-        assertThat(slotSharingGroup.getManagedMemory()).contains(managed);
+        assertThat(slotSharingGroup.getCpuCores()).hasValue(1.0);
+        assertThat(slotSharingGroup.getTaskHeapMemory()).hasValue(heap);
+        assertThat(slotSharingGroup.getTaskOffHeapMemory()).hasValue(offHeap);
+        assertThat(slotSharingGroup.getManagedMemory()).hasValue(managed);
         assertThat(slotSharingGroup.getExternalResources())
                 .isEqualTo(Collections.singletonMap("gpu", 1.0));
     }

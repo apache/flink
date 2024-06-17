@@ -190,12 +190,21 @@ public class ZooKeeperUtils {
                             + "'.");
         }
 
-        int sessionTimeout = configuration.get(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT);
+        int sessionTimeout =
+                Math.toIntExact(
+                        configuration
+                                .get(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT)
+                                .toMillis());
 
         int connectionTimeout =
-                configuration.get(HighAvailabilityOptions.ZOOKEEPER_CONNECTION_TIMEOUT);
+                Math.toIntExact(
+                        configuration
+                                .get(HighAvailabilityOptions.ZOOKEEPER_CONNECTION_TIMEOUT)
+                                .toMillis());
 
-        int retryWait = configuration.get(HighAvailabilityOptions.ZOOKEEPER_RETRY_WAIT);
+        int retryWait =
+                Math.toIntExact(
+                        configuration.get(HighAvailabilityOptions.ZOOKEEPER_RETRY_WAIT).toMillis());
 
         int maxRetryAttempts =
                 configuration.get(HighAvailabilityOptions.ZOOKEEPER_MAX_RETRY_ATTEMPTS);

@@ -87,7 +87,7 @@ class AdaptiveBatchSchedulerTest {
     private static final long SUBPARTITION_BYTES = 100L;
 
     @RegisterExtension
-    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
             TestingUtils.defaultExecutorExtension();
 
     private ComponentMainThreadExecutor mainThreadExecutor;
@@ -463,7 +463,7 @@ class AdaptiveBatchSchedulerTest {
                 taskExecutionState =
                         createFailedTaskExecutionState(execution.getAttemptId(), throwable);
             } else {
-                throw new UnsupportedOperationException("Unsupported state " + state);
+                taskExecutionState = new TaskExecutionState(execution.getAttemptId(), state);
             }
             scheduler.updateTaskExecutionState(taskExecutionState);
         }

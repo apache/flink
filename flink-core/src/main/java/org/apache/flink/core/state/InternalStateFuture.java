@@ -20,8 +20,7 @@ package org.apache.flink.core.state;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.v2.StateFuture;
-
-import java.util.function.Consumer;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 /**
  * The Internal definition of {@link StateFuture}, add some method that will be used by framework.
@@ -33,10 +32,18 @@ public interface InternalStateFuture<T> extends StateFuture<T> {
     void complete(T result);
 
     /**
+     * Fail this future and pass the given exception to the runtime.
+     *
+     * @param message the description of this exception
+     * @param ex the exception
+     */
+    void completeExceptionally(String message, Throwable ex);
+
+    /**
      * Accept the action in the same thread with the one of complete (or current thread if it has
      * been completed).
      *
      * @param action the action to perform.
      */
-    void thenSyncAccept(Consumer<? super T> action);
+    void thenSyncAccept(ThrowingConsumer<? super T, ? extends Exception> action);
 }

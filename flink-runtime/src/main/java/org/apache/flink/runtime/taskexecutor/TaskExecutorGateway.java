@@ -318,13 +318,13 @@ public interface TaskExecutorGateway
             ResourceManagerId resourceManagerId, byte[] tokens);
 
     /**
-     * Get all partitions and their metrics located on this task executor, the metrics mainly
-     * includes the meta information of partition(partition bytes, etc).
+     * Get and retain all partitions and their metrics located on this task executor, the metrics
+     * mainly includes the meta information of partition(partition bytes, etc).
      *
      * @param jobId ID of the target job
      * @return All partitions belong to the target job and their metrics
      */
-    default CompletableFuture<Collection<PartitionWithMetrics>> getPartitionWithMetrics(
+    default CompletableFuture<Collection<PartitionWithMetrics>> getAndRetainPartitionWithMetrics(
             JobID jobId) {
         throw new UnsupportedOperationException();
     }

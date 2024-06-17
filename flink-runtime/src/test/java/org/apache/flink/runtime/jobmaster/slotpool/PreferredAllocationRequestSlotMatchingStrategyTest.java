@@ -35,14 +35,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link PreferredAllocationRequestSlotMatchingStrategy}. */
 @ExtendWith(TestLoggerExtension.class)
-public class PreferredAllocationRequestSlotMatchingStrategyTest {
+class PreferredAllocationRequestSlotMatchingStrategyTest {
 
     /**
      * This test ensures that new slots are matched against the preferred allocationIds of the
      * pending requests.
      */
     @Test
-    public void testNewSlotsAreMatchedAgainstPreferredAllocationIDs() throws Exception {
+    void testNewSlotsAreMatchedAgainstPreferredAllocationIDs() {
         final PreferredAllocationRequestSlotMatchingStrategy strategy =
                 PreferredAllocationRequestSlotMatchingStrategy.INSTANCE;
 

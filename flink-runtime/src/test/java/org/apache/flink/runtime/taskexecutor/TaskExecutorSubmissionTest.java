@@ -41,6 +41,7 @@ import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables;
@@ -381,7 +382,7 @@ class TaskExecutorSubmissionTest {
             taskFinishedFuture.get();
 
             Collection<PartitionWithMetrics> partitionWithMetricsCollection =
-                    tmGateway.getPartitionWithMetrics(jobId).get();
+                    tmGateway.getAndRetainPartitionWithMetrics(jobId).get();
             assertThat(partitionWithMetricsCollection.size()).isOne();
             PartitionWithMetrics partitionWithMetrics =
                     partitionWithMetricsCollection.iterator().next();
@@ -736,6 +737,7 @@ class TaskExecutorSubmissionTest {
         JobInformation jobInformation =
                 new JobInformation(
                         jobId,
+                        JobType.STREAMING,
                         jobName,
                         serializedExecutionConfig,
                         jobConfiguration,

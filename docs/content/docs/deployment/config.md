@@ -161,8 +161,8 @@ These values are configured as memory sizes, for example *1536m* or *2g*.
 You can configure checkpointing directly in code within your Flink job or application. Putting these values here in the configuration defines them as defaults in case the application does not configure anything.
 
   - `state.backend.type`: The state backend to use. This defines the data structure mechanism for taking snapshots. Common values are `hashmap` or `rocksdb`.
-  - `state.checkpoints.dir`: The directory to write checkpoints to. This takes a path URI like *s3://mybucket/flink-app/checkpoints* or *hdfs://namenode:port/flink/checkpoints*.
-  - `state.savepoints.dir`: The default directory for savepoints. Takes a path URI, similar to `state.checkpoints.dir`.
+  - `execution.checkpointing.dir`: The directory to write checkpoints to. This takes a path URI like *s3://mybucket/flink-app/checkpoints* or *hdfs://namenode:port/flink/checkpoints*.
+  - `execution.checkpointing.savepoint-dir`: The default directory for savepoints. Takes a path URI, similar to `execution.checkpointing.dir`.
   - `execution.checkpointing.interval`: The base interval setting. To enable checkpointing, you need to set this value larger than 0.
 
 **Web UI**
@@ -245,7 +245,13 @@ These options control the basic setup of state backends and checkpointing behavi
 The options are only relevant for jobs/applications executing in a continuous streaming fashion.
 Jobs/applications executing in a batch fashion do not use state backends and checkpoints, but different internal data structures that are optimized for batch processing.
 
+**State Backends**
+
 {{< generated/common_state_backends_section >}}
+
+**Checkpoints**
+
+{{< generated/common_checkpointing_section >}}
 
 ### High Availability
 
@@ -429,7 +435,7 @@ Flink is capable to upload and fetch local user artifacts in Application Mode. A
 
 ### Checkpointing
 
-{{< generated/execution_checkpointing_configuration >}}
+{{< generated/checkpointing_configuration >}}
 
 ### Recovery
 
@@ -456,9 +462,9 @@ Please refer to the [Debugging Classloading Docs]({{< ref "docs/ops/debugging/de
 
 {{< generated/expert_debugging_and_tuning_section >}}
 
-### Advanced State Backends Options
+### Advanced Checkpointing Options
 
-{{< generated/expert_state_backends_section >}}
+{{< generated/expert_checkpointing_section >}}
 
 ### State Latency Tracking Options
 

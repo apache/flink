@@ -22,6 +22,7 @@ import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
+import org.apache.flink.api.connector.source.SupportsBatchSnapshot;
 
 import javax.annotation.Nullable;
 
@@ -38,7 +39,8 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 
 /** A mock {@link SplitEnumerator} for unit tests. */
-public class MockSplitEnumerator implements SplitEnumerator<MockSourceSplit, Set<MockSourceSplit>> {
+public class MockSplitEnumerator
+        implements SplitEnumerator<MockSourceSplit, Set<MockSourceSplit>>, SupportsBatchSnapshot {
     private final SortedSet<MockSourceSplit> unassignedSplits;
     private final SplitEnumeratorContext<MockSourceSplit> enumContext;
     private final List<SourceEvent> handledSourceEvent;

@@ -188,4 +188,8 @@ public class OneInputTransformation<IN, OUT> extends PhysicalTransformation<OUT>
     public boolean isOutputOnlyAfterEndOfStream() {
         return operatorFactory.getOperatorAttributes().isOutputOnlyAfterEndOfStream();
     }
+
+    public boolean isInternalSorterSupported() {
+        return operatorFactory.getOperatorAttributes().isInternalSorterSupported();
+    }
 }

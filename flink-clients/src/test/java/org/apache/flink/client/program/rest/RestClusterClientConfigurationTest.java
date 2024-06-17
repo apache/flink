@@ -24,6 +24,8 @@ import org.apache.flink.configuration.RestOptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link RestClusterClientConfiguration}. */
@@ -34,9 +36,9 @@ class RestClusterClientConfigurationTest {
     @BeforeEach
     void setUp() throws Exception {
         final Configuration config = new Configuration();
-        config.set(RestOptions.AWAIT_LEADER_TIMEOUT, 1L);
+        config.set(RestOptions.AWAIT_LEADER_TIMEOUT, Duration.ofMillis(1L));
         config.set(RestOptions.RETRY_MAX_ATTEMPTS, 2);
-        config.set(RestOptions.RETRY_DELAY, 3L);
+        config.set(RestOptions.RETRY_DELAY, Duration.ofMillis(3L));
         restClusterClientConfiguration = RestClusterClientConfiguration.fromConfiguration(config);
     }
 

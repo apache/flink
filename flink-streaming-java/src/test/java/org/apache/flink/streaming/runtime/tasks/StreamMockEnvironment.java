@@ -43,6 +43,7 @@ import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.RecordOrEventCollectingResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
@@ -54,6 +55,7 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
@@ -138,6 +140,8 @@ public class StreamMockEnvironment implements Environment {
             UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
 
     private CheckpointResponder checkpointResponder = NoOpCheckpointResponder.INSTANCE;
+
+    private CheckpointStorageAccess checkpointStorageAccess;
 
     public StreamMockEnvironment(
             Configuration jobConfig,
@@ -280,6 +284,11 @@ public class StreamMockEnvironment implements Environment {
     @Override
     public JobID getJobID() {
         return this.jobInfo.getJobId();
+    }
+
+    @Override
+    public JobType getJobType() {
+        return JobType.STREAMING;
     }
 
     @Override
@@ -437,5 +446,13 @@ public class StreamMockEnvironment implements Environment {
     @Override
     public JobInfo getJobInfo() {
         return jobInfo;
+    }
+
+    public void setCheckpointStorageAccess(CheckpointStorageAccess checkpointStorageAccess) {
+        this.checkpointStorageAccess = checkpointStorageAccess;
+    }
+
+    public CheckpointStorageAccess getCheckpointStorageAccess() {
+        return checkpointStorageAccess;
     }
 }

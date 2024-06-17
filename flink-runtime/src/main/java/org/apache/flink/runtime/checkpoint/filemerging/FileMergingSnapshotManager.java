@@ -18,20 +18,25 @@
 package org.apache.flink.runtime.checkpoint.filemerging;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
+import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.filemerging.DirectoryStreamStateHandle;
+import org.apache.flink.runtime.state.filemerging.SegmentFileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileMergingCheckpointStateOutputStream;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageAccess;
 
 import java.io.Closeable;
 import java.util.Collection;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Stream;
 
 /**
  * FileMergingSnapshotManager provides an interface to manage files and meta information for
@@ -98,6 +103,13 @@ public interface FileMergingSnapshotManager extends Closeable {
     void registerSubtaskForSharedStates(SubtaskKey subtaskKey);
 
     /**
+     * Unregister a subtask.
+     *
+     * @param subtaskKey the subtask key identifying a subtask.
+     */
+    void unregisterSubtask(SubtaskKey subtaskKey);
+
+    /**
      * Create a new {@link FileMergingCheckpointStateOutputStream}. According to the file merging
      * strategy, the streams returned by multiple calls to this function may share the same
      * underlying physical file, and each stream writes to a segment of the physical file.
@@ -160,6 +172,14 @@ public interface FileMergingSnapshotManager extends Closeable {
     void notifyCheckpointSubsumed(SubtaskKey subtaskKey, long checkpointId) throws Exception;
 
     /**
+     * Check whether previous state handles could further be reused considering the space
+     * amplification.
+     *
+     * @param stateHandle the handle to be reused.
+     */
+    boolean couldReusePreviousStateHandle(StreamStateHandle stateHandle);
+
+    /**
      * A callback method which is called when previous state handles are reused by following
      * checkpoint(s).
      *
@@ -170,10 +190,21 @@ public interface FileMergingSnapshotManager extends Closeable {
             long checkpointId, Collection<? extends StreamStateHandle> stateHandles);
 
     /**
+     * Restore and re-register the SegmentFileStateHandles into FileMergingSnapshotManager.
+     *
+     * @param checkpointId the restored checkpoint id.
+     * @param subtaskKey the subtask key identifying the subtask.
+     * @param stateHandles the restored segment file handles.
+     */
+    void restoreStateHandles(
+            long checkpointId, SubtaskKey subtaskKey, Stream<SegmentFileStateHandle> stateHandles);
+
+    /**
      * A key identifies a subtask. A subtask can be identified by the operator id, subtask index and
      * the parallelism. Note that this key should be consistent across job attempts.
      */
     final class SubtaskKey {
+        final String jobIDString;
         final String operatorIDString;
         final int subtaskIndex;
         final int parallelism;
@@ -184,19 +215,23 @@ public interface FileMergingSnapshotManager extends Closeable {
          */
         final int hashCode;
 
-        public SubtaskKey(OperatorID operatorID, TaskInfo taskInfo) {
+        public SubtaskKey(JobID jobID, OperatorID operatorID, TaskInfo taskInfo) {
             this(
+                    jobID.toHexString(),
                     operatorID.toHexString(),
                     taskInfo.getIndexOfThisSubtask(),
                     taskInfo.getNumberOfParallelSubtasks());
         }
 
         @VisibleForTesting
-        public SubtaskKey(String operatorIDString, int subtaskIndex, int parallelism) {
+        public SubtaskKey(
+                String jobIDString, String operatorIDString, int subtaskIndex, int parallelism) {
+            this.jobIDString = jobIDString;
             this.operatorIDString = operatorIDString;
             this.subtaskIndex = subtaskIndex;
             this.parallelism = parallelism;
-            int hash = operatorIDString.hashCode();
+            int hash = jobIDString.hashCode();
+            hash = 31 * hash + operatorIDString.hashCode();
             hash = 31 * hash + subtaskIndex;
             hash = 31 * hash + parallelism;
             this.hashCode = hash;
@@ -204,6 +239,7 @@ public interface FileMergingSnapshotManager extends Closeable {
 
         public static SubtaskKey of(Environment environment) {
             return new SubtaskKey(
+                    environment.getJobID(),
                     OperatorID.fromJobVertexID(environment.getJobVertexId()),
                     environment.getTaskInfo());
         }
@@ -214,7 +250,9 @@ public interface FileMergingSnapshotManager extends Closeable {
          * @return the managed directory name.
          */
         public String getManagedDirName() {
-            return String.format("%s_%d_%d_", operatorIDString, subtaskIndex, parallelism)
+            return String.format(
+                            "%s_%s_%d_%d_",
+                            jobIDString, operatorIDString, subtaskIndex, parallelism)
                     .replaceAll("[^a-zA-Z0-9\\-]", "_");
         }
 
@@ -232,7 +270,8 @@ public interface FileMergingSnapshotManager extends Closeable {
             return hashCode == that.hashCode
                     && subtaskIndex == that.subtaskIndex
                     && parallelism == that.parallelism
-                    && operatorIDString.equals(that.operatorIDString);
+                    && operatorIDString.equals(that.operatorIDString)
+                    && jobIDString.equals(that.jobIDString);
         }
 
         @Override
@@ -242,7 +281,91 @@ public interface FileMergingSnapshotManager extends Closeable {
 
         @Override
         public String toString() {
-            return String.format("%s(%d/%d)", operatorIDString, subtaskIndex, parallelism);
+            return String.format(
+                    "%s-%s(%d/%d)", jobIDString, operatorIDString, subtaskIndex, parallelism);
         }
+    }
+
+    /** Space usage statistics of a managed directory. */
+    final class SpaceStat {
+
+        AtomicLong physicalFileCount;
+        AtomicLong physicalFileSize;
+
+        AtomicLong logicalFileCount;
+        AtomicLong logicalFileSize;
+
+        public SpaceStat() {
+            this(0, 0, 0, 0);
+        }
+
+        public SpaceStat(
+                long physicalFileCount,
+                long physicalFileSize,
+                long logicalFileCount,
+                long logicalFileSize) {
+            this.physicalFileCount = new AtomicLong(physicalFileCount);
+            this.physicalFileSize = new AtomicLong(physicalFileSize);
+            this.logicalFileCount = new AtomicLong(logicalFileCount);
+            this.logicalFileSize = new AtomicLong(logicalFileSize);
+        }
+
+        public void onLogicalFileCreate(long size) {
+            logicalFileSize.addAndGet(size);
+            logicalFileCount.incrementAndGet();
+        }
+
+        public void onLogicalFileDelete(long size) {
+            logicalFileSize.addAndGet(-size);
+            logicalFileCount.decrementAndGet();
+        }
+
+        public void onPhysicalFileUpdate(long size) {
+            physicalFileSize.addAndGet(size);
+        }
+
+        public void onPhysicalFileCreate() {
+            physicalFileCount.incrementAndGet();
+        }
+
+        public void onPhysicalFileDelete(long size) {
+            physicalFileSize.addAndGet(-size);
+            physicalFileCount.decrementAndGet();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            SpaceStat spaceStat = (SpaceStat) o;
+            return physicalFileCount.get() == spaceStat.physicalFileCount.get()
+                    && physicalFileSize.get() == spaceStat.physicalFileSize.get()
+                    && logicalFileCount.get() == spaceStat.logicalFileCount.get()
+                    && logicalFileSize.get() == spaceStat.logicalFileSize.get();
+        }
+
+        @Override
+        public String toString() {
+            return "SpaceStat{"
+                    + "physicalFileCount="
+                    + physicalFileCount.get()
+                    + ", physicalFileSize="
+                    + physicalFileSize.get()
+                    + ", logicalFileCount="
+                    + logicalFileCount.get()
+                    + ", logicalFileSize="
+                    + logicalFileSize.get()
+                    + '}';
+        }
+    }
+
+    static boolean isFileMergingHandle(StreamStateHandle handle) {
+        return (handle instanceof SegmentFileStateHandle)
+                || (handle instanceof PlaceholderStreamStateHandle
+                        && ((PlaceholderStreamStateHandle) handle).isFileMerged());
     }
 }

@@ -18,6 +18,8 @@
 
 package org.apache.flink.state.forst;
 
+import org.apache.flink.api.java.tuple.Tuple2;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -25,7 +27,6 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static org.apache.flink.state.forst.ForStGeneralMultiGetOperation.GetRequest;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit test for {@link ForStGeneralMultiGetOperation}. */
@@ -35,30 +36,35 @@ public class ForStGeneralMultiGetOperationTest extends ForStDBOperationTestBase 
     public void testValueStateMultiGet() throws Exception {
         ForStValueState<Integer, String> valueState1 = buildForStValueState("test-multiGet-1");
         ForStValueState<Integer, String> valueState2 = buildForStValueState("test-multiGet-2");
-        List<GetRequest<ContextKey<Integer>, String>> batchGetRequest = new ArrayList<>();
-        List<String> resultCheckList = new ArrayList<>();
+        List<ForStDBGetRequest<?, ?>> batchGetRequest = new ArrayList<>();
+        List<Tuple2<String, TestStateFuture<String>>> resultCheckList = new ArrayList<>();
 
         int keyNum = 1000;
         for (int i = 0; i < keyNum; i++) {
-            GetRequest<ContextKey<Integer>, String> request =
-                    GetRequest.of(buildContextKey(i), ((i % 2 == 0) ? valueState1 : valueState2));
+            TestStateFuture<String> future = new TestStateFuture<>();
+            ForStValueState<Integer, String> table = ((i % 2 == 0) ? valueState1 : valueState2);
+            ForStDBGetRequest<ContextKey<Integer>, String> request =
+                    ForStDBGetRequest.of(buildContextKey(i), table, future);
             batchGetRequest.add(request);
+
             String value = (i % 10 != 0 ? String.valueOf(i) : null);
-            resultCheckList.add(value);
+            resultCheckList.add(Tuple2.of(value, future));
             if (value == null) {
                 continue;
             }
-            byte[] keyBytes = request.table.serializeKey(request.key);
-            byte[] valueBytes = request.table.serializeValue(value);
-            db.put(request.table.getColumnFamilyHandle(), keyBytes, valueBytes);
+            byte[] keyBytes = request.buildSerializedKey();
+            byte[] valueBytes = table.serializeValue(value);
+            db.put(request.getColumnFamilyHandle(), keyBytes, valueBytes);
         }
 
         ExecutorService executor = Executors.newFixedThreadPool(4);
-        ForStGeneralMultiGetOperation<ContextKey<Integer>, String> generalMultiGetOperation =
-                new ForStGeneralMultiGetOperation<>(db, batchGetRequest, executor);
-        List<String> result = generalMultiGetOperation.process().get();
+        ForStGeneralMultiGetOperation generalMultiGetOperation =
+                new ForStGeneralMultiGetOperation(db, batchGetRequest, executor);
+        generalMultiGetOperation.process().get();
 
-        assertThat(result).isEqualTo(resultCheckList);
+        for (Tuple2<String, TestStateFuture<String>> tuple : resultCheckList) {
+            assertThat(tuple.f1.getCompletedResult()).isEqualTo(tuple.f0);
+        }
 
         executor.shutdownNow();
     }

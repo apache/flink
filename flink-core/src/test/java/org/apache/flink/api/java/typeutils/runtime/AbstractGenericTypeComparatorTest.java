@@ -22,17 +22,18 @@ import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public abstract class AbstractGenericTypeComparatorTest {
 
     @Test
-    public void testString() throws IOException {
+    void testString() throws IOException {
         runTests(
                 "",
                 "Lorem Ipsum Dolor Omit Longer",
@@ -45,7 +46,7 @@ public abstract class AbstractGenericTypeComparatorTest {
     }
 
     @Test
-    public void testSimpleTypesObjects() throws IOException {
+    void testSimpleTypesObjects() throws IOException {
         runTests(
                 new SimpleTypes(0, 1, (byte) 2, "", (short) 3, 4.0),
                 new SimpleTypes(1, 1, (byte) 2, "", (short) 3, 4.0),
@@ -58,7 +59,7 @@ public abstract class AbstractGenericTypeComparatorTest {
     }
 
     @Test
-    public void testCompositeObject() throws IOException {
+    void testCompositeObject() throws IOException {
         ComplexNestedObject1 o1 = new ComplexNestedObject1(-1100);
         ComplexNestedObject1 o2 = new ComplexNestedObject1(0);
         ComplexNestedObject1 o3 = new ComplexNestedObject1(44);
@@ -69,7 +70,7 @@ public abstract class AbstractGenericTypeComparatorTest {
     }
 
     @Test
-    public void testBeanStyleObjects() throws IOException {
+    void testBeanStyleObjects() throws IOException {
         {
             Book b111 = new Book(-1L, "A Low level interfaces", 0xC);
             Book b122 = new Book(-1L, "Low level interfaces", 0xC);
@@ -110,7 +111,7 @@ public abstract class AbstractGenericTypeComparatorTest {
     // test instance
     // ------------------------------------------------------------------------
 
-    @Ignore("Prevents this class from being considered a test class by JUnit.")
+    @Disabled("Prevents this class from being considered a test class by JUnit.")
     private class ComparatorTestInstance<T> extends ComparatorTestBase<T> {
 
         private final T[] testData;
@@ -250,9 +251,7 @@ public abstract class AbstractGenericTypeComparatorTest {
             this.doubleValue = value;
 
             this.stringList = new ArrayList<String>();
-            for (String str : listElements) {
-                this.stringList.add(str);
-            }
+            Collections.addAll(this.stringList, listElements);
         }
 
         @Override

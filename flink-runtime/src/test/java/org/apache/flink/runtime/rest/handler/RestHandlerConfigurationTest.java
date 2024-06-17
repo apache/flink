@@ -120,7 +120,7 @@ class RestHandlerConfigurationTest {
     void testCheckpointCacheExpiryFallbackToRefreshInterval() {
         final long refreshInterval = 1000L;
         final Configuration config = new Configuration();
-        config.set(WebOptions.REFRESH_INTERVAL, refreshInterval);
+        config.set(WebOptions.REFRESH_INTERVAL, Duration.ofMillis(refreshInterval));
 
         RestHandlerConfiguration restHandlerConfiguration =
                 RestHandlerConfiguration.fromConfiguration(config);

@@ -36,6 +36,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.DefaultKeyedStateStore;
@@ -53,6 +54,8 @@ import org.apache.flink.runtime.state.StateInitializationContextImpl;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
+import org.apache.flink.runtime.state.v2.DefaultKeyedStateStoreV2;
+import org.apache.flink.runtime.state.v2.KeyedStateStoreV2;
 import org.apache.flink.util.CloseableIterable;
 import org.apache.flink.util.IOUtils;
 
@@ -79,6 +82,10 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class StreamOperatorStateHandler {
 
     protected static final Logger LOG = LoggerFactory.getLogger(StreamOperatorStateHandler.class);
+
+    @Nullable private final AsyncKeyedStateBackend asyncKeyedStateBackend;
+
+    @Nullable private final KeyedStateStoreV2 keyedStateStoreV2;
 
     /** Backend for keyed state. This might be empty if we're not on a keyed stream. */
     @Nullable private final CheckpointableKeyedStateBackend<?> keyedStateBackend;
@@ -112,6 +119,12 @@ public class StreamOperatorStateHandler {
         } else {
             keyedStateStore = null;
         }
+
+        this.asyncKeyedStateBackend = context.asyncKeyedStateBackend();
+        this.keyedStateStoreV2 =
+                asyncKeyedStateBackend != null
+                        ? new DefaultKeyedStateStoreV2(asyncKeyedStateBackend)
+                        : null;
     }
 
     public void initializeOperatorState(CheckpointedStreamOperator streamOperator)
@@ -152,11 +165,17 @@ public class StreamOperatorStateHandler {
             if (closeableRegistry.unregisterCloseable(keyedStateBackend)) {
                 closer.register(keyedStateBackend);
             }
+            if (closeableRegistry.unregisterCloseable(asyncKeyedStateBackend)) {
+                closer.register(asyncKeyedStateBackend);
+            }
             if (operatorStateBackend != null) {
                 closer.register(operatorStateBackend::dispose);
             }
             if (keyedStateBackend != null) {
                 closer.register(keyedStateBackend::dispose);
+            }
+            if (asyncKeyedStateBackend != null) {
+                closer.register(asyncKeyedStateBackend::dispose);
             }
         }
     }
@@ -325,6 +344,11 @@ public class StreamOperatorStateHandler {
         return (KeyedStateBackend<K>) keyedStateBackend;
     }
 
+    @Nullable
+    public AsyncKeyedStateBackend getAsyncKeyedStateBackend() {
+        return asyncKeyedStateBackend;
+    }
+
     public OperatorStateBackend getOperatorStateBackend() {
         return operatorStateBackend;
     }
@@ -398,6 +422,10 @@ public class StreamOperatorStateHandler {
 
     public Optional<KeyedStateStore> getKeyedStateStore() {
         return Optional.ofNullable(keyedStateStore);
+    }
+
+    public Optional<KeyedStateStoreV2> getKeyedStateStoreV2() {
+        return Optional.ofNullable(keyedStateStoreV2);
     }
 
     /** Custom state handling hooks to be invoked by {@link StreamOperatorStateHandler}. */

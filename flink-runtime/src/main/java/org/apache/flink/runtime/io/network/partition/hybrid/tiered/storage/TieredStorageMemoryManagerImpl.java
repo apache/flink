@@ -199,6 +199,11 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
     }
 
     @Override
+    public BufferPool getBufferPool() {
+        return bufferPool;
+    }
+
+    @Override
     public BufferBuilder requestBufferBlocking(Object owner) {
         checkIsInitialized();
 

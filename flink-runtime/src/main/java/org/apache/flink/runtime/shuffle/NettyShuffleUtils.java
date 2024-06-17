@@ -166,7 +166,8 @@ public class NettyShuffleUtils {
                         floatingNetworkBuffersPerGate,
                         type,
                         numInputChannels,
-                        null);
+                        false,
+                        false);
         return gateBuffersSpec.getMaxBuffersPerGate();
     }
 

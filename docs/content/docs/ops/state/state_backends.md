@@ -163,7 +163,7 @@ Possible values for the config entry are *hashmap* (HashMapStateBackend), *rocks
 name of the class that implements the state backend factory {{< gh_link file="flink-runtime/src/main/java/org/apache/flink/runtime/state/StateBackendFactory.java" name="StateBackendFactory" >}},
 such as `org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackendFactory` for EmbeddedRocksDBStateBackend.
 
-The `state.checkpoints.dir` option defines the directory to which all backends write checkpoint data and meta data files.
+The `execution.checkpointing.dir` option defines the directory to which all backends write checkpoint data and meta data files.
 You can find more details about the checkpoint directory structure [here]({{< ref "docs/ops/state/checkpoints" >}}#directory-structure).
 
 A sample section in the configuration file could look as follows:
@@ -173,7 +173,7 @@ A sample section in the configuration file could look as follows:
 state.backend: hashmap
 
 # Directory for storing checkpoints
-state.checkpoints.dir: hdfs://namenode:40010/flink/checkpoints
+execution.checkpointing.dir: hdfs://namenode:40010/flink/checkpoints
 ```
 
 ## RocksDB State Backend Details
@@ -190,7 +190,7 @@ An incremental checkpoint builds upon (typically multiple) previous checkpoints.
 Recovery time of incremental checkpoints may be longer or shorter compared to full checkpoints. If your network bandwidth is the bottleneck, it may take a bit longer to restore from an incremental checkpoint, because it implies fetching more data (more deltas). Restoring from an incremental checkpoint is faster, if the bottleneck is your CPU or IOPs, because restoring from an incremental checkpoint means not re-building the local RocksDB tables from Flink's canonical key/value snapshot format (used in savepoints and full checkpoints).
 
 While we encourage the use of incremental checkpoints for large state, you need to enable this feature manually:
-  - Setting a default in your [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}): `state.backend.incremental: true` will enable incremental checkpoints, unless the application overrides this setting in the code.
+  - Setting a default in your [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}): `execution.checkpointing.incremental: true` will enable incremental checkpoints, unless the application overrides this setting in the code.
   - You can alternatively configure this directly in the code (overrides the config default): `EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend(true);`
 
 Notice that once incremental checkpoont is enabled, the `Checkpointed Data Size` showed in web UI only represents the 
@@ -404,7 +404,7 @@ Here is an example configuration in YAML:
 ```yaml
 state.changelog.enabled: true
 state.changelog.storage: filesystem # currently, only filesystem and memory (for tests) are supported
-state.changelog.dstl.dfs.base-path: s3://<bucket-name> # similar to state.checkpoints.dir
+state.changelog.dstl.dfs.base-path: s3://<bucket-name> # similar to execution.checkpointing.dir
 ```
 
 Please keep the following defaults (see [limitations](#limitations)):
@@ -482,7 +482,7 @@ state.backend: hashmap
 
 # Optional, Flink will automatically default to JobManagerCheckpointStorage
 # when no checkpoint directory is specified.
-state.checkpoint-storage: jobmanager
+execution.checkpointing.storage: jobmanager
 ```
 
 #### Code Configuration
@@ -507,7 +507,7 @@ env.getCheckpointConfig().setCheckpointStorage(new JobManagerCheckpointStorage)
 ```python
 config = Configuration()
 config.set_string('state.backend.type', 'hashmap')
-config.set_string('state.checkpoint-storage', 'jobmanager')
+config.set_string('execution.checkpointing.storage', 'jobmanager')
 env = StreamExecutionEnvironment.get_execution_environment(config)
 ```
 {{< /tab >}}
@@ -521,11 +521,11 @@ The legacy `FsStateBackend` is equivalent to using [`HashMapStateBackend`](#the-
 
 ```yaml
 state.backend: hashmap
-state.checkpoints.dir: file:///checkpoint-dir/
+execution.checkpointing.dir: file:///checkpoint-dir/
 
 # Optional, Flink will automatically default to FileSystemCheckpointStorage
 # when a checkpoint directory is specified.
-state.checkpoint-storage: filesystem
+execution.checkpointing.storage: filesystem
 ```
 
 #### Code Configuration
@@ -562,8 +562,8 @@ env.getCheckpointConfig().setCheckpointStorage(new FileSystemCheckpointStorage("
 ```python
 config = Configuration()
 config.set_string('state.backend.type', 'hashmap')
-config.set_string('state.checkpoint-storage', 'filesystem')
-config.set_string('state.checkpoints.dir', 'file:///checkpoint-dir')
+config.set_string('execution.checkpointing.storage', 'filesystem')
+config.set_string('execution.checkpointing.dir', 'file:///checkpoint-dir')
 env = StreamExecutionEnvironment.get_execution_environment(config)
 
 
@@ -583,11 +583,11 @@ The legacy `RocksDBStateBackend` is equivalent to using [`EmbeddedRocksDBStateBa
 
 ```yaml
 state.backend: rocksdb
-state.checkpoints.dir: file:///checkpoint-dir/
+execution.checkpointing.dir: file:///checkpoint-dir/
 
 # Optional, Flink will automatically default to FileSystemCheckpointStorage
 # when a checkpoint directory is specified.
-state.checkpoint-storage: filesystem
+execution.checkpointing.storage: filesystem
 ```
 
 #### Code Configuration
@@ -626,8 +626,8 @@ env.getCheckpointConfig().setCheckpointStorage(new FileSystemCheckpointStorage("
 ```python
 config = Configuration()
 config.set_string('state.backend.type', 'rocksdb')
-config.set_string('state.checkpoint-storage', 'filesystem')
-config.set_string('state.checkpoints.dir', 'file:///checkpoint-dir')
+config.set_string('execution.checkpointing.storage', 'filesystem')
+config.set_string('execution.checkpointing.dir', 'file:///checkpoint-dir')
 env = StreamExecutionEnvironment.get_execution_environment(config)
 
 

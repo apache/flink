@@ -20,7 +20,7 @@ package org.apache.flink.cep;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
+import org.apache.flink.api.common.typeutils.TypeSerializerConditions;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.cep.nfa.DeweyNumber;
@@ -32,13 +32,11 @@ import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferEdge;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferNode;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferNodeSerializer;
 
-import org.hamcrest.Matcher;
+import org.assertj.core.api.Condition;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-
-import static org.hamcrest.Matchers.is;
 
 /** Migration tests for NFA-related serializers. */
 class NFASerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
@@ -115,14 +113,14 @@ class NFASerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Obj
         }
 
         @Override
-        public Matcher<EventId> testDataMatcher() {
-            return is(new EventId(42, 42L));
+        public Condition<EventId> testDataCondition() {
+            return new Condition<>(value -> value.equals(new EventId(42, 42L)), "is 42");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<EventId>> schemaCompatibilityMatcher(
+        public Condition<TypeSerializerSchemaCompatibility<EventId>> schemaCompatibilityCondition(
                 FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+            return TypeSerializerConditions.isCompatibleAsIs();
         }
     }
 
@@ -161,14 +159,15 @@ class NFASerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Obj
         }
 
         @Override
-        public Matcher<NodeId> testDataMatcher() {
-            return is(new NodeId(new EventId(42, 42L), "ciao"));
+        public Condition<NodeId> testDataCondition() {
+            return new Condition<>(
+                    value -> value.equals(new NodeId(new EventId(42, 42L), "ciao")), "is 42");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<NodeId>> schemaCompatibilityMatcher(
+        public Condition<TypeSerializerSchemaCompatibility<NodeId>> schemaCompatibilityCondition(
                 FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+            return TypeSerializerConditions.isCompatibleAsIs();
         }
     }
 
@@ -207,14 +206,14 @@ class NFASerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Obj
         }
 
         @Override
-        public Matcher<DeweyNumber> testDataMatcher() {
-            return is(new DeweyNumber(42));
+        public Condition<DeweyNumber> testDataCondition() {
+            return new Condition<>(value -> value.equals(new DeweyNumber(42)), "is 42");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<DeweyNumber>> schemaCompatibilityMatcher(
-                FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+        public Condition<TypeSerializerSchemaCompatibility<DeweyNumber>>
+                schemaCompatibilityCondition(FlinkVersion version) {
+            return TypeSerializerConditions.isCompatibleAsIs();
         }
     }
 
@@ -254,16 +253,20 @@ class NFASerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Obj
         }
 
         @Override
-        public Matcher<SharedBufferEdge> testDataMatcher() {
-            return is(
-                    new SharedBufferEdge(
-                            new NodeId(new EventId(42, 42L), "page"), new DeweyNumber(42)));
+        public Condition<SharedBufferEdge> testDataCondition() {
+            return new Condition<>(
+                    value ->
+                            value.equals(
+                                    new SharedBufferEdge(
+                                            new NodeId(new EventId(42, 42L), "page"),
+                                            new DeweyNumber(42))),
+                    "is 42");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<SharedBufferEdge>>
-                schemaCompatibilityMatcher(FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+        public Condition<TypeSerializerSchemaCompatibility<SharedBufferEdge>>
+                schemaCompatibilityCondition(FlinkVersion version) {
+            return TypeSerializerConditions.isCompatibleAsIs();
         }
     }
 
@@ -306,18 +309,18 @@ class NFASerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Obj
         }
 
         @Override
-        public Matcher<SharedBufferNode> testDataMatcher() {
+        public Condition<SharedBufferNode> testDataCondition() {
             SharedBufferNode result = new SharedBufferNode();
             result.addEdge(
                     new SharedBufferEdge(
                             new NodeId(new EventId(42, 42L), "page"), new DeweyNumber(42)));
-            return is(result);
+            return new Condition<>(value -> value.equals(result), "");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<SharedBufferNode>>
-                schemaCompatibilityMatcher(FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+        public Condition<TypeSerializerSchemaCompatibility<SharedBufferNode>>
+                schemaCompatibilityCondition(FlinkVersion version) {
+            return TypeSerializerConditions.isCompatibleAsIs();
         }
     }
 
@@ -356,17 +359,18 @@ class NFASerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Obj
         }
 
         @Override
-        public Matcher<NFAState> testDataMatcher() {
-            return is(new NFAState(Collections.emptyList()));
+        public Condition<NFAState> testDataCondition() {
+            return new Condition<>(
+                    value -> new NFAState(Collections.emptyList()).equals(value), "is empty");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<NFAState>> schemaCompatibilityMatcher(
+        public Condition<TypeSerializerSchemaCompatibility<NFAState>> schemaCompatibilityCondition(
                 FlinkVersion version) {
             if (version.isNewerVersionThan(FlinkVersion.v1_15)) {
-                return TypeSerializerMatchers.isCompatibleAsIs();
+                return TypeSerializerConditions.isCompatibleAsIs();
             }
-            return TypeSerializerMatchers.isCompatibleAfterMigration();
+            return TypeSerializerConditions.isCompatibleAfterMigration();
         }
     }
 }

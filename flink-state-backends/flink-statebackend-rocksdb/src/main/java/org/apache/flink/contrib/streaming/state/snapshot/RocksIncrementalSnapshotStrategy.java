@@ -47,6 +47,7 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -186,7 +187,7 @@ public class RocksIncrementalSnapshotStrategy<K>
     }
 
     @Override
-    public void close() {
+    public void close() throws IOException {
         stateUploader.close();
     }
 
@@ -416,7 +417,8 @@ public class RocksIncrementalSnapshotStrategy<K>
 
                 if (fileName.endsWith(SST_FILE_SUFFIX)) {
                     Optional<StreamStateHandle> uploaded = previousSnapshot.getUploaded(fileName);
-                    if (uploaded.isPresent()) {
+                    if (uploaded.isPresent()
+                            && checkpointStreamFactory.couldReuseStateHandle(uploaded.get())) {
                         sstFiles.add(HandleAndLocalPath.of(uploaded.get(), fileName));
                     } else {
                         sstFilePaths.add(filePath); // re-upload
