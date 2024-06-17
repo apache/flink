@@ -45,11 +45,13 @@ public class DeploymentOptions {
                                     .list(
                                             text("remote"),
                                             text("local"),
+                                            text("yarn-application"),
                                             text("yarn-per-job (deprecated)"),
                                             text("yarn-session"),
+                                            text("kubernetes-application"),
                                             text("kubernetes-session"))
                                     .text(
-                                            "And one of the following values when calling %s:",
+                                            "And one of the following values when calling %s (deprecated):",
                                             TextElement.code("bin/flink run-application"))
                                     .list(text("yarn-application"), text("kubernetes-application"))
                                     .build());
