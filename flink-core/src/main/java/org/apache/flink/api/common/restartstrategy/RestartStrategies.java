@@ -239,6 +239,12 @@ public class RestartStrategies {
         private final int restartAttempts;
         private final Duration delayBetweenAttemptsInterval;
 
+        @Deprecated
+        FixedDelayRestartStrategyConfiguration(
+                int restartAttempts, Time delayBetweenAttemptsInterval) {
+            this(restartAttempts, Time.toDuration(delayBetweenAttemptsInterval));
+        }
+
         FixedDelayRestartStrategyConfiguration(
                 int restartAttempts, Duration delayBetweenAttemptsInterval) {
             this.restartAttempts = restartAttempts;
