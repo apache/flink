@@ -18,6 +18,9 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.WatermarkCombiner;
+import org.apache.flink.api.common.WatermarkDeclaration;
+import org.apache.flink.api.common.eventtime.GenericWatermark;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -27,6 +30,9 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.tasks.StreamTask.CanEmitBatchOfRecordsChecker;
 import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
 
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 
 /** Factory for {@link StreamTaskNetworkInput} and {@link RescalingStreamTaskNetworkInput}. */
@@ -44,7 +50,8 @@ public class StreamTaskNetworkInputFactory {
             InflightDataRescalingDescriptor rescalingDescriptorinflightDataRescalingDescriptor,
             Function<Integer, StreamPartitioner<?>> gatePartitioners,
             TaskInfo taskInfo,
-            CanEmitBatchOfRecordsChecker canEmitBatchOfRecords) {
+            CanEmitBatchOfRecordsChecker canEmitBatchOfRecords,
+            Set<WatermarkDeclaration> watermarkDeclarationSet) {
         return rescalingDescriptorinflightDataRescalingDescriptor.equals(
                         InflightDataRescalingDescriptor.NO_RESCALE)
                 ? new StreamTaskNetworkInput<>(
@@ -53,7 +60,8 @@ public class StreamTaskNetworkInputFactory {
                         ioManager,
                         statusWatermarkValve,
                         inputIndex,
-                        canEmitBatchOfRecords)
+                        canEmitBatchOfRecords,
+                watermarkDeclarationSet)
                 : new RescalingStreamTaskNetworkInput<>(
                         checkpointedInputGate,
                         inputSerializer,

@@ -57,7 +57,10 @@ import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 
@@ -121,7 +124,8 @@ public class StreamMultipleInputProcessorFactory {
                                 inflightDataRescalingDescriptor,
                                 gatePartitioners,
                                 taskInfo,
-                                canEmitBatchOfRecords);
+                                canEmitBatchOfRecords,
+                                new HashSet<>());
             } else if (configuredInput instanceof StreamConfig.SourceInputConfig) {
                 StreamConfig.SourceInputConfig sourceInput =
                         (StreamConfig.SourceInputConfig) configuredInput;

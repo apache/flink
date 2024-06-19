@@ -53,7 +53,10 @@ import org.apache.flink.util.function.ThrowingConsumer;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 
 import static org.apache.flink.streaming.api.graph.StreamConfig.requiresSorting;
@@ -96,7 +99,8 @@ public class StreamTwoInputProcessorFactory {
                         inflightDataRescalingDescriptor,
                         gatePartitioners,
                         taskInfo,
-                        canEmitBatchOfRecords);
+                        canEmitBatchOfRecords,
+                        new HashSet<>());
         TypeSerializer<IN2> typeSerializer2 = streamConfig.getTypeSerializerIn(1, userClassloader);
         StreamTaskInput<IN2> input2 =
                 StreamTaskNetworkInputFactory.create(
@@ -108,7 +112,8 @@ public class StreamTwoInputProcessorFactory {
                         inflightDataRescalingDescriptor,
                         gatePartitioners,
                         taskInfo,
-                        canEmitBatchOfRecords);
+                        canEmitBatchOfRecords,
+                        new HashSet<>());
 
         InputSelectable inputSelectable =
                 streamOperator instanceof InputSelectable ? (InputSelectable) streamOperator : null;

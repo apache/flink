@@ -20,13 +20,15 @@ package org.apache.flink.api.common;
 
 import org.apache.flink.api.common.eventtime.GenericWatermark;
 
-public interface WatermarkCombiner {
-    void combineWatermark(GenericWatermark watermark, Context context, WatermarkOutput output) throws Exception;
+import java.io.Serializable;
 
-    /** This interface provides information of all channels. */
-    interface Context {
-        int getNumberOfInputChannels();
+/** This class defines watermark handling policy for ProcessOperator.*/
+public class DefaultWatermarkPolicy implements WatermarkPolicy {
 
-        int getIndexOfCurrentChannel();
+    @Override
+    public WatermarkResult useWatermark(GenericWatermark watermark) {
+        return WatermarkResult.PEEK;
     }
 }
+
+

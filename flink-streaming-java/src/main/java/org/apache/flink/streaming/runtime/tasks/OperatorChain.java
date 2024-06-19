@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.WatermarkDeclaration;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.Counter;
@@ -87,6 +88,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -188,6 +190,7 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
         // from here on, we need to make sure that the output writers are shut down again on failure
         boolean success = false;
         try {
+            // streamserializer is invoked from here
             createChainOutputs(
                     outputsInOrder,
                     recordWriterDelegate,
@@ -208,7 +211,6 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
                             allOpWrappers,
                             containingTask.getMailboxExecutorFactory(),
                             operatorFactory != null);
-
             if (operatorFactory != null) {
                 Tuple2<OP, Optional<ProcessingTimeService>> mainOperatorAndTimeService =
                         StreamOperatorFactoryUtil.createOperator(
@@ -516,6 +518,8 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
             Map<Integer, StreamConfig> chainedConfigs,
             StreamTask<OUT, OP> containingTask,
             Map<IntermediateDataSetID, RecordWriterOutput<?>> recordWriterOutputs) {
+//        Set<WatermarkDeclaration> watermarkDeclarationSet = chainedConfigs.get(1).getWatermarkDeclarations(containingTask.getEnvironment().getUserCodeClassLoader().asClassLoader());
+
         for (int i = 0; i < outputsInOrder.size(); ++i) {
             NonChainedOutput output = outputsInOrder.get(i);
 
@@ -554,12 +558,15 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
                             taskEnvironment.getUserCodeClassLoader().asClassLoader());
         }
 
+        Set<WatermarkDeclaration> watermarkDeclarationSet = upStreamConfig.getWatermarkDeclarations(taskEnvironment.getUserCodeClassLoader().asClassLoader());
+        List<WatermarkDeclaration.GenericWatermarkDeclaration> watermarkDeclarations = watermarkDeclarationSet.stream().map(w -> w.declaredWatermark()).collect(Collectors.toList());
         return closer.register(
                 new RecordWriterOutput<OUT>(
                         recordWriter,
                         outSerializer,
                         sideOutputTag,
-                        streamOutput.supportsUnalignedCheckpoints()));
+                        streamOutput.supportsUnalignedCheckpoints(),
+                        watermarkDeclarations));
     }
 
     @SuppressWarnings("rawtypes")

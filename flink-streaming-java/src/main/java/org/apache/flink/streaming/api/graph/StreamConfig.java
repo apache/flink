@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.WatermarkDeclaration;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ConfigOption;
@@ -48,6 +49,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.lang.reflect.Constructor;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -119,6 +121,8 @@ public class StreamConfig implements Serializable {
 
     private static final String TIME_CHARACTERISTIC = "timechar";
 
+    private static final String WATERMARK_DECLARATIONS = "watermark-declarations";
+
     private static final String MANAGED_MEMORY_FRACTION_PREFIX = "managedMemFraction.";
     private static final ConfigOption<Boolean> STATE_BACKEND_USE_MANAGED_MEMORY =
             ConfigOptions.key("statebackend.useManagedMemory")
@@ -150,7 +154,6 @@ public class StreamConfig implements Serializable {
             new HashMap<>();
     private final transient CompletableFuture<StreamConfig> serializationFuture =
             new CompletableFuture<>();
-
     /**
      * In order to release memory during processing data, some keys are removed in {@link
      * #clearInitialConfigs()}. Recording these keys here to prevent they are accessed after
@@ -303,6 +306,24 @@ public class StreamConfig implements Serializable {
 
     public void setTypeSerializerOut(TypeSerializer<?> serializer) {
         setTypeSerializer(TYPE_SERIALIZER_OUT_1, serializer);
+    }
+
+    public void setWatermarkDeclarations(Set<Class<? extends WatermarkDeclaration>> watermarkDeclarations) {
+        toBeSerializedConfigObjects.put(WATERMARK_DECLARATIONS, watermarkDeclarations);
+    }
+
+    public Set<WatermarkDeclaration> getWatermarkDeclarations(ClassLoader cl) {
+        try {
+            Set<Class<? extends WatermarkDeclaration>> clazzes = InstantiationUtil.readObjectFromConfig(this.config, WATERMARK_DECLARATIONS, cl);
+            Set<WatermarkDeclaration> result = new HashSet<>();
+            for (Class<? extends WatermarkDeclaration> clazz : clazzes) {
+                Constructor<? extends WatermarkDeclaration> constructor = clazz.getDeclaredConstructor();
+                result.add(constructor.newInstance());
+            }
+            return result;
+        } catch (Exception e) {
+            throw new StreamTaskException("Could not instantiate serializer.", e);
+        }
     }
 
     public <T> TypeSerializer<T> getTypeSerializerOut(ClassLoader cl) {

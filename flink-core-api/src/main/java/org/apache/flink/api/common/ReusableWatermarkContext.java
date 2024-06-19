@@ -16,29 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common.eventtime;
+package org.apache.flink.api.common;
 
-import org.apache.flink.api.common.WatermarkDeclaration;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
+public class ReusableWatermarkContext implements WatermarkCombiner.Context {
 
-import java.io.IOException;
+    private int numChannels;
+    private int currentChannel;
 
-public class TimestampWatermarkDeclaration implements WatermarkDeclaration.GenericWatermarkDeclaration {
-    @Override
-    public Class<TimestampWatermark> watermarkClass() {
-        return TimestampWatermark.class;
+    public ReusableWatermarkContext(int numChannels, int currentChannel) {
+        this.numChannels = numChannels;
+        this.currentChannel = currentChannel;
+    }
+
+    public void setChannelInfo(int numChannels, int currentChannel) {
+        this.numChannels = numChannels;
+        this.currentChannel = currentChannel;
     }
 
     @Override
-    public void serialize(GenericWatermark genericWatermark, DataOutputView target)
-            throws IOException {
-        target.writeLong(((TimestampWatermark) genericWatermark).getTimestamp());
+    public int getNumberOfInputChannels() {
+        return numChannels;
     }
 
     @Override
-    public GenericWatermark deserialize(DataInputView inputView) throws IOException {
-        long ts = inputView.readLong();
-        return new TimestampWatermark(ts);
+    public int getIndexOfCurrentChannel() {
+        return currentChannel;
     }
 }

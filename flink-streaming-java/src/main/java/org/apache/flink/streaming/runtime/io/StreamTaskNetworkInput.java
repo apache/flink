@@ -19,6 +19,9 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.WatermarkCombiner;
+import org.apache.flink.api.common.WatermarkDeclaration;
+import org.apache.flink.api.common.eventtime.GenericWatermark;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
@@ -36,6 +39,8 @@ import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import static java.util.function.Function.identity;
@@ -67,14 +72,16 @@ public final class StreamTaskNetworkInput<T>
             IOManager ioManager,
             StatusWatermarkValve statusWatermarkValve,
             int inputIndex,
-            CanEmitBatchOfRecordsChecker canEmitBatchOfRecords) {
+            CanEmitBatchOfRecordsChecker canEmitBatchOfRecords,
+            Set<WatermarkDeclaration> watermarkDeclarationSet) {
         super(
                 checkpointedInputGate,
                 inputSerializer,
                 statusWatermarkValve,
                 inputIndex,
                 getRecordDeserializers(checkpointedInputGate, ioManager),
-                canEmitBatchOfRecords);
+                canEmitBatchOfRecords,
+                watermarkDeclarationSet);
     }
 
     // Initialize one deserializer per input channel

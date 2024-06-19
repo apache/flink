@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.runtime.streamrecord;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.GenericWatermarkPolicy;
+import org.apache.flink.api.common.WatermarkDeclaration;
 import org.apache.flink.api.common.eventtime.GenericWatermark;
 import org.apache.flink.api.common.eventtime.InternalWatermarkDeclaration;
 import org.apache.flink.api.common.eventtime.TimestampWatermarkDeclaration;
@@ -32,9 +32,12 @@ import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -64,20 +67,19 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 
     private final TypeSerializer<T> typeSerializer;
 
-    private final Map<String, GenericWatermarkPolicy.GenericWatermarkDeclaration> watermarkDeclarationMap;
-
+    private final Map<String, WatermarkDeclaration.GenericWatermarkDeclaration> watermarkDeclarationMap;
+    private static final List<WatermarkDeclaration.GenericWatermarkDeclaration> systemDefinedDeclarations = Arrays.asList(
+            new TimestampWatermarkDeclaration(),
+            new InternalWatermarkDeclaration());
     public StreamElementSerializer(TypeSerializer<T> serializer) {
         this(
                 serializer,
-                new HashSet<>(
-                        Arrays.asList(
-                                new TimestampWatermarkDeclaration(),
-                                new InternalWatermarkDeclaration())));
+                systemDefinedDeclarations);
     }
 
     public StreamElementSerializer(
             TypeSerializer<T> serializer,
-            Set<GenericWatermarkPolicy.GenericWatermarkDeclaration> watermarkDeclarationSet) {
+            List<WatermarkDeclaration.GenericWatermarkDeclaration> watermarkDeclarationSet) {
         if (serializer instanceof StreamElementSerializer) {
             throw new RuntimeException(
                     "StreamRecordSerializer given to StreamRecordSerializer as value TypeSerializer: "
@@ -85,7 +87,11 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
         }
         this.typeSerializer = requireNonNull(serializer);
         this.watermarkDeclarationMap = new HashMap<>();
-        for (GenericWatermarkPolicy.GenericWatermarkDeclaration genericWatermarkDeclaration : watermarkDeclarationSet) {
+
+        List<WatermarkDeclaration.GenericWatermarkDeclaration> allDeclarations = new ArrayList<>();
+        allDeclarations.addAll(watermarkDeclarationSet);
+        allDeclarations.addAll(systemDefinedDeclarations);
+        for (WatermarkDeclaration.GenericWatermarkDeclaration genericWatermarkDeclaration : allDeclarations) {
             this.watermarkDeclarationMap.put(
                     genericWatermarkDeclaration.watermarkClass().getName(),
                     genericWatermarkDeclaration);

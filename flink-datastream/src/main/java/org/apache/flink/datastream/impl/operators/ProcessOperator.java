@@ -18,11 +18,12 @@
 
 package org.apache.flink.datastream.impl.operators;
 
-import org.apache.flink.api.common.GenericWatermarkPolicy;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.WatermarkCombiner;
+import org.apache.flink.api.common.WatermarkDeclaration;
+import org.apache.flink.api.common.WatermarkPolicy;
 import org.apache.flink.api.common.eventtime.GenericWatermark;
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
+import org.apache.flink.api.common.eventtime.UnsupportedWatermarkCombiner;
 import org.apache.flink.datastream.api.context.EventTimeManager;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.ProcessingTimeManager;
@@ -32,17 +33,17 @@ import org.apache.flink.datastream.impl.common.TimestampCollector;
 import org.apache.flink.datastream.impl.context.DefaultNonPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultRuntimeContext;
-import org.apache.flink.datastream.impl.context.DefaultWatermarkManager;
 import org.apache.flink.datastream.impl.context.UnsupportedEventTimeManager;
 import org.apache.flink.datastream.impl.context.UnsupportedProcessingTimeManager;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+
+import java.util.Set;
 
 /** Operator for {@link OneInputStreamProcessFunction}. */
 public class ProcessOperator<IN, OUT>
@@ -56,8 +57,6 @@ public class ProcessOperator<IN, OUT>
     protected transient NonPartitionedContext<OUT> nonPartitionedContext;
 
     protected transient TimestampCollector<OUT> outputCollector;
-
-    protected DefaultContext reusableWatermarkCombinerContext;
 
     public ProcessOperator(OneInputStreamProcessFunction<IN, OUT> userFunction) {
         super(userFunction);
@@ -93,36 +92,17 @@ public class ProcessOperator<IN, OUT>
 
     @Override
     public void processWatermark(WatermarkEvent mark) throws Exception {
-        processWatermarkInternal(mark, 0, 1);
-    }
-
-    @Override
-    public void processWatermark1(WatermarkEvent mark) throws Exception {
-        processWatermarkInternal(mark, 0, 2);
-    }
-
-    @Override
-    public void processWatermark2(WatermarkEvent mark) throws Exception {
-        processWatermarkInternal(mark, 1, 2);
-    }
-
-
-    private void processWatermarkInternal(WatermarkEvent mark, int currentChannel, int numChannels) throws Exception {
         GenericWatermark genericWatermark = mark.getGenericWatermark();
-        GenericWatermarkPolicy watermarkPolicy = userFunction.watermarkPolicy();
-        GenericWatermarkPolicy.WatermarkResult watermarkResult = watermarkPolicy.useWatermark(genericWatermark);
+        WatermarkPolicy watermarkPolicy = userFunction.watermarkPolicy();
+        WatermarkPolicy.WatermarkResult watermarkResult = watermarkPolicy.useWatermark(genericWatermark);
 
         switch (watermarkResult) {
             case PEEK:
                 super.processWatermark(mark);
+                break;
             case POP:
-                if (reusableWatermarkCombinerContext == null) {
-                    reusableWatermarkCombinerContext = new DefaultContext(numChannels, currentChannel);
-                } else {
-                    reusableWatermarkCombinerContext.setChannelInfo(numChannels, currentChannel);
-                }
-                GenericWatermark combinedWatermark = watermarkPolicy.watermarkCombiner().combineWatermark(genericWatermark, reusableWatermarkCombinerContext);
-                userFunction.onWatermark(combinedWatermark, outputCollector, nonPartitionedContext);
+                userFunction.onWatermark(mark.getGenericWatermark(), outputCollector, nonPartitionedContext);
+                break;
         }
     }
 
@@ -152,29 +132,7 @@ public class ProcessOperator<IN, OUT>
                 context, partitionedContext, outputCollector, false, null, output);
     }
 
-    private class DefaultContext implements WatermarkCombiner.Context {
-
-        private int numChannels;
-        private int currentChannel;
-
-        public DefaultContext(int numChannels, int currentChannel) {
-            this.numChannels = numChannels;
-            this.currentChannel = currentChannel;
-        }
-
-        void setChannelInfo(int numChannels, int currentChannel) {
-            this.numChannels = numChannels;
-            this.currentChannel = currentChannel;
-        }
-
-        @Override
-        public int getNumberOfInputChannels() {
-            return numChannels;
-        }
-
-        @Override
-        public int getIndexOfCurrentChannel() {
-            return currentChannel;
-        }
+    public Set<Class<? extends WatermarkDeclaration>> watermarkDeclarations() {
+        return this.userFunction.declaredWatermarks();
     }
 }
