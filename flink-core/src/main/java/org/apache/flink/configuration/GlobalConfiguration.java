@@ -223,8 +223,14 @@ public final class GlobalConfiguration {
             while ((line = reader.readLine()) != null) {
                 lineNo++;
                 // 1. check for comments
-                String[] comments = line.split("#", 2);
-                String conf = comments[0].trim();
+                String conf;
+                // handle valid secret contain # char
+                if (line.startsWith("s3.secret-key") || line.startsWith("fs.s3.secret-key")) {
+                    conf = line;
+                } else {
+                    String[] comments = line.split("#", 2);
+                    conf = comments[0].trim();
+                }
 
                 // 2. get key and value
                 if (conf.length() > 0) {
