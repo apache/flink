@@ -331,7 +331,7 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
 
   private def createGlobalAggregation()
       : (OneInputStreamOperatorTestHarness[RowData, RowData], KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData], Array[LogicalType]) = {
-    tEnv.getConfig.set(TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
+    tEnv.getConfig.set(TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, AggregatePhaseStrategy.TWO_PHASE)
 
     val data = new mutable.MutableList[(String, String, Long)]
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
