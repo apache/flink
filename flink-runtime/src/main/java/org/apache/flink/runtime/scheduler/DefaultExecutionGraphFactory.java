@@ -27,6 +27,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.DefaultCheckpointStatsTracker;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.executiongraph.DefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.executiongraph.ExecutionDeploymentListener;
@@ -126,7 +127,7 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
         this.checkpointStatsTrackerFactory =
                 new CachingSupplier<>(
                         () ->
-                                new CheckpointStatsTracker(
+                                new DefaultCheckpointStatsTracker(
                                         configuration.get(WebOptions.CHECKPOINTS_HISTORY_SIZE),
                                         jobManagerJobMetricGroup));
         this.isDynamicGraph = isDynamicGraph;

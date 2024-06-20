@@ -50,6 +50,8 @@ import org.apache.flink.traces.Span;
 import org.apache.flink.traces.SpanBuilder;
 import org.apache.flink.util.clock.SystemClock;
 
+import org.apache.flink.shaded.guava31.com.google.common.collect.Sets;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;

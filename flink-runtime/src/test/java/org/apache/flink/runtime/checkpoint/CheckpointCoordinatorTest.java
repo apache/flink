@@ -251,7 +251,7 @@ class CheckpointCoordinatorTest {
         ExecutionVertex lateReportVertex =
                 executionGraph.getJobVertex(lateReportVertexID).getTaskVertices()[0];
         CheckpointStatsTracker statsTracker =
-                new CheckpointStatsTracker(
+                new DefaultCheckpointStatsTracker(
                         Integer.MAX_VALUE,
                         UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
         CheckpointCoordinator coordinator =
@@ -503,7 +503,7 @@ class CheckpointCoordinatorTest {
         jobVertex2.getTaskVertices()[1].getCurrentExecutionAttempt().markFinished();
 
         CheckpointStatsTracker statsTracker =
-                new CheckpointStatsTracker(
+                new DefaultCheckpointStatsTracker(
                         Integer.MAX_VALUE,
                         UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
         CheckpointCoordinator checkpointCoordinator =
@@ -747,7 +747,7 @@ class CheckpointCoordinatorTest {
         // given: Checkpoint coordinator which fails on initializeCheckpointLocation.
         TestFailJobCallback failureCallback = new TestFailJobCallback();
         CheckpointStatsTracker statsTracker =
-                new CheckpointStatsTracker(
+                new DefaultCheckpointStatsTracker(
                         Integer.MAX_VALUE,
                         UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
         CheckpointCoordinator checkpointCoordinator =
@@ -2023,7 +2023,7 @@ class CheckpointCoordinatorTest {
         ExecutionAttemptID attemptID1 = vertex1.getCurrentExecutionAttempt().getAttemptId();
         ExecutionAttemptID attemptID2 = vertex2.getCurrentExecutionAttempt().getAttemptId();
         CheckpointStatsTracker statsTracker =
-                new CheckpointStatsTracker(
+                new DefaultCheckpointStatsTracker(
                         Integer.MAX_VALUE,
                         UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
         // set up the coordinator and validate the initial state
@@ -2876,7 +2876,7 @@ class CheckpointCoordinatorTest {
 
         // set up the coordinator and validate the initial state
         CheckpointStatsTracker tracker =
-                new CheckpointStatsTracker(
+                new DefaultCheckpointStatsTracker(
                         10, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
@@ -3195,7 +3195,7 @@ class CheckpointCoordinatorTest {
         TestFailJobCallback failureCallback = new TestFailJobCallback();
 
         CheckpointStatsTracker statsTracker =
-                new CheckpointStatsTracker(
+                new DefaultCheckpointStatsTracker(
                         Integer.MAX_VALUE,
                         UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
@@ -3247,7 +3247,7 @@ class CheckpointCoordinatorTest {
         TestFailJobCallback failureCallback = new TestFailJobCallback();
 
         CheckpointStatsTracker statsTracker =
-                new CheckpointStatsTracker(
+                new DefaultCheckpointStatsTracker(
                         Integer.MAX_VALUE,
                         UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 

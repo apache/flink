@@ -781,7 +781,7 @@ public class CheckpointCoordinatorTestingUtils {
         private boolean allowCheckpointsAfterTasksFinished;
 
         private CheckpointStatsTracker checkpointStatsTracker =
-                new CheckpointStatsTracker(
+                new DefaultCheckpointStatsTracker(
                         1, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
         private BiFunction<

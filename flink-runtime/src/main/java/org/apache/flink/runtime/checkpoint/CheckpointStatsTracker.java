@@ -18,34 +18,16 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
-import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatistics;
-import org.apache.flink.runtime.rest.util.RestMapperUtils;
-import org.apache.flink.traces.Span;
-import org.apache.flink.traces.SpanBuilder;
-
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.io.StringWriter;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.locks.ReentrantLock;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Tracker for checkpoint statistics.
@@ -63,141 +45,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>The statistics are accessed via {@link #createSnapshot()} and exposed via both the web
  * frontend and the {@link Metric} system.
  */
-public class CheckpointStatsTracker {
-
-    private static final Logger LOG = LoggerFactory.getLogger(CheckpointStatsTracker.class);
-    private static final ObjectMapper MAPPER = RestMapperUtils.getStrictObjectMapper();
-
-    /**
-     * Lock used to update stats and creating snapshots. Updates always happen from a single Thread
-     * at a time and there can be multiple concurrent read accesses to the latest stats snapshot.
-     *
-     * <p>Currently, writes are executed by whatever Thread executes the coordinator actions (which
-     * already happens in locked scope). Reads can come from multiple concurrent Netty event loop
-     * Threads of the web runtime monitor.
-     */
-    private final ReentrantLock statsReadWriteLock = new ReentrantLock();
-
-    /** Checkpoint counts. */
-    private final CheckpointStatsCounts counts = new CheckpointStatsCounts();
-
-    /** A summary of the completed checkpoint stats. */
-    private final CompletedCheckpointStatsSummary summary = new CompletedCheckpointStatsSummary();
-
-    /** History of checkpoints. */
-    private final CheckpointStatsHistory history;
-
-    private final JobManagerJobMetricGroup metricGroup;
-
-    private Optional<JobInitializationMetricsBuilder> jobInitializationMetricsBuilder =
-            Optional.empty();
-
-    /** Latest created snapshot. */
-    private volatile CheckpointStatsSnapshot latestSnapshot;
-
-    /**
-     * Flag indicating whether a new snapshot needs to be created. This is true if a new checkpoint
-     * was triggered or updated (completed successfully or failed).
-     */
-    private volatile boolean dirty;
-
-    /** The latest completed checkpoint. Used by the latest completed checkpoint metrics. */
-    @Nullable private volatile CompletedCheckpointStats latestCompletedCheckpoint;
-
-    /**
-     * Creates a new checkpoint stats tracker.
-     *
-     * @param numRememberedCheckpoints Maximum number of checkpoints to remember, including in
-     *     progress ones.
-     * @param metricGroup Metric group for exposed metrics
-     */
-    public CheckpointStatsTracker(
-            int numRememberedCheckpoints, JobManagerJobMetricGroup metricGroup) {
-        checkArgument(numRememberedCheckpoints >= 0, "Negative number of remembered checkpoints");
-        this.history = new CheckpointStatsHistory(numRememberedCheckpoints);
-        this.metricGroup = metricGroup;
-
-        // Latest snapshot is empty
-        latestSnapshot =
-                new CheckpointStatsSnapshot(
-                        counts.createSnapshot(),
-                        summary.createSnapshot(),
-                        history.createSnapshot(),
-                        null);
-
-        // Register the metrics
-        registerMetrics(metricGroup);
-    }
-
-    /**
-     * Creates a new snapshot of the available stats.
-     *
-     * @return The latest statistics snapshot.
-     */
-    public CheckpointStatsSnapshot createSnapshot() {
-        CheckpointStatsSnapshot snapshot = latestSnapshot;
-
-        // Only create a new snapshot if dirty and no update in progress,
-        // because we don't want to block the coordinator.
-        if (dirty && statsReadWriteLock.tryLock()) {
-            try {
-                // Create a new snapshot
-                snapshot =
-                        new CheckpointStatsSnapshot(
-                                counts.createSnapshot(),
-                                summary.createSnapshot(),
-                                history.createSnapshot(),
-                                jobInitializationMetricsBuilder
-                                        .flatMap(
-                                                JobInitializationMetricsBuilder
-                                                        ::buildRestoredCheckpointStats)
-                                        .orElse(null));
-
-                latestSnapshot = snapshot;
-
-                dirty = false;
-            } finally {
-                statsReadWriteLock.unlock();
-            }
-        }
-
-        return snapshot;
-    }
-
-    // ------------------------------------------------------------------------
-    // Callbacks
-    // ------------------------------------------------------------------------
-
-    /**
-     * Creates a new pending checkpoint tracker.
-     *
-     * @param checkpointId ID of the checkpoint.
-     * @param triggerTimestamp Trigger timestamp of the checkpoint.
-     * @param props The checkpoint properties.
-     * @param vertexToDop mapping of {@link JobVertexID} to DOP
-     * @return Tracker for statistics gathering.
-     */
-    PendingCheckpointStats reportPendingCheckpoint(
-            long checkpointId,
-            long triggerTimestamp,
-            CheckpointProperties props,
-            Map<JobVertexID, Integer> vertexToDop) {
-
-        PendingCheckpointStats pending =
-                new PendingCheckpointStats(checkpointId, triggerTimestamp, props, vertexToDop);
-
-        statsReadWriteLock.lock();
-        try {
-            counts.incrementInProgressCheckpoints();
-            history.addInProgressCheckpoint(pending);
-
-            dirty = true;
-        } finally {
-            statsReadWriteLock.unlock();
-        }
-
-        return pending;
-    }
+public interface CheckpointStatsTracker {
 
     /**
      * Callback when a checkpoint is restored.
@@ -205,7 +53,7 @@ public class CheckpointStatsTracker {
      * @param restored The restored checkpoint stats.
      */
     @Deprecated
-    void reportRestoredCheckpoint(RestoredCheckpointStats restored) {
+    default void reportRestoredCheckpoint(RestoredCheckpointStats restored) {
         checkNotNull(restored, "Restored checkpoint");
         reportRestoredCheckpoint(
                 restored.getCheckpointId(),
@@ -214,402 +62,60 @@ public class CheckpointStatsTracker {
                 restored.getStateSize());
     }
 
-    public void reportRestoredCheckpoint(
+    void reportRestoredCheckpoint(
             long checkpointID,
             CheckpointProperties properties,
             String externalPath,
-            long stateSize) {
-        statsReadWriteLock.lock();
-        try {
-            counts.incrementRestoredCheckpoints();
-            checkState(
-                    jobInitializationMetricsBuilder.isPresent(),
-                    "JobInitializationMetrics should have been set first, before RestoredCheckpointStats");
-            jobInitializationMetricsBuilder
-                    .get()
-                    .setRestoredCheckpointStats(checkpointID, stateSize, properties, externalPath);
-            dirty = true;
-        } finally {
-            statsReadWriteLock.unlock();
-        }
-    }
+            long stateSize);
 
     /**
      * Callback when a checkpoint completes.
      *
      * @param completed The completed checkpoint stats.
      */
-    void reportCompletedCheckpoint(CompletedCheckpointStats completed) {
-        statsReadWriteLock.lock();
-        try {
-            latestCompletedCheckpoint = completed;
+    void reportCompletedCheckpoint(CompletedCheckpointStats completed);
 
-            counts.incrementCompletedCheckpoints();
-            history.replacePendingCheckpointById(completed);
+    @Nullable
+    PendingCheckpointStats getPendingCheckpointStats(long checkpointId);
 
-            summary.updateSummary(completed);
+    void reportIncompleteStats(
+            long checkpointId, ExecutionAttemptID attemptId, CheckpointMetrics metrics);
 
-            dirty = true;
-            logCheckpointStatistics(completed);
-        } finally {
-            statsReadWriteLock.unlock();
-        }
-    }
+    void reportInitializationStarted(
+            Set<ExecutionAttemptID> toInitialize, long initializationStartTs);
+
+    void reportInitializationMetrics(
+            ExecutionAttemptID executionAttemptId,
+            SubTaskInitializationMetrics initializationMetrics);
 
     /**
-     * Callback when a checkpoint fails.
+     * Creates a new pending checkpoint tracker.
      *
-     * @param failed The failed checkpoint stats.
+     * @param checkpointId ID of the checkpoint.
+     * @param triggerTimestamp Trigger timestamp of the checkpoint.
+     * @param props The checkpoint properties.
+     * @param vertexToDop mapping of {@link JobVertexID} to DOP
+     * @return Tracker for statistics gathering or {@code null} if no stats were tracked.
      */
-    void reportFailedCheckpoint(FailedCheckpointStats failed) {
-        statsReadWriteLock.lock();
-        try {
-            counts.incrementFailedCheckpoints();
-            history.replacePendingCheckpointById(failed);
+    @Nullable
+    PendingCheckpointStats reportPendingCheckpoint(
+            long checkpointId,
+            long triggerTimestamp,
+            CheckpointProperties props,
+            Map<JobVertexID, Integer> vertexToDop);
 
-            dirty = true;
-            logCheckpointStatistics(failed);
-        } finally {
-            statsReadWriteLock.unlock();
-        }
-    }
-
-    private void logCheckpointStatistics(AbstractCheckpointStats checkpointStats) {
-        try {
-            metricGroup.addSpan(
-                    Span.builder(CheckpointStatsTracker.class, "Checkpoint")
-                            .setStartTsMillis(checkpointStats.getTriggerTimestamp())
-                            .setEndTsMillis(checkpointStats.getLatestAckTimestamp())
-                            .setAttribute("checkpointId", checkpointStats.getCheckpointId())
-                            .setAttribute("fullSize", checkpointStats.getStateSize())
-                            .setAttribute("checkpointedSize", checkpointStats.getCheckpointedSize())
-                            .setAttribute("checkpointStatus", checkpointStats.getStatus().name()));
-            if (LOG.isDebugEnabled()) {
-                StringWriter sw = new StringWriter();
-                MAPPER.writeValue(
-                        sw,
-                        CheckpointStatistics.generateCheckpointStatistics(checkpointStats, true));
-                String jsonDump = sw.toString();
-                LOG.debug(
-                        "CheckpointStatistics (for jobID={}, checkpointId={}) dump = {} ",
-                        metricGroup.jobId(),
-                        checkpointStats.checkpointId,
-                        jsonDump);
-            }
-        } catch (Exception ex) {
-            LOG.warn("Fail to log CheckpointStatistics", ex);
-        }
-    }
+    void reportFailedCheckpoint(FailedCheckpointStats failed);
 
     /**
      * Callback when a checkpoint failure without in progress checkpoint. For example, it should be
      * callback when triggering checkpoint failure before creating PendingCheckpoint.
      */
-    public void reportFailedCheckpointsWithoutInProgress() {
-        statsReadWriteLock.lock();
-        try {
-            counts.incrementFailedCheckpointsWithoutInProgress();
-
-            dirty = true;
-        } finally {
-            statsReadWriteLock.unlock();
-        }
-    }
-
-    public PendingCheckpointStats getPendingCheckpointStats(long checkpointId) {
-        statsReadWriteLock.lock();
-        try {
-            AbstractCheckpointStats stats = history.getCheckpointById(checkpointId);
-            return stats instanceof PendingCheckpointStats ? (PendingCheckpointStats) stats : null;
-        } finally {
-            statsReadWriteLock.unlock();
-        }
-    }
-
-    public void reportIncompleteStats(
-            long checkpointId, ExecutionAttemptID attemptId, CheckpointMetrics metrics) {
-        statsReadWriteLock.lock();
-        try {
-            AbstractCheckpointStats stats = history.getCheckpointById(checkpointId);
-            if (stats instanceof PendingCheckpointStats) {
-                ((PendingCheckpointStats) stats)
-                        .reportSubtaskStats(
-                                attemptId.getJobVertexId(),
-                                new SubtaskStateStats(
-                                        attemptId.getSubtaskIndex(),
-                                        System.currentTimeMillis(),
-                                        metrics.getBytesPersistedOfThisCheckpoint(),
-                                        metrics.getTotalBytesPersisted(),
-                                        metrics.getSyncDurationMillis(),
-                                        metrics.getAsyncDurationMillis(),
-                                        metrics.getBytesProcessedDuringAlignment(),
-                                        metrics.getBytesPersistedDuringAlignment(),
-                                        metrics.getAlignmentDurationNanos() / 1_000_000,
-                                        metrics.getCheckpointStartDelayNanos() / 1_000_000,
-                                        metrics.getUnalignedCheckpoint(),
-                                        false));
-                dirty = true;
-            }
-        } finally {
-            statsReadWriteLock.unlock();
-        }
-    }
-
-    public void reportInitializationStarted(
-            Set<ExecutionAttemptID> toInitialize, long initializationStartTs) {
-        jobInitializationMetricsBuilder =
-                Optional.of(
-                        new JobInitializationMetricsBuilder(toInitialize, initializationStartTs));
-    }
-
-    public void reportInitializationMetrics(
-            ExecutionAttemptID executionAttemptId,
-            SubTaskInitializationMetrics initializationMetrics) {
-        statsReadWriteLock.lock();
-        try {
-            if (!jobInitializationMetricsBuilder.isPresent()) {
-                LOG.warn(
-                        "Attempted to report SubTaskInitializationMetrics [{}] without jobInitializationMetricsBuilder present",
-                        initializationMetrics);
-                return;
-            }
-            JobInitializationMetricsBuilder builder = jobInitializationMetricsBuilder.get();
-            builder.reportInitializationMetrics(executionAttemptId, initializationMetrics);
-            if (builder.isComplete()) {
-                traceInitializationMetrics(builder.build());
-            }
-        } catch (Exception ex) {
-            LOG.warn("Failed to log SubTaskInitializationMetrics [{}]", initializationMetrics, ex);
-        } finally {
-            statsReadWriteLock.unlock();
-        }
-    }
-
-    private void traceInitializationMetrics(JobInitializationMetrics jobInitializationMetrics) {
-        SpanBuilder span =
-                Span.builder(CheckpointStatsTracker.class, "JobInitialization")
-                        .setStartTsMillis(jobInitializationMetrics.getStartTs())
-                        .setEndTsMillis(jobInitializationMetrics.getEndTs())
-                        .setAttribute(
-                                "initializationStatus",
-                                jobInitializationMetrics.getStatus().name());
-        for (JobInitializationMetrics.SumMaxDuration duration :
-                jobInitializationMetrics.getDurationMetrics().values()) {
-            setDurationSpanAttribute(span, duration);
-        }
-        if (jobInitializationMetrics.getCheckpointId() != JobInitializationMetrics.UNSET) {
-            span.setAttribute("checkpointId", jobInitializationMetrics.getCheckpointId());
-        }
-        if (jobInitializationMetrics.getStateSize() != JobInitializationMetrics.UNSET) {
-            span.setAttribute("fullSize", jobInitializationMetrics.getStateSize());
-        }
-        metricGroup.addSpan(span);
-    }
-
-    private void setDurationSpanAttribute(
-            SpanBuilder span, JobInitializationMetrics.SumMaxDuration duration) {
-        span.setAttribute("max" + duration.getName(), duration.getMax());
-        span.setAttribute("sum" + duration.getName(), duration.getSum());
-    }
-
-    // ------------------------------------------------------------------------
-    // Metrics
-    // ------------------------------------------------------------------------
-
-    @VisibleForTesting
-    static final String NUMBER_OF_CHECKPOINTS_METRIC = "totalNumberOfCheckpoints";
-
-    @VisibleForTesting
-    static final String NUMBER_OF_IN_PROGRESS_CHECKPOINTS_METRIC = "numberOfInProgressCheckpoints";
-
-    @VisibleForTesting
-    static final String NUMBER_OF_COMPLETED_CHECKPOINTS_METRIC = "numberOfCompletedCheckpoints";
-
-    @VisibleForTesting
-    static final String NUMBER_OF_FAILED_CHECKPOINTS_METRIC = "numberOfFailedCheckpoints";
-
-    @VisibleForTesting
-    static final String LATEST_RESTORED_CHECKPOINT_TIMESTAMP_METRIC =
-            "lastCheckpointRestoreTimestamp";
-
-    @VisibleForTesting
-    static final String LATEST_COMPLETED_CHECKPOINT_SIZE_METRIC = "lastCheckpointSize";
-
-    @VisibleForTesting
-    static final String LATEST_COMPLETED_CHECKPOINT_FULL_SIZE_METRIC = "lastCheckpointFullSize";
-
-    @VisibleForTesting
-    static final String LATEST_COMPLETED_CHECKPOINT_DURATION_METRIC = "lastCheckpointDuration";
-
-    @VisibleForTesting
-    static final String LATEST_COMPLETED_CHECKPOINT_PROCESSED_DATA_METRIC =
-            "lastCheckpointProcessedData";
-
-    @VisibleForTesting
-    static final String LATEST_COMPLETED_CHECKPOINT_PERSISTED_DATA_METRIC =
-            "lastCheckpointPersistedData";
-
-    @VisibleForTesting
-    static final String LATEST_COMPLETED_CHECKPOINT_EXTERNAL_PATH_METRIC =
-            "lastCheckpointExternalPath";
-
-    @VisibleForTesting
-    static final String LATEST_COMPLETED_CHECKPOINT_ID_METRIC = "lastCompletedCheckpointId";
+    void reportFailedCheckpointsWithoutInProgress();
 
     /**
-     * Register the exposed metrics.
+     * Creates a new snapshot of the available stats.
      *
-     * @param metricGroup Metric group to use for the metrics.
+     * @return The latest statistics snapshot.
      */
-    private void registerMetrics(MetricGroup metricGroup) {
-        metricGroup.gauge(NUMBER_OF_CHECKPOINTS_METRIC, new CheckpointsCounter());
-        metricGroup.gauge(
-                NUMBER_OF_IN_PROGRESS_CHECKPOINTS_METRIC, new InProgressCheckpointsCounter());
-        metricGroup.gauge(
-                NUMBER_OF_COMPLETED_CHECKPOINTS_METRIC, new CompletedCheckpointsCounter());
-        metricGroup.gauge(NUMBER_OF_FAILED_CHECKPOINTS_METRIC, new FailedCheckpointsCounter());
-        metricGroup.gauge(
-                LATEST_RESTORED_CHECKPOINT_TIMESTAMP_METRIC,
-                new LatestRestoredCheckpointTimestampGauge());
-        metricGroup.gauge(
-                LATEST_COMPLETED_CHECKPOINT_SIZE_METRIC, new LatestCompletedCheckpointSizeGauge());
-        metricGroup.gauge(
-                LATEST_COMPLETED_CHECKPOINT_FULL_SIZE_METRIC,
-                new LatestCompletedCheckpointFullSizeGauge());
-        metricGroup.gauge(
-                LATEST_COMPLETED_CHECKPOINT_DURATION_METRIC,
-                new LatestCompletedCheckpointDurationGauge());
-        metricGroup.gauge(
-                LATEST_COMPLETED_CHECKPOINT_PROCESSED_DATA_METRIC,
-                new LatestCompletedCheckpointProcessedDataGauge());
-        metricGroup.gauge(
-                LATEST_COMPLETED_CHECKPOINT_PERSISTED_DATA_METRIC,
-                new LatestCompletedCheckpointPersistedDataGauge());
-        metricGroup.gauge(
-                LATEST_COMPLETED_CHECKPOINT_EXTERNAL_PATH_METRIC,
-                new LatestCompletedCheckpointExternalPathGauge());
-        metricGroup.gauge(
-                LATEST_COMPLETED_CHECKPOINT_ID_METRIC, new LatestCompletedCheckpointIdGauge());
-    }
-
-    private class CheckpointsCounter implements Gauge<Long> {
-        @Override
-        public Long getValue() {
-            return counts.getTotalNumberOfCheckpoints();
-        }
-    }
-
-    private class InProgressCheckpointsCounter implements Gauge<Integer> {
-        @Override
-        public Integer getValue() {
-            return counts.getNumberOfInProgressCheckpoints();
-        }
-    }
-
-    private class CompletedCheckpointsCounter implements Gauge<Long> {
-        @Override
-        public Long getValue() {
-            return counts.getNumberOfCompletedCheckpoints();
-        }
-    }
-
-    private class FailedCheckpointsCounter implements Gauge<Long> {
-        @Override
-        public Long getValue() {
-            return counts.getNumberOfFailedCheckpoints();
-        }
-    }
-
-    private class LatestRestoredCheckpointTimestampGauge implements Gauge<Long> {
-        @Override
-        public Long getValue() {
-            return jobInitializationMetricsBuilder
-                    .map(JobInitializationMetricsBuilder::getStartTs)
-                    .orElse(-1L);
-        }
-    }
-
-    private class LatestCompletedCheckpointSizeGauge implements Gauge<Long> {
-        @Override
-        public Long getValue() {
-            CompletedCheckpointStats completed = latestCompletedCheckpoint;
-            if (completed != null) {
-                return completed.getCheckpointedSize();
-            } else {
-                return -1L;
-            }
-        }
-    }
-
-    private class LatestCompletedCheckpointFullSizeGauge implements Gauge<Long> {
-        @Override
-        public Long getValue() {
-            CompletedCheckpointStats completed = latestCompletedCheckpoint;
-            if (completed != null) {
-                return completed.getStateSize();
-            } else {
-                return -1L;
-            }
-        }
-    }
-
-    private class LatestCompletedCheckpointDurationGauge implements Gauge<Long> {
-        @Override
-        public Long getValue() {
-            CompletedCheckpointStats completed = latestCompletedCheckpoint;
-            if (completed != null) {
-                return completed.getEndToEndDuration();
-            } else {
-                return -1L;
-            }
-        }
-    }
-
-    private class LatestCompletedCheckpointProcessedDataGauge implements Gauge<Long> {
-        @Override
-        public Long getValue() {
-            CompletedCheckpointStats completed = latestCompletedCheckpoint;
-            if (completed != null) {
-                return completed.getProcessedData();
-            } else {
-                return -1L;
-            }
-        }
-    }
-
-    private class LatestCompletedCheckpointPersistedDataGauge implements Gauge<Long> {
-        @Override
-        public Long getValue() {
-            CompletedCheckpointStats completed = latestCompletedCheckpoint;
-            if (completed != null) {
-                return completed.getPersistedData();
-            } else {
-                return -1L;
-            }
-        }
-    }
-
-    private class LatestCompletedCheckpointExternalPathGauge implements Gauge<String> {
-        @Override
-        public String getValue() {
-            CompletedCheckpointStats completed = latestCompletedCheckpoint;
-            if (completed != null && completed.getExternalPath() != null) {
-                return completed.getExternalPath();
-            } else {
-                return "n/a";
-            }
-        }
-    }
-
-    private class LatestCompletedCheckpointIdGauge implements Gauge<Long> {
-        @Override
-        public Long getValue() {
-            CompletedCheckpointStats completed = latestCompletedCheckpoint;
-            if (completed != null) {
-                return completed.getCheckpointId();
-            } else {
-                return -1L;
-            }
-        }
-    }
+    CheckpointStatsSnapshot createSnapshot();
 }
