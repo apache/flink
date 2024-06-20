@@ -79,8 +79,7 @@ public class JsonUnquoteFunction extends BuiltInScalarFunction {
                         i = i + 4;
                         break;
                     default:
-                        throw new RuntimeException(
-                                "Illegal escape sequence: \\" + ch);
+                        throw new RuntimeException("Illegal escape sequence: \\" + ch);
                 }
             } else {
                 result.append(inputStr.charAt(i));
