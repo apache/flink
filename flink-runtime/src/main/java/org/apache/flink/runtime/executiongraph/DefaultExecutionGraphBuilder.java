@@ -61,7 +61,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.function.Supplier;
 
 import static org.apache.flink.configuration.StateChangelogOptions.STATE_CHANGE_LOG_STORAGE;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -92,7 +91,7 @@ public class DefaultExecutionGraphBuilder {
             long initializationTimestamp,
             VertexAttemptNumberStore vertexAttemptNumberStore,
             VertexParallelismStore vertexParallelismStore,
-            Supplier<CheckpointStatsTracker> checkpointStatsTrackerFactory,
+            CheckpointStatsTracker checkpointStatsTracker,
             boolean isDynamicGraph,
             ExecutionJobVertex.Factory executionJobVertexFactory,
             MarkPartitionFinishedStrategy markPartitionFinishedStrategy,
@@ -342,7 +341,7 @@ public class DefaultExecutionGraphBuilder {
                     completedCheckpointStore,
                     rootBackend,
                     rootStorage,
-                    checkpointStatsTrackerFactory.get(),
+                    checkpointStatsTracker,
                     checkpointsCleaner,
                     jobManagerConfig.get(STATE_CHANGE_LOG_STORAGE));
         }

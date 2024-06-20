@@ -559,12 +559,6 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         return checkpointCoordinator;
     }
 
-    @Nullable
-    @Override
-    public CheckpointStatsTracker getCheckpointStatsTracker() {
-        return checkpointStatsTracker;
-    }
-
     @Override
     public KvStateLocationRegistry getKvStateLocationRegistry() {
         return kvStateLocationRegistry;
