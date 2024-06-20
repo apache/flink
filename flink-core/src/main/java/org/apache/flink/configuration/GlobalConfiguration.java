@@ -72,6 +72,8 @@ public final class GlobalConfiguration {
 
     private static boolean standardYaml = true;
 
+    private static final String FLINK_DISABLE_LEGACY_YAML_COMMENTS = "FLINK_DISABLE_LEGACY_YAML_COMMENTS";
+
     // --------------------------------------------------------------------------------------------
 
     private GlobalConfiguration() {}
@@ -225,7 +227,7 @@ public final class GlobalConfiguration {
                 // 1. check for comments
                 String conf;
                 // handle valid secret contain # char
-                if (line.startsWith("s3.secret-key") || line.startsWith("fs.s3.secret-key")) {
+                if ("true".equalsIgnoreCase(System.getenv(FLINK_DISABLE_LEGACY_YAML_COMMENTS))) {
                     conf = line;
                 } else {
                     String[] comments = line.split("#", 2);
