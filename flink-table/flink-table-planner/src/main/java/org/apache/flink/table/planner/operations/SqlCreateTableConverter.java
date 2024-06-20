@@ -235,13 +235,21 @@ class SqlCreateTableConverter {
 
         Schema mergedSchema = mergeTableAsUtil.mergeSchemas(sqlCreateTableAs, mergeSchema);
 
+        Optional<TableDistribution> tableDistribution =
+                Optional.ofNullable(sqlCreateTableAs.getDistribution())
+                        .map(OperationConverterUtils::getDistributionFromSqlDistribution);
+
+        List<String> partitionKeys =
+                getPartitionKeyColumnNames(sqlCreateTableAs.getPartitionKeyList());
+        verifyPartitioningColumnsExist(mergedSchema, partitionKeys);
+
         CatalogTable catalogTable =
                 CatalogTable.newBuilder()
                         .schema(mergedSchema)
                         .comment(tableComment)
-                        .distribution(null)
+                        .distribution(tableDistribution.orElse(null))
                         .options(tableOptions)
-                        .partitionKeys(Collections.emptyList())
+                        .partitionKeys(partitionKeys)
                         .build();
 
         return catalogManager.resolveCatalogTable(catalogTable);
@@ -379,6 +387,12 @@ class SqlCreateTableConverter {
                 derivedTabledDistribution);
     }
 
+    private List<String> getPartitionKeyColumnNames(SqlNodeList partitionKey) {
+        return partitionKey.getList().stream()
+                .map(p -> ((SqlIdentifier) p).getSimple())
+                .collect(Collectors.toList());
+    }
+
     private List<String> mergePartitions(
             List<String> sourcePartitionKeys,
             SqlNodeList derivedPartitionKeys,
@@ -387,9 +401,7 @@ class SqlCreateTableConverter {
         return mergeTableLikeUtil.mergePartitions(
                 mergingStrategies.get(SqlTableLike.FeatureOption.PARTITIONS),
                 sourcePartitionKeys,
-                derivedPartitionKeys.getList().stream()
-                        .map(p -> ((SqlIdentifier) p).getSimple())
-                        .collect(Collectors.toList()));
+                getPartitionKeyColumnNames(derivedPartitionKeys));
     }
 
     private Map<String, String> mergeOptions(
