@@ -19,6 +19,8 @@
 package org.apache.flink.table.file.testutils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
 import org.apache.flink.connector.file.table.FileSystemTableFactory;
 import org.apache.flink.connector.file.table.TestFileSystemTableSource;
@@ -62,11 +64,15 @@ public class TestFileSystemTableFactory extends FileSystemTableFactory {
 
         FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
         validate(helper);
+        boolean isStreamingMode =
+                context.getConfiguration().get(ExecutionOptions.RUNTIME_MODE)
+                        == RuntimeExecutionMode.STREAMING;
         return new TestFileSystemTableSource(
                 context.getObjectIdentifier(),
                 context.getPhysicalRowDataType(),
                 context.getCatalogTable().getPartitionKeys(),
                 helper.getOptions(),
+                isStreamingMode,
                 discoverDecodingFormat(context, BulkReaderFormatFactory.class),
                 discoverDecodingFormat(context, DeserializationFormatFactory.class));
     }
