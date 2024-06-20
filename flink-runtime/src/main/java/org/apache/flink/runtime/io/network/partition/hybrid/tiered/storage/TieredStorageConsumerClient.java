@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageInputChannelId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyService;
@@ -148,6 +149,23 @@ public class TieredStorageConsumerClient {
     public void registerAvailabilityNotifier(AvailabilityNotifier notifier) {
         for (TierConsumerAgent tierConsumerAgent : tierConsumerAgents) {
             tierConsumerAgent.registerAvailabilityNotifier(notifier);
+        }
+    }
+
+    public void updateTierShuffleDescriptors(
+            TieredStoragePartitionId partitionId,
+            TieredStorageInputChannelId inputChannelId,
+            TieredStorageSubpartitionId subpartitionId,
+            List<TierShuffleDescriptor> tierShuffleDescriptors) {
+        checkState(tierShuffleDescriptors.size() == tierConsumerAgents.size());
+        for (int i = 0; i < tierShuffleDescriptors.size(); i++) {
+            tierConsumerAgents
+                    .get(i)
+                    .updateTierShuffleDescriptor(
+                            partitionId,
+                            inputChannelId,
+                            subpartitionId,
+                            tierShuffleDescriptors.get(i));
         }
     }
 

@@ -33,6 +33,7 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.Avail
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerSpec;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemoryManager;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierConsumerAgent;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -187,6 +188,15 @@ public class RemoteTierConsumerAgent implements TierConsumerAgent {
     public void registerAvailabilityNotifier(AvailabilityNotifier notifier) {
         Preconditions.checkState(this.notifier == null);
         this.notifier = notifier;
+    }
+
+    @Override
+    public void updateTierShuffleDescriptor(
+            TieredStoragePartitionId partitionId,
+            TieredStorageInputChannelId inputChannelId,
+            TieredStorageSubpartitionId subpartitionId,
+            TierShuffleDescriptor tierShuffleDescriptor) {
+        // noop
     }
 
     @Override
