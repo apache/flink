@@ -227,7 +227,9 @@ public final class GlobalConfiguration {
                 // 1. check for comments
                 String conf;
                 // handle valid secret contain # char
-                if ("true".equalsIgnoreCase(System.getenv(FLINK_DISABLE_LEGACY_YAML_COMMENTS))) {
+                if ("true".equalsIgnoreCase(System.getenv(FLINK_DISABLE_LEGACY_YAML_COMMENTS)) ||
+                        "true".equalsIgnoreCase(System.getProperty(
+                                FLINK_DISABLE_LEGACY_YAML_COMMENTS))) {
                     conf = line;
                 } else {
                     String[] comments = line.split("#", 2);
