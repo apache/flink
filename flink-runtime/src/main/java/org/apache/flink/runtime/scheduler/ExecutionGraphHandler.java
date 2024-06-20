@@ -35,6 +35,7 @@ import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
@@ -81,23 +82,19 @@ public class ExecutionGraphHandler {
     public void reportInitializationMetrics(
             ExecutionAttemptID executionAttemptId,
             SubTaskInitializationMetrics initializationMetrics) {
-        if (executionGraph.getCheckpointStatsTracker() == null) {
+        final CheckpointCoordinatorConfiguration checkpointConfig =
+                executionGraph.getCheckpointCoordinatorConfiguration();
+        if (checkpointConfig == null || !checkpointConfig.isCheckpointingEnabled()) {
             // TODO: Consider to support reporting initialization stats without checkpointing
-            log.debug(
-                    "Ignoring reportInitializationMetrics if checkpoint coordinator is not present");
+            log.debug("Ignoring reportInitializationMetrics if checkpointing is not present");
             return;
         }
-        ioExecutor.execute(
-                () -> {
-                    try {
-                        executionGraph
-                                .getCheckpointStatsTracker()
-                                .reportInitializationMetrics(
-                                        executionAttemptId, initializationMetrics);
-                    } catch (Exception t) {
-                        log.warn("Error while reportInitializationMetrics", t);
-                    }
-                });
+
+        processCheckpointCoordinatorMessage(
+                "ReportInitializationMetrics",
+                coordinator ->
+                        coordinator.reportInitializationMetrics(
+                                executionAttemptId, initializationMetrics));
     }
 
     public void acknowledgeCheckpoint(
