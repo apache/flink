@@ -110,14 +110,23 @@ class CheckpointRequestDecider {
      */
     Optional<CheckpointTriggerRequest> chooseRequestToExecute(
             CheckpointTriggerRequest newRequest, boolean isTriggering, long lastCompletionMs) {
+        LOG.info("Received new checkpoint trigger request : {}", newRequest);
+
         if (queuedRequests.size() >= maxQueuedRequests && !queuedRequests.last().isPeriodic) {
             // there are only non-periodic (ie user-submitted) requests enqueued - retain them and
             // drop the new one
+            LOG.info("Checkpoint trigger queue is full");
+
             newRequest.completeExceptionally(new CheckpointException(TOO_MANY_CHECKPOINT_REQUESTS));
             return Optional.empty();
         } else {
             queuedRequests.add(newRequest);
+            LOG.info("Checkpoint request added to queue, with current queue contents: {}",
+                    queuedRequests);
+
             if (queuedRequests.size() > maxQueuedRequests) {
+                LOG.info("Checkpoint trigger queue is larger than max size after adding");
+
                 queuedRequests
                         .pollLast()
                         .completeExceptionally(
@@ -125,6 +134,9 @@ class CheckpointRequestDecider {
             }
             Optional<CheckpointTriggerRequest> request =
                     chooseRequestToExecute(isTriggering, lastCompletionMs);
+
+            LOG.info("Chose checkpoint trigger request to execute : {}", request);
+
             request.ifPresent(CheckpointRequestDecider::logInQueueTime);
             return request;
         }
@@ -137,8 +149,14 @@ class CheckpointRequestDecider {
      */
     Optional<CheckpointTriggerRequest> chooseQueuedRequestToExecute(
             boolean isTriggering, long lastCompletionMs) {
+        LOG.info("Current queue contents: {}",
+                queuedRequests);
+
         Optional<CheckpointTriggerRequest> request =
                 chooseRequestToExecute(isTriggering, lastCompletionMs);
+        LOG.info("Chose checkpoint trigger request to execute without adding to queue: {}",
+                request);
+
         request.ifPresent(CheckpointRequestDecider::logInQueueTime);
         return request;
     }
@@ -155,17 +173,38 @@ class CheckpointRequestDecider {
                 || queuedRequests.isEmpty()
                 || numberOfCleaningCheckpointsSupplier.getAsInt()
                         > maxConcurrentCheckpointAttempts) {
+            LOG.info("Returning empty. "
+                     + "IsTriggering: {}, "
+                     + "queuedRequests: {}, "
+                     + "numberOfCleaningCheckpointsSupplier: {}, "
+                     + "maxConcurrentCheckpointAttempts: {}",
+                    isTriggering,
+                    queuedRequests,
+                    numberOfCleaningCheckpointsSupplier.getAsInt(),
+                    maxConcurrentCheckpointAttempts);
             return Optional.empty();
         }
         if (pendingCheckpointsSizeSupplier.getAsInt() >= maxConcurrentCheckpointAttempts) {
+            LOG.info("Returning first request if it is forced. "
+                     + "queuedRequests: {}, "
+                     + "pendingCheckpointsSizeSupplier: {}, "
+                     + "maxConcurrentCheckpointAttempts: {}",
+                    queuedRequests,
+                    pendingCheckpointsSizeSupplier.getAsInt(),
+                    maxConcurrentCheckpointAttempts);
             return Optional.of(queuedRequests.first())
                     .filter(CheckpointTriggerRequest::isForce)
                     .map(unused -> queuedRequests.pollFirst());
         }
 
         CheckpointTriggerRequest first = queuedRequests.first();
+        LOG.info("First request from queue: {}", first);
+
         if (!first.isForce() && first.isPeriodic) {
+            LOG.info("First request is not forced and first is periodic");
+
             long nextTriggerDelayMillis = nextTriggerDelayMillis(lastCompletionMs);
+            LOG.info("Next trigger delay millis: {}", nextTriggerDelayMillis);
             if (nextTriggerDelayMillis > 0) {
                 queuedRequests
                         .pollFirst()
@@ -176,6 +215,7 @@ class CheckpointRequestDecider {
             }
         }
 
+        LOG.info("Returning first request from queue.");
         return Optional.of(queuedRequests.pollFirst());
     }
 

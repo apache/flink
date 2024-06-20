@@ -2266,6 +2266,17 @@ public class CheckpointCoordinator {
         public boolean isForce() {
             return props.forceCheckpoint();
         }
+
+        @Override
+        public String toString() {
+            return "CheckpointTriggerRequest{" +
+                   "timestamp=" + timestamp +
+                   ", props=" + props +
+                   ", externalSavepointLocation='" + externalSavepointLocation + '\'' +
+                   ", isPeriodic=" + isPeriodic +
+                   ", onCompletionPromise=" + onCompletionPromise +
+                   '}';
+        }
     }
 
     private enum OperatorCoordinatorRestoreBehavior {
