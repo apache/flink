@@ -19,9 +19,7 @@
 package org.apache.flink.connector.file.table;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
-import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.TestFileSource;
@@ -42,11 +40,14 @@ import java.util.List;
 @Internal
 public class TestFileSystemTableSource extends FileSystemTableSource {
 
+    private final boolean isStreamingMode;
+
     public TestFileSystemTableSource(
             ObjectIdentifier tableIdentifier,
             DataType physicalRowDataType,
             List<String> partitionKeys,
             ReadableConfig tableOptions,
+            boolean isStreamingMode,
             @Nullable DecodingFormat<BulkFormat<RowData, FileSourceSplit>> bulkReaderFormat,
             @Nullable DecodingFormat<DeserializationSchema<RowData>> deserializationFormat) {
         super(
@@ -56,6 +57,7 @@ public class TestFileSystemTableSource extends FileSystemTableSource {
                 tableOptions,
                 bulkReaderFormat,
                 deserializationFormat);
+        this.isStreamingMode = isStreamingMode;
     }
 
     @Override
@@ -79,8 +81,6 @@ public class TestFileSystemTableSource extends FileSystemTableSource {
                                                         new NonSplittingRecursiveAllDirEnumerator(
                                                                 regex)));
 
-        boolean isStreamingMode =
-                tableOptions.get(ExecutionOptions.RUNTIME_MODE) == RuntimeExecutionMode.STREAMING;
         fileSourceBuilder.setStreamingMode(isStreamingMode);
 
         return SourceProvider.of(fileSourceBuilder.build());

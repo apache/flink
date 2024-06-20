@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.file.testutils;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.table.FileSystemTableSink;
 import org.apache.flink.connector.file.table.TestFileSystemTableSource;
 import org.apache.flink.table.api.DataTypes;
@@ -25,13 +26,17 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.api.common.RuntimeExecutionMode.BATCH;
+import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -63,5 +68,44 @@ public class TestFileSystemTableFactoryTest {
 
         DynamicTableSink sink = createTableSink(SCHEMA, options);
         assertThat(sink).isInstanceOf(FileSystemTableSink.class);
+    }
+
+    @Test
+    void testCreateUnboundedSource() {
+        Map<String, String> options = new HashMap<>();
+        options.put(FactoryUtil.CONNECTOR.key(), "test-filesystem");
+        options.put("path", "/tmp");
+        options.put("format", "testcsv");
+        options.put("source.monitor-interval", "5S");
+
+        DynamicTableSource source = createTableSource(SCHEMA, options);
+        assertThat(source).isInstanceOf(TestFileSystemTableSource.class);
+
+        // assert source is unbounded when specify source.monitor-interval
+        ScanTableSource.ScanRuntimeProvider scanRuntimeProvider =
+                ((TestFileSystemTableSource) source)
+                        .getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
+        assertThat(scanRuntimeProvider.isBounded()).isFalse();
+    }
+
+    @Test
+    void testCreateBoundedSource() {
+        Map<String, String> options = new HashMap<>();
+        options.put(FactoryUtil.CONNECTOR.key(), "test-filesystem");
+        options.put("path", "/tmp");
+        options.put("format", "testcsv");
+        options.put("source.monitor-interval", "5S");
+
+        Configuration configuration = new Configuration();
+        configuration.set(RUNTIME_MODE, BATCH);
+
+        DynamicTableSource source = createTableSource(SCHEMA, options, configuration);
+        assertThat(source).isInstanceOf(TestFileSystemTableSource.class);
+
+        // assert source is unbounded when specify source.monitor-interval
+        ScanTableSource.ScanRuntimeProvider scanRuntimeProvider =
+                ((TestFileSystemTableSource) source)
+                        .getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
+        assertThat(scanRuntimeProvider.isBounded()).isTrue();
     }
 }
