@@ -62,6 +62,18 @@ class HiveDynamicParallelismInferenceFactory implements HiveParallelismInference
                                         globalMaxParallelism),
                         globalMaxParallelism);
         int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
+        adjustInferMaxParallelism(jobConf, inferMaxParallelism);
         return new HiveParallelismInference(tablePath, infer, inferMaxParallelism, parallelism);
+    }
+
+    /**
+     * Reset infer source max parallelism in jobConf, and {@link
+     * HiveSourceFileEnumerator#createInputSplits} will infer InputSplits based on the
+     * inferMaxParallelism.
+     */
+    private void adjustInferMaxParallelism(JobConf jobConf, int inferMaxParallelism) {
+        jobConf.set(
+                HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX.key(),
+                String.valueOf(inferMaxParallelism));
     }
 }
