@@ -731,7 +731,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testCreateTableAsWithPrimaryKey() {
+    public void testCreateTableAsWithPrimaryAndPartitionKey() {
         CatalogTable catalogTable =
                 CatalogTable.newBuilder()
                         .schema(
@@ -745,7 +745,8 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                 catalogTable, ObjectIdentifier.of("builtin", "default", "src1"), false);
 
         final String sql =
-                "create table tbl1 (PRIMARY KEY (f0) NOT ENFORCED) " + "AS SELECT * FROM src1";
+                "create table tbl1 (PRIMARY KEY (f0) NOT ENFORCED) "
+                        + "PARTITIONED BY (f0) AS SELECT * FROM src1";
 
         Operation ctas = parseAndConvert(sql);
         Operation operation = ((CreateTableASOperation) ctas).getCreateTableOperation();
@@ -754,6 +755,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                         new HamcrestCondition<>(
                                 isCreateTableOperation(
                                         withNoDistribution(),
+                                        partitionedBy("f0"),
                                         withSchema(
                                                 Schema.newBuilder()
                                                         .column("f0", DataTypes.INT().notNull())
@@ -842,9 +844,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testMergingCreateTableAsWitDistribution() {
-        Map<String, String> sourceProperties = new HashMap<>();
-        sourceProperties.put("format.type", "json");
+    public void testMergingCreateTableAsWithDistribution() {
         CatalogTable catalogTable =
                 CatalogTable.newBuilder()
                         .schema(
@@ -856,18 +856,30 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                                         .build())
                         .distribution(TableDistribution.ofHash(Collections.singletonList("f0"), 3))
                         .partitionKeys(Arrays.asList("f0", "f1"))
-                        .options(sourceProperties)
                         .build();
 
         catalogManager.createTable(
                 catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
 
         final String sql =
-                "create table derivedTable DISTRIBUTED BY (f0) AS SELECT * FROM sourceTable";
-        assertThatThrownBy(() -> parseAndConvert(sql))
-                .isInstanceOf(SqlValidateException.class)
-                .hasMessageContaining(
-                        "CREATE TABLE AS SELECT syntax does not support creating distributed tables yet.");
+                "create table derivedTable DISTRIBUTED BY HASH(f0) INTO 2 BUCKETS "
+                        + "AS SELECT * FROM sourceTable";
+
+        Operation ctas = parseAndConvert(sql);
+        Operation operation = ((CreateTableASOperation) ctas).getCreateTableOperation();
+        assertThat(operation)
+                .is(
+                        new HamcrestCondition<>(
+                                isCreateTableOperation(
+                                        withDistribution(
+                                                TableDistribution.ofHash(
+                                                        Collections.singletonList("f0"), 2)),
+                                        withSchema(
+                                                Schema.newBuilder()
+                                                        .column("f0", DataTypes.INT().notNull())
+                                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                                        .column("f2", DataTypes.INT().notNull())
+                                                        .build()))));
     }
 
     @Test
