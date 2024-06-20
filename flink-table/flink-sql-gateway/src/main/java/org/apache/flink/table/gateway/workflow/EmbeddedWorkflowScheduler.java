@@ -103,7 +103,6 @@ public class EmbeddedWorkflowScheduler implements WorkflowScheduler<EmbeddedRefr
                             periodicRefreshWorkflow.getCronExpression(),
                             periodicRefreshWorkflow.getInitConfig(),
                             periodicRefreshWorkflow.getExecutionConfig(),
-                            null,
                             periodicRefreshWorkflow.getRestEndpointUrl());
             CreateEmbeddedSchedulerWorkflowResponseBody responseBody;
             try {
