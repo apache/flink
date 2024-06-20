@@ -49,8 +49,12 @@ public class CsvBulkWriterIT {
 
     @TempDir File outDir;
 
+    /**
+     * FLINK-35240 : Verifies that Jackson CSV writer does not flush per record but waits for a
+     * flush signal from Flink.
+     */
     @Test
-    public void testNoDataIsWrittenBeforeFlush() throws Exception {
+    public void testNoDataIsWrittenBeforeFlinkFlush() throws Exception {
 
         Configuration config = new Configuration();
         config.set(
