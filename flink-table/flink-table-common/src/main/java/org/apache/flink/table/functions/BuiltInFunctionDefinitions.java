@@ -1085,6 +1085,24 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(explicit(DataTypes.STRING().nullable()))
                     .build();
 
+    public static final BuiltInFunctionDefinition JSON_QUOTE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("JSON_QUOTE")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.JsonQuoteFunction")
+                    .build();
+    public static final BuiltInFunctionDefinition JSON_UNQUOTE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("JSON_UNQUOTE")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.JsonUnquoteFunction")
+                    .build();
     public static final BuiltInFunctionDefinition FROM_BASE64 =
             BuiltInFunctionDefinition.newBuilder()
                     .name("fromBase64")

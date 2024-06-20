@@ -116,6 +116,8 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NUL
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_TRUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_EXISTS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_QUERY;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_QUOTE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_UNQUOTE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_VALUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LAST_VALUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LEFT;
@@ -1126,6 +1128,19 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType regexpExtract(InType regex) {
         return toApiSpecificExpression(
                 unresolvedCall(REGEXP_EXTRACT, toExpr(), objectToExpression(regex)));
+    }
+
+    /**
+     * Returns a string by quotes a string as a JSON value and wrapping it with double quote
+     * characters.
+     */
+    public OutType jsonQuote() {
+        return toApiSpecificExpression(unresolvedCall(JSON_QUOTE, objectToExpression(toExpr())));
+    }
+
+    /** Returns utf8mb4 string by unquoting JSON value. */
+    public OutType jsonUnquote() {
+        return toApiSpecificExpression(unresolvedCall(JSON_UNQUOTE, objectToExpression(toExpr())));
     }
 
     /** Returns the base string decoded with base64. */

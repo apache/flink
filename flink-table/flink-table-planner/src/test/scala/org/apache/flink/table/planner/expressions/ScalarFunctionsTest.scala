@@ -605,6 +605,50 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testJsonQuote(): Unit = {
+    testSqlApi("JSON_QUOTE('null')", "\"null\"")
+    testSqlApi("JSON_QUOTE('\"null\"')", "\"\"null\"\"")
+    testSqlApi("JSON_QUOTE('[1,2,3]')", "\"[1,2,3]\"")
+    testSqlApi("JSON_UNQUOTE(JSON_QUOTE('[1,2,3]'))", "[1,2,3]")
+    testSqlApi(
+      "JSON_QUOTE('This is a \\t test \\n with special characters: \" \\ \\b \\f \\r \\u0041')",
+      "\"This is a \\t test \\n with special characters: \" \\ \\b \\f \\r \\u0041\""
+    )
+    testSqlApi(
+      "JSON_QUOTE('\"special\": \"\\b\\f\\r\"')",
+      "\"\"special\": \"\\b\\f\\r\"\""
+    )
+    testSqlApi(
+      "JSON_QUOTE('skipping backslash \')",
+      "\"skipping backslash \""
+    )
+  }
+
+  @Test
+  def testJsonUnquote(): Unit = {
+    testSqlApi("JSON_UNQUOTE('\"abc\"')", "abc")
+    testSqlApi("JSON_UNQUOTE('\"[abc]\"')", "[abc]")
+    testSqlApi("JSON_UNQUOTE('\"[abc}\"')", "[abc}")
+    testSqlApi("JSON_UNQUOTE('\"[\\u0041]\"')", "[A]")
+    testSqlApi("JSON_UNQUOTE('\"[\\u006z]\"')", "\"[\\u006z]\"")
+    testSqlApi("JSON_UNQUOTE('\"[1,2,3]')", "\"[1,2,3]")
+    testSqlApi("JSON_UNQUOTE('\"[1, 2, 3}')", "\"[1, 2, 3}")
+    testSqlApi("JSON_UNQUOTE('\"[1, 2, 3}\"')", "[1, 2, 3}")
+    testSqlApi("JSON_UNQUOTE('\"')", "\"")
+    testSqlApi("JSON_UNQUOTE('\"[\\t\\u0032]\"')", "[\\t2]")
+    testSqlApi(
+      "JSON_UNQUOTE('\"This is a \\t test \\n with special characters: \\b \\f \\r \\u0041\"')",
+      "This is a \\t test \\n with special characters: \\b \\f \\r A"
+    )
+    testSqlApi(
+      "JSON_UNQUOTE('\"[\"This is a \\t test \\n with special characters: \\b \\f \\r \\u0041\"]\"')",
+      "[\"This is a \\t test \\n with special characters: \\b \\f \\r A\"]"
+    )
+    testSqlApi("json_unquote(json_quote('\"key\"'))", "\"key\"")
+    testSqlApi("json_unquote(json_quote('\"[]\"'))", "\"[]\"")
+  }
+
+  @Test
   def testFromBase64(): Unit = {
     testSqlApi("FROM_BASE64('aGVsbG8gd29ybGQ=')", "hello world")
 
