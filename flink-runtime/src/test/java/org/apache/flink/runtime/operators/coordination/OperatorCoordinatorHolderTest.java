@@ -24,9 +24,9 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureManager;
 import org.apache.flink.runtime.checkpoint.CheckpointPlanCalculatorContext;
-import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.DefaultCheckpointPlanCalculator;
+import org.apache.flink.runtime.checkpoint.NoOpCheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.NoOpFailJobCall;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
@@ -573,10 +573,7 @@ class OperatorCoordinatorHolderTest {
                                 },
                                 IteratorChain::new,
                                 false),
-                        new CheckpointStatsTracker(
-                                1,
-                                UnregisteredMetricGroups
-                                        .createUnregisteredJobManagerJobMetricGroup())));
+                        NoOpCheckpointStatsTracker.INSTANCE));
         holder.start();
 
         return holder;

@@ -212,7 +212,7 @@ class CheckpointCoordinatorFailureTest {
                 new FailingCompletedCheckpointStore(failure);
 
         CheckpointStatsTracker statsTracker =
-                new CheckpointStatsTracker(
+                new DefaultCheckpointStatsTracker(
                         Integer.MAX_VALUE,
                         UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
         final AtomicInteger cleanupCallCount = new AtomicInteger(0);

@@ -2429,7 +2429,12 @@ public class CheckpointCoordinator {
     }
 
     private void reportFinishedTasks(
-            PendingCheckpointStats pendingCheckpointStats, List<Execution> finishedTasks) {
+            @Nullable PendingCheckpointStats pendingCheckpointStats,
+            List<Execution> finishedTasks) {
+        if (pendingCheckpointStats == null) {
+            return;
+        }
+
         long now = System.currentTimeMillis();
         finishedTasks.forEach(
                 execution ->

@@ -51,7 +51,7 @@ import java.util.stream.Collectors;
 import static java.util.Collections.singletonMap;
 import static org.assertj.core.api.Assertions.assertThat;
 
-class CheckpointStatsTrackerTest {
+class DefaultCheckpointStatsTrackerTest {
 
     @RegisterExtension
     private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
@@ -68,7 +68,7 @@ class CheckpointStatsTrackerTest {
         ExecutionJobVertex jobVertex = graph.getJobVertex(jobVertexID);
 
         CheckpointStatsTracker tracker =
-                new CheckpointStatsTracker(
+                new DefaultCheckpointStatsTracker(
                         0, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
         PendingCheckpointStats pending =
@@ -117,7 +117,7 @@ class CheckpointStatsTrackerTest {
                 singletonMap(jobVertexID, jobVertex.getParallelism());
 
         CheckpointStatsTracker tracker =
-                new CheckpointStatsTracker(
+                new DefaultCheckpointStatsTracker(
                         10, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
         // Completed checkpoint
@@ -244,7 +244,7 @@ class CheckpointStatsTrackerTest {
     void testCreateSnapshot() {
         JobVertexID jobVertexID = new JobVertexID();
         CheckpointStatsTracker tracker =
-                new CheckpointStatsTracker(
+                new DefaultCheckpointStatsTracker(
                         10, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
         CheckpointStatsSnapshot snapshot1 = tracker.createSnapshot();
@@ -301,7 +301,7 @@ class CheckpointStatsTrackerTest {
                     }
                 };
 
-        CheckpointStatsTracker tracker = new CheckpointStatsTracker(10, metricGroup);
+        CheckpointStatsTracker tracker = new DefaultCheckpointStatsTracker(10, metricGroup);
 
         PendingCheckpointStats pending =
                 tracker.reportPendingCheckpoint(
@@ -337,7 +337,7 @@ class CheckpointStatsTrackerTest {
                     }
                 };
 
-        CheckpointStatsTracker tracker = new CheckpointStatsTracker(10, metricGroup);
+        CheckpointStatsTracker tracker = new DefaultCheckpointStatsTracker(10, metricGroup);
 
         final ExecutionAttemptID executionAttemptId3 = ExecutionAttemptID.randomId();
         final ExecutionAttemptID executionAttemptId2 = ExecutionAttemptID.randomId();
@@ -438,27 +438,34 @@ class CheckpointStatsTrackerTest {
                     }
                 };
 
-        new CheckpointStatsTracker(0, metricGroup);
+        new DefaultCheckpointStatsTracker(0, metricGroup);
 
         // Make sure this test is adjusted when further metrics are added
         assertThat(registeredGaugeNames)
                 .containsAll(
                         Arrays.asList(
-                                CheckpointStatsTracker.NUMBER_OF_CHECKPOINTS_METRIC,
-                                CheckpointStatsTracker.NUMBER_OF_IN_PROGRESS_CHECKPOINTS_METRIC,
-                                CheckpointStatsTracker.NUMBER_OF_COMPLETED_CHECKPOINTS_METRIC,
-                                CheckpointStatsTracker.NUMBER_OF_FAILED_CHECKPOINTS_METRIC,
-                                CheckpointStatsTracker.LATEST_RESTORED_CHECKPOINT_TIMESTAMP_METRIC,
-                                CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_SIZE_METRIC,
-                                CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_FULL_SIZE_METRIC,
-                                CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_DURATION_METRIC,
-                                CheckpointStatsTracker
+                                DefaultCheckpointStatsTracker.NUMBER_OF_CHECKPOINTS_METRIC,
+                                DefaultCheckpointStatsTracker
+                                        .NUMBER_OF_IN_PROGRESS_CHECKPOINTS_METRIC,
+                                DefaultCheckpointStatsTracker
+                                        .NUMBER_OF_COMPLETED_CHECKPOINTS_METRIC,
+                                DefaultCheckpointStatsTracker.NUMBER_OF_FAILED_CHECKPOINTS_METRIC,
+                                DefaultCheckpointStatsTracker
+                                        .LATEST_RESTORED_CHECKPOINT_TIMESTAMP_METRIC,
+                                DefaultCheckpointStatsTracker
+                                        .LATEST_COMPLETED_CHECKPOINT_SIZE_METRIC,
+                                DefaultCheckpointStatsTracker
+                                        .LATEST_COMPLETED_CHECKPOINT_FULL_SIZE_METRIC,
+                                DefaultCheckpointStatsTracker
+                                        .LATEST_COMPLETED_CHECKPOINT_DURATION_METRIC,
+                                DefaultCheckpointStatsTracker
                                         .LATEST_COMPLETED_CHECKPOINT_PROCESSED_DATA_METRIC,
-                                CheckpointStatsTracker
+                                DefaultCheckpointStatsTracker
                                         .LATEST_COMPLETED_CHECKPOINT_PERSISTED_DATA_METRIC,
-                                CheckpointStatsTracker
+                                DefaultCheckpointStatsTracker
                                         .LATEST_COMPLETED_CHECKPOINT_EXTERNAL_PATH_METRIC,
-                                CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_ID_METRIC));
+                                DefaultCheckpointStatsTracker
+                                        .LATEST_COMPLETED_CHECKPOINT_ID_METRIC));
         assertThat(registeredGaugeNames).hasSize(12);
     }
 
@@ -485,7 +492,7 @@ class CheckpointStatsTrackerTest {
                         .addJobVertex(jobVertexID)
                         .build(EXECUTOR_RESOURCE.getExecutor());
 
-        CheckpointStatsTracker stats = new CheckpointStatsTracker(0, metricGroup);
+        CheckpointStatsTracker stats = new DefaultCheckpointStatsTracker(0, metricGroup);
 
         // Make sure to adjust this test if metrics are added/removed
         assertThat(registeredGauges).hasSize(12);
@@ -493,55 +500,62 @@ class CheckpointStatsTrackerTest {
         // Check initial values
         Gauge<Long> numCheckpoints =
                 (Gauge<Long>)
-                        registeredGauges.get(CheckpointStatsTracker.NUMBER_OF_CHECKPOINTS_METRIC);
+                        registeredGauges.get(
+                                DefaultCheckpointStatsTracker.NUMBER_OF_CHECKPOINTS_METRIC);
         Gauge<Integer> numInProgressCheckpoints =
                 (Gauge<Integer>)
                         registeredGauges.get(
-                                CheckpointStatsTracker.NUMBER_OF_IN_PROGRESS_CHECKPOINTS_METRIC);
+                                DefaultCheckpointStatsTracker
+                                        .NUMBER_OF_IN_PROGRESS_CHECKPOINTS_METRIC);
         Gauge<Long> numCompletedCheckpoints =
                 (Gauge<Long>)
                         registeredGauges.get(
-                                CheckpointStatsTracker.NUMBER_OF_COMPLETED_CHECKPOINTS_METRIC);
+                                DefaultCheckpointStatsTracker
+                                        .NUMBER_OF_COMPLETED_CHECKPOINTS_METRIC);
         Gauge<Long> numFailedCheckpoints =
                 (Gauge<Long>)
                         registeredGauges.get(
-                                CheckpointStatsTracker.NUMBER_OF_FAILED_CHECKPOINTS_METRIC);
+                                DefaultCheckpointStatsTracker.NUMBER_OF_FAILED_CHECKPOINTS_METRIC);
         Gauge<Long> latestRestoreTimestamp =
                 (Gauge<Long>)
                         registeredGauges.get(
-                                CheckpointStatsTracker.LATEST_RESTORED_CHECKPOINT_TIMESTAMP_METRIC);
+                                DefaultCheckpointStatsTracker
+                                        .LATEST_RESTORED_CHECKPOINT_TIMESTAMP_METRIC);
         Gauge<Long> latestCompletedSize =
                 (Gauge<Long>)
                         registeredGauges.get(
-                                CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_SIZE_METRIC);
+                                DefaultCheckpointStatsTracker
+                                        .LATEST_COMPLETED_CHECKPOINT_SIZE_METRIC);
         Gauge<Long> latestCompletedFullSize =
                 (Gauge<Long>)
                         registeredGauges.get(
-                                CheckpointStatsTracker
+                                DefaultCheckpointStatsTracker
                                         .LATEST_COMPLETED_CHECKPOINT_FULL_SIZE_METRIC);
         Gauge<Long> latestCompletedDuration =
                 (Gauge<Long>)
                         registeredGauges.get(
-                                CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_DURATION_METRIC);
+                                DefaultCheckpointStatsTracker
+                                        .LATEST_COMPLETED_CHECKPOINT_DURATION_METRIC);
         Gauge<Long> latestProcessedData =
                 (Gauge<Long>)
                         registeredGauges.get(
-                                CheckpointStatsTracker
+                                DefaultCheckpointStatsTracker
                                         .LATEST_COMPLETED_CHECKPOINT_PROCESSED_DATA_METRIC);
         Gauge<Long> latestPersistedData =
                 (Gauge<Long>)
                         registeredGauges.get(
-                                CheckpointStatsTracker
+                                DefaultCheckpointStatsTracker
                                         .LATEST_COMPLETED_CHECKPOINT_PERSISTED_DATA_METRIC);
         Gauge<String> latestCompletedExternalPath =
                 (Gauge<String>)
                         registeredGauges.get(
-                                CheckpointStatsTracker
+                                DefaultCheckpointStatsTracker
                                         .LATEST_COMPLETED_CHECKPOINT_EXTERNAL_PATH_METRIC);
         Gauge<Long> latestCompletedId =
                 (Gauge<Long>)
                         registeredGauges.get(
-                                CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_ID_METRIC);
+                                DefaultCheckpointStatsTracker
+                                        .LATEST_COMPLETED_CHECKPOINT_ID_METRIC);
 
         assertThat(numCheckpoints.getValue()).isZero();
         assertThat(numInProgressCheckpoints.getValue()).isZero();

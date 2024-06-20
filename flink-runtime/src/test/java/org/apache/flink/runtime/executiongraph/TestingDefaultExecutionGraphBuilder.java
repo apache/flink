@@ -25,9 +25,9 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
-import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.NoOpCheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -192,11 +192,7 @@ public class TestingDefaultExecutionGraphBuilder {
                 new DefaultVertexAttemptNumberStore(),
                 Optional.ofNullable(vertexParallelismStore)
                         .orElseGet(() -> SchedulerBase.computeVertexParallelismStore(jobGraph)),
-                () ->
-                        new CheckpointStatsTracker(
-                                0,
-                                UnregisteredMetricGroups
-                                        .createUnregisteredJobManagerJobMetricGroup()),
+                () -> NoOpCheckpointStatsTracker.INSTANCE,
                 isDynamicGraph,
                 executionJobVertexFactory,
                 markPartitionFinishedStrategy,
