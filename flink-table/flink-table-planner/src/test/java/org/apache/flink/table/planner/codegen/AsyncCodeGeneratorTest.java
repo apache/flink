@@ -34,6 +34,7 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.util.function.SupplierWithException;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
@@ -197,6 +198,15 @@ public class AsyncCodeGeneratorTest {
 
         public CompletableFuture<Collection<RowData>> getResult() {
             return data;
+        }
+
+        @Override
+        public void complete(SupplierWithException<Collection<RowData>, Exception> supplier) {
+            try {
+                data.complete(supplier.get());
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 }

@@ -47,6 +47,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import javax.annotation.Nonnull;
@@ -505,6 +506,27 @@ public class AsyncWaitOperator<IN, OUT>
             }
         }
 
+        @Override
+        public void complete(SupplierWithException<Collection<OUT>, Exception> runnable) {
+            Preconditions.checkNotNull(
+                    runnable, "Runnable must not be null, return empty collection to emit nothing");
+            if (!retryDisabledOnFinish.get() && resultHandler.inputRecord.isRecord()) {
+                mailboxExecutor.submit(
+                        () -> {
+                            try {
+                                processRetry(runnable.get(), null);
+                            } catch (Throwable t) {
+                                processRetry(null, t);
+                            }
+                        },
+                        "RetryableResultHandlerDelegator#complete");
+            } else {
+                cancelRetryTimer();
+
+                resultHandler.complete(runnable);
+            }
+        }
+
         private void processRetryInMailBox(Collection<OUT> results, Throwable error) {
             mailboxExecutor.execute(
                     () -> processRetry(results, error), "delayed retry or complete");
@@ -598,6 +620,21 @@ public class AsyncWaitOperator<IN, OUT>
             }
 
             processInMailbox(results);
+        }
+
+        @Override
+        public void complete(SupplierWithException<Collection<OUT>, Exception> runnable) {
+            // already completed (exceptionally or with previous complete call from ill-written
+            // AsyncFunction), so ignore additional result
+            if (!completed.compareAndSet(false, true)) {
+                return;
+            }
+            mailboxExecutor.execute(
+                    () -> {
+                        // If there is an exception, let it bubble up and fail the job.
+                        processResults(runnable.get());
+                    },
+                    "ResultHandler#complete");
         }
 
         private void processInMailbox(Collection<OUT> results) {

@@ -35,6 +35,7 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
@@ -69,6 +70,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -90,9 +93,12 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.apache.flink.streaming.util.retryable.AsyncRetryStrategies.NO_RETRY_STRATEGY;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Tests for {@link AsyncWaitOperator}. These test that:
@@ -1321,6 +1327,123 @@ class AsyncWaitOperatorTest {
         }
     }
 
+    @Test
+    public void testProcessingTimeWithMailboxThreadOrdered() throws Exception {
+        testProcessingTimeWithCallThread(AsyncDataStream.OutputMode.ORDERED, NO_RETRY_STRATEGY);
+    }
+
+    @Test
+    public void testProcessingTimeWithMailboxThreadUnordered() throws Exception {
+        testProcessingTimeWithCallThread(AsyncDataStream.OutputMode.UNORDERED, NO_RETRY_STRATEGY);
+    }
+
+    @Test
+    public void testProcessingTimeWithMailboxThreadOrderedWithRetry() throws Exception {
+        testProcessingTimeWithCallThread(
+                AsyncDataStream.OutputMode.ORDERED, exceptionRetryStrategy);
+    }
+
+    @Test
+    public void testProcessingTimeWithMailboxThreadUnorderedWithRetry() throws Exception {
+        testProcessingTimeWithCallThread(
+                AsyncDataStream.OutputMode.UNORDERED, exceptionRetryStrategy);
+    }
+
+    @Test
+    public void testProcessingTimeWithMailboxThreadError() throws Exception {
+        testProcessingTimeWithMailboxThreadError(NO_RETRY_STRATEGY);
+    }
+
+    @Test
+    public void testProcessingTimeWithMailboxThreadErrorWithRetry() throws Exception {
+        testProcessingTimeWithMailboxThreadError(exceptionRetryStrategy);
+    }
+
+    public void testProcessingTimeWithMailboxThreadError(
+            @Nullable AsyncRetryStrategy<Integer> asyncRetryStrategy) throws Exception {
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO);
+        try (StreamTaskMailboxTestHarness<Integer> testHarness =
+                builder.setupOutputForSingletonOperatorChain(
+                                new AsyncWaitOperatorFactory<>(
+                                        new CallThreadAsyncFunctionError(),
+                                        TIMEOUT,
+                                        1,
+                                        AsyncDataStream.OutputMode.UNORDERED,
+                                        asyncRetryStrategy))
+                        .build()) {
+            final long initialTime = 0L;
+            AtomicReference<Throwable> error = new AtomicReference<>();
+            testHarness.getStreamMockEnvironment().setExternalExceptionHandler(error::set);
+
+            // Sometimes, processElement invoke the async function immediately, so we should catch
+            // any exception.
+            try {
+                testHarness.processElement(new StreamRecord<>(1, initialTime + 1));
+                while (error.get() == null) {
+                    testHarness.processAll();
+                }
+            } catch (Exception e) {
+                // This simulates a mailbox failure failing the job
+                error.set(e);
+            }
+
+            ExceptionUtils.assertThrowable(error.get(), ExpectedTestException.class);
+
+            testHarness.endInput();
+        }
+    }
+
+    private void testProcessingTimeWithCallThread(
+            AsyncDataStream.OutputMode mode,
+            @Nullable AsyncRetryStrategy<Integer> asyncRetryStrategy)
+            throws Exception {
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO);
+        try (StreamTaskMailboxTestHarness<Integer> testHarness =
+                builder.setupOutputForSingletonOperatorChain(
+                                new AsyncWaitOperatorFactory<>(
+                                        new CallThreadAsyncFunction(),
+                                        TIMEOUT,
+                                        3,
+                                        mode,
+                                        asyncRetryStrategy))
+                        .build()) {
+
+            final long initialTime = 0L;
+            final Queue<Object> expectedOutput = new ArrayDeque<>();
+
+            testHarness.processElement(new StreamRecord<>(1, initialTime + 1));
+            testHarness.processElement(new StreamRecord<>(2, initialTime + 2));
+            testHarness.processElement(new StreamRecord<>(3, initialTime + 3));
+
+            expectedOutput.add(new StreamRecord<>(2, initialTime + 1));
+            expectedOutput.add(new StreamRecord<>(4, initialTime + 2));
+            expectedOutput.add(new StreamRecord<>(6, initialTime + 3));
+
+            while (testHarness.getOutput().size() < expectedOutput.size()) {
+                testHarness.processAll();
+            }
+
+            if (mode == AsyncDataStream.OutputMode.ORDERED) {
+                TestHarnessUtil.assertOutputEquals(
+                        "ORDERED Output was not correct.", expectedOutput, testHarness.getOutput());
+            } else {
+                TestHarnessUtil.assertOutputEqualsSorted(
+                        "UNORDERED Output was not correct.",
+                        expectedOutput,
+                        testHarness.getOutput(),
+                        new StreamRecordComparator());
+            }
+
+            testHarness.endInput();
+        }
+    }
+
     private static class CollectableFuturesAsyncFunction<IN> implements AsyncFunction<IN, IN> {
 
         private static final long serialVersionUID = -4214078239227288637L;
@@ -1426,6 +1549,38 @@ class AsyncWaitOperatorTest {
         public void timeout(Integer input, ResultFuture<Integer> resultFuture) {
             // collect a default value -1 when timeout
             resultFuture.complete(Collections.singletonList(-1));
+        }
+    }
+
+    private static class CallThreadAsyncFunction extends MyAbstractAsyncFunction<Integer> {
+        private static final long serialVersionUID = -1504699677704123889L;
+
+        @Override
+        public void asyncInvoke(final Integer input, final ResultFuture<Integer> resultFuture)
+                throws Exception {
+            final Thread callThread = Thread.currentThread();
+            executorService.submit(
+                    () ->
+                            resultFuture.complete(
+                                    () -> {
+                                        assertEquals(callThread, Thread.currentThread());
+                                        return Collections.singletonList(input * 2);
+                                    }));
+        }
+    }
+
+    private static class CallThreadAsyncFunctionError extends MyAbstractAsyncFunction<Integer> {
+        private static final long serialVersionUID = -1504699677704123889L;
+
+        @Override
+        public void asyncInvoke(final Integer input, final ResultFuture<Integer> resultFuture)
+                throws Exception {
+            executorService.submit(
+                    () ->
+                            resultFuture.complete(
+                                    () -> {
+                                        throw new ExpectedTestException();
+                                    }));
         }
     }
 }

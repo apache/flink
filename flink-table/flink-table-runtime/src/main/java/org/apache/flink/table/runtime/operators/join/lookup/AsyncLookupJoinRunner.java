@@ -35,6 +35,7 @@ import org.apache.flink.table.runtime.generated.FilterCondition;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.generated.GeneratedResultFuture;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
+import org.apache.flink.util.function.SupplierWithException;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -274,6 +275,11 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
             realOutput.completeExceptionally(error);
         }
 
+        @Override
+        public void complete(SupplierWithException<Collection<Object>, Exception> supplier) {
+            throw new UnsupportedOperationException();
+        }
+
         public void close() throws Exception {
             joinConditionResultFuture.close();
         }
@@ -294,6 +300,11 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
             @Override
             public void completeExceptionally(Throwable error) {
                 JoinedRowResultFuture.this.completeExceptionally(error);
+            }
+
+            @Override
+            public void complete(SupplierWithException<Collection<RowData>, Exception> supplier) {
+                throw new UnsupportedOperationException();
             }
         }
     }

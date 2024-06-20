@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.functions.async;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.util.function.SupplierWithException;
 
 import java.util.Collection;
 
@@ -47,4 +48,13 @@ public interface ResultFuture<OUT> {
      * @param error A Throwable object.
      */
     void completeExceptionally(Throwable error);
+
+    /**
+     * The same as complete, but will execute the supplier on the Mailbox thread which initiated the
+     * asynchronous process.
+     *
+     * <p>Note that if an exception is thrown while executing the supplier, the result should be the
+     * same as calling {@link ResultFuture#completeExceptionally(Throwable)}.
+     */
+    void complete(SupplierWithException<Collection<OUT>, Exception> supplier);
 }
