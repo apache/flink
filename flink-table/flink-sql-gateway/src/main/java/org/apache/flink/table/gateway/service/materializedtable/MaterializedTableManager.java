@@ -125,10 +125,12 @@ public class MaterializedTableManager {
     }
 
     private String buildRestEndpointUrl(Configuration configuration) {
-        Map<String, String> restEndpointConfigMap =
-                getEndpointConfig(configuration, SqlGatewayRestEndpointFactory.IDENTIFIER);
-        String address = restEndpointConfigMap.get(SqlGatewayRestOptions.ADDRESS.key());
-        String port = restEndpointConfigMap.get(SqlGatewayRestOptions.PORT.key());
+        Configuration restEndpointConfig =
+                Configuration.fromMap(
+                        getEndpointConfig(configuration, SqlGatewayRestEndpointFactory.IDENTIFIER));
+        String address = restEndpointConfig.get(SqlGatewayRestOptions.ADDRESS);
+        int port = restEndpointConfig.get(SqlGatewayRestOptions.PORT);
+
         return String.format("http://%s:%s", address, port);
     }
 

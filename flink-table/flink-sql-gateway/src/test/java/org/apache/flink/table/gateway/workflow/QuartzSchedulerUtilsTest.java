@@ -56,11 +56,9 @@ public class QuartzSchedulerUtilsTest {
         executionConfig.put("k5", "v5");
         executionConfig.put("k6", "v6");
 
-        String scheduleTime = "2023-04-04 20:00:00";
         String url = "http://localhost:8083";
         WorkflowInfo expected =
-                new WorkflowInfo(
-                        identifier, dynamicOptions, initConfig, executionConfig, scheduleTime, url);
+                new WorkflowInfo(identifier, dynamicOptions, initConfig, executionConfig, url);
 
         WorkflowInfo serde = fromJson(toJson(expected), WorkflowInfo.class);
         assertThat(serde).isEqualTo(expected);
