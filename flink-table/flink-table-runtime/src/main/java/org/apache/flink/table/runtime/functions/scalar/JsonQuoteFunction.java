@@ -64,13 +64,13 @@ public class JsonQuoteFunction extends BuiltInScalarFunction {
                     outputStr.append("\\t");
                     break;
                 default:
-                    outputStr.append(unicodeLiteralOrStr(ch));
+                    outputStr.append(formatStr(ch));
             }
         }
         return outputStr.toString();
     }
 
-    public static String unicodeLiteralOrStr(char ch) {
+    private static String formatStr(char ch) {
         if (ch > 127) {
             return String.format("\\u%04x", ch);
         } else {

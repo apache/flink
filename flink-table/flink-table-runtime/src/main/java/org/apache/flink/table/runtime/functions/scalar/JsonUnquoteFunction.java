@@ -47,17 +47,17 @@ public class JsonUnquoteFunction extends BuiltInScalarFunction {
         while (i < inputStr.length() - 1) {
             if (inputStr.charAt(i) == '\\' && i + 1 < inputStr.length()) {
                 i++; // move to the next char
-                char charAfterBackSlash = inputStr.charAt(i++);
+                char ch = inputStr.charAt(i++);
 
-                switch (charAfterBackSlash) {
+                switch (ch) {
                     case '"':
-                        result.append(charAfterBackSlash);
+                        result.append(ch);
                         break;
                     case '\\':
-                        result.append(charAfterBackSlash);
+                        result.append(ch);
                         break;
                     case '/':
-                        result.append(charAfterBackSlash);
+                        result.append(ch);
                         break;
                     case 'b':
                         result.append('\b');
@@ -80,7 +80,7 @@ public class JsonUnquoteFunction extends BuiltInScalarFunction {
                         break;
                     default:
                         throw new RuntimeException(
-                                "Illegal escape sequence: \\" + charAfterBackSlash);
+                                "Illegal escape sequence: \\" + ch);
                 }
             } else {
                 result.append(inputStr.charAt(i));
@@ -93,8 +93,7 @@ public class JsonUnquoteFunction extends BuiltInScalarFunction {
     private static String fromUnicodeLiteral(String input, int curPos) {
 
         StringBuilder number = new StringBuilder();
-        // isValidJsonVal will already check for unicode literal length >=4 and valid digit
-        // composition
+        // isValidJsonVal will already check for unicode literal validity
         for (char ch : input.substring(curPos, curPos + 4).toCharArray()) {
             number.append(Character.toLowerCase(ch));
         }
