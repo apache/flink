@@ -637,7 +637,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi("JSON_UNQUOTE('\"[\\t\\u0032]\"')", "[\t2]")
     testSqlApi(
       "JSON_UNQUOTE('\"This is a \\t test \\n with special characters: \\b \\f \\r \\u0041\"')",
-      "This is a \\t test \\n with special characters: \\b \\f \\r A"
+      "This is a \t test \n with special characters: \b \f \r A"
     )
     testSqlApi("json_unquote(json_quote('\"key\"'))", "\"key\"")
     testSqlApi("json_unquote(json_quote('\"[]\"'))", "\"[]\"")
