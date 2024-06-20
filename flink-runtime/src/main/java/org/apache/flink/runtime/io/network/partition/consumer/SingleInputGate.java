@@ -42,6 +42,7 @@ import org.apache.flink.runtime.io.network.partition.PrioritizedDeque;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageIdMappingUtils;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageInputChannelId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
@@ -676,6 +677,22 @@ public class SingleInputGate extends IndexedInputGate {
 
                     if (--numberOfUninitializedChannels == 0) {
                         pendingEvents.clear();
+                    }
+                    if (enabledTieredStorage()) {
+                        TieredStoragePartitionId tieredStoragePartitionId =
+                                TieredStorageIdMappingUtils.convertId(
+                                        shuffleDescriptor.getResultPartitionID());
+                        TieredStorageConsumerSpec spec =
+                                checkNotNull(tieredStorageConsumerSpecs)
+                                        .get(current.getChannelIndex());
+                        for (int subpartitionId : spec.getSubpartitionIds().values()) {
+                            tieredStorageConsumerClient.updateTierShuffleDescriptors(
+                                    tieredStoragePartitionId,
+                                    spec.getInputChannelId(),
+                                    new TieredStorageSubpartitionId(subpartitionId),
+                                    checkNotNull(shuffleDescriptor.getTierShuffleDescriptors()));
+                        }
+                        queueChannel(newChannel, null, false);
                     }
                 }
             }
