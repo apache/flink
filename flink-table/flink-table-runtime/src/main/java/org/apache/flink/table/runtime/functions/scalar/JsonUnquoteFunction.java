@@ -36,6 +36,7 @@ public class JsonUnquoteFunction extends BuiltInScalarFunction {
     }
 
     private static boolean isValidJsonVal(String jsonInString) {
+        // See also BuiltInMethods.scala, IS_JSON_VALUE
         return SqlJsonUtils.isJsonValue(jsonInString);
     }
 
@@ -92,13 +93,9 @@ public class JsonUnquoteFunction extends BuiltInScalarFunction {
     private static String fromUnicodeLiteral(String input, int curPos) {
 
         StringBuilder number = new StringBuilder();
-        if (curPos + 4 > input.length()) {
-            throw new RuntimeException("Not enough unicode digits!");
-        }
+        // isValidJsonVal will already check for unicode literal length >=4 and valid digit
+        // composition
         for (char ch : input.substring(curPos, curPos + 4).toCharArray()) {
-            if (!Character.isLetterOrDigit(ch)) {
-                throw new RuntimeException("Bad character in unicode escape.");
-            }
             number.append(Character.toLowerCase(ch));
         }
         int code = Integer.parseInt(number.toString(), 16);

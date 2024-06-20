@@ -379,10 +379,10 @@ string:
     description: Returns a substring of string starting from position integer1 with length integer2 (to the end by default).
   - sql: JSON_QUOTE(string)
     table: STRING.JsonQuote()
-    description: Quotes a string as a JSON value by wrapping it with double quote characters, escaping interior quote and special characters ('"', '\', '/', 'b', 'f', 'n', 'r', 't'), and returning the result as a utf8mb4 string. If the argument is NULL, the function returns NULL.
+    description: Quotes a string as a JSON value by wrapping it with double quote characters, escaping interior quote and special characters ('"', '\', '/', 'b', 'f', 'n', 'r', 't'), and returning the result as a string. If the argument is NULL, the function returns NULL.
   - sql: JSON_UNQUOTE(string)
     table: STRING.JsonUnquote()
-    description: Unquotes JSON value, escapes special characters ('"', '\', '/', 'b', 'f', 'n', 'r', 't', 'u' hex hex hex hex), and returns the result as a utf8mb4 string. If the argument is NULL, returns NULL. If the value starts and ends with double quotes but is not a valid JSON string literal, the value is passed through unmodified.
+    description: Unquotes JSON value, escapes special characters ('"', '\', '/', 'b', 'f', 'n', 'r', 't', 'u' hex hex hex hex), and returns the result as a string. If the argument is NULL, returns NULL. If the value starts and ends with double quotes but is not a valid JSON string literal, the value is passed through unmodified.
 
 temporal:
   - sql: DATE string
