@@ -126,8 +126,7 @@ class TieredStorageSortBufferTest {
         int numBuffersForSort = 20;
 
         NetworkBufferPool globalPool = new NetworkBufferPool(bufferPoolSize, BUFFER_SIZE_BYTES);
-        BufferPool bufferPool =
-                globalPool.createBufferPool(bufferPoolSize, bufferPoolSize, bufferPoolSize);
+        BufferPool bufferPool = globalPool.createBufferPool(bufferPoolSize, bufferPoolSize);
 
         LinkedList<MemorySegment> segments = new LinkedList<>();
         for (int i = 0; i < numBuffersForSort; ++i) {
@@ -157,8 +156,7 @@ class TieredStorageSortBufferTest {
         Random random = new Random(1234);
 
         NetworkBufferPool globalPool = new NetworkBufferPool(bufferPoolSize, bufferSizeBytes);
-        BufferPool bufferPool =
-                globalPool.createBufferPool(bufferPoolSize, bufferPoolSize, bufferPoolSize);
+        BufferPool bufferPool = globalPool.createBufferPool(bufferPoolSize, bufferPoolSize);
 
         LinkedList<MemorySegment> segments = new LinkedList<>();
         for (int i = 0; i < numBuffersForSort; ++i) {
@@ -262,8 +260,7 @@ class TieredStorageSortBufferTest {
     private static TieredStorageSortBuffer createDataBuffer(
             int bufferPoolSize, int numSubpartitions) throws Exception {
         NetworkBufferPool globalPool = new NetworkBufferPool(bufferPoolSize, BUFFER_SIZE_BYTES);
-        BufferPool bufferPool =
-                globalPool.createBufferPool(bufferPoolSize, bufferPoolSize, bufferPoolSize);
+        BufferPool bufferPool = globalPool.createBufferPool(bufferPoolSize, bufferPoolSize);
 
         LinkedList<MemorySegment> segments = new LinkedList<>();
         for (int i = 0; i < bufferPoolSize; ++i) {

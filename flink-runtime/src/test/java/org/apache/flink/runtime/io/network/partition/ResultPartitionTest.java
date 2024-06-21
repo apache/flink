@@ -333,7 +333,7 @@ class ResultPartitionTest {
             partition.setup();
             BufferPool bufferPool = partition.getBufferPool();
             // verify the amount of buffers in created local pool
-            assertThat(bufferPool.getExpectedNumberOfMemorySegments())
+            assertThat(bufferPool.getNumberOfRequiredMemorySegments())
                     .isEqualTo(partition.getNumberOfSubpartitions() + 1);
             if (type.isBounded()) {
                 final int maxNumBuffers =
@@ -369,7 +369,7 @@ class ResultPartitionTest {
         // setup
         int bufferSize = 1024;
         NetworkBufferPool globalPool = new NetworkBufferPool(10, bufferSize);
-        BufferPool localPool = globalPool.createBufferPool(1, 1, 1, 1, Integer.MAX_VALUE, 0);
+        BufferPool localPool = globalPool.createBufferPool(1, 1, 1, Integer.MAX_VALUE, 0);
         BufferWritingResultPartition resultPartition =
                 (BufferWritingResultPartition)
                         new ResultPartitionBuilder().setBufferPoolFactory(() -> localPool).build();
@@ -489,7 +489,7 @@ class ResultPartitionTest {
         int maxBufferSize = 2 * recordSize;
         // create a pool with just 1 buffer - so that the test times out in case of back-pressure
         NetworkBufferPool globalPool = new NetworkBufferPool(1, maxBufferSize);
-        BufferPool localPool = globalPool.createBufferPool(1, 1, 1, 1, Integer.MAX_VALUE, 0);
+        BufferPool localPool = globalPool.createBufferPool(1, 1, 1, Integer.MAX_VALUE, 0);
         ResultPartition resultPartition =
                 new ResultPartitionBuilder().setBufferPoolFactory(() -> localPool).build();
         resultPartition.setup();

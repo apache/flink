@@ -20,11 +20,11 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageUtils;
 
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** Utils to manage the specs of the {@link InputGate}, for example, {@link GateBuffersSpec}. */
 public class InputGateSpecUtils {
@@ -43,32 +43,39 @@ public class InputGateSpecUtils {
         int maxRequiredBuffersThresholdPerGate =
                 getEffectiveMaxRequiredBuffersPerGate(
                         partitionType, configuredMaxRequiredBuffersPerGate, enableTieredStorage);
-        int targetExpectedBuffersPerGate =
-                getExpectedBuffersTargetPerGate(
+        int targetRequiredBuffersPerGate =
+                getRequiredBuffersTargetPerGate(
                         numInputChannels, configuredNetworkBuffersPerChannel);
-        int maxBuffersPerGate =
-                getMaxBuffersPerGate(
+        int targetTotalBuffersPerGate =
+                getTotalBuffersTargetPerGate(
                         numInputChannels,
                         configuredNetworkBuffersPerChannel,
                         configuredFloatingNetworkBuffersPerGate);
-        int expectedBuffersPerGate =
-                Math.min(maxRequiredBuffersThresholdPerGate, targetExpectedBuffersPerGate);
+        int requiredBuffersPerGate =
+                Math.min(maxRequiredBuffersThresholdPerGate, targetRequiredBuffersPerGate);
+
         int effectiveExclusiveBuffersPerChannel =
                 getExclusiveBuffersPerChannel(
                         configuredNetworkBuffersPerChannel,
                         numInputChannels,
-                        expectedBuffersPerGate);
-        int minBuffersPerGate =
-                partitionType.isHybridResultPartition() && enableTieredStorage
-                        ? TieredStorageUtils.getMinBuffersPerGate()
-                        : expectedBuffersPerGate;
-        expectedBuffersPerGate = Math.max(minBuffersPerGate, expectedBuffersPerGate);
+                        requiredBuffersPerGate);
+        int effectiveExclusiveBuffersPerGate =
+                getEffectiveExclusiveBuffersPerGate(
+                        numInputChannels, effectiveExclusiveBuffersPerChannel);
+
+        int requiredFloatingBuffers = requiredBuffersPerGate - effectiveExclusiveBuffersPerGate;
+        int totalFloatingBuffers = targetTotalBuffersPerGate - effectiveExclusiveBuffersPerGate;
+
+        checkState(requiredFloatingBuffers > 0, "Must be positive.");
+        checkState(
+                requiredFloatingBuffers <= totalFloatingBuffers,
+                "Wrong number of floating buffers.");
 
         return new GateBuffersSpec(
                 effectiveExclusiveBuffersPerChannel,
-                expectedBuffersPerGate,
-                minBuffersPerGate,
-                maxBuffersPerGate);
+                requiredFloatingBuffers,
+                totalFloatingBuffers,
+                targetTotalBuffersPerGate);
     }
 
     @VisibleForTesting
@@ -105,17 +112,21 @@ public class InputGateSpecUtils {
                 (requiredBuffersPerGate - 1) / numInputChannels);
     }
 
-    private static int getExpectedBuffersTargetPerGate(
+    private static int getRequiredBuffersTargetPerGate(
             int numInputChannels, int configuredNetworkBuffersPerChannel) {
         return numInputChannels * configuredNetworkBuffersPerChannel + 1;
     }
 
-    /** */
-    private static int getMaxBuffersPerGate(
+    private static int getTotalBuffersTargetPerGate(
             int numInputChannels,
             int configuredNetworkBuffersPerChannel,
             int configuredFloatingBuffersPerGate) {
         return numInputChannels * configuredNetworkBuffersPerChannel
                 + configuredFloatingBuffersPerGate;
+    }
+
+    private static int getEffectiveExclusiveBuffersPerGate(
+            int numInputChannels, int effectiveExclusiveBuffersPerChannel) {
+        return effectiveExclusiveBuffersPerChannel * numInputChannels;
     }
 }

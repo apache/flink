@@ -29,6 +29,8 @@ import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -212,12 +214,18 @@ class NettyShuffleUtilsTest {
         }
         inputGate.convertRecoveredInputChannels();
 
-        return inputGate.getBufferPool().getMaxNumberOfMemorySegments();
+        int ret = 0;
+        for (InputChannel ch : inputGate.inputChannels()) {
+            RemoteInputChannel rChannel = (RemoteInputChannel) ch;
+            ret += rChannel.getNumberOfAvailableBuffers();
+        }
+        ret += inputGate.getBufferPool().getMaxNumberOfMemorySegments();
+        return ret;
     }
 
     private int calculateBuffersConsumption(ResultPartition partition) {
         if (!partition.getPartitionType().canBePipelinedConsumed()) {
-            return partition.getBufferPool().getExpectedNumberOfMemorySegments();
+            return partition.getBufferPool().getNumberOfRequiredMemorySegments();
         } else {
             return partition.getBufferPool().getMaxNumberOfMemorySegments();
         }

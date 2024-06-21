@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
@@ -41,6 +40,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.ProcessorArchitecture;
 import org.apache.flink.util.function.SupplierWithException;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -383,7 +383,7 @@ public class ResultPartitionFactory {
     SupplierWithException<BufferPool, IOException> createBufferPoolFactory(
             int numberOfSubpartitions, ResultPartitionType type) {
         return () -> {
-            Tuple3<Integer, Integer, Integer> tuple =
+            Pair<Integer, Integer> pair =
                     NettyShuffleUtils.getMinMaxNetworkBuffersPerResultPartition(
                             configuredNetworkBuffersPerChannel,
                             floatingNetworkBuffersPerGate,
@@ -397,9 +397,8 @@ public class ResultPartitionFactory {
                             type);
 
             return bufferPoolFactory.createBufferPool(
-                    tuple.f0,
-                    tuple.f1,
-                    tuple.f2,
+                    pair.getLeft(),
+                    pair.getRight(),
                     numberOfSubpartitions,
                     maxBuffersPerChannel,
                     isOverdraftBufferNeeded(type) ? maxOverdraftBuffersPerGate : 0);

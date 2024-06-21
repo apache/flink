@@ -76,7 +76,7 @@ class TieredStorageMemoryManagerImplTest {
     void testRequestAndRecycleBuffers() throws IOException {
         int numBuffers = 1;
 
-        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers, numBuffers);
+        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
         TieredStorageMemoryManagerImpl storageMemoryManager =
                 createStorageMemoryManager(
                         bufferPool,
@@ -94,7 +94,7 @@ class TieredStorageMemoryManagerImplTest {
     void testRecycleBuffersAfterPoolSizeDecreased() throws IOException {
         int numBuffers = 10;
 
-        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, 1, numBuffers);
+        BufferPool bufferPool = globalPool.createBufferPool(1, numBuffers);
         TieredStorageMemoryManagerImpl storageMemoryManager =
                 createStorageMemoryManager(
                         bufferPool,
@@ -117,7 +117,7 @@ class TieredStorageMemoryManagerImplTest {
     void testRecycleBuffersAfterReleased() throws IOException {
         int numBuffers = 10;
 
-        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers, numBuffers);
+        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
         TieredStorageMemoryManagerImpl storageMemoryManager =
                 createStorageMemoryManager(
                         bufferPool,
@@ -294,7 +294,7 @@ class TieredStorageMemoryManagerImplTest {
         final int numBuffers = 5;
         final int guaranteedReclaimableBuffers = 3;
 
-        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers, numBuffers);
+        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
         TieredStorageMemoryManagerImpl storageMemoryManager =
                 createStorageMemoryManager(
                         bufferPool,
@@ -320,7 +320,7 @@ class TieredStorageMemoryManagerImplTest {
     @Test
     void testRelease() throws IOException {
         int numBuffers = 5;
-        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers, numBuffers);
+        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
 
         TieredStorageMemoryManagerImpl storageMemoryManager =
                 createStorageMemoryManager(
@@ -354,8 +354,7 @@ class TieredStorageMemoryManagerImplTest {
             int numBuffersInBufferPool, List<TieredStorageMemorySpec> storageMemorySpecs)
             throws IOException {
         BufferPool bufferPool =
-                globalPool.createBufferPool(
-                        numBuffersInBufferPool, numBuffersInBufferPool, numBuffersInBufferPool);
+                globalPool.createBufferPool(numBuffersInBufferPool, numBuffersInBufferPool);
         return createStorageMemoryManager(bufferPool, storageMemorySpecs);
     }
 
