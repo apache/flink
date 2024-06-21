@@ -176,6 +176,14 @@ under the License.
                                     <outputDirectory>${project.build.directory}/dependencies
                                     </outputDirectory>
                                 </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.apache.flink</groupId>
+                                    <artifactId>flink-table-filesystem-test-utils</artifactId>
+                                    <version>${project.version}</version>
+                                    <type>jar</type>
+                                    <outputDirectory>${project.build.directory}/dependencies
+                                    </outputDirectory>
+                                </artifactItem>
                             </artifactItems>
                         </configuration>
                     </execution>
