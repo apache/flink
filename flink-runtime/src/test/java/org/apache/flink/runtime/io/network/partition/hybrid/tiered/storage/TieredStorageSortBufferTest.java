@@ -29,7 +29,6 @@ import org.apache.flink.runtime.io.network.partition.SortBuffer;
 
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -193,33 +192,6 @@ class TieredStorageSortBufferTest {
         assertThat(bufferWithSubpartition.getBuffer().isBuffer()).isFalse();
         assertThat(bufferWithSubpartition.getSubpartitionIndex()).isEqualTo(subpartitionId);
         assertThat(bufferPool.bestEffortGetNumOfUsedBuffers()).isEqualTo(numBuffersForSort);
-    }
-
-    @Test
-    void testReturnFreeSegments() throws IOException, InterruptedException {
-        final int bufferPoolSize = 512;
-        final int numBuffersForSort = 20;
-        NetworkBufferPool globalPool = new NetworkBufferPool(bufferPoolSize, BUFFER_SIZE_BYTES);
-        BufferPool bufferPool =
-                globalPool.createBufferPool(bufferPoolSize, bufferPoolSize, bufferPoolSize);
-
-        LinkedList<MemorySegment> segments = new LinkedList<>();
-        for (int i = 0; i < numBuffersForSort; ++i) {
-            segments.add(bufferPool.requestMemorySegmentBlocking());
-        }
-        TieredStorageSortBuffer sortBuffer =
-                new TieredStorageSortBuffer(
-                        segments, bufferPool, 1, BUFFER_SIZE_BYTES, numBuffersForSort, true);
-
-        for (int i = 0; i < 5; i++) {
-            byte[] bytes = new byte[BUFFER_SIZE_BYTES];
-            ByteBuffer record = ByteBuffer.wrap(bytes);
-            sortBuffer.append(record, 0, Buffer.DataType.DATA_BUFFER);
-        }
-        assertThat(sortBuffer.returnFreeSegments(10)).isTrue();
-        assertThat(sortBuffer.returnFreeSegments(10)).isFalse();
-
-        sortBuffer.finish();
     }
 
     private static BufferWithSubpartition copyIntoSegment(SortBuffer dataBuffer) {
