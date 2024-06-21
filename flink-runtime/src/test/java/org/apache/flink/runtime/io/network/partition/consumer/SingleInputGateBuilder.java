@@ -24,7 +24,7 @@ import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
-import org.apache.flink.runtime.io.network.buffer.TestingBufferPool;
+import org.apache.flink.runtime.io.network.buffer.NoOpBufferPool;
 import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -70,15 +70,12 @@ public class SingleInputGateBuilder {
     private MemorySegmentProvider segmentProvider =
             InputChannelTestUtils.StubMemorySegmentProvider.getInstance();
 
-    private BufferPool bufferPool = null;
-
     private ChannelStateWriter channelStateWriter = ChannelStateWriter.NO_OP;
 
     @Nullable
     private BiFunction<InputChannelBuilder, SingleInputGate, InputChannel> channelFactory = null;
 
-    private SupplierWithException<BufferPool, IOException> bufferPoolFactory =
-            TestingBufferPool::new;
+    private SupplierWithException<BufferPool, IOException> bufferPoolFactory = NoOpBufferPool::new;
     private BufferDebloatConfiguration bufferDebloatConfiguration =
             BufferDebloatConfiguration.fromConfiguration(new Configuration());
     private Function<BufferDebloatConfiguration, ThroughputCalculator> createThroughputCalculator =
@@ -115,21 +112,13 @@ public class SingleInputGateBuilder {
     }
 
     public SingleInputGateBuilder setupBufferPoolFactory(NettyShuffleEnvironment environment) {
-        return setupBufferPoolFactory(environment, 1);
-    }
-
-    public SingleInputGateBuilder setupBufferPoolFactory(
-            NettyShuffleEnvironment environment, int minBuffers) {
         NettyShuffleEnvironmentConfiguration config = environment.getConfiguration();
-        return setupBufferPoolFactory(
-                environment, minBuffers, config.floatingNetworkBuffersPerGate());
-    }
-
-    public SingleInputGateBuilder setupBufferPoolFactory(
-            NettyShuffleEnvironment environment, int minBuffers, int maxBuffers) {
         this.bufferPoolFactory =
                 SingleInputGateFactory.createBufferPoolFactory(
-                        environment.getNetworkBufferPool(), minBuffers, minBuffers, maxBuffers);
+                        environment.getNetworkBufferPool(),
+                        1,
+                        1,
+                        config.floatingNetworkBuffersPerGate());
         this.segmentProvider = environment.getNetworkBufferPool();
         return this;
     }
@@ -146,11 +135,6 @@ public class SingleInputGateBuilder {
 
     public SingleInputGateBuilder setSegmentProvider(MemorySegmentProvider segmentProvider) {
         this.segmentProvider = segmentProvider;
-        return this;
-    }
-
-    public SingleInputGateBuilder setBufferPool(BufferPool bufferPool) {
-        this.bufferPool = bufferPool;
         return this;
     }
 

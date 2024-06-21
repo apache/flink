@@ -98,13 +98,11 @@ public class InputGateSpecUtils {
             int configuredNetworkBuffersPerChannel,
             int numInputChannels,
             int requiredBuffersPerGate) {
+        checkArgument(numInputChannels > 0, "Must be positive.");
         checkArgument(requiredBuffersPerGate >= 1, "Require at least 1 buffer per gate.");
-
-        return numInputChannels == 0
-                ? 0
-                : Math.min(
-                        configuredNetworkBuffersPerChannel,
-                        (requiredBuffersPerGate - 1) / numInputChannels);
+        return Math.min(
+                configuredNetworkBuffersPerChannel,
+                (requiredBuffersPerGate - 1) / numInputChannels);
     }
 
     private static int getExpectedBuffersTargetPerGate(

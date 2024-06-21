@@ -58,7 +58,7 @@ public class ResultPartitionBuilder {
 
     private FileChannelManager channelManager = NoOpFileChannelManager.INSTANCE;
 
-    private NetworkBufferPool networkBufferPool = new NetworkBufferPool(4, 1);
+    private NetworkBufferPool networkBufferPool = new NetworkBufferPool(2, 1);
 
     private BatchShuffleReadBufferPool batchShuffleReadBufferPool =
             new BatchShuffleReadBufferPool(64 * 32 * 1024, 32 * 1024);

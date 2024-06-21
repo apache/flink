@@ -28,7 +28,6 @@ import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
-import org.apache.flink.runtime.io.network.buffer.TestingBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
@@ -81,12 +80,11 @@ class NettyMessageClientSideSerializationTest {
     void setup() throws IOException, InterruptedException {
         networkBufferPool = new NetworkBufferPool(8, BUFFER_SIZE);
         inputGate = createSingleInputGate(1, networkBufferPool);
-        inputGate.setBufferPool(new TestingBufferPool());
         RemoteInputChannel inputChannel =
                 createRemoteInputChannel(inputGate, new TestingPartitionRequestClient());
         inputChannel.requestSubpartitions();
         inputGate.setInputChannels(inputChannel);
-        inputGate.setupChannels();
+        inputGate.setup();
 
         CreditBasedPartitionRequestClientHandler handler =
                 new CreditBasedPartitionRequestClientHandler();
