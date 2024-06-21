@@ -31,7 +31,6 @@ import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -273,22 +272,16 @@ public class LocalBufferPool implements BufferPool {
                 "Can not reserve more segments than number of minimum segments.");
 
         CompletableFuture<?> toNotify = null;
-
-        int numSegmentsNeeded;
         synchronized (availableMemorySegments) {
             checkDestroyed();
-            numSegmentsNeeded = numberOfSegmentsToReserve - numberOfRequestedMemorySegments;
-        }
 
-        if (numSegmentsNeeded > 0) {
-            List<MemorySegment> segments =
-                    networkBufferPool.requestPooledMemorySegmentsBlocking(numSegmentsNeeded);
-            synchronized (availableMemorySegments) {
-                availableMemorySegments.addAll(segments);
+            if (numberOfRequestedMemorySegments < numberOfSegmentsToReserve) {
+                availableMemorySegments.addAll(
+                        networkBufferPool.requestPooledMemorySegmentsBlocking(
+                                numberOfSegmentsToReserve - numberOfRequestedMemorySegments));
                 toNotify = availabilityHelper.getUnavailableToResetAvailable();
             }
         }
-
         mayNotifyAvailable(toNotify);
     }
 
