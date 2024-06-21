@@ -249,8 +249,7 @@ class SortBufferAccumulatorTest {
     private TieredStorageMemoryManagerImpl createStorageMemoryManager(int numBuffersInBufferPool)
             throws IOException {
         BufferPool bufferPool =
-                globalPool.createBufferPool(
-                        numBuffersInBufferPool, numBuffersInBufferPool, numBuffersInBufferPool);
+                globalPool.createBufferPool(numBuffersInBufferPool, numBuffersInBufferPool);
         TieredStorageMemoryManagerImpl storageMemoryManager =
                 new TieredStorageMemoryManagerImpl(NUM_BUFFERS_TRIGGER_FLUSH_RATIO, true);
         storageMemoryManager.setup(

@@ -64,10 +64,8 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
     private static Configuration getConfiguration() {
         Configuration config = new Configuration();
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("20m"));
-        // Temporarily changes the memory to 4MB since the input gates will request more buffers
-        // than before, we will roll back it after the input gate side changes merged.
-        config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.ofMebiBytes(4L));
-        config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.ofMebiBytes(4L));
+        config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.ofMebiBytes(3L));
+        config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.ofMebiBytes(3L));
         return config;
     }
 

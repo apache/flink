@@ -58,8 +58,8 @@ class AlignedCheckpointsMassiveRandomTest {
         try {
             networkBufferPool1 = new NetworkBufferPool(100, PAGE_SIZE);
             networkBufferPool2 = new NetworkBufferPool(100, PAGE_SIZE);
-            BufferPool pool1 = networkBufferPool1.createBufferPool(100, 100, 100);
-            BufferPool pool2 = networkBufferPool2.createBufferPool(100, 100, 100);
+            BufferPool pool1 = networkBufferPool1.createBufferPool(100, 100);
+            BufferPool pool2 = networkBufferPool2.createBufferPool(100, 100);
 
             RandomGeneratingInputGate myIG =
                     new RandomGeneratingInputGate(

@@ -331,7 +331,7 @@ public class SortMergeResultPartition extends ResultPartition {
     }
 
     private void requestGuaranteedBuffers() throws IOException {
-        int numRequiredBuffer = bufferPool.getMinNumberOfMemorySegments();
+        int numRequiredBuffer = bufferPool.getNumberOfRequiredMemorySegments();
         if (numRequiredBuffer < 2) {
             throw new IOException(
                     String.format(
