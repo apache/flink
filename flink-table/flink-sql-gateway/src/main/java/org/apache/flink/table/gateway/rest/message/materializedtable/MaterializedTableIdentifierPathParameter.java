@@ -41,6 +41,6 @@ public class MaterializedTableIdentifierPathParameter extends MessagePathParamet
 
     @Override
     public String getDescription() {
-        return "The materialized table identifier.";
+        return "The fully qualified string that identifies a materialized table.";
     }
 }

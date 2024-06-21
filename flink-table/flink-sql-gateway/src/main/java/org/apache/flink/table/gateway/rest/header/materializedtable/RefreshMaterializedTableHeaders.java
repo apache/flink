@@ -93,4 +93,9 @@ public class RefreshMaterializedTableHeaders
     public static RefreshMaterializedTableHeaders getInstance() {
         return INSTANCE;
     }
+
+    @Override
+    public String operationId() {
+        return "refreshMaterializedTable";
+    }
 }
