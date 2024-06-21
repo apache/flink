@@ -165,10 +165,10 @@ class DescriptionHtmlTest {
             // Deserialize the object
             ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(serializedElement);
             ObjectInputStream objectInputStream = new ObjectInputStream(byteArrayInputStream);
-            Description element = (Description) objectInputStream.readObject();
+            Description description = (Description) objectInputStream.readObject();
             objectInputStream.close();
 
-            return element;
+            return description;
         } catch (IOException | ClassNotFoundException e) {
             throw new RuntimeException("Failed to deserialize object", e);
         }
