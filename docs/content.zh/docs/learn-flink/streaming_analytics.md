@@ -254,6 +254,8 @@ public abstract class Context implements java.io.Serializable {
 
     public abstract KeyedStateStore windowState();
     public abstract KeyedStateStore globalState();
+
+    public abstract <X> void output(OutputTag<X> outputTag, X value);
 }
 ```
 
@@ -366,7 +368,7 @@ stream
 
 可能我们会猜测以 Flink 的能力，想要做到这样看起来是可行的（前提是你使用的是 ReduceFunction 或 AggregateFunction ），但不是。
 
-之所以可行，是因为时间窗口产生的事件是根据窗口结束时的时间分配时间戳的。例如，一个小时小时的窗口所产生的所有事件都将带有标记一个小时结束的时间戳。后面的窗口内的数据消费和前面的流产生的数据是一致的。
+之所以可行，是因为时间窗口产生的事件是根据窗口结束时的时间分配时间戳的。例如，一个小时的窗口所产生的所有事件都将带有标记一个小时结束的时间戳。后面的窗口内的数据消费和前面的流产生的数据是一致的。
 
 <a name="no-results-for-empty-timewindows"></a>
 
