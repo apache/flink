@@ -81,11 +81,7 @@ class NettyMessageClientSideSerializationTest {
     void setup() throws IOException, InterruptedException {
         networkBufferPool = new NetworkBufferPool(8, BUFFER_SIZE);
         inputGate = createSingleInputGate(1, networkBufferPool);
-        inputGate.setBufferPool(
-                TestingBufferPool.builder()
-                        .setRequestMemorySegmentSupplier(
-                                () -> MemorySegmentFactory.allocateUnpooledSegment(1024))
-                        .build());
+        inputGate.setBufferPool(new TestingBufferPool());
         RemoteInputChannel inputChannel =
                 createRemoteInputChannel(inputGate, new TestingPartitionRequestClient());
         inputChannel.requestSubpartitions();

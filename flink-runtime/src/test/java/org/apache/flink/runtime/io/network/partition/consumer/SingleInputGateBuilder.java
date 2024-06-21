@@ -70,13 +70,15 @@ public class SingleInputGateBuilder {
     private MemorySegmentProvider segmentProvider =
             InputChannelTestUtils.StubMemorySegmentProvider.getInstance();
 
+    private BufferPool bufferPool = null;
+
     private ChannelStateWriter channelStateWriter = ChannelStateWriter.NO_OP;
 
     @Nullable
     private BiFunction<InputChannelBuilder, SingleInputGate, InputChannel> channelFactory = null;
 
     private SupplierWithException<BufferPool, IOException> bufferPoolFactory =
-            () -> TestingBufferPool.NO_OP;
+            TestingBufferPool::new;
     private BufferDebloatConfiguration bufferDebloatConfiguration =
             BufferDebloatConfiguration.fromConfiguration(new Configuration());
     private Function<BufferDebloatConfiguration, ThroughputCalculator> createThroughputCalculator =
@@ -144,6 +146,11 @@ public class SingleInputGateBuilder {
 
     public SingleInputGateBuilder setSegmentProvider(MemorySegmentProvider segmentProvider) {
         this.segmentProvider = segmentProvider;
+        return this;
+    }
+
+    public SingleInputGateBuilder setBufferPool(BufferPool bufferPool) {
+        this.bufferPool = bufferPool;
         return this;
     }
 

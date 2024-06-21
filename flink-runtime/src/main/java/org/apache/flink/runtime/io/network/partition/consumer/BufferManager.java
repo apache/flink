@@ -174,7 +174,7 @@ public class BufferManager implements BufferListener, BufferRecycler {
     /** Requests exclusive buffers from the local buffer pool. */
     void requestExclusiveBuffers() {
         synchronized (bufferQueue) {
-            checkState(numExclusiveBuffers >= 0, "Num exclusive buffers must be non-negative.");
+            checkArgument(numExclusiveBuffers >= 0, "Num exclusive buffers must be non-negative.");
             resizeBufferQueue();
             if (numExclusiveBuffers == 0) {
                 return;

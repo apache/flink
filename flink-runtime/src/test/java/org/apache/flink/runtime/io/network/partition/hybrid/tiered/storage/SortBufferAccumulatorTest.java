@@ -95,7 +95,7 @@ class SortBufferAccumulatorTest {
         // flushed.
         try (SortBufferAccumulator bufferAccumulator =
                 new SortBufferAccumulator(
-                        1, 2, BUFFER_SIZE_BYTES, 0L, memoryManager, isPartialRecordAllowed)) {
+                        1, 2, BUFFER_SIZE_BYTES, memoryManager, isPartialRecordAllowed)) {
             bufferAccumulator.setup(
                     ((subpartition, buffer, numRemainingBuffers) -> {
                         assertThat(buffer.getDataType()).isIn(expectedDataTypes);
@@ -144,7 +144,7 @@ class SortBufferAccumulatorTest {
         // flushed.
         try (SortBufferAccumulator bufferAccumulator =
                 new SortBufferAccumulator(
-                        1, 2, BUFFER_SIZE_BYTES, 0L, memoryManager, isPartialRecordAllowed)) {
+                        1, 2, BUFFER_SIZE_BYTES, memoryManager, isPartialRecordAllowed)) {
             AtomicInteger numReceivedBuffers = new AtomicInteger(0);
             bufferAccumulator.setup(
                     (subpartitionIndex, buffer, numRemainingBuffers) -> {
@@ -170,8 +170,8 @@ class SortBufferAccumulatorTest {
         TieredStorageMemoryManager memoryManager = createStorageMemoryManager(numBuffers);
 
         try (SortBufferAccumulator bufferAccumulator =
-                new SortBufferAccumulator(1, 1, bufferSize, 0L, memoryManager, true)) {
-            bufferAccumulator.setup((subpartitionIndex, buffers, numRemainingBuffers) -> {});
+                new SortBufferAccumulator(1, 1, bufferSize, memoryManager, true)) {
+            bufferAccumulator.setup((subpartitionIndex, buffer, numRemainingBuffers) -> {});
             assertThatThrownBy(
                             () ->
                                     bufferAccumulator.receive(
@@ -191,7 +191,7 @@ class SortBufferAccumulatorTest {
                 createStorageMemoryManager(numBuffers);
         SortBufferAccumulator bufferAccumulator =
                 new SortBufferAccumulator(
-                        1, 2, BUFFER_SIZE_BYTES, 0L, tieredStorageMemoryManager, true);
+                        1, 2, BUFFER_SIZE_BYTES, tieredStorageMemoryManager, true);
         bufferAccumulator.setup(
                 ((subpartition, buffer, numRemainingBuffers) -> buffer.recycleBuffer()));
         bufferAccumulator.receive(
@@ -221,17 +221,16 @@ class SortBufferAccumulatorTest {
                                     // When flushing data from the data buffer, the buffers should
                                     // not be requested from here anymore because the freeSegments
                                     // can be reused before released.
-                                    assertThat(numRequestedBuffers.get() < numBuffers).isTrue();
+                                    assertThat(numRequestedBuffers.get() <= numBuffers).isTrue();
                                     return new BufferBuilder(
                                             memorySegment,
                                             segment -> globalPool.requestPooledMemorySegment());
                                 })
-                        .setGetBufferPoolSizeSupplier(() -> numBuffers)
                         .build();
 
         SortBufferAccumulator bufferAccumulator =
                 new SortBufferAccumulator(
-                        numSubpartitions, numBuffers, BUFFER_SIZE_BYTES, 0L, memoryManager, true);
+                        numSubpartitions, numBuffers, BUFFER_SIZE_BYTES, memoryManager, true);
         bufferAccumulator.setup(
                 ((subpartition, buffer, numRemainingBuffers) -> buffer.recycleBuffer()));
 
