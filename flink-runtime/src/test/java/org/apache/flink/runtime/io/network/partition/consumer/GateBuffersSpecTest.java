@@ -121,9 +121,9 @@ class GateBuffersSpecTest {
                 createGateBuffersSpec(
                         numInputChannels, partitionType, numExclusiveBuffersPerChannel);
 
-        int numExclusivePerChannel = 0;
         int minBuffersPerGate = 1;
         int maxBuffersPerGate = 8;
+        int numExclusivePerChannel = 0;
 
         checkBuffersInGate(
                 gateBuffersSpec,
@@ -173,36 +173,6 @@ class GateBuffersSpecTest {
         assertThat(effectiveMaxRequiredBuffers).isEqualTo(expectEffectiveMaxRequiredBuffers);
     }
 
-    @ParameterizedTest
-    @MethodSource("parameters")
-    void testDefaultMinBuffersPerGate(ResultPartitionType partitionType) {
-        int numInputChannels = 499;
-        int numExclusiveBuffers = 2;
-
-        GateBuffersSpec gateBuffersSpec =
-                createGateBuffersSpec(
-                        numInputChannels, partitionType, numExclusiveBuffers, false, false);
-        int expectedBuffersPerGate = 999;
-        int maxBuffersPerGate = 1006;
-        checkBuffersInGate(
-                gateBuffersSpec,
-                numExclusiveBuffers,
-                expectedBuffersPerGate,
-                expectedBuffersPerGate,
-                maxBuffersPerGate);
-
-        gateBuffersSpec =
-                createGateBuffersSpec(
-                        numInputChannels, partitionType, numExclusiveBuffers, true, true);
-        int minBuffersPerGate = partitionType.isHybridResultPartition() ? 2 : 999;
-        checkBuffersInGate(
-                gateBuffersSpec,
-                numExclusiveBuffers,
-                expectedBuffersPerGate,
-                minBuffersPerGate,
-                maxBuffersPerGate);
-    }
-
     private static void checkBuffersInGate(
             GateBuffersSpec gateBuffersSpec,
             int numExclusivePerChannel,
@@ -231,24 +201,7 @@ class GateBuffersSpecTest {
                 8,
                 partitionType,
                 numInputChannels,
-                false,
                 false);
-    }
-
-    private static GateBuffersSpec createGateBuffersSpec(
-            int numInputChannels,
-            ResultPartitionType partitionType,
-            int numExclusiveBuffersPerChannel,
-            boolean enableTieredStorage,
-            boolean memoryDecouplingEnabled) {
-        return InputGateSpecUtils.createGateBuffersSpec(
-                getMaxRequiredBuffersPerGate(partitionType),
-                numExclusiveBuffersPerChannel,
-                8,
-                partitionType,
-                numInputChannels,
-                enableTieredStorage,
-                memoryDecouplingEnabled);
     }
 
     private static Optional<Integer> getMaxRequiredBuffersPerGate(

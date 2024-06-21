@@ -49,7 +49,6 @@ import java.util.Optional;
 import static org.apache.flink.api.common.BatchShuffleMode.ALL_EXCHANGES_HYBRID_FULL;
 import static org.apache.flink.api.common.BatchShuffleMode.ALL_EXCHANGES_HYBRID_SELECTIVE;
 import static org.apache.flink.configuration.ExecutionOptions.BATCH_SHUFFLE_MODE;
-import static org.apache.flink.configuration.NettyShuffleEnvironmentOptions.NETWORK_HYBRID_SHUFFLE_ENABLE_MEMORY_DECOUPLING;
 import static org.apache.flink.configuration.NettyShuffleEnvironmentOptions.NETWORK_HYBRID_SHUFFLE_ENABLE_NEW_MODE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -118,8 +117,6 @@ public class NettyShuffleEnvironmentConfiguration {
 
     private final long hybridShuffleNumRetainedInMemoryRegionsMax;
 
-    private final boolean isMemoryDecouplingEnabled;
-
     private final TieredStorageConfiguration tieredStorageConfiguration;
 
     public NettyShuffleEnvironmentConfiguration(
@@ -148,7 +145,6 @@ public class NettyShuffleEnvironmentConfiguration {
             int maxOverdraftBuffersPerGate,
             int hybridShuffleSpilledIndexRegionGroupSize,
             long hybridShuffleNumRetainedInMemoryRegionsMax,
-            boolean isMemoryDecouplingEnabled,
             @Nullable TieredStorageConfiguration tieredStorageConfiguration) {
 
         this.numNetworkBuffers = numNetworkBuffers;
@@ -177,7 +173,6 @@ public class NettyShuffleEnvironmentConfiguration {
         this.hybridShuffleSpilledIndexRegionGroupSize = hybridShuffleSpilledIndexRegionGroupSize;
         this.hybridShuffleNumRetainedInMemoryRegionsMax =
                 hybridShuffleNumRetainedInMemoryRegionsMax;
-        this.isMemoryDecouplingEnabled = isMemoryDecouplingEnabled;
         this.tieredStorageConfiguration = tieredStorageConfiguration;
     }
 
@@ -281,10 +276,6 @@ public class NettyShuffleEnvironmentConfiguration {
 
     public long getHybridShuffleNumRetainedInMemoryRegionsMax() {
         return hybridShuffleNumRetainedInMemoryRegionsMax;
-    }
-
-    public boolean isMemoryDecouplingEnabled() {
-        return isMemoryDecouplingEnabled;
     }
 
     public int getHybridShuffleSpilledIndexRegionGroupSize() {
@@ -419,9 +410,6 @@ public class NettyShuffleEnvironmentConfiguration {
                         NettyShuffleEnvironmentOptions
                                 .HYBRID_SHUFFLE_NUM_RETAINED_IN_MEMORY_REGIONS_MAX);
 
-        boolean isMemoryDecouplingEnabled =
-                configuration.get(NETWORK_HYBRID_SHUFFLE_ENABLE_MEMORY_DECOUPLING);
-
         checkArgument(buffersPerChannel >= 0, "Must be non-negative.");
         checkArgument(
                 !maxRequiredBuffersPerGate.isPresent() || maxRequiredBuffersPerGate.get() >= 1,
@@ -468,7 +456,6 @@ public class NettyShuffleEnvironmentConfiguration {
                 maxOverdraftBuffersPerGate,
                 hybridShuffleSpilledIndexSegmentSize,
                 hybridShuffleNumRetainedInMemoryRegionsMax,
-                isMemoryDecouplingEnabled,
                 tieredStorageConfiguration);
     }
 

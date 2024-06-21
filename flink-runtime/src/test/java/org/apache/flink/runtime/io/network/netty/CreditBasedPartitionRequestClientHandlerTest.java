@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
-import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -596,11 +595,7 @@ class CreditBasedPartitionRequestClientHandlerTest {
         final String expectedMessage = "test exception on buffer";
         final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, bufferSize);
         final SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
-        inputGate.setBufferPool(
-                TestingBufferPool.builder()
-                        .setRequestMemorySegmentSupplier(
-                                () -> MemorySegmentFactory.allocateUnpooledSegment(1024))
-                        .build());
+        inputGate.setBufferPool(new TestingBufferPool());
         final RemoteInputChannel inputChannel =
                 new TestRemoteInputChannelForError(inputGate, expectedMessage);
         final CreditBasedPartitionRequestClientHandler handler =

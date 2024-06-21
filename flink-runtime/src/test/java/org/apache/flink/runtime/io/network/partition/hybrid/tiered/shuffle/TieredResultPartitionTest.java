@@ -147,9 +147,8 @@ class TieredResultPartitionTest {
 
     @Test
     void testMinMaxNetworkBuffersTieredResultPartition() {
-        final int numSubpartitions = 105;
-        final int tieredStorageTotalExclusiveBufferNum = 103;
-        final int tieredStorageMaxBuffersPerRecord = 8;
+        int numSubpartitions = 105;
+        int tieredStorageTotalExclusiveBufferNum = 103;
         Tuple3<Integer, Integer, Integer> minMaxNetworkBuffers =
                 getMinMaxNetworkBuffersPerResultPartition(
                         100,
@@ -158,12 +157,10 @@ class TieredResultPartitionTest {
                         10,
                         numSubpartitions,
                         true,
-                        true,
                         tieredStorageTotalExclusiveBufferNum,
-                        tieredStorageMaxBuffersPerRecord,
                         ResultPartitionType.HYBRID_SELECTIVE);
         assertThat(minMaxNetworkBuffers.f0).isEqualTo(tieredStorageTotalExclusiveBufferNum);
-        assertThat(minMaxNetworkBuffers.f1).isEqualTo(tieredStorageMaxBuffersPerRecord);
+        assertThat(minMaxNetworkBuffers.f1).isEqualTo(8);
         assertThat(minMaxNetworkBuffers.f2).isEqualTo(Integer.MAX_VALUE);
     }
 
@@ -296,7 +293,6 @@ class TieredResultPartitionTest {
                         Integer.MAX_VALUE,
                         NETWORK_BUFFER_SIZE,
                         isBroadcastOnly,
-                        true,
                         new ResultPartitionManager(),
                         new BufferCompressor(NETWORK_BUFFER_SIZE, CompressionCodec.LZ4),
                         tierShuffleDescriptors,

@@ -93,7 +93,6 @@ public class TieredResultPartitionFactory {
             int maxParallelism,
             int bufferSizeBytes,
             Boolean isBroadCastOnly,
-            boolean memoryDecouplingEnabled,
             ResultPartitionManager partitionManager,
             @Nullable BufferCompressor bufferCompressor,
             List<TierShuffleDescriptor> tierShuffleDescriptors,
@@ -115,7 +114,6 @@ public class TieredResultPartitionFactory {
                         numSubpartitions,
                         bufferSizeBytes,
                         numAccumulatorExclusiveBuffers,
-                        memoryDecouplingEnabled,
                         memoryManager,
                         isNumberOfPartitionConsumerUndefined);
 
@@ -166,19 +164,16 @@ public class TieredResultPartitionFactory {
             int numSubpartitions,
             int bufferSizeBytes,
             int numAccumulatorExclusiveBuffers,
-            boolean enableMemoryDecoupling,
             TieredStorageMemoryManager storageMemoryManager,
             boolean isNumberOfPartitionConsumerUndefined) {
-        long poolSizeCheckInterval = TieredStorageUtils.getPoolSizeCheckInterval();
 
         BufferAccumulator bufferAccumulator;
-        if (enableMemoryDecoupling || (numSubpartitions + 1) > numAccumulatorExclusiveBuffers) {
+        if ((numSubpartitions + 1) > numAccumulatorExclusiveBuffers) {
             bufferAccumulator =
                     new SortBufferAccumulator(
                             numSubpartitions,
                             numAccumulatorExclusiveBuffers,
                             bufferSizeBytes,
-                            enableMemoryDecoupling ? poolSizeCheckInterval : 0,
                             storageMemoryManager,
                             !isNumberOfPartitionConsumerUndefined);
         } else {

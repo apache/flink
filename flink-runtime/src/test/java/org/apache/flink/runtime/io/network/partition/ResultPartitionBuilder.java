@@ -94,8 +94,6 @@ public class ResultPartitionBuilder {
 
     private long hybridShuffleNumRetainedInMemoryRegionsMax = Long.MAX_VALUE;
 
-    private boolean isMemoryDecouplingEnabled = false;
-
     public ResultPartitionBuilder setResultPartitionIndex(int partitionIndex) {
         this.partitionIndex = partitionIndex;
         return this;
@@ -236,11 +234,6 @@ public class ResultPartitionBuilder {
         return this;
     }
 
-    public ResultPartitionBuilder setIsMemoryDecouplingEnabled(boolean isMemoryDecouplingEnabled) {
-        this.isMemoryDecouplingEnabled = isMemoryDecouplingEnabled;
-        return this;
-    }
-
     public ResultPartitionBuilder setHybridShuffleSpilledIndexRegionGroupSize(
             int hybridShuffleSpilledIndexRegionGroupSize) {
         this.hybridShuffleSpilledIndexRegionGroupSize = hybridShuffleSpilledIndexRegionGroupSize;
@@ -268,7 +261,6 @@ public class ResultPartitionBuilder {
                         maxOverdraftBuffersPerGate,
                         hybridShuffleSpilledIndexRegionGroupSize,
                         hybridShuffleNumRetainedInMemoryRegionsMax,
-                        isMemoryDecouplingEnabled,
                         Optional.empty());
 
         SupplierWithException<BufferPool, IOException> factory =

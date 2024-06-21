@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
@@ -273,11 +272,7 @@ public class InputGateFairnessTest {
         channels[11].onBuffer(mockBuffer, 0, -1, 0);
         channelSequenceNums[11]++;
 
-        gate.setBufferPool(
-                TestingBufferPool.builder()
-                        .setRequestMemorySegmentSupplier(
-                                () -> MemorySegmentFactory.allocateUnpooledSegment(1024))
-                        .build());
+        gate.setBufferPool(new TestingBufferPool());
         gate.setInputChannels(channels);
         gate.setupChannels();
         gate.requestPartitions();
@@ -358,7 +353,7 @@ public class InputGateFairnessTest {
     private static class FairnessVerifyingInputGate extends SingleInputGate {
         private static final int BUFFER_SIZE = 32 * 1024;
         private static final SupplierWithException<BufferPool, IOException>
-                STUB_BUFFER_POOL_FACTORY = () -> TestingBufferPool.NO_OP;
+                STUB_BUFFER_POOL_FACTORY = TestingBufferPool::new;
 
         private final PrioritizedDeque<InputChannel> channelsWithData;
 
