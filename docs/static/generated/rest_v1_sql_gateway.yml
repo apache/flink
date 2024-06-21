@@ -166,7 +166,7 @@ paths:
           $ref: '#/components/schemas/OperationHandle'
       - name: token
         in: path
-        description: The OperationHandle that identifies a operation.
+        description: The token that identifies which batch of data to fetch.
         required: true
         schema:
           type: integer
