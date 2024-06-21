@@ -187,10 +187,6 @@ public class TieredResultPartition extends ResultPartition {
 
     @Override
     public void close() {
-        if (!isFinished()) {
-            // Close the producer client in case of the result partition is not finished properly.
-            tieredStorageProducerClient.close();
-        }
         storageMemoryManager.release();
         super.close();
     }
