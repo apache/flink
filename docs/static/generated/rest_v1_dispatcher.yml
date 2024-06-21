@@ -2395,6 +2395,8 @@ components:
           type: boolean
         jid:
           $ref: '#/components/schemas/JobID'
+        job-type:
+          $ref: '#/components/schemas/JobType'
         maxParallelism:
           type: integer
           format: int64
@@ -2572,6 +2574,11 @@ components:
       properties:
         jobUrl:
           type: string
+    JobType:
+      type: string
+      enum:
+      - BATCH
+      - STREAMING
     JobVertexAccumulatorsInfo:
       type: object
       properties:
