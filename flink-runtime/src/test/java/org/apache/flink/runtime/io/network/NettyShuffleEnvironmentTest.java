@@ -105,7 +105,8 @@ class NettyShuffleEnvironmentTest {
         // outgoing: 1 buffer per channel + 1 extra buffer per ResultPartition
         // incoming: 2 exclusive buffers per channel + 1 floating buffer per single gate
         final int bufferCount =
-                8 + 10 * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue();
+                18 + 10 * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue();
+
         testRegisterTaskWithLimitedBuffers(bufferCount);
     }
 
@@ -118,7 +119,7 @@ class NettyShuffleEnvironmentTest {
         // outgoing: 1 buffer per channel + 1 extra buffer per ResultPartition
         // incoming: 2 exclusive buffers per channel + 1 floating buffer per single gate
         final int bufferCount =
-                8
+                10
                         + 10
                                 * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL
                                         .defaultValue()
@@ -327,14 +328,10 @@ class NettyShuffleEnvironmentTest {
 
         // verify buffer pools for the input gates (NOTE: credit-based uses minimum required buffers
         // for exclusive buffers not managed by the buffer pool)
-        assertThat(ig1.getBufferPool().getExpectedNumberOfMemorySegments())
-                .isEqualTo(ig1.getNumberOfInputChannels() + 1);
-        assertThat(ig2.getBufferPool().getExpectedNumberOfMemorySegments())
-                .isEqualTo(ig2.getNumberOfInputChannels() + 1);
-        assertThat(ig3.getBufferPool().getExpectedNumberOfMemorySegments())
-                .isEqualTo(ig3.getNumberOfInputChannels() + 1);
-        assertThat(ig4.getBufferPool().getExpectedNumberOfMemorySegments())
-                .isEqualTo(ig4.getNumberOfInputChannels() + 1);
+        assertThat(ig1.getBufferPool().getExpectedNumberOfMemorySegments()).isOne();
+        assertThat(ig2.getBufferPool().getExpectedNumberOfMemorySegments()).isOne();
+        assertThat(ig3.getBufferPool().getExpectedNumberOfMemorySegments()).isOne();
+        assertThat(ig4.getBufferPool().getExpectedNumberOfMemorySegments()).isOne();
 
         assertThat(ig1.getBufferPool().getMaxNumberOfMemorySegments()).isEqualTo(floatingBuffers);
         assertThat(ig2.getBufferPool().getMaxNumberOfMemorySegments()).isEqualTo(floatingBuffers);
@@ -373,7 +370,7 @@ class NettyShuffleEnvironmentTest {
                 new SingleInputGateBuilder()
                         .setNumberOfChannels(numberOfChannels)
                         .setResultPartitionType(partitionType)
-                        .setupBufferPoolFactory(network, numberOfChannels + 1)
+                        .setupBufferPoolFactory(network)
                         .build());
     }
 
