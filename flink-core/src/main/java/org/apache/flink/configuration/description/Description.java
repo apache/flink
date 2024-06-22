@@ -32,6 +32,8 @@ import java.util.List;
 @PublicEvolving
 public class Description implements Serializable {
 
+    private static final long serialVersionUID = 1L;
+
     private final List<BlockElement> blocks;
 
     public static DescriptionBuilder builder() {
