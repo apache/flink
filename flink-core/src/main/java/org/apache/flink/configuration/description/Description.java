@@ -18,10 +18,9 @@
 
 package org.apache.flink.configuration.description;
 
-import java.io.Serializable;
-
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 

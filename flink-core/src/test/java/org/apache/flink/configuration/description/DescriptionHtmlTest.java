@@ -18,13 +18,13 @@
 
 package org.apache.flink.configuration.description;
 
+import org.junit.jupiter.api.Test;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-
-import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.text;
@@ -135,7 +135,9 @@ class DescriptionHtmlTest {
                         .linebreak()
                         .list(
                                 text("this is first element of list"),
-                                text("this is second element of list with a %s", link("https://link")))
+                                text(
+                                        "this is second element of list with a %s",
+                                        link("https://link")))
                         .build();
 
         byte[] serializedDescription = serialize(description);
