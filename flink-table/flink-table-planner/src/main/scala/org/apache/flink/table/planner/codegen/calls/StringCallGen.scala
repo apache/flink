@@ -294,28 +294,6 @@ object StringCallGen {
     }
   }
 
-  /** Optimization: use StringData equals instead of compare. */
-  def generateStringEquals(
-      ctx: CodeGeneratorContext,
-      left: GeneratedExpression,
-      right: GeneratedExpression,
-      resultType: LogicalType): GeneratedExpression = {
-    generateCallIfArgsNotNull(ctx, resultType, Seq(left, right)) {
-      terms => s"(${terms.head}.equals(${terms(1)}))"
-    }
-  }
-
-  /** Optimization: use StringData equals instead of compare. */
-  def generateStringNotEquals(
-      ctx: CodeGeneratorContext,
-      left: GeneratedExpression,
-      right: GeneratedExpression,
-      resultType: LogicalType): GeneratedExpression = {
-    generateCallIfArgsNotNull(ctx, resultType, Seq(left, right)) {
-      terms => s"!(${terms.head}.equals(${terms(1)}))"
-    }
-  }
-
   def generateSubString(
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
@@ -566,16 +544,6 @@ object StringCallGen {
     }
   }
 
-  def generateKeyValue(
-      ctx: CodeGeneratorContext,
-      operands: Seq[GeneratedExpression],
-      returnType: LogicalType): GeneratedExpression = {
-    val className = classOf[SqlFunctionUtils].getCanonicalName
-    generateCallIfArgsNullable(ctx, returnType, operands) {
-      terms => s"$className.keyValue(${terms.mkString(",")})"
-    }
-  }
-
   def generateHashCode(
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
@@ -722,16 +690,6 @@ object StringCallGen {
     val className = classOf[SqlFunctionUtils].getCanonicalName
     generateCallIfArgsNotNull(ctx, returnType, operands) {
       terms => s"$className.regExp(${toStringTerms(terms, operands)})"
-    }
-  }
-
-  def generateJsonValue(
-      ctx: CodeGeneratorContext,
-      operands: Seq[GeneratedExpression],
-      returnType: LogicalType): GeneratedExpression = {
-    val className = classOf[SqlFunctionUtils].getCanonicalName
-    generateStringResultCallIfArgsNotNull(ctx, operands, returnType) {
-      terms => s"$className.jsonValue(${safeToStringTerms(terms, operands)})"
     }
   }
 
