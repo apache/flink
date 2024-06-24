@@ -23,6 +23,7 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import java.io.Serializable;
+import java.util.Map;
 
 /**
  * The serialization schema describes how to turn a data object into a different serialized
@@ -52,6 +53,26 @@ public interface SerializationSchema<T> extends Serializable {
      * @return The serialized element.
      */
     byte[] serialize(T element);
+
+    /**
+     * Serializes the incoming element to a specified type and populates an output. The input
+     * additional properties can be used by the serialization and the output additionalProperties
+     * can be populated by the serialization.
+     *
+     * @param element The incoming element to be serialized
+     * @param inputAdditionalProperties input additionalProperties map of supplied to serialization
+     * @param outputAdditionalProperties output additionalProperties that can be populated by the
+     *     serialization
+     * @return The serialized element.
+     */
+    @PublicEvolving
+    default byte[] serializeWithAdditionalProperties(
+            T element,
+            Map<String, Object> inputAdditionalProperties,
+            Map<String, Object> outputAdditionalProperties) {
+        // if not overridden then serialize without the additional properties
+        return serialize(element);
+    }
 
     /**
      * A contextual information provided for {@link #open(InitializationContext)} method. It can be

@@ -26,6 +26,7 @@ import org.apache.flink.util.UserCodeClassLoader;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Map;
 
 /**
  * The deserialization schema describes how to turn the byte messages delivered by certain data
@@ -93,6 +94,31 @@ public interface DeserializationSchema<T> extends Serializable, ResultTypeQuerya
      * @return True, if the element signals end of stream, false otherwise.
      */
     boolean isEndOfStream(T nextElement);
+
+    /**
+     * Deserializes the byte message with input Additional Properties.
+     *
+     * @param message The message, as a byte array.
+     * @param inputAdditionalProperties inputAdditionalProperties map of input Additional Properties
+     *     that can be used for deserialization. Override this method to make use of the
+     *     inputAdditionalProperties,
+     * @return The deserialized message as an object (null if the message cannot be deserialized).
+     */
+    @PublicEvolving
+    default T deserializeWithAdditionalProperties(
+            byte[] message, Map<String, Object> inputAdditionalProperties) throws IOException {
+        return deserialize(message);
+    }
+
+    @PublicEvolving
+    default void deserializeWithAdditionalProperties(
+            byte[] message, Map<String, Object> inputAdditionalProperties, Collector<T> out)
+            throws IOException {
+        T deserialize = deserializeWithAdditionalProperties(message, inputAdditionalProperties);
+        if (deserialize != null) {
+            out.collect(deserialize);
+        }
+    }
 
     /**
      * A contextual information provided for {@link #open(InitializationContext)} method. It can be
