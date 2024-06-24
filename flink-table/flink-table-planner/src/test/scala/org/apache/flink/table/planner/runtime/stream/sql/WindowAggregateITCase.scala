@@ -50,6 +50,25 @@ class WindowAggregateITCase(
   extends StreamingWithStateTestBase(state) {
 
   // -------------------------------------------------------------------------------
+  // Expected output data for SESSION WINDOW tests
+  // Result of CUBE(name), ROLLUP(name), GROUPING SETS((`name`),()) should be same
+  // -------------------------------------------------------------------------------
+  val SessionWindowGroupSetExpectedData = Seq(
+    "0,a,2020-10-10T00:00:01,2020-10-10T00:00:13,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
+    "0,b,2020-10-10T00:00:06,2020-10-10T00:00:12,2,6.66,6.0,3.0,2,Hello|Hi",
+    "0,b,2020-10-10T00:00:16,2020-10-10T00:00:21,1,4.44,4.0,4.0,1,Hi",
+    "0,b,2020-10-10T00:00:34,2020-10-10T00:00:39,1,3.33,3.0,3.0,1,Comment#3",
+    "0,null,2020-10-10T00:00:32,2020-10-10T00:00:37,1,7.77,7.0,7.0,0,null",
+    "1,null,2020-10-10T00:00:01,2020-10-10T00:00:13,8,26.64,6.0,1.0,4,Hi|Comment#1|Hello|Comment#2",
+    "1,null,2020-10-10T00:00:16,2020-10-10T00:00:21,1,4.44,4.0,4.0,1,Hi",
+    "1,null,2020-10-10T00:00:32,2020-10-10T00:00:39,2,11.10,7.0,3.0,1,Comment#3"
+  )
+
+  val SessionWindowCubeExpectedData = SessionWindowGroupSetExpectedData
+
+  val SessionWindowRollupExpectedData = SessionWindowGroupSetExpectedData
+
+  // -------------------------------------------------------------------------------
   // Expected output data for TUMBLE WINDOW tests
   // Result of CUBE(name), ROLLUP(name), GROUPING SETS((`name`),()) should be same
   // -------------------------------------------------------------------------------
@@ -1323,6 +1342,222 @@ class WindowAggregateITCase(
     )
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
       .isEqualTo(expected.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testEventTimeSessionWindow(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`),
+        |  concat_distinct_agg(`string`)
+        |FROM TABLE(
+        |   SESSION(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '2' SECOND))
+        |GROUP BY `name`, window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "a,2020-10-10T00:00:01,2020-10-10T00:00:06,4,11.10,5.0,1.0,2,Hi|Comment#1",
+      "a,2020-10-10T00:00:08,2020-10-10T00:00:10,1,3.33,null,3.0,1,Comment#2",
+      "b,2020-10-10T00:00:06,2020-10-10T00:00:09,2,6.66,6.0,3.0,2,Hello|Hi",
+      "b,2020-10-10T00:00:16,2020-10-10T00:00:18,1,4.44,4.0,4.0,1,Hi",
+      "b,2020-10-10T00:00:34,2020-10-10T00:00:36,1,3.33,3.0,3.0,1,Comment#3",
+      "null,2020-10-10T00:00:32,2020-10-10T00:00:34,1,7.77,7.0,7.0,0,null")
+    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testEventTimeSessionWindow_GroupingSets(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  GROUPING_ID(`name`),
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`),
+        |  concat_distinct_agg(`string`)
+        |FROM TABLE(
+        |   SESSION(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
+        |GROUP BY GROUPING SETS((`name`),()), window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    assertEquals(
+      SessionWindowGroupSetExpectedData.sorted.mkString("\n"),
+      sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testEventTimeSessionWindow_Cube(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  GROUPING_ID(`name`),
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`),
+        |  concat_distinct_agg(`string`)
+        |FROM TABLE(
+        |   SESSION(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
+        |GROUP BY CUBE(`name`), window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    assertEquals(
+      SessionWindowCubeExpectedData.sorted.mkString("\n"),
+      sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testEventTimeSessionWindow_Rollup(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  GROUPING_ID(`name`),
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`),
+        |  concat_distinct_agg(`string`)
+        |FROM TABLE(
+        |   SESSION(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
+        |GROUP BY ROLLUP(`name`), window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    assertEquals(
+      SessionWindowRollupExpectedData.sorted.mkString("\n"),
+      sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testSessionWindowOutputWindowTime(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  window_time,
+        |  COUNT(*)
+        |FROM TABLE(
+        |   SESSION(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '2' SECOND))
+        |GROUP BY `name`, window_start, window_end, window_time
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = if (useTimestampLtz) {
+      Seq(
+        "a,2020-10-10T00:00:01,2020-10-10T00:00:06,2020-10-09T16:00:05.999Z,4",
+        "a,2020-10-10T00:00:08,2020-10-10T00:00:10,2020-10-09T16:00:09.999Z,1",
+        "b,2020-10-10T00:00:06,2020-10-10T00:00:09,2020-10-09T16:00:08.999Z,2",
+        "b,2020-10-10T00:00:16,2020-10-10T00:00:18,2020-10-09T16:00:17.999Z,1",
+        "b,2020-10-10T00:00:34,2020-10-10T00:00:36,2020-10-09T16:00:35.999Z,1",
+        "null,2020-10-10T00:00:32,2020-10-10T00:00:34,2020-10-09T16:00:33.999Z,1"
+      )
+    } else {
+      Seq(
+        "a,2020-10-10T00:00:01,2020-10-10T00:00:06,2020-10-10T00:00:05.999,4",
+        "a,2020-10-10T00:00:08,2020-10-10T00:00:10,2020-10-10T00:00:09.999,1",
+        "b,2020-10-10T00:00:06,2020-10-10T00:00:09,2020-10-10T00:00:08.999,2",
+        "b,2020-10-10T00:00:16,2020-10-10T00:00:18,2020-10-10T00:00:17.999,1",
+        "b,2020-10-10T00:00:34,2020-10-10T00:00:36,2020-10-10T00:00:35.999,1",
+        "null,2020-10-10T00:00:32,2020-10-10T00:00:34,2020-10-10T00:00:33.999,1")
+    }
+    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testSessionWindowGroupOnWindowOnly(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`),
+        |  concat_distinct_agg(`string`)
+        |FROM TABLE(
+        |   SESSION(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
+        |GROUP BY window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "2020-10-10T00:00:01,2020-10-10T00:00:13,8,26.64,6.0,1.0,4,Hi|Comment#1|Hello|Comment#2",
+      "2020-10-10T00:00:16,2020-10-10T00:00:21,1,4.44,4.0,4.0,1,Hi",
+      "2020-10-10T00:00:32,2020-10-10T00:00:39,2,11.10,7.0,3.0,1,Comment#3")
+    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testSessionWindowWithoutOutputWindowColumns(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`),
+        |  concat_distinct_agg(`string`)
+        |FROM TABLE(
+        |   SESSION(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
+        |GROUP BY window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "1,4.44,4.0,4.0,1,Hi",
+      "2,11.10,7.0,3.0,1,Comment#3",
+      "8,26.64,6.0,1.0,4,Hi|Comment#1|Hello|Comment#2")
+    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 }
 
