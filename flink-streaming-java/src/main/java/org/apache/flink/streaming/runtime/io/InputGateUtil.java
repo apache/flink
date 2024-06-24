@@ -33,7 +33,7 @@ import java.util.List;
 public class InputGateUtil {
 
     public static InputGate createInputGate(List<IndexedInputGate> inputGates) {
-        if (inputGates.size() <= 0) {
+        if (inputGates.isEmpty()) {
             throw new RuntimeException("No such input gate.");
         }
 
