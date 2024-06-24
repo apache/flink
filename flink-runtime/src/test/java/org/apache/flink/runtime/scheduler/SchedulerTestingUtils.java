@@ -109,7 +109,7 @@ public class SchedulerTestingUtils {
                 jobGraph,
                 stateBackend,
                 checkpointStorage,
-                Long.MAX_VALUE, // disable periodical checkpointing
+                Long.MAX_VALUE - 1,
                 false);
     }
 
