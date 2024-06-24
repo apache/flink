@@ -64,7 +64,10 @@ public class ReduceApplyProcessWindowFunction<K, W extends Window, T, R>
 
         this.ctx.window = context.window();
         this.ctx.context = context;
-        windowFunction.process(k, ctx, Collections.singletonList(curr), out);
+
+        Iterable<T> inputIterable =
+                curr == null ? Collections.emptyList() : Collections.singletonList(curr);
+        windowFunction.process(k, ctx, inputIterable, out);
     }
 
     @Override
