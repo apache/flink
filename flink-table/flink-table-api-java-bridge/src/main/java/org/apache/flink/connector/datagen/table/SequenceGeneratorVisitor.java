@@ -24,7 +24,6 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.functions.source.datagen.RandomGenerator;
 import org.apache.flink.streaming.api.functions.source.datagen.SequenceGenerator;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -49,10 +48,6 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
 
     private final ReadableConfig config;
 
-    private final String startKeyStr;
-
-    private final String endKeyStr;
-
     private final ConfigOption<Integer> intStart;
 
     private final ConfigOption<Integer> intEnd;
@@ -61,46 +56,35 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
 
     private final ConfigOption<Long> longEnd;
 
+    static final int START_DEFAULT_VALUE = 0;
+    static final int END_DEFAULT_VALUE = 1048576;
+
     public SequenceGeneratorVisitor(String name, ReadableConfig config) {
         super(name, config);
 
         this.config = config;
 
-        this.startKeyStr =
-                DataGenConnectorOptionsUtil.FIELDS
-                        + "."
-                        + name
-                        + "."
-                        + DataGenConnectorOptionsUtil.START;
-        this.endKeyStr =
-                DataGenConnectorOptionsUtil.FIELDS
-                        + "."
-                        + name
-                        + "."
-                        + DataGenConnectorOptionsUtil.END;
+        String startKeyStr =
+                String.join(
+                        ".",
+                        DataGenConnectorOptionsUtil.FIELDS,
+                        name,
+                        DataGenConnectorOptionsUtil.START);
+        String endKeyStr =
+                String.join(
+                        ".",
+                        DataGenConnectorOptionsUtil.FIELDS,
+                        name,
+                        DataGenConnectorOptionsUtil.END);
 
         ConfigOptions.OptionBuilder startKey = key(startKeyStr);
         ConfigOptions.OptionBuilder endKey = key(endKeyStr);
 
-        config.getOptional(startKey.stringType().noDefaultValue())
-                .orElseThrow(
-                        () ->
-                                new ValidationException(
-                                        "Could not find required property '"
-                                                + startKeyStr
-                                                + "' for sequence generator."));
-        config.getOptional(endKey.stringType().noDefaultValue())
-                .orElseThrow(
-                        () ->
-                                new ValidationException(
-                                        "Could not find required property '"
-                                                + endKeyStr
-                                                + "' for sequence generator."));
-
-        this.intStart = startKey.intType().noDefaultValue();
-        this.intEnd = endKey.intType().noDefaultValue();
-        this.longStart = startKey.longType().noDefaultValue();
-        this.longEnd = endKey.longType().noDefaultValue();
+        // Under sequence, if end and start are not set, the default value is used
+        this.intStart = startKey.intType().defaultValue(START_DEFAULT_VALUE);
+        this.intEnd = endKey.intType().defaultValue(END_DEFAULT_VALUE);
+        this.longStart = startKey.longType().defaultValue((long) START_DEFAULT_VALUE);
+        this.longEnd = endKey.longType().defaultValue((long) END_DEFAULT_VALUE);
     }
 
     @Override
