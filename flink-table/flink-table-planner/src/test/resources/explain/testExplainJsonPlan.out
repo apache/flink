@@ -23,3 +23,5 @@ Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
     } ]
   } ]
 }
+== Job Execution Plan ==
+{"jid":"","name":"Flink Exec Table Job","type":"STREAMING","nodes":[{"id":"d3f21cabc6fe0fdf76c8be915bdb22a2","parallelism":1,"operator":"","operator_strategy":"","description":"[]:TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])<br/>+- [2]:Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])<br/>","optimizer_properties":{}}]}

@@ -87,7 +87,8 @@ public interface Planner {
      * @param format The output format of explained statement. See more details at {@link
      *     ExplainFormat}.
      * @param extraDetails The extra explain details which the explain result should include, e.g.
-     *     estimated cost, changelog mode for streaming, displaying execution plan in json format
+     *     estimated cost, changelog mode for streaming, displaying execution plan in json format,
+     *     displaying job plan in json
      */
     String explain(List<Operation> operations, ExplainFormat format, ExplainDetail... extraDetails);
 

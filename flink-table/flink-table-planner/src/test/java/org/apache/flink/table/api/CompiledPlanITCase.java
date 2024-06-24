@@ -360,9 +360,12 @@ class CompiledPlanITCase extends JsonPlanTestBase {
 
         String actual =
                 tableEnv.loadPlan(PlanReference.fromJsonString(planFromResources))
-                        .explain(ExplainDetail.JSON_EXECUTION_PLAN);
+                        .explain(ExplainDetail.JSON_EXECUTION_PLAN, ExplainDetail.JSON_JOB_PLAN);
         String expected = TableTestUtil.readFromResource("/explain/testExplainJsonPlan.out");
-        assertThat(TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(actual)))
+        assertThat(
+                        TableTestUtil.replaceNodeIdInOperator(
+                                TableTestUtil.replaceJobId(
+                                        TableTestUtil.replaceStreamNodeId(actual))))
                 .isEqualTo(expected);
     }
 
