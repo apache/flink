@@ -18,6 +18,7 @@
 
 name: "Nightly trigger (beta)"
 
+# Apache policy: never use 'pull_request_target' as a trigger
 on:
   schedule:
     - cron: '0 2 * * *'
@@ -25,8 +26,6 @@ on:
 jobs:
   Trigger:
     if: github.repository == 'apache/flink'
-    permissions:
-      actions: write
     strategy:
       matrix:
         branch:

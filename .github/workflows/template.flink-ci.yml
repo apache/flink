@@ -17,6 +17,7 @@
 
 name: "Apache Flink Test Workflow Template"
 
+# Apache policy: never use 'pull_request_target' as a trigger
 on:
   workflow_call:
     inputs:
