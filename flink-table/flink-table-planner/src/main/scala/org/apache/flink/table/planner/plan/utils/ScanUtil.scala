@@ -19,11 +19,16 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.catalog.ResolvedCatalogTable
+import org.apache.flink.table.connector.source.abilities.SupportsPartitioning
+import org.apache.flink.table.connector.source.partitioning.Partitioning
 import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenUtils, ExprCodeGenerator, OperatorCodeGenerator}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{DEFAULT_INPUT1_TERM, GENERIC_ROW}
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
+import org.apache.flink.table.planner.plan.schema.TableSourceTable
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
@@ -159,5 +164,41 @@ object ScanUtil {
         }
         index
     }.toArray
+  }
+
+  def getPartitionKeys(tableSourceTable: TableSourceTable): Option[Array[Int]] = {
+    val catalogTable =
+      tableSourceTable.contextResolvedTable.getResolvedTable[ResolvedCatalogTable]
+    val maybePartitionStrKeys = ScanUtil.getPartitionCols(tableSourceTable)
+    if (maybePartitionStrKeys.isEmpty) {
+      return None
+    }
+    val partitionStrKeys = maybePartitionStrKeys.get
+    // derive partition key indexes
+    val strCols = JavaScalaConversionUtil
+      .toScala(catalogTable.getUnresolvedSchema.getColumns)
+      .map(col => col.getName)
+
+    val partitionKeyIdxs =
+      JavaScalaConversionUtil.toScala(partitionStrKeys).map(c => strCols.indexOf(c))
+    Some(partitionKeyIdxs.toArray)
+  }
+
+  def getPartitionCols(tableSourceTable: TableSourceTable): Option[util.List[String]] = {
+    val tableSource = tableSourceTable.tableSource
+    if (!tableSource.isInstanceOf[SupportsPartitioning]) {
+      return None
+    }
+
+    val distribution =
+      tableSource.asInstanceOf[SupportsPartitioning].outputPartitioning().getDistribution
+    if (distribution == Partitioning.Distribution.ANY) {
+      return None
+    }
+
+    val catalogTable =
+      tableSourceTable.contextResolvedTable.getResolvedTable[ResolvedCatalogTable]
+    val partitionStrKeys = catalogTable.getPartitionKeys
+    Some(partitionStrKeys)
   }
 }

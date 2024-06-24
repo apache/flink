@@ -441,6 +441,7 @@ object FlinkBatchRuleSets {
     PushLocalSortAggIntoScanRule.INSTANCE,
     PushLocalSortAggWithSortIntoScanRule.INSTANCE,
     PushLocalSortAggWithCalcIntoScanRule.INSTANCE,
-    PushLocalSortAggWithSortAndCalcIntoScanRule.INSTANCE
+    PushLocalSortAggWithSortAndCalcIntoScanRule.INSTANCE,
+    RemoveSourceDistributionRule.INSTANCE
   )
 }

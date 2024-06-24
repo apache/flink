@@ -1,0 +1,128 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+	<TestCase name="testShouldNotEliminatePartitioning4">
+		<Resource name="sql">
+			<![CDATA[select a, count (c) from MyTableP group by a]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS EXPR$1])
++- Exchange(distribution=[hash[a]])
+   +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(c) AS count$0])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTableP, project=[a, c], metadata=[]]], fields=[a, c])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testShouldNotEliminatePartitioning3">
+		<Resource name="sql">
+			<![CDATA[select c, b, count (a) from MyTableP group by c, b]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[c, b, EXPR$2])
++- HashAggregate(isMerge=[true], groupBy=[b, c], select=[b, c, Final_COUNT(count$0) AS EXPR$2])
+   +- Exchange(distribution=[hash[b, c]])
+      +- LocalHashAggregate(groupBy=[b, c], select=[b, c, Partial_COUNT(a) AS count$0])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTableP]], fields=[a, b, c])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testShouldNotEliminatePartitioning2">
+		<Resource name="sql">
+			<![CDATA[select a, b, count (c) from MyTable group by a, b]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+SortAggregate(isMerge=[true], groupBy=[a, b], select=[a, b, Final_COUNT(count$0) AS EXPR$2])
++- Exchange(distribution=[forward])
+   +- Sort(orderBy=[a ASC, b ASC])
+      +- Exchange(distribution=[hash[a, b]])
+         +- LocalSortAggregate(groupBy=[a, b], select=[a, b, Partial_COUNT(c) AS count$0])
+            +- Exchange(distribution=[forward])
+               +- Sort(orderBy=[a ASC, b ASC])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testShouldNotEliminatePartitioning1">
+		<Resource name="sql">
+			<![CDATA[select a, b, count (c) from MyTable group by a, b]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b, Final_COUNT(count$0) AS EXPR$2])
++- Exchange(distribution=[hash[a, b]])
+   +- LocalHashAggregate(groupBy=[a, b], select=[a, b, Partial_COUNT(c) AS count$0])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testShouldEliminatePartitioning4">
+		<Resource name="sql">
+			<![CDATA[select a, count (c) from MyTableP group by a, b]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[a, EXPR$1])
++- HashAggregate(isMerge=[false], groupBy=[a, b], select=[a, b, COUNT(c) AS EXPR$1])
+   +- Exchange(distribution=[keep_input_as_is[hash[a, b]]])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTableP, partitionedReading]], fields=[a, b, c])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testShouldEliminatePartitioning3">
+		<Resource name="sql">
+			<![CDATA[select a, b, count (c) from MyTableP group by a, b]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+SortAggregate(isMerge=[false], groupBy=[a, b], select=[a, b, COUNT(c) AS EXPR$2])
++- Exchange(distribution=[forward])
+   +- Sort(orderBy=[a ASC, b ASC])
+      +- Exchange(distribution=[keep_input_as_is[hash[a, b]]])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTableP, partitionedReading]], fields=[a, b, c])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testShouldEliminatePartitioning2">
+		<Resource name="sql">
+			<![CDATA[select b, a, count (c) from MyTableP group by b, a]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[b, a, EXPR$2])
++- HashAggregate(isMerge=[false], groupBy=[a, b], select=[a, b, COUNT(c) AS EXPR$2])
+   +- Exchange(distribution=[keep_input_as_is[hash[a, b]]])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTableP, partitionedReading]], fields=[a, b, c])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testShouldEliminatePartitioning1">
+		<Resource name="sql">
+			<![CDATA[select a, b, count (c) from MyTableP group by a, b]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+HashAggregate(isMerge=[false], groupBy=[a, b], select=[a, b, COUNT(c) AS EXPR$2])
++- Exchange(distribution=[keep_input_as_is[hash[a, b]]])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTableP, partitionedReading]], fields=[a, b, c])
+]]>
+		</Resource>
+	</TestCase>
+</Root>

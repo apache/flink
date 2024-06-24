@@ -104,6 +104,8 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
         Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(FileSystemConnectorOptions.PARTITIONED_READ);
+        options.add(FileSystemConnectorOptions.SOURCE_PARTITIONING);
         options.add(FileSystemConnectorOptions.PARTITION_DEFAULT_NAME);
         options.add(FileSystemConnectorOptions.SOURCE_MONITOR_INTERVAL);
         options.add(FileSystemConnectorOptions.SOURCE_REPORT_STATISTICS);

@@ -169,7 +169,8 @@ public class ContinuousFileSplitEnumerator
 
             final String hostname = nextAwaiting.getValue();
             final int awaitingSubtask = nextAwaiting.getKey();
-            final Optional<FileSourceSplit> nextSplit = splitAssigner.getNext(hostname);
+            final Optional<FileSourceSplit> nextSplit =
+                    splitAssigner.getNext(hostname, awaitingSubtask, context.currentParallelism());
             if (nextSplit.isPresent()) {
                 context.assignSplit(nextSplit.get(), awaitingSubtask);
                 awaitingReader.remove();

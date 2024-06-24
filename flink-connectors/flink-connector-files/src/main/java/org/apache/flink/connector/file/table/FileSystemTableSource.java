@@ -45,9 +45,13 @@ import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsPartitioning;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.connector.source.abilities.SupportsStatisticReport;
+import org.apache.flink.table.connector.source.partitioning.AnyPartitioning;
+import org.apache.flink.table.connector.source.partitioning.HashPartitioning;
+import org.apache.flink.table.connector.source.partitioning.Partitioning;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
@@ -89,7 +93,8 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                 SupportsPartitionPushDown,
                 SupportsFilterPushDown,
                 SupportsReadingMetadata,
-                SupportsStatisticReport {
+                SupportsStatisticReport,
+                SupportsPartitioning {
 
     private static final Logger LOG = LoggerFactory.getLogger(FileSystemTableSource.class);
 
@@ -103,6 +108,8 @@ public class FileSystemTableSource extends AbstractFileSystemTable
     private int[][] projectFields;
     private List<String> metadataKeys;
     private DataType producedDataType;
+
+    private boolean forcePartitionedRead = false;
 
     public FileSystemTableSource(
             ObjectIdentifier tableIdentifier,
@@ -283,7 +290,12 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                                                 : () ->
                                                         new NonSplittingRecursiveAllDirEnumerator(
                                                                 regex)));
-
+        if (forcePartitionedRead) {
+            Optional<List<Path>> maybeSourcePartitions = sourcePartitions();
+            if (maybeSourcePartitions.isPresent() && !maybeSourcePartitions.get().isEmpty()) {
+                fileSourceBuilder.withPartitionedAssigner(maybeSourcePartitions.get());
+            }
+        }
         return SourceProvider.of(fileSourceBuilder.build());
     }
 
@@ -479,6 +491,73 @@ public class FileSystemTableSource extends AbstractFileSystemTable
     public Map<String, DataType> listReadableMetadata() {
         return Arrays.stream(ReadableFileInfo.values())
                 .collect(Collectors.toMap(ReadableFileInfo::getKey, ReadableFileInfo::getDataType));
+    }
+
+    private Optional<List<Path>> sourcePartitions() {
+        if (!this.tableOptions.get(FileSystemConnectorOptions.PARTITIONED_READ)) {
+            return Optional.empty();
+        }
+        if (!this.tableOptions
+                .get(FileSystemConnectorOptions.SOURCE_PARTITIONING)
+                .equalsIgnoreCase(Partitioning.Distribution.HASH.name())) {
+            throw new ValidationException(
+                    String.format(
+                            "%s currently only supports %s option",
+                            FileSystemConnectorOptions.SOURCE_PARTITIONING.key(),
+                            FileSystemConnectorOptions.SOURCE_PARTITIONING.defaultValue()));
+        }
+        Optional<List<Map<String, String>>> maybeListPartitions = listPartitions();
+        if (!(maybeListPartitions.isPresent())) {
+            return Optional.empty();
+        }
+        List<Map<String, String>> listPartitions = maybeListPartitions.get();
+        if (listPartitions.isEmpty()) {
+            return Optional.empty();
+        }
+
+        List<Path> res = new ArrayList<>();
+
+        for (Map<String, String> partition : listPartitions) {
+            StringBuilder partitionPath = new StringBuilder();
+            for (Map.Entry<String, String> entry : partition.entrySet()) {
+                partitionPath.append(String.format("%s=%s/", entry.getKey(), entry.getValue()));
+            }
+            if (partitionPath.length() > 0) {
+                Path newPath = new Path(path, partitionPath.toString());
+                res.add(newPath);
+            }
+        }
+
+        return !res.isEmpty() ? Optional.of(res) : Optional.empty();
+    }
+
+    @Override
+    public Partitioning outputPartitioning() {
+
+        Optional<List<Path>> maybeSourcePartitions = sourcePartitions();
+
+        Optional<Integer> numPartitions = Optional.empty();
+        if (maybeSourcePartitions.isPresent() && !maybeSourcePartitions.get().isEmpty()) {
+            return new HashPartitioning() {
+                @Override
+                public Optional<List<Integer>> getColumns() {
+                    // for file connector, we get partitioned columns via PARTITIONED BY clause
+                    return Optional.empty();
+                }
+
+                @Override
+                public Optional<Integer> numPartitions() {
+                    return Optional.of(maybeSourcePartitions.get().size());
+                }
+            };
+        } else {
+            return new AnyPartitioning();
+        }
+    }
+
+    @Override
+    public void applyPartitionedRead() {
+        this.forcePartitionedRead = true;
     }
 
     interface FileInfoAccessor extends Serializable {
