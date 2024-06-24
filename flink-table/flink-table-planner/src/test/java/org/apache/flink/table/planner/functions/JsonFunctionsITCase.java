@@ -447,6 +447,26 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_QUERY(f0, '$.a' RETURNING ARRAY<STRING> WITHOUT WRAPPER EMPTY ARRAY ON ERROR)",
                                 new String[] {},
                                 DataTypes.ARRAY(DataTypes.STRING())),
+
+                // stringifying RETURNING<ARRAY>
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_QUERY)
+                        .onFieldsWithData(
+                                "{\"items\": [{\"itemId\":1234, \"count\":10}, {\"itemId\":4567, \"count\":11}]}",
+                                "{\"items\": [[1234, 2345], [\"itemId\", \"count\"]]}")
+                        .andDataTypes(STRING(), STRING())
+                        .testResult(
+                                $("f0").jsonQuery("$.items", ARRAY(STRING())),
+                                "JSON_QUERY(f0, '$.items' RETURNING ARRAY<STRING>)",
+                                new String[] {
+                                    "{\"itemId\":1234,\"count\":10}",
+                                    "{\"itemId\":4567,\"count\":11}"
+                                },
+                                ARRAY(STRING()))
+                        .testResult(
+                                $("f1").jsonQuery("$.items", ARRAY(STRING())),
+                                "JSON_QUERY(f1, '$.items' RETURNING ARRAY<STRING>)",
+                                new String[] {"[1234,2345]", "[\"itemId\",\"count\"]"},
+                                ARRAY(STRING())),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_QUERY)
                         .onFieldsWithData(jsonValue)
                         .andDataTypes(STRING())
