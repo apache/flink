@@ -32,12 +32,14 @@ import org.apache.flink.table.factories.utils.FactoryMocks;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -133,6 +135,19 @@ class AvroFormatFactoryTest {
     @ValueSource(booleans = {true, false})
     void testSeDeSchema(boolean legacyTimestampMapping) {
         testSeDeSchema(ROW_TYPE, SCHEMA, legacyTimestampMapping);
+    }
+
+    @Test
+    void testSerDeAvroEncoding() throws IOException, ClassNotFoundException {
+        byte[] serializedBinary = InstantiationUtil.serializeObject(AvroEncoding.BINARY);
+        AvroEncoding deserializedBinary =
+                InstantiationUtil.deserializeObject(serializedBinary, getClass().getClassLoader());
+        assertThat(deserializedBinary).isEqualTo(AvroEncoding.BINARY);
+
+        byte[] serializedJson = InstantiationUtil.serializeObject(AvroEncoding.JSON);
+        AvroEncoding deserializedJson =
+                InstantiationUtil.deserializeObject(serializedJson, getClass().getClassLoader());
+        assertThat(deserializedJson).isEqualTo(AvroEncoding.JSON);
     }
 
     void testSeDeSchema(RowType rowType, ResolvedSchema schema, boolean legacyTimestampMapping) {

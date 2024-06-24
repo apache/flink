@@ -24,6 +24,9 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.description.InlineElement;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+
 import static org.apache.avro.file.DataFileConstants.SNAPPY_CODEC;
 import static org.apache.flink.configuration.description.TextElement.text;
 
@@ -69,6 +72,18 @@ public class AvroFormatOptions {
         @Override
         public InlineElement getDescription() {
             return description;
+        }
+
+        // This method is called by Java's serialization to deserialize the enum value.
+        private Object readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+            String value = (String) in.readObject();
+            if (BINARY.value.equals(value)) {
+                return BINARY;
+            } else if (JSON.value.equals(value)) {
+                return JSON;
+            } else {
+                throw new IllegalArgumentException("Unknown AvroEncoding value: " + value);
+            }
         }
     }
 
