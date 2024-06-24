@@ -109,7 +109,7 @@ There are two exceptions:
 1) if [*entropy injection*]({{< ref "docs/deployment/filesystems/s3" >}}#entropy-injection-for-s3-file-systems) is activated: In that case the savepoint directory will not contain all savepoint data files,
 because the injected path entropy spreads the files over many directories. Lacking a common savepoint root directory, the savepoints will contain absolute path references, which prevent moving the directory.
 
-2) The job contains task-owned state, such as `GenericWriteAhreadLog` sink.
+2) The job contains task-owned state, such as `GenericWriteAheadLog` sink.
 {{< /hint >}}
 
 Unlike savepoints, checkpoints cannot generally be moved to a different location, because checkpoints may include some absolute path references.
