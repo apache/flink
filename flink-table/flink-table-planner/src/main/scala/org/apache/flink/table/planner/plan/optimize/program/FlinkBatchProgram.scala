@@ -284,7 +284,7 @@ object FlinkBatchProgram {
     chainedProgram.addLast(
       PHYSICAL_REWRITE,
       FlinkHepRuleSetProgramBuilder.newBuilder
-        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
         .add(FlinkBatchRuleSets.PHYSICAL_REWRITE)
         .build()
