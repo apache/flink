@@ -666,15 +666,16 @@ LogicalProject(EXPR$0=[RANK() OVER (PARTITION BY $1 ORDER BY $0 DESC NULLS LAST)
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[w0$o0 AS $0, w1$o0 AS $1])
-+- OverAggregate(partitionBy=[b], orderBy=[a DESC], window#0=[RANK(*) AS w1$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w1$o0])
++- OverAggregate(partitionBy=[b], orderBy=[a DESC], window#0=[RANK(*) AS w1$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0, w1$o0])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[b ASC, a DESC])
          +- Exchange(distribution=[keep_input_as_is[hash[b]]])
-            +- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[RANK(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0])
+            +- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[RANK(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0])
                +- Exchange(distribution=[forward])
                   +- Sort(orderBy=[b ASC, a ASC])
                      +- Exchange(distribution=[hash[b]])
-                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                        +- Calc(select=[a, b])
+                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
