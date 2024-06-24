@@ -24,6 +24,7 @@ import org.apache.flink.api.java.typeutils.EitherTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.cep.functions.PatternProcessFunction;
 import org.apache.flink.cep.functions.TimedOutPartialMatchHandler;
+import org.apache.flink.cep.listen.CepListener;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -50,6 +51,24 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <T> Type of the events
  */
 public class PatternStream<T> {
+
+    //	---------------
+    private Boolean hasListener = false;
+    private CepListener<T> cepListener = null;
+    /**
+     * @Description: 用于注册我们的监听cep规则变化的监听对象
+     *
+     * @param: [cepListen]
+     * @return: org.apache.flink.cep.PatternStream<T>
+     * @auther: zhangyf
+     * @date: 2023/7/19 10:19
+     */
+    public PatternStream<T> registerListener(CepListener<T> cepListener) {
+        this.cepListener = cepListener;
+        hasListener = true;
+        return this;
+    }
+    //	---------------
 
     private final PatternStreamBuilder<T> builder;
 
@@ -129,6 +148,11 @@ public class PatternStream<T> {
     public <R> SingleOutputStreamOperator<R> process(
             final PatternProcessFunction<T, R> patternProcessFunction,
             final TypeInformation<R> outTypeInfo) {
+        //    这个方法会创建真正的nfafactory包含nfa.statue
+        //	  先判断client端是否register了,然后就注入进去了
+        if (hasListener) {
+            patternProcessFunction.registerListener(cepListener);
+        }
 
         return builder.build(outTypeInfo, builder.clean(patternProcessFunction));
     }
