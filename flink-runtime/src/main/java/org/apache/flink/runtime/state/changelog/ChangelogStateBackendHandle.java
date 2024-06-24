@@ -135,15 +135,18 @@ public interface ChangelogStateBackendHandle
             if (originKeyedStateHandle instanceof ChangelogStateBackendHandle) {
                 return (ChangelogStateBackendHandle) originKeyedStateHandle;
             } else {
+                long checkpointId =
+                        originKeyedStateHandle instanceof CheckpointBoundKeyedStateHandle
+                                ? ((CheckpointBoundKeyedStateHandle) originKeyedStateHandle)
+                                        .getCheckpointId()
+                                : 0L;
+
                 return new ChangelogStateBackendHandle.ChangelogStateBackendHandleImpl(
                         singletonList(castToAbsolutePath(originKeyedStateHandle)),
                         emptyList(),
                         originKeyedStateHandle.getKeyGroupRange(),
-                        originKeyedStateHandle instanceof CheckpointBoundKeyedStateHandle
-                                ? ((CheckpointBoundKeyedStateHandle) originKeyedStateHandle)
-                                        .getCheckpointId()
-                                : 0L,
-                        0L,
+                        checkpointId,
+                        checkpointId,
                         0L);
             }
         }
