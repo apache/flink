@@ -358,7 +358,7 @@ MyTable(`user_id` BIGINT, `price` DOUBLE, `quantity` DOUBLE)
 
 The `WATERMARK` clause defines the event time attributes of a table and takes the form `WATERMARK FOR rowtime_column_name AS watermark_strategy_expression`.
 
-The  `rowtime_column_name` defines an existing column that is marked as the event time attribute of the table. The column must be of type `TIMESTAMP(3)` and be a top-level column in the schema. It may be a computed column.
+The  `rowtime_column_name` defines an existing column that is marked as the event time attribute of the table. The column must be of type `TIMESTAMP(3)` or `TIMESTAMP_LTZ(3)` and be a top-level column in the schema. It may be a computed column.
 
 The `watermark_strategy_expression` defines the watermark generation strategy. It allows arbitrary non-query expression, including computed columns, to calculate the watermark. The expression return type must be TIMESTAMP(3), which represents the timestamp since the Epoch.
 The returned watermark will be emitted only if it is non-null and its value is larger than the previously emitted local watermark (to preserve the contract of ascending watermarks). The watermark generation expression is evaluated by the framework for every record.
