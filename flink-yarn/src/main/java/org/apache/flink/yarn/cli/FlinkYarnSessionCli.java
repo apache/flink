@@ -875,6 +875,7 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
     private static void runInteractiveCli(
             YarnApplicationStatusMonitor yarnApplicationStatusMonitor, boolean readConsoleInput) {
         try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
+            System.out.println("Interactive CLI started");
             boolean continueRepl = true;
             boolean isLastStatusUnknown = true;
             long unknownStatusSince = System.nanoTime();
