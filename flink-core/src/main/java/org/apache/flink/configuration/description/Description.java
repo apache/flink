@@ -20,7 +20,6 @@ package org.apache.flink.configuration.description;
 
 import org.apache.flink.annotation.PublicEvolving;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,9 +28,7 @@ import java.util.List;
  * rich formats.
  */
 @PublicEvolving
-public class Description implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class Description {
 
     private final List<BlockElement> blocks;
 

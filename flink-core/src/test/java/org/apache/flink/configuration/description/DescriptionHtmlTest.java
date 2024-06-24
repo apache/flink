@@ -20,12 +20,6 @@ package org.apache.flink.configuration.description;
 
 import org.junit.jupiter.api.Test;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.text;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -124,55 +118,5 @@ class DescriptionHtmlTest {
         assertThat(formattedDescription)
                 .isEqualTo(
                         "This is some list: <ul><li>this is first element with illegal character '&gt;' and '&lt;'</li></ul>");
-    }
-
-    @Test
-    void testDescriptionAndDescriptionElementsAreSerializable() {
-        // Description with TextElement, LinkElement, and LineBreakElement
-        Description description =
-                Description.builder()
-                        .text("This is a text with a link %s", link("https://somepage", "to here"))
-                        .linebreak()
-                        .list(
-                                text("this is first element of list"),
-                                text(
-                                        "this is second element of list with a %s",
-                                        link("https://link")))
-                        .build();
-
-        byte[] serializedDescription = serialize(description);
-        Description deserializedDescription = deserialize(serializedDescription);
-
-        assertThat(new HtmlFormatter().format(deserializedDescription))
-                .isEqualTo(new HtmlFormatter().format(description));
-    }
-
-    private byte[] serialize(Description element) {
-        try {
-            // Serialize the object
-            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-            ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
-            objectOutputStream.writeObject(element);
-            objectOutputStream.flush();
-            objectOutputStream.close();
-
-            return byteArrayOutputStream.toByteArray();
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to serialize object", e);
-        }
-    }
-
-    private Description deserialize(byte[] serializedElement) {
-        try {
-            // Deserialize the object
-            ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(serializedElement);
-            ObjectInputStream objectInputStream = new ObjectInputStream(byteArrayInputStream);
-            Description description = (Description) objectInputStream.readObject();
-            objectInputStream.close();
-
-            return description;
-        } catch (IOException | ClassNotFoundException e) {
-            throw new RuntimeException("Failed to deserialize object", e);
-        }
     }
 }

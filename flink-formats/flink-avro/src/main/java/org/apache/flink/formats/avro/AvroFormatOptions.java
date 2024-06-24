@@ -52,7 +52,7 @@ public class AvroFormatOptions {
         JSON("json", text("Use JSON encoding for serialization and deserialization."));
 
         private final String value;
-        private final InlineElement description;
+        private final transient InlineElement description;
 
         AvroEncoding(String value, InlineElement description) {
             this.value = value;
