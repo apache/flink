@@ -96,6 +96,8 @@ object FlinkBatchRuleSets {
       SIMPLIFY_COALESCE_RULES.asScala ++
       REDUCE_EXPRESSION_RULES.asScala ++
       List(
+        // pushes aggregate filters down
+        AggregateFilterPushdownRule.INSTANCE,
         // Transform window to LogicalWindowAggregate
         BatchLogicalWindowAggregateRule.INSTANCE,
         // slices a project into sections which contain window agg functions

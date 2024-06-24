@@ -1,7 +1,7 @@
 {
   "flinkVersion" : "",
   "nodes" : [ {
-    "id" : 1,
+    "id": 1,
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
@@ -31,20 +31,23 @@
         }
       },
       "abilities" : [ {
+        "type" : "FilterPushDown",
+        "predicates" : [ ]
+      }, {
         "type" : "ProjectPushDown",
-        "projectedFields" : [ [ 1 ], [ 0 ], [ 2 ] ],
-        "producedType" : "ROW<`b` INT NOT NULL, `a` INT NOT NULL, `c` INT NOT NULL> NOT NULL"
+        "projectedFields" : [ [ 0 ], [ 1 ], [ 2 ] ],
+        "producedType" : "ROW<`a` INT NOT NULL, `b` INT NOT NULL, `c` INT NOT NULL> NOT NULL"
       }, {
         "type" : "ReadingMetadata",
         "metadataKeys" : [ ],
-        "producedType" : "ROW<`b` INT NOT NULL, `a` INT NOT NULL, `c` INT NOT NULL> NOT NULL"
+        "producedType" : "ROW<`a` INT NOT NULL, `b` INT NOT NULL, `c` INT NOT NULL> NOT NULL"
       } ]
     },
-    "outputType" : "ROW<`b` INT NOT NULL, `a` INT NOT NULL, `c` INT NOT NULL>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, a, c], metadata=[]]], fields=[b, a, c])",
+    "outputType" : "ROW<`a` INT NOT NULL, `b` INT NOT NULL, `c` INT NOT NULL>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], project=[a, b, c], metadata=[]]], fields=[a, b, c])",
     "inputProperties" : [ ]
   }, {
-    "id" : 2,
+    "id": 2,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
@@ -58,13 +61,14 @@
       "kind" : "INPUT_REF",
       "inputIndex" : 2,
       "type" : "INT NOT NULL"
-    }, {
+    } ],
+    "condition" : {
       "kind" : "CALL",
       "syntax" : "BINARY",
       "internalName" : "$>$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
-        "inputIndex" : 0,
+        "inputIndex" : 1,
         "type" : "INT NOT NULL"
       }, {
         "kind" : "LITERAL",
@@ -72,8 +76,7 @@
         "type" : "INT NOT NULL"
       } ],
       "type" : "BOOLEAN NOT NULL"
-    } ],
-    "condition" : null,
+    },
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -81,30 +84,30 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b` INT NOT NULL, `a` INT NOT NULL, `c` INT NOT NULL, `$f3` BOOLEAN NOT NULL>",
-    "description" : "Calc(select=[b, a, c, (b > 1) AS $f3])"
+    "outputType" : "ROW<`a` INT NOT NULL, `b` INT NOT NULL, `c` INT NOT NULL>",
+    "description" : "Calc(select=[a, b, c], where=[(b > 1)])"
   }, {
-    "id" : 3,
+    "id": 3,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
-        "keys" : [ 0 ]
+        "keys" : [ 1 ]
       },
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`b` INT NOT NULL, `a` INT NOT NULL, `c` INT NOT NULL, `$f3` BOOLEAN NOT NULL>",
+    "outputType" : "ROW<`a` INT NOT NULL, `b` INT NOT NULL, `c` INT NOT NULL>",
     "description" : "Exchange(distribution=[hash[b]])"
   }, {
-    "id" : 4,
+    "id": 4,
     "type" : "stream-exec-python-group-aggregate_1",
-    "grouping" : [ 0 ],
+    "grouping" : [ 1 ],
     "aggCalls" : [ {
       "name" : "EXPR$1",
       "systemName" : "pyFunc",
-      "argList" : [ 1, 2 ],
-      "filterArg" : 3,
+      "argList" : [ 0, 2 ],
+      "filterArg" : -1,
       "distinct" : false,
       "approximate" : false,
       "ignoreNulls" : false,
@@ -121,9 +124,9 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`b` INT NOT NULL, `EXPR$1` BIGINT>",
-    "description" : "PythonGroupAggregate(groupBy=[b], select=[b, pyFunc(a, c) FILTER $f3 AS EXPR$1])"
+    "description" : "PythonGroupAggregate(groupBy=[b], select=[b, pyFunc(a, c) AS EXPR$1])"
   }, {
-    "id" : 5,
+    "id": 5,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "CALL",
@@ -151,7 +154,7 @@
     "outputType" : "ROW<`a` BIGINT, `b` BIGINT>",
     "description" : "Calc(select=[CAST(b AS BIGINT) AS a, EXPR$1 AS b])"
   }, {
-    "id" : 6,
+    "id": 6,
     "type" : "stream-exec-sink_1",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
@@ -195,36 +198,36 @@
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, b])"
   } ],
   "edges" : [ {
-    "source" : 1,
-    "target" : 2,
+    "source": 1,
+    "target": 2,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 2,
-    "target" : 3,
+    "source": 2,
+    "target": 3,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 3,
-    "target" : 4,
+    "source": 3,
+    "target": 4,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 4,
-    "target" : 5,
+    "source": 4,
+    "target": 5,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 5,
-    "target" : 6,
+    "source": 5,
+    "target": 6,
     "shuffle" : {
       "type" : "FORWARD"
     },
