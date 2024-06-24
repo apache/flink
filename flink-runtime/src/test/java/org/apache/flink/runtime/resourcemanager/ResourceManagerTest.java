@@ -66,8 +66,6 @@ import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.concurrent.FutureUtils;
-import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
-import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.jupiter.api.AfterAll;
@@ -164,14 +162,6 @@ class ResourceManagerTest {
         }
     }
 
-    private static SlotManager createSlotManager() {
-        return createSlotManager(rpcService.getScheduledExecutor());
-    }
-
-    private static SlotManager createSlotManager(ScheduledExecutor scheduledExecutor) {
-        return FineGrainedSlotManagerBuilder.newBuilder(scheduledExecutor).build();
-    }
-
     /**
      * Tests that we can retrieve the correct {@link TaskManagerInfo} from the {@link
      * ResourceManager}.
@@ -185,8 +175,7 @@ class ResourceManagerTest {
                         .createTestingTaskExecutorGateway();
         rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
 
-        resourceManager =
-                new ResourceManagerBuilder().withSlotManager(createSlotManager()).buildAndStart();
+        resourceManager = new ResourceManagerBuilder().buildAndStart();
         final ResourceManagerGateway resourceManagerGateway =
                 resourceManager.getSelfGateway(ResourceManagerGateway.class);
 
@@ -223,8 +212,7 @@ class ResourceManagerTest {
                         .createTestingTaskExecutorGateway();
         rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
 
-        resourceManager =
-                new ResourceManagerBuilder().withSlotManager(createSlotManager()).buildAndStart();
+        resourceManager = new ResourceManagerBuilder().buildAndStart();
         final ResourceManagerGateway resourceManagerGateway =
                 resourceManager.getSelfGateway(ResourceManagerGateway.class);
 
@@ -378,9 +366,7 @@ class ResourceManagerTest {
                         () -> {
                             assertThat(processRequirementsFuture.isDone()).isFalse();
                             readyToServeFuture.complete(null);
-                            return null;
-                        },
-                        TIMEOUT)
+                        })
                 .get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
         processRequirementsFuture.get();
     }
@@ -599,11 +585,14 @@ class ResourceManagerTest {
         resourceManager =
                 new ResourceManagerBuilder()
                         .withStopWorkerConsumer(stopWorkerFuture::complete)
-                        .withSlotManager(createSlotManager())
                         .buildAndStart();
 
         registerTaskExecutor(resourceManager, taskExecutorId, taskExecutorGateway.getAddress());
-        resourceManager.disconnectTaskManager(taskExecutorId, new FlinkException("Test exception"));
+
+        resourceManager.runInMainThread(
+                () ->
+                        resourceManager.disconnectTaskManager(
+                                taskExecutorId, new FlinkException("Test exception")));
 
         assertThatFuture(disconnectFuture).eventuallySucceeds().isInstanceOf(FlinkException.class);
         assertThatFuture(stopWorkerFuture).eventuallySucceeds().isEqualTo(taskExecutorId);
@@ -669,7 +658,6 @@ class ResourceManagerTest {
                         .withJobLeaderIdService(jobLeaderIdService)
                         .withBlocklistHandlerFactory(
                                 new DefaultBlocklistHandler.Factory(Duration.ofMillis(100L)))
-                        .withSlotManager(createSlotManager())
                         .buildAndStart();
 
         final ResourceManagerGateway resourceManagerGateway =
@@ -700,10 +688,8 @@ class ResourceManagerTest {
 
     @Test
     void testResourceOverviewWithBlockedSlots() throws Exception {
-        ManuallyTriggeredScheduledExecutor executor = new ManuallyTriggeredScheduledExecutor();
         resourceManager =
                 new ResourceManagerBuilder()
-                        .withSlotManager(createSlotManager(executor))
                         .withBlocklistHandlerFactory(
                                 new DefaultBlocklistHandler.Factory(Duration.ofMillis(100L)))
                         .buildAndStart();
@@ -715,7 +701,6 @@ class ResourceManagerTest {
         ResourceID taskExecutorToBlock = ResourceID.generate();
         registerTaskExecutorAndSlot(resourceManagerGateway, taskExecutor, 3);
         registerTaskExecutorAndSlot(resourceManagerGateway, taskExecutorToBlock, 5);
-        executor.triggerAll();
 
         ResourceOverview overview =
                 resourceManagerGateway.requestResourceOverview(Time.seconds(5)).get();
@@ -833,7 +818,6 @@ class ResourceManagerTest {
         resourceManager =
                 new ResourceManagerBuilder()
                         .withJobLeaderIdService(jobLeaderIdService)
-                        .withSlotManager(createSlotManager())
                         .buildAndStart();
 
         highAvailabilityServices.setJobMasterLeaderRetrieverFunction(
@@ -875,11 +859,7 @@ class ResourceManagerTest {
             throws Exception {
         final ResourceManagerBuilder rmBuilder = new ResourceManagerBuilder();
         prepareResourceManager.accept(rmBuilder);
-        resourceManager =
-                rmBuilder
-                        .withHeartbeatServices(fastHeartbeatServices)
-                        .withSlotManager(createSlotManager())
-                        .buildAndStart();
+        resourceManager = rmBuilder.withHeartbeatServices(fastHeartbeatServices).buildAndStart();
         final ResourceManagerGateway resourceManagerGateway =
                 resourceManager.getSelfGateway(ResourceManagerGateway.class);
 
@@ -895,10 +875,7 @@ class ResourceManagerTest {
         final ResourceManagerBuilder rmBuilder = new ResourceManagerBuilder();
         prepareResourceManager.accept(rmBuilder);
         resourceManager =
-                rmBuilder
-                        .withHeartbeatServices(failedRpcEnabledHeartbeatServices)
-                        .withSlotManager(createSlotManager())
-                        .buildAndStart();
+                rmBuilder.withHeartbeatServices(failedRpcEnabledHeartbeatServices).buildAndStart();
         final ResourceManagerGateway resourceManagerGateway =
                 resourceManager.getSelfGateway(ResourceManagerGateway.class);
 
@@ -964,9 +941,7 @@ class ResourceManagerTest {
             }
 
             if (slotManager == null) {
-                slotManager =
-                        FineGrainedSlotManagerBuilder.newBuilder(rpcService.getScheduledExecutor())
-                                .build();
+                slotManager = FineGrainedSlotManagerBuilder.newBuilder().build();
             }
 
             if (stopWorkerConsumer == null) {

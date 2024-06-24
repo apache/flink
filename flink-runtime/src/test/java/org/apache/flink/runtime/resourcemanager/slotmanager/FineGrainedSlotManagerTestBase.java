@@ -25,6 +25,8 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.executiongraph.TestingComponentMainThreadExecutor;
 import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
@@ -39,8 +41,6 @@ import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.concurrent.FutureUtils;
-import org.apache.flink.util.concurrent.ScheduledExecutor;
-import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.util.function.RunnableWithException;
 
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -49,7 +49,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -61,6 +60,10 @@ abstract class FineGrainedSlotManagerTestBase {
     @RegisterExtension
     static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
             TestingUtils.defaultExecutorExtension();
+
+    @RegisterExtension
+    static final TestingComponentMainThreadExecutor.Extension MAIN_THREAD_EXECUTOR_EXTENSION =
+            new TestingComponentMainThreadExecutor.Extension();
 
     private static final long FUTURE_TIMEOUT_SECOND = 5;
     private static final long FUTURE_EXPECT_TIMEOUT_MS = 50;
@@ -152,9 +155,10 @@ abstract class FineGrainedSlotManagerTestBase {
         private SlotManagerMetricGroup slotManagerMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredSlotManagerMetricGroup();
         private BlockedTaskManagerChecker blockedTaskManagerChecker = resourceID -> false;
-        private final ScheduledExecutor scheduledExecutor =
-                new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor());
-        private final Executor mainThreadExecutor = EXECUTOR_RESOURCE.getExecutor();
+        ComponentMainThreadExecutor mainThreadExecutor =
+                MAIN_THREAD_EXECUTOR_EXTENSION
+                        .getComponentMainThreadTestExecutor()
+                        .getMainThreadExecutor();
         private FineGrainedSlotManager slotManager;
 
         final TestingResourceAllocationStrategy.Builder resourceAllocationStrategyBuilder =
@@ -207,10 +211,21 @@ abstract class FineGrainedSlotManagerTestBase {
             latch.await();
         }
 
+        protected final void startSlotManagerInMainThread() throws InterruptedException {
+            runInMainThreadAndWait(
+                    () ->
+                            slotManager.start(
+                                    resourceManagerId,
+                                    mainThreadExecutor,
+                                    resourceAllocatorBuilder.build(),
+                                    resourceEventListenerBuilder.build(),
+                                    blockedTaskManagerChecker));
+        }
+
         protected final void runTest(RunnableWithException testMethod) throws Exception {
             SlotManagerConfiguration configuration = slotManagerConfigurationBuilder.build();
             slotManager =
-                    FineGrainedSlotManagerBuilder.newBuilder(scheduledExecutor)
+                    FineGrainedSlotManagerBuilder.newBuilder()
                             .setSlotManagerConfiguration(configuration)
                             .setSlotManagerMetricGroup(slotManagerMetricGroup)
                             .setResourceTracker(resourceTracker)
@@ -221,14 +236,7 @@ abstract class FineGrainedSlotManagerTestBase {
                                             .orElse(resourceAllocationStrategyBuilder.build()))
                             .build();
 
-            runInMainThreadAndWait(
-                    () ->
-                            slotManager.start(
-                                    resourceManagerId,
-                                    mainThreadExecutor,
-                                    resourceAllocatorBuilder.build(),
-                                    resourceEventListenerBuilder.build(),
-                                    blockedTaskManagerChecker));
+            startSlotManagerInMainThread();
 
             testMethod.run();
 

@@ -19,6 +19,7 @@
 package org.apache.flink.util.concurrent;
 
 import org.apache.flink.core.testutils.FlinkAssertions;
+import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
@@ -33,6 +34,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
@@ -246,7 +248,7 @@ class FutureUtilsTest {
                         () ->
                                 FutureUtils.completedExceptionally(
                                         new FlinkException("Test exception")),
-                        new FixedRetryStrategy(1, TestingUtils.infiniteDuration()),
+                        new FixedRetryStrategy(1, TestingUtils.INFINITE),
                         scheduledExecutor);
 
         assertThat(retryFuture).isNotDone();
@@ -264,6 +266,91 @@ class FutureUtilsTest {
 
         assertThat(retryFuture).isCancelled();
         assertThat(scheduledFuture.isCancelled()).isTrue();
+    }
+
+    @Test
+    void testRetrySuccessfulOperationWithDelay() {
+        final int expectedFinalRetryCount = 3;
+        final RuntimeException expectedException =
+                new RuntimeException(
+                        "Expected exception to verify that the retry will be stopped.");
+        final AtomicInteger callCounter = new AtomicInteger();
+        final CompletableFuture<Void> loopFuture =
+                FutureUtils.retrySuccessfulOperationWithDelay(
+                        () -> {
+                            if (callCounter.incrementAndGet() > expectedFinalRetryCount) {
+                                throw expectedException;
+                            }
+                        },
+                        Duration.ofMillis(1),
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()));
+
+        assertThatFuture(loopFuture)
+                .eventuallyFails()
+                .withThrowableOfType(ExecutionException.class)
+                .withCause(expectedException);
+        assertThat(callCounter.get()).isEqualTo(expectedFinalRetryCount + 1);
+    }
+
+    @Test
+    void testCancellingFutureRetrySuccessfulOperationWithDelay() {
+        final AtomicInteger callCounter = new AtomicInteger();
+        final ManuallyTriggeredScheduledExecutorService executorService =
+                new ManuallyTriggeredScheduledExecutorService();
+        final CompletableFuture<Void> loopFuture =
+                FutureUtils.retrySuccessfulOperationWithDelay(
+                        callCounter::incrementAndGet,
+                        Duration.ofMillis(0),
+                        new ScheduledExecutorServiceAdapter(executorService));
+
+        loopFuture.cancel(false);
+
+        // trigger all tasks multiple times to ensure that no task is subsequently scheduled
+        for (int i = 0; i < 3; i++) {
+            executorService.triggerAll();
+            executorService.triggerScheduledTasks();
+        }
+
+        assertThat(callCounter.get()).isEqualTo(0);
+    }
+
+    @Test
+    void testCancellingFutureAfterFirstOperationCallRetrySuccessfulOperationWithDelay() {
+        final AtomicInteger callCounter = new AtomicInteger();
+        final ManuallyTriggeredScheduledExecutorService executorService =
+                new ManuallyTriggeredScheduledExecutorService();
+        final CompletableFuture<Void> loopFuture =
+                FutureUtils.retrySuccessfulOperationWithDelay(
+                        callCounter::incrementAndGet,
+                        Duration.ofMillis(0),
+                        new ScheduledExecutorServiceAdapter(executorService));
+
+        executorService.trigger();
+        loopFuture.cancel(false);
+
+        // trigger all tasks multiple times to ensure that no task is subsequently scheduled
+        for (int i = 0; i < 3; i++) {
+            executorService.triggerAll();
+            executorService.triggerScheduledTasks();
+        }
+
+        assertThat(callCounter.get()).isEqualTo(1);
+    }
+
+    @Test
+    void testCancellingRetrySuccessfulOperationWithDelayThroughException() {
+        final CompletableFuture<Void> loopFuture =
+                FutureUtils.retrySuccessfulOperationWithDelay(
+                        () -> {
+                            throw new CancellationException();
+                        },
+                        Duration.ofMillis(0),
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()));
+
+        assertThatFuture(loopFuture)
+                .eventuallyFails()
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(FutureUtils.RetryException.class);
     }
 
     /** Tests that a future is timed out after the specified timeout. */
