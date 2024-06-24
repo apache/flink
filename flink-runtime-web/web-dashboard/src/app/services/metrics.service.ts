@@ -67,7 +67,11 @@ export class MetricsService {
         map(arr => {
           const result: MetricMap = {};
           arr.forEach(item => {
-            result[item.id] = parseInt(item.value, 10);
+            if (item.value.includes('.')) {
+              result[item.id] = parseFloat(item.value);
+            } else {
+              result[item.id] = parseInt(item.value, 10);
+            }
           });
           return {
             timestamp: Date.now(),
