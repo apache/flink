@@ -113,7 +113,18 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                     null
                                 },
                                 new Integer[] {1, null, 3},
-                                new Integer[] {1, 2, 3})
+                                new Integer[] {1, 2, 3},
+                                new Integer[][] {
+                                    null,
+                                    new Integer[] {1, null, 3},
+                                    new Integer[] {0},
+                                    new Integer[] {1}
+                                },
+                                new Map[] {
+                                    null,
+                                    CollectionUtil.map(entry(1, "a"), entry(2, "b")),
+                                    CollectionUtil.map(entry(3, "c"), entry(4, "d")),
+                                })
                         .andDataTypes(
                                 DataTypes.ARRAY(DataTypes.INT()),
                                 DataTypes.ARRAY(DataTypes.INT()),
@@ -121,7 +132,9 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.ARRAY(
                                         DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE())),
                                 DataTypes.ARRAY(DataTypes.INT()),
-                                DataTypes.ARRAY(DataTypes.INT().notNull()).notNull())
+                                DataTypes.ARRAY(DataTypes.INT().notNull()).notNull(),
+                                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
+                                DataTypes.ARRAY(DataTypes.MAP(DataTypes.INT(), DataTypes.STRING())))
                         // ARRAY<INT>
                         .testResult(
                                 $("f0").arrayContains(2),
@@ -187,6 +200,17 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 "ARRAY_CONTAINS(f5, 3)",
                                 true,
                                 DataTypes.BOOLEAN().notNull())
+                        .testResult(
+                                $("f6").arrayContains(new Integer[] {0}),
+                                "ARRAY_CONTAINS(f6, ARRAY[1])",
+                                true,
+                                DataTypes.BOOLEAN())
+                        .testResult(
+                                $("f7").arrayContains(
+                                                CollectionUtil.map(entry(3, "c"), entry(4, "d"))),
+                                "ARRAY_CONTAINS(f7, MAP[3, 'c', 4, 'd'])",
+                                true,
+                                DataTypes.BOOLEAN())
                         // invalid signatures
                         .testSqlValidationError(
                                 "ARRAY_CONTAINS(f0, TRUE)",
