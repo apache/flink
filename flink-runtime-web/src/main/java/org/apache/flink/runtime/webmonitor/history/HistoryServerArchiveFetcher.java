@@ -236,9 +236,16 @@ class HistoryServerArchiveFetcher {
     private static FileStatus[] listArchives(FileSystem refreshFS, Path refreshDir)
             throws IOException {
         // contents of /:refreshDir
-        FileStatus[] jobArchives = refreshFS.listStatus(refreshDir);
+        FileStatus[] jobArchives = globOrListStatus(refreshFS, refreshDir);
         if (jobArchives == null) {
-            // the entire refreshDirectory was removed
+            // refreshDirectory path is incorrect or was removed or fs failed to resolve path
+            LOG.warn(
+                    "Unable to list files for history server archive dir path: {}. "
+                            + "Either the path does not exist or "
+                            + "could not be resolved by the given file system."
+                            + "If the path has a globPattern, "
+                            + "please verify that the file system scheme supports glob patterns",
+                    refreshDir);
             return new FileStatus[0];
         }
 
@@ -246,6 +253,25 @@ class HistoryServerArchiveFetcher {
                 jobArchives, Comparator.comparingLong(FileStatus::getModificationTime).reversed());
 
         return jobArchives;
+    }
+
+    /**
+     * Returns glob status when given file system supports globStatus(globPattern), else returns
+     * list status for other file system (ex: LocalFileSystem). As of now only Hadoop based File
+     * System supports globStatus(globPattern) (ex: GCS).
+     *
+     * @param refreshFS FileSystem
+     * @param refreshDir History server dir path (absolute or globPattern)
+     * @return the statuses of the files in the given refreshDir path
+     * @throws IOException
+     */
+    private static FileStatus[] globOrListStatus(FileSystem refreshFS, Path refreshDir)
+            throws IOException {
+        if (refreshFS.isGlobStatusSupported()) {
+            return refreshFS.globStatus(new Path(refreshDir.getPath() + "/*"));
+        } else {
+            return refreshFS.listStatus(refreshDir);
+        }
     }
 
     private static boolean isValidJobID(String jobId, Path refreshDir) {

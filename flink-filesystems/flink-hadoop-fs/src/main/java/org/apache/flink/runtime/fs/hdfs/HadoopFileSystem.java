@@ -179,6 +179,25 @@ public class HadoopFileSystem extends FileSystem {
     }
 
     @Override
+    public FileStatus[] globStatus(Path pathPattern) throws IOException {
+        final org.apache.hadoop.fs.FileStatus[] hadoopFiles =
+                this.fs.globStatus(toHadoopPath(pathPattern));
+
+        if (hadoopFiles == null) {
+            return null;
+        }
+
+        final FileStatus[] files = new FileStatus[hadoopFiles.length];
+
+        // Convert types
+        for (int i = 0; i < files.length; i++) {
+            files[i] = HadoopFileStatus.fromHadoopStatus(hadoopFiles[i]);
+        }
+
+        return files;
+    }
+
+    @Override
     public boolean mkdirs(final Path f) throws IOException {
         return this.fs.mkdirs(toHadoopPath(f));
     }
@@ -196,6 +215,11 @@ public class HadoopFileSystem extends FileSystem {
 
     @Override
     public boolean isDistributedFS() {
+        return true;
+    }
+
+    @Override
+    public boolean isGlobStatusSupported() {
         return true;
     }
 
