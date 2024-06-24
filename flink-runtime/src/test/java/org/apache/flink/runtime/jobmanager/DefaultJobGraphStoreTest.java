@@ -61,6 +61,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests for {@link DefaultJobGraphStore} with {@link TestingJobGraphStoreWatcher}, {@link
@@ -161,7 +162,7 @@ public class DefaultJobGraphStoreTest extends TestLogger {
                         .build();
 
         final JobGraphStore jobGraphStore = createAndStartJobGraphStore(stateHandleStore);
-        jobGraphStore.putJobGraph(testingJobGraph);
+        jobGraphStore.putJobGraph(testingJobGraph, Executors.directExecutor());
 
         final JobGraph actual = addFuture.get(timeout, TimeUnit.MILLISECONDS);
         assertThat(actual.getJobID(), is(testingJobGraph.getJobID()));
@@ -188,9 +189,9 @@ public class DefaultJobGraphStoreTest extends TestLogger {
                         .build();
 
         final JobGraphStore jobGraphStore = createAndStartJobGraphStore(stateHandleStore);
-        jobGraphStore.putJobGraph(testingJobGraph);
+        jobGraphStore.putJobGraph(testingJobGraph, Executors.directExecutor());
         // Replace
-        jobGraphStore.putJobGraph(testingJobGraph);
+        jobGraphStore.putJobGraph(testingJobGraph, Executors.directExecutor());
 
         final Tuple3<String, IntegerResourceVersion, JobGraph> actual =
                 replaceFuture.get(timeout, TimeUnit.MILLISECONDS);
@@ -209,7 +210,7 @@ public class DefaultJobGraphStoreTest extends TestLogger {
 
         final JobGraphStore jobGraphStore = createAndStartJobGraphStore(stateHandleStore);
 
-        jobGraphStore.putJobGraph(testingJobGraph);
+        jobGraphStore.putJobGraph(testingJobGraph, Executors.directExecutor());
         jobGraphStore
                 .globalCleanupAsync(testingJobGraph.getJobID(), Executors.directExecutor())
                 .join();
@@ -269,7 +270,7 @@ public class DefaultJobGraphStoreTest extends TestLogger {
                 builder.setAddFunction((ignore, state) -> jobGraphStorageHelper.store(state))
                         .build();
         final JobGraphStore jobGraphStore = createAndStartJobGraphStore(stateHandleStore);
-        jobGraphStore.putJobGraph(testingJobGraph);
+        jobGraphStore.putJobGraph(testingJobGraph, Executors.directExecutor());
 
         testingJobGraphStoreWatcher.addJobGraph(testingJobGraph.getJobID());
         assertThat(testingJobGraphListener.getAddedJobGraphs().size(), is(0));
@@ -301,7 +302,7 @@ public class DefaultJobGraphStoreTest extends TestLogger {
                 builder.setAddFunction((ignore, state) -> jobGraphStorageHelper.store(state))
                         .build();
         final JobGraphStore jobGraphStore = createAndStartJobGraphStore(stateHandleStore);
-        jobGraphStore.putJobGraph(testingJobGraph);
+        jobGraphStore.putJobGraph(testingJobGraph, Executors.directExecutor());
 
         // Unknown job
         testingJobGraphStoreWatcher.removeJobGraph(JobID.generate());
@@ -342,7 +343,7 @@ public class DefaultJobGraphStoreTest extends TestLogger {
                 builder.setAddFunction((ignore, state) -> jobGraphStorageHelper.store(state))
                         .build();
         final JobGraphStore jobGraphStore = createAndStartJobGraphStore(stateHandleStore);
-        jobGraphStore.putJobGraph(testingJobGraph);
+        jobGraphStore.putJobGraph(testingJobGraph, Executors.directExecutor());
         jobGraphStore.stop();
 
         testingJobGraphStoreWatcher.removeJobGraph(testingJobGraph.getJobID());
@@ -367,7 +368,7 @@ public class DefaultJobGraphStoreTest extends TestLogger {
         final TestingStateHandleStore<JobGraph> stateHandleStore =
                 builder.setReleaseConsumer(releaseFuture::complete).build();
         final JobGraphStore jobGraphStore = createAndStartJobGraphStore(stateHandleStore);
-        jobGraphStore.putJobGraph(testingJobGraph);
+        jobGraphStore.putJobGraph(testingJobGraph, Executors.directExecutor());
         jobGraphStore
                 .localCleanupAsync(testingJobGraph.getJobID(), Executors.directExecutor())
                 .join();
@@ -404,9 +405,9 @@ public class DefaultJobGraphStoreTest extends TestLogger {
                         .build();
 
         final JobGraphStore jobGraphStore = createAndStartJobGraphStore(stateHandleStore);
-        jobGraphStore.putJobGraph(testingJobGraph);
+        jobGraphStore.putJobGraph(testingJobGraph, Executors.directExecutor());
         jobGraphStore.putJobResourceRequirements(
-                testingJobGraph.getJobID(), jobResourceRequirements);
+                testingJobGraph.getJobID(), jobResourceRequirements, Executors.directExecutor());
 
         assertStoredRequirementsAre(
                 jobGraphStore, testingJobGraph.getJobID(), jobResourceRequirements);
@@ -417,7 +418,9 @@ public class DefaultJobGraphStoreTest extends TestLogger {
                         .build();
 
         jobGraphStore.putJobResourceRequirements(
-                testingJobGraph.getJobID(), updatedJobResourceRequirements);
+                testingJobGraph.getJobID(),
+                updatedJobResourceRequirements,
+                Executors.directExecutor());
 
         assertStoredRequirementsAre(
                 jobGraphStore, testingJobGraph.getJobID(), updatedJobResourceRequirements);
@@ -441,11 +444,15 @@ public class DefaultJobGraphStoreTest extends TestLogger {
                                 })
                         .build();
         final JobGraphStore jobGraphStore = createAndStartJobGraphStore(stateHandleStore);
-        assertThrows(
-                NoSuchElementException.class,
-                () ->
-                        jobGraphStore.putJobResourceRequirements(
-                                new JobID(), JobResourceRequirements.empty()));
+        CompletableFuture<Void> completableFuture =
+                jobGraphStore.putJobResourceRequirements(
+                        new JobID(), JobResourceRequirements.empty(), Executors.directExecutor());
+        try {
+            completableFuture.join();
+            assertTrue(false);
+        } catch (Throwable ex) {
+            assertTrue(ex.getCause() instanceof NoSuchElementException);
+        }
     }
 
     private JobGraphStore createAndStartJobGraphStore(

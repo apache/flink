@@ -115,19 +115,23 @@ public class TestingJobGraphStore implements JobGraphStore {
     }
 
     @Override
-    public synchronized void putJobGraph(JobGraph jobGraph) throws Exception {
+    public synchronized CompletableFuture<Void> putJobGraph(JobGraph jobGraph, Executor executor)
+            throws Exception {
         verifyIsStarted();
         putJobGraphConsumer.accept(jobGraph);
         storedJobs.put(jobGraph.getJobID(), jobGraph);
+        return FutureUtils.completedVoidFuture();
     }
 
     @Override
-    public void putJobResourceRequirements(
-            JobID jobId, JobResourceRequirements jobResourceRequirements) throws Exception {
+    public CompletableFuture<Void> putJobResourceRequirements(
+            JobID jobId, JobResourceRequirements jobResourceRequirements, Executor executor)
+            throws Exception {
         verifyIsStarted();
         final JobGraph jobGraph =
                 Preconditions.checkNotNull(storedJobs.get(jobId), "Job [%s] not found.", jobId);
         putJobResourceRequirementsConsumer.accept(jobGraph, jobResourceRequirements);
+        return FutureUtils.completedVoidFuture();
     }
 
     @Override
