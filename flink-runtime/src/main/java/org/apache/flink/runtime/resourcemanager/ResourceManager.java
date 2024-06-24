@@ -1188,6 +1188,12 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                                             .disconnectTaskManager(resourceID, cause));
 
             workerRegistration.getTaskExecutorGateway().disconnectResourceManager(cause);
+
+            for (JobManagerRegistration jobManagerRegistration : jobManagerRegistrations.values()) {
+                jobManagerRegistration
+                        .getJobManagerGateway()
+                        .disconnectTaskManager(resourceID, cause);
+            }
         } else {
             log.debug(
                     "No open TaskExecutor connection {}. Ignoring close TaskExecutor connection. Closing reason was: {}",
