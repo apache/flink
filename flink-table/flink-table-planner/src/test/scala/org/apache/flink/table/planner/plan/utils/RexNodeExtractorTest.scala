@@ -721,7 +721,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
 
     val datetime = DateTimeTestUtil.localDateTime("2017-09-10 14:23:01.123456")
     val instant =
-      datetime.toInstant(ZoneId.of(ZoneId.of(ZoneOffset.UTC.getId)).getRules.getOffset(datetime))
+      datetime.toInstant(ZoneId.of(ZoneOffset.UTC.getId).getRules.getOffset(datetime))
 
     {
       val expected = Array[Expression](
