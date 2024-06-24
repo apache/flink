@@ -172,7 +172,7 @@ public class RowDataToJsonConverters implements Serializable {
     private RowDataToJsonConverter createTimeConverter() {
         return (mapper, reuse, value) -> {
             int millisecond = (int) value;
-            LocalTime time = LocalTime.ofSecondOfDay(millisecond / 1000L);
+            LocalTime time = LocalTime.ofNanoOfDay(millisecond * 1000_000L);
             return mapper.getNodeFactory().textNode(SQL_TIME_FORMAT.format(time));
         };
     }

@@ -477,6 +477,55 @@ class CastRulesTest {
                                 TableRuntimeException.class)
                         // https://issues.apache.org/jira/browse/FLINK-17224 Currently, fractional
                         // seconds are lost
+                        .fail(STRING(), fromString("2021-09-27"), TableRuntimeException.class)
+                        .fail(
+                                STRING(),
+                                fromString("2021-09-27 12:34:56"),
+                                TableRuntimeException.class)
+                        .fromCase(
+                                STRING(),
+                                fromString("12:34:56.123456789"),
+                                DateTimeUtils.toInternal(LocalTime.of(12, 34, 56, 0)))
+                        .fail(
+                                STRING(),
+                                fromString("2021-09-27 12:34:56.123456789"),
+                                TableRuntimeException.class)
+                        .fromCase(
+                                TIME(3),
+                                TIME,
+                                DateTimeUtils.toInternal(LocalTime.of(12, 34, 56, 0)))
+                        .fromCase(
+                                TIME(2),
+                                TIME,
+                                DateTimeUtils.toInternal(LocalTime.of(12, 34, 56, 0)))
+                        .fromCase(
+                                TIME(1),
+                                TIME,
+                                DateTimeUtils.toInternal(LocalTime.of(12, 34, 56, 0)))
+                        .fromCase(
+                                TIMESTAMP(6),
+                                TIMESTAMP,
+                                DateTimeUtils.toInternal(LocalTime.of(12, 34, 56, 0)))
+                        .fromCase(
+                                TIMESTAMP_LTZ(8),
+                                TIMESTAMP_LTZ,
+                                DateTimeUtils.toInternal(LocalTime.of(11, 34, 56, 0))),
+                CastTestSpecBuilder.testCastTo(TIME(3))
+                        .fail(CHAR(3), fromString("foo"), TableRuntimeException.class)
+                        .fail(VARCHAR(5), fromString("Flink"), TableRuntimeException.class)
+                        .fromCase(
+                                STRING(),
+                                fromString("23"),
+                                DateTimeUtils.toInternal(LocalTime.of(23, 0, 0)))
+                        .fromCase(
+                                STRING(),
+                                fromString("23:45"),
+                                DateTimeUtils.toInternal(LocalTime.of(23, 45, 0)))
+                        .fail(STRING(), fromString("2021-09-27"), TableRuntimeException.class)
+                        .fail(
+                                STRING(),
+                                fromString("2021-09-27 12:34:56"),
+                                TableRuntimeException.class)
                         .fromCase(
                                 STRING(),
                                 fromString("12:34:56.123456789"),
@@ -536,8 +585,6 @@ class CastRulesTest {
                                 DATE(),
                                 DateTimeUtils.toInternal(LocalDate.of(2022, 1, 4)),
                                 timestampDataFromLocalDateTime(2022, 1, 4, 0, 0, 0, 0))
-                        // https://issues.apache.org/jira/browse/FLINK-17224 Currently, fractional
-                        // seconds are lost
                         .fromCase(
                                 TIME(5),
                                 TIME,
@@ -613,8 +660,6 @@ class CastRulesTest {
                                 DATE(),
                                 DateTimeUtils.toInternal(LocalDate.of(2022, 1, 4)),
                                 timestampDataFromInstant(2022, 1, 4, 1, 0, 0, 0))
-                        // https://issues.apache.org/jira/browse/FLINK-17224 Currently, fractional
-                        // seconds are lost
                         .fromCase(
                                 TIME(5),
                                 TIME,

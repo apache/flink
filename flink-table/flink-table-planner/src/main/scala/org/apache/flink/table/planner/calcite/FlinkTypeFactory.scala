@@ -82,7 +82,8 @@ class FlinkTypeFactory(
 
       // temporal types
       case LogicalTypeRoot.DATE => createSqlType(DATE)
-      case LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE => createSqlType(TIME)
+      case LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE =>
+        createSqlType(TIME, t.asInstanceOf[TimeType].getPrecision)
 
       // interval types
       case LogicalTypeRoot.INTERVAL_YEAR_MONTH =>
@@ -605,7 +606,7 @@ object FlinkTypeFactory {
           throw new TableException(s"TIME precision is not supported: ${relDataType.getPrecision}")
         }
         // the planner supports precision 3, but for consistency with old planner, we set it to 0.
-        new TimeType()
+        new TimeType(relDataType.getPrecision)
       case TIMESTAMP =>
         new TimestampType(relDataType.getPrecision)
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>

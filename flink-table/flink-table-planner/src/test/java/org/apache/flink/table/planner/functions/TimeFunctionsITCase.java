@@ -340,11 +340,11 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
         return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.TEMPORAL_OVERLAPS)
                         .onFieldsWithData(
-                                LocalTime.of(2, 55, 0),
+                                LocalTime.of(2, 55, 0, 123_000_000),
                                 Duration.ofHours(1),
                                 LocalTime.of(3, 30, 0),
                                 Duration.ofHours(2))
-                        .andDataTypes(TIME(), INTERVAL(HOUR()), TIME(), INTERVAL(HOUR()))
+                        .andDataTypes(TIME(3), INTERVAL(HOUR()), TIME(3), INTERVAL(HOUR()))
                         .testResult(
                                 temporalOverlaps($("f0"), $("f1"), $("f2"), $("f3")),
                                 "(f0, f1) OVERLAPS (f2, f3)",
@@ -435,12 +435,11 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
         return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.FLOOR)
                         .onFieldsWithData(
-                                // https://issues.apache.org/jira/browse/FLINK-17224
-                                // Fractional seconds are lost
                                 LocalTime.of(11, 22, 33),
+                                LocalTime.of(11, 22, 33, 123_000_000),
                                 LocalDate.of(1990, 10, 14),
                                 LocalDateTime.of(2020, 2, 29, 1, 56, 59, 987654321))
-                        .andDataTypes(TIME(), DATE(), TIMESTAMP())
+                        .andDataTypes(TIME(), TIME(3), DATE(), TIMESTAMP())
                         .testResult(
                                 $("f0").ceil(TimeIntervalUnit.MILLISECOND),
                                 "CEIL(f0 TO MILLISECOND)",
@@ -449,11 +448,16 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f1").ceil(TimeIntervalUnit.MILLISECOND),
                                 "CEIL(f1 TO MILLISECOND)",
-                                LocalDate.of(1990, 10, 14),
-                                DATE().nullable())
+                                LocalTime.of(11, 22, 33, 123_000_000),
+                                TIME(3).nullable())
                         .testResult(
                                 $("f2").ceil(TimeIntervalUnit.MILLISECOND),
                                 "CEIL(f2 TO MILLISECOND)",
+                                LocalDate.of(1990, 10, 14),
+                                DATE().nullable())
+                        .testResult(
+                                $("f3").ceil(TimeIntervalUnit.MILLISECOND),
+                                "CEIL(f3 TO MILLISECOND)",
                                 LocalDateTime.of(2020, 2, 29, 1, 56, 59, 988_000_000),
                                 TIMESTAMP().nullable())
                         .testResult(
@@ -464,11 +468,16 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f1").ceil(TimeIntervalUnit.SECOND),
                                 "CEIL(f1 TO SECOND)",
-                                LocalDate.of(1990, 10, 14),
-                                DATE().nullable())
+                                LocalTime.of(11, 22, 34),
+                                TIME(3).nullable())
                         .testResult(
                                 $("f2").ceil(TimeIntervalUnit.SECOND),
                                 "CEIL(f2 TO SECOND)",
+                                LocalDate.of(1990, 10, 14),
+                                DATE().nullable())
+                        .testResult(
+                                $("f3").ceil(TimeIntervalUnit.SECOND),
+                                "CEIL(f3 TO SECOND)",
                                 LocalDateTime.of(2020, 2, 29, 1, 57),
                                 TIMESTAMP().nullable())
                         .testResult(
@@ -477,13 +486,13 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 LocalTime.of(11, 23),
                                 TIME().nullable())
                         .testResult(
-                                $("f1").ceil(TimeIntervalUnit.MINUTE),
-                                "CEIL(f1 TO MINUTE)",
+                                $("f2").ceil(TimeIntervalUnit.MINUTE),
+                                "CEIL(f2 TO MINUTE)",
                                 LocalDate.of(1990, 10, 14),
                                 DATE().nullable())
                         .testResult(
-                                $("f2").ceil(TimeIntervalUnit.MINUTE),
-                                "CEIL(f2 TO MINUTE)",
+                                $("f3").ceil(TimeIntervalUnit.MINUTE),
+                                "CEIL(f3 TO MINUTE)",
                                 LocalDateTime.of(2020, 2, 29, 1, 57),
                                 TIMESTAMP().nullable())
                         .testResult(
@@ -494,91 +503,96 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f1").ceil(TimeIntervalUnit.HOUR),
                                 "CEIL(f1 TO HOUR)",
-                                LocalDate.of(1990, 10, 14),
-                                DATE().nullable())
+                                LocalTime.of(12, 0),
+                                TIME(3).nullable())
                         .testResult(
                                 $("f2").ceil(TimeIntervalUnit.HOUR),
                                 "CEIL(f2 TO HOUR)",
-                                LocalDateTime.of(2020, 2, 29, 2, 0),
-                                TIMESTAMP().nullable())
-                        .testResult(
-                                $("f1").ceil(TimeIntervalUnit.DAY),
-                                "CEIL(f1 TO DAY)",
-                                LocalDate.of(1990, 10, 15),
-                                DATE().nullable())
-                        .testResult(
-                                $("f2").ceil(TimeIntervalUnit.DAY),
-                                "CEIL(f2 TO DAY)",
-                                LocalDateTime.of(2020, 3, 1, 0, 0),
-                                TIMESTAMP().nullable())
-                        .testResult(
-                                $("f1").ceil(TimeIntervalUnit.WEEK),
-                                "CEIL(f1 TO WEEK)",
                                 LocalDate.of(1990, 10, 14),
                                 DATE().nullable())
                         .testResult(
-                                $("f2").ceil(TimeIntervalUnit.WEEK),
-                                "CEIL(f2 TO WEEK)",
+                                $("f3").ceil(TimeIntervalUnit.HOUR),
+                                "CEIL(f3 TO HOUR)",
+                                LocalDateTime.of(2020, 2, 29, 2, 0),
+                                TIMESTAMP().nullable())
+                        .testResult(
+                                $("f2").ceil(TimeIntervalUnit.DAY),
+                                "CEIL(f2 TO DAY)",
+                                LocalDate.of(1990, 10, 15),
+                                DATE().nullable())
+                        .testResult(
+                                $("f3").ceil(TimeIntervalUnit.DAY),
+                                "CEIL(f3 TO DAY)",
                                 LocalDateTime.of(2020, 3, 1, 0, 0),
                                 TIMESTAMP().nullable())
                         .testResult(
-                                $("f1").ceil(TimeIntervalUnit.MONTH),
-                                "CEIL(f1 TO MONTH)",
-                                LocalDate.of(1990, 11, 1),
+                                $("f2").ceil(TimeIntervalUnit.WEEK),
+                                "CEIL(f2 TO WEEK)",
+                                LocalDate.of(1990, 10, 14),
                                 DATE().nullable())
+                        .testResult(
+                                $("f3").ceil(TimeIntervalUnit.WEEK),
+                                "CEIL(f3 TO WEEK)",
+                                LocalDateTime.of(2020, 3, 1, 0, 0),
+                                TIMESTAMP().nullable())
                         .testResult(
                                 $("f2").ceil(TimeIntervalUnit.MONTH),
                                 "CEIL(f2 TO MONTH)",
+                                LocalDate.of(1990, 11, 1),
+                                DATE().nullable())
+                        .testResult(
+                                $("f3").ceil(TimeIntervalUnit.MONTH),
+                                "CEIL(f3 TO MONTH)",
                                 LocalDateTime.of(2020, 3, 1, 0, 0),
                                 TIMESTAMP().nullable())
                         .testResult(
-                                $("f1").ceil(TimeIntervalUnit.QUARTER),
-                                "CEIL(f1 TO QUARTER)",
+                                $("f2").ceil(TimeIntervalUnit.QUARTER),
+                                "CEIL(f2 TO QUARTER)",
                                 LocalDate.of(1991, 1, 1),
                                 DATE().nullable())
                         .testResult(
-                                $("f2").ceil(TimeIntervalUnit.QUARTER),
-                                "CEIL(f2 TO QUARTER)",
+                                $("f3").ceil(TimeIntervalUnit.QUARTER),
+                                "CEIL(f3 TO QUARTER)",
                                 LocalDateTime.of(2020, 4, 1, 0, 0),
                                 TIMESTAMP().nullable())
                         .testResult(
-                                $("f1").ceil(TimeIntervalUnit.YEAR),
-                                "CEIL(f1 TO YEAR)",
+                                $("f2").ceil(TimeIntervalUnit.YEAR),
+                                "CEIL(f2 TO YEAR)",
                                 LocalDate.of(1991, 1, 1),
                                 DATE().nullable())
                         .testResult(
-                                $("f2").ceil(TimeIntervalUnit.YEAR),
-                                "CEIL(f2 TO YEAR)",
+                                $("f3").ceil(TimeIntervalUnit.YEAR),
+                                "CEIL(f3 TO YEAR)",
                                 LocalDateTime.of(2021, 1, 1, 0, 0),
                                 TIMESTAMP().nullable())
                         .testResult(
-                                $("f1").ceil(TimeIntervalUnit.DECADE),
-                                "CEIL(f1 TO DECADE)",
+                                $("f2").ceil(TimeIntervalUnit.DECADE),
+                                "CEIL(f2 TO DECADE)",
                                 LocalDate.of(2000, 1, 1),
                                 DATE().nullable())
                         .testResult(
-                                $("f2").ceil(TimeIntervalUnit.DECADE),
-                                "CEIL(f2 TO DECADE)",
+                                $("f3").ceil(TimeIntervalUnit.DECADE),
+                                "CEIL(f3 TO DECADE)",
                                 LocalDateTime.of(2030, 1, 1, 0, 0),
                                 TIMESTAMP().nullable())
                         .testResult(
-                                $("f1").ceil(TimeIntervalUnit.CENTURY),
-                                "CEIL(f1 TO CENTURY)",
+                                $("f2").ceil(TimeIntervalUnit.CENTURY),
+                                "CEIL(f2 TO CENTURY)",
                                 LocalDate.of(2001, 1, 1),
                                 DATE().nullable())
                         .testResult(
-                                $("f2").ceil(TimeIntervalUnit.CENTURY),
-                                "CEIL(f2 TO CENTURY)",
+                                $("f3").ceil(TimeIntervalUnit.CENTURY),
+                                "CEIL(f3 TO CENTURY)",
                                 LocalDateTime.of(2101, 1, 1, 0, 0),
                                 TIMESTAMP().nullable())
                         .testResult(
-                                $("f1").ceil(TimeIntervalUnit.MILLENNIUM),
-                                "CEIL(f1 TO MILLENNIUM)",
+                                $("f2").ceil(TimeIntervalUnit.MILLENNIUM),
+                                "CEIL(f2 TO MILLENNIUM)",
                                 LocalDate.of(2001, 1, 1),
                                 DATE().nullable())
                         .testResult(
-                                $("f2").ceil(TimeIntervalUnit.MILLENNIUM),
-                                "CEIL(f2 TO MILLENNIUM)",
+                                $("f3").ceil(TimeIntervalUnit.MILLENNIUM),
+                                "CEIL(f3 TO MILLENNIUM)",
                                 LocalDateTime.of(3001, 1, 1, 0, 0),
                                 TIMESTAMP().nullable()));
     }
@@ -587,12 +601,11 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
         return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.FLOOR)
                         .onFieldsWithData(
-                                // https://issues.apache.org/jira/browse/FLINK-17224
-                                // Fractional seconds are lost
                                 LocalTime.of(11, 22, 33),
+                                LocalTime.of(11, 22, 33, 123_000_000),
                                 LocalDate.of(1990, 10, 14),
                                 LocalDateTime.of(2020, 2, 29, 1, 56, 59, 987654321))
-                        .andDataTypes(TIME(), DATE(), TIMESTAMP())
+                        .andDataTypes(TIME(), TIME(3), DATE(), TIMESTAMP())
                         .testResult(
                                 $("f0").floor(TimeIntervalUnit.MILLISECOND),
                                 "FLOOR(f0 TO MILLISECOND)",
@@ -601,11 +614,16 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f1").floor(TimeIntervalUnit.MILLISECOND),
                                 "FLOOR(f1 TO MILLISECOND)",
-                                LocalDate.of(1990, 10, 14),
-                                DATE().nullable())
+                                LocalTime.of(11, 22, 33, 123_000_000),
+                                TIME(3).nullable())
                         .testResult(
                                 $("f2").floor(TimeIntervalUnit.MILLISECOND),
                                 "FLOOR(f2 TO MILLISECOND)",
+                                LocalDate.of(1990, 10, 14),
+                                DATE().nullable())
+                        .testResult(
+                                $("f3").floor(TimeIntervalUnit.MILLISECOND),
+                                "FLOOR(f3 TO MILLISECOND)",
                                 LocalDateTime.of(2020, 2, 29, 1, 56, 59, 987_000_000),
                                 TIMESTAMP().nullable())
                         .testResult(
@@ -616,11 +634,16 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f1").floor(TimeIntervalUnit.SECOND),
                                 "FLOOR(f1 TO SECOND)",
-                                LocalDate.of(1990, 10, 14),
-                                DATE().nullable())
+                                LocalTime.of(11, 22, 33),
+                                TIME(3).nullable())
                         .testResult(
                                 $("f2").floor(TimeIntervalUnit.SECOND),
                                 "FLOOR(f2 TO SECOND)",
+                                LocalDate.of(1990, 10, 14),
+                                DATE().nullable())
+                        .testResult(
+                                $("f3").floor(TimeIntervalUnit.SECOND),
+                                "FLOOR(f3 TO SECOND)",
                                 LocalDateTime.of(2020, 2, 29, 1, 56, 59),
                                 TIMESTAMP().nullable())
                         .testResult(
@@ -631,11 +654,16 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f1").floor(TimeIntervalUnit.MINUTE),
                                 "FLOOR(f1 TO MINUTE)",
-                                LocalDate.of(1990, 10, 14),
-                                DATE().nullable())
+                                LocalTime.of(11, 22),
+                                TIME(3).nullable())
                         .testResult(
                                 $("f2").floor(TimeIntervalUnit.MINUTE),
                                 "FLOOR(f2 TO MINUTE)",
+                                LocalDate.of(1990, 10, 14),
+                                DATE().nullable())
+                        .testResult(
+                                $("f3").floor(TimeIntervalUnit.MINUTE),
+                                "FLOOR(f3 TO MINUTE)",
                                 LocalDateTime.of(2020, 2, 29, 1, 56),
                                 TIMESTAMP().nullable())
                         .testResult(
@@ -646,91 +674,96 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f1").floor(TimeIntervalUnit.HOUR),
                                 "FLOOR(f1 TO HOUR)",
-                                LocalDate.of(1990, 10, 14),
-                                DATE().nullable())
+                                LocalTime.of(11, 0),
+                                TIME(3).nullable())
                         .testResult(
                                 $("f2").floor(TimeIntervalUnit.HOUR),
                                 "FLOOR(f2 TO HOUR)",
+                                LocalDate.of(1990, 10, 14),
+                                DATE().nullable())
+                        .testResult(
+                                $("f3").floor(TimeIntervalUnit.HOUR),
+                                "FLOOR(f3 TO HOUR)",
                                 LocalDateTime.of(2020, 2, 29, 1, 0),
                                 TIMESTAMP().nullable())
                         .testResult(
-                                $("f1").floor(TimeIntervalUnit.DAY),
-                                "FLOOR(f1 TO DAY)",
+                                $("f2").floor(TimeIntervalUnit.DAY),
+                                "FLOOR(f2 TO DAY)",
                                 LocalDate.of(1990, 10, 14),
                                 DATE().nullable())
                         .testResult(
-                                $("f2").floor(TimeIntervalUnit.DAY),
-                                "FLOOR(f2 TO DAY)",
+                                $("f3").floor(TimeIntervalUnit.DAY),
+                                "FLOOR(f3 TO DAY)",
                                 LocalDateTime.of(2020, 2, 29, 0, 0),
                                 TIMESTAMP().nullable())
                         .testResult(
-                                $("f1").floor(TimeIntervalUnit.WEEK),
-                                "FLOOR(f1 TO WEEK)",
+                                $("f2").floor(TimeIntervalUnit.WEEK),
+                                "FLOOR(f2 TO WEEK)",
                                 LocalDate.of(1990, 10, 14),
                                 DATE().nullable())
                         .testResult(
-                                $("f2").floor(TimeIntervalUnit.WEEK),
-                                "FLOOR(f2 TO WEEK)",
+                                $("f3").floor(TimeIntervalUnit.WEEK),
+                                "FLOOR(f3 TO WEEK)",
                                 LocalDateTime.of(2020, 2, 23, 0, 0),
                                 TIMESTAMP().nullable())
                         .testResult(
-                                $("f1").floor(TimeIntervalUnit.MONTH),
-                                "FLOOR(f1 TO MONTH)",
+                                $("f2").floor(TimeIntervalUnit.MONTH),
+                                "FLOOR(f2 TO MONTH)",
                                 LocalDate.of(1990, 10, 1),
                                 DATE().nullable())
                         .testResult(
-                                $("f2").floor(TimeIntervalUnit.MONTH),
-                                "FLOOR(f2 TO MONTH)",
+                                $("f3").floor(TimeIntervalUnit.MONTH),
+                                "FLOOR(f3 TO MONTH)",
                                 LocalDateTime.of(2020, 2, 1, 0, 0),
                                 TIMESTAMP().nullable())
                         .testResult(
-                                $("f1").floor(TimeIntervalUnit.QUARTER),
-                                "FLOOR(f1 TO QUARTER)",
+                                $("f2").floor(TimeIntervalUnit.QUARTER),
+                                "FLOOR(f2 TO QUARTER)",
                                 LocalDate.of(1990, 10, 1),
                                 DATE().nullable())
                         .testResult(
-                                $("f2").floor(TimeIntervalUnit.QUARTER),
-                                "FLOOR(f2 TO QUARTER)",
+                                $("f3").floor(TimeIntervalUnit.QUARTER),
+                                "FLOOR(f3 TO QUARTER)",
                                 LocalDateTime.of(2020, 1, 1, 0, 0),
                                 TIMESTAMP().nullable())
-                        .testResult(
-                                $("f1").floor(TimeIntervalUnit.YEAR),
-                                "FLOOR(f1 TO YEAR)",
-                                LocalDate.of(1990, 1, 1),
-                                DATE().nullable())
                         .testResult(
                                 $("f2").floor(TimeIntervalUnit.YEAR),
                                 "FLOOR(f2 TO YEAR)",
-                                LocalDateTime.of(2020, 1, 1, 0, 0),
-                                TIMESTAMP().nullable())
-                        .testResult(
-                                $("f1").floor(TimeIntervalUnit.DECADE),
-                                "FLOOR(f1 TO DECADE)",
                                 LocalDate.of(1990, 1, 1),
                                 DATE().nullable())
                         .testResult(
-                                $("f2").floor(TimeIntervalUnit.DECADE),
-                                "FLOOR(f2 TO DECADE)",
+                                $("f3").floor(TimeIntervalUnit.YEAR),
+                                "FLOOR(f3 TO YEAR)",
                                 LocalDateTime.of(2020, 1, 1, 0, 0),
                                 TIMESTAMP().nullable())
                         .testResult(
-                                $("f1").floor(TimeIntervalUnit.CENTURY),
-                                "FLOOR(f1 TO CENTURY)",
-                                LocalDate.of(1901, 1, 1),
+                                $("f2").floor(TimeIntervalUnit.DECADE),
+                                "FLOOR(f2 TO DECADE)",
+                                LocalDate.of(1990, 1, 1),
                                 DATE().nullable())
+                        .testResult(
+                                $("f3").floor(TimeIntervalUnit.DECADE),
+                                "FLOOR(f3 TO DECADE)",
+                                LocalDateTime.of(2020, 1, 1, 0, 0),
+                                TIMESTAMP().nullable())
                         .testResult(
                                 $("f2").floor(TimeIntervalUnit.CENTURY),
                                 "FLOOR(f2 TO CENTURY)",
+                                LocalDate.of(1901, 1, 1),
+                                DATE().nullable())
+                        .testResult(
+                                $("f3").floor(TimeIntervalUnit.CENTURY),
+                                "FLOOR(f3 TO CENTURY)",
                                 LocalDateTime.of(2001, 1, 1, 0, 0),
                                 TIMESTAMP().nullable())
                         .testResult(
-                                $("f1").floor(TimeIntervalUnit.MILLENNIUM),
-                                "FLOOR(f1 TO MILLENNIUM)",
+                                $("f2").floor(TimeIntervalUnit.MILLENNIUM),
+                                "FLOOR(f2 TO MILLENNIUM)",
                                 LocalDate.of(1001, 1, 1),
                                 DATE().nullable())
                         .testResult(
-                                $("f2").floor(TimeIntervalUnit.MILLENNIUM),
-                                "FLOOR(f2 TO MILLENNIUM)",
+                                $("f3").floor(TimeIntervalUnit.MILLENNIUM),
+                                "FLOOR(f3 TO MILLENNIUM)",
                                 LocalDateTime.of(2001, 1, 1, 0, 0),
                                 TIMESTAMP().nullable()));
     }
