@@ -49,6 +49,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /** {@link SlotPoolService} implementation for the {@link DeclarativeSlotPool}. */
@@ -76,6 +77,10 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
 
     private State state = State.CREATED;
 
+    @Nullable private ComponentMainThreadExecutor componentMainThreadExecutor;
+
+    private final Time idleSlotTimeout;
+
     public DeclarativeSlotPoolService(
             JobID jobId,
             DeclarativeSlotPoolFactory declarativeSlotPoolFactory,
@@ -86,7 +91,7 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
         this.clock = clock;
         this.rpcTimeout = rpcTimeout;
         this.registeredTaskManagers = new HashSet<>();
-
+        this.idleSlotTimeout = idleSlotTimeout;
         this.declarativeSlotPool =
                 declarativeSlotPoolFactory.create(
                         jobId, this::declareResourceRequirements, idleSlotTimeout, rpcTimeout);
@@ -134,7 +139,25 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
      *
      * @param componentMainThreadExecutor componentMainThreadExecutor used by this slot pool service
      */
-    protected void onStart(ComponentMainThreadExecutor componentMainThreadExecutor) {}
+    protected void onStart(ComponentMainThreadExecutor componentMainThreadExecutor) {
+        this.componentMainThreadExecutor = componentMainThreadExecutor;
+
+        componentMainThreadExecutor.schedule(
+                this::checkIdleSlotTimeout,
+                idleSlotTimeout.toMilliseconds(),
+                TimeUnit.MILLISECONDS);
+    }
+
+    private void checkIdleSlotTimeout() {
+        getDeclarativeSlotPool().releaseIdleSlots(getRelativeTimeMillis());
+
+        if (componentMainThreadExecutor != null) {
+            componentMainThreadExecutor.schedule(
+                    this::checkIdleSlotTimeout,
+                    idleSlotTimeout.toMilliseconds(),
+                    TimeUnit.MILLISECONDS);
+        }
+    }
 
     protected void assertHasBeenStarted() {
         Preconditions.checkState(
