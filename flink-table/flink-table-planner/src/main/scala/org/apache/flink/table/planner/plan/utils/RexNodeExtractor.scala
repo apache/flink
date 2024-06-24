@@ -45,7 +45,7 @@ import org.apache.calcite.sql.{SqlFunction, SqlKind, SqlPostfixOperator}
 import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
 import org.apache.calcite.util.{TimestampString, Util}
 
-import java.time.ZoneId
+import java.time.{ZoneId, ZoneOffset}
 import java.util
 import java.util.{Collections, List => JList}
 
@@ -449,7 +449,7 @@ class RexNodeToExpressionConverter(
 
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         val v = literal.getValueAs(classOf[TimestampString])
-        toLocalDateTime(v).atZone(ZoneId.of("UTC")).toInstant
+        toLocalDateTime(v).atZone(ZoneId.of(ZoneOffset.UTC.getId)).toInstant
 
       case INTERVAL_DAY_TIME =>
         val v = literal.getValueAs(classOf[java.lang.Long])

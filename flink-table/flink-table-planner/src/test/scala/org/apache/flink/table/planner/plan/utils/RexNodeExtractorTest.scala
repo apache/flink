@@ -45,7 +45,7 @@ import org.junit.jupiter.api.Test
 
 import java.math.BigDecimal
 import java.net.URL
-import java.time.ZoneId
+import java.time.{ZoneId, ZoneOffset}
 import java.util.{Arrays, List => JList}
 
 import scala.collection.JavaConverters._
@@ -720,7 +720,8 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       extractConjunctiveConditions(and, -1, fieldNames, relBuilder, functionCatalog)
 
     val datetime = DateTimeTestUtil.localDateTime("2017-09-10 14:23:01.123456")
-    val instant = datetime.toInstant(ZoneId.of("UTC").getRules.getOffset(datetime))
+    val instant =
+      datetime.toInstant(ZoneId.of(ZoneId.of(ZoneOffset.UTC.getId)).getRules.getOffset(datetime))
 
     {
       val expected = Array[Expression](
