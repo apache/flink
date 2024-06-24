@@ -323,6 +323,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         // RAW
                         .build(),
                 CastTestSpecBuilder.testCastTo(TINYINT())
+                        .fromCase(VARBINARY(1), new byte[] {5}, (byte) 5)
+                        .fromCase(BINARY(1), new byte[] {5}, (byte) 5)
                         .fromCase(TINYINT(), null, null)
                         .failRuntime(CHAR(3), "foo", NumberFormatException.class)
                         .failRuntime(VARCHAR(5), "Flink", NumberFormatException.class)
@@ -332,11 +334,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .failRuntime(STRING(), "-130", NumberFormatException.class)
                         .fromCase(BOOLEAN(), true, (byte) 1)
                         .fromCase(BOOLEAN(), false, (byte) 0)
-                        // Not supported - no fix
-                        .failValidation(BINARY(2), DEFAULT_BINARY)
-                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
-                        .failValidation(BYTES(), DEFAULT_BYTES)
-                        //
+                        .fromCase(BINARY(2), DEFAULT_BINARY, (byte) 1)
+                        .fromCase(VARBINARY(5), DEFAULT_VARBINARY, (byte) 12)
+                        .failRuntime(BYTES(), DEFAULT_BYTES, NumberFormatException.class)
                         .fromCase(DECIMAL(4, 3), 9.87, (byte) 9)
                         // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
                         // instead of overflow
@@ -370,6 +370,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         // RAW
                         .build(),
                 CastTestSpecBuilder.testCastTo(SMALLINT())
+                        .fromCase(VARBINARY(1), new byte[] {5}, (short) 5)
+                        .fromCase(BINARY(1), new byte[] {54, 54}, (short) 6)
                         .fromCase(SMALLINT(), null, null)
                         .failRuntime(CHAR(3), "foo", NumberFormatException.class)
                         .failRuntime(VARCHAR(5), "Flink", NumberFormatException.class)
@@ -379,11 +381,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .failRuntime(STRING(), "-32769", NumberFormatException.class)
                         .fromCase(BOOLEAN(), true, (short) 1)
                         .fromCase(BOOLEAN(), false, (short) 0)
-                        // Not supported - no fix
-                        .failValidation(BINARY(2), DEFAULT_BINARY)
-                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
-                        .failValidation(BYTES(), DEFAULT_BYTES)
-                        //
+                        .fromCase(BINARY(2), DEFAULT_BINARY, (short) 1)
+                        .fromCase(VARBINARY(5), DEFAULT_VARBINARY, (short) 12)
+                        .fromCase(BYTES(), DEFAULT_BYTES, (short) 1234)
                         .fromCase(DECIMAL(4, 3), 9.87, (short) 9)
                         // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
                         // instead of overflow
@@ -428,6 +428,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         // RAW
                         .build(),
                 CastTestSpecBuilder.testCastTo(INT())
+                        .fromCase(VARBINARY(1), new byte[] {5}, (int) 5)
+                        .fromCase(BINARY(2), new byte[] {54}, (int) 60)
                         .fromCase(INT(), null, null)
                         .failRuntime(CHAR(3), "foo", NumberFormatException.class)
                         .failRuntime(VARCHAR(5), "Flink", NumberFormatException.class)
@@ -437,11 +439,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .failRuntime(STRING(), "-3276913443134", NumberFormatException.class)
                         .fromCase(BOOLEAN(), true, 1)
                         .fromCase(BOOLEAN(), false, 0)
-                        // Not supported - no fix
-                        .failValidation(BINARY(2), DEFAULT_BINARY)
-                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
-                        .failValidation(BYTES(), DEFAULT_BYTES)
-                        //
+                        .fromCase(BINARY(2), DEFAULT_BINARY, 1)
+                        .fromCase(VARBINARY(5), DEFAULT_VARBINARY, 12)
+                        .fromCase(BYTES(), DEFAULT_BYTES, 1234)
                         .fromCase(DECIMAL(4, 3), 9.87, 9)
                         // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
                         // instead of overflow
@@ -488,6 +488,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         // RAW
                         .build(),
                 CastTestSpecBuilder.testCastTo(BIGINT())
+                        .fromCase(VARBINARY(2147483647), new byte[] {50, 51, 52, 53}, (Long) 2345L)
+                        .fromCase(BINARY(2), new byte[] {54}, (Long) 60L)
                         .fromCase(BIGINT(), null, null)
                         .failRuntime(CHAR(3), "foo", NumberFormatException.class)
                         .failRuntime(VARCHAR(5), "Flink", NumberFormatException.class)
@@ -497,11 +499,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(STRING(), "-3276913443134", -3276913443134L)
                         .fromCase(BOOLEAN(), true, 1L)
                         .fromCase(BOOLEAN(), false, 0L)
-                        // Not supported - no fix
-                        .failValidation(BINARY(2), DEFAULT_BINARY)
-                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
-                        .failValidation(BYTES(), DEFAULT_BYTES)
-                        //
+                        .fromCase(BINARY(2), DEFAULT_BINARY, 1L)
+                        .fromCase(VARBINARY(5), DEFAULT_VARBINARY, 12L)
+                        .fromCase(BYTES(), DEFAULT_BYTES, 1234L)
                         .fromCase(DECIMAL(4, 3), 9.87, 9L)
                         .fromCase(DECIMAL(20, 3), 3276913443134.87, 3276913443134L)
                         .fromCase(
@@ -545,6 +545,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         // RAW
                         .build(),
                 CastTestSpecBuilder.testCastTo(FLOAT())
+                        .fromCase(VARBINARY(2), new byte[] {5}, 5.0f)
+                        .fromCase(BINARY(2), new byte[] {5}, 50.0f)
                         .fromCase(FLOAT(), null, null)
                         .failRuntime(CHAR(3), "foo", NumberFormatException.class)
                         .failRuntime(VARCHAR(5), "Flink", NumberFormatException.class)
@@ -554,11 +556,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(STRING(), "-3276913443134", -3.27691403E12f)
                         .fromCase(BOOLEAN(), true, 1.0f)
                         .fromCase(BOOLEAN(), false, 0.0f)
-                        // Not supported - no fix
-                        .failValidation(BINARY(2), DEFAULT_BINARY)
-                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
-                        .failValidation(BYTES(), DEFAULT_BYTES)
-                        //
+                        .fromCase(BINARY(2), DEFAULT_BINARY, 1.0f)
+                        .fromCase(VARBINARY(5), DEFAULT_VARBINARY, 12.0f)
+                        .fromCase(BYTES(), DEFAULT_BYTES, 1234.0f)
                         .fromCase(DECIMAL(4, 3), 9.87, 9.87f)
                         // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
                         // instead of overflow
@@ -607,6 +607,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         // RAW
                         .build(),
                 CastTestSpecBuilder.testCastTo(DOUBLE())
+                        .fromCase(VARBINARY(2), new byte[] {54}, 6.0d)
+                        .fromCase(BINARY(2), new byte[] {54}, 60.0d)
                         .fromCase(DOUBLE(), null, null)
                         .failRuntime(CHAR(3), "foo", NumberFormatException.class)
                         .failRuntime(VARCHAR(5), "Flink", NumberFormatException.class)
@@ -616,11 +618,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(STRING(), "-3276913443134", -3.276913443134E12)
                         .fromCase(BOOLEAN(), true, 1.0d)
                         .fromCase(BOOLEAN(), false, 0.0d)
-                        // Not supported - no fix
-                        .failValidation(BINARY(2), DEFAULT_BINARY)
-                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
-                        .failValidation(BYTES(), DEFAULT_BYTES)
-                        //
+                        .fromCase(BINARY(2), DEFAULT_BINARY, 1.0d)
+                        .fromCase(VARBINARY(5), DEFAULT_VARBINARY, 12.0d)
+                        .fromCase(BYTES(), DEFAULT_BYTES, 1234.0d)
                         .fromCase(DECIMAL(4, 3), 9.87, 9.87d)
                         .fromCase(DECIMAL(20, 3), 3276913443134.87, 3.27691344313487E12d)
                         .fromCase(
@@ -988,6 +988,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(STRING(), "Apache Flink", "Apache Flink")
                         .fromCase(STRING(), null, null)
                         .fromCase(BOOLEAN(), true, "TRUE")
+                        .fromCase(BINARY(1), new byte[] {5}, "\u0005")
                         .fromCase(BINARY(2), DEFAULT_BINARY, "\u0000\u0001")
                         .fromCase(BINARY(3), DEFAULT_BINARY, "\u0000\u0001\u0000")
                         .fromCase(VARBINARY(3), DEFAULT_VARBINARY, "\u0000\u0001\u0002")
