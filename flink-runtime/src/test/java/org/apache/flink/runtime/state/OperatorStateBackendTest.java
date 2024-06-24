@@ -65,9 +65,12 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -75,6 +78,7 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 
 import static org.apache.flink.core.fs.Path.fromLocalFile;
 import static org.apache.flink.core.fs.local.LocalFileSystem.getSharedInstance;
@@ -611,6 +615,16 @@ class OperatorStateBackendTest {
         }
     }
 
+    private <T> Iterator<T> sortedIterator(Iterator<T> iterator, Function<T, Object> keyExtractor) {
+        Set<T> set = new TreeSet<T>(Comparator.comparing(x -> (Integer) keyExtractor.apply(x)));
+        iterator.forEachRemaining(set::add);
+        return set.iterator();
+    }
+
+    private <T> Iterator<T> sortedIterator(Iterator<T> iterator) {
+        return sortedIterator(iterator, x -> x);
+    }
+
     @Test
     void testSnapshotRestoreSync() throws Exception {
         AbstractStateBackend abstractStateBackend = new MemoryStateBackend(2 * 4096);
@@ -704,25 +718,26 @@ class OperatorStateBackendTest {
             assertThat(operatorStateBackend.getRegisteredStateNames()).hasSize(3);
             assertThat(operatorStateBackend.getRegisteredBroadcastStateNames()).hasSize(3);
 
-            Iterator<Serializable> it = listState1.get().iterator();
+            Iterator<Serializable> it = sortedIterator(listState1.get().iterator());
             assertThat(it.next()).isEqualTo(42);
             assertThat(it.next()).isEqualTo(4711);
             assertThat(it).isExhausted();
 
-            it = listState2.get().iterator();
+            it = sortedIterator(listState2.get().iterator());
             assertThat(it.next()).isEqualTo(7);
             assertThat(it.next()).isEqualTo(13);
             assertThat(it.next()).isEqualTo(23);
             assertThat(it).isExhausted();
 
-            it = listState3.get().iterator();
+            it = sortedIterator(listState3.get().iterator());
             assertThat(it.next()).isEqualTo(17);
             assertThat(it.next()).isEqualTo(18);
             assertThat(it.next()).isEqualTo(19);
             assertThat(it.next()).isEqualTo(20);
             assertThat(it).isExhausted();
 
-            Iterator<Map.Entry<Serializable, Serializable>> bIt = broadcastState1.iterator();
+            Iterator<Map.Entry<Serializable, Serializable>> bIt =
+                    sortedIterator(broadcastState1.iterator(), x -> x.getKey());
             assertThat(bIt).hasNext();
             Map.Entry<Serializable, Serializable> entry = bIt.next();
             assertThat(entry.getKey()).isEqualTo(1);
@@ -896,20 +911,21 @@ class OperatorStateBackendTest {
             assertThat(it.next().value).isEqualTo(4711);
             assertThat(it).isExhausted();
 
-            it = listState2.get().iterator();
+            it = sortedIterator(listState2.get().iterator(), x -> x.value);
             assertThat(it.next().value).isEqualTo(7);
             assertThat(it.next().value).isEqualTo(13);
             assertThat(it.next().value).isEqualTo(23);
             assertThat(it).isExhausted();
 
-            it = listState3.get().iterator();
+            it = sortedIterator(listState3.get().iterator(), x -> x.value);
             assertThat(it.next().value).isEqualTo(17);
             assertThat(it.next().value).isEqualTo(18);
             assertThat(it.next().value).isEqualTo(19);
             assertThat(it.next().value).isEqualTo(20);
             assertThat(it).isExhausted();
 
-            Iterator<Map.Entry<MutableType, MutableType>> bIt = broadcastState1.iterator();
+            Iterator<Map.Entry<MutableType, MutableType>> bIt =
+                    sortedIterator(broadcastState1.iterator(), x -> x.getKey().value);
             assertThat(bIt).hasNext();
             Map.Entry<MutableType, MutableType> entry = bIt.next();
             assertThat(entry.getKey().value).isOne();
