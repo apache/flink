@@ -44,6 +44,7 @@ import org.apache.flink.table.utils.DateTimeUtils.MILLIS_PER_DAY
 import org.apache.flink.util.Preconditions.checkArgument
 
 import java.time.ZoneId
+import java.util.function.{BiFunction => JBiFunction, Function => JFunction}
 
 import scala.collection.JavaConversions._
 
@@ -903,7 +904,12 @@ object ScalarOperatorGens {
       ctx: CodeGeneratorContext,
       operand: GeneratedExpression,
       targetType: LogicalType,
-      nullOnFailure: Boolean): GeneratedExpression = {
+      nullOnFailure: Boolean,
+      nullTermDeclaration: JFunction[CodeGeneratorCastRule.Context, String] = c =>
+        c.declareVariable("boolean", "isNull"),
+      resultTermDeclaration: JBiFunction[CodeGeneratorCastRule.Context, LogicalType, String] =
+        (c, t) => c.declareVariable(primitiveTypeTermForType(t), "result")
+  ): GeneratedExpression = {
 
     ctx.addReusableHeaderComment(
       s"Using option '${ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR.key()}':" +
@@ -922,7 +928,9 @@ object ScalarOperatorGens {
           operand.resultTerm,
           operand.nullTerm,
           inputType,
-          targetType
+          targetType,
+          nullTermDeclaration,
+          resultTermDeclaration
         )
 
         if (codeGeneratorCastRule.canFail(inputType, targetType) && nullOnFailure) {
@@ -1292,12 +1300,28 @@ object ScalarOperatorGens {
     val writeCode = elements.zipWithIndex
       .map {
         case (element, idx) =>
+          val castedElement =
+            if (!elementType.equals(element.resultType))
+              generateCast(
+                ctx,
+                element,
+                elementType,
+                nullOnFailure = true,
+                c => c.declareClassField("boolean", newName("isNull"), "false"),
+                (c, t) =>
+                  c.declareClassField(
+                    primitiveTypeTermForType(t),
+                    newName("result"),
+                    element.resultTerm)
+              )
+            else
+              element
           s"""
-             |${element.code}
-             |if (${element.nullTerm}) {
+             |${castedElement.code}
+             |if (${castedElement.nullTerm}) {
              |  ${binaryArraySetNull(idx, writerTerm, elementType)};
              |} else {
-             |  ${binaryWriterWriteField(ctx, idx, element.resultTerm, writerTerm, elementType)};
+             |  ${binaryWriterWriteField(ctx, idx, castedElement.resultTerm, writerTerm, elementType)};
              |}
           """.stripMargin
       }
