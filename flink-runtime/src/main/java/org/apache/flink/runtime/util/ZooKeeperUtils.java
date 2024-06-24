@@ -105,7 +105,7 @@ public class ZooKeeperUtils {
     public static final String HA_STORAGE_COMPLETED_CHECKPOINT = "completedCheckpoint";
 
     /** The prefix of the resource manager node. */
-    public static final String RESOURCE_MANAGER_NODE = "resource_manager";
+    private static final String RESOURCE_MANAGER_NODE = "resource_manager";
 
     private static final String DISPATCHER_NODE = "dispatcher";
 
