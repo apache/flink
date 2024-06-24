@@ -363,4 +363,39 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, 1 AS 
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testRankConsumeChangelog">
+    <Resource name="sql">
+      <![CDATA[
+SELECT *
+FROM (
+  SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY a ORDER BY PROCTIME() ASC) as rowNum
+  FROM (SELECT a, count(b) as b FROM MyTable GROUP BY a)
+)
+WHERE rowNum = 1
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], rowNum=[$2])
++- LogicalFilter(condition=[=($2, 1)])
+   +- LogicalProject(a=[$0], b=[$1], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST)])
+      +- LogicalAggregate(group=[{0}], b=[COUNT($1)])
+         +- LogicalProject(a=[$0], b=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, 1 AS $2])
++- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[$2 ASC], select=[a, b, $2])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b, PROCTIME() AS $2])
+         +- GroupAggregate(groupBy=[a], select=[a, COUNT(b) AS b])
+            +- Exchange(distribution=[hash[a]])
+               +- Calc(select=[a, b])
+                  +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

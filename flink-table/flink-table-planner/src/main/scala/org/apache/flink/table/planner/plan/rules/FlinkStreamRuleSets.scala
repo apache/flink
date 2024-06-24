@@ -442,7 +442,6 @@ object FlinkStreamRuleSets {
     StreamPhysicalTemporalSortRule.INSTANCE,
     // rank
     StreamPhysicalRankRule.INSTANCE,
-    StreamPhysicalDeduplicateRule.INSTANCE,
     // expand
     StreamPhysicalExpandRule.INSTANCE,
     // group agg
@@ -486,6 +485,15 @@ object FlinkStreamRuleSets {
   val WATERMARK_TRANSPOSE_RULES: RuleSet = RuleSets.ofList(
     WatermarkAssignerChangelogNormalizeTransposeRule.WITH_CALC,
     WatermarkAssignerChangelogNormalizeTransposeRule.WITHOUT_CALC
+  )
+
+  /**
+   * RuleSet to rewrite rank with deduplicate. And it should be before the rule of mini-batch
+   * interval and after changelog mode inference.
+   */
+  val PHYSICAL_DEDUPLICATE_REWRITE: RuleSet = RuleSets.ofList(
+    // optimize rank rule
+    StreamPhysicalDeduplicateRule.INSTANCE
   )
 
   /** RuleSet related to mini-batch. */
