@@ -156,7 +156,8 @@ public class TestFileSource<T> extends AbstractFileSource<T, FileSourceSplit>
      * </ul>
      */
     public static final class TestFileSourceBuilder<T>
-            extends AbstractFileSourceBuilder<T, FileSourceSplit, FileSource.FileSourceBuilder<T>> {
+            extends AbstractFileSourceBuilder<
+                    T, FileSourceSplit, TestFileSource.TestFileSourceBuilder<T>> {
 
         private boolean isStreamingMode = false;
 
