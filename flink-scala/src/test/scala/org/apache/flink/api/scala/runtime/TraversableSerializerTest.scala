@@ -200,8 +200,8 @@ class TraversableSerializerTestInstance[T](
           copy.zip(original).foreach {
             case (c: AnyRef, o: AnyRef) =>
               assertThat(c)
-                .isNotSameAs(o)
                 .withFailMessage("Copy of mutable element has reference equality.")
+                .isNotSameAs(o)
             case _ => // ok
           }
       }
@@ -212,9 +212,9 @@ class TraversableSerializerTestInstance[T](
   override def testInstantiate(): Unit = {
     val serializer: TypeSerializer[T] = getSerializer
     val instance: T = serializer.createInstance
-    assertThat(instance).isNotNull.withFailMessage("The created instance must not be null.")
+    assertThat(instance).withFailMessage("The created instance must not be null.").isNotNull
     val tpe: Class[T] = getTypeClass
-    assertThat(tpe).isNotNull.withFailMessage("The test is corrupt: type class is null.")
+    assertThat(tpe).withFailMessage("The test is corrupt: type class is null.").isNotNull
     // We cannot check this because Collection Instances are not always of the type
     // that the user writes, they might have generated names.
     // assertEquals("Type of the instantiated object is wrong.", tpe, instance.getClass)

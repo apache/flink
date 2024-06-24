@@ -128,8 +128,9 @@ class PartitionRequestClientFactoryTest {
                             connectionReuseEnabled);
 
             final ConnectionID connectionID = nettyServerAndClient.getConnectionID(RESOURCE_ID, 0);
-            assertThatThrownBy(() -> factory.createPartitionRequestClient(connectionID))
-                    .withFailMessage("Expected the first request to fail.")
+            assertThatThrownBy(
+                            () -> factory.createPartitionRequestClient(connectionID),
+                            "Expected the first request to fail.")
                     .isInstanceOf(RemoteTransportException.class);
 
             factory.createPartitionRequestClient(connectionID);

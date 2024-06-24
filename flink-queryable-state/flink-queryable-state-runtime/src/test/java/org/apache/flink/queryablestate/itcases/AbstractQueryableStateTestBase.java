@@ -230,8 +230,8 @@ public abstract class AbstractQueryableStateTestBase {
                                                     Tuple2<Integer, Long> res = response.get();
                                                     counts.set(key, res.f1);
                                                     assertThat(key)
-                                                            .isEqualTo(res.f0.intValue())
-                                                            .withFailMessage("Key mismatch");
+                                                            .withFailMessage("Key mismatch")
+                                                            .isEqualTo(res.f0.intValue());
                                                 })
                                         .doesNotThrowAnyException();
                             });
@@ -244,14 +244,14 @@ public abstract class AbstractQueryableStateTestBase {
                         .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
             }
 
-            assertThat(allNonZero).isTrue().withFailMessage("Not all keys are non-zero");
+            assertThat(allNonZero).withFailMessage("Not all keys are non-zero").isTrue();
 
             // All should be non-zero
             for (int i = 0; i < numKeys; i++) {
                 long count = counts.get(i);
                 assertThat(count)
-                        .isGreaterThan(0)
-                        .withFailMessage("Count at position " + i + " is " + count);
+                        .withFailMessage("Count at position " + i + " is " + count)
+                        .isGreaterThan(0);
             }
         }
     }
@@ -779,7 +779,7 @@ public abstract class AbstractQueryableStateTestBase {
                     Tuple2<Integer, Long> value =
                             future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).get();
 
-                    assertThat(key).isEqualTo(value.f0.intValue()).withFailMessage("Key mismatch");
+                    assertThat(key).withFailMessage("Key mismatch").isEqualTo(value.f0.intValue());
                     if (expected == value.f1) {
                         success = true;
                     } else {
@@ -788,7 +788,7 @@ public abstract class AbstractQueryableStateTestBase {
                     }
                 }
 
-                assertThat(success).isTrue().withFailMessage("Did not succeed query");
+                assertThat(success).withFailMessage("Did not succeed query").isTrue();
             }
         }
     }
@@ -882,15 +882,15 @@ public abstract class AbstractQueryableStateTestBase {
 
                     if (value != null && value.f0 != null && expected == value.f1) {
                         assertThat(key)
-                                .isEqualTo(value.f0.intValue())
-                                .withFailMessage("Key mismatch");
+                                .withFailMessage("Key mismatch")
+                                .isEqualTo(value.f0.intValue());
                         success = true;
                     } else {
                         // Retry
                         Thread.sleep(RETRY_TIMEOUT);
                     }
                 }
-                assertThat(success).isTrue().withFailMessage("Did not succeed query");
+                assertThat(success).withFailMessage("Did not succeed query").isTrue();
             }
         }
     }
@@ -993,7 +993,7 @@ public abstract class AbstractQueryableStateTestBase {
                     }
                 }
 
-                assertThat(success).isTrue().withFailMessage("Did not succeed query");
+                assertThat(success).withFailMessage("Did not succeed query").isTrue();
             }
 
             for (int key = 0; key < maxParallelism; key++) {
@@ -1074,7 +1074,7 @@ public abstract class AbstractQueryableStateTestBase {
                     }
                 }
 
-                assertThat(success).isTrue().withFailMessage("Did not succeed query");
+                assertThat(success).withFailMessage("Did not succeed query").isTrue();
             }
         }
     }
@@ -1438,7 +1438,7 @@ public abstract class AbstractQueryableStateTestBase {
                 Tuple2<Integer, Long> value =
                         future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).value();
 
-                assertThat(key).isEqualTo(value.f0.intValue()).withFailMessage("Key mismatch");
+                assertThat(key).withFailMessage("Key mismatch").isEqualTo(value.f0.intValue());
                 if (expected == value.f1) {
                     success = true;
                 } else {
@@ -1447,7 +1447,7 @@ public abstract class AbstractQueryableStateTestBase {
                 }
             }
 
-            assertThat(success).isTrue().withFailMessage("Did not succeed query");
+            assertThat(success).withFailMessage("Did not succeed query").isTrue();
         }
     }
 

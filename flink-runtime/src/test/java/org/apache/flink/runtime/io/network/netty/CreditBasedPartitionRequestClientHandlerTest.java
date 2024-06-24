@@ -662,11 +662,11 @@ class CreditBasedPartitionRequestClientHandlerTest {
 
         embeddedChannel.writeInbound(1);
         assertThatThrownBy(() -> handler.checkError())
-                .isInstanceOf(expectedClass)
                 .withFailMessage(
                         String.format(
                                 "The handler should wrap the exception %s as %s, but it does not.",
-                                cause, expectedClass));
+                                cause, expectedClass))
+                .isInstanceOf(expectedClass);
     }
 
     @Test
