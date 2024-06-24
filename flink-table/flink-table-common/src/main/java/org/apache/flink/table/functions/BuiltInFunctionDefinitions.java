@@ -1778,6 +1778,30 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(explicit(INT())))
                     .build();
 
+    public static final BuiltInFunctionDefinition CONV =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("CONV")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(
+                                            new String[] {"number", "fromBase", "toBase"},
+                                            new ArgumentTypeStrategy[] {
+                                                logical(LogicalTypeFamily.INTEGER_NUMERIC),
+                                                logical(LogicalTypeFamily.INTEGER_NUMERIC),
+                                                logical(LogicalTypeFamily.INTEGER_NUMERIC)
+                                            }),
+                                    sequence(
+                                            new String[] {"number", "fromBase", "toBase"},
+                                            new ArgumentTypeStrategy[] {
+                                                logical(LogicalTypeFamily.CHARACTER_STRING),
+                                                logical(LogicalTypeFamily.INTEGER_NUMERIC),
+                                                logical(LogicalTypeFamily.INTEGER_NUMERIC)
+                                            })))
+                    .outputTypeStrategy(explicit(DataTypes.STRING()))
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.ConvFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition BIN =
             BuiltInFunctionDefinition.newBuilder()
                     .name("bin")
