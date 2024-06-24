@@ -558,6 +558,8 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
         //
         //	Command Line Options
         //
+        LOG.warn("Cli: -m yarn-cluster is going to be depcreated. Please use unified executor "
+            + "interface: --target yarn-per-job/yarn-session/kubernetes-application.");
         final CommandLine cmd = parseCommandLineOptions(args, true);
 
         if (cmd.hasOption(help.getOpt())) {
