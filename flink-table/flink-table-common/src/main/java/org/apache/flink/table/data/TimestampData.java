@@ -36,6 +36,22 @@ import java.time.LocalTime;
  * <p>This data structure is immutable and consists of a milliseconds and nanos-of-millisecond since
  * {@code 1970-01-01 00:00:00}. It might be stored in a compact representation (as a long value) if
  * values are small enough.
+ *
+ * <p>The {@link TimestampData} can be converted to/from {@link Instant} and {@link LocalDateTime},
+ * but the following conversion rules need to be noted when using:
+ *
+ * <ul>
+ *   <li>When you want to convert to/from {@link Instant}, you need use conversion methods {@link
+ *       #toInstant()} and {@link #fromInstant(Instant)}, but do not use {@link #toLocalDateTime()}
+ *       and {@link #fromLocalDateTime(LocalDateTime)}.
+ *   <li>When you want to convert to/from {@link LocalDateTime}, you need use conversion methods
+ *       {@link #toLocalDateTime()} and {@link #fromLocalDateTime(LocalDateTime)}, but do not use
+ *       {@link #toInstant()} and {@link #fromInstant(Instant)}.
+ *   <li>If you have a Java {@link LocalDateTime} object and want to convert it to Instant {@link
+ *       TimestampData}, you need to convert the {@link LocalDateTime} object to Java {@link
+ *       Instant} with a specific time zone first. And then use {@link #fromInstant(Instant)} to
+ *       create {@link TimestampData}.
+ * </ul>
  */
 @PublicEvolving
 public final class TimestampData implements Comparable<TimestampData> {
