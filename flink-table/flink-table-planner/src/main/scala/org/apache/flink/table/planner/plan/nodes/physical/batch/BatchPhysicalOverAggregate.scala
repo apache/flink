@@ -38,7 +38,7 @@ class BatchPhysicalOverAggregate(
     inputRel: RelNode,
     outputRowType: RelDataType,
     inputRowType: RelDataType,
-    windowGroups: Seq[Window.Group],
+    val windowGroups: Seq[Window.Group],
     logicWindow: Window)
   extends BatchPhysicalOverAggregateBase(
     cluster,
