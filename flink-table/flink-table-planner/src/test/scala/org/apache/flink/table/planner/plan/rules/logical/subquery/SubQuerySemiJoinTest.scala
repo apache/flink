@@ -286,13 +286,13 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
 
   @Test
   def testInWithUncorrelatedOnWhere_Aggregate5(): Unit = {
-    util.verifyRelPlan("SELECT * FROM l WHERE b IN (SELECT MAX(e) FROM r GROUP BY d, true, 1)")
+    util.verifyRelPlan("SELECT * FROM l WHERE b IN (SELECT MAX(e) FROM r GROUP BY d, true, '1')")
   }
 
   @Test
   def testInWithUncorrelatedOnWhere_Aggregate6(): Unit = {
     val sqlQuery =
-      "SELECT * FROM l WHERE (b, a) IN (SELECT COUNT(*), d FROM r GROUP BY d, true, e, 1)"
+      "SELECT * FROM l WHERE (b, a) IN (SELECT COUNT(*), d FROM r GROUP BY d, true, e, '1')"
     util.verifyRelPlan(sqlQuery)
   }
 
@@ -645,14 +645,14 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
   @Test
   def testInWithCorrelatedOnWhere_Aggregate5(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE b IN " +
-      "(SELECT MAX(e) FROM r WHERE l.c = r.f GROUP BY d, true, 1)"
+      "(SELECT MAX(e) FROM r WHERE l.c = r.f GROUP BY d, true, '1')"
     util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testInWithCorrelatedOnWhere_Aggregate6(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE (b, a) IN " +
-      "(SELECT COUNT(*), d FROM r WHERE l.c = r.f GROUP BY d, true, e, 1)"
+      "(SELECT COUNT(*), d FROM r WHERE l.c = r.f GROUP BY d, true, e, '1')"
     util.verifyRelPlan(sqlQuery)
   }
 
@@ -1285,7 +1285,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     util.addTableSource[(Int, Long, Double, String)]("r1", 'c, 'd, 'e, 'f)
 
     val sqlQuery = "SELECT * FROM l1 WHERE EXISTS " +
-      "(SELECT MAX(e) FROM r1 WHERE l1.b = r1.d AND c < 100 AND l1.a = r1.c GROUP BY c, true, f, 1)"
+      "(SELECT MAX(e) FROM r1 WHERE l1.b = r1.d AND c < 100 AND l1.a = r1.c GROUP BY c, true, f, '1')"
     util.verifyRelPlan(sqlQuery)
   }
 
@@ -1598,7 +1598,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
 
     util.verifyRelPlanNotExpected(sqlQuery1, "joinType=[semi]")
 
-    val sqlQuery2 = "SELECT MAX(a) FROM x GROUP BY 1 HAVING EXISTS (SELECT 1 FROM y WHERE d < b)"
+    val sqlQuery2 = "SELECT MAX(a) FROM x GROUP BY '1' HAVING EXISTS (SELECT 1 FROM y WHERE d < b)"
     util.verifyRelPlanNotExpected(sqlQuery2, "joinType=[semi]")
   }
 

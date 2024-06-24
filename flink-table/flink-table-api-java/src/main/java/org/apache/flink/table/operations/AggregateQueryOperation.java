@@ -88,7 +88,7 @@ public class AggregateQueryOperation implements QueryOperation {
 
     private String getGroupingExprs() {
         if (groupingExpressions.isEmpty()) {
-            return "1";
+            return "'1'";
         } else {
             final String groupingExprs =
                     groupingExpressions.stream()
