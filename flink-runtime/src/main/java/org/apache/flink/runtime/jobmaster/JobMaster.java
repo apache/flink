@@ -878,14 +878,29 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     public void disconnectResourceManager(
             final ResourceManagerId resourceManagerId, final Exception cause) {
 
-        if (isConnectingToResourceManager(resourceManagerId)) {
+        if (resourceManagerAddress == null) {
+            log.debug(
+                    "Disconnecting ResourceManager {} was triggered with no ResourceManager address "
+                            + "being set (anymore). That either indicates that the ResourceManager "
+                            + "lost leadership in the mean time or the message was received while "
+                            + "shutting down the JobMaster. No reconnect will be initiated.",
+                    resourceManagerId);
+        } else if (!resourceManagerAddress.getResourceManagerId().equals(resourceManagerId)) {
+            log.debug(
+                    "Disconnecting ResourceManager {} was received while this instance is currently "
+                            + "connected to another ResourceManager {} indicating that a ResourceManager "
+                            + "leader change happened. No reconnect will be initiated.",
+                    resourceManagerId,
+                    resourceManagerAddress.getResourceManagerId());
+        } else {
             reconnectToResourceManager(cause);
         }
     }
 
-    private boolean isConnectingToResourceManager(ResourceManagerId resourceManagerId) {
-        return resourceManagerAddress != null
-                && resourceManagerAddress.getResourceManagerId().equals(resourceManagerId);
+    private void shutdownResourceManagerConnection(Exception cause) {
+        // unsetting the resourceManagerAddress will prevent reconnection
+        resourceManagerAddress = null;
+        closeResourceManagerConnection(cause);
     }
 
     @Override
@@ -1189,13 +1204,14 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
         final CompletableFuture<Void> terminationFuture = stopScheduling();
 
-        return FutureUtils.runAfterwards(
+        return FutureUtils.runAfterwardsAsync(
                 terminationFuture,
                 () -> {
                     shuffleMaster.unregisterJob(jobGraph.getJobID());
                     disconnectTaskManagerResourceManagerConnections(cause);
                     stopJobMasterServices();
-                });
+                },
+                getMainThreadExecutor());
     }
 
     private void disconnectTaskManagerResourceManagerConnections(Exception cause) {
@@ -1207,8 +1223,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
             disconnectTaskManager(taskManagerResourceId, cause);
         }
 
-        // disconnect from resource manager:
-        closeResourceManagerConnection(cause);
+        shutdownResourceManagerConnection(cause);
     }
 
     private void stopHeartbeatServices() {
