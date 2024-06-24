@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import { NgIf } from '@angular/common';
 import { Component, ChangeDetectionStrategy, Input, Output, EventEmitter } from '@angular/core';
 
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -26,7 +27,7 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
   templateUrl: './addon-compact.component.html',
   styleUrls: ['./addon-compact.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzButtonModule, NzIconModule],
+  imports: [NgIf, NzButtonModule, NzIconModule],
   standalone: true
 })
 export class AddonCompactComponent {
@@ -34,6 +35,12 @@ export class AddonCompactComponent {
   @Input() downloadHref: string;
   @Input() loading = false;
   @Output() reload = new EventEmitter<void>();
+  @Output() fullScreen = new EventEmitter<boolean>();
+  isFullScreen = false;
 
+  toggleFullScreen(): void {
+    this.isFullScreen = !this.isFullScreen;
+    this.fullScreen.emit(this.isFullScreen);
+  }
   constructor() {}
 }
