@@ -88,6 +88,7 @@ object FlinkStreamRuleSets {
 
   /** RuleSet to simplify predicate expressions in filters and joins */
   private val PREDICATE_SIMPLIFY_EXPRESSION_RULES: RuleSet = RuleSets.ofList(
+    JoinConditionEqualityTransferRule.INSTANCE,
     SimplifyFilterConditionRule.INSTANCE,
     SimplifyJoinConditionRule.INSTANCE,
     JoinConditionTypeCoerceRule.INSTANCE,
