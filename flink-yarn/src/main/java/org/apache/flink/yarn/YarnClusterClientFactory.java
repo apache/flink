@@ -28,13 +28,23 @@ import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
 import org.apache.flink.yarn.configuration.YarnLogConfigUtil;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
+
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.api.records.ApplicationReport;
+import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -80,6 +90,57 @@ public class YarnClusterClientFactory
 
         yarnClient.init(yarnConfiguration);
         yarnClient.start();
+        if (configuration.contains(YarnConfigOptions.APPLICATION_NAME)) {
+            try {
+                Set<String> applicationTypes = Sets.newHashSet();
+                applicationTypes.add("Apache Flink");
+                EnumSet<YarnApplicationState> applicationStates =
+                        EnumSet.noneOf(YarnApplicationState.class);
+                applicationStates.add(YarnApplicationState.RUNNING);
+                List<ApplicationReport> applicationReports =
+                        yarnClient.getApplications(applicationTypes, applicationStates);
+                Collections.sort(
+                        applicationReports,
+                        (o1, o2) -> {
+                            long o1Time = o1.getApplicationId().getClusterTimestamp();
+                            long o2Time = o2.getApplicationId().getClusterTimestamp();
+                            long o1Id = o1.getApplicationId().getId();
+                            long o2Id = o2.getApplicationId().getId();
+                            if (o1Time > o2Time) {
+                                return -1;
+                            } else if (o1Time == o2Time) {
+                                return (o1Id < o2Id) ? 1 : -1;
+                            } else {
+                                return 1;
+                            }
+                        });
+                if (CollectionUtils.isNotEmpty(applicationReports)) {
+                    for (ApplicationReport applicationReport : applicationReports) {
+                        if (StringUtils.equals(
+                                applicationReport.getName(),
+                                configuration.get(YarnConfigOptions.APPLICATION_NAME))) {
+                            if (configuration.contains(YarnConfigOptions.APPLICATION_QUEUE)) {
+                                if (StringUtils.equals(
+                                        applicationReport.getQueue(),
+                                        configuration.get(YarnConfigOptions.APPLICATION_QUEUE))) {
+                                    configuration.setString(
+                                            YarnConfigOptions.APPLICATION_ID,
+                                            applicationReport.getApplicationId().toString());
+                                    break;
+                                }
+                            } else {
+                                configuration.setString(
+                                        YarnConfigOptions.APPLICATION_ID,
+                                        applicationReport.getApplicationId().toString());
+                                break;
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
 
         return new YarnClusterDescriptor(
                 configuration,
