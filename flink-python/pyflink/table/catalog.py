@@ -449,6 +449,23 @@ class Catalog(object):
         """
         self._j_catalog.dropFunction(function_path._j_object_path, ignore_if_not_exists)
 
+    def rename_function(self, function_path: 'ObjectPath', new_function_name: str,
+                        ignore_if_not_exists: bool):
+        """
+        Rename a function.
+
+        :param function_path: Path :class:`ObjectPath` of the function to be renamed.
+        :param ignore_if_not_exists: Flag to specify behavior if the function does not exist:
+                                     if set to false, throw an exception
+                                     if set to true, nothing happens.
+        :raise: CatalogException in case of any runtime exception.
+                FunctionNotExistException if the function does not exist.
+                FunctionAlreadyExistException if function with new_function_name already exists.
+        """
+        self._j_catalog.renameFunction(function_path._j_object_path,
+                                       new_function_name,
+                                       ignore_if_not_exists)
+
     def get_table_statistics(self, table_path: 'ObjectPath') -> 'CatalogTableStatistics':
         """
         Get the statistics of a table.

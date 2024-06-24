@@ -1309,6 +1309,39 @@ public class HiveCatalog extends AbstractCatalog {
     }
 
     @Override
+    public void renameFunction(
+            ObjectPath functionPath, String newFunctionName, boolean ignoreIfNotExists)
+            throws FunctionNotExistException, FunctionAlreadyExistException, CatalogException {
+        checkNotNull(functionPath, "functionPath cannot be null");
+        checkArgument(
+                !isNullOrWhitespaceOnly(newFunctionName),
+                "newFunctionName cannot be null or empty");
+
+        try {
+            if (functionExists(functionPath)) {
+                ObjectPath newPath =
+                        new ObjectPath(functionPath.getDatabaseName(), newFunctionName);
+
+                if (functionExists(newPath)) {
+                    throw new FunctionAlreadyExistException(getName(), newPath);
+                } else {
+                    Function function =
+                            client.getFunction(
+                                    functionPath.getDatabaseName(), functionPath.getObjectName());
+                    function.setFunctionName(newFunctionName);
+                    client.alterFunction(
+                            functionPath.getDatabaseName(), functionPath.getObjectName(), function);
+                }
+            } else if (!ignoreIfNotExists) {
+                throw new FunctionNotExistException(getName(), functionPath);
+            }
+        } catch (TException e) {
+            throw new CatalogException(
+                    String.format("Failed to rename function %s", functionPath.getFullName()), e);
+        }
+    }
+
+    @Override
     public List<String> listFunctions(String databaseName)
             throws DatabaseNotExistException, CatalogException {
         checkArgument(

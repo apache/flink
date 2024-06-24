@@ -445,6 +445,26 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
     }
 
     @Override
+    public void renameFunction(
+            ObjectPath functionPath, String newFunctionName, boolean ignoreIfNotExists)
+            throws FunctionNotExistException, FunctionAlreadyExistException {
+        checkNotNull(functionPath);
+        checkArgument(!StringUtils.isNullOrWhitespaceOnly(newFunctionName));
+
+        if (functionExists(functionPath)) {
+            ObjectPath newPath = new ObjectPath(functionPath.getDatabaseName(), newFunctionName);
+
+            if (functionExists(newPath)) {
+                throw new FunctionAlreadyExistException(getName(), newPath);
+            } else {
+                functions.put(newPath, functions.remove(functionPath));
+            }
+        } else if (!ignoreIfNotExists) {
+            throw new FunctionNotExistException(getName(), functionPath);
+        }
+    }
+
+    @Override
     public List<String> listFunctions(String databaseName) throws DatabaseNotExistException {
         checkArgument(
                 !StringUtils.isNullOrWhitespaceOnly(databaseName),
