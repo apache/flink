@@ -52,6 +52,8 @@ public class AvroFormatOptions {
         JSON("json", text("Use JSON encoding for serialization and deserialization."));
 
         private final String value;
+
+        // This field is not serializable as InlineElement is not serializable
         private final transient InlineElement description;
 
         AvroEncoding(String value, InlineElement description) {
