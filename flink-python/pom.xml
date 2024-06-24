@@ -717,6 +717,10 @@ under the License.
 									<pattern>com.google.flatbuffers</pattern>
 									<shadedPattern>org.apache.flink.api.python.shaded.com.google.flatbuffers</shadedPattern>
 								</relocation>
+								<relocation>
+									<pattern>org.apache.beam</pattern>
+									<shadedPattern>org.apache.flink.api.python.shaded.org.apache.beam</shadedPattern>
+								</relocation>
 							</relocations>
 						</configuration>
 					</execution>
