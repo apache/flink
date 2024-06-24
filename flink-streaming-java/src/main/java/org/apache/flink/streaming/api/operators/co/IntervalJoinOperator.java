@@ -264,7 +264,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 
     private boolean isLate(long timestamp) {
         long currentWatermark = internalTimerService.currentWatermark();
-        return timestamp < currentWatermark;
+        return timestamp <= currentWatermark;
     }
 
     /** Write skipped late arriving element to SideOutput. */
