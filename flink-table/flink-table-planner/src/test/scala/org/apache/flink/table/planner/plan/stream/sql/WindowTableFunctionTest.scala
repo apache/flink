@@ -302,7 +302,7 @@ class WindowTableFunctionTest extends TableTestBase {
   }
 
   @Test
-  def testWindowTVFWithNamedParamsOrderChange(): Unit = {
+  def testWindowTVFWithNamedParamsOrderChange1(): Unit = {
     // the DATA param must be the first in FLIP-145
     // change the order about GAP and TIMECOL
     // TODO fix it in FLINK-34338
@@ -317,9 +317,25 @@ class WindowTableFunctionTest extends TableTestBase {
         |""".stripMargin
 
     assertThatThrownBy(() => util.verifyRelPlan(sql))
-      .hasMessage("fieldList must not be null, type = INTERVAL MINUTE")
-      .isInstanceOf[AssertionError]
-
+      .hasMessage("SQL validation failed. Illegal second argument to Window TVF: Expecting TIMECOL")
+      .isInstanceOf[ValidationException]
   }
 
+  @Test
+  def testWindowTVFWithNamedParamsOrderChange2(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(
+        |     SESSION(
+        |         GAP => INTERVAL '15' MINUTE,
+        |         DATA => TABLE MyTable,
+        |         TIMECOL => DESCRIPTOR(rowtime)))
+        |""".stripMargin
+
+    assertThatThrownBy(() => util.verifyRelPlan(sql))
+      .hasMessage(
+        "SQL validation failed. Illegal first argument to Window TVF: Note that the DATA param must be the first")
+      .isInstanceOf[ValidationException]
+  }
 }
