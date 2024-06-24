@@ -1372,6 +1372,19 @@ class Expression(Generic[T]):
         else:
             return _ternary_op("strToMap")(self, list_delimiter, key_value_delimiter)
 
+    def substring_index(self, delim, count) -> 'Expression':
+        """
+        Returns the substring of expr before count occurrences of delim.
+        expr and delim allow binary type, and the result matches the type of expr.
+        null if any of the arguments are null.
+
+        If count is positive, everything to the left of the final delim
+        (counting from the left) is returned.
+        If count is negative, everything to the right of the final delim
+        (counting from the right) is returned.
+        """
+        return _ternary_op("substringIndex")(self, delim, count)
+
     # ---------------------------- temporal functions ----------------------------------
 
     @property

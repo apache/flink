@@ -297,9 +297,9 @@ SHOW FULL MODULES;
 !ok
 
 # use hive built-in function without using hive module
-SELECT SUBSTRING_INDEX('www.apache.org', '.', 2) FROM (VALUES (1, 'Hello World'));
+SELECT NEXT_DAY('2024-07-12', 'TU');
 !output
-org.apache.calcite.sql.validate.SqlValidatorException: No match found for function signature SUBSTRING_INDEX(<CHARACTER>, <CHARACTER>, <NUMERIC>)
+org.apache.calcite.sql.validate.SqlValidatorException: No match found for function signature NEXT_DAY(<CHARACTER>, <CHARACTER>)
 !error
 
 # ==========================================================================
