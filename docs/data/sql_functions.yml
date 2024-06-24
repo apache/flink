@@ -492,7 +492,19 @@ string:
       index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <BINARY | VARBINARY>, exprs <BINARY | VARBINARY>
       
       The result has the type of the least common type of all expressions. `NULL` if index is `NULL` or out of range.
-
+  - sql: SUBSTRING_INDEX(expr, delim, count)
+    table: expr.substringIndex(delim, count)
+    description: | 
+      Returns the substring of expr before count occurrences of delim. 
+      
+      If count is positive, everything to the left of the final delim (counting from the left) is returned. 
+      If count is negative, everything to the right of the final delim (counting from the right) is returned.
+      
+      `expr <CHAR | VARCHAR>, delim <CHAR | VARCHAR>, count <TINYINT | SMALLINT | INTEGER | BIGINT>`
+      
+      `expr <BINARY | VARBINARY>, delim <BINARY | VARBINARY>, count <TINYINT | SMALLINT | INTEGER | BIGINT>`
+      
+      The result type matches the type of expr. `NULL` if any of the arguments are `NULL`.
 temporal:
   - sql: DATE string
     table: STRING.toDate()

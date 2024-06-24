@@ -207,6 +207,7 @@ string functions
     Expression.split_index
     Expression.str_to_map
     Expression.elt
+    Expression.substring_index
 
 temporal functions
 ------------------

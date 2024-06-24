@@ -172,6 +172,7 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual("ELT(1, a)", str(lit(1).elt(expr1)))
         self.assertEqual('ELT(3, a, b, c)', str(lit(3).elt(expr1, expr2, expr3)))
         self.assertEqual("PRINTF('%d %s', a, b)", str(lit("%d %s").printf(expr1, expr2)))
+        self.assertEqual("SUBSTRING_INDEX(a, b, 1)", str(expr1.substring_index(expr2, 1)))
 
         # regexp functions
         self.assertEqual("regexp(a, b)", str(expr1.regexp(expr2)))

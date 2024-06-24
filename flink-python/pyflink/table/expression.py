@@ -1481,6 +1481,26 @@ class Expression(Generic[T]):
                      for e in exprs]
         return _ternary_op("elt")(self, expr, to_jarray(gateway.jvm.Object, expr_list))
 
+    def substring_index(self, delim, count) -> 'Expression':
+        """
+        Returns the substring of expr before count occurrences of delim.
+        expr and delim allow binary type, and the result matches the type of expr.
+        null if any of the arguments are null.
+
+        If count is positive, everything to the left of the final delim
+        (counting from the left) is returned.
+        If count is negative, everything to the right of the final delim
+        (counting from the right) is returned.
+
+        null if any of the arguments are null.
+
+        :param delim: A STRING or BINARY expression matching the type of expr specifying the
+         delimiter.
+        :param count: An INTEGER expression to count the delimiters.
+        :return: The result matches the type of expr.
+        """
+        return _ternary_op("substringIndex")(self, delim, count)
+
     # ---------------------------- temporal functions ----------------------------------
 
     @property

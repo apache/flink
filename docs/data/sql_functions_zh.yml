@@ -589,7 +589,19 @@ string:
       index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <BINARY | VARBINARY>, exprs <BINARY | VARBINARY>
       
       结果类型为所有 expr 的公共类型。如果 index 为 `NULL` 或超出范围，则返回 `NULL`。
-
+  - sql: SUBSTRING_INDEX(expr, delim, count)
+    table: expr.substringIndex(delim, count)
+    description: |
+      返回 expr 中分隔符 delim 出现第 count 次前的子串。
+      
+      如果 count 为正，则返回最终分隔符左侧的所有内容（从左侧开始计数）。
+      如果 count 为负，则返回最终分隔符右侧的所有内容（从右侧开始计数）。
+      
+      `expr <CHAR | VARCHAR>, delim <CHAR | VARCHAR>, count <TINYINT | SMALLINT | INTEGER | BIGINT>`
+      
+      `expr <BINARY | VARBINARY>, delim <BINARY | VARBINARY>, count <TINYINT | SMALLINT | INTEGER | BIGINT>`
+      
+      返回值类型与 expr 一致。任意参数为 `NULL` 则返回 `NULL`。
 temporal:
   - sql: DATE string
     table: STRING.toDate()

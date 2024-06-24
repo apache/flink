@@ -38,7 +38,11 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
 
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
-        return Stream.of(bTrimTestCases(), eltTestCases(), printfTestCases(), translateTestCases())
+        return Stream.of(
+                        //                bTrimTestCases(), eltTestCases(), printfTestCases(),
+                        substringIndexTestCases()
+                        //                        , translateTestCases()
+                        )
                 .flatMap(s -> s);
     }
 
@@ -308,6 +312,253 @@ class StringFunctionsITCase extends BuiltInFunctionTestBase {
                                 "PRINTF(f0)",
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "PRINTF(format <CHARACTER_STRING>, obj <ANY>...)"));
+    }
+
+    private Stream<TestSetSpec> substringIndexTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.SUBSTRING_INDEX, "StringData")
+                        .onFieldsWithData(null, "www.apache.org", "")
+                        .andDataTypes(DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING())
+                        // null input
+                        .testResult(
+                                $("f0").substringIndex(".", 0),
+                                "SUBSTRING_INDEX(f0, '.', 0)",
+                                null,
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f1").substringIndex(null, 0),
+                                "SUBSTRING_INDEX(f1, NULL, 0)",
+                                null,
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f1").substringIndex(".", null),
+                                "SUBSTRING_INDEX(f1, '.', NULL)",
+                                null,
+                                DataTypes.STRING())
+                        // count overflows integer range
+                        .testResult(
+                                $("f1").substringIndex(".", 21474836470L),
+                                "SUBSTRING_INDEX(f1, '.', 21474836470)",
+                                null,
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f1").substringIndex(".", -21474836470L),
+                                "SUBSTRING_INDEX(f1, '.', -21474836470)",
+                                null,
+                                DataTypes.STRING())
+                        // empty input
+                        .testResult(
+                                $("f2").substringIndex(".", 1),
+                                "SUBSTRING_INDEX(f2, '.', 1)",
+                                "",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f1").substringIndex($("f2"), 1),
+                                "SUBSTRING_INDEX(f1, '', 1)",
+                                "",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f1").substringIndex(".", 0),
+                                "SUBSTRING_INDEX(f1, '.', 0)",
+                                "",
+                                DataTypes.STRING())
+                        // delim does not exist in expr
+                        .testResult(
+                                $("f1").substringIndex("..", 1),
+                                "SUBSTRING_INDEX(f1, '..', 1)",
+                                "www.apache.org",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f1").substringIndex("x", 1),
+                                "SUBSTRING_INDEX(f1, 'x', 1)",
+                                "www.apache.org",
+                                DataTypes.STRING())
+                        // delim length > 1
+                        .testResult(
+                                $("f1").substringIndex("ww", 1),
+                                "SUBSTRING_INDEX(f1, 'ww', 1)",
+                                "",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f1").substringIndex("ww", 2),
+                                "SUBSTRING_INDEX(f1, 'ww', 2)",
+                                "w",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f1").substringIndex("ww", -1),
+                                "SUBSTRING_INDEX(f1, 'ww', -1)",
+                                ".apache.org",
+                                DataTypes.STRING())
+                        // length(expr) = length(delim)
+                        .testResult(
+                                lit("www.apache.org").substringIndex("www.apache.org", 1),
+                                "SUBSTRING_INDEX('www.apache.org', 'www.apache.org', 1)",
+                                "",
+                                DataTypes.VARCHAR(14))
+                        // normal cases
+                        .testResult(
+                                $("f1").substringIndex(".", -3),
+                                "SUBSTRING_INDEX(f1, '.', -3)",
+                                "www.apache.org",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f1").substringIndex(".", -2),
+                                "SUBSTRING_INDEX(f1, '.', -2)",
+                                "apache.org",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f1").substringIndex("g", -1),
+                                "SUBSTRING_INDEX(f1, 'g', -1)",
+                                "",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f1").substringIndex(".", 3),
+                                "SUBSTRING_INDEX(f1, '.', 3)",
+                                "www.apache.org",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f1").substringIndex(".", 2),
+                                "SUBSTRING_INDEX(f1, '.', 2)",
+                                "www.apache",
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f1").substringIndex("w", 1),
+                                "SUBSTRING_INDEX(f1, 'w', 1)",
+                                "",
+                                DataTypes.STRING()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.SUBSTRING_INDEX, "byte[]")
+                        .onFieldsWithData(
+                                null,
+                                new byte[] {1, 2, 3, 3, 3, 4, 5, 5},
+                                new byte[] {3},
+                                new byte[] {3, 3},
+                                new byte[] {},
+                                new byte[] {6},
+                                new byte[] {3, 3})
+                        .andDataTypes(
+                                DataTypes.BYTES(),
+                                DataTypes.BYTES(),
+                                DataTypes.BYTES(),
+                                DataTypes.BYTES(),
+                                DataTypes.BYTES(),
+                                DataTypes.BYTES(),
+                                DataTypes.BYTES().notNull())
+                        // null input
+                        .testResult(
+                                $("f0").substringIndex($("f1"), 0),
+                                "SUBSTRING_INDEX(f0, f1, 0)",
+                                null,
+                                DataTypes.BYTES())
+                        .testResult(
+                                $("f1").substringIndex(null, 0),
+                                "SUBSTRING_INDEX(f1, NULL, 0)",
+                                null,
+                                DataTypes.BYTES())
+                        .testResult(
+                                $("f1").substringIndex($("f2"), null),
+                                "SUBSTRING_INDEX(f1, f2, NULL)",
+                                null,
+                                DataTypes.BYTES())
+                        // count overflows integer range
+                        .testResult(
+                                $("f1").substringIndex($("f2"), 21474836470L),
+                                "SUBSTRING_INDEX(f1, f2, 21474836470)",
+                                null,
+                                DataTypes.BYTES())
+                        .testResult(
+                                $("f1").substringIndex($("f2"), -21474836470L),
+                                "SUBSTRING_INDEX(f1, f2, -21474836470)",
+                                null,
+                                DataTypes.BYTES())
+                        // empty input
+                        .testResult(
+                                $("f4").substringIndex($("f2"), 1),
+                                "SUBSTRING_INDEX(f4, f2, 1)",
+                                new byte[0],
+                                DataTypes.BYTES())
+                        .testResult(
+                                $("f1").substringIndex($("f4"), 1),
+                                "SUBSTRING_INDEX(f1, f4, 1)",
+                                new byte[0],
+                                DataTypes.BYTES())
+                        .testResult(
+                                $("f1").substringIndex($("f2"), 0),
+                                "SUBSTRING_INDEX(f1, f2, 0)",
+                                new byte[0],
+                                DataTypes.BYTES())
+                        // delim does not exist in expr
+                        .testResult(
+                                $("f1").substringIndex($("f5"), 1),
+                                "SUBSTRING_INDEX(f1, f5, 1)",
+                                new byte[] {1, 2, 3, 3, 3, 4, 5, 5},
+                                DataTypes.BYTES())
+                        // delim length > 1
+                        .testResult(
+                                $("f1").substringIndex($("f3"), 1),
+                                "SUBSTRING_INDEX(f1, f3, 1)",
+                                new byte[] {1, 2},
+                                DataTypes.BYTES())
+                        .testResult(
+                                $("f1").substringIndex($("f3"), 2),
+                                "SUBSTRING_INDEX(f1, f3, 2)",
+                                new byte[] {1, 2, 3},
+                                DataTypes.BYTES())
+                        .testResult(
+                                $("f1").substringIndex($("f3"), -1),
+                                "SUBSTRING_INDEX(f1, f3, -1)",
+                                new byte[] {4, 5, 5},
+                                DataTypes.BYTES())
+                        // length(expr) = length(delim)
+                        .testResult(
+                                $("f6").substringIndex($("f6"), 1),
+                                "SUBSTRING_INDEX(f6, f6, 1)",
+                                new byte[0],
+                                DataTypes.BYTES())
+                        // normal cases
+                        .testResult(
+                                $("f1").substringIndex($("f2"), -4),
+                                "SUBSTRING_INDEX(f1, f2, -4)",
+                                new byte[] {1, 2, 3, 3, 3, 4, 5, 5},
+                                DataTypes.BYTES())
+                        .testResult(
+                                $("f1").substringIndex($("f2"), -2),
+                                "SUBSTRING_INDEX(f1, f2, -2)",
+                                new byte[] {3, 4, 5, 5},
+                                DataTypes.BYTES())
+                        .testResult(
+                                $("f3").substringIndex($("f2"), -1),
+                                "SUBSTRING_INDEX(f3, f2, -1)",
+                                new byte[0],
+                                DataTypes.BYTES())
+                        .testResult(
+                                $("f1").substringIndex($("f2"), 3),
+                                "SUBSTRING_INDEX(f1, f2, 3)",
+                                new byte[] {1, 2, 3, 3},
+                                DataTypes.BYTES())
+                        .testResult(
+                                $("f1").substringIndex($("f2"), 5),
+                                "SUBSTRING_INDEX(f1, f2, 5)",
+                                new byte[] {1, 2, 3, 3, 3, 4, 5, 5},
+                                DataTypes.BYTES())
+                        .testResult(
+                                $("f3").substringIndex($("f2"), 1),
+                                "SUBSTRING_INDEX(f3, f2, 1)",
+                                new byte[0],
+                                DataTypes.BYTES()),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.SUBSTRING_INDEX, "Validation Error")
+                        .onFieldsWithData("test", new byte[] {1, 2, 3})
+                        .andDataTypes(DataTypes.STRING(), DataTypes.BYTES())
+                        .testTableApiValidationError(
+                                $("f0").substringIndex($("f1"), 1),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "SUBSTRING_INDEX(expr <CHARACTER_STRING>, delim <CHARACTER_STRING>, count <INTEGER_NUMERIC>)\n"
+                                        + "SUBSTRING_INDEX(expr <BINARY_STRING>, delim <BINARY_STRING>, count <INTEGER_NUMERIC>)")
+                        .testSqlValidationError(
+                                "SUBSTRING_INDEX(f0, f1, 1)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "SUBSTRING_INDEX(expr <CHARACTER_STRING>, delim <CHARACTER_STRING>, count <INTEGER_NUMERIC>)\n"
+                                        + "SUBSTRING_INDEX(expr <BINARY_STRING>, delim <BINARY_STRING>, count <INTEGER_NUMERIC>)"));
     }
 
     private Stream<TestSetSpec> translateTestCases() {

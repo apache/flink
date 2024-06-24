@@ -50,9 +50,9 @@ org.apache.flink.table.api.ValidationException: A module with name 'core' alread
 !error
 
 # use hive built-in function without loading hive module
-SELECT SUBSTRING_INDEX('www.apache.org', '.', 2) FROM (VALUES (1, 'Hello World')) AS T(id, str);
+SELECT NEXT_DAY('2024-07-12', 'TU');
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.calcite.sql.validate.SqlValidatorException: No match found for function signature SUBSTRING_INDEX(<CHARACTER>, <CHARACTER>, <NUMERIC>)
+org.apache.calcite.sql.validate.SqlValidatorException: No match found for function signature NEXT_DAY(<CHARACTER>, <CHARACTER>)
 !error
 
 # load dummy module with module name as string literal
