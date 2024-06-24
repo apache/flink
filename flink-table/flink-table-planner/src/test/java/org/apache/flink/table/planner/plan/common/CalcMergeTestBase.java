@@ -58,6 +58,27 @@ public abstract class CalcMergeTestBase extends TableTestBase {
     }
 
     @Test
+    void testCalShouldNotMerge1() {
+        util.verifyExecPlan("SELECT a + 1 AS a, a + 2 AS b FROM (SELECT a + 3 AS a FROM MyTable)");
+    }
+
+    @Test
+    void testCalShouldNotMerge2() {
+        util.verifyExecPlan(
+                "SELECT c || 'c' AS a, c || 'b' AS b FROM (SELECT REGEXP_REPLACE(c, 'aaa', 'bbb') AS c FROM MyTable)");
+    }
+
+    @Test
+    void testCalShouldMerge1() {
+        util.verifyExecPlan("SELECT a + 1 AS a, a + 2 AS b FROM (SELECT a AS a FROM MyTable)");
+    }
+
+    @Test
+    void testCalShouldMerge2() {
+        util.verifyExecPlan("SELECT c || 'c' AS a, c || 'b' AS b FROM (SELECT c FROM MyTable)");
+    }
+
+    @Test
     void testCalcMergeWithSameDigest() {
         util.verifyExecPlan("SELECT a, b FROM (SELECT * FROM MyTable WHERE a = b) t WHERE b = a");
     }

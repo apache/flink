@@ -24,6 +24,7 @@ import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
@@ -33,6 +34,7 @@ import org.apache.calcite.rex.RexVisitorImpl;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -198,6 +200,7 @@ public class FlinkRelUtil {
         boolean mergeable = true;
         for (int idx = 0; idx < bottomProjects.size(); idx++) {
             RexNode node = bottomProjects.get(idx);
+
             if (!RexUtil.isDeterministic(node)) {
                 assert idx < topInputRefCounter.length;
                 if (topInputRefCounter[idx] > 1) {
@@ -206,6 +209,75 @@ public class FlinkRelUtil {
                 }
             }
         }
-        return mergeable;
+
+        if (!mergeable) {
+            return false;
+        }
+
+        // here, we iterate each expression among topProjects and check in the end if at least two
+        // expressions from topProjects access the same expression from the bottomProjects.
+        // If this is the case, if the accessed expression is an expression formed by a call to an
+        // operator with zero or more expressions as operands (i.e., RexCall) we avoid merging
+        // project expressions. This enables us to void merging project expressions that
+        // lead to redundant computation.
+        HashMap<Integer, Integer> indexAccessFrequencies = new HashMap<>();
+        for (RexNode node : topProjects) {
+            FieldAccessesVisitor visitor = new FieldAccessesVisitor();
+            node.accept(visitor);
+            HashMap<Integer, Integer> currentAccessFrequency = visitor.getIndexAccessFrequency();
+            currentAccessFrequency.forEach(
+                    (key, value) ->
+                            indexAccessFrequencies.merge(
+                                    key,
+                                    value,
+                                    (existingValue, newValue) -> existingValue + newValue));
+        }
+
+        boolean multipleFieldAccessExists =
+                indexAccessFrequencies.entrySet().stream()
+                        .anyMatch(
+                                entry -> {
+                                    Integer ind = entry.getKey();
+                                    return (bottomProjects.get(ind) instanceof RexCall)
+                                            && entry.getValue() > 1;
+                                });
+        return !multipleFieldAccessExists;
+    }
+
+    /**
+     * This class visits a project (RexNode) and saves access frequencies of each input ref. The
+     * field access frequency is updated only if the input reference is part of a RexCall. The
+     * reason is that we want to avoid redundant computation (RexCall) and not just field accesses
+     * (RexInputRef).
+     */
+    public static class FieldAccessesVisitor extends RexVisitorImpl<Void> {
+
+        private HashMap<Integer, Integer> indexAccessFrequency = new HashMap<>();
+        private boolean insideRexCallScope = false;
+
+        protected FieldAccessesVisitor() {
+            super(true);
+        }
+
+        @Override
+        public Void visitCall(RexCall call) {
+            insideRexCallScope = true;
+            Void res = super.visitCall(call);
+            insideRexCallScope = false;
+            return res;
+        }
+
+        @Override
+        public Void visitInputRef(RexInputRef inputRef) {
+            if (insideRexCallScope) {
+                int index = inputRef.getIndex();
+                indexAccessFrequency.compute(index, (ind, freq) -> freq == null ? 1 : freq + 1);
+            }
+            return super.visitInputRef(inputRef);
+        }
+
+        public HashMap<Integer, Integer> getIndexAccessFrequency() {
+            return indexAccessFrequency;
+        }
     }
 }

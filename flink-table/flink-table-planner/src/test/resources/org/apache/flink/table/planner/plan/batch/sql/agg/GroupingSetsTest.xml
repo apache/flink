@@ -425,14 +425,15 @@ LogicalSort(sort0=[$0], sort1=[$1], sort2=[$2], dir0=[ASC-nulls-first], dir1=[AS
     <Resource name="optimized exec plan">
       <![CDATA[
 Sort(orderBy=[deptno ASC, job ASC, empno ASC])
-+- Exchange(distribution=[single])
-   +- Calc(select=[deptno, job, empno, ename, sumsal, CASE((CASE(($e = 0), 0, ($e = 3), 1, ($e = 7), 3, 7) = 0), 'grouped by deptno,job,empno,ename', (CASE(($e = 0), 0, ($e = 3), 1, ($e = 7), 3, 7) = 1), 'grouped by deptno,job', (CASE(($e = 0), 0, ($e = 3), 1, ($e = 7), 3, 7) = 3), 'grouped by deptno', (CASE(($e = 0), 0, ($e = 3), 1, ($e = 7), 3, 7) = 7), 'grouped by ()', null:VARCHAR(2147483647)) AS gr_text])
-      +- HashAggregate(isMerge=[true], groupBy=[deptno, job, empno, ename, $e], select=[deptno, job, empno, ename, $e, Final_SUM(sum$0) AS sumsal])
-         +- Exchange(distribution=[hash[deptno, job, empno, ename, $e]])
-            +- LocalHashAggregate(groupBy=[deptno, job, empno, ename, $e], select=[deptno, job, empno, ename, $e, Partial_SUM(sal) AS sum$0])
-               +- Expand(projects=[{deptno, job, empno, ename, sal, 0 AS $e}, {deptno, job, null AS empno, null AS ename, sal, 3 AS $e}, {deptno, null AS job, null AS empno, null AS ename, sal, 7 AS $e}, {null AS deptno, null AS job, null AS empno, null AS ename, sal, 15 AS $e}])
-                  +- Calc(select=[deptno, job, empno, ename, sal])
-                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]], fields=[empno, ename, job, mgr, hiredate, sal, comm, deptno])
++- Calc(select=[deptno, job, empno, ename, sumsal, CASE(($f5 = 0), 'grouped by deptno,job,empno,ename', ($f5 = 1), 'grouped by deptno,job', ($f5 = 3), 'grouped by deptno', ($f5 = 7), 'grouped by ()', null:VARCHAR(2147483647)) AS gr_text])
+   +- Exchange(distribution=[single])
+      +- Calc(select=[deptno, job, empno, ename, sumsal, CASE(($e = 0), 0, ($e = 3), 1, ($e = 7), 3, 7) AS $f5])
+         +- HashAggregate(isMerge=[true], groupBy=[deptno, job, empno, ename, $e], select=[deptno, job, empno, ename, $e, Final_SUM(sum$0) AS sumsal])
+            +- Exchange(distribution=[hash[deptno, job, empno, ename, $e]])
+               +- LocalHashAggregate(groupBy=[deptno, job, empno, ename, $e], select=[deptno, job, empno, ename, $e, Partial_SUM(sal) AS sum$0])
+                  +- Expand(projects=[{deptno, job, empno, ename, sal, 0 AS $e}, {deptno, job, null AS empno, null AS ename, sal, 3 AS $e}, {deptno, null AS job, null AS empno, null AS ename, sal, 7 AS $e}, {null AS deptno, null AS job, null AS empno, null AS ename, sal, 15 AS $e}])
+                     +- Calc(select=[deptno, job, empno, ename, sal])
+                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]], fields=[empno, ename, job, mgr, hiredate, sal, comm, deptno])
 ]]>
     </Resource>
   </TestCase>
