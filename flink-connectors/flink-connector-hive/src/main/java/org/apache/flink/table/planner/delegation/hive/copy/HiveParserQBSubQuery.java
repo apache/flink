@@ -483,7 +483,7 @@ public class HiveParserQBSubQuery {
                             "SubQuery can contain only 1 item in Select List."));
         }
 
-        boolean hasAggreateExprs = false;
+        boolean hasAggregateExprs = false;
         boolean hasWindowing = false;
 
         // we need to know if aggregate is COUNT since IN corr subq with count aggregate
@@ -495,7 +495,7 @@ public class HiveParserQBSubQuery {
             int r = HiveParserSubQueryUtils.checkAggOrWindowing(selectItem);
 
             hasWindowing = hasWindowing | (r == 3);
-            hasAggreateExprs = hasAggreateExprs | (r == 1 | r == 2);
+            hasAggregateExprs = hasAggregateExprs | (r == 1 | r == 2);
             hasCount = hasCount | (r == 2);
         }
 
@@ -562,7 +562,7 @@ public class HiveParserQBSubQuery {
         //        rule we need to know about this case.
         // * NOT IN - always allow, but always return true because later subq remove rule will
         // generate diff plan for this case
-        if (hasAggreateExprs && noImplicityGby) {
+        if (hasAggregateExprs && noImplicityGby) {
 
             if (operator.getType() == HiveParserQBSubQuery.SubQueryType.EXISTS
                     || operator.getType() == HiveParserQBSubQuery.SubQueryType.NOT_EXISTS) {
