@@ -28,6 +28,7 @@ import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.Objects;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.TimeUtils.formatWithHighestUnit;
 
@@ -54,7 +55,9 @@ public class HoppingWindowSpec implements WindowSpec {
             @JsonProperty(FIELD_NAME_SIZE) Duration size,
             @JsonProperty(FIELD_NAME_SLIDE) Duration slide,
             @JsonProperty(FIELD_NAME_OFFSET) @Nullable Duration offset) {
+        checkArgument(!size.isNegative(), "Hop Window parameters must satisfy size > 0");
         this.size = checkNotNull(size);
+        checkArgument(!slide.isNegative(), "Hop Window parameters must satisfy slide > 0");
         this.slide = checkNotNull(slide);
         this.offset = offset;
     }
