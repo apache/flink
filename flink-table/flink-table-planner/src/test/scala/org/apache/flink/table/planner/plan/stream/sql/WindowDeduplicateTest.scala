@@ -218,4 +218,38 @@ class WindowDeduplicateTest extends TableTestBase {
       """.stripMargin
     util.verifyRelPlan(sql)
   }
+
+  @Test
+  def testUnsupportedWindowTVF_SessionOnRowtime(): Unit = {
+    val sql =
+      """
+        |SELECT window_start, window_end, window_time, a, b, c, d, e
+        |FROM (
+        |SELECT *,
+        |   ROW_NUMBER() OVER(PARTITION BY a, window_start, window_end
+        |   ORDER BY proctime DESC) as rownum
+        |FROM TABLE(SESSION(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |)
+        |WHERE rownum <= 1
+      """.stripMargin
+
+    util.verifyExplain(sql)
+  }
+
+  @Test
+  def testUnsupportedWindowTVF_SessionOnProctime(): Unit = {
+    val sql =
+      """
+        |SELECT window_start, window_end, window_time, a, b, c, d, e
+        |FROM (
+        |SELECT *,
+        |   ROW_NUMBER() OVER(PARTITION BY a, window_start, window_end
+        |   ORDER BY proctime DESC) as rownum
+        |FROM TABLE(SESSION(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '15' MINUTE))
+        |)
+        |WHERE rownum <= 1
+      """.stripMargin
+
+    util.verifyExplain(sql)
+  }
 }

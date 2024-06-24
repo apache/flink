@@ -183,6 +183,15 @@ object WindowJoinUtil extends Logging {
     if (leftWindowProperties == null || rightWindowProperties == null) {
       return Option.empty
     }
+
+    // unaligned window such as session window doesn't support window join
+    if (
+      WindowUtil.isUnalignedWindow(leftWindowProperties) ||
+      WindowUtil.isUnalignedWindow(rightWindowProperties)
+    ) {
+      return Option.empty
+    }
+
     val windowStartEqualityLeftKeys = mutable.ArrayBuffer[Int]()
     val windowEndEqualityLeftKeys = mutable.ArrayBuffer[Int]()
     val windowStartEqualityRightKeys = mutable.ArrayBuffer[Int]()
