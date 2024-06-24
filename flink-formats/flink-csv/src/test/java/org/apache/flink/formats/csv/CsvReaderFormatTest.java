@@ -20,6 +20,7 @@ package org.apache.flink.formats.csv;
 import org.apache.flink.api.common.io.InputStreamFSInputWrapper;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
@@ -30,9 +31,12 @@ import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class CsvReaderFormatTest {
 
@@ -109,7 +113,36 @@ class CsvReaderFormatTest {
         assertThat(passedMapper.get()).isSameAs(csvMapper);
     }
 
+    @Test
+    void testCreatedMapperWithCharset() throws IOException {
+        final CsvMapper csvMapper = new CsvMapper();
+
+        final CsvReaderFormat<Pojo2> format =
+                CsvReaderFormat.forSchema(
+                        () -> csvMapper,
+                        mapper -> mapper.schemaFor(Pojo2.class),
+                        TypeInformation.of(Pojo2.class));
+
+        format.withCharset(Charset.forName("GBK"));
+
+        StreamFormat.Reader<Pojo2> reader =
+                format.createReader(
+                        new Configuration(),
+                        new InputStreamFSInputWrapper(
+                                new ByteArrayInputStream("1,你好".getBytes(Charset.forName("GBK")))));
+        Pojo2 pojo2 = reader.read();
+        assertNotNull(pojo2);
+        assertEquals(1, pojo2.x);
+        assertEquals("你好", pojo2.y);
+        reader.close();
+    }
+
     public static class Pojo {
         public int x;
+    }
+
+    public static class Pojo2 {
+        public int x;
+        public String y;
     }
 }

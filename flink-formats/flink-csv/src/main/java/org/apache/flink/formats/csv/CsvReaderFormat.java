@@ -36,6 +36,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.Csv
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.Charset;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -83,6 +85,7 @@ public class CsvReaderFormat<T> extends SimpleStreamFormat<T> {
     private final Converter<Object, T, Void> converter;
     private final TypeInformation<T> typeInformation;
     private boolean ignoreParseErrors;
+    private Charset charset = null;
 
     @SuppressWarnings("unchecked")
     <R> CsvReaderFormat(
@@ -183,17 +186,30 @@ public class CsvReaderFormat<T> extends SimpleStreamFormat<T> {
                 true);
     }
 
+    public CsvReaderFormat<T> withCharset(Charset charset) {
+        this.charset = charset;
+        return this;
+    }
+
     @Override
     public StreamFormat.Reader<T> createReader(Configuration config, FSDataInputStream stream)
             throws IOException {
         final CsvMapper csvMapper = mapperFactory.get();
-        return new Reader<>(
-                csvMapper
-                        .readerFor(rootType)
-                        .with(schemaGenerator.apply(csvMapper))
-                        .readValues(stream),
-                converter,
-                ignoreParseErrors);
+        MappingIterator<Object> mappingIterator;
+        if (this.charset == null) {
+            mappingIterator =
+                    csvMapper
+                            .readerFor(rootType)
+                            .with(schemaGenerator.apply(csvMapper))
+                            .readValues(stream);
+        } else {
+            mappingIterator =
+                    csvMapper
+                            .readerFor(rootType)
+                            .with(schemaGenerator.apply(csvMapper))
+                            .readValues(new InputStreamReader(stream, charset));
+        }
+        return new Reader<>(mappingIterator, converter, ignoreParseErrors);
     }
 
     @Override
