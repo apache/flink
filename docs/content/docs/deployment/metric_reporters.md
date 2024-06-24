@@ -274,6 +274,36 @@ metrics.reporter.dghttp.interval: 60 SECONDS
 metrics.reporter.dghttp.useLogicalIdentifier: true
 ```
 
+### DogStatsD
+#### (org.apache.flink.metrics.dogstatsd.DogStatsDReporter)
+
+This reporter uses [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/) protocol, which is a superset of StatsD.
+
+Note any variables in Flink metrics, such as `<host>`, `<job_name>`, `<tm_id>`, `<subtask_index>`, `<task_name>`, and `<operator_name>`,
+will be sent to Datadog as tags. Tags will look like `host:localhost` and `job_name:myjobname`.
+
+In `shortids` mode, Flink variables like `<tm_id>`, `<task_id>`, `<job_id>`, `<task_attempt_id>` will print only the first
+8 hex characters of the 32 hex character value.  This is to provide good enough distinction and identification, while
+avoiding truncation in the case where metrics are otherwise too long.
+
+<span class="label label-info">Note</span> Histograms are exposed as a series of gauges following the naming convention of Datadog histograms (`<metric_name>.<aggregation>`).
+
+Parameters:
+
+- `host` - the DogStatsD server host
+- `port` - (optional) the DogStatsD server port, defaults to `8125`
+- `tags` - (optional) the global tags that will be applied to metrics when sending to Datadog. Tags should be separated by comma only
+- `shortids` - (optional) the flag to use short ids, defaults to `false`
+
+Example configuration:
+
+```yaml
+metrics.reporter.dog.class: org.apache.flink.metrics.dogstatsd.DogStatsDReporter
+metrics.reporter.dog.host: $HOST_IP
+metrics.reporter.dog.port: 8125
+metrics.reporter.dog.tags: environment:production
+metrics.reporter.dog.shortids: false
+```
 
 ### Slf4j
 #### (org.apache.flink.metrics.slf4j.Slf4jReporter)
