@@ -110,13 +110,13 @@ import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.TestN
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.TestValuesLookupFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.Count1AggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.CountAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.MaxAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.MinAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.Sum0AggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.SumAggFunction;
 import org.apache.flink.table.planner.runtime.utils.FailingCollectionSource;
 import org.apache.flink.table.planner.utils.FilterUtils;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.table.runtime.functions.aggregate.MaxAggFunction;
 import org.apache.flink.table.runtime.functions.table.fullcache.inputformat.FullCacheTestInputFormat;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.types.DataType;
