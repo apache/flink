@@ -206,6 +206,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
                 yarnNodeManagerClientFactory.createNodeManagerClient(yarnContainerEventHandler);
         nodeManagerClient.init(yarnConfig);
         nodeManagerClient.start();
+        nodeManagerClient.getClient().cleanupRunningContainersOnStop(false);
     }
 
     @Override
