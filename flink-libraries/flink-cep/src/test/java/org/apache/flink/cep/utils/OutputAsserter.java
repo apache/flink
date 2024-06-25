@@ -18,7 +18,7 @@
 
 package org.apache.flink.cep.utils;
 
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -69,7 +69,7 @@ public class OutputAsserter {
         Object record = output.poll();
         if (record instanceof WatermarkEvent) {
             WatermarkEvent watermark = (WatermarkEvent) record;
-            GenericWatermark genericWatermark = watermark.getGenericWatermark();
+            Watermark genericWatermark = watermark.getWatermark();
             assertTrue(genericWatermark instanceof TimestampWatermark);
             assertThat(((TimestampWatermark) genericWatermark).getTimestamp(), is(timestamp));
         } else {

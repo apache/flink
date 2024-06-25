@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -116,7 +116,7 @@ class ChainingOutput<T>
 
     @Override
     public void emitWatermark(WatermarkEvent mark) {
-        GenericWatermark genericWatermark = mark.getGenericWatermark();
+        Watermark genericWatermark = mark.getWatermark();
         if (!(genericWatermark instanceof TimestampWatermark)) {
             try {
                 input.processWatermark(mark);

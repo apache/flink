@@ -20,7 +20,7 @@ package org.apache.flink.streaming.runtime.streamrecord;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.WatermarkDeclaration;
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.InternalWatermarkDeclaration;
 import org.apache.flink.api.common.eventtime.TimestampWatermarkDeclaration;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
@@ -34,12 +34,9 @@ import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
@@ -208,7 +205,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
             typeSerializer.serialize(record.getValue(), target);
         } else if (value.isWatermark()) {
             target.write(TAG_WATERMARK);
-            GenericWatermark genericWatermark = value.asWatermark().getGenericWatermark();
+            Watermark genericWatermark = value.asWatermark().getWatermark();
             String identifier = genericWatermark.getClass().getName();
             System.out.println(identifier);
             target.writeUTF(identifier);
@@ -242,7 +239,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
             return new StreamRecord<T>(typeSerializer.deserialize(source));
         } else if (tag == TAG_WATERMARK) {
             String identifier = source.readUTF();
-            GenericWatermark watermark =
+            Watermark watermark =
                     watermarkDeclarationMap.get(identifier).deserialize(source);
             return new WatermarkEvent(watermark);
             // TODOJEY

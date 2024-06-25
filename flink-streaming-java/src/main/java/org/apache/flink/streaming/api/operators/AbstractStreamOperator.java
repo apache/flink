@@ -23,7 +23,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.IndexedCombinedWatermarkStatus;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.state.KeyedStateStore;
@@ -621,14 +621,14 @@ public abstract class AbstractStreamOperator<OUT>
 
     public void processWatermark(WatermarkEvent mark) throws Exception {
         if (timeServiceManager != null
-                && (mark.getGenericWatermark() instanceof TimestampWatermark)) {
+                && (mark.getWatermark() instanceof TimestampWatermark)) {
             timeServiceManager.advanceWatermark(mark);
         }
         output.emitWatermark(mark);
     }
 
     private void processWatermark(WatermarkEvent mark, int index) throws Exception {
-        GenericWatermark genericWatermark = mark.getGenericWatermark();
+        Watermark genericWatermark = mark.getWatermark();
         if ((genericWatermark instanceof TimestampWatermark)
                 && combinedWatermark.updateWatermark(
                         index, ((TimestampWatermark) genericWatermark).getTimestamp())) {

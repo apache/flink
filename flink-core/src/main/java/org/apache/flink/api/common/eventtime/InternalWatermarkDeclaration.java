@@ -31,14 +31,14 @@ public class InternalWatermarkDeclaration implements WatermarkDeclaration.Waterm
     }
 
     @Override
-    public void serialize(GenericWatermark genericWatermark, DataOutputView target)
+    public void serialize(Watermark genericWatermark, DataOutputView target)
             throws IOException {
         target.writeLong(((InternalWatermark) genericWatermark).getTimestamp());
         target.writeInt(((InternalWatermark) genericWatermark).getSubpartitionIndex());
     }
 
     @Override
-    public GenericWatermark deserialize(DataInputView inputView) throws IOException {
+    public Watermark deserialize(DataInputView inputView) throws IOException {
         long ts = inputView.readLong();
         int partitionIdx = inputView.readInt();
         return new InternalWatermark(ts, partitionIdx);

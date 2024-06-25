@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -305,7 +305,7 @@ public class StreamSourceContexts {
             // allow Long.MAX_VALUE since this is the special end-watermark that for example the
             // Kafka source emits
             // TODOJEY
-            GenericWatermark genericWatermark = mark.getGenericWatermark();
+            Watermark genericWatermark = mark.getWatermark();
             if (!(genericWatermark instanceof TimestampWatermark)) {
                 return false;
             }
@@ -454,7 +454,7 @@ public class StreamSourceContexts {
 
         @Override
         protected boolean allowWatermark(WatermarkEvent mark) {
-            GenericWatermark genericWatermark = mark.getGenericWatermark();
+            Watermark genericWatermark = mark.getWatermark();
             if (!(genericWatermark instanceof TimestampWatermark)) {
                 return false;
             }

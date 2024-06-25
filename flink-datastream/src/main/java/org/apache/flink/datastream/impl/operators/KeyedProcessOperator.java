@@ -18,7 +18,7 @@
 
 package org.apache.flink.datastream.impl.operators;
 
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.datastream.api.context.EventTimeManager;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;

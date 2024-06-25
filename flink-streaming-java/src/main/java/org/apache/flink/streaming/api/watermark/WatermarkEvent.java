@@ -19,22 +19,22 @@
 package org.apache.flink.streaming.api.watermark;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 
 /**
- * A {@link StreamElement} that ships {@link GenericWatermark}s between operators.
+ * A {@link StreamElement} that ships {@link Watermark}s between operators.
  */
 @PublicEvolving
 public final class WatermarkEvent extends StreamElement {
 
-    private final GenericWatermark genericWatermark;
+    private final Watermark genericWatermark;
 
-    public WatermarkEvent(GenericWatermark genericWatermark) {
+    public WatermarkEvent(Watermark genericWatermark) {
         this.genericWatermark = genericWatermark;
     }
 
-    public GenericWatermark getGenericWatermark() {
+    public Watermark getWatermark() {
         return genericWatermark;
     }
 
@@ -45,7 +45,7 @@ public final class WatermarkEvent extends StreamElement {
         return this == o
                 || o != null
                         && o.getClass() == this.getClass()
-                        && ((WatermarkEvent) o).genericWatermark.equals(this.getGenericWatermark());
+                        && ((WatermarkEvent) o).genericWatermark.equals(this.getWatermark());
     }
 
     //    @Override

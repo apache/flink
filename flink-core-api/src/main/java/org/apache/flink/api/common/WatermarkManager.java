@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common;
 
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 
 public interface WatermarkManager {
     /**
@@ -26,5 +26,5 @@ public interface WatermarkManager {
      *
      * @param watermark the watermark to emit.
      */
-    void emitWatermark(GenericWatermark watermark);
+    void emitWatermark(Watermark watermark);
 }

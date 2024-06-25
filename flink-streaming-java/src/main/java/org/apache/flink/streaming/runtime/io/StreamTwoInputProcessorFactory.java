@@ -20,7 +20,7 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -53,10 +53,8 @@ import org.apache.flink.util.function.ThrowingConsumer;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Function;
 
 import static org.apache.flink.streaming.api.graph.StreamConfig.requiresSorting;
@@ -263,7 +261,7 @@ public class StreamTwoInputProcessorFactory {
 
         @Override
         public void emitWatermark(WatermarkEvent watermark) throws Exception {
-            GenericWatermark genericWatermark = watermark.getGenericWatermark();
+            Watermark genericWatermark = watermark.getWatermark();
             if (genericWatermark instanceof TimestampWatermark) {
                 inputWatermarkGauge.setCurrentWatermark(
                         ((TimestampWatermark) genericWatermark).getTimestamp());
@@ -332,7 +330,7 @@ public class StreamTwoInputProcessorFactory {
         }
 
         private void checkAndForward(WatermarkEvent watermark) {
-            GenericWatermark genericWatermark = watermark.getGenericWatermark();
+            Watermark genericWatermark = watermark.getWatermark();
             if (!(genericWatermark instanceof TimestampWatermark)) {
                 return;
             }

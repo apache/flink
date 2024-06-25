@@ -449,7 +449,7 @@ class CommonExecSinkITCase {
                 new SinkFunction<RowData>() {
                     @Override
                     public void writeWatermark(
-                            org.apache.flink.api.common.eventtime.GenericWatermark watermark) {
+                            org.apache.flink.api.common.eventtime.Watermark watermark) {
                         if (watermark instanceof TimestampWatermark) {
                             addElement(watermarks, ((TimestampWatermark) watermark).getTimestamp());
                         }

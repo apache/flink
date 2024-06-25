@@ -19,7 +19,7 @@
 package org.apache.flink.table.connector.source.abilities;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -65,7 +65,7 @@ import org.apache.flink.table.data.RowData;
 public interface SupportsWatermarkPushDown {
 
     /**
-     * Provides a {@link WatermarkStrategy} which defines how to generate {@link GenericWatermark}s
+     * Provides a {@link WatermarkStrategy} which defines how to generate {@link Watermark}s
      * in the stream source.
      *
      * <p>The {@link WatermarkStrategy} is a builder/factory for the actual runtime implementation

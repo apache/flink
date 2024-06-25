@@ -19,7 +19,7 @@
 package org.apache.flink.api.connector.sink2;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 
 import java.io.IOException;
 
@@ -54,7 +54,7 @@ public interface SinkWriter<InputT> extends AutoCloseable {
      * @param watermark The watermark.
      * @throws IOException if fail to add a watermark.
      */
-    default void writeWatermark(GenericWatermark watermark)
+    default void writeWatermark(Watermark watermark)
             throws IOException, InterruptedException {}
 
     /** Context that {@link #write} can use for getting additional data about an input record. */

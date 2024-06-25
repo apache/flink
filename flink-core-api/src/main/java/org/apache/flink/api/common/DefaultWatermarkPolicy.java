@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common;
 
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 
 import java.io.Serializable;
 
@@ -26,7 +26,7 @@ import java.io.Serializable;
 public class DefaultWatermarkPolicy implements WatermarkPolicy {
 
     @Override
-    public WatermarkResult useWatermark(GenericWatermark watermark) {
+    public WatermarkResult useWatermark(Watermark watermark) {
         return WatermarkResult.PEEK;
     }
 }

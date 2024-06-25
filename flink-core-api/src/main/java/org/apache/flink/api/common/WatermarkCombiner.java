@@ -18,10 +18,10 @@
 
 package org.apache.flink.api.common;
 
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 
 public interface WatermarkCombiner {
-    void combineWatermark(GenericWatermark watermark, Context context, WatermarkOutput output) throws Exception;
+    void combineWatermark(Watermark watermark, Context context, WatermarkOutput output) throws Exception;
 
     /** This interface provides information of all channels. */
     interface Context {

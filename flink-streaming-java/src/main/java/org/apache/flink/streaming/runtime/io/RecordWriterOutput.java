@@ -19,7 +19,7 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.WatermarkDeclaration;
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.InternalWatermark;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -163,7 +163,7 @@ public class RecordWriterOutput<OUT>
 
     @Override
     public void emitWatermark(WatermarkEvent mark) {
-        GenericWatermark genericWatermark = mark.getGenericWatermark();
+        Watermark genericWatermark = mark.getWatermark();
         // TODOJEY
         if (!(genericWatermark instanceof TimestampWatermark)) {
             serializationDelegate.setInstance(mark);

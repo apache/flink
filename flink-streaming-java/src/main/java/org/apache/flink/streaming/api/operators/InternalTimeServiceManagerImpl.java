@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
@@ -243,7 +243,7 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
     @Override
     public void advanceWatermark(WatermarkEvent watermark) throws Exception {
         for (InternalTimerServiceImpl<?, ?> service : timerServices.values()) {
-            GenericWatermark genericWatermark = watermark.getGenericWatermark();
+            Watermark genericWatermark = watermark.getWatermark();
             if (genericWatermark instanceof TimestampWatermark) {
                 service.advanceWatermark(((TimestampWatermark) genericWatermark).getTimestamp());
             }

@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.connector.source.ExternallyInducedSourceReader;
 import org.apache.flink.api.connector.source.SourceReader;
@@ -324,7 +324,7 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
 
         @Override
         public void emitWatermark(WatermarkEvent watermark) {
-            GenericWatermark genericWatermark = watermark.getGenericWatermark();
+            Watermark genericWatermark = watermark.getWatermark();
             if (genericWatermark instanceof TimestampWatermark) {
                 long watermarkTimestamp = ((TimestampWatermark) genericWatermark).getTimestamp();
                 if (inputWatermarkGauge != null) {

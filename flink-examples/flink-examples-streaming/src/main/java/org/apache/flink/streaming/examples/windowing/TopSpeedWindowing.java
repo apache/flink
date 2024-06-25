@@ -22,7 +22,7 @@ import org.apache.flink.api.common.WatermarkCombiner;
 import org.apache.flink.api.common.WatermarkDeclaration;
 import org.apache.flink.api.common.WatermarkOutput;
 import org.apache.flink.api.common.WatermarkPolicy;
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -176,7 +176,7 @@ public class TopSpeedWindowing {
 
                     @Override
                     public void onWatermark(
-                            GenericWatermark watermark,
+                            Watermark watermark,
                             Collector<Integer> output,
                             NonPartitionedContext<Integer> ctx) {
                         // this will be called since watermarkPolicy is defined to POP
@@ -188,7 +188,7 @@ public class TopSpeedWindowing {
                     public WatermarkPolicy watermarkPolicy() {
                         return new WatermarkPolicy() {
                             @Override
-                            public WatermarkResult useWatermark(GenericWatermark watermark) {
+                            public WatermarkResult useWatermark(Watermark watermark) {
                                 return WatermarkResult.POP;
                             }
                         };
@@ -220,7 +220,7 @@ public class TopSpeedWindowing {
                     public WatermarkPolicy watermarkPolicy() {
                         return new WatermarkPolicy() {
                             @Override
-                            public WatermarkResult useWatermark(GenericWatermark watermark) {
+                            public WatermarkResult useWatermark(Watermark watermark) {
                                 // We want to handle Watermarks explicitly, so, onWatermark will be called back
                                 return WatermarkResult.POP;
                             }
@@ -229,7 +229,7 @@ public class TopSpeedWindowing {
 
                     @Override
                     public void onWatermark(
-                            GenericWatermark watermark,
+                            Watermark watermark,
                             Collector<Integer> output,
                             NonPartitionedContext<Integer> ctx) {
                         // this will be called since watermarkPolicy is defined to POP
@@ -244,7 +244,7 @@ public class TopSpeedWindowing {
         env.execute("testjob");
     }
 
-    public static class CustomWatermark implements GenericWatermark {
+    public static class CustomWatermark implements Watermark {
         String strPayload;
 
         public CustomWatermark(String strPayload) {
@@ -262,19 +262,19 @@ public class TopSpeedWindowing {
         public WatermarkSerde declaredWatermark() {
             return new WatermarkSerde() {
                 @Override
-                public Class<? extends GenericWatermark> watermarkClass() {
+                public Class<? extends Watermark> watermarkClass() {
                     return CustomWatermark.class;
                 }
 
                 @Override
                 public void serialize(
-                        GenericWatermark genericWatermark,
+                        Watermark genericWatermark,
                         DataOutputView target) throws IOException {
                     target.writeUTF(((CustomWatermark) genericWatermark).getStrPayload());
                 }
 
                 @Override
-                public GenericWatermark deserialize(DataInputView inputView) throws IOException {
+                public Watermark deserialize(DataInputView inputView) throws IOException {
                     return new CustomWatermark(inputView.readUTF());
                 }
             };
@@ -285,7 +285,7 @@ public class TopSpeedWindowing {
             return new WatermarkCombiner() {
                 @Override
                 public void combineWatermark(
-                        GenericWatermark watermark,
+                        Watermark watermark,
                         Context context,
                         WatermarkOutput output) throws Exception {
                     if (!(watermark instanceof CustomWatermark)) {

@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.co;
 
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -396,7 +396,7 @@ class CoBroadcastWithKeyedOperatorTest {
             Object firstRawWm = output.poll();
             assertThat(firstRawWm).isInstanceOf(WatermarkEvent.class);
             WatermarkEvent firstWm = (WatermarkEvent) firstRawWm;
-            GenericWatermark genericWatermark = firstWm.getGenericWatermark();
+            Watermark genericWatermark = firstWm.getWatermark();
             assertThat(genericWatermark).isInstanceOf(TimestampWatermark.class);
             assertThat(((TimestampWatermark) genericWatermark).getTimestamp()).isEqualTo(10L);
 
@@ -415,7 +415,7 @@ class CoBroadcastWithKeyedOperatorTest {
             Object secondRawWm = output.poll();
             assertThat(secondRawWm).isInstanceOf(WatermarkEvent.class);
             WatermarkEvent secondWm = (WatermarkEvent) secondRawWm;
-            GenericWatermark genericWatermarkSecond = secondWm.getGenericWatermark();
+            Watermark genericWatermarkSecond = secondWm.getWatermark();
             assertThat(genericWatermarkSecond).isInstanceOf(TimestampWatermark.class);
             assertThat(((TimestampWatermark) genericWatermarkSecond).getTimestamp()).isEqualTo(50L);
         }

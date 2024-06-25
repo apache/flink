@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.functions;
 
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 
@@ -41,7 +41,7 @@ class IngestionTimeExtractorTest {
                 WatermarkEvent mark = assigner.getCurrentWatermark();
                 assertThat(mark).isNotNull();
 
-                GenericWatermark genericWatermark = mark.getGenericWatermark();
+                Watermark genericWatermark = mark.getWatermark();
                 assertThat(genericWatermark).isInstanceOf(TimestampWatermark.class);
 
                 // increasing watermarks

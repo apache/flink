@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
@@ -72,7 +72,7 @@ public class ProcessOperator<IN, OUT>
     @Override
     public void processWatermark(WatermarkEvent mark) throws Exception {
         super.processWatermark(mark);
-        GenericWatermark genericWatermark = mark.getGenericWatermark();
+        Watermark genericWatermark = mark.getWatermark();
         if (genericWatermark instanceof TimestampWatermark) {
             this.currentWatermark = ((TimestampWatermark) genericWatermark).getTimestamp();
         }

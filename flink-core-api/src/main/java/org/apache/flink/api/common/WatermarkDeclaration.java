@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common;
 
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -41,14 +41,14 @@ public interface WatermarkDeclaration extends Serializable {
     WatermarkCombiner watermarkCombiner();
 
 
-    /** Declaration for GenericWatermark classes. Note that the subclasses of this interface should
+    /** Declaration for Watermark classes. Note that the subclasses of this interface should
      * ensure zero-argument constructor. */
     interface WatermarkSerde extends Serializable {
-        Class<? extends GenericWatermark> watermarkClass();
+        Class<? extends Watermark> watermarkClass();
 
-        void serialize(GenericWatermark genericWatermark, DataOutputView target) throws IOException;
+        void serialize(Watermark genericWatermark, DataOutputView target) throws IOException;
 
-        GenericWatermark deserialize(DataInputView inputView) throws IOException;
+        Watermark deserialize(DataInputView inputView) throws IOException;
     }
 }
 

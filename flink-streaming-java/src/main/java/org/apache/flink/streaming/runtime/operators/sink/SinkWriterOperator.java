@@ -17,9 +17,9 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
-import org.apache.flink.api.common.eventtime.GenericWatermark;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.serialization.SerializationSchema.InitializationContext;
 import org.apache.flink.api.common.state.ListState;
@@ -175,7 +175,7 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
     @Override
     public void processWatermark(WatermarkEvent mark) throws Exception {
         super.processWatermark(mark);
-        GenericWatermark genericWatermark = mark.getGenericWatermark();
+        Watermark genericWatermark = mark.getWatermark();
         if (genericWatermark instanceof TimestampWatermark) {
             long ts = ((TimestampWatermark) genericWatermark).getTimestamp();
             this.currentWatermark = ts;

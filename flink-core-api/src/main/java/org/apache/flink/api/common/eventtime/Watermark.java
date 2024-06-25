@@ -23,10 +23,10 @@ import org.apache.flink.annotation.Public;
 import java.io.Serializable;
 
 /**
- * {@link GenericWatermark} are indicators in the data streams. Note that indicator in this case is
- * an abstract term. There can be different implementations of {@link GenericWatermark} to show
+ * {@link Watermark} are indicators in the data streams. Note that indicator in this case is
+ * an abstract term. There can be different implementations of {@link Watermark} to show
  * the concrete indicator
  */
 @Public
-public interface GenericWatermark extends Serializable {
+public interface Watermark extends Serializable {
 }

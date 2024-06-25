@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common;
 
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -33,7 +33,7 @@ public interface WatermarkPolicy extends Serializable {
     /**
      * Define watermark responsibility. For a given watermark, this method returns WatermarkResult.
      * */
-    WatermarkResult useWatermark(GenericWatermark watermark);
+    WatermarkResult useWatermark(Watermark watermark);
 
     enum WatermarkResult {
         /**  Peek the watermark. The respobsibility to propagate is on the framework */

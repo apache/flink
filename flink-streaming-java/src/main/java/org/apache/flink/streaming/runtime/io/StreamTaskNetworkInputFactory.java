@@ -20,7 +20,7 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.WatermarkCombiner;
 import org.apache.flink.api.common.WatermarkDeclaration;
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;

@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.watermark.WatermarkEvent;
@@ -45,7 +45,7 @@ public class FinishedOnRestoreInput<IN> implements Input<IN> {
 
     @Override
     public void processWatermark(WatermarkEvent watermark) {
-        GenericWatermark genericWatermark = watermark.getGenericWatermark();
+        Watermark genericWatermark = watermark.getWatermark();
         if (genericWatermark instanceof TimestampWatermark
                 && ((TimestampWatermark) genericWatermark).getTimestamp()
                         != TimestampWatermark.MAX_WATERMARK.getTimestamp()) {

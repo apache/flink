@@ -18,7 +18,7 @@
 
 package org.apache.flink.connector.file.table.stream;
 
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StateInitializationContext;
@@ -136,7 +136,7 @@ public abstract class AbstractStreamingWriter<IN, OUT> extends AbstractStreamOpe
     @Override
     public void processWatermark(WatermarkEvent mark) throws Exception {
         super.processWatermark(mark);
-        GenericWatermark genericWatermark = mark.getGenericWatermark();
+        Watermark genericWatermark = mark.getWatermark();
         if (genericWatermark instanceof TimestampWatermark) {
             currentWatermark = ((TimestampWatermark) genericWatermark).getTimestamp();
         }

@@ -21,7 +21,7 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -57,10 +57,8 @@ import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 
@@ -283,7 +281,7 @@ public class StreamMultipleInputProcessorFactory {
 
         @Override
         public void emitWatermark(WatermarkEvent watermark) throws Exception {
-            GenericWatermark genericWatermark = watermark.getGenericWatermark();
+            Watermark genericWatermark = watermark.getWatermark();
             if (genericWatermark instanceof TimestampWatermark) {
                 inputWatermarkGauge.setCurrentWatermark(
                         ((TimestampWatermark) genericWatermark).getTimestamp());

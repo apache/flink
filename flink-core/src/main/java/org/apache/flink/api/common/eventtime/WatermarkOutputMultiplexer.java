@@ -166,7 +166,7 @@ public class WatermarkOutputMultiplexer {
         }
 
         @Override
-        public void emitWatermark(GenericWatermark watermark) {
+        public void emitWatermark(Watermark watermark) {
             assert (watermark instanceof TimestampWatermark);
 
             long timestamp = ((TimestampWatermark) watermark).getTimestamp();
@@ -211,7 +211,7 @@ public class WatermarkOutputMultiplexer {
         }
 
         @Override
-        public void emitWatermark(GenericWatermark watermark) {
+        public void emitWatermark(Watermark watermark) {
             assert (watermark instanceof TimestampWatermark);
             state.setWatermark(((TimestampWatermark) watermark).getTimestamp());
         }

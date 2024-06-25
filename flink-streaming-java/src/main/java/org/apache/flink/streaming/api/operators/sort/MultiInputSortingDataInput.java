@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.api.operators.sort;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -420,7 +420,7 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
 
         @Override
         public void emitWatermark(WatermarkEvent watermark) {
-            GenericWatermark genericWatermark = watermark.getGenericWatermark();
+            Watermark genericWatermark = watermark.getWatermark();
             if (!(genericWatermark instanceof TimestampWatermark)) {
                 return;
             }

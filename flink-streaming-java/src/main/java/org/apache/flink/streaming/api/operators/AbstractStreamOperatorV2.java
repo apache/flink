@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.IndexedCombinedWatermarkStatus;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.state.KeyedStateStore;
@@ -490,7 +490,7 @@ public abstract class AbstractStreamOperatorV2<OUT>
     }
 
     protected void reportWatermark(WatermarkEvent mark, int inputId) throws Exception {
-        GenericWatermark genericWatermark = mark.getGenericWatermark();
+        Watermark genericWatermark = mark.getWatermark();
         if (genericWatermark instanceof TimestampWatermark
                 && combinedWatermark.updateWatermark(
                         inputId - 1, ((TimestampWatermark) genericWatermark).getTimestamp())) {

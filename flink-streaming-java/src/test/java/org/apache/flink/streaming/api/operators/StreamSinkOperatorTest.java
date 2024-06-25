@@ -88,7 +88,7 @@ class StreamSinkOperatorTest {
         // watermark, processing-time, timestamp, event
         private final List<Tuple4<Long, Long, Long, T>> data;
 
-        private final List<org.apache.flink.api.common.eventtime.GenericWatermark> watermarks;
+        private final List<org.apache.flink.api.common.eventtime.Watermark> watermarks;
 
         public BufferingQueryingSink() {
             data = new ArrayList<>();
@@ -116,7 +116,7 @@ class StreamSinkOperatorTest {
         }
 
         @Override
-        public void writeWatermark(org.apache.flink.api.common.eventtime.GenericWatermark watermark)
+        public void writeWatermark(org.apache.flink.api.common.eventtime.Watermark watermark)
                 throws Exception {
             watermarks.add(watermark);
         }

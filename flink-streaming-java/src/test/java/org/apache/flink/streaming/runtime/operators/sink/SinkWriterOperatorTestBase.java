@@ -692,14 +692,14 @@ abstract class SinkWriterOperatorTestBase {
     static class SinkAndSuppliers {
         org.apache.flink.api.connector.sink2.Sink<Integer> sink;
         Supplier<List<String>> elementSupplier;
-        Supplier<List<org.apache.flink.api.common.eventtime.GenericWatermark>> watermarkSupplier;
+        Supplier<List<org.apache.flink.api.common.eventtime.Watermark>> watermarkSupplier;
         LongSupplier lastCheckpointSupplier;
         Supplier<SimpleVersionedSerializer<String>> serializerSupplier;
 
         public SinkAndSuppliers(
                 org.apache.flink.api.connector.sink2.Sink<Integer> sink,
                 Supplier<List<String>> elementSupplier,
-                Supplier<List<org.apache.flink.api.common.eventtime.GenericWatermark>>
+                Supplier<List<org.apache.flink.api.common.eventtime.Watermark>>
                         watermarkSupplier,
                 LongSupplier lastCheckpointSupplier,
                 Supplier<SimpleVersionedSerializer<String>> serializerSupplier) {

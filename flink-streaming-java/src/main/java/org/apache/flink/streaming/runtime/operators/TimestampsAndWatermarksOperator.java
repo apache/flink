@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.runtime.operators;
 
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.NoWatermarksGenerator;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
@@ -120,7 +120,7 @@ public class TimestampsAndWatermarksOperator<T> extends AbstractStreamOperator<T
     @Override
     public void processWatermark(org.apache.flink.streaming.api.watermark.WatermarkEvent mark)
             throws Exception {
-        GenericWatermark genericWatermark = mark.getGenericWatermark();
+        Watermark genericWatermark = mark.getWatermark();
         if (!(genericWatermark instanceof TimestampWatermark)) {
             wmOutput.emitWatermark(genericWatermark);
             return;
@@ -162,7 +162,7 @@ public class TimestampsAndWatermarksOperator<T> extends AbstractStreamOperator<T
         }
 
         @Override
-        public void emitWatermark(GenericWatermark watermark) {
+        public void emitWatermark(Watermark watermark) {
             assert (watermark instanceof TimestampWatermark);
 
             final long ts = ((TimestampWatermark) watermark).getTimestamp();

@@ -20,7 +20,7 @@ package org.apache.flink.streaming.runtime.watermarkstatus;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.InternalWatermark;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
@@ -155,7 +155,7 @@ public class StatusWatermarkValve {
     public void inputWatermark(WatermarkEvent watermark, int channelIndex, DataOutput<?> output)
             throws Exception {
         final SubpartitionStatus subpartitionStatus;
-        GenericWatermark genericWatermark = watermark.getGenericWatermark();
+        Watermark genericWatermark = watermark.getWatermark();
         if (genericWatermark instanceof InternalWatermark) {
             int subpartitionStatusIndex =
                     ((InternalWatermark) genericWatermark).getSubpartitionIndex();

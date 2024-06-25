@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.OpenContext;
@@ -1121,7 +1121,7 @@ class OneInputStreamTaskTest {
 
         @Override
         public void processWatermark(WatermarkEvent mark) {
-            GenericWatermark genericWatermark = mark.getGenericWatermark();
+            Watermark genericWatermark = mark.getWatermark();
             assertThat(genericWatermark).isInstanceOf(TimestampWatermark.class);
             output.emitWatermark(
                     new WatermarkEvent(

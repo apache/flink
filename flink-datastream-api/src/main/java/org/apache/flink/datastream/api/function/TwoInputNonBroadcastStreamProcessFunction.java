@@ -19,7 +19,7 @@
 package org.apache.flink.datastream.api.function;
 
 import org.apache.flink.annotation.Experimental;
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.datastream.api.common.Collector;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.PartitionedContext;
@@ -81,7 +81,7 @@ public interface TwoInputNonBroadcastStreamProcessFunction<IN1, IN2, OUT> extend
      * @param ctx, runtime context in which this function is executed.
      */
     default void onWatermarkFromFirstInput(
-            GenericWatermark watermark,
+            Watermark watermark,
             Collector<OUT> output,
             NonPartitionedContext<OUT> ctx) {
     }
@@ -94,7 +94,7 @@ public interface TwoInputNonBroadcastStreamProcessFunction<IN1, IN2, OUT> extend
      * @param ctx, runtime context in which this function is executed.
      */
     default void onWatermarkFromSecondInput(
-            GenericWatermark watermark,
+            Watermark watermark,
             Collector<OUT> output,
             NonPartitionedContext<OUT> ctx) {
     }

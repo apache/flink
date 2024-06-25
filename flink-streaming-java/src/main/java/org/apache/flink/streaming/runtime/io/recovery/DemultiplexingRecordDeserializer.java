@@ -18,8 +18,8 @@
 package org.apache.flink.streaming.runtime.io.recovery;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.eventtime.GenericWatermark;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.SubtaskConnectionDescriptor;
@@ -161,12 +161,12 @@ class DemultiplexingRecordDeserializer<T>
                     return result;
                 } else if (element.isWatermark()) {
                     // basically, do not emit a watermark if not all virtual channel are past it
-                    final GenericWatermark minWatermark =
+                    final Watermark minWatermark =
                             channels.values().stream()
                                     .map(
                                             virtualChannel ->
                                                     virtualChannel.lastWatermark
-                                                            .getGenericWatermark())
+                                                            .getWatermark())
                                     .filter(w -> w instanceof TimestampWatermark)
                                     .map(w -> (TimestampWatermark) w)
                                     .min(Comparator.comparing(TimestampWatermark::getTimestamp))

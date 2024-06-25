@@ -19,7 +19,7 @@
 package org.apache.flink.datastream.impl.context;
 
 import org.apache.flink.api.common.WatermarkManager;
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -32,7 +32,7 @@ public class DefaultWatermarkManager implements WatermarkManager {
     }
 
     @Override
-    public void emitWatermark(GenericWatermark watermark) {
+    public void emitWatermark(Watermark watermark) {
         this.streamRecordOutput.emitWatermark(new WatermarkEvent(watermark));
     }
 }

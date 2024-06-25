@@ -42,7 +42,7 @@ import java.util.Date;
  * records in the stream with a timestamp of {@code Long.MIN_VALUE} are immediately late.
  */
 @Public
-public class TimestampWatermark implements GenericWatermark {
+public class TimestampWatermark implements Watermark {
 
     private static final long serialVersionUID = 1L;
 

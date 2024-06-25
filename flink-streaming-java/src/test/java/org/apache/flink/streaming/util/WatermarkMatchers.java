@@ -35,7 +35,7 @@ public class WatermarkMatchers {
                 equalTo(timestamp), "a watermark with value", "value of watermark") {
             @Override
             protected Long featureValueOf(WatermarkEvent actual) {
-                return ((TimestampWatermark) (actual.getGenericWatermark())).getTimestamp();
+                return ((TimestampWatermark) (actual.getWatermark())).getTimestamp();
             }
         };
     }

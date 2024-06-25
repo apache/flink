@@ -21,10 +21,8 @@ import org.apache.flink.api.common.ReusableWatermarkContext;
 import org.apache.flink.api.common.WatermarkCombiner;
 import org.apache.flink.api.common.WatermarkDeclaration;
 import org.apache.flink.api.common.WatermarkOutput;
-import org.apache.flink.api.common.eventtime.GenericWatermark;
-import org.apache.flink.api.common.eventtime.InternalWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
-import org.apache.flink.api.common.eventtime.UnsupportedWatermarkCombiner;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.AbstractEvent;
@@ -78,7 +76,7 @@ public abstract class AbstractStreamTaskNetworkInput<
     private R currentRecordDeserializer = null;
     private final ReusableWatermarkContext reusableWatermarkContext;
     protected final CanEmitBatchOfRecordsChecker canEmitBatchOfRecords;
-    protected final Map<Class<? extends GenericWatermark>, WatermarkCombiner> watermarkCombiners = new HashMap<>();
+    protected final Map<Class<? extends Watermark>, WatermarkCombiner> watermarkCombiners = new HashMap<>();
     public AbstractStreamTaskNetworkInput(
             CheckpointedInputGate checkpointedInputGate,
             TypeSerializer<T> inputSerializer,
@@ -178,7 +176,7 @@ public abstract class AbstractStreamTaskNetworkInput<
             output.emitRecord(streamElement.asRecord());
             return false;
         } else if (streamElement.isWatermark()) {
-            GenericWatermark genericWatermark = streamElement.asWatermark().getGenericWatermark();
+            Watermark genericWatermark = streamElement.asWatermark().getWatermark();
             if (genericWatermark instanceof TimestampWatermark) {
                 statusWatermarkValve.inputWatermark(
                         streamElement.asWatermark(), flattenedChannelIndices.get(lastChannel), output);

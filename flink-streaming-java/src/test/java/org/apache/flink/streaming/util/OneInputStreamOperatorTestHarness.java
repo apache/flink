@@ -20,6 +20,7 @@ package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.eventtime.GenericWatermark;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
@@ -246,7 +247,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
     }
 
     public void processWatermark(WatermarkEvent mark) throws Exception {
-        GenericWatermark genericWatermark = mark.getGenericWatermark();
+        Watermark genericWatermark = mark.getWatermark();
         assert (genericWatermark instanceof TimestampWatermark);
         currentWatermark = ((TimestampWatermark) genericWatermark).getTimestamp();
         if (inputs.isEmpty()) {

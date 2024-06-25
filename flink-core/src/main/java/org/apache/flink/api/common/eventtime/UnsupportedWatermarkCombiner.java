@@ -6,7 +6,7 @@ import org.apache.flink.api.common.WatermarkOutput;
 public class UnsupportedWatermarkCombiner implements WatermarkCombiner {
     @Override
     public void combineWatermark(
-            GenericWatermark watermark,
+            Watermark watermark,
             Context context,
             WatermarkOutput output) throws Exception {
         throw new UnsupportedOperationException(

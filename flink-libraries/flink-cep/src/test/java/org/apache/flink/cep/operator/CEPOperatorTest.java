@@ -18,7 +18,7 @@
 
 package org.apache.flink.cep.operator;
 
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.ValueState;
@@ -345,7 +345,7 @@ public class CEPOperatorTest extends TestLogger {
             Object watermark1 = result.poll();
 
             assertTrue(watermark1 instanceof WatermarkEvent);
-            GenericWatermark genericWatermark = ((WatermarkEvent) watermark1).getGenericWatermark();
+            Watermark genericWatermark = ((WatermarkEvent) watermark1).getWatermark();
             assertTrue(genericWatermark instanceof TimestampWatermark);
 
             assertEquals(
@@ -360,7 +360,7 @@ public class CEPOperatorTest extends TestLogger {
 
             assertTrue(watermark2 instanceof WatermarkEvent);
 
-            genericWatermark = ((WatermarkEvent) watermark2).getGenericWatermark();
+            genericWatermark = ((WatermarkEvent) watermark2).getWatermark();
             assertTrue(genericWatermark instanceof TimestampWatermark);
             assertEquals(
                     watermarkTimestamp2, ((TimestampWatermark) genericWatermark).getTimestamp());
@@ -1172,7 +1172,7 @@ public class CEPOperatorTest extends TestLogger {
 
     private void verifyWatermark(Object outputObject, long timestamp) {
         assertTrue(outputObject instanceof WatermarkEvent);
-        GenericWatermark genericWatermark = ((WatermarkEvent) outputObject).getGenericWatermark();
+        Watermark genericWatermark = ((WatermarkEvent) outputObject).getWatermark();
         assertTrue(genericWatermark instanceof TimestampWatermark);
         assertEquals(timestamp, ((TimestampWatermark) genericWatermark).getTimestamp());
     }

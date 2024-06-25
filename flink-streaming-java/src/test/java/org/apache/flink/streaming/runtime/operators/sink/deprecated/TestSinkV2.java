@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators.sink.deprecated;
 
-import org.apache.flink.api.common.eventtime.GenericWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
@@ -270,7 +270,7 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
 
         public List<String> elements;
 
-        public List<GenericWatermark> watermarks;
+        public List<Watermark> watermarks;
 
         public DefaultSinkWriter() {
             this.elements = new ArrayList<>();
@@ -289,7 +289,7 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
         }
 
         @Override
-        public void writeWatermark(GenericWatermark watermark) {
+        public void writeWatermark(Watermark watermark) {
             watermarks.add(watermark);
         }
 
