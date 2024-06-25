@@ -444,7 +444,7 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                 .rootCause()
                 .isInstanceOf(ValidationException.class)
                 .hasMessage(
-                        "Currently, manually refreshing materialized table only supports specifying char and string type partition keys. All specific partition keys with unsupported types are:\n"
+                        "Currently, refreshing materialized table only supports referring to char, varchar and string type partition keys. All specified partition keys in partition specs with unsupported types are:\n"
                                 + "\n"
                                 + "ds2");
     }
