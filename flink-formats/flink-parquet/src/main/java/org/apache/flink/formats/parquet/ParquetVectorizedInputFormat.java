@@ -405,7 +405,7 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
         }
 
         private void readNextRowGroup() throws IOException {
-            PageReadStore pages = reader.readNextRowGroup();
+            PageReadStore pages = reader.readNextFilteredRowGroup();
             if (pages == null) {
                 throw new IOException(
                         "expecting more rows but reached last block. Read "
