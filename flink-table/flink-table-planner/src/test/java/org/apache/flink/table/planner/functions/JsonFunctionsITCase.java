@@ -451,21 +451,28 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 // stringifying RETURNING<ARRAY>
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_QUERY)
                         .onFieldsWithData(
-                                "{\"items\": [{\"itemId\":1234, \"count\":10}, {\"itemId\":4567, \"count\":11}]}",
-                                "{\"items\": [[1234, 2345], [\"itemId\", \"count\"]]}")
-                        .andDataTypes(STRING(), STRING())
+                                "{\"items\": [{\"itemId\":1234, \"count\":10}, null, {\"itemId\":4567, \"count\":11}]}",
+                                "{\"items\": [[1234, 2345], null, [\"itemId\", \"count\"]]}",
+                                "{\"arr\": [\"abc\", null, \"def\"]}")
+                        .andDataTypes(STRING(), STRING(), STRING())
                         .testResult(
                                 $("f0").jsonQuery("$.items", ARRAY(STRING())),
                                 "JSON_QUERY(f0, '$.items' RETURNING ARRAY<STRING>)",
                                 new String[] {
                                     "{\"itemId\":1234,\"count\":10}",
+                                    null,
                                     "{\"itemId\":4567,\"count\":11}"
                                 },
                                 ARRAY(STRING()))
                         .testResult(
                                 $("f1").jsonQuery("$.items", ARRAY(STRING())),
                                 "JSON_QUERY(f1, '$.items' RETURNING ARRAY<STRING>)",
-                                new String[] {"[1234,2345]", "[\"itemId\",\"count\"]"},
+                                new String[] {"[1234,2345]", null, "[\"itemId\",\"count\"]"},
+                                ARRAY(STRING()))
+                        .testResult(
+                                $("f2").jsonQuery("$.arr", ARRAY(STRING())),
+                                "JSON_QUERY(f2, '$.arr' RETURNING ARRAY<STRING>)",
+                                new String[] {"abc", null, "def"},
                                 ARRAY(STRING())),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_QUERY)
                         .onFieldsWithData(jsonValue)
