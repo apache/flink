@@ -20,7 +20,7 @@ package org.apache.flink.table.file.testutils;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.table.FileSystemTableSink;
-import org.apache.flink.connector.file.table.TestFileSystemTableSource;
+import org.apache.flink.connector.file.table.FileSystemTableSource;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -64,7 +64,7 @@ public class TestFileSystemTableFactoryTest {
         options.put("partition.fields.f1.date-formatter", "yyyy-MM-dd");
 
         DynamicTableSource source = createTableSource(SCHEMA, options);
-        assertThat(source).isInstanceOf(TestFileSystemTableSource.class);
+        assertThat(source).isInstanceOf(FileSystemTableSource.class);
 
         DynamicTableSink sink = createTableSink(SCHEMA, options);
         assertThat(sink).isInstanceOf(FileSystemTableSink.class);
@@ -79,11 +79,11 @@ public class TestFileSystemTableFactoryTest {
         options.put("source.monitor-interval", "5S");
 
         DynamicTableSource source = createTableSource(SCHEMA, options);
-        assertThat(source).isInstanceOf(TestFileSystemTableSource.class);
+        assertThat(source).isInstanceOf(FileSystemTableSource.class);
 
         // assert source is unbounded when specify source.monitor-interval
         ScanTableSource.ScanRuntimeProvider scanRuntimeProvider =
-                ((TestFileSystemTableSource) source)
+                ((FileSystemTableSource) source)
                         .getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
         assertThat(scanRuntimeProvider.isBounded()).isFalse();
     }
@@ -100,11 +100,11 @@ public class TestFileSystemTableFactoryTest {
         configuration.set(RUNTIME_MODE, BATCH);
 
         DynamicTableSource source = createTableSource(SCHEMA, options, configuration);
-        assertThat(source).isInstanceOf(TestFileSystemTableSource.class);
+        assertThat(source).isInstanceOf(FileSystemTableSource.class);
 
-        // assert source is unbounded when specify source.monitor-interval
+        // assert source is bounded when specify source.monitor-interval and in batch mode
         ScanTableSource.ScanRuntimeProvider scanRuntimeProvider =
-                ((TestFileSystemTableSource) source)
+                ((FileSystemTableSource) source)
                         .getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
         assertThat(scanRuntimeProvider.isBounded()).isTrue();
     }

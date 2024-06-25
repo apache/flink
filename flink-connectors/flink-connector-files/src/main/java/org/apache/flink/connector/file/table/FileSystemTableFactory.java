@@ -149,7 +149,7 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
                 .collect(Collectors.toSet());
     }
 
-    private void validate(FactoryUtil.TableFactoryHelper helper) {
+    protected void validate(FactoryUtil.TableFactoryHelper helper) {
         // Except format options, some formats like parquet and orc can not list all supported
         // options.
         helper.validateExcept(helper.getOptions().get(FactoryUtil.FORMAT) + ".");
@@ -160,7 +160,7 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
                         .get(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE));
     }
 
-    private <I, F extends DecodingFormatFactory<I>> DecodingFormat<I> discoverDecodingFormat(
+    protected <I, F extends DecodingFormatFactory<I>> DecodingFormat<I> discoverDecodingFormat(
             Context context, Class<F> formatFactoryClass) {
         FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
         if (formatFactoryExists(context, formatFactoryClass)) {
