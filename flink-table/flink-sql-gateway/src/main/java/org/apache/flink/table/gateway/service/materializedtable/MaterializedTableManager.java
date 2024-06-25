@@ -581,7 +581,7 @@ public class MaterializedTableManager {
 
         try {
             LOG.info(
-                    "Begin to manually refreshing the materialized table {}, statement: {}",
+                    "Begin to refreshing the materialized table {}, statement: {}",
                     materializedTableIdentifier,
                     insertStatement);
             ResultFetcher resultFetcher =
@@ -610,7 +610,7 @@ public class MaterializedTableManager {
         } catch (Exception e) {
             throw new SqlExecutionException(
                     String.format(
-                            "Manually refreshing the materialized table %s occur exception.",
+                            "Refreshing the materialized table %s occur exception.",
                             materializedTableIdentifier),
                     e);
         }
@@ -697,8 +697,8 @@ public class MaterializedTableManager {
         if (!nonStringPartitionKeys.isEmpty()) {
             throw new ValidationException(
                     String.format(
-                            "Currently, manually refreshing materialized table only supports specifying char and string type"
-                                    + " partition keys. All specific partition keys with unsupported types are:\n\n%s",
+                            "Currently, refreshing materialized table only supports referring to char, varchar and string type"
+                                    + " partition keys. All specified partition keys in partition specs with unsupported types are:\n\n%s",
                             String.join("\n", nonStringPartitionKeys)));
         }
     }

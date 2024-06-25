@@ -22,8 +22,14 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.IntervalFreshness;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableRefreshOperation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableResumeOperation;
@@ -33,6 +39,7 @@ import org.apache.flink.table.operations.materializedtable.DropMaterializedTable
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMap;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -46,6 +53,26 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Test for the materialized table statements for {@link SqlNodeToOperationConversion}. */
 public class SqlMaterializedTableNodeToOperationConverterTest
         extends SqlNodeToOperationConversionTestBase {
+
+    @BeforeEach
+    public void before() throws TableAlreadyExistException, DatabaseNotExistException {
+        super.before();
+        final ObjectPath path3 = new ObjectPath(catalogManager.getCurrentDatabase(), "t3");
+        final Schema tableSchema =
+                Schema.newBuilder()
+                        .fromResolvedSchema(
+                                ResolvedSchema.of(
+                                        Column.physical("a", DataTypes.BIGINT().notNull()),
+                                        Column.physical("b", DataTypes.VARCHAR(Integer.MAX_VALUE)),
+                                        Column.physical("c", DataTypes.INT()),
+                                        Column.physical("d", DataTypes.VARCHAR(Integer.MAX_VALUE))))
+                        .build();
+        Map<String, String> options = new HashMap<>();
+        options.put("connector", "COLLECTION");
+        final CatalogTable catalogTable =
+                CatalogTable.of(tableSchema, "", Arrays.asList("b", "c"), options);
+        catalog.createTable(path3, catalogTable, true);
+    }
 
     @Test
     void testCreateMaterializedTable() {
@@ -236,6 +263,47 @@ public class SqlMaterializedTableNodeToOperationConverterTest
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
                         "Partition column 'e' not defined in the query schema. Available columns: ['a', 'b', 'c', 'd'].");
+
+        final String sql2 =
+                "CREATE MATERIALIZED TABLE mtbl1\n"
+                        + "PARTITIONED BY (b, c)\n"
+                        + "WITH (\n"
+                        + " 'partition.fields.ds.date-formatter' = 'yyyy-MM-dd'\n"
+                        + ")\n"
+                        + "FRESHNESS = INTERVAL '30' SECOND\n"
+                        + "REFRESH_MODE = FULL\n"
+                        + "AS SELECT * FROM t3";
+        assertThatThrownBy(() -> parse(sql2))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Column 'ds' referenced by materialized table option 'partition.fields.ds.date-formatter' isn't a partition column. Available partition columns: ['b', 'c'].");
+
+        final String sql3 =
+                "CREATE MATERIALIZED TABLE mtbl1\n"
+                        + "WITH (\n"
+                        + " 'partition.fields.c.date-formatter' = 'yyyy-MM-dd'\n"
+                        + ")\n"
+                        + "FRESHNESS = INTERVAL '30' SECOND\n"
+                        + "REFRESH_MODE = FULL\n"
+                        + "AS SELECT * FROM t3";
+        assertThatThrownBy(() -> parse(sql3))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Column 'c' referenced by materialized table option 'partition.fields.c.date-formatter' isn't a partition column. Available partition columns: [''].");
+
+        final String sql4 =
+                "CREATE MATERIALIZED TABLE mtbl1\n"
+                        + "PARTITIONED BY (b, c)\n"
+                        + "WITH (\n"
+                        + " 'partition.fields.c.date-formatter' = 'yyyy-MM-dd'\n"
+                        + ")\n"
+                        + "FRESHNESS = INTERVAL '30' SECOND\n"
+                        + "REFRESH_MODE = FULL\n"
+                        + "AS SELECT * FROM t3";
+        assertThatThrownBy(() -> parse(sql4))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Materialized table option 'partition.fields.c.date-formatter' only supports referring to char, varchar and string type partition column. Column c type is INT.");
     }
 
     @Test
