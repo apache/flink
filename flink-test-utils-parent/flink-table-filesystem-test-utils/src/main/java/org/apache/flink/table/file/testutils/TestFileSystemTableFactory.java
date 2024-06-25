@@ -20,10 +20,11 @@ package org.apache.flink.table.file.testutils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
 import org.apache.flink.connector.file.table.FileSystemTableFactory;
-import org.apache.flink.connector.file.table.TestFileSystemTableSource;
+import org.apache.flink.connector.file.table.FileSystemTableSource;
 import org.apache.flink.connector.file.table.factories.BulkReaderFormatFactory;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -67,12 +68,16 @@ public class TestFileSystemTableFactory extends FileSystemTableFactory {
         boolean isStreamingMode =
                 context.getConfiguration().get(ExecutionOptions.RUNTIME_MODE)
                         == RuntimeExecutionMode.STREAMING;
-        return new TestFileSystemTableSource(
+        Configuration tableOptions = Configuration.fromMap(helper.getOptions().toMap());
+        if (!isStreamingMode) {
+            tableOptions.removeConfig(FileSystemConnectorOptions.SOURCE_MONITOR_INTERVAL);
+        }
+
+        return new FileSystemTableSource(
                 context.getObjectIdentifier(),
                 context.getPhysicalRowDataType(),
                 context.getCatalogTable().getPartitionKeys(),
-                helper.getOptions(),
-                isStreamingMode,
+                tableOptions,
                 discoverDecodingFormat(context, BulkReaderFormatFactory.class),
                 discoverDecodingFormat(context, DeserializationFormatFactory.class));
     }
