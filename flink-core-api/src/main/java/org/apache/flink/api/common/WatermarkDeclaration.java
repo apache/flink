@@ -27,12 +27,15 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.Set;
 
-/** This class defines watermark handling policy for ProcessOperator.*/
+/**
+ * This class defines watermark handling policy for ProcessOperator.
+ * Note that implementations of this interface must ensure to provide the default constructor.
+ */
 public interface WatermarkDeclaration extends Serializable {
     /**
      * Declare generated watermarks by its operator upfront.
      * */
-    GenericWatermarkDeclaration declaredWatermark();
+    WatermarkSerde declaredWatermark();
 
     /** Returns user-defined Watermark combiner implementation. */
     WatermarkCombiner watermarkCombiner();
@@ -40,7 +43,7 @@ public interface WatermarkDeclaration extends Serializable {
 
     /** Declaration for GenericWatermark classes. Note that the subclasses of this interface should
      * ensure zero-argument constructor. */
-    interface GenericWatermarkDeclaration extends Serializable {
+    interface WatermarkSerde extends Serializable {
         Class<? extends GenericWatermark> watermarkClass();
 
         void serialize(GenericWatermark genericWatermark, DataOutputView target) throws IOException;

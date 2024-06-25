@@ -89,7 +89,7 @@ public abstract class AbstractStreamTaskNetworkInput<
             Set<WatermarkDeclaration> watermarkDeclarationSet) {
         super();
         this.checkpointedInputGate = checkpointedInputGate;
-        List<WatermarkDeclaration.GenericWatermarkDeclaration> watermarkDeclarations = watermarkDeclarationSet.stream().map(w -> w.declaredWatermark()).collect(
+        List<WatermarkDeclaration.WatermarkSerde> watermarkDeclarations = watermarkDeclarationSet.stream().map(w -> w.declaredWatermark()).collect(
                 Collectors.toList());
         deserializationDelegate =
                 new NonReusingDeserializationDelegate<>(

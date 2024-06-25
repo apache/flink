@@ -19,15 +19,14 @@
 package org.apache.flink.datastream.impl.operators;
 
 import org.apache.flink.api.common.TaskInfo;
-import org.apache.flink.api.common.WatermarkCombiner;
 import org.apache.flink.api.common.WatermarkDeclaration;
 import org.apache.flink.api.common.WatermarkPolicy;
 import org.apache.flink.api.common.eventtime.GenericWatermark;
-import org.apache.flink.api.common.eventtime.UnsupportedWatermarkCombiner;
 import org.apache.flink.datastream.api.context.EventTimeManager;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.ProcessingTimeManager;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
+import org.apache.flink.datastream.api.WatermarkDeclarable;
 import org.apache.flink.datastream.impl.common.OutputCollector;
 import org.apache.flink.datastream.impl.common.TimestampCollector;
 import org.apache.flink.datastream.impl.context.DefaultNonPartitionedContext;
@@ -42,13 +41,14 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.Set;
 
 /** Operator for {@link OneInputStreamProcessFunction}. */
 public class ProcessOperator<IN, OUT>
         extends AbstractUdfStreamOperator<OUT, OneInputStreamProcessFunction<IN, OUT>>
-        implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
+        implements OneInputStreamOperator<IN, OUT>, BoundedOneInput, WatermarkDeclarable {
 
     protected transient DefaultRuntimeContext context;
 
@@ -103,6 +103,8 @@ public class ProcessOperator<IN, OUT>
             case POP:
                 userFunction.onWatermark(mark.getGenericWatermark(), outputCollector, nonPartitionedContext);
                 break;
+            default:
+                throw new FlinkRuntimeException("Unknown watermark result: " + watermarkResult);
         }
     }
 
@@ -132,7 +134,8 @@ public class ProcessOperator<IN, OUT>
                 context, partitionedContext, outputCollector, false, null, output);
     }
 
+    @Override
     public Set<Class<? extends WatermarkDeclaration>> watermarkDeclarations() {
-        return this.userFunction.declaredWatermarks();
+        return this.userFunction.watermarkDeclarations();
     }
 }

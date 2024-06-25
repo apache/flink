@@ -24,7 +24,7 @@ import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 
-public class InternalWatermarkDeclaration implements WatermarkDeclaration.GenericWatermarkDeclaration {
+public class InternalWatermarkDeclaration implements WatermarkDeclaration.WatermarkSerde {
     @Override
     public Class<InternalWatermark> watermarkClass() {
         return InternalWatermark.class;

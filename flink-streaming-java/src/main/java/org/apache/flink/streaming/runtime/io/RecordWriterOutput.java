@@ -77,7 +77,7 @@ public class RecordWriterOutput<OUT>
     // per-record path.
     private Counter numRecordsOut = new SimpleCounter();
 
-    private final List<WatermarkDeclaration.GenericWatermarkDeclaration> watermarkDeclarations;
+    private final List<WatermarkDeclaration.WatermarkSerde> watermarkDeclarations;
 
     @SuppressWarnings("unchecked")
     public RecordWriterOutput(
@@ -94,7 +94,7 @@ public class RecordWriterOutput<OUT>
             TypeSerializer<OUT> outSerializer,
             OutputTag outputTag,
             boolean supportsUnalignedCheckpoints,
-            List<WatermarkDeclaration.GenericWatermarkDeclaration> watermarkDeclarations) {
+            List<WatermarkDeclaration.WatermarkSerde> watermarkDeclarations) {
 
         checkNotNull(recordWriter);
         this.outputTag = outputTag;

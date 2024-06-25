@@ -49,6 +49,8 @@ import org.apache.flink.streaming.api.windowing.evictors.TimeEvictor;
 import org.apache.flink.streaming.api.windowing.triggers.DeltaTrigger;
 import org.apache.flink.streaming.examples.windowing.util.CarGeneratorFunction;
 
+import org.apache.flink.util.FlinkRuntimeException;
+
 import sun.net.www.content.text.Generic;
 
 import java.io.IOException;
@@ -169,7 +171,6 @@ public class TopSpeedWindowing {
                             Integer record,
                             Collector<Integer> output,
                             PartitionedContext ctx) throws Exception {
-                        System.out.println(record + " AAA");
                         output.collect(record + 10);
                     }
 
@@ -178,8 +179,9 @@ public class TopSpeedWindowing {
                             GenericWatermark watermark,
                             Collector<Integer> output,
                             NonPartitionedContext<Integer> ctx) {
-                        System.out.println(watermark);
-                        ctx.getWatermarkManager().emitWatermark(new CustomGenericWatermark("cey"));
+                        // this will be called since watermarkPolicy is defined to POP
+                        // If it watermarkPolicy would be defined with PEEK, this method will not be called
+                        ctx.getWatermarkManager().emitWatermark(new CustomWatermark("Override time: " + System.currentTimeMillis()));
                     }
 
                     @Override
@@ -192,10 +194,8 @@ public class TopSpeedWindowing {
                         };
                     }
 
-
                     @Override
-                    public Set<Class<? extends WatermarkDeclaration>> declaredWatermarks()
-                    {
+                    public Set<Class<? extends WatermarkDeclaration>> watermarkDeclarations() {
                         return Collections.singleton(CustomWatermarkDeclaration.class);
                     }
 
@@ -203,7 +203,6 @@ public class TopSpeedWindowing {
                 .keyBy(new KeySelector<Integer, Integer>() {
                              @Override
                              public Integer getKey(Integer value) throws Exception {
-                                 System.out.println(value + " KEYY");
                                  return value;
                              }
                          }
@@ -214,7 +213,6 @@ public class TopSpeedWindowing {
                             Integer record,
                             Collector<Integer> output,
                             PartitionedContext ctx) throws Exception {
-                        System.out.println(record + " BBB");
                         output.collect(record);
                     }
 
@@ -223,6 +221,7 @@ public class TopSpeedWindowing {
                         return new WatermarkPolicy() {
                             @Override
                             public WatermarkResult useWatermark(GenericWatermark watermark) {
+                                // We want to handle Watermarks explicitly, so, onWatermark will be called back
                                 return WatermarkResult.POP;
                             }
                         };
@@ -233,48 +232,50 @@ public class TopSpeedWindowing {
                             GenericWatermark watermark,
                             Collector<Integer> output,
                             NonPartitionedContext<Integer> ctx) {
-                        System.out.println(watermark);
+                        // this will be called since watermarkPolicy is defined to POP
+                        // If it watermarkPolicy would be defined with PEEK, this method will not be called
+                        // Note that here the watermark will contain also CustomWatermark instances,
+                        // since the upstream operator explicitly handles Watermarks and sends CustomWatermarks
                         ctx.getWatermarkManager().emitWatermark(watermark);
                     }
 
                 });
 
-        env.execute("asda");
+        env.execute("testjob");
     }
 
-    public static class CustomGenericWatermark implements GenericWatermark {
-        String f = "ceyhun";
+    public static class CustomWatermark implements GenericWatermark {
+        String strPayload;
 
-        public CustomGenericWatermark(String f) {
-            this.f = f;
+        public CustomWatermark(String strPayload) {
+            this.strPayload = strPayload;
         }
 
-        public String getF() {
-            return f;
+        public String getStrPayload() {
+            return strPayload;
         }
     }
 
     public static class CustomWatermarkDeclaration implements WatermarkDeclaration {
 
         @Override
-        public GenericWatermarkDeclaration declaredWatermark() {
-            return new GenericWatermarkDeclaration() {
+        public WatermarkSerde declaredWatermark() {
+            return new WatermarkSerde() {
                 @Override
                 public Class<? extends GenericWatermark> watermarkClass() {
-                    return CustomGenericWatermark.class;
+                    return CustomWatermark.class;
                 }
 
                 @Override
                 public void serialize(
                         GenericWatermark genericWatermark,
                         DataOutputView target) throws IOException {
-                    target.writeUTF(((CustomGenericWatermark) genericWatermark).getF());
+                    target.writeUTF(((CustomWatermark) genericWatermark).getStrPayload());
                 }
 
                 @Override
                 public GenericWatermark deserialize(DataInputView inputView) throws IOException {
-                    String f = inputView.readUTF();
-                    return new CustomGenericWatermark(f);
+                    return new CustomWatermark(inputView.readUTF());
                 }
             };
         }
@@ -287,7 +288,13 @@ public class TopSpeedWindowing {
                         GenericWatermark watermark,
                         Context context,
                         WatermarkOutput output) throws Exception {
-                    output.emitWatermark(watermark);
+                    if (!(watermark instanceof CustomWatermark)) {
+                        throw new FlinkRuntimeException("Expected CustomWatermark, got " + watermark.getClass());
+                    }
+                    // custom watermark alignment logic
+                    if (context.getIndexOfCurrentChannel() == 0) {
+                        output.emitWatermark(watermark);
+                    }
                 }
             };
         }

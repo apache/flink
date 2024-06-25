@@ -559,7 +559,7 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
         }
 
         Set<WatermarkDeclaration> watermarkDeclarationSet = upStreamConfig.getWatermarkDeclarations(taskEnvironment.getUserCodeClassLoader().asClassLoader());
-        List<WatermarkDeclaration.GenericWatermarkDeclaration> watermarkDeclarations = watermarkDeclarationSet.stream().map(w -> w.declaredWatermark()).collect(Collectors.toList());
+        List<WatermarkDeclaration.WatermarkSerde> watermarkDeclarations = watermarkDeclarationSet.stream().map(w -> w.declaredWatermark()).collect(Collectors.toList());
         return closer.register(
                 new RecordWriterOutput<OUT>(
                         recordWriter,

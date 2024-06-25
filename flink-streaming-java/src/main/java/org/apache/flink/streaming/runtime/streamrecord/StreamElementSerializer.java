@@ -67,8 +67,8 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 
     private final TypeSerializer<T> typeSerializer;
 
-    private final Map<String, WatermarkDeclaration.GenericWatermarkDeclaration> watermarkDeclarationMap;
-    private static final List<WatermarkDeclaration.GenericWatermarkDeclaration> systemDefinedDeclarations = Arrays.asList(
+    private final Map<String, WatermarkDeclaration.WatermarkSerde> watermarkDeclarationMap;
+    private static final List<WatermarkDeclaration.WatermarkSerde> systemDefinedDeclarations = Arrays.asList(
             new TimestampWatermarkDeclaration(),
             new InternalWatermarkDeclaration());
     public StreamElementSerializer(TypeSerializer<T> serializer) {
@@ -79,7 +79,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 
     public StreamElementSerializer(
             TypeSerializer<T> serializer,
-            List<WatermarkDeclaration.GenericWatermarkDeclaration> watermarkDeclarationSet) {
+            List<WatermarkDeclaration.WatermarkSerde> watermarkDeclarationSet) {
         if (serializer instanceof StreamElementSerializer) {
             throw new RuntimeException(
                     "StreamRecordSerializer given to StreamRecordSerializer as value TypeSerializer: "
@@ -88,10 +88,10 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
         this.typeSerializer = requireNonNull(serializer);
         this.watermarkDeclarationMap = new HashMap<>();
 
-        List<WatermarkDeclaration.GenericWatermarkDeclaration> allDeclarations = new ArrayList<>();
+        List<WatermarkDeclaration.WatermarkSerde> allDeclarations = new ArrayList<>();
         allDeclarations.addAll(watermarkDeclarationSet);
         allDeclarations.addAll(systemDefinedDeclarations);
-        for (WatermarkDeclaration.GenericWatermarkDeclaration genericWatermarkDeclaration : allDeclarations) {
+        for (WatermarkDeclaration.WatermarkSerde genericWatermarkDeclaration : allDeclarations) {
             this.watermarkDeclarationMap.put(
                     genericWatermarkDeclaration.watermarkClass().getName(),
                     genericWatermarkDeclaration);
