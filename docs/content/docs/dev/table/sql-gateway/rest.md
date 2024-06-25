@@ -94,7 +94,7 @@ Endpoint Options
 REST API
 ----------------
 
-The available OpenAPI specification is as follows. The default version is v2.
+The available OpenAPI specification is as follows. The default version is v3.
 
 | Version                       | Description |
 | ----------- | ------- |

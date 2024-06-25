@@ -91,7 +91,7 @@ Endpoint Options
 REST API
 ----------------
 
-OpenAPI 规范如下，默认版本是 v2。
+OpenAPI 规范如下，默认版本是 v3。
 
 | Version                       | Description                    |
 | ----------- |--------------------------------|
