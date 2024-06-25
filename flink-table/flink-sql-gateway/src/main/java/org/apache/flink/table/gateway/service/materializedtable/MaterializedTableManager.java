@@ -295,6 +295,15 @@ public class MaterializedTableManager {
         CatalogMaterializedTable materializedTable =
                 getCatalogMaterializedTable(operationExecutor, tableIdentifier);
 
+        // Initialization phase doesn't support resume operation.
+        if (CatalogMaterializedTable.RefreshStatus.INITIALIZING
+                == materializedTable.getRefreshStatus()) {
+            throw new SqlExecutionException(
+                    String.format(
+                            "Materialized table %s is being initialized and does not support suspend operation.",
+                            tableIdentifier));
+        }
+
         if (CatalogMaterializedTable.RefreshMode.CONTINUOUS == materializedTable.getRefreshMode()) {
             suspendContinuousRefreshJob(
                     operationExecutor, handle, tableIdentifier, materializedTable);
@@ -312,6 +321,14 @@ public class MaterializedTableManager {
         try {
             ContinuousRefreshHandler refreshHandler =
                     deserializeContinuousHandler(materializedTable.getSerializedRefreshHandler());
+
+            if (CatalogMaterializedTable.RefreshStatus.SUSPENDED
+                    == materializedTable.getRefreshStatus()) {
+                throw new SqlExecutionException(
+                        String.format(
+                                "Materialized table %s continuous refresh job has been suspended, jobId is %s.",
+                                tableIdentifier, refreshHandler.getJobId()));
+            }
 
             String savepointPath =
                     stopJobWithSavepoint(operationExecutor, handle, refreshHandler.getJobId());
@@ -344,6 +361,14 @@ public class MaterializedTableManager {
             OperationHandle handle,
             ObjectIdentifier tableIdentifier,
             CatalogMaterializedTable materializedTable) {
+        if (CatalogMaterializedTable.RefreshStatus.SUSPENDED
+                == materializedTable.getRefreshStatus()) {
+            throw new SqlExecutionException(
+                    String.format(
+                            "Materialized table %s refresh workflow has been suspended.",
+                            tableIdentifier));
+        }
+
         if (workflowScheduler == null) {
             throw new SqlExecutionException(
                     "The workflow scheduler must be configured when suspending materialized table in full refresh mode.");
@@ -384,6 +409,15 @@ public class MaterializedTableManager {
         CatalogMaterializedTable catalogMaterializedTable =
                 getCatalogMaterializedTable(operationExecutor, tableIdentifier);
 
+        // Initialization phase doesn't support resume operation.
+        if (CatalogMaterializedTable.RefreshStatus.INITIALIZING
+                == catalogMaterializedTable.getRefreshStatus()) {
+            throw new SqlExecutionException(
+                    String.format(
+                            "Materialized table %s is being initialized and does not support resume operation.",
+                            tableIdentifier));
+        }
+
         if (CatalogMaterializedTable.RefreshMode.CONTINUOUS
                 == catalogMaterializedTable.getRefreshMode()) {
             resumeContinuousRefreshJob(
@@ -414,6 +448,18 @@ public class MaterializedTableManager {
                 deserializeContinuousHandler(
                         catalogMaterializedTable.getSerializedRefreshHandler());
 
+        // Repeated resume continuous refresh job is not supported
+        if (CatalogMaterializedTable.RefreshStatus.ACTIVATED
+                == catalogMaterializedTable.getRefreshStatus()) {
+            JobStatus jobStatus = getJobStatus(operationExecutor, handle, refreshHandler);
+            if (!jobStatus.isGloballyTerminalState()) {
+                throw new SqlExecutionException(
+                        String.format(
+                                "Materialized table %s continuous refresh job has been resumed, jobId is %s.",
+                                tableIdentifier, refreshHandler.getJobId()));
+            }
+        }
+
         Optional<String> restorePath = refreshHandler.getRestorePath();
         try {
             executeContinuousRefreshJob(
@@ -438,6 +484,15 @@ public class MaterializedTableManager {
             ObjectIdentifier tableIdentifier,
             CatalogMaterializedTable catalogMaterializedTable,
             Map<String, String> dynamicOptions) {
+        // Repeated resume refresh workflow is not supported
+        if (CatalogMaterializedTable.RefreshStatus.ACTIVATED
+                == catalogMaterializedTable.getRefreshStatus()) {
+            throw new SqlExecutionException(
+                    String.format(
+                            "Materialized table %s refresh workflow has been resumed.",
+                            tableIdentifier));
+        }
+
         if (workflowScheduler == null) {
             throw new SqlExecutionException(
                     "The workflow scheduler must be configured when resuming materialized table in full refresh mode.");
