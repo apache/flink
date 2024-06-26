@@ -251,6 +251,29 @@ class CatalogTestBase(PyFlinkTestCase):
         with self.assertRaises(DatabaseNotEmptyException):
             self.catalog.drop_database(self.db1, True)
 
+    def test_rename_db_database_not_exist_exception(self):
+        with self.assertRaises(DatabaseNotExistException):
+            self.catalog.rename_database(self.db1, self.db2, False)
+
+    def test_rename_db_database_not_exist_exception_ignored(self):
+        self.catalog.rename_database(self.db1, self.db2, True)
+
+    def test_rename_db_database_already_exist_exception(self):
+        self.catalog.create_database(self.db1, self.create_db(), False)
+        self.catalog.create_database(self.db2, self.create_db(), False)
+
+        with self.assertRaises(DatabaseAlreadyExistException):
+            self.catalog.rename_database(self.db1, self.db2, False)
+
+    def test_rename_db(self):
+        self.assertFalse(self.catalog.database_exists(self.db1))
+        self.catalog.create_database(self.db1, self.create_db(), False)
+        self.assertTrue(self.catalog.database_exists(self.db1))
+
+        self.catalog.rename_database(self.db1, self.db2, False)
+        self.assertTrue(self.catalog.database_exists(self.db2))
+        self.assertFalse(self.catalog.database_exists(self.db1))
+
     def test_alter_db(self):
         db = self.create_db()
         self.catalog.create_database(self.db1, db, False)

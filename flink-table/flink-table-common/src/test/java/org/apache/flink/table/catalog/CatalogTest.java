@@ -225,6 +225,42 @@ public abstract class CatalogTest {
     }
 
     @Test
+    public void testRenameDatabase_DatabaseNotExistException() throws Exception {
+        exception.expect(DatabaseNotExistException.class);
+        exception.expectMessage("Database db1 does not exist in Catalog");
+        catalog.renameDatabase(db1, db2, false);
+    }
+
+    @Test
+    public void testRenameDatabase_DatabaseNotExistException_ignored() throws Exception {
+        catalog.renameDatabase(db1, db2, true);
+    }
+
+    @Test
+    public void testRenameDatabase_DatabaseAlreadyExistException() throws Exception {
+        catalog.createDatabase(db1, createDb(), false);
+        catalog.createDatabase(db2, createAnotherDb(), false);
+
+        exception.expect(DatabaseAlreadyExistException.class);
+        exception.expectMessage("Database db2 already exists in Catalog");
+        catalog.renameDatabase(db1, db2, false);
+    }
+
+    @Test
+    public void testRenameDatabase() throws Exception {
+        assertFalse(catalog.databaseExists(db1));
+
+        catalog.createDatabase(db1, createDb(), false);
+
+        assertTrue(catalog.databaseExists(db1));
+
+        catalog.renameDatabase(db1, db2, false);
+
+        assertFalse(catalog.databaseExists(db1));
+        assertTrue(catalog.databaseExists(db2));
+    }
+
+    @Test
     public void testDbExists() throws Exception {
         assertThat(catalog.databaseExists("nonexistent")).isFalse();
 
