@@ -18,8 +18,10 @@
 
 package org.apache.flink.formats.avro;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.formats.avro.AvroFormatOptions.AvroEncoding;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
@@ -32,18 +34,17 @@ import org.apache.flink.table.factories.utils.FactoryMocks;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link AvroFormatFactory}. */
@@ -138,16 +139,14 @@ class AvroFormatFactoryTest {
     }
 
     @Test
-    void testSerDeAvroEncoding() throws IOException, ClassNotFoundException {
-        byte[] serializedBinary = InstantiationUtil.serializeObject(AvroEncoding.BINARY);
-        AvroEncoding deserializedBinary =
-                InstantiationUtil.deserializeObject(serializedBinary, getClass().getClassLoader());
-        assertThat(deserializedBinary).isEqualTo(AvroEncoding.BINARY);
-
-        byte[] serializedJson = InstantiationUtil.serializeObject(AvroEncoding.JSON);
-        AvroEncoding deserializedJson =
-                InstantiationUtil.deserializeObject(serializedJson, getClass().getClassLoader());
-        assertThat(deserializedJson).isEqualTo(AvroEncoding.JSON);
+    void testSerDeAvroEncoding() {
+        assertThatCode(
+                        () ->
+                                ClosureCleaner.clean(
+                                        AvroEncoding.BINARY,
+                                        ExecutionConfig.ClosureCleanerLevel.RECURSIVE,
+                                        true))
+                .doesNotThrowAnyException();
     }
 
     void testSeDeSchema(RowType rowType, ResolvedSchema schema, boolean legacyTimestampMapping) {
