@@ -18,9 +18,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.api.common.TaskInfo;
-import org.apache.flink.api.common.WatermarkCombiner;
 import org.apache.flink.api.common.WatermarkDeclaration;
-import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -30,8 +28,6 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.tasks.StreamTask.CanEmitBatchOfRecordsChecker;
 import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
 
-import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -61,7 +57,7 @@ public class StreamTaskNetworkInputFactory {
                         statusWatermarkValve,
                         inputIndex,
                         canEmitBatchOfRecords,
-                watermarkDeclarationSet)
+                        watermarkDeclarationSet)
                 : new RescalingStreamTaskNetworkInput<>(
                         checkpointedInputGate,
                         inputSerializer,

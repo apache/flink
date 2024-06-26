@@ -19,9 +19,9 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.WatermarkDeclaration;
-import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.InternalWatermark;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -85,7 +85,12 @@ public class RecordWriterOutput<OUT>
             TypeSerializer<OUT> outSerializer,
             OutputTag outputTag,
             boolean supportsUnalignedCheckpoints) {
-        this(recordWriter, outSerializer, outputTag, supportsUnalignedCheckpoints, new ArrayList<>());
+        this(
+                recordWriter,
+                outSerializer,
+                outputTag,
+                supportsUnalignedCheckpoints,
+                new ArrayList<>());
     }
 
     @SuppressWarnings("unchecked")

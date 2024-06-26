@@ -42,16 +42,12 @@ import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.delta.DeltaFunction;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.evictors.TimeEvictor;
 import org.apache.flink.streaming.api.windowing.triggers.DeltaTrigger;
 import org.apache.flink.streaming.examples.windowing.util.CarGeneratorFunction;
-
 import org.apache.flink.util.FlinkRuntimeException;
-
-import sun.net.www.content.text.Generic;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -73,7 +69,7 @@ public class TopSpeedWindowing {
 
     public static void main(String[] args) throws Exception {
         ss();
-//        orig();
+        //        orig();
     }
 
     public static void orig() throws Exception {
@@ -102,7 +98,6 @@ public class TopSpeedWindowing {
         // are bounded and otherwise STREAMING.
         env.setRuntimeMode(RuntimeExecutionMode.STREAMING);
 
-
         SingleOutputStreamOperator<Tuple4<Integer, Integer, Double, Long>> carData;
 
         CarGeneratorFunction carGenerator = new CarGeneratorFunction(2);
@@ -112,8 +107,7 @@ public class TopSpeedWindowing {
                         Long.MAX_VALUE,
                         parallelismIgnored -> new GuavaRateLimiter(10),
                         TypeInformation.of(
-                                new TypeHint<Tuple4<Integer, Integer, Double, Long>>() {
-                                }));
+                                new TypeHint<Tuple4<Integer, Integer, Double, Long>>() {}));
         carData =
                 env.fromSource(
                         carGeneratorSource,
@@ -158,88 +152,99 @@ public class TopSpeedWindowing {
         env.execute("CarTopSpeedWindowingExample");
     }
 
-
     public static void ss() throws Exception {
 
         ExecutionEnvironment env = ExecutionEnvironment.getInstance();
         NonKeyedPartitionStream<Integer> source =
                 env.fromSource(
                         DataStreamV2SourceUtils.fromData(Arrays.asList(1, 2, 3)), "testsource");
-        source.process(new OneInputStreamProcessFunction<Integer, Integer>() {
-                    @Override
-                    public void processRecord(
-                            Integer record,
-                            Collector<Integer> output,
-                            PartitionedContext ctx) throws Exception {
-                        output.collect(record + 10);
-                    }
-
-                    @Override
-                    public void onWatermark(
-                            Watermark watermark,
-                            Collector<Integer> output,
-                            NonPartitionedContext<Integer> ctx) {
-                        // this will be called since watermarkPolicy is defined to POP
-                        // If it watermarkPolicy would be defined with PEEK, this method will not be called
-                        ctx.getWatermarkManager().emitWatermark(new CustomWatermark("Override time: " + System.currentTimeMillis()));
-                    }
-
-                    @Override
-                    public WatermarkPolicy watermarkPolicy() {
-                        return new WatermarkPolicy() {
+        source.process(
+                        new OneInputStreamProcessFunction<Integer, Integer>() {
                             @Override
-                            public WatermarkResult useWatermark(Watermark watermark) {
-                                return WatermarkResult.POP;
+                            public void processRecord(
+                                    Integer record,
+                                    Collector<Integer> output,
+                                    PartitionedContext ctx)
+                                    throws Exception {
+                                output.collect(record + 10);
                             }
-                        };
-                    }
 
-                    @Override
-                    public Set<Class<? extends WatermarkDeclaration>> watermarkDeclarations() {
-                        return Collections.singleton(CustomWatermarkDeclaration.class);
-                    }
-
-                })
-                .keyBy(new KeySelector<Integer, Integer>() {
-                             @Override
-                             public Integer getKey(Integer value) throws Exception {
-                                 return value;
-                             }
-                         }
-                ).
-                process(new OneInputStreamProcessFunction<Integer, Integer>() {
-                    @Override
-                    public void processRecord(
-                            Integer record,
-                            Collector<Integer> output,
-                            PartitionedContext ctx) throws Exception {
-                        output.collect(record);
-                    }
-
-                    @Override
-                    public WatermarkPolicy watermarkPolicy() {
-                        return new WatermarkPolicy() {
                             @Override
-                            public WatermarkResult useWatermark(Watermark watermark) {
-                                // We want to handle Watermarks explicitly, so, onWatermark will be called back
-                                return WatermarkResult.POP;
+                            public void onWatermark(
+                                    Watermark watermark,
+                                    Collector<Integer> output,
+                                    NonPartitionedContext<Integer> ctx) {
+                                // this will be called since watermarkPolicy is defined to POP
+                                // If it watermarkPolicy would be defined with PEEK, this method
+                                // will not be called
+                                ctx.getWatermarkManager()
+                                        .emitWatermark(
+                                                new CustomWatermark(
+                                                        "Override time: "
+                                                                + System.currentTimeMillis()));
                             }
-                        };
-                    }
 
-                    @Override
-                    public void onWatermark(
-                            Watermark watermark,
-                            Collector<Integer> output,
-                            NonPartitionedContext<Integer> ctx) {
-                        // this will be called since watermarkPolicy is defined to POP
-                        // If it watermarkPolicy would be defined with PEEK, this method will not be called
-                        // Note that here the watermark will contain also CustomWatermark instances,
-                        // since the upstream operator explicitly handles Watermarks and sends CustomWatermarks
-                        ctx.getWatermarkManager().emitWatermark(watermark);
-                    }
+                            @Override
+                            public WatermarkPolicy watermarkPolicy() {
+                                return new WatermarkPolicy() {
+                                    @Override
+                                    public WatermarkResult useWatermark(Watermark watermark) {
+                                        return WatermarkResult.POP;
+                                    }
+                                };
+                            }
 
-                });
+                            @Override
+                            public Set<Class<? extends WatermarkDeclaration>>
+                                    watermarkDeclarations() {
+                                return Collections.singleton(CustomWatermarkDeclaration.class);
+                            }
+                        })
+                .keyBy(
+                        new KeySelector<Integer, Integer>() {
+                            @Override
+                            public Integer getKey(Integer value) throws Exception {
+                                return value;
+                            }
+                        })
+                .process(
+                        new OneInputStreamProcessFunction<Integer, Integer>() {
+                            @Override
+                            public void processRecord(
+                                    Integer record,
+                                    Collector<Integer> output,
+                                    PartitionedContext ctx)
+                                    throws Exception {
+                                output.collect(record);
+                            }
+
+                            @Override
+                            public WatermarkPolicy watermarkPolicy() {
+                                return new WatermarkPolicy() {
+                                    @Override
+                                    public WatermarkResult useWatermark(Watermark watermark) {
+                                        // We want to handle Watermarks explicitly, so, onWatermark
+                                        // will be called back
+                                        return WatermarkResult.POP;
+                                    }
+                                };
+                            }
+
+                            @Override
+                            public void onWatermark(
+                                    Watermark watermark,
+                                    Collector<Integer> output,
+                                    NonPartitionedContext<Integer> ctx) {
+                                // this will be called since watermarkPolicy is defined to POP
+                                // If it watermarkPolicy would be defined with PEEK, this method
+                                // will not be called
+                                // Note that here the watermark will contain also CustomWatermark
+                                // instances,
+                                // since the upstream operator explicitly handles Watermarks and
+                                // sends CustomWatermarks
+                                ctx.getWatermarkManager().emitWatermark(watermark);
+                            }
+                        });
 
         env.execute("testjob");
     }
@@ -267,9 +272,8 @@ public class TopSpeedWindowing {
                 }
 
                 @Override
-                public void serialize(
-                        Watermark genericWatermark,
-                        DataOutputView target) throws IOException {
+                public void serialize(Watermark genericWatermark, DataOutputView target)
+                        throws IOException {
                     target.writeUTF(((CustomWatermark) genericWatermark).getStrPayload());
                 }
 
@@ -285,11 +289,11 @@ public class TopSpeedWindowing {
             return new WatermarkCombiner() {
                 @Override
                 public void combineWatermark(
-                        Watermark watermark,
-                        Context context,
-                        WatermarkOutput output) throws Exception {
+                        Watermark watermark, Context context, WatermarkOutput output)
+                        throws Exception {
                     if (!(watermark instanceof CustomWatermark)) {
-                        throw new FlinkRuntimeException("Expected CustomWatermark, got " + watermark.getClass());
+                        throw new FlinkRuntimeException(
+                                "Expected CustomWatermark, got " + watermark.getClass());
                     }
                     // custom watermark alignment logic
                     if (context.getIndexOfCurrentChannel() == 0) {
@@ -300,4 +304,3 @@ public class TopSpeedWindowing {
         }
     }
 }
-

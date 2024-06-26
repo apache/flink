@@ -72,30 +72,23 @@ public interface TwoInputNonBroadcastStreamProcessFunction<IN1, IN2, OUT> extend
      */
     default void onProcessingTimer(long timestamp, Collector<OUT> output, PartitionedContext ctx) {}
 
-
     /**
-     * Callback function when receive the watermark from the first input
+     * Callback function when receive the watermark from the first input.
      *
      * @param watermark to process.
      * @param output to emit record.
-     * @param ctx, runtime context in which this function is executed.
+     * @param ctx runtime context in which this function is executed.
      */
     default void onWatermarkFromFirstInput(
-            Watermark watermark,
-            Collector<OUT> output,
-            NonPartitionedContext<OUT> ctx) {
-    }
+            Watermark watermark, Collector<OUT> output, NonPartitionedContext<OUT> ctx) {}
 
     /**
-     * Callback function when receive the watermark from the second input
+     * Callback function when receive the watermark from the second input.
      *
      * @param watermark to process.
      * @param output to emit record.
-     * @param ctx, runtime context in which this function is executed.
+     * @param ctx runtime context in which this function is executed.
      */
     default void onWatermarkFromSecondInput(
-            Watermark watermark,
-            Collector<OUT> output,
-            NonPartitionedContext<OUT> ctx) {
-    }
+            Watermark watermark, Collector<OUT> output, NonPartitionedContext<OUT> ctx) {}
 }

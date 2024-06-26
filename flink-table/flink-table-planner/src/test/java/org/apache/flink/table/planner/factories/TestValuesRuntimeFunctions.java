@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.factories;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
@@ -287,13 +288,16 @@ final class TestValuesRuntimeFunctions {
 
             @Override
             public void emitWatermark(Watermark watermark) {
-                ctx.emitWatermark(
-                        new org.apache.flink.streaming.api.watermark.Watermark(
-                                watermark.getTimestamp()));
-                synchronized (LOCK) {
-                    watermarkHistory
-                            .computeIfAbsent(tableName, k -> new LinkedList<>())
-                            .add(watermark);
+                if (watermark instanceof TimestampWatermark) {
+                    ctx.emitWatermark(
+                            new org.apache.flink.streaming.api.watermark.WatermarkEvent(
+                                    new TimestampWatermark(
+                                            ((TimestampWatermark) watermark).getTimestamp())));
+                    synchronized (LOCK) {
+                        watermarkHistory
+                                .computeIfAbsent(tableName, k -> new LinkedList<>())
+                                .add(watermark);
+                    }
                 }
             }
 

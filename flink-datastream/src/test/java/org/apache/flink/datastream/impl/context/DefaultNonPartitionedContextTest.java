@@ -62,7 +62,8 @@ class DefaultNonPartitionedContextTest {
                                 runtimeContext,
                                 Optional::empty,
                                 (key) -> cf.complete(null),
-                                UnsupportedProcessingTimeManager.INSTANCE),
+                                UnsupportedProcessingTimeManager.INSTANCE,
+                                null), // TODO JEYHUN fix later
                         collector,
                         false,
                         null,
@@ -110,7 +111,8 @@ class DefaultNonPartitionedContextTest {
                                 runtimeContext,
                                 currentKey::get,
                                 (key) -> currentKey.set((Integer) key),
-                                UnsupportedProcessingTimeManager.INSTANCE),
+                                UnsupportedProcessingTimeManager.INSTANCE,
+                                null), // TODO JEYHUN fix later
                         collector,
                         true,
                         allKeys,

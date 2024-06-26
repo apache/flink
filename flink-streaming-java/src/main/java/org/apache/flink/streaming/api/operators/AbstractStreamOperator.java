@@ -23,9 +23,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.IndexedCombinedWatermarkStatus;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
@@ -620,8 +620,7 @@ public abstract class AbstractStreamOperator<OUT>
     }
 
     public void processWatermark(WatermarkEvent mark) throws Exception {
-        if (timeServiceManager != null
-                && (mark.getWatermark() instanceof TimestampWatermark)) {
+        if (timeServiceManager != null && (mark.getWatermark() instanceof TimestampWatermark)) {
             timeServiceManager.advanceWatermark(mark);
         }
         output.emitWatermark(mark);

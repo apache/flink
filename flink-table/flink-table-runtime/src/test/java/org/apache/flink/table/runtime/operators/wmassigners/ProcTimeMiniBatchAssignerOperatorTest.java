@@ -18,8 +18,9 @@
 
 package org.apache.flink.table.runtime.operators.wmassigners;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.GenericRowData;
@@ -48,7 +49,8 @@ public class ProcTimeMiniBatchAssignerOperatorTest extends WatermarkAssignerOper
 
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(1L)));
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(2L)));
-        testHarness.processWatermark(new Watermark(2)); // this watermark should be ignored
+        testHarness.processWatermark(
+                new WatermarkEvent(new TimestampWatermark(2))); // this watermark should be ignored
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(3L)));
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(4L)));
 
@@ -65,7 +67,7 @@ public class ProcTimeMiniBatchAssignerOperatorTest extends WatermarkAssignerOper
                             validateElement(next, currentElement, lastWatermark);
                     long nextElementValue = update.f0;
                     lastWatermark = update.f1;
-                    if (next instanceof Watermark) {
+                    if (next instanceof WatermarkEvent) {
                         assertThat(lastWatermark).isEqualTo(100);
                         break;
                     } else {
@@ -101,7 +103,7 @@ public class ProcTimeMiniBatchAssignerOperatorTest extends WatermarkAssignerOper
                             validateElement(next, currentElement, lastWatermark);
                     long nextElementValue = update.f0;
                     lastWatermark = update.f1;
-                    if (next instanceof Watermark) {
+                    if (next instanceof WatermarkEvent) {
                         assertThat(lastWatermark).isEqualTo(200);
                         break;
                     } else {
@@ -118,8 +120,12 @@ public class ProcTimeMiniBatchAssignerOperatorTest extends WatermarkAssignerOper
             output.clear();
         }
 
-        testHarness.processWatermark(new Watermark(Long.MAX_VALUE));
-        assertThat(((Watermark) testHarness.getOutput().poll()).getTimestamp())
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(Long.MAX_VALUE)));
+        assertThat(
+                        ((TimestampWatermark)
+                                        ((WatermarkEvent) testHarness.getOutput().poll())
+                                                .getWatermark())
+                                .getTimestamp())
                 .isEqualTo(Long.MAX_VALUE);
     }
 }

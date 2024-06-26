@@ -19,9 +19,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.WatermarkCombiner;
 import org.apache.flink.api.common.WatermarkDeclaration;
-import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
@@ -38,8 +36,8 @@ import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -65,6 +63,23 @@ public final class StreamTaskNetworkInput<T>
                 T,
                 SpillingAdaptiveSpanningRecordDeserializer<
                         DeserializationDelegate<StreamElement>>> {
+
+    public StreamTaskNetworkInput(
+            CheckpointedInputGate checkpointedInputGate,
+            TypeSerializer<T> inputSerializer,
+            IOManager ioManager,
+            StatusWatermarkValve statusWatermarkValve,
+            int inputIndex,
+            CanEmitBatchOfRecordsChecker canEmitBatchOfRecords) {
+        this(
+                checkpointedInputGate,
+                inputSerializer,
+                ioManager,
+                statusWatermarkValve,
+                inputIndex,
+                canEmitBatchOfRecords,
+                new HashSet<>());
+    }
 
     public StreamTaskNetworkInput(
             CheckpointedInputGate checkpointedInputGate,

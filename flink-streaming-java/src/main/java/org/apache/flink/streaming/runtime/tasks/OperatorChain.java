@@ -518,7 +518,8 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
             Map<Integer, StreamConfig> chainedConfigs,
             StreamTask<OUT, OP> containingTask,
             Map<IntermediateDataSetID, RecordWriterOutput<?>> recordWriterOutputs) {
-//        Set<WatermarkDeclaration> watermarkDeclarationSet = chainedConfigs.get(1).getWatermarkDeclarations(containingTask.getEnvironment().getUserCodeClassLoader().asClassLoader());
+        //        Set<WatermarkDeclaration> watermarkDeclarationSet =
+        // chainedConfigs.get(1).getWatermarkDeclarations(containingTask.getEnvironment().getUserCodeClassLoader().asClassLoader());
 
         for (int i = 0; i < outputsInOrder.size(); ++i) {
             NonChainedOutput output = outputsInOrder.get(i);
@@ -558,8 +559,13 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
                             taskEnvironment.getUserCodeClassLoader().asClassLoader());
         }
 
-        Set<WatermarkDeclaration> watermarkDeclarationSet = upStreamConfig.getWatermarkDeclarations(taskEnvironment.getUserCodeClassLoader().asClassLoader());
-        List<WatermarkDeclaration.WatermarkSerde> watermarkDeclarations = watermarkDeclarationSet.stream().map(w -> w.declaredWatermark()).collect(Collectors.toList());
+        Set<WatermarkDeclaration> watermarkDeclarationSet =
+                upStreamConfig.getWatermarkDeclarations(
+                        taskEnvironment.getUserCodeClassLoader().asClassLoader());
+        List<WatermarkDeclaration.WatermarkSerde> watermarkDeclarations =
+                watermarkDeclarationSet.stream()
+                        .map(w -> w.declaredWatermark())
+                        .collect(Collectors.toList());
         return closer.register(
                 new RecordWriterOutput<OUT>(
                         recordWriter,

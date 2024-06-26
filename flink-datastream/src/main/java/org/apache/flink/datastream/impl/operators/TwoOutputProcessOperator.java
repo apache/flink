@@ -19,7 +19,6 @@
 package org.apache.flink.datastream.impl.operators;
 
 import org.apache.flink.api.common.TaskInfo;
-import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.datastream.api.context.ProcessingTimeManager;
 import org.apache.flink.datastream.api.context.TwoOutputNonPartitionedContext;
 import org.apache.flink.datastream.api.function.TwoOutputStreamProcessFunction;
@@ -84,7 +83,11 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
                         operatorContext.getMetricGroup());
         this.partitionedContext =
                 new DefaultPartitionedContext(
-                        context, this::currentKey, this::setCurrentKey, getProcessingTimeManager(), null);
+                        context,
+                        this::currentKey,
+                        this::setCurrentKey,
+                        getProcessingTimeManager(),
+                        null);
         this.nonPartitionedContext = getNonPartitionedContext();
     }
 

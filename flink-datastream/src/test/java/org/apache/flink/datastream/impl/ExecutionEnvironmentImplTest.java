@@ -86,7 +86,7 @@ class ExecutionEnvironmentImplTest {
     void testFromSource2() throws Exception {
         Configuration configuration = new Configuration();
         configuration.set(DeploymentOptions.TARGET, "local");
-//        configuration.set(DeploymentOptions.ATTACHED, true);
+        //        configuration.set(DeploymentOptions.ATTACHED, true);
 
         ExecutionEnvironmentImpl env =
                 new ExecutionEnvironmentImpl(
@@ -94,36 +94,38 @@ class ExecutionEnvironmentImplTest {
         NonKeyedPartitionStream<Integer> source =
                 env.fromSource(
                         DataStreamV2SourceUtils.fromData(Arrays.asList(1, 2, 3)), "test-source");
-        source.process(new OneInputStreamProcessFunction<Integer, Integer>() {
-            @Override
-            public void processRecord(
-                    Integer record,
-                    Collector<Integer> output,
-                    PartitionedContext ctx) throws Exception {
-                System.out.println(record + " AAA");
-                output.collect(record);
-
-            }
-        });
-        source.keyBy(new KeySelector<Integer, Integer>() {
-            @Override
-            public Integer getKey(Integer value) throws Exception {
-                return value;
-            }
-        }).process(new OneInputStreamProcessFunction<Integer, Integer>() {
-            @Override
-            public void processRecord(
-                    Integer record,
-                    Collector<Integer> output,
-                    PartitionedContext ctx) throws Exception {
-                System.out.println(record + " BBB");
-                output.collect(record);
-            }
-        });
+        source.process(
+                new OneInputStreamProcessFunction<Integer, Integer>() {
+                    @Override
+                    public void processRecord(
+                            Integer record, Collector<Integer> output, PartitionedContext ctx)
+                            throws Exception {
+                        System.out.println(record + " AAA");
+                        output.collect(record);
+                    }
+                });
+        source.keyBy(
+                        new KeySelector<Integer, Integer>() {
+                            @Override
+                            public Integer getKey(Integer value) throws Exception {
+                                return value;
+                            }
+                        })
+                .process(
+                        new OneInputStreamProcessFunction<Integer, Integer>() {
+                            @Override
+                            public void processRecord(
+                                    Integer record,
+                                    Collector<Integer> output,
+                                    PartitionedContext ctx)
+                                    throws Exception {
+                                System.out.println(record + " BBB");
+                                output.collect(record);
+                            }
+                        });
 
         env.execute("asda");
     }
-
 
     @Test
     void testFromSource() {

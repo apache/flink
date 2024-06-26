@@ -24,25 +24,22 @@ import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Collections;
-import java.util.Set;
 
 /**
- * This class defines watermark handling policy for ProcessOperator.
- * Note that implementations of this interface must ensure to provide the default constructor.
+ * This class defines watermark handling policy for ProcessOperator. Note that implementations of
+ * this interface must ensure to provide the default constructor.
  */
 public interface WatermarkDeclaration extends Serializable {
-    /**
-     * Declare generated watermarks by its operator upfront.
-     * */
+    /** Declare generated watermarks by its operator upfront. */
     WatermarkSerde declaredWatermark();
 
     /** Returns user-defined Watermark combiner implementation. */
     WatermarkCombiner watermarkCombiner();
 
-
-    /** Declaration for Watermark classes. Note that the subclasses of this interface should
-     * ensure zero-argument constructor. */
+    /**
+     * Declaration for Watermark classes. Note that the subclasses of this interface should ensure
+     * zero-argument constructor.
+     */
     interface WatermarkSerde extends Serializable {
         Class<? extends Watermark> watermarkClass();
 
@@ -51,5 +48,3 @@ public interface WatermarkDeclaration extends Serializable {
         Watermark deserialize(DataInputView inputView) throws IOException;
     }
 }
-
-

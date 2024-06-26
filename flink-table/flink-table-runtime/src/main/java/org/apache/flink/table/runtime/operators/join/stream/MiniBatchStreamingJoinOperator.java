@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.operators.join.stream;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.RowDataUtil;
@@ -123,13 +123,13 @@ public abstract class MiniBatchStreamingJoinOperator extends StreamingJoinOperat
     }
 
     @Override
-    public void processWatermark1(Watermark mark) throws Exception {
+    public void processWatermark1(WatermarkEvent mark) throws Exception {
         finishBundle();
         super.processWatermark1(mark);
     }
 
     @Override
-    public void processWatermark2(Watermark mark) throws Exception {
+    public void processWatermark2(WatermarkEvent mark) throws Exception {
         finishBundle();
         super.processWatermark2(mark);
     }

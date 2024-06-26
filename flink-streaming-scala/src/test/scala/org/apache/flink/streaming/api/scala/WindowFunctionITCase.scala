@@ -17,12 +17,13 @@
  */
 package org.apache.flink.streaming.api.scala
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.scala.testutils.{CheckingIdentityRichAllWindowFunction, CheckingIdentityRichProcessAllWindowFunction, CheckingIdentityRichProcessWindowFunction, CheckingIdentityRichWindowFunction}
-import org.apache.flink.streaming.api.watermark.Watermark
+import org.apache.flink.streaming.api.watermark.WatermarkEvent
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
@@ -279,8 +280,8 @@ object WindowFunctionITCase {
 
     def checkAndGetNextWatermark(
         lastElement: (String, Int),
-        extractedTimestamp: Long): Watermark = {
-      new Watermark(lastElement._2 - 1)
+        extractedTimestamp: Long): WatermarkEvent = {
+      new WatermarkEvent(new TimestampWatermark(lastElement._2 - 1))
     }
   }
 }

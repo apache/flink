@@ -18,8 +18,8 @@
 
 package org.apache.flink.streaming.util;
 
-import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -114,8 +114,7 @@ public class TestHarnessUtil {
 
         for (Object elem : elements) {
             if (elem instanceof WatermarkEvent) {
-                Watermark genericWatermark =
-                        ((WatermarkEvent) elem).asWatermark().getWatermark();
+                Watermark genericWatermark = ((WatermarkEvent) elem).asWatermark().getWatermark();
                 assertThat(genericWatermark).isInstanceOf(TimestampWatermark.class);
                 highestWatermark = ((TimestampWatermark) genericWatermark).getTimestamp();
             } else if (elem instanceof StreamRecord) {

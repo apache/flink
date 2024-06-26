@@ -18,8 +18,8 @@
 
 package org.apache.flink.streaming.api.functions;
 
-import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
 
 import org.junit.jupiter.api.Test;

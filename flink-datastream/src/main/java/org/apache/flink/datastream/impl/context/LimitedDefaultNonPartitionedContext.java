@@ -20,18 +20,16 @@ package org.apache.flink.datastream.impl.context;
 
 import org.apache.flink.api.common.WatermarkManager;
 import org.apache.flink.datastream.api.common.Collector;
-import org.apache.flink.datastream.api.context.JobInfo;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
-import org.apache.flink.datastream.api.context.TaskInfo;
-import org.apache.flink.datastream.api.function.ApplyPartitionFunction;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.Set;
 
-/** The implementation of {@link NonPartitionedContext} without support for
- * {@link NonPartitionedContext#getWatermarkManager()}. */
+/**
+ * The implementation of {@link NonPartitionedContext} without support for {@link
+ * NonPartitionedContext#getWatermarkManager()}.
+ */
 public class LimitedDefaultNonPartitionedContext<OUT> extends DefaultNonPartitionedContext<OUT> {
 
     public LimitedDefaultNonPartitionedContext(

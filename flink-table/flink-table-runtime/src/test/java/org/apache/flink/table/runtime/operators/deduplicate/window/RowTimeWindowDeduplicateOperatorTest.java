@@ -18,9 +18,10 @@
 
 package org.apache.flink.table.runtime.operators.deduplicate.window;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
@@ -159,17 +160,17 @@ public class RowTimeWindowDeduplicateOperatorTest {
         testHarness.processElement(
                 insertRecord("key1", 1007L, toUtcTimestampMills(1999L, shiftTimeZone)));
 
-        testHarness.processWatermark(new Watermark(999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(999)));
         expectedOutput.add(insertRecord("key1", 1L, toUtcTimestampMills(999L, shiftTimeZone)));
         expectedOutput.add(insertRecord("key2", 1L, toUtcTimestampMills(999L, shiftTimeZone)));
-        expectedOutput.add(new Watermark(999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(999)));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(1999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1999)));
         expectedOutput.add(insertRecord("key1", 1004L, toUtcTimestampMills(1999L, shiftTimeZone)));
         expectedOutput.add(insertRecord("key2", 1002L, toUtcTimestampMills(1999L, shiftTimeZone)));
-        expectedOutput.add(new Watermark(1999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(1999)));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -184,9 +185,9 @@ public class RowTimeWindowDeduplicateOperatorTest {
         testHarness.initializeState(snapshot);
         testHarness.open();
 
-        testHarness.processWatermark(new Watermark(3999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3999)));
         expectedOutput.add(insertRecord("key2", 3001L, toUtcTimestampMills(3999L, shiftTimeZone)));
-        expectedOutput.add(new Watermark(3999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3999)));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -194,8 +195,8 @@ public class RowTimeWindowDeduplicateOperatorTest {
         testHarness.processElement(
                 insertRecord("key2", 3001L, toUtcTimestampMills(3500L, shiftTimeZone)));
 
-        testHarness.processWatermark(new Watermark(4999));
-        expectedOutput.add(new Watermark(4999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(4999)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(4999)));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -258,17 +259,17 @@ public class RowTimeWindowDeduplicateOperatorTest {
         testHarness.processElement(
                 insertRecord("key1", 1007L, toUtcTimestampMills(1999L, shiftTimeZone)));
 
-        testHarness.processWatermark(new Watermark(999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(999)));
         expectedOutput.add(insertRecord("key1", 3L, toUtcTimestampMills(999L, shiftTimeZone)));
         expectedOutput.add(insertRecord("key2", 5L, toUtcTimestampMills(999L, shiftTimeZone)));
-        expectedOutput.add(new Watermark(999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(999)));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(1999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1999)));
         expectedOutput.add(insertRecord("key1", 1007L, toUtcTimestampMills(1999L, shiftTimeZone)));
         expectedOutput.add(insertRecord("key2", 1002L, toUtcTimestampMills(1999L, shiftTimeZone)));
-        expectedOutput.add(new Watermark(1999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(1999)));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -283,9 +284,9 @@ public class RowTimeWindowDeduplicateOperatorTest {
         testHarness.initializeState(snapshot);
         testHarness.open();
 
-        testHarness.processWatermark(new Watermark(3999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3999)));
         expectedOutput.add(insertRecord("key2", 3008L, toUtcTimestampMills(3999L, shiftTimeZone)));
-        expectedOutput.add(new Watermark(3999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3999)));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -293,8 +294,8 @@ public class RowTimeWindowDeduplicateOperatorTest {
         testHarness.processElement(
                 insertRecord("key2", 3001L, toUtcTimestampMills(3500L, shiftTimeZone)));
 
-        testHarness.processWatermark(new Watermark(4999));
-        expectedOutput.add(new Watermark(4999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(4999)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(4999)));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 

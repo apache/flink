@@ -31,8 +31,7 @@ public class TimestampWatermarkDeclaration implements WatermarkDeclaration.Water
     }
 
     @Override
-    public void serialize(Watermark genericWatermark, DataOutputView target)
-            throws IOException {
+    public void serialize(Watermark genericWatermark, DataOutputView target) throws IOException {
         target.writeLong(((TimestampWatermark) genericWatermark).getTimestamp());
     }
 

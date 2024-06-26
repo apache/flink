@@ -19,9 +19,11 @@
 package org.apache.flink.table.runtime.operators.source;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.table.connector.RuntimeConverter.Context;
 import org.apache.flink.table.connector.source.DynamicTableSource.DataStructureConverter;
 import org.apache.flink.table.data.GenericRowData;
@@ -31,6 +33,8 @@ import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.FlinkRuntimeException;
+
+import java.util.Optional;
 
 /**
  * Operator that converts to internal data structures and wraps atomic records if necessary.
@@ -77,8 +81,13 @@ public final class InputConversionOperator<E> extends TableStreamOperator<RowDat
     }
 
     @Override
-    public void processWatermark(Watermark mark) throws Exception {
-        if (propagateWatermark || Watermark.MAX_WATERMARK.equals(mark)) {
+    public void processWatermark(WatermarkEvent mark) throws Exception {
+        Optional<Long> maybeTimestamp = WatermarkUtils.getTimestamp(mark);
+
+        if (maybeTimestamp.isPresent()
+                && (propagateWatermark
+                        || TimestampWatermark.MAX_WATERMARK.getTimestamp()
+                                == maybeTimestamp.get())) {
             super.processWatermark(mark);
         }
     }

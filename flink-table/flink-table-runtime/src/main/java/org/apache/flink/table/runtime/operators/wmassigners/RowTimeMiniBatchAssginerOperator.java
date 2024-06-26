@@ -18,12 +18,16 @@
 
 package org.apache.flink.table.runtime.operators.wmassigners;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.table.data.RowData;
+
+import java.util.Optional;
 
 /**
  * A stream operator that emits watermark in a given event-time interval. This mini-batch assigner
@@ -78,22 +82,28 @@ public class RowTimeMiniBatchAssginerOperator extends AbstractStreamOperator<Row
 
     @Override
     public void processWatermark(WatermarkEvent mark) throws Exception {
+        Optional<Long> maybeTimestamp = WatermarkUtils.getTimestamp(mark);
+        // fast forward
+        if (!maybeTimestamp.isPresent()) {
+            output.emitWatermark(mark);
+            return;
+        }
         // if we receive a Long.MAX_VALUE watermark we forward it since it is used
         // to signal the end of input and to not block watermark progress downstream
-        if (mark.getTimestamp() == Long.MAX_VALUE && currentWatermark != Long.MAX_VALUE) {
+        if (maybeTimestamp.get() == Long.MAX_VALUE && currentWatermark != Long.MAX_VALUE) {
             currentWatermark = Long.MAX_VALUE;
             output.emitWatermark(mark);
             return;
         }
 
-        currentWatermark = Math.max(currentWatermark, mark.getTimestamp());
+        currentWatermark = Math.max(currentWatermark, maybeTimestamp.get());
         if (currentWatermark >= nextWatermark) {
             advanceWatermark();
         }
     }
 
     private void advanceWatermark() {
-        output.emitWatermark(new Watermark(currentWatermark));
+        output.emitWatermark(new WatermarkEvent(new TimestampWatermark(currentWatermark)));
         long start = getMiniBatchStart(currentWatermark, minibatchInterval);
         long end = start + minibatchInterval - 1;
         nextWatermark = end > currentWatermark ? end : end + minibatchInterval;

@@ -17,6 +17,7 @@
 
 package org.apache.flink.test.streaming.runtime;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -35,7 +36,7 @@ import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
@@ -95,10 +96,10 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
                             @Override
                             public void run(SourceContext<Integer> ctx) throws Exception {
                                 ctx.collectWithTimestamp(1, 0);
-                                ctx.emitWatermark(new Watermark(0));
+                                ctx.emitWatermark(new WatermarkEvent(new TimestampWatermark(0)));
                                 ctx.collectWithTimestamp(2, 1);
                                 ctx.collectWithTimestamp(5, 2);
-                                ctx.emitWatermark(new Watermark(2));
+                                ctx.emitWatermark(new WatermarkEvent(new TimestampWatermark(2)));
                                 ctx.collectWithTimestamp(3, 3);
                                 ctx.collectWithTimestamp(4, 4);
                             }
@@ -131,7 +132,7 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
             }
 
             @Override
-            public void processWatermark(Watermark mark) throws Exception {
+            public void processWatermark(WatermarkEvent mark) throws Exception {
                 super.processWatermark(mark);
                 output.collect(new StreamRecord<>("WM:" + mark.getTimestamp()));
             }
@@ -859,8 +860,9 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
 
         @Nullable
         @Override
-        public Watermark checkAndGetNextWatermark(Integer lastElement, long extractedTimestamp) {
-            return new Watermark(extractedTimestamp);
+        public WatermarkEvent checkAndGetNextWatermark(
+                Integer lastElement, long extractedTimestamp) {
+            return new WatermarkEvent(new TimestampWatermark(extractedTimestamp));
         }
 
         @Override

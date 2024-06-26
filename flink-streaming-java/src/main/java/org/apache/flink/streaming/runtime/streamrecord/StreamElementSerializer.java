@@ -20,9 +20,9 @@ package org.apache.flink.streaming.runtime.streamrecord;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.WatermarkDeclaration;
-import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.InternalWatermarkDeclaration;
 import org.apache.flink.api.common.eventtime.TimestampWatermarkDeclaration;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
@@ -65,13 +65,11 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
     private final TypeSerializer<T> typeSerializer;
 
     private final Map<String, WatermarkDeclaration.WatermarkSerde> watermarkDeclarationMap;
-    private static final List<WatermarkDeclaration.WatermarkSerde> systemDefinedDeclarations = Arrays.asList(
-            new TimestampWatermarkDeclaration(),
-            new InternalWatermarkDeclaration());
+    private static final List<WatermarkDeclaration.WatermarkSerde> systemDefinedDeclarations =
+            Arrays.asList(new TimestampWatermarkDeclaration(), new InternalWatermarkDeclaration());
+
     public StreamElementSerializer(TypeSerializer<T> serializer) {
-        this(
-                serializer,
-                systemDefinedDeclarations);
+        this(serializer, systemDefinedDeclarations);
     }
 
     public StreamElementSerializer(
@@ -239,8 +237,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
             return new StreamRecord<T>(typeSerializer.deserialize(source));
         } else if (tag == TAG_WATERMARK) {
             String identifier = source.readUTF();
-            Watermark watermark =
-                    watermarkDeclarationMap.get(identifier).deserialize(source);
+            Watermark watermark = watermarkDeclarationMap.get(identifier).deserialize(source);
             return new WatermarkEvent(watermark);
             // TODOJEY
             //            throw new IOException("BBBBB");

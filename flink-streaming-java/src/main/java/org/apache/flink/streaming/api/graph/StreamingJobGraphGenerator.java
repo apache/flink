@@ -71,7 +71,6 @@ import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InputSelectable;
-import org.apache.flink.streaming.api.operators.ProcessOperator;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.UdfStreamOperatorFactory;
@@ -1166,9 +1165,12 @@ public class StreamingJobGraphGenerator {
     }
 
     private void setWatermarkDeclarations(StreamConfig config, StreamGraph graph) {
-        Set<Class<? extends WatermarkDeclaration>> decralations = graph.getStreamNodes().stream()
-                .filter(n -> !(n.getOperatorFactory() instanceof SourceOperatorFactory))
-                .map(n -> WatermarkUtils.getWatermarkDeclarations(n.getOperator())).flatMap(Set::stream).collect(Collectors.toSet());
+        Set<Class<? extends WatermarkDeclaration>> decralations =
+                graph.getStreamNodes().stream()
+                        .filter(n -> !(n.getOperatorFactory() instanceof SourceOperatorFactory))
+                        .map(n -> WatermarkUtils.getWatermarkDeclarations(n.getOperator()))
+                        .flatMap(Set::stream)
+                        .collect(Collectors.toSet());
         config.setWatermarkDeclarations(decralations);
     }
 

@@ -164,8 +164,7 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
         }
 
         @Override
-        public void writeWatermark(Watermark watermark)
-                throws IOException, InterruptedException {
+        public void writeWatermark(Watermark watermark) throws IOException, InterruptedException {
             writer.writeWatermark(watermark);
         }
     }

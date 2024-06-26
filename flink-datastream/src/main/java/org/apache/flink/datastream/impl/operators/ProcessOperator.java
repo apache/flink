@@ -22,11 +22,11 @@ import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.WatermarkDeclaration;
 import org.apache.flink.api.common.WatermarkPolicy;
 import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.datastream.api.WatermarkDeclarable;
 import org.apache.flink.datastream.api.context.EventTimeManager;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.ProcessingTimeManager;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
-import org.apache.flink.datastream.api.WatermarkDeclarable;
 import org.apache.flink.datastream.impl.common.OutputCollector;
 import org.apache.flink.datastream.impl.common.TimestampCollector;
 import org.apache.flink.datastream.impl.context.DefaultNonPartitionedContext;
@@ -82,7 +82,11 @@ public class ProcessOperator<IN, OUT>
                         operatorContext.getMetricGroup());
         partitionedContext =
                 new DefaultPartitionedContext(
-                        context, this::currentKey, this::setCurrentKey, getProcessingTimeManager(), getEventTimeManager());
+                        context,
+                        this::currentKey,
+                        this::setCurrentKey,
+                        getProcessingTimeManager(),
+                        getEventTimeManager());
         outputCollector = getOutputCollector();
         nonPartitionedContext = getNonPartitionedContext();
         limitedNonPartitionedContext = getLimitedNonPartitionedContext();
@@ -98,15 +102,18 @@ public class ProcessOperator<IN, OUT>
     public void processWatermark(WatermarkEvent mark) throws Exception {
         Watermark genericWatermark = mark.getWatermark();
         WatermarkPolicy watermarkPolicy = userFunction.watermarkPolicy();
-        WatermarkPolicy.WatermarkResult watermarkResult = watermarkPolicy.useWatermark(genericWatermark);
+        WatermarkPolicy.WatermarkResult watermarkResult =
+                watermarkPolicy.useWatermark(genericWatermark);
 
         switch (watermarkResult) {
             case PEEK:
-                userFunction.onWatermark(mark.getWatermark(), outputCollector, limitedNonPartitionedContext);
+                userFunction.onWatermark(
+                        mark.getWatermark(), outputCollector, limitedNonPartitionedContext);
                 super.processWatermark(mark);
                 break;
             case POP:
-                userFunction.onWatermark(mark.getWatermark(), outputCollector, nonPartitionedContext);
+                userFunction.onWatermark(
+                        mark.getWatermark(), outputCollector, nonPartitionedContext);
                 break;
             default:
                 throw new FlinkRuntimeException("Unknown watermark result: " + watermarkResult);

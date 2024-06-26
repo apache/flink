@@ -20,14 +20,9 @@ package org.apache.flink.datastream.api.function;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.DefaultWatermarkPolicy;
-import org.apache.flink.api.common.WatermarkDeclaration;
 import org.apache.flink.api.common.WatermarkPolicy;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.datastream.api.WatermarkDeclarable;
-
-import java.util.Collections;
-import java.util.Set;
-
 
 /** Base class for all user defined process functions. */
 @Experimental
@@ -56,8 +51,7 @@ public interface ProcessFunction extends Function, WatermarkDeclarable {
      */
     default void close() throws Exception {}
 
-    default WatermarkPolicy watermarkPolicy()
-    {
+    default WatermarkPolicy watermarkPolicy() {
         return new DefaultWatermarkPolicy();
     }
 }

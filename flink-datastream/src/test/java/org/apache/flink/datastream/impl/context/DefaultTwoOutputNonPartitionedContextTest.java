@@ -67,7 +67,8 @@ class DefaultTwoOutputNonPartitionedContextTest {
                                 runtimeContext,
                                 Optional::empty,
                                 (key) -> cf.complete(null),
-                                UnsupportedProcessingTimeManager.INSTANCE),
+                                UnsupportedProcessingTimeManager.INSTANCE,
+                                null), // todo JEYHUN fix later
                         firstCollector,
                         secondCollector,
                         false,
@@ -122,7 +123,8 @@ class DefaultTwoOutputNonPartitionedContextTest {
                                 runtimeContext,
                                 currentKey::get,
                                 (key) -> currentKey.set((Integer) key),
-                                UnsupportedProcessingTimeManager.INSTANCE),
+                                UnsupportedProcessingTimeManager.INSTANCE,
+                                null), // todo JEYHUN fix later
                         firstCollector,
                         secondCollector,
                         true,

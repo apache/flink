@@ -165,8 +165,7 @@ class DemultiplexingRecordDeserializer<T>
                             channels.values().stream()
                                     .map(
                                             virtualChannel ->
-                                                    virtualChannel.lastWatermark
-                                                            .getWatermark())
+                                                    virtualChannel.lastWatermark.getWatermark())
                                     .filter(w -> w instanceof TimestampWatermark)
                                     .map(w -> (TimestampWatermark) w)
                                     .min(Comparator.comparing(TimestampWatermark::getTimestamp))

@@ -18,8 +18,9 @@
 
 package org.apache.flink.table.runtime.operators.wmassigners;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
@@ -41,8 +42,9 @@ public abstract class WatermarkAssignerOperatorTestBase {
             StreamRecord<RowData> record = (StreamRecord<RowData>) element;
             assertThat(record.getValue().getLong(0)).isEqualTo(nextElementValue);
             return new Tuple2<>(nextElementValue + 1, currentWatermark);
-        } else if (element instanceof Watermark) {
-            long wt = ((Watermark) element).getTimestamp();
+        } else if (element instanceof WatermarkEvent) {
+            long wt =
+                    ((TimestampWatermark) ((WatermarkEvent) element).getWatermark()).getTimestamp();
             assertThat(wt).isGreaterThan(currentWatermark);
             return new Tuple2<>(nextElementValue, wt);
         } else {
@@ -50,11 +52,11 @@ public abstract class WatermarkAssignerOperatorTestBase {
         }
     }
 
-    protected List<Watermark> extractWatermarks(Collection<Object> collection) {
-        List<Watermark> watermarks = new ArrayList<>();
+    protected List<WatermarkEvent> extractWatermarks(Collection<Object> collection) {
+        List<WatermarkEvent> watermarks = new ArrayList<>();
         for (Object obj : collection) {
-            if (obj instanceof Watermark) {
-                watermarks.add((Watermark) obj);
+            if (obj instanceof WatermarkEvent) {
+                watermarks.add((WatermarkEvent) obj);
             }
         }
         return watermarks;

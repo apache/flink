@@ -19,28 +19,24 @@
 package org.apache.flink.api.common;
 
 import org.apache.flink.api.common.eventtime.Watermark;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
 
-import java.io.IOException;
 import java.io.Serializable;
-import java.util.Collections;
-import java.util.Set;
 
-/** This class defines watermark handling policy for ProcessOperator.*/
+/** This class defines watermark handling policy for ProcessOperator. */
 public interface WatermarkPolicy extends Serializable {
 
     /**
      * Define watermark responsibility. For a given watermark, this method returns WatermarkResult.
-     * */
+     */
     WatermarkResult useWatermark(Watermark watermark);
 
     enum WatermarkResult {
-        /**  Peek the watermark. The respobsibility to propagate is on the framework */
+        /** Peek the watermark. The respobsibility to propagate is on the framework */
         PEEK,
-        /** Pop the watermark. The responsibility to propagate (this or another watermark) is on the user function */
+        /**
+         * Pop the watermark. The responsibility to propagate (this or another watermark) is on the
+         * user function
+         */
         POP
     }
 }
-
-

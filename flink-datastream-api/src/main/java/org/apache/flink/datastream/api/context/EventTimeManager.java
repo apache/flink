@@ -25,5 +25,4 @@ import org.apache.flink.annotation.Experimental;
  * function.
  */
 @Experimental
-public interface EventTimeManager extends TimeManager {
-}
+public interface EventTimeManager extends TimeManager {}

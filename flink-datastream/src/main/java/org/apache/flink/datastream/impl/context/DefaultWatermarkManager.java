@@ -22,11 +22,11 @@ import org.apache.flink.api.common.WatermarkManager;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.watermark.WatermarkEvent;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 public class DefaultWatermarkManager implements WatermarkManager {
 
     private final Output<?> streamRecordOutput;
+
     public DefaultWatermarkManager(Output<?> streamRecordOutput) {
         this.streamRecordOutput = streamRecordOutput;
     }

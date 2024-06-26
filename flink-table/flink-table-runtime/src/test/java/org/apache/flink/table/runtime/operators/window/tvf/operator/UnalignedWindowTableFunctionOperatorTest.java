@@ -19,8 +19,9 @@
 package org.apache.flink.table.runtime.operators.window.tvf.operator;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
@@ -69,34 +70,34 @@ public class UnalignedWindowTableFunctionOperatorTest extends WindowTableFunctio
 
         testHarness.processElement(insertRecord("key1", 1, 20L));
         testHarness.processElement(insertRecord("key2", 1, 3999L));
-        testHarness.processWatermark(new Watermark(999));
-        expectedOutput.add(new Watermark(999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(999)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(999)));
 
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(1999));
-        expectedOutput.add(new Watermark(1999));
-        testHarness.processWatermark(new Watermark(2999));
-        expectedOutput.add(new Watermark(2999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1999)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(1999)));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(2999)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(2999)));
 
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(3999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3999)));
         // append 3 fields: window_start, window_end, window_time
         expectedOutput.add(insertRecord("key1", 1, 20L, localMills(20L), localMills(3020L), 3019L));
-        expectedOutput.add(new Watermark(3999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3999)));
 
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         // the window end is 5000L, so it's not a late record
         testHarness.processElement(insertRecord("key1", 1, 2000L));
-        testHarness.processWatermark(new Watermark(4999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(4999)));
         expectedOutput.add(
                 insertRecord("key1", 1, 2000L, localMills(2000L), localMills(5000L), 4999L));
-        expectedOutput.add(new Watermark(4999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(4999)));
 
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -104,20 +105,20 @@ public class UnalignedWindowTableFunctionOperatorTest extends WindowTableFunctio
         // test out-of-order records
         testHarness.processElement(insertRecord("key2", 2, 7999L));
         testHarness.processElement(insertRecord("key2", 3, 5999L));
-        testHarness.processWatermark(new Watermark(5999));
-        expectedOutput.add(new Watermark(5999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(5999)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(5999)));
 
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(6999));
-        expectedOutput.add(new Watermark(6999));
-        testHarness.processWatermark(new Watermark(7999));
-        expectedOutput.add(new Watermark(7999));
-        testHarness.processWatermark(new Watermark(8999));
-        expectedOutput.add(new Watermark(8999));
-        testHarness.processWatermark(new Watermark(9999));
-        expectedOutput.add(new Watermark(9999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(6999)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(6999)));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(7999)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(7999)));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(8999)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(8999)));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(9999)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(9999)));
 
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -133,7 +134,7 @@ public class UnalignedWindowTableFunctionOperatorTest extends WindowTableFunctio
         testHarness.initializeState(snapshot);
         testHarness.open();
 
-        testHarness.processWatermark(new Watermark(10999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(10999)));
 
         // late record should be dropped
         testHarness.processElement(insertRecord("key1", 1, 999L));
@@ -147,7 +148,7 @@ public class UnalignedWindowTableFunctionOperatorTest extends WindowTableFunctio
                 insertRecord("key2", 2, 7999L, localMills(3999L), localMills(10999L), 10998L));
         expectedOutput.add(
                 insertRecord("key2", 3, 5999L, localMills(3999L), localMills(10999L), 10998L));
-        expectedOutput.add(new Watermark(10999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(10999)));
 
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -174,38 +175,38 @@ public class UnalignedWindowTableFunctionOperatorTest extends WindowTableFunctio
         testHarness.processElement(binaryRecord(RowKind.DELETE, "key2", 1, 1999L));
         testHarness.processElement(binaryRecord(RowKind.INSERT, "key3", 1, 2999L));
         testHarness.processElement(binaryRecord(RowKind.INSERT, "key4", 1, 1999L));
-        testHarness.processWatermark(new Watermark(999));
-        expectedOutput.add(new Watermark(999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(999)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(999)));
 
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         testHarness.processElement(binaryRecord(RowKind.DELETE, "key4", 1, 2999L));
 
-        testHarness.processWatermark(new Watermark(1999));
-        expectedOutput.add(new Watermark(1999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1999)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(1999)));
 
         testHarness.processElement(binaryRecord(RowKind.UPDATE_BEFORE, "key3", 1, 3999L));
 
         testHarness.processElement(binaryRecord(RowKind.UPDATE_AFTER, "key3", 1, 4999L));
 
-        testHarness.processWatermark(new Watermark(2999));
-        expectedOutput.add(new Watermark(2999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(2999)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(2999)));
 
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(3999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3999)));
         // append 3 fields: window_start, window_end, window_time
         expectedOutput.add(
                 binaryRecord(
                         RowKind.INSERT, "key1", 1, 20L, localMills(20L), localMills(3020L), 3019L));
-        expectedOutput.add(new Watermark(3999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3999)));
 
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(4999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(4999)));
         expectedOutput.add(
                 binaryRecord(
                         RowKind.DELETE,
@@ -215,12 +216,12 @@ public class UnalignedWindowTableFunctionOperatorTest extends WindowTableFunctio
                         localMills(1999L),
                         localMills(4999L),
                         4998L));
-        expectedOutput.add(new Watermark(4999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(4999)));
 
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(5999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(5999)));
         expectedOutput.add(
                 binaryRecord(
                         RowKind.INSERT,
@@ -239,7 +240,7 @@ public class UnalignedWindowTableFunctionOperatorTest extends WindowTableFunctio
                         localMills(1999L),
                         localMills(5999L),
                         5998L));
-        expectedOutput.add(new Watermark(5999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(5999)));
 
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -255,7 +256,7 @@ public class UnalignedWindowTableFunctionOperatorTest extends WindowTableFunctio
         testHarness.initializeState(snapshot);
         testHarness.open();
 
-        testHarness.processWatermark(new Watermark(7999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(7999)));
 
         expectedOutput.add(
                 binaryRecord(
@@ -284,7 +285,7 @@ public class UnalignedWindowTableFunctionOperatorTest extends WindowTableFunctio
                         localMills(2999L),
                         localMills(7999L),
                         7998L));
-        expectedOutput.add(new Watermark(7999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(7999)));
 
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -495,18 +496,18 @@ public class UnalignedWindowTableFunctionOperatorTest extends WindowTableFunctio
 
         testHarness.processElement(insertRecord("key1", 1, 1999L));
         testHarness.processElement(insertRecord("key2", 1, 3999L));
-        testHarness.processWatermark(new Watermark(999));
-        expectedOutput.add(new Watermark(999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(999)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(999)));
 
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(1999));
-        expectedOutput.add(new Watermark(1999));
-        testHarness.processWatermark(new Watermark(3999));
-        expectedOutput.add(new Watermark(3999));
-        testHarness.processWatermark(new Watermark(5999));
-        expectedOutput.add(new Watermark(5999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1999)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(1999)));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3999)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3999)));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(5999)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(5999)));
 
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -524,14 +525,14 @@ public class UnalignedWindowTableFunctionOperatorTest extends WindowTableFunctio
         testHarness.initializeState(snapshot);
         testHarness.open();
 
-        testHarness.processWatermark(new Watermark(6999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(6999)));
 
         // append 3 fields: window_start, window_end, window_time
         expectedOutput.add(
                 insertRecord("key1", 1, 1999L, localMills(1999L), localMills(6999L), 6998L));
         expectedOutput.add(
                 insertRecord("key2", 1, 3999L, localMills(1999L), localMills(6999L), 6998L));
-        expectedOutput.add(new Watermark(6999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(6999)));
 
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());

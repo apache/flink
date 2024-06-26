@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.operators.wmassigners;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.sources.wmstrategies.PeriodicWatermarkAssigner;
 
@@ -44,7 +44,7 @@ public class PeriodicWatermarkAssignerWrapper implements AssignerWithPeriodicWat
 
     @Nullable
     @Override
-    public Watermark getCurrentWatermark() {
+    public WatermarkEvent getCurrentWatermark() {
         return assigner.getWatermark();
     }
 

@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.runtime.operators.wmassigners;
 
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.GenericRowData;
@@ -44,41 +45,41 @@ public class RowTimeMiniBatchAssginerOperatorTest extends WatermarkAssignerOpera
 
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(1L)));
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(2L)));
-        testHarness.processWatermark(new Watermark(2));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(2)));
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(3L)));
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(4L)));
-        testHarness.processWatermark(new Watermark(3));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3)));
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(5L)));
-        testHarness.processWatermark(new Watermark(4));
-        testHarness.processWatermark(new Watermark(5));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(4)));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(5)));
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(7L)));
-        testHarness.processWatermark(new Watermark(6));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(6)));
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(11L)));
-        testHarness.processWatermark(new Watermark(10));
-        testHarness.processWatermark(new Watermark(12));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(10)));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(12)));
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(16L)));
-        testHarness.processWatermark(new Watermark(15));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(15)));
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(17L)));
-        testHarness.processWatermark(new Watermark(16));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(16)));
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(20L)));
-        testHarness.processWatermark(new Watermark(19));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(19)));
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(22L)));
-        testHarness.processWatermark(new Watermark(20));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(20)));
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(24L)));
-        testHarness.processWatermark(new Watermark(21));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(21)));
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(25L)));
 
         testHarness.close();
 
-        List<Watermark> expected = new ArrayList<>();
-        expected.add(new Watermark(4));
-        expected.add(new Watermark(10));
-        expected.add(new Watermark(15));
-        expected.add(new Watermark(19));
-        expected.add(new Watermark(21)); // the last buffered watermark
+        List<WatermarkEvent> expected = new ArrayList<>();
+        expected.add(new WatermarkEvent(new TimestampWatermark(4)));
+        expected.add(new WatermarkEvent(new TimestampWatermark(10)));
+        expected.add(new WatermarkEvent(new TimestampWatermark(15)));
+        expected.add(new WatermarkEvent(new TimestampWatermark(19)));
+        expected.add(new WatermarkEvent(new TimestampWatermark(21))); // the last buffered watermark
 
         ConcurrentLinkedQueue<Object> output = testHarness.getOutput();
-        List<Watermark> watermarks = extractWatermarks(output);
+        List<WatermarkEvent> watermarks = extractWatermarks(output);
         assertThat(watermarks).isEqualTo(expected);
         // verify all the records are forwarded, there are 13 records.
         assertThat(output).hasSize(expected.size() + 13);
@@ -92,15 +93,16 @@ public class RowTimeMiniBatchAssginerOperatorTest extends WatermarkAssignerOpera
         testHarness.open();
 
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(1L)));
-        testHarness.processWatermark(new Watermark(2));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(2)));
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(50L)));
         // send end watermark
-        testHarness.processWatermark(Watermark.MAX_WATERMARK);
+        testHarness.processWatermark(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
 
         // verify that the end watermark is forwarded and the buffered watermark is not.
         ConcurrentLinkedQueue<Object> output = testHarness.getOutput();
-        List<Watermark> watermarks = extractWatermarks(output);
+        List<WatermarkEvent> watermarks = extractWatermarks(output);
         assertThat(watermarks).hasSize(1);
-        assertThat(watermarks.get(0)).isEqualTo(Watermark.MAX_WATERMARK);
+        assertThat(watermarks.get(0))
+                .isEqualTo(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
     }
 }

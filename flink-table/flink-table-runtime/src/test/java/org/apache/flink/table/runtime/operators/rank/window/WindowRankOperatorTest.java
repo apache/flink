@@ -18,9 +18,10 @@
 
 package org.apache.flink.table.runtime.operators.rank.window;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
@@ -195,20 +196,20 @@ public class WindowRankOperatorTest {
         testHarness.processElement(
                 insertRecord("key1", 7, toUtcTimestampMills(1999L, shiftTimeZone)));
 
-        testHarness.processWatermark(new Watermark(999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(999)));
         expectedOutput.add(insertRecord("key1", 1, toUtcTimestampMills(999L, shiftTimeZone), 1L));
         expectedOutput.add(insertRecord("key1", 2, toUtcTimestampMills(999L, shiftTimeZone), 2L));
         expectedOutput.add(insertRecord("key2", 1, toUtcTimestampMills(999L, shiftTimeZone), 1L));
         expectedOutput.add(insertRecord("key2", 3, toUtcTimestampMills(999L, shiftTimeZone), 2L));
-        expectedOutput.add(new Watermark(999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(999)));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(1999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1999)));
         expectedOutput.add(insertRecord("key1", 4, toUtcTimestampMills(1999L, shiftTimeZone), 1L));
         expectedOutput.add(insertRecord("key1", 6, toUtcTimestampMills(1999L, shiftTimeZone), 2L));
         expectedOutput.add(insertRecord("key2", 2, toUtcTimestampMills(1999L, shiftTimeZone), 1L));
-        expectedOutput.add(new Watermark(1999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(1999)));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -223,10 +224,10 @@ public class WindowRankOperatorTest {
         testHarness.initializeState(snapshot);
         testHarness.open();
 
-        testHarness.processWatermark(new Watermark(3999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3999)));
         expectedOutput.add(insertRecord("key2", 1, toUtcTimestampMills(3999L, shiftTimeZone), 1L));
         expectedOutput.add(insertRecord("key2", 7, toUtcTimestampMills(3999L, shiftTimeZone), 2L));
-        expectedOutput.add(new Watermark(3999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3999)));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -234,8 +235,8 @@ public class WindowRankOperatorTest {
         testHarness.processElement(
                 insertRecord("key2", 1, toUtcTimestampMills(3500L, shiftTimeZone)));
 
-        testHarness.processWatermark(new Watermark(4999));
-        expectedOutput.add(new Watermark(4999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(4999)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(4999)));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -301,16 +302,16 @@ public class WindowRankOperatorTest {
         testHarness.processElement(
                 insertRecord("key1", 7, toUtcTimestampMills(1999L, shiftTimeZone)));
 
-        testHarness.processWatermark(new Watermark(999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(999)));
         expectedOutput.add(insertRecord("key1", 2, toUtcTimestampMills(999L, shiftTimeZone), 2L));
         expectedOutput.add(insertRecord("key2", 3, toUtcTimestampMills(999L, shiftTimeZone), 2L));
-        expectedOutput.add(new Watermark(999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(999)));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(1999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1999)));
         expectedOutput.add(insertRecord("key1", 6, toUtcTimestampMills(1999L, shiftTimeZone), 2L));
-        expectedOutput.add(new Watermark(1999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(1999)));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -325,9 +326,9 @@ public class WindowRankOperatorTest {
         testHarness.initializeState(snapshot);
         testHarness.open();
 
-        testHarness.processWatermark(new Watermark(3999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3999)));
         expectedOutput.add(insertRecord("key2", 7, toUtcTimestampMills(3999L, shiftTimeZone), 2L));
-        expectedOutput.add(new Watermark(3999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3999)));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
         testHarness.close();
@@ -390,20 +391,20 @@ public class WindowRankOperatorTest {
         testHarness.processElement(
                 insertRecord("key1", 7, toUtcTimestampMills(1999L, shiftTimeZone)));
 
-        testHarness.processWatermark(new Watermark(999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(999)));
         expectedOutput.add(insertRecord("key1", 1, toUtcTimestampMills(999L, shiftTimeZone)));
         expectedOutput.add(insertRecord("key1", 2, toUtcTimestampMills(999L, shiftTimeZone)));
         expectedOutput.add(insertRecord("key2", 1, toUtcTimestampMills(999L, shiftTimeZone)));
         expectedOutput.add(insertRecord("key2", 3, toUtcTimestampMills(999L, shiftTimeZone)));
-        expectedOutput.add(new Watermark(999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(999)));
         ASSERTER_WITHOUT_RANK_NUMBER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(1999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1999)));
         expectedOutput.add(insertRecord("key1", 4, toUtcTimestampMills(1999L, shiftTimeZone)));
         expectedOutput.add(insertRecord("key1", 6, toUtcTimestampMills(1999L, shiftTimeZone)));
         expectedOutput.add(insertRecord("key2", 2, toUtcTimestampMills(1999L, shiftTimeZone)));
-        expectedOutput.add(new Watermark(1999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(1999)));
         ASSERTER_WITHOUT_RANK_NUMBER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -418,10 +419,10 @@ public class WindowRankOperatorTest {
         testHarness.initializeState(snapshot);
         testHarness.open();
 
-        testHarness.processWatermark(new Watermark(3999));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3999)));
         expectedOutput.add(insertRecord("key2", 1, toUtcTimestampMills(3999L, shiftTimeZone)));
         expectedOutput.add(insertRecord("key2", 7, toUtcTimestampMills(3999L, shiftTimeZone)));
-        expectedOutput.add(new Watermark(3999));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3999)));
         ASSERTER_WITHOUT_RANK_NUMBER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 

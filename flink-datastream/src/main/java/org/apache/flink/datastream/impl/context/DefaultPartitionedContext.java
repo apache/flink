@@ -25,8 +25,6 @@ import org.apache.flink.datastream.api.context.ProcessingTimeManager;
 import org.apache.flink.datastream.api.context.RuntimeContext;
 import org.apache.flink.datastream.api.context.TaskInfo;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -46,8 +44,7 @@ public class DefaultPartitionedContext implements PartitionedContext {
             Supplier<Object> currentKeySupplier,
             Consumer<Object> currentKeySetter,
             ProcessingTimeManager processingTimeManager,
-            EventTimeManager eventTimeManager
-    ) {
+            EventTimeManager eventTimeManager) {
         this.context = context;
         this.stateManager = new DefaultStateManager(currentKeySupplier, currentKeySetter);
         this.processingTimeManager = processingTimeManager;

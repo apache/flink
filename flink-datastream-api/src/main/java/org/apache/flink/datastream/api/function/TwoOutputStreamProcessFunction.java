@@ -61,19 +61,17 @@ public interface TwoOutputStreamProcessFunction<IN, OUT1, OUT2> extends ProcessF
             Collector<OUT2> output2,
             PartitionedContext ctx) {}
 
-
     /**
      * Callback function when receive the watermark from the input.
      *
      * @param watermark to process.
      * @param output1 to emit data to the first output.
      * @param output2 to emit data to the second output.
-     * @param ctx, runtime context in which this function is executed.
+     * @param ctx runtime context in which this function is executed.
      */
     default void onWatermark(
             Watermark watermark,
             Collector<OUT1> output1,
             Collector<OUT2> output2,
-            TwoOutputNonPartitionedContext<OUT1, OUT2> ctx) {
-    }
+            TwoOutputNonPartitionedContext<OUT1, OUT2> ctx) {}
 }

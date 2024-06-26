@@ -48,6 +48,7 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -498,7 +499,8 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 
         @Override
         public void onEvent(Integer event, long eventTimestamp, WatermarkOutput output) {
-            output.emitWatermark(new org.apache.flink.api.common.eventtime.Watermark(event));
+            output.emitWatermark(
+                    new org.apache.flink.api.common.eventtime.TimestampWatermark(event));
         }
 
         @Override
@@ -516,9 +518,9 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
         }
 
         @Override
-        public void emitWatermark(org.apache.flink.streaming.api.watermark.Watermark watermark)
+        public void emitWatermark(org.apache.flink.streaming.api.watermark.WatermarkEvent watermark)
                 throws Exception {
-            watermarks.add(watermark.getTimestamp());
+            WatermarkUtils.getTimestamp(watermark).ifPresent(l -> watermarks.add(l));
         }
 
         @Override

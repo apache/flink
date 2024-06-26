@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.util;
 
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.table.data.GenericRowData;
@@ -115,7 +115,7 @@ public class RowDataHarnessAssertor {
         while (exIt.hasNext()) {
             Object nextEx = exIt.next();
             Object nextAct = actIt.next();
-            if (nextEx instanceof Watermark) {
+            if (nextEx instanceof WatermarkEvent) {
                 assertThat(nextAct).isEqualTo(nextEx);
             }
         }

@@ -699,8 +699,7 @@ abstract class SinkWriterOperatorTestBase {
         public SinkAndSuppliers(
                 org.apache.flink.api.connector.sink2.Sink<Integer> sink,
                 Supplier<List<String>> elementSupplier,
-                Supplier<List<org.apache.flink.api.common.eventtime.Watermark>>
-                        watermarkSupplier,
+                Supplier<List<org.apache.flink.api.common.eventtime.Watermark>> watermarkSupplier,
                 LongSupplier lastCheckpointSupplier,
                 Supplier<SimpleVersionedSerializer<String>> serializerSupplier) {
             this.sink = sink;

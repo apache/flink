@@ -84,8 +84,7 @@ public class FinishedSourcesWatermarkITCase extends TestLogger {
 
     private static class SinkWaitingForWatermark implements SinkFunction<String> {
         @Override
-        public void writeWatermark(
-                org.apache.flink.api.common.eventtime.Watermark watermark) {
+        public void writeWatermark(org.apache.flink.api.common.eventtime.Watermark watermark) {
             if (watermark instanceof TimestampWatermark) {
                 if (((TimestampWatermark) watermark).getTimestamp()
                         > CHECKPOINT_10_WATERMARK.get()) {

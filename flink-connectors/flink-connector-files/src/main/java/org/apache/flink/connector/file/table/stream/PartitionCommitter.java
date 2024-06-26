@@ -19,8 +19,8 @@
 package org.apache.flink.connector.file.table.stream;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.TimestampWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.table.EmptyMetaStoreFactory;

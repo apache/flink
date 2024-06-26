@@ -27,7 +27,7 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, PartitionTransformation}
-import org.apache.flink.streaming.api.watermark.Watermark
+import org.apache.flink.streaming.api.watermark.WatermarkEvent
 import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, OneInputStreamOperatorTestHarness}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.JLong
@@ -110,7 +110,7 @@ class HarnessTestBase(mode: StateBackendMode) extends StreamingTestBase {
   }
 
   def dropWatermarks(elements: Array[AnyRef]): util.Collection[AnyRef] = {
-    elements.filter(e => !e.isInstanceOf[Watermark]).toList
+    elements.filter(e => !e.isInstanceOf[WatermarkEvent]).toList
   }
 }
 

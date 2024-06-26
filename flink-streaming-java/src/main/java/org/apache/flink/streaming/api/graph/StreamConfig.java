@@ -308,16 +308,19 @@ public class StreamConfig implements Serializable {
         setTypeSerializer(TYPE_SERIALIZER_OUT_1, serializer);
     }
 
-    public void setWatermarkDeclarations(Set<Class<? extends WatermarkDeclaration>> watermarkDeclarations) {
+    public void setWatermarkDeclarations(
+            Set<Class<? extends WatermarkDeclaration>> watermarkDeclarations) {
         toBeSerializedConfigObjects.put(WATERMARK_DECLARATIONS, watermarkDeclarations);
     }
 
     public Set<WatermarkDeclaration> getWatermarkDeclarations(ClassLoader cl) {
         try {
-            Set<Class<? extends WatermarkDeclaration>> clazzes = InstantiationUtil.readObjectFromConfig(this.config, WATERMARK_DECLARATIONS, cl);
+            Set<Class<? extends WatermarkDeclaration>> clazzes =
+                    InstantiationUtil.readObjectFromConfig(this.config, WATERMARK_DECLARATIONS, cl);
             Set<WatermarkDeclaration> result = new HashSet<>();
             for (Class<? extends WatermarkDeclaration> clazz : clazzes) {
-                Constructor<? extends WatermarkDeclaration> constructor = clazz.getDeclaredConstructor();
+                Constructor<? extends WatermarkDeclaration> constructor =
+                        clazz.getDeclaredConstructor();
                 result.add(constructor.newInstance());
             }
             return result;

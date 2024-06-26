@@ -34,5 +34,4 @@ public interface PartitionedContext extends RuntimeContext {
 
     /** Get the {@link EventTimeManager} of this process function. */
     EventTimeManager getEventTimeManager();
-
 }

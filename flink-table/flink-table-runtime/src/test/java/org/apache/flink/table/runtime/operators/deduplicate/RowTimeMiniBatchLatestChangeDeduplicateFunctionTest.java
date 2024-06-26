@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.runtime.operators.deduplicate;
 
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator;
@@ -57,9 +58,9 @@ public class RowTimeMiniBatchLatestChangeDeduplicateFunctionTest
         testHarness.processElement(insertRecord("book", 14, 3L));
         testHarness.processElement(insertRecord("book", 15, 1L));
         // watermark trigger emit.
-        testHarness.processWatermark(new Watermark(3L));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3L)));
         expectedOutput.add(updateAfterRecord("book", 14, 3L));
-        expectedOutput.add(new Watermark(3L));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3L)));
         testHarness.close();
         assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
     }
@@ -84,9 +85,9 @@ public class RowTimeMiniBatchLatestChangeDeduplicateFunctionTest
         testHarness.processElement(insertRecord("book", 14, 3L));
         testHarness.processElement(insertRecord("book", 15, 1L));
         // watermark trigger emit.
-        testHarness.processWatermark(new Watermark(3L));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3L)));
         expectedOutput.add(updateAfterRecord("book", 14, 3L));
-        expectedOutput.add(new Watermark(3L));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3L)));
         testHarness.close();
         assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
     }
@@ -110,10 +111,10 @@ public class RowTimeMiniBatchLatestChangeDeduplicateFunctionTest
         testHarness.processElement(insertRecord("book", 14, 3L));
         testHarness.processElement(insertRecord("book", 15, 1L));
         // watermark trigger emit.
-        testHarness.processWatermark(new Watermark(3L));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3L)));
         expectedOutput.add(updateBeforeRecord("book", 11, 2L));
         expectedOutput.add(updateAfterRecord("book", 14, 3L));
-        expectedOutput.add(new Watermark(3L));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3L)));
         testHarness.close();
         assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
     }
@@ -137,10 +138,10 @@ public class RowTimeMiniBatchLatestChangeDeduplicateFunctionTest
         testHarness.processElement(insertRecord("book", 14, 3L));
         testHarness.processElement(insertRecord("book", 15, 1L));
         // watermark trigger emit.
-        testHarness.processWatermark(new Watermark(3L));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3L)));
         expectedOutput.add(updateBeforeRecord("book", 11, 2L));
         expectedOutput.add(updateAfterRecord("book", 14, 3L));
-        expectedOutput.add(new Watermark(3L));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3L)));
         testHarness.close();
         assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
     }
@@ -168,9 +169,9 @@ public class RowTimeMiniBatchLatestChangeDeduplicateFunctionTest
         testHarness.processElement(insertRecord("book", 14, 3L));
         testHarness.processElement(insertRecord("book", 15, 1L));
         // watermark trigger emit.
-        testHarness.processWatermark(new Watermark(3L));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3L)));
         expectedOutput.add(insertRecord("book", 14, 3L));
-        expectedOutput.add(new Watermark(3L));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3L)));
         testHarness.close();
         assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
     }
@@ -195,8 +196,8 @@ public class RowTimeMiniBatchLatestChangeDeduplicateFunctionTest
         testHarness.processElement(insertRecord("book", 14, 3L));
         testHarness.processElement(insertRecord("book", 15, 1L));
         // watermark trigger emit.
-        testHarness.processWatermark(new Watermark(3L));
-        expectedOutput.add(new Watermark(3L));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3L)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3L)));
         testHarness.close();
         assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
     }
@@ -221,8 +222,8 @@ public class RowTimeMiniBatchLatestChangeDeduplicateFunctionTest
         testHarness.processElement(insertRecord("book", 14, 3L));
         testHarness.processElement(insertRecord("book", 15, 1L));
         // watermark trigger emit.
-        testHarness.processWatermark(new Watermark(3L));
-        expectedOutput.add(new Watermark(3L));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3L)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3L)));
         testHarness.close();
         assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
     }
@@ -246,8 +247,8 @@ public class RowTimeMiniBatchLatestChangeDeduplicateFunctionTest
         testHarness.processElement(insertRecord("book", 14, 3L));
         testHarness.processElement(insertRecord("book", 15, 1L));
         // watermark trigger emit.
-        testHarness.processWatermark(new Watermark(3L));
-        expectedOutput.add(new Watermark(3L));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3L)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3L)));
         testHarness.close();
         assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
     }
@@ -272,8 +273,8 @@ public class RowTimeMiniBatchLatestChangeDeduplicateFunctionTest
         testHarness.processElement(insertRecord("book", 14, 3L));
         testHarness.processElement(insertRecord("book", 15, 1L));
         // watermark trigger emit.
-        testHarness.processWatermark(new Watermark(3L));
-        expectedOutput.add(new Watermark(3L));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3L)));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3L)));
         testHarness.close();
         assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
     }
@@ -301,9 +302,9 @@ public class RowTimeMiniBatchLatestChangeDeduplicateFunctionTest
         testHarness.processElement(insertRecord("book", 14, 3L));
         testHarness.processElement(insertRecord("book", 15, 1L));
         // watermark trigger emit.
-        testHarness.processWatermark(new Watermark(3L));
+        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3L)));
         expectedOutput.add(insertRecord("book", 15, 1L));
-        expectedOutput.add(new Watermark(3L));
+        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3L)));
         testHarness.close();
         assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
     }

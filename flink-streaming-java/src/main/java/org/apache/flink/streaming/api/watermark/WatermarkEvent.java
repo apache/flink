@@ -22,9 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 
-/**
- * A {@link StreamElement} that ships {@link Watermark}s between operators.
- */
+/** A {@link StreamElement} that ships {@link Watermark}s between operators. */
 @PublicEvolving
 public final class WatermarkEvent extends StreamElement {
 

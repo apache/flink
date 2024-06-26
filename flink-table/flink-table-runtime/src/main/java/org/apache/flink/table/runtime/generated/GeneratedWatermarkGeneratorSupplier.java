@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.generated;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.functions.DefaultOpenContext;
@@ -105,7 +105,7 @@ public class GeneratedWatermarkGeneratorSupplier implements WatermarkGeneratorSu
                 if (watermark != null) {
                     currentWatermark = watermark;
                     if (watermarkEmitStrategy.isOnEvent()) {
-                        output.emitWatermark(new Watermark(currentWatermark));
+                        output.emitWatermark(new TimestampWatermark(currentWatermark));
                     }
                 }
             } catch (Exception e) {
@@ -120,7 +120,7 @@ public class GeneratedWatermarkGeneratorSupplier implements WatermarkGeneratorSu
         @Override
         public void onPeriodicEmit(WatermarkOutput output) {
             if (watermarkEmitStrategy.isOnPeriodic()) {
-                output.emitWatermark(new Watermark(currentWatermark));
+                output.emitWatermark(new TimestampWatermark(currentWatermark));
             }
         }
     }

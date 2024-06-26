@@ -23,7 +23,6 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 
 /** The default implementation of {@link EventTimeManager}. */
-
 public class DefaultEventTimeManager implements EventTimeManager {
     private final InternalTimerService<VoidNamespace> timerService;
 

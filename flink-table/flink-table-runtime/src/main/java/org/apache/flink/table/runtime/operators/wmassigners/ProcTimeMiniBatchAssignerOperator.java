@@ -18,15 +18,19 @@
 
 package org.apache.flink.table.runtime.operators.wmassigners;
 
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.table.data.RowData;
+
+import java.util.Optional;
 
 /**
  * A stream operator that emits mini-batch marker in a given period. This mini-batch assigner works
@@ -77,7 +81,7 @@ public class ProcTimeMiniBatchAssignerOperator extends AbstractStreamOperator<Ro
         if (currentBatch > currentWatermark) {
             currentWatermark = currentBatch;
             // emit
-            output.emitWatermark(new Watermark(currentBatch));
+            output.emitWatermark(new WatermarkEvent(new TimestampWatermark(currentBatch)));
         }
         output.collect(element);
     }
@@ -89,7 +93,7 @@ public class ProcTimeMiniBatchAssignerOperator extends AbstractStreamOperator<Ro
         if (currentBatch > currentWatermark) {
             currentWatermark = currentBatch;
             // emit
-            output.emitWatermark(new Watermark(currentBatch));
+            output.emitWatermark(new WatermarkEvent(new TimestampWatermark(currentBatch)));
         }
         getProcessingTimeService().registerTimer(currentBatch + intervalMs, this);
     }
@@ -99,11 +103,16 @@ public class ProcTimeMiniBatchAssignerOperator extends AbstractStreamOperator<Ro
      * rely only on the {@link AssignerWithPeriodicWatermarks} to emit watermarks from here).
      */
     @Override
-    public void processWatermark(Watermark mark) throws Exception {
+    public void processWatermark(WatermarkEvent mark) throws Exception {
         // if we receive a Long.MAX_VALUE watermark we forward it since it is used
         // to signal the end of input and to not block watermark progress downstream
-        if (mark.getTimestamp() == Long.MAX_VALUE && currentWatermark != Long.MAX_VALUE) {
+        Optional<Long> maybeTimestamp = WatermarkUtils.getTimestamp(mark);
+        if (maybeTimestamp.isPresent()
+                && maybeTimestamp.get() == Long.MAX_VALUE
+                && currentWatermark != Long.MAX_VALUE) {
             currentWatermark = Long.MAX_VALUE;
+            output.emitWatermark(mark);
+        } else {
             output.emitWatermark(mark);
         }
     }

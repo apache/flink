@@ -58,8 +58,7 @@ public interface SinkWriter<InputT, CommT, WriterStateT> extends AutoCloseable {
      * @param watermark The watermark.
      * @throws IOException if fail to add a watermark.
      */
-    default void writeWatermark(Watermark watermark)
-            throws IOException, InterruptedException {}
+    default void writeWatermark(Watermark watermark) throws IOException, InterruptedException {}
 
     /**
      * Prepare for a commit.

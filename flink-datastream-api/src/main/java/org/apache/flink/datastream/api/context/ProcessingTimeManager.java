@@ -25,5 +25,4 @@ import org.apache.flink.annotation.Experimental;
  * function.
  */
 @Experimental
-public interface ProcessingTimeManager extends TimeManager {
-}
+public interface ProcessingTimeManager extends TimeManager {}

@@ -20,9 +20,7 @@ package org.apache.flink.api.common;
 
 import org.apache.flink.api.common.eventtime.Watermark;
 
-import java.io.Serializable;
-
-/** This class defines watermark handling policy for ProcessOperator.*/
+/** This class defines watermark handling policy for ProcessOperator. */
 public class DefaultWatermarkPolicy implements WatermarkPolicy {
 
     @Override
@@ -30,5 +28,3 @@ public class DefaultWatermarkPolicy implements WatermarkPolicy {
         return WatermarkResult.PEEK;
     }
 }
-
-

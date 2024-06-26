@@ -21,12 +21,11 @@ package org.apache.flink.datastream.impl.context;
 import org.apache.flink.datastream.api.context.EventTimeManager;
 
 /**
- * The special implementation of {@link EventTimeManager}, all its methods are not supported.
- * This is used for context that can not define the key.
+ * The special implementation of {@link EventTimeManager}, all its methods are not supported. This
+ * is used for context that can not define the key.
  */
 public class UnsupportedEventTimeManager implements EventTimeManager {
-    public static final UnsupportedEventTimeManager INSTANCE =
-            new UnsupportedEventTimeManager();
+    public static final UnsupportedEventTimeManager INSTANCE = new UnsupportedEventTimeManager();
 
     private UnsupportedEventTimeManager() {}
 

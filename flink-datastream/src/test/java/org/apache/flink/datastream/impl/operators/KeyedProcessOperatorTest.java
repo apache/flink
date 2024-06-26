@@ -24,7 +24,6 @@ import org.apache.flink.datastream.api.common.Collector;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 
@@ -49,7 +48,7 @@ class KeyedProcessOperatorTest {
                                     Integer record,
                                     Collector<Integer> output,
                                     PartitionedContext ctx) {
-                                 output.collect(record + 1);
+                                output.collect(record + 1);
                             }
                         });
 
