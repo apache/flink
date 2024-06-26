@@ -311,9 +311,9 @@ object StreamTableEnvironmentImpl {
     val moduleManager = new ModuleManager
 
     val catalogStoreFactory =
-      TableFactoryUtil.findAndCreateCatalogStoreFactory(settings.getConfiguration, userClassLoader)
+      TableFactoryUtil.findAndCreateCatalogStoreFactory(tableConfig, userClassLoader)
     val catalogStoreFactoryContext =
-      TableFactoryUtil.buildCatalogStoreFactoryContext(settings.getConfiguration, userClassLoader)
+      TableFactoryUtil.buildCatalogStoreFactoryContext(tableConfig, userClassLoader)
     catalogStoreFactory.open(catalogStoreFactoryContext)
     val catalogStore =
       if (settings.getCatalogStore != null) settings.getCatalogStore
