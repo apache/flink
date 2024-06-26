@@ -66,7 +66,7 @@ public class KeyedStateInputFormatTest {
 
         OperatorSubtaskState state =
                 createOperatorSubtaskState(new StreamFlatMap<>(new StatefulFunction()));
-        OperatorState operatorState = new OperatorState(operatorID, 1, 128);
+        OperatorState operatorState = new OperatorState(null, null, operatorID, 1, 128);
         operatorState.putState(0, state);
 
         KeyedStateInputFormat<?, ?, ?> format =
@@ -87,7 +87,7 @@ public class KeyedStateInputFormatTest {
 
         OperatorSubtaskState state =
                 createOperatorSubtaskState(new StreamFlatMap<>(new StatefulFunction()));
-        OperatorState operatorState = new OperatorState(operatorID, 1, 128);
+        OperatorState operatorState = new OperatorState(null, null, operatorID, 1, 128);
         operatorState.putState(0, state);
 
         KeyedStateInputFormat<?, ?, ?> format =
@@ -110,7 +110,7 @@ public class KeyedStateInputFormatTest {
 
         OperatorSubtaskState state =
                 createOperatorSubtaskState(new StreamFlatMap<>(new StatefulFunction()));
-        OperatorState operatorState = new OperatorState(operatorID, 1, 128);
+        OperatorState operatorState = new OperatorState(null, null, operatorID, 1, 128);
         operatorState.putState(0, state);
 
         KeyedStateInputFormat<?, ?, ?> format =
@@ -135,7 +135,7 @@ public class KeyedStateInputFormatTest {
 
         OperatorSubtaskState state =
                 createOperatorSubtaskState(new StreamFlatMap<>(new StatefulFunction()));
-        OperatorState operatorState = new OperatorState(operatorID, 1, 128);
+        OperatorState operatorState = new OperatorState(null, null, operatorID, 1, 128);
         operatorState.putState(0, state);
 
         KeyedStateInputFormat<?, ?, ?> format =
@@ -161,7 +161,7 @@ public class KeyedStateInputFormatTest {
 
         OperatorSubtaskState state =
                 createOperatorSubtaskState(new StreamFlatMap<>(new StatefulFunction()));
-        OperatorState operatorState = new OperatorState(operatorID, 1, 128);
+        OperatorState operatorState = new OperatorState(null, null, operatorID, 1, 128);
         operatorState.putState(0, state);
 
         KeyedStateInputFormat<?, ?, ?> format =
@@ -187,7 +187,7 @@ public class KeyedStateInputFormatTest {
         OperatorSubtaskState state =
                 createOperatorSubtaskState(
                         new KeyedProcessOperator<>(new StatefulFunctionWithTime()));
-        OperatorState operatorState = new OperatorState(operatorID, 1, 128);
+        OperatorState operatorState = new OperatorState(null, null, operatorID, 1, 128);
         operatorState.putState(0, state);
 
         KeyedStateInputFormat<?, ?, ?> format =
@@ -213,7 +213,7 @@ public class KeyedStateInputFormatTest {
             throws IOException {
         KeyedStateInputFormat<Integer, VoidNamespace, Integer> format =
                 new KeyedStateInputFormat<>(
-                        new OperatorState(OperatorIDGenerator.fromUid("uid"), 1, 4),
+                        new OperatorState(null, null, OperatorIDGenerator.fromUid("uid"), 1, 4),
                         new MemoryStateBackend(),
                         new Configuration(),
                         new KeyedStateReaderOperator<>(userFunction, Types.INT),

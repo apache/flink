@@ -50,7 +50,7 @@ public class StreamOperatorContextBuilderTest {
                 new StreamOperatorContextBuilder(
                         context,
                         configuration,
-                        new OperatorState(new OperatorID(), 1, 128),
+                        new OperatorState(null, null, new OperatorID(), 1, 128),
                         new PrioritizedOperatorSubtaskStateInputSplit() {
                             @Override
                             public PrioritizedOperatorSubtaskState

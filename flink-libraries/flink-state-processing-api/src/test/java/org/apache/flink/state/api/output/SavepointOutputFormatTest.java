@@ -77,7 +77,8 @@ public class SavepointOutputFormatTest {
     }
 
     private CheckpointMetadata createSavepoint() {
-        OperatorState operatorState = new OperatorState(OperatorIDGenerator.fromUid("uid"), 1, 128);
+        OperatorState operatorState =
+                new OperatorState(null, null, OperatorIDGenerator.fromUid("uid"), 1, 128);
 
         operatorState.putState(0, OperatorSubtaskState.builder().build());
         return new CheckpointMetadata(

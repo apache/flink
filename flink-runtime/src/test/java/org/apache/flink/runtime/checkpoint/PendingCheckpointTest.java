@@ -225,7 +225,7 @@ class PendingCheckpointTest {
                         false, CheckpointType.CHECKPOINT, false, false, false, false, false, false);
         QueueExecutor executor = new QueueExecutor();
 
-        OperatorState state = new OperatorState(new OperatorID(), 1, 256);
+        OperatorState state = new OperatorState(null, null, new OperatorID(), 1, 256);
         OperatorSubtaskStateMock subtaskStateMock = new OperatorSubtaskStateMock();
         OperatorSubtaskState subtaskState = subtaskStateMock.getSubtaskState();
         state.putState(0, subtaskState);
@@ -287,7 +287,7 @@ class PendingCheckpointTest {
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
         pending.acknowledgeTask(ATTEMPT_ID, null, mock(CheckpointMetrics.class));
         final OperatorState expectedState =
-                new OperatorState(OPERATOR_ID, PARALLELISM, MAX_PARALLELISM);
+                new OperatorState(null, null, OPERATOR_ID, PARALLELISM, MAX_PARALLELISM);
         assertThat(Collections.singletonMap(OPERATOR_ID, expectedState))
                 .isEqualTo(pending.getOperatorStates());
     }

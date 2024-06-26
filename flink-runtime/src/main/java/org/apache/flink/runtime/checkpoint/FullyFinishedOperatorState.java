@@ -31,8 +31,13 @@ public class FullyFinishedOperatorState extends OperatorState {
 
     private static final long serialVersionUID = 1L;
 
-    public FullyFinishedOperatorState(OperatorID operatorID, int parallelism, int maxParallelism) {
-        super(operatorID, parallelism, maxParallelism);
+    public FullyFinishedOperatorState(
+            @Nullable String operatorName,
+            @Nullable String operatorUid,
+            OperatorID operatorID,
+            int parallelism,
+            int maxParallelism) {
+        super(operatorName, operatorUid, operatorID, parallelism, maxParallelism);
     }
 
     @Override
@@ -55,7 +60,11 @@ public class FullyFinishedOperatorState extends OperatorState {
     @Override
     public OperatorState copyAndDiscardInFlightData() {
         return new FullyFinishedOperatorState(
-                getOperatorID(), getParallelism(), getMaxParallelism());
+                getOperatorName().orElse(null),
+                getOperatorUid().orElse(null),
+                getOperatorID(),
+                getParallelism(),
+                getMaxParallelism());
     }
 
     @Override
@@ -75,6 +84,10 @@ public class FullyFinishedOperatorState extends OperatorState {
     @Override
     public String toString() {
         return "FullyFinishedOperatorState("
+                + "name: "
+                + getOperatorName()
+                + "uid: "
+                + getOperatorUid()
                 + "operatorID: "
                 + getOperatorID()
                 + ", parallelism: "

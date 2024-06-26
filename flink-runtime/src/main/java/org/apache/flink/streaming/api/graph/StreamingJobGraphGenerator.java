@@ -984,16 +984,21 @@ public class StreamingJobGraphGenerator {
 
         JobVertexID jobVertexId = new JobVertexID(hash);
 
-        List<Tuple2<byte[], byte[]>> chainedOperators =
+        List<ChainedOperatorHashInfo> chainedOperators =
                 chainInfo.getChainedOperatorHashes(streamNodeId);
         List<OperatorIDPair> operatorIDPairs = new ArrayList<>();
         if (chainedOperators != null) {
-            for (Tuple2<byte[], byte[]> chainedOperator : chainedOperators) {
+            for (ChainedOperatorHashInfo chainedOperator : chainedOperators) {
                 OperatorID userDefinedOperatorID =
-                        chainedOperator.f1 == null ? null : new OperatorID(chainedOperator.f1);
+                        chainedOperator.getUserDefinedOperatorID() == null
+                                ? null
+                                : new OperatorID(chainedOperator.getUserDefinedOperatorID());
                 operatorIDPairs.add(
                         OperatorIDPair.of(
-                                new OperatorID(chainedOperator.f0), userDefinedOperatorID));
+                                new OperatorID(chainedOperator.getGeneratedOperatorID()),
+                                userDefinedOperatorID,
+                                chainedOperator.getStreamNode().getOperatorName(),
+                                chainedOperator.getStreamNode().getTransformationUID()));
             }
         }
 
@@ -2109,7 +2114,7 @@ public class StreamingJobGraphGenerator {
         private final Integer startNodeId;
         private final Map<Integer, byte[]> hashes;
         private final List<Map<Integer, byte[]>> legacyHashes;
-        private final Map<Integer, List<Tuple2<byte[], byte[]>>> chainedOperatorHashes;
+        private final Map<Integer, List<ChainedOperatorHashInfo>> chainedOperatorHashes;
         private final Map<Integer, ChainedSourceInfo> chainedSources;
         private final List<OperatorCoordinator.Provider> coordinatorProviders;
         private final StreamGraph streamGraph;
@@ -2141,7 +2146,7 @@ public class StreamingJobGraphGenerator {
             return startNodeId;
         }
 
-        private List<Tuple2<byte[], byte[]>> getChainedOperatorHashes(int startNodeId) {
+        private List<ChainedOperatorHashInfo> getChainedOperatorHashes(int startNodeId) {
             return chainedOperatorHashes.get(startNodeId);
         }
 
@@ -2161,13 +2166,15 @@ public class StreamingJobGraphGenerator {
             recordChainedNode(currentNodeId);
             StreamNode streamNode = streamGraph.getStreamNode(currentNodeId);
 
-            List<Tuple2<byte[], byte[]>> operatorHashes =
+            List<ChainedOperatorHashInfo> operatorHashes =
                     chainedOperatorHashes.computeIfAbsent(startNodeId, k -> new ArrayList<>());
 
             byte[] primaryHashBytes = hashes.get(currentNodeId);
 
             for (Map<Integer, byte[]> legacyHash : legacyHashes) {
-                operatorHashes.add(new Tuple2<>(primaryHashBytes, legacyHash.get(currentNodeId)));
+                operatorHashes.add(
+                        new ChainedOperatorHashInfo(
+                                primaryHashBytes, legacyHash.get(currentNodeId), streamNode));
             }
 
             streamNode
@@ -2197,6 +2204,33 @@ public class StreamingJobGraphGenerator {
 
         private List<StreamNode> getAllChainedNodes() {
             return chainedNodes;
+        }
+    }
+
+    private static final class ChainedOperatorHashInfo {
+        private final byte[] generatedOperatorID;
+        private final byte[] userDefinedOperatorID;
+        private final StreamNode streamNode;
+
+        ChainedOperatorHashInfo(
+                final byte[] generatedOperatorID,
+                final byte[] userDefinedOperatorID,
+                final StreamNode streamNode) {
+            this.generatedOperatorID = generatedOperatorID;
+            this.userDefinedOperatorID = userDefinedOperatorID;
+            this.streamNode = streamNode;
+        }
+
+        public byte[] getGeneratedOperatorID() {
+            return generatedOperatorID;
+        }
+
+        public byte[] getUserDefinedOperatorID() {
+            return userDefinedOperatorID;
+        }
+
+        public StreamNode getStreamNode() {
+            return streamNode;
         }
     }
 

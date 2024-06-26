@@ -40,7 +40,8 @@ class FullyFinishedOperatorStateTest {
 
     @Test
     void testFullyFinishedOperatorState() {
-        OperatorState operatorState = new FullyFinishedOperatorState(new OperatorID(), 5, 256);
+        OperatorState operatorState =
+                new FullyFinishedOperatorState(null, null, new OperatorID(), 5, 256);
         assertThat(operatorState.isFullyFinished()).isTrue();
 
         assertThat(operatorState.getSubtaskStates()).isEmpty();
@@ -66,7 +67,7 @@ class FullyFinishedOperatorStateTest {
         Tuple2<List<StateObject>, OperatorSubtaskState> opSubtaskStates2 =
                 generateSampleOperatorSubtaskState();
 
-        OperatorState operatorState = new OperatorState(new OperatorID(), 2, 256);
+        OperatorState operatorState = new OperatorState(null, null, new OperatorID(), 2, 256);
         operatorState.putState(0, opSubtaskStates1.f1);
         operatorState.putState(1, opSubtaskStates2.f1);
         ByteStreamStateHandle coordinatorState =
