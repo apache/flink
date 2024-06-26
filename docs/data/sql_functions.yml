@@ -484,6 +484,9 @@ temporal:
   - sql: DATE_FORMAT(timestamp, string)
     table: dateFormat(TIMESTAMP, STRING)
     description: Converts timestamp to a value of string in the format specified by the date format string. The format string is compatible with Java's SimpleDateFormat.
+  - sql: DATE_SUB(date, integer)
+    table: dateSub(DATE, INTEGER)
+    description: Subtracts a number of days to startdate.
   - sql: TIMESTAMPADD(timeintervalunit, interval, timepoint)
   - sql: TIMESTAMPDIFF(timepointunit, timepoint1, timepoint2)
     table: timestampDiff(TIMEPOINTUNIT, TIMEPOINT1, TIMEPOINT2)
