@@ -32,6 +32,8 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.columnar.ColumnarRowData;
 import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
+import org.apache.flink.table.data.conversion.RowRowConverter;
+import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -51,8 +53,12 @@ import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.utils.DateTimeUtils;
+import org.apache.flink.types.Row;
+
+import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
 import org.apache.hadoop.conf.Configuration;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -65,6 +71,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -118,6 +125,42 @@ class ParquetColumnarRowSplitReaderTest {
                     new MapType(new IntType(), new BooleanType()),
                     new MultisetType(new VarCharType(VarCharType.MAX_LENGTH)),
                     RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType()));
+
+    private static final RowType NESTED_ARRAY_MAP_TYPE =
+            RowType.of(
+                    new IntType(),
+                    new ArrayType(true, new IntType()),
+                    new ArrayType(true, new ArrayType(true, new IntType())),
+                    new ArrayType(
+                            true,
+                            new MapType(
+                                    true,
+                                    new VarCharType(VarCharType.MAX_LENGTH),
+                                    new VarCharType(VarCharType.MAX_LENGTH))),
+                    new ArrayType(
+                            true,
+                            new RowType(
+                                    Collections.singletonList(
+                                            new RowType.RowField("a", new IntType())))),
+                    RowType.of(
+                            new ArrayType(
+                                    true,
+                                    new RowType(
+                                            Lists.newArrayList(
+                                                    new RowType.RowField(
+                                                            "b",
+                                                            new ArrayType(
+                                                                    true,
+                                                                    new ArrayType(
+                                                                            true, new IntType()))),
+                                                    new RowType.RowField("c", new IntType())))),
+                            new IntType()));
+
+    @SuppressWarnings("unchecked")
+    private static final DataFormatConverters.DataFormatConverter<RowData, Row>
+            NESTED_ARRAY_MAP_CONVERTER =
+                    DataFormatConverters.getConverterForDataType(
+                            TypeConversions.fromLogicalToDataType(NESTED_ARRAY_MAP_TYPE));
 
     @TempDir File tmpDir;
 
@@ -592,6 +635,38 @@ class ParquetColumnarRowSplitReaderTest {
         innerTestPartitionValues(testPath, partSpec, true, rowGroupSize);
     }
 
+    @ParameterizedTest
+    @MethodSource("parameters")
+    public void testNestedRead(int rowGroupSize) throws Exception {
+        List<Row> rows = prepareNestedData(1283);
+        Path path = createNestedData(rows, tmpDir, rowGroupSize);
+
+        ParquetColumnarRowSplitReader reader =
+                new ParquetColumnarRowSplitReader(
+                        false,
+                        true,
+                        new Configuration(),
+                        NESTED_ARRAY_MAP_TYPE.getChildren().toArray(new LogicalType[0]),
+                        NESTED_ARRAY_MAP_TYPE.getFieldNames().toArray(new String[0]),
+                        VectorizedColumnBatch::new,
+                        1000,
+                        new org.apache.hadoop.fs.Path(path.getPath()),
+                        0,
+                        path.getFileSystem().getFileStatus(path).getLen());
+
+        List<Row> results = new ArrayList<>(1000);
+        while (!reader.reachedEnd()) {
+            ColumnarRowData row = reader.nextRecord();
+            RowRowConverter rowRowConverter =
+                    RowRowConverter.create(
+                            TypeConversions.fromLogicalToDataType(NESTED_ARRAY_MAP_TYPE));
+            Row external = rowRowConverter.toExternal(row);
+            results.add(external);
+        }
+        reader.close();
+        Assertions.assertEquals(rows, results);
+    }
+
     private void innerTestPartitionValues(
             Path testPath, Map<String, Object> partSpec, boolean nullPartValue, int rowGroupSize)
             throws IOException {
@@ -699,5 +774,56 @@ class ParquetColumnarRowSplitReaderTest {
             i++;
         }
         reader.close();
+    }
+
+    private Path createNestedData(List<Row> rows, File tmpDir, int rowGroupSize)
+            throws IOException {
+        Path path = new Path(tmpDir.getPath(), UUID.randomUUID().toString());
+        Configuration conf = new Configuration();
+        conf.setInt("parquet.block.size", rowGroupSize);
+
+        ParquetWriterFactory<RowData> factory =
+                ParquetRowDataBuilder.createWriterFactory(NESTED_ARRAY_MAP_TYPE, conf, false);
+        BulkWriter<RowData> writer =
+                factory.create(path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE));
+        for (int i = 0; i < rows.size(); i++) {
+            writer.addElement(NESTED_ARRAY_MAP_CONVERTER.toInternal(rows.get(i)));
+        }
+        writer.flush();
+        writer.finish();
+
+        return path;
+    }
+
+    private List<Row> prepareNestedData(int number) {
+        List<Row> rows = new ArrayList<>(number);
+
+        for (int i = 0; i < number; i++) {
+            Integer v = i;
+            Map<String, String> mp1 = new HashMap<>();
+            mp1.put(null, "val_" + i);
+            Map<String, String> mp2 = new HashMap<>();
+            mp2.put("key_" + i, null);
+            mp2.put("key@" + i, "val@" + i);
+
+            rows.add(
+                    Row.of(
+                            v,
+                            new Integer[] {v, v + 1},
+                            new Integer[][] {{i, i + 1, null}, {i, i + 2, null}, {}, null},
+                            new Map[] {null, mp1, mp2},
+                            new Row[] {Row.of(i), Row.of(i + 1), null},
+                            Row.of(
+                                    new Row[] {
+                                        Row.of(
+                                                new Integer[][] {
+                                                    {i, i + 1, null}, {i, i + 2, null}, {}, null
+                                                },
+                                                i),
+                                        null
+                                    },
+                                    i)));
+        }
+        return rows;
     }
 }

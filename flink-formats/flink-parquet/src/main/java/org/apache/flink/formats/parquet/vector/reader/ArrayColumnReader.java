@@ -44,6 +44,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Array {@link ColumnReader}. TODO Currently ARRAY type only support non nested case. */
+@Deprecated
 public class ArrayColumnReader extends BaseVectorizedColumnReader {
 
     // The value read in last time

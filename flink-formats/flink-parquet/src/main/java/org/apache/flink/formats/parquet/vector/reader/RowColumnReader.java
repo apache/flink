@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.util.List;
 
 /** Row {@link ColumnReader}. */
+@Deprecated
 public class RowColumnReader implements ColumnReader<WritableColumnVector> {
 
     private final List<ColumnReader> fieldReaders;

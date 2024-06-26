@@ -25,6 +25,7 @@ import org.apache.flink.table.data.columnar.vector.writable.WritableColumnVector
 import java.io.IOException;
 
 /** Map {@link ColumnReader}. */
+@Deprecated
 public class MapColumnReader implements ColumnReader<WritableColumnVector> {
 
     private final ArrayColumnReader keyReader;
