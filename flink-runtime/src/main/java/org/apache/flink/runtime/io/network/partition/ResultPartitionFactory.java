@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
@@ -30,7 +29,6 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
 import org.apache.flink.runtime.io.network.partition.hybrid.HsResultPartition;
 import org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleConfiguration;
-import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageUtils;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.shuffle.TieredResultPartitionFactory;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemorySpec;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierFactory;
@@ -42,6 +40,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.ProcessorArchitecture;
 import org.apache.flink.util.function.SupplierWithException;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,8 +89,6 @@ public class ResultPartitionFactory {
 
     private final long hybridShuffleNumRetainedInMemoryRegionsMax;
 
-    private final boolean memoryDecouplingEnabled;
-
     private final boolean sslEnabled;
 
     private final int maxOverdraftBuffersPerGate;
@@ -117,7 +114,6 @@ public class ResultPartitionFactory {
             int maxOverdraftBuffersPerGate,
             int hybridShuffleSpilledIndexRegionGroupSize,
             long hybridShuffleNumRetainedInMemoryRegionsMax,
-            boolean memoryDecouplingEnabled,
             Optional<TieredResultPartitionFactory> tieredStorage) {
 
         this.partitionManager = partitionManager;
@@ -139,7 +135,6 @@ public class ResultPartitionFactory {
         this.hybridShuffleSpilledIndexRegionGroupSize = hybridShuffleSpilledIndexRegionGroupSize;
         this.hybridShuffleNumRetainedInMemoryRegionsMax =
                 hybridShuffleNumRetainedInMemoryRegionsMax;
-        this.memoryDecouplingEnabled = memoryDecouplingEnabled;
         this.tieredStorage = tieredStorage;
     }
 
@@ -272,7 +267,6 @@ public class ResultPartitionFactory {
                                         maxParallelism,
                                         networkBufferSize,
                                         isBroadcast,
-                                        memoryDecouplingEnabled,
                                         partitionManager,
                                         bufferCompressor,
                                         checkNotNull(
@@ -389,7 +383,7 @@ public class ResultPartitionFactory {
     SupplierWithException<BufferPool, IOException> createBufferPoolFactory(
             int numberOfSubpartitions, ResultPartitionType type) {
         return () -> {
-            Tuple3<Integer, Integer, Integer> tuple =
+            Pair<Integer, Integer> pair =
                     NettyShuffleUtils.getMinMaxNetworkBuffersPerResultPartition(
                             configuredNetworkBuffersPerChannel,
                             floatingNetworkBuffersPerGate,
@@ -397,17 +391,14 @@ public class ResultPartitionFactory {
                             sortShuffleMinBuffers,
                             numberOfSubpartitions,
                             tieredStorage.isPresent(),
-                            memoryDecouplingEnabled,
                             tieredStorage
                                     .map(ResultPartitionFactory::getNumTotalGuaranteedBuffers)
                                     .orElse(0),
-                            TieredStorageUtils.getMinBuffersPerResultPartition(),
                             type);
 
             return bufferPoolFactory.createBufferPool(
-                    tuple.f0,
-                    tuple.f1,
-                    tuple.f2,
+                    pair.getLeft(),
+                    pair.getRight(),
                     numberOfSubpartitions,
                     maxBuffersPerChannel,
                     isOverdraftBufferNeeded(type) ? maxOverdraftBuffersPerGate : 0);

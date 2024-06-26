@@ -16,17 +16,16 @@
  * limitations under the License.
  */
 
+// We have it in this package because we could not mock the methods otherwise
+
 package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemorySegmentFactory;
 
 import java.util.concurrent.CompletableFuture;
 
-/** Implementation of {@link BufferPool} that works on un-pooled memory segments. */
-public class UnpooledBufferPool implements BufferPool {
-
-    private static final int SEGMENT_SIZE = 1024;
+/** No-op implementation of {@link BufferPool}. */
+public class NoOpBufferPool implements BufferPool {
 
     @Override
     public void reserveSegments(int numberOfSegmentsToReserve) {}
@@ -36,38 +35,28 @@ public class UnpooledBufferPool implements BufferPool {
 
     @Override
     public Buffer requestBuffer() {
-        return new NetworkBuffer(requestMemorySegment(), this);
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public BufferBuilder requestBufferBuilder() {
-        return new BufferBuilder(requestMemorySegment(), this);
-    }
-
-    @Override
-    public MemorySegment requestMemorySegment() {
-        return MemorySegmentFactory.allocateUnpooledOffHeapMemory(SEGMENT_SIZE, null);
-    }
-
-    @Override
-    public MemorySegment requestMemorySegmentBlocking() throws InterruptedException {
-        return requestMemorySegment();
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public BufferBuilder requestBufferBuilderBlocking() throws InterruptedException {
-        return requestBufferBuilder();
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public BufferBuilder requestBufferBuilder(int targetChannel) {
-        return requestBufferBuilder();
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public BufferBuilder requestBufferBuilderBlocking(int targetChannel)
             throws InterruptedException {
-        return requestBufferBuilder();
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -81,18 +70,28 @@ public class UnpooledBufferPool implements BufferPool {
     }
 
     @Override
+    public MemorySegment requestMemorySegment() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public MemorySegment requestMemorySegmentBlocking() throws InterruptedException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public int getNumberOfRequiredMemorySegments() {
-        return Integer.MAX_VALUE;
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public int getMaxNumberOfMemorySegments() {
-        return -1;
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public int getNumBuffers() {
-        return Integer.MAX_VALUE;
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -101,26 +100,28 @@ public class UnpooledBufferPool implements BufferPool {
     }
 
     @Override
-    public void setMaxOverdraftBuffersPerGate(int maxOverdraftBuffersPerGate) {}
+    public void setMaxOverdraftBuffersPerGate(int maxOverdraftBuffersPerGate) {
+        throw new UnsupportedOperationException();
+    }
 
     @Override
     public int getMaxOverdraftBuffersPerGate() {
-        return 0;
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public int getNumberOfAvailableMemorySegments() {
-        return Integer.MAX_VALUE;
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public int bestEffortGetNumOfUsedBuffers() {
-        return 0;
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public void recycle(MemorySegment memorySegment) {
-        memorySegment.free();
+        throw new UnsupportedOperationException();
     }
 
     @Override

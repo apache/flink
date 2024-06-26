@@ -155,6 +155,7 @@ CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
   )
   [COMMENT table_comment]
   [PARTITIONED BY (partition_column_name1, partition_column_name2, ...)]
+  [ <distribution> ]
   WITH (key1=val1, key2=val2, ...)
   [ LIKE source_table [( <like_options> )] | AS select_query ]
    
@@ -181,9 +182,15 @@ CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
 
 <like_options>:
 {
-   { INCLUDING | EXCLUDING } { ALL | CONSTRAINTS | PARTITIONS }
+   { INCLUDING | EXCLUDING } { ALL | CONSTRAINTS | DISTRIBUTION | PARTITIONS }
  | { INCLUDING | EXCLUDING | OVERWRITING } { GENERATED | OPTIONS | WATERMARKS } 
 }[, ...]
+
+<distribution>:
+{
+    DISTRIBUTED BY [ { HASH | RANGE } ] (bucket_column_name1, bucket_column_name2, ...) ] [INTO n BUCKETS]
+  | DISTRIBUTED INTO n BUCKETS
+}
 
 ```
 
@@ -406,6 +413,36 @@ Flink will assume correctness of the primary key by assuming that the columns nu
 
 Partition the created table by the specified columns. A directory is created for each partition if this table is used as a filesystem sink.
 
+### `DISTRIBUTED`
+
+Buckets enable load balancing in an external storage system by splitting data into disjoint subsets. These subsets group rows with potentially "infinite" keyspace into smaller and more manageable chunks that allow for efficient parallel processing.
+
+Bucketing depends heavily on the semantics of the underlying connector. However, a user can influence the bucketing behavior by specifying the number of buckets, the bucketing algorithm, and (if the algorithm allows it) the columns which are used for target bucket calculation.
+
+All bucketing components (i.e. bucket number, distribution algorithm, bucket key columns) are
+optional from a SQL syntax perspective. 
+
+Given the following SQL statements:
+
+```sql
+-- Example 1
+CREATE TABLE MyTable (uid BIGINT, name STRING) DISTRIBUTED BY HASH(uid) INTO 4 BUCKETS;
+
+-- Example 2
+CREATE TABLE MyTable (uid BIGINT, name STRING) DISTRIBUTED BY (uid) INTO 4 BUCKETS;
+
+-- Example 3
+CREATE TABLE MyTable (uid BIGINT, name STRING) DISTRIBUTED BY (uid);
+
+-- Example 4
+CREATE TABLE MyTable (uid BIGINT, name STRING) DISTRIBUTED INTO 4 BUCKETS;
+```
+
+Example 1 declares a hash function on a fixed number of 4 buckets (i.e. HASH(uid) % 4 = target
+bucket). Example 2 leaves the selection of an algorithm up to the connector. Additionally, 
+Example 3 leaves the number of buckets up  to the connector. 
+In contrast, Example 4 only defines the number of buckets.
+
 ### `WITH` Options
 
 Table properties used to create a table source/sink. The properties are usually used to find and create the underlying connector.
@@ -465,6 +502,7 @@ You can control the merging behavior of:
 * GENERATED - computed columns
 * METADATA - metadata columns
 * OPTIONS - connector options that describe connector and format properties
+* DISTRIBUTION - distribution definition
 * PARTITIONS - partition of the tables
 * WATERMARKS - watermark declarations
 

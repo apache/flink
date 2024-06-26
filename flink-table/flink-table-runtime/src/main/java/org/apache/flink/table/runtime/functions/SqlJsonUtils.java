@@ -265,7 +265,13 @@ public class SqlJsonUtils {
                             for (int i = 0; i < list.size(); i++) {
                                 final Object el = list.get(i);
                                 if (el != null) {
-                                    arr[i] = StringData.fromString(el.toString());
+                                    final String stringifiedEl;
+                                    if (isScalarObject(el)) {
+                                        stringifiedEl = String.valueOf(el);
+                                    } else {
+                                        stringifiedEl = jsonize(el);
+                                    }
+                                    arr[i] = StringData.fromString(stringifiedEl);
                                 }
                             }
 

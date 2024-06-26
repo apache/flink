@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.shuffle;
 
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.GateBuffersSpec;
@@ -59,36 +58,30 @@ public class NettyShuffleUtils {
     }
 
     /**
-     * Calculates and returns local network buffer pool size used by the result partition. The value
-     * in the returned tuple respectively represent the expected, min and max buffers of the pool.
+     * Calculates and returns local network buffer pool size used by the result partition. The
+     * left/right value of the returned pair represent the min/max buffers require by the pool.
      */
-    public static Tuple3<Integer, Integer, Integer> getMinMaxNetworkBuffersPerResultPartition(
+    public static Pair<Integer, Integer> getMinMaxNetworkBuffersPerResultPartition(
             final int configuredNetworkBuffersPerChannel,
             final int numFloatingBuffersPerGate,
             final int sortShuffleMinParallelism,
             final int sortShuffleMinBuffers,
             final int numSubpartitions,
             final boolean enableTieredStorage,
-            final boolean enableMemoryDecoupling,
             final int tieredStoreExclusiveBuffers,
-            final int tieredStorageMinBuffersPerResultPartition,
             final ResultPartitionType type) {
         boolean isSortShuffle =
                 type.isBlockingOrBlockingPersistentResultPartition()
                         && numSubpartitions >= sortShuffleMinParallelism;
-        boolean isMemoryDecouplingEnabled =
-                type.isHybridResultPartition() && enableTieredStorage && enableMemoryDecoupling;
-
-        int expected =
-                isSortShuffle
-                        ? sortShuffleMinBuffers
-                        : (enableTieredStorage
-                                ? Math.min(tieredStoreExclusiveBuffers, numSubpartitions + 1)
-                                : (numSubpartitions + 1));
-
-        int min = isMemoryDecouplingEnabled ? tieredStorageMinBuffersPerResultPartition : expected;
-        expected = Math.max(min, expected);
-
+        int min;
+        if (isSortShuffle) {
+            min = sortShuffleMinBuffers;
+        } else {
+            min =
+                    enableTieredStorage
+                            ? Math.min(tieredStoreExclusiveBuffers, numSubpartitions + 1)
+                            : (numSubpartitions + 1);
+        }
         int max =
                 type.isBounded()
                         ? numSubpartitions * configuredNetworkBuffersPerChannel
@@ -96,13 +89,12 @@ public class NettyShuffleUtils {
                         : (isSortShuffle
                                 ? Math.max(min, 4 * numSubpartitions)
                                 : NetworkBufferPool.UNBOUNDED_POOL_SIZE);
-        max = Math.max(max, expected);
         // for each upstream hash-based blocking/pipelined subpartition, at least one buffer is
         // needed even the configured network buffers per channel is 0 and this behavior is for
         // performance. If it's not guaranteed that each subpartition can get at least one buffer,
         // more partial buffers with little data will be outputted to network/disk and recycled to
         // be used by other subpartitions which can not get a buffer for data caching.
-        return Tuple3.of(expected, min, max);
+        return Pair.of(min, Math.max(min, max));
     }
 
     public static int computeNetworkBuffersForAnnouncing(
@@ -166,9 +158,8 @@ public class NettyShuffleUtils {
                         floatingNetworkBuffersPerGate,
                         type,
                         numInputChannels,
-                        false,
                         false);
-        return gateBuffersSpec.getMaxBuffersPerGate();
+        return gateBuffersSpec.targetTotalBuffersPerGate();
     }
 
     private static int getNumBuffersToAnnounceForResultPartition(
@@ -179,7 +170,7 @@ public class NettyShuffleUtils {
             int sortShuffleMinBuffers,
             int numSubpartitions) {
 
-        Tuple3<Integer, Integer, Integer> tuple =
+        Pair<Integer, Integer> minAndMax =
                 getMinMaxNetworkBuffersPerResultPartition(
                         configuredNetworkBuffersPerChannel,
                         floatingBuffersPerGate,
@@ -187,9 +178,7 @@ public class NettyShuffleUtils {
                         sortShuffleMinBuffers,
                         numSubpartitions,
                         false,
-                        false,
                         0,
-                        1,
                         type);
 
         // In order to avoid network buffer request timeout (see FLINK-12852), we announce
@@ -198,8 +187,8 @@ public class NettyShuffleUtils {
         // back pressure so we need to include all the floating buffers in the announcement, i.e. we
         // should take the max value;
         // 2. For blocking shuffle, it is back pressure free and floating buffers can be recycled
-        // in time, so that the expected buffers would be enough.
-        int ret = type.canBePipelinedConsumed() ? tuple.f2 : tuple.f0;
+        // in time, so that the minimum required buffers would be enough.
+        int ret = type.canBePipelinedConsumed() ? minAndMax.getRight() : minAndMax.getLeft();
 
         if (ret == Integer.MAX_VALUE) {
             // Should never reach this branch. Result partition will allocate an unbounded

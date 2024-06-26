@@ -190,11 +190,17 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
     @Override
     public void registerJob(JobShuffleContext context) {
         jobShuffleContexts.put(context.getJobId(), context);
+        if (tieredInternalShuffleMaster != null) {
+            tieredInternalShuffleMaster.registerJob(context);
+        }
     }
 
     @Override
     public void unregisterJob(JobID jobId) {
         jobShuffleContexts.remove(jobId);
+        if (tieredInternalShuffleMaster != null) {
+            tieredInternalShuffleMaster.unregisterJob(jobId);
+        }
     }
 
     @Override

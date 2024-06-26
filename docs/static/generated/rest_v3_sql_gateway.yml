@@ -6,7 +6,7 @@ info:
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
-  version: v2/2.0-SNAPSHOT
+  version: v3/2.0-SNAPSHOT
 paths:
   /api_versions:
     get:
@@ -143,6 +143,35 @@ paths:
       responses:
         "200":
           description: The request was successful.
+  /sessions/{session_handle}/materialized-tables/{identifier}/refresh:
+    post:
+      description: Refresh materialized table
+      operationId: refreshMaterializedTable
+      parameters:
+      - name: session_handle
+        in: path
+        description: The SessionHandle that identifies a session.
+        required: true
+        schema:
+          $ref: '#/components/schemas/SessionHandle'
+      - name: identifier
+        in: path
+        description: The fully qualified string that identifies a materialized table.
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshMaterializedTableRequestBody'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshMaterializedTableResponseBody'
   /sessions/{session_handle}/operations/{operation_handle}/cancel:
     post:
       description: Cancel the operation.
@@ -475,6 +504,32 @@ components:
       type: object
       properties:
         status:
+          type: string
+    RefreshMaterializedTableRequestBody:
+      type: object
+      properties:
+        dynamicOptions:
+          type: object
+          additionalProperties:
+            type: string
+        executionConfig:
+          type: object
+          additionalProperties:
+            type: string
+        isPeriodic:
+          type: boolean
+        periodic:
+          type: boolean
+        scheduleTime:
+          type: string
+        staticPartitions:
+          type: object
+          additionalProperties:
+            type: string
+    RefreshMaterializedTableResponseBody:
+      type: object
+      properties:
+        operationHandle:
           type: string
     ResolvedExpression:
       type: object

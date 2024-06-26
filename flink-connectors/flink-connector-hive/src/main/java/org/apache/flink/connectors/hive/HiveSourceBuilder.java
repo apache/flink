@@ -19,6 +19,7 @@
 package org.apache.flink.connectors.hive;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.file.src.ContinuousEnumerationSettings;
@@ -322,9 +323,6 @@ public class HiveSourceBuilder {
                 HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM.key(),
                 String.valueOf(splitPartitionThreadNum));
         jobConf.set(
-                HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX.key(),
-                flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX).toString());
-        jobConf.set(
                 HiveOptions.TABLE_EXEC_HIVE_SPLIT_MAX_BYTES.key(),
                 String.valueOf(
                         flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_SPLIT_MAX_BYTES).getBytes()));
@@ -341,7 +339,6 @@ public class HiveSourceBuilder {
         jobConf.set(
                 HiveOptions.TABLE_EXEC_HIVE_CALCULATE_PARTITION_SIZE_THREAD_NUM.key(),
                 String.valueOf(calPartitionSizeThreadNum));
-
         jobConf.setBoolean(
                 HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM.key(),
                 flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM));
@@ -351,6 +348,26 @@ public class HiveSourceBuilder {
                                 flinkConf.get(
                                         HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MODE))
                         .toUpperCase(Locale.ROOT));
+        configureInferSourceParallelismMax(flinkConf, jobConf);
+    }
+
+    /**
+     * If {@link HiveOptions#TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX} is not configured, the
+     * {@link BatchExecutionOptions#ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM} will be
+     * used as the upper bound for parallelism inference in dynamic parallelism inference mode.
+     */
+    private void configureInferSourceParallelismMax(ReadableConfig flinkConf, JobConf jobConf) {
+        if (flinkConf
+                        .getOptional(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX)
+                        .isPresent()
+                || flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MODE)
+                        == HiveOptions.InferMode.STATIC) {
+            jobConf.set(
+                    HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX.key(),
+                    flinkConf
+                            .get(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX)
+                            .toString());
+        }
     }
 
     private boolean isStreamingSource() {

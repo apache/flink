@@ -210,16 +210,12 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
         reclaimBuffersIfNeeded(0);
 
         MemorySegment memorySegment = bufferQueue.poll();
-        // Requests the buffer as soon as possible from wherever it is available in the buffer pool
-        // or the internal queue.
-        hardBackpressureTimerGauge.markStart();
-        while (memorySegment == null) {
+        if (memorySegment == null) {
             memorySegment = requestBufferBlockingFromPool();
-            if (memorySegment == null) {
-                memorySegment = requestBufferFromQueue();
-            }
         }
-        hardBackpressureTimerGauge.markEnd();
+        if (memorySegment == null) {
+            memorySegment = checkNotNull(requestBufferBlockingFromQueue());
+        }
 
         incNumRequestedBuffer(owner);
         return new BufferBuilder(
@@ -261,9 +257,11 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
 
         while (bufferQueue.size() + numRequestedByGuaranteedReclaimableOwners
                 < numGuaranteedReclaimableBuffers + numAdditionalBuffers) {
-            hardBackpressureTimerGauge.markStart();
+            if (numRequestedBuffers.get() >= bufferPool.getNumBuffers()) {
+                return false;
+            }
+
             MemorySegment memorySegment = requestBufferBlockingFromPool();
-            hardBackpressureTimerGauge.markEnd();
             if (memorySegment == null) {
                 return false;
             }
@@ -290,30 +288,25 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
         try {
             releasedStateLock.writeLock().lock();
             isReleased = true;
-
-            if (executor != null) {
-                executor.shutdown();
-                try {
-                    if (!executor.awaitTermination(5L, TimeUnit.MINUTES)) {
-                        throw new TimeoutException(
-                                "Timeout for shutting down the buffer reclaim checker executor.");
-                    }
-                } catch (Exception e) {
-                    ExceptionUtils.rethrow(e);
-                }
-            }
-            while (!bufferQueue.isEmpty()) {
-                MemorySegment segment = bufferQueue.poll();
-                bufferPool.recycle(segment);
-                numRequestedBuffers.decrementAndGet();
-            }
         } finally {
             releasedStateLock.writeLock().unlock();
         }
-    }
-
-    public int getBufferPoolSize() {
-        return bufferPool == null ? -1 : bufferPool.getNumBuffers();
+        if (executor != null) {
+            executor.shutdown();
+            try {
+                if (!executor.awaitTermination(5L, TimeUnit.MINUTES)) {
+                    throw new TimeoutException(
+                            "Timeout for shutting down the buffer reclaim checker executor.");
+                }
+            } catch (Exception e) {
+                ExceptionUtils.rethrow(e);
+            }
+        }
+        while (!bufferQueue.isEmpty()) {
+            MemorySegment segment = bufferQueue.poll();
+            bufferPool.recycle(segment);
+            numRequestedBuffers.decrementAndGet();
+        }
     }
 
     /**
@@ -323,6 +316,8 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
     @Nullable
     private MemorySegment requestBufferBlockingFromPool() {
         MemorySegment memorySegment = null;
+
+        hardBackpressureTimerGauge.markStart();
         while (numRequestedBuffers.get() < bufferPool.getNumBuffers()) {
             memorySegment = bufferPool.requestMemorySegment();
             if (memorySegment == null) {
@@ -339,20 +334,20 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
                 break;
             }
         }
+        hardBackpressureTimerGauge.markEnd();
 
         return memorySegment;
     }
 
     /** @return a memory segment from the internal buffer queue. */
-    @Nullable
-    private MemorySegment requestBufferFromQueue() {
+    private MemorySegment requestBufferBlockingFromQueue() {
         CompletableFuture<Void> requestBufferFuture = new CompletableFuture<>();
         scheduleCheckRequestBufferFuture(
                 requestBufferFuture, INITIAL_REQUEST_BUFFER_TIMEOUT_FOR_RECLAIMING_MS);
 
         MemorySegment memorySegment = null;
         try {
-            memorySegment = bufferQueue.poll(100, TimeUnit.MILLISECONDS);
+            memorySegment = bufferQueue.take();
         } catch (InterruptedException e) {
             ExceptionUtils.rethrow(e);
         } finally {

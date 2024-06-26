@@ -78,13 +78,13 @@ class InputBuffersMetricsTest {
         inputGate1.setup();
 
         SingleInputGate[] inputGates = new SingleInputGate[] {inputGate1};
-        CreditBasedInputBuffersUsageGauge inputBufferPoolUsageGauge =
-                new CreditBasedInputBuffersUsageGauge(inputGates);
+        FloatingBuffersUsageGauge floatingBuffersUsageGauge =
+                new FloatingBuffersUsageGauge(inputGates);
         ExclusiveBuffersUsageGauge exclusiveBuffersUsageGauge =
                 new ExclusiveBuffersUsageGauge(inputGates);
-        FloatingBuffersUsageGauge floatingBuffersUsageGauge =
-                new FloatingBuffersUsageGauge(
-                        inputGates, inputBufferPoolUsageGauge, exclusiveBuffersUsageGauge);
+        CreditBasedInputBuffersUsageGauge inputBufferPoolUsageGauge =
+                new CreditBasedInputBuffersUsageGauge(
+                        floatingBuffersUsageGauge, exclusiveBuffersUsageGauge, inputGates);
 
         closeableRegistry.registerCloseable(network::close);
         closeableRegistry.registerCloseable(inputGate1::close);
@@ -132,10 +132,13 @@ class InputBuffersMetricsTest {
         List<RemoteInputChannel> remoteInputChannels = tuple1.f1;
 
         SingleInputGate[] inputGates = new SingleInputGate[] {tuple1.f0, tuple2.f0};
-        CreditBasedInputBuffersUsageGauge inputBuffersUsageGauge =
-                new CreditBasedInputBuffersUsageGauge(inputGates);
+        FloatingBuffersUsageGauge floatingBuffersUsageGauge =
+                new FloatingBuffersUsageGauge(inputGates);
         ExclusiveBuffersUsageGauge exclusiveBuffersUsageGauge =
                 new ExclusiveBuffersUsageGauge(inputGates);
+        CreditBasedInputBuffersUsageGauge inputBuffersUsageGauge =
+                new CreditBasedInputBuffersUsageGauge(
+                        floatingBuffersUsageGauge, exclusiveBuffersUsageGauge, inputGates);
 
         assertThat(exclusiveBuffersUsageGauge.getValue()).isEqualTo(0.0f, offset(0.0f));
         assertThat(inputBuffersUsageGauge.getValue()).isEqualTo(0.0f, offset(0.0f));
@@ -192,13 +195,13 @@ class InputBuffersMetricsTest {
         RemoteInputChannel remoteInputChannel1 = tuple1.f1.get(0);
 
         SingleInputGate[] inputGates = new SingleInputGate[] {tuple1.f0, inputGate2};
-        CreditBasedInputBuffersUsageGauge inputBuffersUsageGauge =
-                new CreditBasedInputBuffersUsageGauge(inputGates);
+        FloatingBuffersUsageGauge floatingBuffersUsageGauge =
+                new FloatingBuffersUsageGauge(inputGates);
         ExclusiveBuffersUsageGauge exclusiveBuffersUsageGauge =
                 new ExclusiveBuffersUsageGauge(inputGates);
-        FloatingBuffersUsageGauge floatingBuffersUsageGauge =
-                new FloatingBuffersUsageGauge(
-                        inputGates, inputBuffersUsageGauge, exclusiveBuffersUsageGauge);
+        CreditBasedInputBuffersUsageGauge inputBuffersUsageGauge =
+                new CreditBasedInputBuffersUsageGauge(
+                        floatingBuffersUsageGauge, exclusiveBuffersUsageGauge, inputGates);
 
         assertThat(floatingBuffersUsageGauge.getValue()).isEqualTo(0.0f, offset(0.0f));
         assertThat(inputBuffersUsageGauge.getValue()).isEqualTo(0.0f, offset(0.0f));
@@ -269,14 +272,7 @@ class InputBuffersMetricsTest {
                 new SingleInputGateBuilder()
                         .setNumberOfChannels(numberOfRemoteChannels + numberOfLocalChannels)
                         .setResultPartitionType(ResultPartitionType.PIPELINED_BOUNDED)
-                        .setupBufferPoolFactory(
-                                network,
-                                1,
-                                numberOfRemoteChannels
-                                                * network.getConfiguration()
-                                                        .networkBuffersPerChannel()
-                                        + network.getConfiguration()
-                                                .floatingNetworkBuffersPerGate())
+                        .setupBufferPoolFactory(network)
                         .build();
         InputChannel[] inputChannels =
                 new InputChannel[numberOfRemoteChannels + numberOfLocalChannels];

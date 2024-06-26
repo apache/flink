@@ -444,7 +444,7 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                 .rootCause()
                 .isInstanceOf(ValidationException.class)
                 .hasMessage(
-                        "Currently, manually refreshing materialized table only supports specifying char and string type partition keys. All specific partition keys with unsupported types are:\n"
+                        "Currently, refreshing materialized table only supports referring to char, varchar and string type partition keys. All specified partition keys in partition specs with unsupported types are:\n"
                                 + "\n"
                                 + "ds2");
     }
@@ -655,6 +655,114 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
     }
 
     @Test
+    void testAlterMaterializedTableWithRepeatedSuspendAndResumeInContinuousMode(
+            @TempDir Path temporaryPath) throws Exception {
+        String materializedTableDDL =
+                "CREATE MATERIALIZED TABLE users_shops"
+                        + " PARTITIONED BY (ds)\n"
+                        + " WITH(\n"
+                        + "   'format' = 'debezium-json'\n"
+                        + " )\n"
+                        + " FRESHNESS = INTERVAL '30' SECOND\n"
+                        + " AS SELECT \n"
+                        + "  user_id,\n"
+                        + "  shop_id,\n"
+                        + "  ds,\n"
+                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum,\n"
+                        + "  SUM (1) AS pv\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds)";
+
+        OperationHandle materializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, materializedTableHandle);
+
+        ResolvedCatalogMaterializedTable activeMaterializedTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+        waitUntilAllTasksAreRunning(
+                restClusterClient,
+                JobID.fromHexString(
+                        ContinuousRefreshHandlerSerializer.INSTANCE
+                                .deserialize(
+                                        activeMaterializedTable.getSerializedRefreshHandler(),
+                                        getClass().getClassLoader())
+                                .getJobId()));
+
+        // suspend materialized table
+        String savepointDir = temporaryPath.toString();
+        String alterJobSavepointDDL =
+                String.format(
+                        "SET 'execution.checkpointing.savepoint-dir' = 'file://%s'", savepointDir);
+        OperationHandle alterMaterializedTableSavepointHandle =
+                service.executeStatement(
+                        sessionHandle, alterJobSavepointDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableSavepointHandle);
+
+        // suspend materialized table
+        String alterMaterializedTableSuspendDDL = "ALTER MATERIALIZED TABLE users_shops SUSPEND";
+        OperationHandle alterMaterializedTableSuspendHandle =
+                service.executeStatement(
+                        sessionHandle, alterMaterializedTableSuspendDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableSuspendHandle);
+
+        // verify repeated suspend materialized table
+        OperationHandle repeatedAlterMaterializedTableSuspendHandle =
+                service.executeStatement(
+                        sessionHandle, alterMaterializedTableSuspendDDL, -1, new Configuration());
+        assertThatThrownBy(
+                        () ->
+                                awaitOperationTermination(
+                                        service,
+                                        sessionHandle,
+                                        repeatedAlterMaterializedTableSuspendHandle))
+                .rootCause()
+                .isInstanceOf(SqlExecutionException.class)
+                .hasMessageContaining(
+                        String.format(
+                                "Materialized table %s continuous refresh job has been suspended",
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops")));
+
+        // resume materialized table
+        String alterMaterializedTableResumeDDL = "ALTER MATERIALIZED TABLE users_shops RESUME";
+        OperationHandle alterMaterializedTableResumeHandle =
+                service.executeStatement(
+                        sessionHandle, alterMaterializedTableResumeDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableResumeHandle);
+
+        // verify repeated resume materialized table
+        OperationHandle repeatedAlterMaterializedTableResumeHandle =
+                service.executeStatement(
+                        sessionHandle, alterMaterializedTableResumeDDL, -1, new Configuration());
+        assertThatThrownBy(
+                        () ->
+                                awaitOperationTermination(
+                                        service,
+                                        sessionHandle,
+                                        repeatedAlterMaterializedTableResumeHandle))
+                .rootCause()
+                .isInstanceOf(SqlExecutionException.class)
+                .hasMessageContaining(
+                        String.format(
+                                "Materialized table %s continuous refresh job has been resumed",
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops")));
+    }
+
+    @Test
     void testAlterMaterializedTableSuspendAndResumeInFullMode() throws Exception {
         createAndVerifyCreateMaterializedTableWithData(
                 "users_shops", Collections.emptyList(), Collections.emptyMap(), RefreshMode.FULL);
@@ -754,6 +862,79 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
     }
 
     @Test
+    void testAlterMaterializedTableWithRepeatedSuspendAndResumeInFullMode() throws Exception {
+        createAndVerifyCreateMaterializedTableWithData(
+                "users_shops", Collections.emptyList(), Collections.emptyMap(), RefreshMode.FULL);
+
+        ResolvedCatalogMaterializedTable activeMaterializedTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+
+        assertThat(activeMaterializedTable.getRefreshStatus())
+                .isEqualTo(CatalogMaterializedTable.RefreshStatus.ACTIVATED);
+
+        // suspend materialized table
+        String alterMaterializedTableSuspendDDL = "ALTER MATERIALIZED TABLE users_shops SUSPEND";
+        OperationHandle alterMaterializedTableSuspendHandle =
+                service.executeStatement(
+                        sessionHandle, alterMaterializedTableSuspendDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableSuspendHandle);
+
+        // repeated suspend materialized table
+        OperationHandle repeatedAlterMaterializedTableSuspendHandle =
+                service.executeStatement(
+                        sessionHandle, alterMaterializedTableSuspendDDL, -1, new Configuration());
+        assertThatThrownBy(
+                        () ->
+                                awaitOperationTermination(
+                                        service,
+                                        sessionHandle,
+                                        repeatedAlterMaterializedTableSuspendHandle))
+                .rootCause()
+                .isInstanceOf(SqlExecutionException.class)
+                .hasMessageContaining(
+                        String.format(
+                                "Materialized table %s refresh workflow has been suspended.",
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops")));
+
+        // resume materialized table
+        String alterMaterializedTableResumeDDL =
+                "ALTER MATERIALIZED TABLE users_shops RESUME WITH ('debezium-json.ignore-parse-errors' = 'true')";
+        OperationHandle alterMaterializedTableResumeHandle =
+                service.executeStatement(
+                        sessionHandle, alterMaterializedTableResumeDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableResumeHandle);
+
+        // verify repeated resume materialized table
+        OperationHandle repeatedAlterMaterializedTableResumeHandle =
+                service.executeStatement(
+                        sessionHandle, alterMaterializedTableResumeDDL, -1, new Configuration());
+        assertThatThrownBy(
+                        () ->
+                                awaitOperationTermination(
+                                        service,
+                                        sessionHandle,
+                                        repeatedAlterMaterializedTableResumeHandle))
+                .rootCause()
+                .isInstanceOf(SqlExecutionException.class)
+                .hasMessageContaining(
+                        String.format(
+                                "Materialized table %s refresh workflow has been resumed.",
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops")));
+    }
+
+    @Test
     void testDropMaterializedTableInContinuousMode() throws Exception {
         String materializedTableDDL =
                 "CREATE MATERIALIZED TABLE users_shops"
@@ -809,6 +990,29 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
         awaitOperationTermination(service, sessionHandle, describeJobHandle);
         List<RowData> jobResults = fetchAllResults(service, sessionHandle, describeJobHandle);
         assertThat(jobResults.get(0).getString(2).toString()).isEqualTo("RUNNING");
+
+        // Drop materialized table using drop table statement
+        String dropTableUsingMaterializedTableDDL = "DROP TABLE users_shops";
+        OperationHandle dropTableUsingMaterializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, dropTableUsingMaterializedTableDDL, -1, new Configuration());
+
+        assertThatThrownBy(
+                        () ->
+                                awaitOperationTermination(
+                                        service,
+                                        sessionHandle,
+                                        dropTableUsingMaterializedTableHandle))
+                .rootCause()
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        String.format(
+                                "Table with identifier '%s' does not exist.",
+                                ObjectIdentifier.of(
+                                                fileSystemCatalogName,
+                                                TEST_DEFAULT_DATABASE,
+                                                "users_shops")
+                                        .asSummaryString()));
 
         // drop materialized table
         String dropMaterializedTableDDL = "DROP MATERIALIZED TABLE IF EXISTS users_shops";
@@ -909,6 +1113,29 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
 
         // verify refresh workflow is created
         assertThat(embeddedWorkflowScheduler.getQuartzScheduler().checkExists(jobKey)).isTrue();
+
+        // Drop materialized table using drop table statement
+        String dropTableUsingMaterializedTableDDL = "DROP TABLE users_shops";
+        OperationHandle dropTableUsingMaterializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, dropTableUsingMaterializedTableDDL, -1, new Configuration());
+
+        assertThatThrownBy(
+                        () ->
+                                awaitOperationTermination(
+                                        service,
+                                        sessionHandle,
+                                        dropTableUsingMaterializedTableHandle))
+                .rootCause()
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        String.format(
+                                "Table with identifier '%s' does not exist.",
+                                ObjectIdentifier.of(
+                                                fileSystemCatalogName,
+                                                TEST_DEFAULT_DATABASE,
+                                                "users_shops")
+                                        .asSummaryString()));
 
         // drop materialized table
         String dropMaterializedTableDDL = "DROP MATERIALIZED TABLE IF EXISTS users_shops";

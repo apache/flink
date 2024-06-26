@@ -102,8 +102,6 @@ public class NettyShuffleEnvironmentBuilder {
 
     private long hybridShuffleNumRetainedInMemoryRegionsMax = Long.MAX_VALUE;
 
-    private boolean isMemoryDecouplingEnabled = false;
-
     private int hybridShuffleSpilledIndexSegmentSize = 256;
 
     private TieredStorageConfiguration tieredStorageConfiguration = null;
@@ -242,12 +240,6 @@ public class NettyShuffleEnvironmentBuilder {
         return this;
     }
 
-    public NettyShuffleEnvironmentBuilder setIsMemoryDecouplingEnabled(
-            boolean isMemoryDecouplingEnabled) {
-        this.isMemoryDecouplingEnabled = isMemoryDecouplingEnabled;
-        return this;
-    }
-
     public NettyShuffleEnvironmentBuilder setHybridShuffleSpilledIndexSegmentSize(
             int hybridShuffleSpilledIndexSegmentSize) {
         this.hybridShuffleSpilledIndexSegmentSize = hybridShuffleSpilledIndexSegmentSize;
@@ -288,7 +280,6 @@ public class NettyShuffleEnvironmentBuilder {
                         maxOverdraftBuffersPerGate,
                         hybridShuffleSpilledIndexSegmentSize,
                         hybridShuffleNumRetainedInMemoryRegionsMax,
-                        isMemoryDecouplingEnabled,
                         tieredStorageConfiguration),
                 taskManagerLocation,
                 new TaskEventDispatcher(),
