@@ -32,7 +32,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.concurrent.ForkJoinPool;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -76,15 +79,35 @@ public class NonSplittingRecursiveEnumerator implements FileEnumerator {
     @Override
     public Collection<FileSourceSplit> enumerateSplits(Path[] paths, int minDesiredSplits)
             throws IOException {
-        final ArrayList<FileSourceSplit> splits = new ArrayList<>();
+        ForkJoinPool pool = null;
+        try {
+            pool = new ForkJoinPool(100);
+            return pool.submit(
+                            () ->
+                                    Arrays.stream(paths)
+                                            .parallel()
+                                            .flatMap(this::getSplitsFromPath)
+                                            .collect(Collectors.toList()))
+                    .get();
+        } catch (Exception e) {
+            throw new IOException(e);
+        } finally {
+            if (pool != null) {
+                pool.shutdown();
+            }
+        }
+    }
 
-        for (Path path : paths) {
+    private Stream<FileSourceSplit> getSplitsFromPath(Path path) {
+        try {
             final FileSystem fs = path.getFileSystem();
             final FileStatus status = fs.getFileStatus(path);
+            ArrayList<FileSourceSplit> splits = new ArrayList<>();
             addSplitsForPath(status, fs, splits);
+            return splits.stream();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
-
-        return splits;
     }
 
     protected void addSplitsForPath(
@@ -99,10 +122,20 @@ public class NonSplittingRecursiveEnumerator implements FileEnumerator {
             return;
         }
 
-        final FileStatus[] containedFiles = fs.listStatus(fileStatus.getPath());
-        for (FileStatus containedStatus : containedFiles) {
-            addSplitsForPath(containedStatus, fs, target);
-        }
+        target.addAll(
+                Arrays.stream(fs.listStatus(fileStatus.getPath()))
+                        .parallel()
+                        .flatMap(
+                                containedStatus -> {
+                                    ArrayList<FileSourceSplit> splits = new ArrayList<>();
+                                    try {
+                                        addSplitsForPath(containedStatus, fs, splits);
+                                    } catch (IOException e) {
+                                        throw new RuntimeException(e);
+                                    }
+                                    return splits.stream();
+                                })
+                        .collect(Collectors.toList()));
     }
 
     protected void convertToSourceSplits(
