@@ -991,6 +991,29 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
         List<RowData> jobResults = fetchAllResults(service, sessionHandle, describeJobHandle);
         assertThat(jobResults.get(0).getString(2).toString()).isEqualTo("RUNNING");
 
+        // Drop materialized table using drop table statement
+        String dropTableUsingMaterializedTableDDL = "DROP TABLE users_shops";
+        OperationHandle dropTableUsingMaterializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, dropTableUsingMaterializedTableDDL, -1, new Configuration());
+
+        assertThatThrownBy(
+                        () ->
+                                awaitOperationTermination(
+                                        service,
+                                        sessionHandle,
+                                        dropTableUsingMaterializedTableHandle))
+                .rootCause()
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        String.format(
+                                "Table with identifier '%s' does not exist.",
+                                ObjectIdentifier.of(
+                                                fileSystemCatalogName,
+                                                TEST_DEFAULT_DATABASE,
+                                                "users_shops")
+                                        .asSummaryString()));
+
         // drop materialized table
         String dropMaterializedTableDDL = "DROP MATERIALIZED TABLE IF EXISTS users_shops";
         OperationHandle dropMaterializedTableHandle =
@@ -1090,6 +1113,29 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
 
         // verify refresh workflow is created
         assertThat(embeddedWorkflowScheduler.getQuartzScheduler().checkExists(jobKey)).isTrue();
+
+        // Drop materialized table using drop table statement
+        String dropTableUsingMaterializedTableDDL = "DROP TABLE users_shops";
+        OperationHandle dropTableUsingMaterializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, dropTableUsingMaterializedTableDDL, -1, new Configuration());
+
+        assertThatThrownBy(
+                        () ->
+                                awaitOperationTermination(
+                                        service,
+                                        sessionHandle,
+                                        dropTableUsingMaterializedTableHandle))
+                .rootCause()
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        String.format(
+                                "Table with identifier '%s' does not exist.",
+                                ObjectIdentifier.of(
+                                                fileSystemCatalogName,
+                                                TEST_DEFAULT_DATABASE,
+                                                "users_shops")
+                                        .asSummaryString()));
 
         // drop materialized table
         String dropMaterializedTableDDL = "DROP MATERIALIZED TABLE IF EXISTS users_shops";
