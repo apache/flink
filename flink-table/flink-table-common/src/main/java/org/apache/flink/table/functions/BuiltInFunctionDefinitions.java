@@ -436,7 +436,7 @@ public final class BuiltInFunctionDefinitions {
                     .name("url_decode")
                     .kind(SCALAR)
                     .inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
-                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING().nullable())))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.UrlDecodeFunction")
                     .build();
@@ -446,7 +446,7 @@ public final class BuiltInFunctionDefinitions {
                     .name("url_encode")
                     .kind(SCALAR)
                     .inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
-                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING().nullable())))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.UrlEncodeFunction")
                     .build();
