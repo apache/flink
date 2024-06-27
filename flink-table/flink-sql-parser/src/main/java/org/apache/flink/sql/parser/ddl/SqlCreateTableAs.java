@@ -125,12 +125,6 @@ public class SqlCreateTableAs extends SqlCreateTable {
                     "CREATE TABLE AS SELECT syntax does not support to create temporary table yet.");
         }
 
-        if (getColumnList().size() > 0) {
-            throw new SqlValidateException(
-                    getParserPosition(),
-                    "CREATE TABLE AS SELECT syntax does not support to specify explicit columns yet.");
-        }
-
         if (getWatermark().isPresent()) {
             throw new SqlValidateException(
                     getParserPosition(),
