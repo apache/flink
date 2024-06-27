@@ -21,6 +21,8 @@ package org.apache.flink.state.forst;
 import org.apache.flink.core.state.InternalStateFuture;
 
 import org.rocksdb.ColumnFamilyHandle;
+import org.rocksdb.RocksDB;
+import org.rocksdb.RocksDBException;
 
 import java.io.IOException;
 
@@ -32,14 +34,20 @@ import java.io.IOException;
  */
 public class ForStDBGetRequest<K, V> {
 
-    private final K key;
-    private final ForStInnerTable<K, V> table;
-    private final InternalStateFuture<V> future;
+    protected final K key;
+    protected final ForStInnerTable<K, V> table;
+    protected final InternalStateFuture future;
 
-    private ForStDBGetRequest(K key, ForStInnerTable<K, V> table, InternalStateFuture<V> future) {
+    protected ForStDBGetRequest(K key, ForStInnerTable<K, V> table, InternalStateFuture future) {
         this.key = key;
         this.table = table;
         this.future = future;
+    }
+
+    public void process(RocksDB db) throws IOException, RocksDBException {
+        byte[] key = buildSerializedKey();
+        byte[] value = db.get(getColumnFamilyHandle(), key);
+        completeStateFuture(value);
     }
 
     public byte[] buildSerializedKey() throws IOException {
@@ -64,7 +72,7 @@ public class ForStDBGetRequest<K, V> {
     }
 
     static <K, V> ForStDBGetRequest<K, V> of(
-            K key, ForStInnerTable<K, V> table, InternalStateFuture<V> future) {
+            K key, ForStInnerTable<K, V> table, InternalStateFuture future) {
         return new ForStDBGetRequest<>(key, table, future);
     }
 }

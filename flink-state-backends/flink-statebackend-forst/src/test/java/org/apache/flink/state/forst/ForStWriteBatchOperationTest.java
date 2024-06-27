@@ -22,18 +22,21 @@ import org.junit.jupiter.api.Test;
 import org.rocksdb.WriteOptions;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unit test for {@link ForStWriteBatchOperation}. */
-public class ForStWriteBatchOperationTest extends ForStDBOperationTestBase {
+class ForStWriteBatchOperationTest extends ForStDBOperationTestBase {
 
     @Test
-    public void testValueStateWriteBatch() throws Exception {
+    void testValueStateWriteBatch() throws Exception {
         ForStValueState<Integer, String> valueState1 = buildForStValueState("test-write-batch-1");
         ForStValueState<Integer, String> valueState2 = buildForStValueState("test-write-batch-2");
         List<ForStDBPutRequest<?, ?>> batchPutRequest = new ArrayList<>();
@@ -61,7 +64,58 @@ public class ForStWriteBatchOperationTest extends ForStDBOperationTestBase {
     }
 
     @Test
-    public void testWriteBatchWithNullValue() throws Exception {
+    void testMapStateWriteBatch() throws Exception {
+        ForStMapState<Integer, String, String> mapState1 = buildForStMapState("test-write-batch-1");
+        ForStMapState<Integer, String, String> maoState2 = buildForStMapState("test-write-batch-2");
+
+        List<ForStDBPutRequest<?, ?>> batchPutRequest = new ArrayList<>();
+        int keyNum = 100;
+        for (int i = 0; i < keyNum; i++) {
+            ContextKey<Integer> contextKey = buildContextKey(i);
+            contextKey.setUserKey(String.valueOf(i));
+            batchPutRequest.add(
+                    ForStDBPutRequest.of(
+                            contextKey,
+                            String.valueOf(i),
+                            ((i % 2 == 0) ? mapState1 : mapState1),
+                            new TestStateFuture<>()));
+        }
+
+        HashMap<String, String> map = new HashMap<>(100);
+        ContextKey<Integer> contextKey = buildContextKey(101);
+        for (int j = 0; j < 100; j++) {
+            map.put("test-" + j, "test-" + j);
+        }
+        batchPutRequest.add(
+                new ForStDBBunchPutRequest<Integer>(
+                        contextKey, map, mapState1, new TestStateFuture<>()));
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        ForStWriteBatchOperation writeBatchOperation =
+                new ForStWriteBatchOperation(db, batchPutRequest, new WriteOptions(), executor);
+        writeBatchOperation.process().get();
+
+        // check data correctness
+        for (ForStDBPutRequest<?, ?> request : batchPutRequest) {
+            if (request instanceof ForStDBBunchPutRequest) {
+                ForStDBBunchPutRequest bunchPutRequest = (ForStDBBunchPutRequest) request;
+                for (Object entry : bunchPutRequest.getBunchValue().entrySet()) {
+                    Map.Entry<String, String> en = (Map.Entry<String, String>) entry;
+                    byte[] keyBytes = bunchPutRequest.buildSerializedKey(en.getKey());
+                    byte[] valueBytes = db.get(request.getColumnFamilyHandle(), keyBytes);
+                    assertArrayEquals(
+                            valueBytes, bunchPutRequest.buildSerializedValue(en.getValue()));
+                }
+            } else {
+                byte[] keyBytes = request.buildSerializedKey();
+                byte[] valueBytes = db.get(request.getColumnFamilyHandle(), keyBytes);
+                assertArrayEquals(valueBytes, request.buildSerializedValue());
+            }
+        }
+    }
+
+    @Test
+    void testWriteBatchWithNullValue() throws Exception {
         ForStValueState<Integer, String> valueState = buildForStValueState("test-write-batch");
         List<ForStDBPutRequest<?, ?>> batchPutRequest = new ArrayList<>();
         // 1. write some data without null value
@@ -108,6 +162,49 @@ public class ForStWriteBatchOperationTest extends ForStDBOperationTestBase {
             } else {
                 assertArrayEquals(valueBytes, request.buildSerializedValue());
             }
+        }
+    }
+
+    @Test
+    public void testDeleteRangeForClear() throws Exception {
+        ForStMapState<Integer, String, String> mapState = buildForStMapState("test-write-batch-1");
+
+        List<ForStDBPutRequest<?, ?>> batchPutRequest = new ArrayList<>();
+        int keyNum = 100;
+        for (int i = 0; i < keyNum; i++) {
+            ContextKey<Integer> contextKey = buildContextKey(1);
+            contextKey.setUserKey(String.valueOf(i));
+            batchPutRequest.add(
+                    ForStDBPutRequest.of(
+                            contextKey, String.valueOf(i), mapState, new TestStateFuture<>()));
+        }
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        ForStWriteBatchOperation writeBatchOperation =
+                new ForStWriteBatchOperation(db, batchPutRequest, new WriteOptions(), executor);
+        writeBatchOperation.process().get();
+
+        // before clear, all data under primary key 1 should exit
+        for (ForStDBPutRequest<?, ?> request : batchPutRequest) {
+            byte[] keyBytes = request.buildSerializedKey();
+            byte[] valueBytes = db.get(request.getColumnFamilyHandle(), keyBytes);
+            assertArrayEquals(valueBytes, request.buildSerializedValue());
+        }
+        ContextKey<Integer> contextKey = buildContextKey(1);
+
+        List<ForStDBPutRequest<?, ?>> batchPutRequest1 = new ArrayList<>();
+        batchPutRequest1.add(
+                new ForStDBBunchPutRequest<Integer>(
+                        contextKey, null, mapState, new TestStateFuture<>()));
+
+        writeBatchOperation =
+                new ForStWriteBatchOperation(db, batchPutRequest1, new WriteOptions(), executor);
+        writeBatchOperation.process().get();
+
+        for (ForStDBPutRequest<?, ?> request : batchPutRequest) {
+            byte[] keyBytes = request.buildSerializedKey();
+            byte[] valueBytes = db.get(request.getColumnFamilyHandle(), keyBytes);
+            assertThat(valueBytes).isNull();
         }
     }
 }

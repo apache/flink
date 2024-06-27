@@ -18,9 +18,12 @@
 
 package org.apache.flink.state.forst;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.state.InternalStateFuture;
 
 import org.rocksdb.ColumnFamilyHandle;
+import org.rocksdb.RocksDB;
+import org.rocksdb.RocksDBException;
 
 import javax.annotation.Nullable;
 
@@ -34,12 +37,15 @@ import java.io.IOException;
  */
 public class ForStDBPutRequest<K, V> {
 
-    private final K key;
-    @Nullable private final V value;
-    private final ForStInnerTable<K, V> table;
-    private final InternalStateFuture<Void> future;
+    protected final K key;
 
-    private ForStDBPutRequest(
+    @Nullable protected final V value;
+
+    protected final ForStInnerTable<K, V> table;
+
+    protected final InternalStateFuture<Void> future;
+
+    protected ForStDBPutRequest(
             K key, V value, ForStInnerTable<K, V> table, InternalStateFuture<Void> future) {
         this.key = key;
         this.value = value;
@@ -47,12 +53,15 @@ public class ForStDBPutRequest<K, V> {
         this.future = future;
     }
 
-    public boolean valueIsNull() {
-        return value == null;
-    }
-
-    public ColumnFamilyHandle getColumnFamilyHandle() {
-        return table.getColumnFamilyHandle();
+    public void process(ForStDBWriteBatchWrapper writeBatchWrapper, RocksDB db)
+            throws IOException, RocksDBException {
+        if (value == null) {
+            writeBatchWrapper.remove(table.getColumnFamilyHandle(), buildSerializedKey());
+        } else {
+            byte[] key = buildSerializedKey();
+            byte[] value = buildSerializedValue();
+            writeBatchWrapper.put(table.getColumnFamilyHandle(), key, value);
+        }
     }
 
     public byte[] buildSerializedKey() throws IOException {
@@ -82,5 +91,16 @@ public class ForStDBPutRequest<K, V> {
             ForStInnerTable<K, V> table,
             InternalStateFuture<Void> future) {
         return new ForStDBPutRequest<>(key, value, table, future);
+    }
+
+    // --------------- For testing usage ---------------
+    @VisibleForTesting
+    public boolean valueIsNull() {
+        return value == null;
+    }
+
+    @VisibleForTesting
+    public ColumnFamilyHandle getColumnFamilyHandle() {
+        return table.getColumnFamilyHandle();
     }
 }

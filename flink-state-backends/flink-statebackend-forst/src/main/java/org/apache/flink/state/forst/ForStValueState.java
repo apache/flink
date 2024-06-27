@@ -108,8 +108,7 @@ public class ForStValueState<K, V> extends InternalValueState<K, V>
         Preconditions.checkArgument(stateRequest.getRequestType() == StateRequestType.VALUE_GET);
         ContextKey<K> contextKey =
                 new ContextKey<>((RecordContext<K>) stateRequest.getRecordContext());
-        return ForStDBGetRequest.of(
-                contextKey, this, (InternalStateFuture<V>) stateRequest.getFuture());
+        return ForStDBGetRequest.of(contextKey, this, stateRequest.getFuture());
     }
 
     @SuppressWarnings("unchecked")
