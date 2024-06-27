@@ -23,9 +23,9 @@ import org.apache.flink.formats.parquet.utils.NestedPositionUtil;
 import org.apache.flink.formats.parquet.vector.position.CollectionPosition;
 import org.apache.flink.formats.parquet.vector.position.LevelDelegation;
 import org.apache.flink.formats.parquet.vector.position.RowPosition;
-import org.apache.flink.formats.parquet.vector.type.Field;
-import org.apache.flink.formats.parquet.vector.type.GroupField;
-import org.apache.flink.formats.parquet.vector.type.PrimitiveField;
+import org.apache.flink.formats.parquet.vector.type.ParquetField;
+import org.apache.flink.formats.parquet.vector.type.ParquetGroupField;
+import org.apache.flink.formats.parquet.vector.type.ParquetPrimitiveField;
 import org.apache.flink.table.data.columnar.vector.ColumnVector;
 import org.apache.flink.table.data.columnar.vector.heap.HeapArrayVector;
 import org.apache.flink.table.data.columnar.vector.heap.HeapMapVector;
@@ -75,9 +75,9 @@ public class NestedColumnReader implements ColumnReader<WritableColumnVector> {
 
     private final PageReadStore pages;
 
-    private final Field field;
+    private final ParquetField field;
 
-    public NestedColumnReader(boolean isUtcTimestamp, PageReadStore pages, Field field) {
+    public NestedColumnReader(boolean isUtcTimestamp, PageReadStore pages, ParquetField field) {
         this.isUtcTimestamp = isUtcTimestamp;
         this.pages = pages;
         this.field = field;
@@ -90,24 +90,25 @@ public class NestedColumnReader implements ColumnReader<WritableColumnVector> {
     }
 
     private Tuple2<LevelDelegation, WritableColumnVector> readData(
-            Field field, int readNumber, ColumnVector vector, boolean inside) throws IOException {
+            ParquetField field, int readNumber, ColumnVector vector, boolean inside)
+            throws IOException {
         if (field.getType() instanceof RowType) {
-            return readRow((GroupField) field, readNumber, vector, inside);
+            return readRow((ParquetGroupField) field, readNumber, vector, inside);
         } else if (field.getType() instanceof MapType || field.getType() instanceof MultisetType) {
-            return readMap((GroupField) field, readNumber, vector, inside);
+            return readMap((ParquetGroupField) field, readNumber, vector, inside);
         } else if (field.getType() instanceof ArrayType) {
-            return readArray((GroupField) field, readNumber, vector, inside);
+            return readArray((ParquetGroupField) field, readNumber, vector, inside);
         } else {
-            return readPrimitive((PrimitiveField) field, readNumber, vector);
+            return readPrimitive((ParquetPrimitiveField) field, readNumber, vector);
         }
     }
 
     private Tuple2<LevelDelegation, WritableColumnVector> readRow(
-            GroupField field, int readNumber, ColumnVector vector, boolean inside)
+            ParquetGroupField field, int readNumber, ColumnVector vector, boolean inside)
             throws IOException {
         HeapRowVector heapRowVector = (HeapRowVector) vector;
         LevelDelegation levelDelegation = null;
-        List<Field> children = field.getChildren();
+        List<ParquetField> children = field.getChildren();
         WritableColumnVector[] childrenVectors = heapRowVector.getFields();
         WritableColumnVector[] finalChildrenVectors =
                 new WritableColumnVector[childrenVectors.length];
@@ -145,11 +146,11 @@ public class NestedColumnReader implements ColumnReader<WritableColumnVector> {
     }
 
     private Tuple2<LevelDelegation, WritableColumnVector> readMap(
-            GroupField field, int readNumber, ColumnVector vector, boolean inside)
+            ParquetGroupField field, int readNumber, ColumnVector vector, boolean inside)
             throws IOException {
         HeapMapVector mapVector = (HeapMapVector) vector;
         mapVector.reset();
-        List<Field> children = field.getChildren();
+        List<ParquetField> children = field.getChildren();
         Preconditions.checkArgument(
                 children.size() == 2,
                 "Maps must have two type parameters, found %s",
@@ -190,11 +191,11 @@ public class NestedColumnReader implements ColumnReader<WritableColumnVector> {
     }
 
     private Tuple2<LevelDelegation, WritableColumnVector> readArray(
-            GroupField field, int readNumber, ColumnVector vector, boolean inside)
+            ParquetGroupField field, int readNumber, ColumnVector vector, boolean inside)
             throws IOException {
         HeapArrayVector arrayVector = (HeapArrayVector) vector;
         arrayVector.reset();
-        List<Field> children = field.getChildren();
+        List<ParquetField> children = field.getChildren();
         Preconditions.checkArgument(
                 children.size() == 1,
                 "Arrays must have a single type parameter, found %s",
@@ -227,7 +228,7 @@ public class NestedColumnReader implements ColumnReader<WritableColumnVector> {
     }
 
     private Tuple2<LevelDelegation, WritableColumnVector> readPrimitive(
-            PrimitiveField field, int readNumber, ColumnVector vector) throws IOException {
+            ParquetPrimitiveField field, int readNumber, ColumnVector vector) throws IOException {
         ColumnDescriptor descriptor = field.getDescriptor();
         NestedPrimitiveColumnReader reader = columnReaders.get(descriptor);
         if (reader == null) {

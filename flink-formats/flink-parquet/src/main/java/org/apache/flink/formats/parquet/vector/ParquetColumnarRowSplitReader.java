@@ -19,7 +19,7 @@
 package org.apache.flink.formats.parquet.vector;
 
 import org.apache.flink.formats.parquet.vector.reader.ColumnReader;
-import org.apache.flink.formats.parquet.vector.type.Field;
+import org.apache.flink.formats.parquet.vector.type.ParquetField;
 import org.apache.flink.table.data.columnar.ColumnarRowData;
 import org.apache.flink.table.data.columnar.vector.ColumnVector;
 import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
@@ -85,7 +85,7 @@ public class ParquetColumnarRowSplitReader implements Closeable {
 
     private final int batchSize;
 
-    private final List<Field> fieldList;
+    private final List<ParquetField> fieldList;
 
     private ParquetFileReader reader;
 

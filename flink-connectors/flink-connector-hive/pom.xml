@@ -1254,7 +1254,6 @@ under the License.
 									<include>org.apache.parquet:parquet-encoding</include>
 									<include>org.apache.parquet:parquet-format-structures</include>
 									<include>org.apache.parquet:parquet-jackson</include>
-									<include>it.unimi.dsi:fastutil</include>
 								</includes>
 							</artifactSet>
 							<relocations>

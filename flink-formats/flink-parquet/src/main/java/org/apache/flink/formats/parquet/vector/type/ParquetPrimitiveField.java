@@ -25,12 +25,13 @@ import org.apache.parquet.column.ColumnDescriptor;
 import static java.util.Objects.requireNonNull;
 
 /** Field that represent parquet's primitive field. */
-public class PrimitiveField extends Field {
+public class ParquetPrimitiveField extends ParquetField {
 
     private final ColumnDescriptor descriptor;
     private final int id;
 
-    public PrimitiveField(LogicalType type, boolean required, ColumnDescriptor descriptor, int id) {
+    public ParquetPrimitiveField(
+            LogicalType type, boolean required, ColumnDescriptor descriptor, int id) {
         super(
                 type,
                 descriptor.getMaxRepetitionLevel(),

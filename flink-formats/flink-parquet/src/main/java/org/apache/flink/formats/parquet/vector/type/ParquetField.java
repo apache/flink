@@ -21,13 +21,14 @@ package org.apache.flink.formats.parquet.vector.type;
 import org.apache.flink.table.types.logical.LogicalType;
 
 /** Field that represent parquet's field type. */
-public abstract class Field {
+public abstract class ParquetField {
     private final LogicalType type;
     private final int repetitionLevel;
     private final int definitionLevel;
     private final boolean required;
 
-    public Field(LogicalType type, int repetitionLevel, int definitionLevel, boolean required) {
+    public ParquetField(
+            LogicalType type, int repetitionLevel, int definitionLevel, boolean required) {
         this.type = type;
         this.repetitionLevel = repetitionLevel;
         this.definitionLevel = definitionLevel;

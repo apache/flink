@@ -31,7 +31,7 @@ import org.apache.flink.formats.parquet.utils.SerializableConfiguration;
 import org.apache.flink.formats.parquet.vector.ColumnBatchFactory;
 import org.apache.flink.formats.parquet.vector.ParquetDecimalVector;
 import org.apache.flink.formats.parquet.vector.reader.ColumnReader;
-import org.apache.flink.formats.parquet.vector.type.Field;
+import org.apache.flink.formats.parquet.vector.type.ParquetField;
 import org.apache.flink.table.data.columnar.vector.ColumnVector;
 import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
 import org.apache.flink.table.data.columnar.vector.writable.WritableColumnVector;
@@ -146,7 +146,7 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
 
         RowType projectedType = RowType.of(projectedTypes, projectedFields);
         MessageColumnIO columnIO = new ColumnIOFactory().getColumnIO(requestedSchema);
-        List<Field> fields =
+        List<ParquetField> fields =
                 buildFieldsList(projectedType.getFields(), projectedType.getFieldNames(), columnIO);
 
         return new ParquetReader(
@@ -352,7 +352,7 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
 
         private long recordsToSkip;
 
-        private final List<Field> fields;
+        private final List<ParquetField> fields;
 
         private ParquetReader(
                 ParquetFileReader reader,
@@ -360,7 +360,7 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
                 Set<Integer> unknownFieldsIndices,
                 long totalRowCount,
                 Pool<ParquetReaderBatch<T>> pool,
-                List<Field> fields) {
+                List<ParquetField> fields) {
             this.reader = reader;
             this.requestedSchema = requestedSchema;
             this.unknownFieldsIndices = unknownFieldsIndices;

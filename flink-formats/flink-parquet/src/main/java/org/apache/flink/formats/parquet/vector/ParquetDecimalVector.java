@@ -124,7 +124,7 @@ public class ParquetDecimalVector
         if (vector instanceof WritableColumnVector) {
             return ((WritableColumnVector) vector).reserveDictionaryIds(capacity);
         }
-        return null;
+        throw new RuntimeException("Child vector must be instance of WritableColumnVector");
     }
 
     @Override
@@ -132,7 +132,7 @@ public class ParquetDecimalVector
         if (vector instanceof WritableColumnVector) {
             return ((WritableColumnVector) vector).getDictionaryIds();
         }
-        return null;
+        throw new RuntimeException("Child vector must be instance of WritableColumnVector");
     }
 
     @Override
@@ -140,7 +140,7 @@ public class ParquetDecimalVector
         if (vector instanceof WritableBytesVector) {
             return ((WritableBytesVector) vector).getBytes(i);
         }
-        return null;
+        throw new RuntimeException("Child vector must be instance of WritableColumnVector");
     }
 
     @Override
@@ -162,7 +162,7 @@ public class ParquetDecimalVector
         if (vector instanceof WritableIntVector) {
             return ((WritableIntVector) vector).getInt(i);
         }
-        return 0;
+        throw new RuntimeException("Child vector must be instance of WritableColumnVector");
     }
 
     @Override
@@ -205,7 +205,7 @@ public class ParquetDecimalVector
         if (vector instanceof WritableLongVector) {
             return ((WritableLongVector) vector).getLong(i);
         }
-        return 0L;
+        throw new RuntimeException("Child vector must be instance of WritableColumnVector");
     }
 
     @Override

@@ -20,10 +20,9 @@ package org.apache.flink.formats.parquet.utils;
 
 import org.apache.flink.formats.parquet.vector.position.CollectionPosition;
 import org.apache.flink.formats.parquet.vector.position.RowPosition;
-import org.apache.flink.formats.parquet.vector.type.Field;
-
-import shaded.parquet.it.unimi.dsi.fastutil.booleans.BooleanArrayList;
-import shaded.parquet.it.unimi.dsi.fastutil.longs.LongArrayList;
+import org.apache.flink.formats.parquet.vector.type.ParquetField;
+import org.apache.flink.runtime.util.BooleanArrayList;
+import org.apache.flink.runtime.util.LongArrayList;
 
 import java.util.Optional;
 
@@ -47,11 +46,11 @@ public class NestedPositionUtil {
      * @return {@link RowPosition} contains collections row count and isNull array.
      */
     public static RowPosition calculateRowOffsets(
-            Field field, int[] fieldDefinitionLevels, int[] fieldRepetitionLevels) {
+            ParquetField field, int[] fieldDefinitionLevels, int[] fieldRepetitionLevels) {
         int rowDefinitionLevel = field.getDefinitionLevel();
         int rowRepetitionLevel = field.getRepetitionLevel();
         int nullValuesCount = 0;
-        BooleanArrayList nullRowFlags = new BooleanArrayList();
+        BooleanArrayList nullRowFlags = new BooleanArrayList(0);
         for (int i = 0; i < fieldDefinitionLevels.length; i++) {
             if (fieldRepetitionLevels[i] > rowRepetitionLevel) {
                 throw new IllegalStateException(
@@ -73,7 +72,7 @@ public class NestedPositionUtil {
         if (nullValuesCount == 0) {
             return new RowPosition(Optional.empty(), fieldDefinitionLevels.length);
         }
-        return new RowPosition(Optional.of(nullRowFlags.toBooleanArray()), nullRowFlags.size());
+        return new RowPosition(Optional.of(nullRowFlags.toArray()), nullRowFlags.size());
     }
 
     /**
@@ -95,15 +94,15 @@ public class NestedPositionUtil {
      *     array.
      */
     public static CollectionPosition calculateCollectionOffsets(
-            Field field, int[] definitionLevels, int[] repetitionLevels) {
+            ParquetField field, int[] definitionLevels, int[] repetitionLevels) {
         int collectionDefinitionLevel = field.getDefinitionLevel();
         int collectionRepetitionLevel = field.getRepetitionLevel() + 1;
         int offset = 0;
         int valueCount = 0;
-        LongArrayList offsets = new LongArrayList();
+        LongArrayList offsets = new LongArrayList(0);
         offsets.add(offset);
-        BooleanArrayList emptyCollectionFlags = new BooleanArrayList();
-        BooleanArrayList nullCollectionFlags = new BooleanArrayList();
+        BooleanArrayList emptyCollectionFlags = new BooleanArrayList(0);
+        BooleanArrayList nullCollectionFlags = new BooleanArrayList(0);
         int nullValuesCount = 0;
         for (int i = 0;
                 i < definitionLevels.length;
@@ -114,9 +113,9 @@ public class NestedPositionUtil {
                         isOptionalFieldValueNull(definitionLevels[i], collectionDefinitionLevel);
                 nullCollectionFlags.add(isNull);
                 nullValuesCount += isNull ? 1 : 0;
-                // definitionLevels[i] > collectionDefinitionLevel     => Collection is defined but
+                // definitionLevels[i] > collectionDefinitionLevel  => Collection is defined and not
                 // empty
-                // definitionLevels[i] == collectionDefinitionLevel     => Collection is defined but
+                // definitionLevels[i] == collectionDefinitionLevel => Collection is defined but
                 // empty
                 if (definitionLevels[i] > collectionDefinitionLevel) {
                     emptyCollectionFlags.add(false);
@@ -139,17 +138,13 @@ public class NestedPositionUtil {
                 emptyCollectionFlags.add(false);
             }
         }
-        long[] offestsArray = offsets.toLongArray();
-        long[] length =
-                calculateLengthByOffsets(emptyCollectionFlags.toBooleanArray(), offestsArray);
+        long[] offestsArray = offsets.toArray();
+        long[] length = calculateLengthByOffsets(emptyCollectionFlags.toArray(), offestsArray);
         if (nullValuesCount == 0) {
             return new CollectionPosition(Optional.empty(), offestsArray, length, valueCount);
         }
         return new CollectionPosition(
-                Optional.of(nullCollectionFlags.toBooleanArray()),
-                offestsArray,
-                length,
-                valueCount);
+                Optional.of(nullCollectionFlags.toArray()), offestsArray, length, valueCount);
     }
 
     public static boolean isOptionalFieldValueNull(int definitionLevel, int maxDefinitionLevel) {
@@ -173,7 +168,7 @@ public class NestedPositionUtil {
             }
             lengthList.add(length);
         }
-        return lengthList.toLongArray();
+        return lengthList.toArray();
     }
 
     private static int getNextCollectionStartIndex(

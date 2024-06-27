@@ -27,21 +27,21 @@ import java.util.List;
 import static java.util.Objects.requireNonNull;
 
 /** Field that represent parquet's Group Field. */
-public class GroupField extends Field {
+public class ParquetGroupField extends ParquetField {
 
-    private final List<Field> children;
+    private final List<ParquetField> children;
 
-    public GroupField(
+    public ParquetGroupField(
             LogicalType type,
             int repetitionLevel,
             int definitionLevel,
             boolean required,
-            List<Field> children) {
+            List<ParquetField> children) {
         super(type, repetitionLevel, definitionLevel, required);
         this.children = ImmutableList.copyOf(requireNonNull(children, "children is null"));
     }
 
-    public List<Field> getChildren() {
+    public List<ParquetField> getChildren() {
         return children;
     }
 }

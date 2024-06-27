@@ -32,9 +32,9 @@ import org.apache.flink.formats.parquet.vector.reader.LongColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.NestedColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.ShortColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.TimestampColumnReader;
-import org.apache.flink.formats.parquet.vector.type.Field;
-import org.apache.flink.formats.parquet.vector.type.GroupField;
-import org.apache.flink.formats.parquet.vector.type.PrimitiveField;
+import org.apache.flink.formats.parquet.vector.type.ParquetField;
+import org.apache.flink.formats.parquet.vector.type.ParquetGroupField;
+import org.apache.flink.formats.parquet.vector.type.ParquetPrimitiveField;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.columnar.vector.ColumnVector;
@@ -311,7 +311,7 @@ public class ParquetSplitReaderUtil {
             Type type,
             List<ColumnDescriptor> columnDescriptors,
             PageReadStore pages,
-            Field field,
+            ParquetField field,
             int depth)
             throws IOException {
         List<ColumnDescriptor> descriptors =
@@ -570,9 +570,9 @@ public class ParquetSplitReaderUtil {
         }
     }
 
-    public static List<Field> buildFieldsList(
+    public static List<ParquetField> buildFieldsList(
             List<RowType.RowField> childrens, List<String> fieldNames, MessageColumnIO columnIO) {
-        List<Field> list = new ArrayList<>();
+        List<ParquetField> list = new ArrayList<>();
         for (int i = 0; i < childrens.size(); i++) {
             list.add(
                     constructField(
@@ -581,7 +581,7 @@ public class ParquetSplitReaderUtil {
         return list;
     }
 
-    private static Field constructField(RowType.RowField rowField, ColumnIO columnIO) {
+    private static ParquetField constructField(RowType.RowField rowField, ColumnIO columnIO) {
         boolean required = columnIO.getType().getRepetition() == REQUIRED;
         int repetitionLevel = columnIO.getRepetitionLevel();
         int definitionLevel = columnIO.getDefinitionLevel();
@@ -590,7 +590,7 @@ public class ParquetSplitReaderUtil {
         if (type instanceof RowType) {
             GroupColumnIO groupColumnIO = (GroupColumnIO) columnIO;
             RowType rowType = (RowType) type;
-            ImmutableList.Builder<Field> fieldsBuilder = ImmutableList.builder();
+            ImmutableList.Builder<ParquetField> fieldsBuilder = ImmutableList.builder();
             List<String> fieldNames = rowType.getFieldNames();
             List<RowType.RowField> childrens = rowType.getFields();
             for (int i = 0; i < childrens.size(); i++) {
@@ -600,7 +600,7 @@ public class ParquetSplitReaderUtil {
                                 lookupColumnByName(groupColumnIO, fieldNames.get(i))));
             }
 
-            return new GroupField(
+            return new ParquetGroupField(
                     type, repetitionLevel, definitionLevel, required, fieldsBuilder.build());
         }
 
@@ -608,15 +608,15 @@ public class ParquetSplitReaderUtil {
             GroupColumnIO groupColumnIO = (GroupColumnIO) columnIO;
             GroupColumnIO keyValueColumnIO = getMapKeyValueColumn(groupColumnIO);
             MapType mapType = (MapType) type;
-            Field keyField =
+            ParquetField keyField =
                     constructField(
                             new RowType.RowField("", mapType.getKeyType()),
                             keyValueColumnIO.getChild(0));
-            Field valueField =
+            ParquetField valueField =
                     constructField(
                             new RowType.RowField("", mapType.getValueType()),
                             keyValueColumnIO.getChild(1));
-            return new GroupField(
+            return new ParquetGroupField(
                     type,
                     repetitionLevel,
                     definitionLevel,
@@ -628,14 +628,14 @@ public class ParquetSplitReaderUtil {
             GroupColumnIO groupColumnIO = (GroupColumnIO) columnIO;
             GroupColumnIO keyValueColumnIO = getMapKeyValueColumn(groupColumnIO);
             MultisetType multisetType = (MultisetType) type;
-            Field keyField =
+            ParquetField keyField =
                     constructField(
                             new RowType.RowField("", multisetType.getElementType()),
                             keyValueColumnIO.getChild(0));
-            Field valueField =
+            ParquetField valueField =
                     constructField(
                             new RowType.RowField("", new IntType()), keyValueColumnIO.getChild(1));
-            return new GroupField(
+            return new ParquetGroupField(
                     type,
                     repetitionLevel,
                     definitionLevel,
@@ -666,19 +666,19 @@ public class ParquetSplitReaderUtil {
                 throw new RuntimeException(String.format("Unkown ColumnIO, %s", columnIO));
             }
 
-            Field field =
+            ParquetField field =
                     constructField(
                             new RowType.RowField("", arrayType.getElementType()),
                             getArrayElementColumn(elementTypeColumnIO));
             if (repetitionLevel == field.getRepetitionLevel()) {
                 repetitionLevel = columnIO.getParent().getRepetitionLevel();
             }
-            return new GroupField(
+            return new ParquetGroupField(
                     type, repetitionLevel, definitionLevel, required, ImmutableList.of(field));
         }
 
         PrimitiveColumnIO primitiveColumnIO = (PrimitiveColumnIO) columnIO;
-        return new PrimitiveField(
+        return new ParquetPrimitiveField(
                 type, required, primitiveColumnIO.getColumnDescriptor(), primitiveColumnIO.getId());
     }
 
