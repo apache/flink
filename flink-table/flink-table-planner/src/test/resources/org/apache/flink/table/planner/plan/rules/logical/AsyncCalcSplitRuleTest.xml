@@ -568,8 +568,8 @@ LogicalProject(a=[$0])
 		</Resource>
 		<Resource name="optimized rel plan">
 			<![CDATA[
-Calc(select=[a])
-+- AsyncCalc(select=[a, a2], where=[>(func6(a, a2), 10)])
+Calc(select=[a], where=[>(f0, 10)])
++- AsyncCalc(select=[a, a2, func6(a, a2) AS f0])
    +- Join(joinType=[InnerJoin], where=[=(a, a2)], select=[a, a2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a]])
       :  +- Calc(select=[a])
