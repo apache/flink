@@ -21,43 +21,54 @@ package org.apache.flink.fs.s3hadoop;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.testutils.AllCallbackWrapper;
+import org.apache.flink.core.testutils.TestContainerExtension;
+import org.apache.flink.fs.s3.common.MinioTestContainer;
 import org.apache.flink.runtime.fs.hdfs.AbstractHadoopFileSystemITTest;
-import org.apache.flink.testutils.s3.S3TestCredentials;
 
-import org.junit.BeforeClass;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
 import java.util.UUID;
-
-import static org.junit.Assert.assertFalse;
 
 /**
  * Unit tests for the S3 file system support via Hadoop's {@link
  * org.apache.hadoop.fs.s3a.S3AFileSystem}.
  *
  * <p><strong>BEWARE</strong>: tests must take special care of S3's <a
- * href="https://docs.aws.amazon.com/AmazonS3/latest/dev/Introduction.html#ConsistencyModel">consistency
- * guarantees</a> and what the {@link org.apache.hadoop.fs.s3a.S3AFileSystem} offers.
+ * href="https://docs.aws.amazon.com/AmazonS3/latest/dev/Introduction
+ * .html#ConsistencyModel">consistency guarantees</a> and what the {@link
+ * org.apache.hadoop.fs.s3a.S3AFileSystem} offers.
  */
 public class HadoopS3FileSystemITCase extends AbstractHadoopFileSystemITTest {
+    private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
 
-    @BeforeClass
-    public static void setup() throws IOException {
-        // check whether credentials exist
-        S3TestCredentials.assumeCredentialsAvailable();
+    @RegisterExtension
+    private static final AllCallbackWrapper<TestContainerExtension<MinioTestContainer>>
+            MINIO_EXTENSION =
+                    new AllCallbackWrapper<>(new TestContainerExtension<>(MinioTestContainer::new));
 
+    @BeforeAll
+    static void setup() {
         // initialize configuration with valid credentials
         final Configuration conf = new Configuration();
-        conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
-        conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
-        FileSystem.initialize(conf);
-
-        basePath = new Path(S3TestCredentials.getTestBucketUri() + "tests-" + UUID.randomUUID());
-        fs = basePath.getFileSystem();
+        getMinioContainer().setS3ConfigOptions(conf);
+        getMinioContainer().initializeFileSystem(conf);
         consistencyToleranceNS = 30_000_000_000L; // 30 seconds
+    }
 
-        // check for uniqueness of the test directory
-        // directory must not yet exist
-        assertFalse(fs.exists(basePath));
+    @Override
+    protected FileSystem getFileSystem() throws IOException {
+        return getBasePath().getFileSystem();
+    }
+
+    @Override
+    protected Path getBasePath() {
+        return new Path(getMinioContainer().getS3UriForDefaultBucket() + "/temp/" + TEST_DATA_DIR);
+    }
+
+    private static MinioTestContainer getMinioContainer() {
+        return MINIO_EXTENSION.getCustomExtension().getTestContainer();
     }
 }

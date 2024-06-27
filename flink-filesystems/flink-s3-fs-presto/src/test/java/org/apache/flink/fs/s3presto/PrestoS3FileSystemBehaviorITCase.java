@@ -23,12 +23,14 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemBehaviorTestSuite;
 import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.testutils.s3.S3TestCredentials;
+import org.apache.flink.core.testutils.AllCallbackWrapper;
+import org.apache.flink.core.testutils.TestContainerExtension;
+import org.apache.flink.fs.s3.common.MinioTestContainer;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
-import java.io.IOException;
 import java.util.UUID;
 
 /**
@@ -38,20 +40,21 @@ class PrestoS3FileSystemBehaviorITCase extends FileSystemBehaviorTestSuite {
 
     private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
 
-    @BeforeAll
-    static void checkCredentialsAndSetup() throws IOException {
-        // check whether credentials exist
-        S3TestCredentials.assumeCredentialsAvailable();
+    @RegisterExtension
+    private static final AllCallbackWrapper<TestContainerExtension<MinioTestContainer>>
+            MINIO_EXTENSION =
+                    new AllCallbackWrapper<>(new TestContainerExtension<>(MinioTestContainer::new));
 
+    @BeforeAll
+    static void checkCredentialsAndSetup() {
         // initialize configuration with valid credentials
         final Configuration conf = new Configuration();
-        conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
-        conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
-        FileSystem.initialize(conf, null);
+        MINIO_EXTENSION.getCustomExtension().getTestContainer().setS3ConfigOptions(conf);
+        MINIO_EXTENSION.getCustomExtension().getTestContainer().initializeFileSystem(conf);
     }
 
     @AfterAll
-    static void clearFsConfig() throws IOException {
+    static void clearFsConfig() {
         FileSystem.initialize(new Configuration(), null);
     }
 
@@ -61,8 +64,11 @@ class PrestoS3FileSystemBehaviorITCase extends FileSystemBehaviorTestSuite {
     }
 
     @Override
-    protected Path getBasePath() throws Exception {
-        return new Path(S3TestCredentials.getTestBucketUri() + TEST_DATA_DIR);
+    protected Path getBasePath() {
+        return new Path(
+                MINIO_EXTENSION.getCustomExtension().getTestContainer().getS3UriForDefaultBucket()
+                        + "/temp/"
+                        + TEST_DATA_DIR);
     }
 
     @Override

@@ -21,19 +21,21 @@ package org.apache.flink.fs.s3presto;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.testutils.AllCallbackWrapper;
+import org.apache.flink.core.testutils.TestContainerExtension;
 import org.apache.flink.fs.s3.common.FlinkS3FileSystem;
-import org.apache.flink.testutils.s3.S3TestCredentials;
+import org.apache.flink.fs.s3.common.MinioTestContainer;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
-import java.io.IOException;
 import java.net.URI;
-import java.util.UUID;
 
 import static org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory.MAX_CONCURRENT_UPLOADS;
 import static org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory.PART_UPLOAD_MIN_SIZE;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link org.apache.flink.core.fs.RecoverableWriter} of the Presto S3 FS. */
 public class PrestoS3RecoverableWriterTest {
@@ -45,19 +47,20 @@ public class PrestoS3RecoverableWriterTest {
 
     // ----------------------- Test Specific configuration -----------------------
 
-    private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
+    @RegisterExtension
+    private static final AllCallbackWrapper<TestContainerExtension<MinioTestContainer>>
+            MINIO_EXTENSION =
+                    new AllCallbackWrapper<>(new TestContainerExtension<>(MinioTestContainer::new));
 
     // ----------------------- Test Lifecycle -----------------------
 
-    @BeforeClass
-    public static void checkCredentialsAndSetup() throws IOException {
+    @BeforeAll
+    public static void checkCredentialsAndSetup() {
         // check whether credentials exist
-        S3TestCredentials.assumeCredentialsAvailable();
 
         // initialize configuration with valid credentials
         final Configuration conf = new Configuration();
-        conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
-        conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
+        MINIO_EXTENSION.getCustomExtension().getTestContainer().setS3ConfigOptions(conf);
 
         conf.set(PART_UPLOAD_MIN_SIZE, PART_UPLOAD_MIN_SIZE_VALUE);
         conf.set(MAX_CONCURRENT_UPLOADS, MAX_CONCURRENT_UPLOADS_VALUE);
@@ -65,20 +68,26 @@ public class PrestoS3RecoverableWriterTest {
         final String defaultTmpDir = conf.get(CoreOptions.TMP_DIRS) + "s3_tmp_dir";
         conf.set(CoreOptions.TMP_DIRS, defaultTmpDir);
 
-        FileSystem.initialize(conf);
+        MINIO_EXTENSION.getCustomExtension().getTestContainer().initializeFileSystem(conf);
     }
 
-    @AfterClass
-    public static void cleanUp() throws IOException {
+    @AfterAll
+    public static void cleanUp() {
         FileSystem.initialize(new Configuration());
     }
 
     // ----------------------- Tests -----------------------
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void requestingRecoverableWriterShouldThroughException() throws Exception {
-        URI s3Uri = URI.create(S3TestCredentials.getTestBucketUri());
+    @Test
+    void requestingRecoverableWriterShouldThroughException() throws Exception {
+        URI s3Uri =
+                URI.create(
+                        MINIO_EXTENSION
+                                .getCustomExtension()
+                                .getTestContainer()
+                                .getS3UriForDefaultBucket());
         FlinkS3FileSystem fileSystem = (FlinkS3FileSystem) FileSystem.get(s3Uri);
-        fileSystem.createRecoverableWriter();
+        assertThatThrownBy(fileSystem::createRecoverableWriter)
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 }

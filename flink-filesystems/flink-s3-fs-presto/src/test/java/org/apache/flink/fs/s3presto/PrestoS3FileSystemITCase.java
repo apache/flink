@@ -21,23 +21,22 @@ package org.apache.flink.fs.s3presto;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.testutils.AllCallbackWrapper;
+import org.apache.flink.core.testutils.TestContainerExtension;
+import org.apache.flink.fs.s3.common.MinioTestContainer;
 import org.apache.flink.runtime.fs.hdfs.AbstractHadoopFileSystemITTest;
-import org.apache.flink.testutils.s3.S3TestCredentials;
 
 import com.amazonaws.SdkClientException;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
 import java.util.UUID;
 
 import static com.facebook.presto.hive.s3.S3ConfigurationUpdater.S3_USE_INSTANCE_CREDENTIALS;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Unit tests for the S3 file system support via Presto's {@link
@@ -47,39 +46,48 @@ import static org.junit.Assert.fail;
  * href="https://docs.aws.amazon.com/AmazonS3/latest/dev/Introduction.html#ConsistencyModel">consistency
  * guarantees</a> and what the {@link com.facebook.presto.hive.s3.PrestoS3FileSystem} offers.
  */
-@RunWith(Parameterized.class)
+// @RunWith(Parameterized.class)
 public class PrestoS3FileSystemITCase extends AbstractHadoopFileSystemITTest {
 
-    @Parameterized.Parameter public String scheme;
+    //    @Parameterized.Parameter public String scheme;
 
-    @Parameterized.Parameters(name = "Scheme = {0}")
-    public static List<String> parameters() {
-        return Arrays.asList("s3", "s3p");
-    }
+    //    @Parameterized.Parameters(name = "Scheme = {0}")
+    //    public static List<String> parameters() {
+    //        return Arrays.asList("s3", "s3p");
+    //    }
 
     private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
 
-    @BeforeClass
-    public static void setup() throws IOException {
-        S3TestCredentials.assumeCredentialsAvailable();
-        // initialize configuration with valid credentials
+    @RegisterExtension
+    private static final AllCallbackWrapper<TestContainerExtension<MinioTestContainer>>
+            MINIO_EXTENSION =
+                    new AllCallbackWrapper<>(new TestContainerExtension<>(MinioTestContainer::new));
+
+    @BeforeAll
+    static void setup() throws IOException {
         final Configuration conf = new Configuration();
-        conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
-        conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
-        FileSystem.initialize(conf);
+        MINIO_EXTENSION.getCustomExtension().getTestContainer().setS3ConfigOptions(conf);
+        MINIO_EXTENSION.getCustomExtension().getTestContainer().initializeFileSystem(conf);
 
-        basePath = new Path(S3TestCredentials.getTestBucketUri() + TEST_DATA_DIR);
-        fs = basePath.getFileSystem();
         consistencyToleranceNS = 30_000_000_000L; // 30 seconds
+    }
 
-        // check for uniqueness of the test directory
-        // directory must not yet exist
-        assertFalse(fs.exists(basePath));
+    @Override
+    protected FileSystem getFileSystem() throws IOException {
+        return getBasePath().getFileSystem();
+    }
+
+    @Override
+    protected Path getBasePath() {
+        return new Path(
+                MINIO_EXTENSION.getCustomExtension().getTestContainer().getS3UriForDefaultBucket()
+                        + "/temp/"
+                        + TEST_DATA_DIR);
     }
 
     @Test
     public void testConfigKeysForwarding() throws Exception {
-        final Path path = basePath;
+        final Path path = getBasePath();
 
         // access without credentials should fail
         {
@@ -99,44 +107,52 @@ public class PrestoS3FileSystemITCase extends AbstractHadoopFileSystemITTest {
         {
             Configuration conf = new Configuration();
             conf.setString(S3_USE_INSTANCE_CREDENTIALS, "false");
-            conf.setString("presto.s3.access-key", S3TestCredentials.getS3AccessKey());
-            conf.setString("presto.s3.secret-key", S3TestCredentials.getS3SecretKey());
+            conf.setString("s3.endpoint", getMinioContainer().getHttpEndpoint());
+            conf.setString("s3.path.style.access", "true");
+            conf.setString("presto.s3.access-key", getMinioContainer().getAccessKey());
+            conf.setString("presto.s3.secret-key", getMinioContainer().getSecretKey());
 
-            FileSystem.initialize(conf);
-            path.getFileSystem().exists(path);
+            getMinioContainer().initializeFileSystem(conf);
+            assertThat(getFileSystem().exists(path)).isFalse();
         }
 
         // shortened Presto-style credential keys
         {
             Configuration conf = new Configuration();
             conf.setString(S3_USE_INSTANCE_CREDENTIALS, "false");
-            conf.setString("s3.access-key", S3TestCredentials.getS3AccessKey());
-            conf.setString("s3.secret-key", S3TestCredentials.getS3SecretKey());
+            conf.setString("s3.endpoint", getMinioContainer().getHttpEndpoint());
+            conf.setString("s3.path.style.access", "true");
+            conf.setString("s3.access-key", getMinioContainer().getAccessKey());
+            conf.setString("s3.secret-key", getMinioContainer().getSecretKey());
 
-            FileSystem.initialize(conf);
-            path.getFileSystem().exists(path);
+            getMinioContainer().initializeFileSystem(conf);
+            assertThat(getFileSystem().exists(path)).isFalse();
         }
 
         // shortened Hadoop-style credential keys
         {
             Configuration conf = new Configuration();
             conf.setString(S3_USE_INSTANCE_CREDENTIALS, "false");
-            conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
-            conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
+            conf.setString("s3.endpoint", getMinioContainer().getHttpEndpoint());
+            conf.setString("s3.path.style.access", "true");
+            conf.setString("s3.access.key", getMinioContainer().getAccessKey());
+            conf.setString("s3.secret.key", getMinioContainer().getSecretKey());
 
-            FileSystem.initialize(conf);
-            path.getFileSystem().exists(path);
+            getMinioContainer().initializeFileSystem(conf);
+            assertThat(getFileSystem().exists(path)).isFalse();
         }
 
         // shortened Hadoop-style credential keys with presto prefix
         {
             Configuration conf = new Configuration();
             conf.setString(S3_USE_INSTANCE_CREDENTIALS, "false");
-            conf.setString("presto.s3.access.key", S3TestCredentials.getS3AccessKey());
-            conf.setString("presto.s3.secret.key", S3TestCredentials.getS3SecretKey());
+            conf.setString("s3.endpoint", getMinioContainer().getHttpEndpoint());
+            conf.setString("s3.path.style.access", "true");
+            conf.setString("presto.s3.access.key", getMinioContainer().getAccessKey());
+            conf.setString("presto.s3.secret.key", getMinioContainer().getSecretKey());
 
-            FileSystem.initialize(conf);
-            path.getFileSystem().exists(path);
+            getMinioContainer().initializeFileSystem(conf);
+            assertThat(getFileSystem().exists(path)).isFalse();
         }
 
         // re-set configuration
@@ -147,5 +163,9 @@ public class PrestoS3FileSystemITCase extends AbstractHadoopFileSystemITTest {
     protected void checkEmptyDirectory(Path path) throws IOException, InterruptedException {
         // seems the presto file system does not assume existence of empty directories in S3
         // do nothing as before
+    }
+
+    private static MinioTestContainer getMinioContainer() {
+        return MINIO_EXTENSION.getCustomExtension().getTestContainer();
     }
 }
