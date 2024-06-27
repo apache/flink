@@ -28,7 +28,7 @@ under the License.
 
 # DESCRIBE 语句
 
-DESCRIBE 语句用于描述表或视图的 schema 或 catalog 的元数据。
+DESCRIBE 语句用于描述表或视图的 schema，或catalog 的元数据，或 Flink 集群上的指定作业。
 
 <a name="run-a-describe-statement"></a>
 
@@ -36,17 +36,17 @@ DESCRIBE 语句用于描述表或视图的 schema 或 catalog 的元数据。
 
 {{< tabs "describe" >}}
 {{< tab "Java" >}}
-可以使用 `TableEnvironment` 的 `executeSql()` 方法执行 DESCRIBE 语句。如果 DESCRIBE 操作执行成功，`executeSql()` 方法会返回给定表的 schema，否则会抛出异常。
+可以使用 `TableEnvironment` 的 `executeSql()` 方法执行 DESCRIBE 语句。如果 DESCRIBE 操作执行成功，`executeSql()` 方法会返回所有对象，否则会抛出异常。
 
 以下示例展示了如何在 `TableEnvironment` 中执行一条 DESCRIBE 语句。
 {{< /tab >}}
 {{< tab "Scala" >}}
-可以使用 `TableEnvironment` 的 `executeSql()` 方法执行 DESCRIBE 语句。如果 DESCRIBE 操作执行成功，`executeSql()` 方法会返回给定表的 schema，否则会抛出异常。
+可以使用 `TableEnvironment` 的 `executeSql()` 方法执行 DESCRIBE 语句。如果 DESCRIBE 操作执行成功，`executeSql()` 方法会返回所有对象，否则会抛出异常。
 
 以下示例展示了如何在 `TableEnvironment` 中执行一条 DESCRIBE 语句。
 {{< /tab >}}
 {{< tab "Python" >}}
-可以使用 `TableEnvironment` 的 `execute_sql()` 方法执行 DESCRIBE 语句。如果 DESCRIBE 操作执行成功，`execute_sql()` 方法会返回给定表的 schema，否则会抛出异常。
+可以使用 `TableEnvironment` 的 `execute_sql()` 方法执行 DESCRIBE 语句。如果 DESCRIBE 操作执行成功，`execute_sql()` 方法会返回所有对象，否则会抛出异常。
 
 以下示例展示了如何在 `TableEnvironment` 中执行一条 DESCRIBE 语句。
 {{< /tab >}}
@@ -181,6 +181,10 @@ Flink SQL> CREATE CATALOG cat2 WITH ('type'='generic_in_memory', 'default-databa
 Flink SQL> DESCRIBE CATALOG cat2;
 
 Flink SQL> DESC CATALOG EXTENDED cat2;
+      
+Flink SQL> DESCRIBE JOB '228d70913eab60dda85c5e7f78b5782c';
+      
+Flink SQL> DESC JOB '228d70913eab60dda85c5e7f78b5782c';
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -329,6 +333,14 @@ Flink SQL> DESC CATALOG EXTENDED cat2;
 | option:default-database |                db |
 +-------------------------+-------------------+
 4 rows in set
+
+# DESCRIBE JOB '228d70913eab60dda85c5e7f78b5782c'
++----------------------------------+----------+---------+-------------------------+
+|                           job id | job name |  status |              start time |
++----------------------------------+----------+---------+-------------------------+
+| 228d70913eab60dda85c5e7f78b5782c |    myjob | RUNNING | 2023-02-11T05:03:51.523 |
++----------------------------------+----------+---------+-------------------------+
+1 row in set
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -339,11 +351,22 @@ Flink SQL> DESC CATALOG EXTENDED cat2;
 
 ## 语法
 
-- DESCRIBE TABLE
+### DESCRIBE TABLE
+
 ```sql
 { DESCRIBE | DESC } [catalog_name.][db_name.]table_name
 ```
-- DESCRIBE CATALOG
+
+### DESCRIBE CATALOG
+
 ```sql
 { DESCRIBE | DESC } CATALOG [EXTENDED] catalog_name
 ```
+
+### DESCRIBE JOB
+
+```sql
+{ DESCRIBE | DESC } JOB '<job_id>'
+```
+
+<span class="label label-danger">Attention</span> DESCRIBE JOB 语句仅适用于 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 或者 [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).

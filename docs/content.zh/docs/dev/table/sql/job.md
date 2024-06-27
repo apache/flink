@@ -30,6 +30,7 @@ Job 语句用于管理作业的生命周期。
 
 目前 Flink SQL 支持以下 JOB 语句：
 - SHOW JOBS
+- DESCRIBE JOB
 - STOP JOB
 
 ## 执行 JOB 语句
@@ -46,6 +47,13 @@ Job 语句用于管理作业的生命周期。
 {{< tab "SQL CLI" >}}
 ```sql
 Flink SQL> SHOW JOBS;
++----------------------------------+----------+---------+-------------------------+
+|                           job id | job name |  status |              start time |
++----------------------------------+----------+---------+-------------------------+
+| 228d70913eab60dda85c5e7f78b5782c |    myjob | RUNNING | 2023-02-11T05:03:51.523 |
++----------------------------------+----------+---------+-------------------------+
+
+Flink SQL> DESCRIBE JOB '228d70913eab60dda85c5e7f78b5782c';
 +----------------------------------+----------+---------+-------------------------+
 |                           job id | job name |  status |              start time |
 +----------------------------------+----------+---------+-------------------------+
@@ -74,6 +82,16 @@ SHOW JOBS
 展示 Flink 集群上的作业。
 
 <span class="label label-danger">Attention</span> SHOW JOBS 语句仅适用于 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 或者 [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
+
+## DESCRIBE JOB
+
+```sql
+{ DESCRIBE | DESC } JOB '<job_id>'
+```
+
+展示 Flink 集群上的指定作业。
+
+<span class="label label-danger">Attention</span> DESCRIBE JOB 语句仅适用于 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 或者 [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
 
 ## STOP JOB
 
