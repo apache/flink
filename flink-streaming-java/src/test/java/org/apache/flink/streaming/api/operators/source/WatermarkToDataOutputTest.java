@@ -18,9 +18,8 @@
 
 package org.apache.flink.streaming.api.operators.source;
 
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
-import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import org.junit.jupiter.api.Test;
 
@@ -36,7 +35,8 @@ class WatermarkToDataOutputTest {
 
         wmOutput.emitWatermark(new org.apache.flink.api.common.eventtime.TimestampWatermark(0L));
 
-        assertThat(testingOutput.events).contains(new WatermarkEvent(new TimestampWatermark(0L)));
+        assertThat(testingOutput.events)
+                .contains(WatermarkUtils.createWatermarkEventFromTimestamp(0L));
     }
 
     @Test
@@ -53,9 +53,9 @@ class WatermarkToDataOutputTest {
 
         assertThat(testingOutput.events)
                 .contains(
-                        new WatermarkEvent(new TimestampWatermark(12L)),
-                        new WatermarkEvent(new TimestampWatermark(17L)),
-                        new WatermarkEvent(new TimestampWatermark(18L)));
+                        WatermarkUtils.createWatermarkEventFromTimestamp(12L),
+                        WatermarkUtils.createWatermarkEventFromTimestamp(17L),
+                        WatermarkUtils.createWatermarkEventFromTimestamp(18L));
     }
 
     @Test
@@ -70,6 +70,6 @@ class WatermarkToDataOutputTest {
                 .contains(
                         WatermarkStatus.IDLE,
                         WatermarkStatus.ACTIVE,
-                        new WatermarkEvent(new TimestampWatermark(100L)));
+                        WatermarkUtils.createWatermarkEventFromTimestamp(100L));
     }
 }

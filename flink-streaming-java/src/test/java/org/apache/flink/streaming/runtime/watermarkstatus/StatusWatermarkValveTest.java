@@ -18,13 +18,13 @@
 
 package org.apache.flink.streaming.runtime.watermarkstatus;
 
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import org.junit.jupiter.api.Test;
 
@@ -58,14 +58,14 @@ class StatusWatermarkValveTest {
         StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
         StatusWatermarkValve valve = new StatusWatermarkValve(1);
 
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(0)), 0, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(0), 0, valveOutput);
         assertThat(valveOutput.popLastSeenOutput())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(0)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(0));
         assertThat(valveOutput.popLastSeenOutput()).isNull();
 
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(25)), 0, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(25), 0, valveOutput);
         assertThat(valveOutput.popLastSeenOutput())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(25)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(25));
         assertThat(valveOutput.popLastSeenOutput()).isNull();
     }
 
@@ -78,16 +78,16 @@ class StatusWatermarkValveTest {
         StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
         StatusWatermarkValve valve = new StatusWatermarkValve(1);
 
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(25)), 0, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(25), 0, valveOutput);
         assertThat(valveOutput.popLastSeenOutput())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(25)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(25));
 
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(18)), 0, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(18), 0, valveOutput);
         assertThat(valveOutput.popLastSeenOutput()).isNull();
 
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(42)), 0, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(42), 0, valveOutput);
         assertThat(valveOutput.popLastSeenOutput())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(42)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(42));
         assertThat(valveOutput.popLastSeenOutput()).isNull();
     }
 
@@ -121,15 +121,15 @@ class StatusWatermarkValveTest {
         StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
         StatusWatermarkValve valve = new StatusWatermarkValve(1);
 
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(25)), 0, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(25), 0, valveOutput);
         assertThat(valveOutput.popLastSeenOutput())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(25)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(25));
         assertThat(valveOutput.popLastSeenOutput()).isNull();
 
         valve.inputWatermarkStatus(WatermarkStatus.IDLE, 0, valveOutput);
         assertThat(valveOutput.popLastSeenOutput()).isEqualTo(WatermarkStatus.IDLE);
 
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(50)), 0, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(50), 0, valveOutput);
         assertThat(valveOutput.popLastSeenOutput()).isNull();
         assertThat(valve.getSubpartitionStatus(0).watermark).isEqualTo(25);
 
@@ -137,9 +137,9 @@ class StatusWatermarkValveTest {
         assertThat(valveOutput.popLastSeenOutput()).isEqualTo(WatermarkStatus.ACTIVE);
         assertThat(valveOutput.popLastSeenOutput()).isNull();
 
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(50)), 0, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(50), 0, valveOutput);
         assertThat(valveOutput.popLastSeenOutput())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(50)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(50));
         assertThat(valveOutput.popLastSeenOutput()).isNull();
     }
 
@@ -149,14 +149,14 @@ class StatusWatermarkValveTest {
         StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
         StatusWatermarkValve valve = new StatusWatermarkValve(3);
 
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(0)), 0, valveOutput);
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(0)), 1, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(0), 0, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(0), 1, valveOutput);
         assertThat(valveOutput.popLastSeenOutput()).isNull();
 
         // now, all channels have watermarks
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(0)), 2, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(0), 2, valveOutput);
         assertThat(valveOutput.popLastSeenOutput())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(0)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(0));
         assertThat(valveOutput.popLastSeenOutput()).isNull();
     }
 
@@ -169,33 +169,33 @@ class StatusWatermarkValveTest {
         StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
         StatusWatermarkValve valve = new StatusWatermarkValve(3);
 
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(0)), 0, valveOutput);
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(0)), 1, valveOutput);
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(0)), 2, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(0), 0, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(0), 1, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(0), 2, valveOutput);
         assertThat(valveOutput.popLastSeenOutput())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(0)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(0));
 
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(12)), 0, valveOutput);
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(8)), 2, valveOutput);
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(10)), 2, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(12), 0, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(8), 2, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(10), 2, valveOutput);
         assertThat(valveOutput.popLastSeenOutput()).isNull();
 
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(15)), 1, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(15), 1, valveOutput);
         // lowest watermark across all channels is now channel 2, with watermark @ 10
         assertThat(valveOutput.popLastSeenOutput())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(10)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(10));
         assertThat(valveOutput.popLastSeenOutput()).isNull();
 
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(17)), 2, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(17), 2, valveOutput);
         // lowest watermark across all channels is now channel 0, with watermark @ 12
         assertThat(valveOutput.popLastSeenOutput())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(12)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(12));
         assertThat(valveOutput.popLastSeenOutput()).isNull();
 
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(20)), 0, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(20), 0, valveOutput);
         // lowest watermark across all channels is now channel 1, with watermark @ 15
         assertThat(valveOutput.popLastSeenOutput())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(15)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(15));
         assertThat(valveOutput.popLastSeenOutput()).isNull();
     }
 
@@ -205,15 +205,15 @@ class StatusWatermarkValveTest {
         StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
         StatusWatermarkValve valve = new StatusWatermarkValve(3);
 
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(25)), 0, valveOutput);
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(10)), 1, valveOutput);
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(17)), 2, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(25), 0, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(10), 1, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(17), 2, valveOutput);
         assertThat(valveOutput.popLastSeenOutput())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(10)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(10));
 
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(12)), 0, valveOutput);
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(8)), 1, valveOutput);
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(15)), 2, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(12), 0, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(8), 1, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(15), 2, valveOutput);
         assertThat(valveOutput.popLastSeenOutput()).isNull();
     }
 
@@ -260,26 +260,26 @@ class StatusWatermarkValveTest {
         StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
         StatusWatermarkValve valve = new StatusWatermarkValve(3);
 
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(15)), 0, valveOutput);
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(10)), 1, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(15), 0, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(10), 1, valveOutput);
         assertThat(valveOutput.popLastSeenOutput()).isNull();
 
         valve.inputWatermarkStatus(WatermarkStatus.IDLE, 2, valveOutput);
         // min watermark should be computed from remaining ACTIVE channels
         assertThat(valveOutput.popLastSeenOutput())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(10)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(10));
         assertThat(valveOutput.popLastSeenOutput()).isNull();
 
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(18)), 1, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(18), 1, valveOutput);
         // now, min watermark should be 15 from channel #0
         assertThat(valveOutput.popLastSeenOutput())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(15)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(15));
         assertThat(valveOutput.popLastSeenOutput()).isNull();
 
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(20)), 0, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(20), 0, valveOutput);
         // now, min watermark should be 18 from channel #1
         assertThat(valveOutput.popLastSeenOutput())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(18)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(18));
         assertThat(valveOutput.popLastSeenOutput()).isNull();
     }
 
@@ -292,21 +292,21 @@ class StatusWatermarkValveTest {
         StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
         StatusWatermarkValve valve = new StatusWatermarkValve(3);
 
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(25)), 0, valveOutput);
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(10)), 1, valveOutput);
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(17)), 2, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(25), 0, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(10), 1, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(17), 2, valveOutput);
         assertThat(valveOutput.popLastSeenOutput())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(10)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(10));
 
         valve.inputWatermarkStatus(WatermarkStatus.IDLE, 1, valveOutput);
         // only channel 0 & 2 is ACTIVE; 17 is the overall min watermark now
         assertThat(valveOutput.popLastSeenOutput())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(17)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(17));
 
         valve.inputWatermarkStatus(WatermarkStatus.IDLE, 2, valveOutput);
         // only channel 0 is ACTIVE; 25 is the overall min watermark now
         assertThat(valveOutput.popLastSeenOutput())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(25)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(25));
         assertThat(valveOutput.popLastSeenOutput()).isNull();
     }
 
@@ -333,11 +333,11 @@ class StatusWatermarkValveTest {
         //  Min Watermark across channels = 3 (from channel #3)
         // -------------------------------------------------------------------------------------------
 
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(10)), 0, valveOutput);
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(5)), 1, valveOutput);
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(3)), 2, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(10), 0, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(5), 1, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(3), 2, valveOutput);
         assertThat(valveOutput.popLastSeenOutput())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(3)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(3));
 
         // -------------------------------------------------------------------------------------------
         // Order of becoming IDLE:
@@ -351,7 +351,7 @@ class StatusWatermarkValveTest {
 
         valve.inputWatermarkStatus(WatermarkStatus.IDLE, 2, valveOutput);
         assertThat(valveOutput.popLastSeenOutput())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(10)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(10));
         assertThat(valveOutput.popLastSeenOutput()).isEqualTo(WatermarkStatus.IDLE);
         assertThat(valveOutput.popLastSeenOutput()).isNull();
     }
@@ -365,16 +365,16 @@ class StatusWatermarkValveTest {
         StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
         StatusWatermarkValve valve = new StatusWatermarkValve(3);
 
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(10)), 0, valveOutput);
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(7)), 1, valveOutput);
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(3)), 2, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(10), 0, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(7), 1, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(3), 2, valveOutput);
         assertThat(valveOutput.popLastSeenOutput())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(3)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(3));
         assertThat(valveOutput.popLastSeenOutput()).isNull();
 
         valve.inputWatermarkStatus(WatermarkStatus.IDLE, 2, valveOutput);
         assertThat(valveOutput.popLastSeenOutput())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(7)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(7));
         assertThat(valveOutput.popLastSeenOutput()).isNull();
 
         // let channel 2 become active again; since the min watermark has now advanced to 7,
@@ -384,19 +384,19 @@ class StatusWatermarkValveTest {
 
         // during the realignment process, watermarks should still be accepted by channel 2 (but
         // shouldn't yield new watermarks)
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(5)), 2, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(5), 2, valveOutput);
         assertThat(valve.getSubpartitionStatus(2).watermark).isEqualTo(5);
         assertThat(valveOutput.popLastSeenOutput()).isNull();
 
         // let channel 2 catch up with the min watermark; now should be realigned
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(9)), 2, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(9), 2, valveOutput);
         assertThat(valve.getSubpartitionStatus(2).isWatermarkAligned).isTrue();
         assertThat(valveOutput.popLastSeenOutput()).isNull();
 
         // check that realigned inputs is now taken into account for watermark advancement
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(12)), 1, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(12), 1, valveOutput);
         assertThat(valveOutput.popLastSeenOutput())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(9)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(9));
         assertThat(valveOutput.popLastSeenOutput()).isNull();
     }
 
@@ -410,13 +410,13 @@ class StatusWatermarkValveTest {
         StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
         StatusWatermarkValve valve = new StatusWatermarkValve(3);
 
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(10)), 0, valveOutput);
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(7)), 1, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(10), 0, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(7), 1, valveOutput);
 
         // make channel 2 ACTIVE, it is now in "catch up" mode (unaligned watermark)
         valve.inputWatermarkStatus(WatermarkStatus.IDLE, 2, valveOutput);
         assertThat(valveOutput.popLastSeenOutput())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(7)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(7));
         assertThat(valveOutput.popLastSeenOutput()).isNull();
 
         // make channel 2 ACTIVE again, it is still unaligned
@@ -436,20 +436,20 @@ class StatusWatermarkValveTest {
         StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
         StatusWatermarkValve valve = new StatusWatermarkValve(2);
 
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(7)), 0, valveOutput);
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(10)), 1, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(7), 0, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(10), 1, valveOutput);
         assertThat(valveOutput.popLastSeenOutput())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(7)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(7));
 
         // make channel 0 idle, it becomes unaligned
         valve.inputWatermarkStatus(WatermarkStatus.IDLE, 0, valveOutput);
         assertThat(valveOutput.popLastSeenOutput())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(10)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(10));
 
         // make channel 0 active, but it is still unaligned because it's watermark < last output
         // watermark
         valve.inputWatermarkStatus(WatermarkStatus.ACTIVE, 0, valveOutput);
-        valve.inputWatermark(new WatermarkEvent(new TimestampWatermark(9)), 0, valveOutput);
+        valve.inputWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(9), 0, valveOutput);
         assertThat(valveOutput.popLastSeenOutput()).isNull();
 
         // make channel 0 idle again

@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.operators.async;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -59,6 +58,7 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.streaming.util.retryable.AsyncRetryStrategies;
 import org.apache.flink.streaming.util.retryable.RetryPredicates;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.testutils.junit.SharedObjectsExtension;
 import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.ExceptionUtils;
@@ -385,7 +385,7 @@ class AsyncWaitOperatorTest {
             testHarness.processElement(new StreamRecord<>(1, initialTime + 1));
             testHarness.processElement(new StreamRecord<>(2, initialTime + 2));
             testHarness.processWatermark(
-                    new WatermarkEvent(new TimestampWatermark(initialTime + 2)));
+                    WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 2));
             testHarness.processElement(new StreamRecord<>(3, initialTime + 3));
         }
 
@@ -397,7 +397,7 @@ class AsyncWaitOperatorTest {
 
         expectedOutput.add(new StreamRecord<>(2, initialTime + 1));
         expectedOutput.add(new StreamRecord<>(4, initialTime + 2));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(initialTime + 2)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 2));
         expectedOutput.add(new StreamRecord<>(6, initialTime + 3));
 
         if (AsyncDataStream.OutputMode.ORDERED == mode) {
@@ -410,7 +410,7 @@ class AsyncWaitOperatorTest {
 
             assertThat(jobOutputQueue[2])
                     .as("Watermark should be at index 2")
-                    .isEqualTo(new WatermarkEvent(new TimestampWatermark(initialTime + 2)));
+                    .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 2));
             assertThat(jobOutputQueue[3])
                     .as("StreamRecord 3 should be at the end")
                     .isEqualTo(new StreamRecord<>(6, initialTime + 3));

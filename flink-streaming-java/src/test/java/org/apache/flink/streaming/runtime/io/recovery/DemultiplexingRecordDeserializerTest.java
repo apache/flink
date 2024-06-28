@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.runtime.io.recovery;
 
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.MemorySegment;
@@ -34,10 +33,10 @@ import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
 
@@ -193,7 +192,7 @@ class DemultiplexingRecordDeserializerTest {
                 final long ts =
                         42L + selector.getInputSubtaskIndex() + selector.getOutputSubtaskIndex();
                 Buffer buffer =
-                        write(bufferBuilder, new WatermarkEvent(new TimestampWatermark(ts)));
+                        write(bufferBuilder, WatermarkUtils.createWatermarkEventFromTimestamp(ts));
 
                 deserializer.select(selector);
                 deserializer.setNextBuffer(buffer);
@@ -204,7 +203,7 @@ class DemultiplexingRecordDeserializerTest {
             } else {
                 // last channel, min should be 42 + 0 + 0
                 assertThat(read(deserializer))
-                        .containsExactly(new WatermarkEvent(new TimestampWatermark(42)));
+                        .containsExactly(WatermarkUtils.createWatermarkEventFromTimestamp(42));
             }
 
             assertThat(memorySegment.isFreed()).isTrue();

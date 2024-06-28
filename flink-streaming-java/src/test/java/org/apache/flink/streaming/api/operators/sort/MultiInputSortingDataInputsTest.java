@@ -36,6 +36,7 @@ import org.apache.flink.streaming.runtime.io.StreamOneInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import org.junit.jupiter.api.Test;
 
@@ -77,7 +78,7 @@ class MultiInputSortingDataInputsTest {
                 Arrays.asList(
                         new StreamRecord<>(99, 3),
                         new StreamRecord<>(99, 1),
-                        new WatermarkEvent(new TimestampWatermark(99L)));
+                        WatermarkUtils.createWatermarkEventFromTimestamp(99L));
         CollectionDataInput<Integer> preferredInput =
                 new CollectionDataInput<>(preferredInputElements, preferredIndex);
 
@@ -137,7 +138,7 @@ class MultiInputSortingDataInputsTest {
                         new StreamRecord<>(99, 3),
                         new StreamRecord<>(99, 1),
                         // max watermark from the preferred input
-                        new WatermarkEvent(new TimestampWatermark(99L)),
+                        WatermarkUtils.createWatermarkEventFromTimestamp(99L),
                         new StreamRecord<>(1, 1),
                         new StreamRecord<>(1, 2),
                         new StreamRecord<>(1, 3),
@@ -232,15 +233,15 @@ class MultiInputSortingDataInputsTest {
         List<StreamElement> elements1 =
                 Arrays.asList(
                         new StreamRecord<>(2, 3),
-                        new WatermarkEvent(new TimestampWatermark(3)),
+                        WatermarkUtils.createWatermarkEventFromTimestamp(3),
                         new StreamRecord<>(3, 3),
-                        new WatermarkEvent(new TimestampWatermark(7)));
+                        WatermarkUtils.createWatermarkEventFromTimestamp(7));
         List<StreamElement> elements2 =
                 Arrays.asList(
                         new StreamRecord<>(0, 3),
-                        new WatermarkEvent(new TimestampWatermark(1)),
+                        WatermarkUtils.createWatermarkEventFromTimestamp(1),
                         new StreamRecord<>(1, 3),
-                        new WatermarkEvent(new TimestampWatermark(3)));
+                        WatermarkUtils.createWatermarkEventFromTimestamp(3));
         CollectionDataInput<Integer> dataInput1 = new CollectionDataInput<>(elements1, 0);
         CollectionDataInput<Integer> dataInput2 = new CollectionDataInput<>(elements2, 1);
         KeySelector<Integer, Integer> keySelector = value -> value;
@@ -290,11 +291,11 @@ class MultiInputSortingDataInputsTest {
                         new StreamRecord<>(0, 3),
                         new StreamRecord<>(1, 3),
                         // watermark from the second input
-                        new WatermarkEvent(new TimestampWatermark(3)),
+                        WatermarkUtils.createWatermarkEventFromTimestamp(3),
                         new StreamRecord<>(2, 3),
                         new StreamRecord<>(3, 3),
                         // watermark from the first input
-                        new WatermarkEvent(new TimestampWatermark(7)));
+                        WatermarkUtils.createWatermarkEventFromTimestamp(7));
     }
 
     private static class DummyOperatorChain implements BoundedMultiInput {

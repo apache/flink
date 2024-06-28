@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.operators.wmassigners;
 
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
@@ -38,7 +37,7 @@ import java.util.Optional;
  * processing time. The downstream operators will trigger mini-batch once the received mini-batch id
  * advanced.
  *
- * <p>NOTE: currently, we use {@link Watermark} to represents the mini-batch marker.
+ * <p>NOTE: currently, we use {@link WatermarkEvent} to represents the mini-batch marker.
  *
  * <p>The difference between this operator and {@link RowTimeMiniBatchAssginerOperator} is that,
  * this operator generates watermarks by itself using processing time, but the other forwards
@@ -81,7 +80,7 @@ public class ProcTimeMiniBatchAssignerOperator extends AbstractStreamOperator<Ro
         if (currentBatch > currentWatermark) {
             currentWatermark = currentBatch;
             // emit
-            output.emitWatermark(new WatermarkEvent(new TimestampWatermark(currentBatch)));
+            output.emitWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(currentBatch));
         }
         output.collect(element);
     }
@@ -93,7 +92,7 @@ public class ProcTimeMiniBatchAssignerOperator extends AbstractStreamOperator<Ro
         if (currentBatch > currentWatermark) {
             currentWatermark = currentBatch;
             // emit
-            output.emitWatermark(new WatermarkEvent(new TimestampWatermark(currentBatch)));
+            output.emitWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(currentBatch));
         }
         getProcessingTimeService().registerTimer(currentBatch + intervalMs, this);
     }

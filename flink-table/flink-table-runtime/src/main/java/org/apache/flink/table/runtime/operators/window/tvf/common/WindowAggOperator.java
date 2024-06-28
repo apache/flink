@@ -20,7 +20,6 @@ package org.apache.flink.table.runtime.operators.window.tvf.common;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -231,7 +230,7 @@ public final class WindowAggOperator<K, W> extends TableStreamOperator<RowData>
                 super.processWatermark(mark);
             } else {
                 super.processWatermark(
-                        new WatermarkEvent(new TimestampWatermark(maybeTimestamp.get())));
+                        WatermarkUtils.createWatermarkEventFromTimestamp(maybeTimestamp.get()));
             }
         } else {
             super.processWatermark(mark);

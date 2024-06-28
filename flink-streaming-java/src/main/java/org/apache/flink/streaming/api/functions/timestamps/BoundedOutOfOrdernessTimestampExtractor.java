@@ -18,10 +18,10 @@
 
 package org.apache.flink.streaming.api.functions.timestamps;
 
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import java.time.Duration;
 
@@ -90,7 +90,7 @@ public abstract class BoundedOutOfOrdernessTimestampExtractor<T>
         if (potentialWM >= lastEmittedWatermark) {
             lastEmittedWatermark = potentialWM;
         }
-        return new WatermarkEvent(new TimestampWatermark(lastEmittedWatermark));
+        return WatermarkUtils.createWatermarkEventFromTimestamp(lastEmittedWatermark);
     }
 
     @Override

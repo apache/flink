@@ -18,11 +18,11 @@
 
 package org.apache.flink.streaming.api.operators.async.queue;
 
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.Preconditions;
@@ -72,7 +72,7 @@ class StreamElementQueueTest {
     void testPut() {
         StreamElementQueue<Integer> queue = createStreamElementQueue(2);
 
-        WatermarkEvent watermark = new WatermarkEvent(new TimestampWatermark(0L));
+        WatermarkEvent watermark = WatermarkUtils.createWatermarkEventFromTimestamp(0L);
         StreamRecord<Integer> streamRecord = new StreamRecord<>(42, 1L);
 
         // add two elements to reach capacity
@@ -82,7 +82,8 @@ class StreamElementQueueTest {
         assertThat(queue.size()).isEqualTo(2);
 
         // queue full, cannot add new element
-        assertThat(queue.tryPut(new WatermarkEvent(new TimestampWatermark(2L)))).isNotPresent();
+        assertThat(queue.tryPut(WatermarkUtils.createWatermarkEventFromTimestamp(2L)))
+                .isNotPresent();
 
         // check if expected values are returned (for checkpointing)
         assertThat(queue.values()).containsExactly(watermark, streamRecord);
@@ -93,14 +94,14 @@ class StreamElementQueueTest {
         StreamElementQueue<Integer> queue = createStreamElementQueue(2);
 
         // add two elements to reach capacity
-        putSuccessfully(queue, new WatermarkEvent(new TimestampWatermark(0L)));
+        putSuccessfully(queue, WatermarkUtils.createWatermarkEventFromTimestamp(0L));
         ResultFuture<Integer> recordResult = putSuccessfully(queue, new StreamRecord<>(42, 1L));
 
         assertThat(queue.size()).isEqualTo(2);
 
         // remove completed elements (watermarks are always completed)
         assertThat(popCompleted(queue))
-                .containsExactly(new WatermarkEvent(new TimestampWatermark(0L)));
+                .containsExactly(WatermarkUtils.createWatermarkEventFromTimestamp(0L));
         assertThat(queue.size()).isOne();
 
         // now complete the stream record
@@ -136,16 +137,16 @@ class StreamElementQueueTest {
     void testWatermarkOnly() {
         final StreamElementQueue<Integer> queue = createStreamElementQueue(2);
 
-        putSuccessfully(queue, new WatermarkEvent(new TimestampWatermark(2L)));
-        putSuccessfully(queue, new WatermarkEvent(new TimestampWatermark(5L)));
+        putSuccessfully(queue, WatermarkUtils.createWatermarkEventFromTimestamp(2L));
+        putSuccessfully(queue, WatermarkUtils.createWatermarkEventFromTimestamp(5L));
 
         assertThat(queue.size()).isEqualTo(2);
         assertThat(queue.isEmpty()).isFalse();
 
         assertThat(popCompleted(queue))
                 .containsExactly(
-                        new WatermarkEvent(new TimestampWatermark(2L)),
-                        new WatermarkEvent(new TimestampWatermark(5L)));
+                        WatermarkUtils.createWatermarkEventFromTimestamp(2L),
+                        WatermarkUtils.createWatermarkEventFromTimestamp(5L));
         assertThat(queue.size()).isZero();
         assertThat(popCompleted(queue)).isEmpty();
     }

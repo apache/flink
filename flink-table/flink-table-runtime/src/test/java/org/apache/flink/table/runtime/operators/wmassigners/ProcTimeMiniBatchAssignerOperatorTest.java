@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 
@@ -50,7 +51,8 @@ public class ProcTimeMiniBatchAssignerOperatorTest extends WatermarkAssignerOper
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(1L)));
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(2L)));
         testHarness.processWatermark(
-                new WatermarkEvent(new TimestampWatermark(2))); // this watermark should be ignored
+                WatermarkUtils.createWatermarkEventFromTimestamp(
+                        2)); // this watermark should be ignored
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(3L)));
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(4L)));
 
@@ -120,7 +122,8 @@ public class ProcTimeMiniBatchAssignerOperatorTest extends WatermarkAssignerOper
             output.clear();
         }
 
-        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(Long.MAX_VALUE)));
+        testHarness.processWatermark(
+                WatermarkUtils.createWatermarkEventFromTimestamp(Long.MAX_VALUE));
         assertThat(
                         ((TimestampWatermark)
                                         ((WatermarkEvent) testHarness.getOutput().poll())

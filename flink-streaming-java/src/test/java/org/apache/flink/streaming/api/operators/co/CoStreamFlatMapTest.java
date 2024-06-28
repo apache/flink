@@ -17,14 +17,13 @@
 
 package org.apache.flink.streaming.api.operators.co;
 
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
-import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.Collector;
 
 import org.junit.jupiter.api.Test;
@@ -77,12 +76,14 @@ class CoStreamFlatMapTest implements Serializable {
 
         testHarness.processElement1(new StreamRecord<String>("abc", initialTime + 1));
         testHarness.processElement1(new StreamRecord<String>("def", initialTime + 2));
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(initialTime + 2)));
+        testHarness.processWatermark1(
+                WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 2));
         testHarness.processElement1(new StreamRecord<String>("ghi", initialTime + 3));
 
         testHarness.processElement2(new StreamRecord<Integer>(1, initialTime + 1));
         testHarness.processElement2(new StreamRecord<Integer>(2, initialTime + 2));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(initialTime + 3)));
+        testHarness.processWatermark2(
+                WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 3));
         testHarness.processElement2(new StreamRecord<Integer>(3, initialTime + 3));
         testHarness.processElement2(new StreamRecord<Integer>(4, initialTime + 4));
         testHarness.processElement2(new StreamRecord<Integer>(5, initialTime + 5));
@@ -99,7 +100,7 @@ class CoStreamFlatMapTest implements Serializable {
 
         expectedOutput.add(new StreamRecord<String>("1", initialTime + 1));
         expectedOutput.add(new StreamRecord<String>("2", initialTime + 2));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(initialTime + 2)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 2));
         expectedOutput.add(new StreamRecord<String>("3", initialTime + 3));
         expectedOutput.add(new StreamRecord<String>("4", initialTime + 4));
         expectedOutput.add(new StreamRecord<String>("5", initialTime + 5));

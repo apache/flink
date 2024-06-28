@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
@@ -288,7 +289,8 @@ public class StreamSourceContexts {
                 // in case we jumped some watermarks, recompute the next watermark time
                 final long watermarkTime = lastRecordTime - (lastRecordTime % watermarkInterval);
                 nextWatermarkTime = watermarkTime + watermarkInterval;
-                output.emitWatermark(new WatermarkEvent(new TimestampWatermark(watermarkTime)));
+                output.emitWatermark(
+                        WatermarkUtils.createWatermarkEventFromTimestamp(watermarkTime));
 
                 // we do not need to register another timer here
                 // because the emitting task will do so.
@@ -385,7 +387,8 @@ public class StreamSourceContexts {
                                     currentTime - (currentTime % watermarkInterval);
 
                             output.emitWatermark(
-                                    new WatermarkEvent(new TimestampWatermark(watermarkTime)));
+                                    WatermarkUtils.createWatermarkEventFromTimestamp(
+                                            watermarkTime));
                             nextWatermarkTime = watermarkTime + watermarkInterval;
                         }
                     }

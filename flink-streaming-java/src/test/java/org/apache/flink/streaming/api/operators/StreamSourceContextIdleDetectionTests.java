@@ -27,6 +27,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.CollectorOutput;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
@@ -158,8 +159,9 @@ class StreamSourceContextIdleDetectionTests {
                 break;
             case EMIT_WATERMARK:
                 long watermarkTime = processingTimeService.getCurrentProcessingTime();
-                expectedOutput.add(new WatermarkEvent(new TimestampWatermark(watermarkTime)));
-                context.emitWatermark(new WatermarkEvent(new TimestampWatermark(watermarkTime)));
+                expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(watermarkTime));
+                context.emitWatermark(
+                        WatermarkUtils.createWatermarkEventFromTimestamp(watermarkTime));
                 break;
         }
     }

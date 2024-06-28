@@ -20,7 +20,6 @@ package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -44,12 +43,12 @@ import org.apache.flink.streaming.api.connector.sink2.SinkV2Assertions;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
-import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.operators.sink.committables.SinkV1CommittableDeserializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -112,8 +111,8 @@ abstract class SinkWriterOperatorTestBase {
 
         assertThat(testHarness.getOutput())
                 .containsExactly(
-                        new WatermarkEvent(new TimestampWatermark(initialTime)),
-                        new WatermarkEvent(new TimestampWatermark(initialTime + 1)));
+                        WatermarkUtils.createWatermarkEventFromTimestamp(initialTime),
+                        WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 1));
         assertThat(sinkAndSuppliers.watermarkSupplier.get())
                 .containsExactly(
                         new org.apache.flink.api.common.eventtime.TimestampWatermark(initialTime),
@@ -208,7 +207,7 @@ abstract class SinkWriterOperatorTestBase {
         // state
         assertThat(testHarness.getOutput())
                 .hasSize(2)
-                .contains(new WatermarkEvent(new TimestampWatermark(initialTime)));
+                .contains(WatermarkUtils.createWatermarkEventFromTimestamp(initialTime));
         assertThat(sinkAndSuppliers.lastCheckpointSupplier.getAsLong())
                 .isEqualTo(stateful ? 1L : -1L);
 

@@ -20,7 +20,7 @@ package org.apache.flink.table.utils;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
@@ -43,7 +43,7 @@ public class TestingDescriptors {
     /** CustomAssigner for testing. */
     public static class CustomAssigner extends PunctuatedWatermarkAssigner {
         @Override
-        public Watermark getWatermark(Row row, long timestamp) {
+        public WatermarkEvent getWatermark(Row row, long timestamp) {
             throw new UnsupportedOperationException();
         }
     }

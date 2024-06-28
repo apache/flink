@@ -39,6 +39,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import org.junit.Test;
 
@@ -136,7 +137,7 @@ public class CEPRescalingTest {
 
             // if element timestamps are not correctly checkpointed/restored this will lead to
             // a pruning time underflow exception in NFA
-            harness1.processWatermark(new WatermarkEvent(new TimestampWatermark(2)));
+            harness1.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(2));
 
             harness1.processElement(new StreamRecord<Event>(middleEvent1, 3)); // valid element
             harness1.processElement(new StreamRecord<>(endEvent1, 5)); // valid element
@@ -155,7 +156,7 @@ public class CEPRescalingTest {
             harness2.open();
 
             // now we move to the second parallel task
-            harness2.processWatermark(new WatermarkEvent(new TimestampWatermark(2)));
+            harness2.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(2));
 
             harness2.processElement(new StreamRecord<>(endEvent2, 5));
             harness2.processElement(new StreamRecord<>(new Event(42, "start", 1.0), 4));
@@ -344,14 +345,14 @@ public class CEPRescalingTest {
             harness5.open();
 
             harness5.processElement(new StreamRecord<>(endEvent2, 11));
-            harness5.processWatermark(new WatermarkEvent(new TimestampWatermark(12)));
+            harness5.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(12));
 
             verifyPattern(harness5.getOutput().poll(), startEvent2, middleEvent2, endEvent2);
             verifyWatermark(harness5.getOutput().poll(), 12);
 
             // if element timestamps are not correctly checkpointed/restored this will lead to
             // a pruning time underflow exception in NFA
-            harness4.processWatermark(new WatermarkEvent(new TimestampWatermark(12)));
+            harness4.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(12));
 
             assertEquals(2, harness4.getOutput().size());
             verifyPattern(harness4.getOutput().poll(), startEvent1, middleEvent1, endEvent1);

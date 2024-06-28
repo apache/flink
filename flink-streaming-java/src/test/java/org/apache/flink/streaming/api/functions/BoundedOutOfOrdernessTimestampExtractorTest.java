@@ -23,6 +23,7 @@ import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import org.junit.jupiter.api.Test;
 
@@ -86,19 +87,19 @@ class BoundedOutOfOrdernessTimestampExtractorTest {
         assertThat(extractor.extractTimestamp(20L, 0L)).isEqualTo(20L);
 
         assertThat(extractor.getCurrentWatermark())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(10L)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(10L));
 
         assertThat(extractor.extractTimestamp(20L, 0L)).isEqualTo(20L);
         assertThat(extractor.extractTimestamp(20L, 0L)).isEqualTo(20L);
         assertThat(extractor.extractTimestamp(500L, 0L)).isEqualTo(500L);
 
         assertThat(extractor.getCurrentWatermark())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(490L)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(490L));
 
         assertThat(extractor.extractTimestamp(Long.MAX_VALUE - 1, 0L))
                 .isEqualTo(Long.MAX_VALUE - 1);
         assertThat(extractor.getCurrentWatermark())
-                .isEqualTo(new WatermarkEvent(new TimestampWatermark(Long.MAX_VALUE - 11)));
+                .isEqualTo(WatermarkUtils.createWatermarkEventFromTimestamp(Long.MAX_VALUE - 11));
     }
 
     // ------------------------------------------------------------------------

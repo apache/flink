@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
-import org.apache.flink.streaming.api.watermark.WatermarkEvent;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
@@ -106,7 +106,7 @@ public class FinishedSourcesWatermarkITCase extends TestLogger {
                     lastEmittedWatermark =
                             Math.max(System.currentTimeMillis(), lastEmittedWatermark);
                     sourceContext.emitWatermark(
-                            new WatermarkEvent(new TimestampWatermark(lastEmittedWatermark)));
+                            WatermarkUtils.createWatermarkEventFromTimestamp(lastEmittedWatermark));
                 }
                 Thread.sleep(1);
             }

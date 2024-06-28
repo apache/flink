@@ -36,7 +36,7 @@ import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.SetupableStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -86,7 +86,7 @@ public final class StateBootstrapWrapperOperator<
     }
 
     @Override
-    public void processWatermark(Watermark mark) throws Exception {
+    public void processWatermark(WatermarkEvent mark) throws Exception {
         operator.processWatermark(mark);
     }
 
@@ -206,7 +206,7 @@ public final class StateBootstrapWrapperOperator<
     private static class VoidOutput<T> implements Output<T> {
 
         @Override
-        public void emitWatermark(Watermark mark) {}
+        public void emitWatermark(WatermarkEvent mark) {}
 
         @Override
         public void emitWatermarkStatus(WatermarkStatus watermarkStatus) {}

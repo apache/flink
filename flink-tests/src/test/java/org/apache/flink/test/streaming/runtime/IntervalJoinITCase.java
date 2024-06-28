@@ -27,8 +27,8 @@ import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.Collector;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
@@ -195,7 +195,8 @@ public class IntervalJoinITCase {
                                 ctx.collectWithTimestamp(Tuple2.of("key", 4), 4L);
                                 ctx.collectWithTimestamp(Tuple2.of("key", 3), 3L);
                                 ctx.collectWithTimestamp(Tuple2.of("key", 2), 2L);
-                                ctx.emitWatermark(new Watermark(5));
+                                ctx.emitWatermark(
+                                        WatermarkUtils.createWatermarkEventFromTimestamp(5));
                                 ctx.collectWithTimestamp(Tuple2.of("key", 9), 9L);
                                 ctx.collectWithTimestamp(Tuple2.of("key", 8), 8L);
                                 ctx.collectWithTimestamp(Tuple2.of("key", 7), 7L);
@@ -218,7 +219,8 @@ public class IntervalJoinITCase {
                                 ctx.collectWithTimestamp(Tuple2.of("key", 3), 3L);
                                 ctx.collectWithTimestamp(Tuple2.of("key", 4), 4L);
                                 ctx.collectWithTimestamp(Tuple2.of("key", 5), 5L);
-                                ctx.emitWatermark(new Watermark(5));
+                                ctx.emitWatermark(
+                                        WatermarkUtils.createWatermarkEventFromTimestamp(5));
                                 ctx.collectWithTimestamp(Tuple2.of("key", 8), 8L);
                                 ctx.collectWithTimestamp(Tuple2.of("key", 7), 7L);
                                 ctx.collectWithTimestamp(Tuple2.of("key", 9), 9L);

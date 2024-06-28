@@ -19,13 +19,12 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.io.BlockingQueueBroker;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.slf4j.Logger;
@@ -101,7 +100,8 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
         // If timestamps are enabled we make sure to remove cyclic watermark dependencies
         if (isSerializingTimestamps()) {
             for (RecordWriterOutput<OUT> output : streamOutputs) {
-                output.emitWatermark(new WatermarkEvent(new TimestampWatermark(Long.MAX_VALUE)));
+                output.emitWatermark(
+                        WatermarkUtils.createWatermarkEventFromTimestamp(Long.MAX_VALUE));
             }
         }
     }

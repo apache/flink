@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.api.functions.python.eventtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
@@ -38,7 +38,7 @@ public class PerElementWatermarkGenerator implements WatermarkGenerator<Object> 
     public void onEvent(Object event, long eventTimestamp, WatermarkOutput output) {
         if (eventTimestamp > maxTimestamp) {
             maxTimestamp = eventTimestamp;
-            output.emitWatermark(new Watermark(eventTimestamp));
+            output.emitWatermark(new TimestampWatermark(eventTimestamp));
         }
     }
 

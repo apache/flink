@@ -18,11 +18,10 @@
 
 package org.apache.flink.streaming.api.operators.async.queue;
 
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
-import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import org.junit.jupiter.api.Test;
 
@@ -45,7 +44,7 @@ public class OrderedStreamElementQueueTest {
 
         ResultFuture<Integer> entry1 = putSuccessfully(queue, new StreamRecord<>(1, 0L));
         ResultFuture<Integer> entry2 = putSuccessfully(queue, new StreamRecord<>(2, 1L));
-        putSuccessfully(queue, new WatermarkEvent(new TimestampWatermark(2L)));
+        putSuccessfully(queue, WatermarkUtils.createWatermarkEventFromTimestamp(2L));
         ResultFuture<Integer> entry4 = putSuccessfully(queue, new StreamRecord<>(3, 3L));
 
         assertThat(popCompleted(queue)).isEmpty();
@@ -65,7 +64,7 @@ public class OrderedStreamElementQueueTest {
                 Arrays.asList(
                         new StreamRecord<>(10, 0L),
                         new StreamRecord<>(11, 1L),
-                        new WatermarkEvent(new TimestampWatermark(2L)),
+                        WatermarkUtils.createWatermarkEventFromTimestamp(2L),
                         new StreamRecord<>(13, 3L));
         assertThat(popCompleted(queue)).isEqualTo(expected);
         assertThat(queue.size()).isZero();

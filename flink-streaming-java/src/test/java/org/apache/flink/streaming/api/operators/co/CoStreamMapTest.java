@@ -17,14 +17,13 @@
 
 package org.apache.flink.streaming.api.operators.co;
 
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.RichCoMapFunction;
-import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import org.junit.jupiter.api.Test;
 
@@ -75,13 +74,15 @@ class CoStreamMapTest implements Serializable {
         testHarness.processElement1(new StreamRecord<Double>(1.1d, initialTime + 1));
         testHarness.processElement1(new StreamRecord<Double>(1.2d, initialTime + 2));
         testHarness.processElement1(new StreamRecord<Double>(1.3d, initialTime + 3));
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(initialTime + 3)));
+        testHarness.processWatermark1(
+                WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 3));
         testHarness.processElement1(new StreamRecord<Double>(1.4d, initialTime + 4));
         testHarness.processElement1(new StreamRecord<Double>(1.5d, initialTime + 5));
 
         testHarness.processElement2(new StreamRecord<Integer>(1, initialTime + 1));
         testHarness.processElement2(new StreamRecord<Integer>(2, initialTime + 2));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(initialTime + 2)));
+        testHarness.processWatermark2(
+                WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 2));
 
         testHarness.processElement2(new StreamRecord<Integer>(3, initialTime + 3));
         testHarness.processElement2(new StreamRecord<Integer>(4, initialTime + 4));
@@ -95,7 +96,7 @@ class CoStreamMapTest implements Serializable {
 
         expectedOutput.add(new StreamRecord<String>("1", initialTime + 1));
         expectedOutput.add(new StreamRecord<String>("2", initialTime + 2));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(initialTime + 2)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 2));
         expectedOutput.add(new StreamRecord<String>("3", initialTime + 3));
         expectedOutput.add(new StreamRecord<String>("4", initialTime + 4));
         expectedOutput.add(new StreamRecord<String>("5", initialTime + 5));

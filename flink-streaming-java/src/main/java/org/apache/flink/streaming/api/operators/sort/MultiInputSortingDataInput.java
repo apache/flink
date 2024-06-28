@@ -47,6 +47,7 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -315,7 +316,8 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
         } else {
             commonContext.setFinishedEmitting(idx);
             if (seenWatermark > Long.MIN_VALUE) {
-                output.emitWatermark(new WatermarkEvent(new TimestampWatermark(seenWatermark)));
+                output.emitWatermark(
+                        WatermarkUtils.createWatermarkEventFromTimestamp(seenWatermark));
             }
             return DataInputStatus.END_OF_DATA;
         }

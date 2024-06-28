@@ -21,9 +21,9 @@ package org.apache.flink.table.runtime.operators.python.aggregate.arrow.stream;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
@@ -147,7 +147,7 @@ class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                                 TimestampData.fromEpochMillis(10000L),
                                 TimestampData.fromEpochMillis(20000L))));
 
-        expectedOutput.add(new Watermark(Long.MAX_VALUE));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(Long.MAX_VALUE));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
     }
@@ -171,7 +171,7 @@ class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                 new StreamRecord<>(newBinaryRow(true, "c1", "c6", 2L, 10000L), initialTime + 3));
         testHarness.processElement(
                 new StreamRecord<>(newBinaryRow(true, "c2", "c8", 3L, 0L), initialTime + 4));
-        testHarness.processWatermark(new Watermark(10000L));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(10000L));
         // checkpoint trigger finishBundle
         testHarness.prepareSnapshotPreBarrier(0L);
 
@@ -211,7 +211,7 @@ class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                                 TimestampData.fromEpochMillis(0L),
                                 TimestampData.fromEpochMillis(10000L))));
 
-        expectedOutput.add(new Watermark(10000L));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(10000L));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -236,7 +236,7 @@ class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                                 TimestampData.fromEpochMillis(10000L),
                                 TimestampData.fromEpochMillis(20000L))));
 
-        expectedOutput.add(new Watermark(20000L));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(20000L));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
     }
@@ -261,7 +261,7 @@ class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
         testHarness.processElement(
                 new StreamRecord<>(newBinaryRow(true, "c2", "c8", 3L, 0L), initialTime + 4));
 
-        testHarness.processWatermark(new Watermark(10000L));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(10000L));
 
         expectedOutput.add(
                 new StreamRecord<>(
@@ -297,7 +297,7 @@ class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                                 TimestampData.fromEpochMillis(0L),
                                 TimestampData.fromEpochMillis(10000L))));
 
-        expectedOutput.add(new Watermark(10000L));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(10000L));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -321,7 +321,7 @@ class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                                 TimestampData.fromEpochMillis(10000L),
                                 TimestampData.fromEpochMillis(20000L))));
 
-        expectedOutput.add(new Watermark(20000L));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(20000L));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
     }

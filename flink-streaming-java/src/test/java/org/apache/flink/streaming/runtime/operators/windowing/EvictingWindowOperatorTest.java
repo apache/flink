@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
@@ -51,6 +50,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.Collector;
 
 import org.junit.jupiter.api.Test;
@@ -815,7 +815,7 @@ class EvictingWindowOperatorTest {
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 10));
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 100));
 
-        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1999)));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(1999));
 
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 1997));
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 1998));
@@ -829,13 +829,13 @@ class EvictingWindowOperatorTest {
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 2310));
 
         testHarness.processWatermark(
-                new WatermarkEvent(new TimestampWatermark(3999))); // now is the evictor
+                WatermarkUtils.createWatermarkEventFromTimestamp(3999)); // now is the evictor
 
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(1999)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(1999));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 4), 3999));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), 3999));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3999)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(3999));
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",

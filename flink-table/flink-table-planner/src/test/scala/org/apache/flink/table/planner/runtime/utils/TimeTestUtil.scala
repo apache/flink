@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceCont
 import org.apache.flink.streaming.api.operators.{AbstractStreamOperator, OneInputStreamOperator}
 import org.apache.flink.streaming.api.watermark.WatermarkEvent
 import org.apache.flink.streaming.runtime.streamrecord.{RecordAttributes, StreamRecord}
+import org.apache.flink.streaming.util.watermark.WatermarkUtils
 import org.apache.flink.table.planner.JLong
 
 object TimeTestUtil {
@@ -37,7 +38,7 @@ object TimeTestUtil {
     override def run(ctx: SourceContext[T]): Unit = {
       dataWithTimestampList.foreach {
         case Left(t) => ctx.collectWithTimestamp(t._2, t._1)
-        case Right(w) => ctx.emitWatermark(new WatermarkEvent(new TimestampWatermark(w)))
+        case Right(w) => ctx.emitWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(w))
       }
     }
 
@@ -50,7 +51,7 @@ object TimeTestUtil {
     override def checkAndGetNextWatermark(
         lastElement: T,
         extractedTimestamp: Long): WatermarkEvent = {
-      new WatermarkEvent(new TimestampWatermark(extractedTimestamp - offset))
+      WatermarkUtils.createWatermarkEventFromTimestamp(extractedTimestamp - offset)
     }
 
     override def extractTimestamp(element: T, previousElementTimestamp: Long): Long = {
@@ -87,7 +88,7 @@ object TimeTestUtil {
       }
 
       if (currentWatermark > 0) {
-        output.emitWatermark(new WatermarkEvent(new TimestampWatermark(currentWatermark)))
+        output.emitWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(currentWatermark))
       }
     }
 
@@ -97,7 +98,7 @@ object TimeTestUtil {
           output.collect(new StreamRecord[T](t._2, t._1))
         case Right(w) =>
           currentWatermark = w
-          output.emitWatermark(new WatermarkEvent(new TimestampWatermark(w)))
+          output.emitWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(w))
       }
     }
 

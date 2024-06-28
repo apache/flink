@@ -18,12 +18,11 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import org.junit.jupiter.api.Test;
 
@@ -52,15 +51,15 @@ class StreamSinkOperatorTest {
         testHarness.setup();
         testHarness.open();
 
-        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(17)));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(17));
         testHarness.setProcessingTime(12);
         testHarness.processElement(new StreamRecord<>("Hello", 12L));
 
-        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(42)));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(42));
         testHarness.setProcessingTime(15);
         testHarness.processElement(new StreamRecord<>("Ciao", 13L));
 
-        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(42)));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(42));
         testHarness.setProcessingTime(15);
         testHarness.processElement(new StreamRecord<>("Ciao"));
 

@@ -23,9 +23,9 @@ import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
@@ -87,7 +87,7 @@ class StreamArrowPythonRowTimeBoundedRangeOperatorTest
         expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c4", 1L, 1L, 0L)));
         expectedOutput.add(new StreamRecord<>(newRow(true, "c2", "c8", 3L, 2L, 3L)));
         expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 2L)));
-        expectedOutput.add(new Watermark(Long.MAX_VALUE));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(Long.MAX_VALUE));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
     }
@@ -111,13 +111,13 @@ class StreamArrowPythonRowTimeBoundedRangeOperatorTest
                 new StreamRecord<>(newBinaryRow(true, "c1", "c6", 2L, 10L), initialTime + 3));
         testHarness.processElement(
                 new StreamRecord<>(newBinaryRow(true, "c2", "c8", 3L, 2L), initialTime + 3));
-        testHarness.processWatermark(new Watermark(10000L));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(10000L));
 
         expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L, 1L, 0L)));
         expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c4", 1L, 1L, 0L)));
         expectedOutput.add(new StreamRecord<>(newRow(true, "c2", "c8", 3L, 2L, 3L)));
         expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 2L)));
-        expectedOutput.add(new Watermark(10000L));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(10000L));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -147,13 +147,13 @@ class StreamArrowPythonRowTimeBoundedRangeOperatorTest
         assertOutputEquals(
                 "FinishBundle should not be triggered.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark(new Watermark(1000L));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(1000L));
 
         expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L, 1L, 0L)));
         expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c4", 1L, 1L, 0L)));
         expectedOutput.add(new StreamRecord<>(newRow(true, "c2", "c8", 3L, 2L, 3L)));
         expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 2L)));
-        expectedOutput.add(new Watermark(1000L));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(1000L));
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
         testHarness.close();
@@ -177,10 +177,10 @@ class StreamArrowPythonRowTimeBoundedRangeOperatorTest
         testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c4", 1L, 100L)));
         testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c6", 2L, 500L)));
 
-        testHarness.processWatermark(new Watermark(1000L));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(1000L));
         // at this moment we expect the function to have some records in state
 
-        testHarness.processWatermark(new Watermark(4000L));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(4000L));
         // at this moment the function should have cleaned up states
 
         assertThat(stateBackend.numKeyValueStateEntries())

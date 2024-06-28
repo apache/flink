@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.watermarkstatus.HeapPriorityQueue.HeapPriorityQueueElement;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
@@ -286,7 +287,8 @@ public class StatusWatermarkValve {
         if (hasAlignedSubpartitions
                 && alignedSubpartitionStatuses.peek().watermark > lastOutputWatermark) {
             lastOutputWatermark = alignedSubpartitionStatuses.peek().watermark;
-            output.emitWatermark(new WatermarkEvent(new TimestampWatermark(lastOutputWatermark)));
+            output.emitWatermark(
+                    WatermarkUtils.createWatermarkEventFromTimestamp(lastOutputWatermark));
         }
     }
 
@@ -340,7 +342,8 @@ public class StatusWatermarkValve {
 
         if (maxWatermark > lastOutputWatermark) {
             lastOutputWatermark = maxWatermark;
-            output.emitWatermark(new WatermarkEvent(new TimestampWatermark(lastOutputWatermark)));
+            output.emitWatermark(
+                    WatermarkUtils.createWatermarkEventFromTimestamp(lastOutputWatermark));
         }
     }
 

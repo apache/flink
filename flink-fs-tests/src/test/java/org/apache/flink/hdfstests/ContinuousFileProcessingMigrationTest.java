@@ -36,7 +36,7 @@ import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.streaming.api.operators.StreamSource;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -371,7 +371,7 @@ public class ContinuousFileProcessingMigrationTest implements MigrationTest {
         public void collectWithTimestamp(TimestampedFileInputSplit element, long timestamp) {}
 
         @Override
-        public void emitWatermark(Watermark mark) {}
+        public void emitWatermark(WatermarkEvent mark) {}
 
         @Override
         public Object getCheckpointLock() {

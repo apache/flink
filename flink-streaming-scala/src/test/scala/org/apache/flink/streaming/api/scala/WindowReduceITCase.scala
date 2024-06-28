@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.watermark.WatermarkEvent
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
+import org.apache.flink.streaming.util.watermark.WatermarkUtils
 import org.apache.flink.test.util.AbstractTestBaseJUnit4
 
 import org.junit.Assert._
@@ -363,7 +364,7 @@ object WindowReduceITCase {
     def checkAndGetNextWatermark(
         lastElement: (String, Int),
         extractedTimestamp: Long): WatermarkEvent = {
-      new WatermarkEvent(new TimestampWatermark(lastElement._2 - 1))
+      WatermarkUtils.createWatermarkEventFromTimestamp(lastElement._2 - 1)
     }
   }
 }

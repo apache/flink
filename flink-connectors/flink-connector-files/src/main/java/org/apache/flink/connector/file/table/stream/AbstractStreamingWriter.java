@@ -34,6 +34,7 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 /**
  * Operator for file system sink. It is a operator version of {@link StreamingFileSink}. It can send
@@ -161,7 +162,7 @@ public abstract class AbstractStreamingWriter<IN, OUT> extends AbstractStreamOpe
     public void endInput() throws Exception {
         buckets.onProcessingTime(Long.MAX_VALUE);
         helper.snapshotState(Long.MAX_VALUE);
-        output.emitWatermark(new WatermarkEvent(new TimestampWatermark(Long.MAX_VALUE)));
+        output.emitWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(Long.MAX_VALUE));
         commitUpToCheckpoint(Long.MAX_VALUE);
     }
 

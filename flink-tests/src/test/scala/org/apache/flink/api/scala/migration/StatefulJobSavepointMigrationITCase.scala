@@ -35,7 +35,7 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction
-import org.apache.flink.streaming.api.watermark.Watermark
+import org.apache.flink.streaming.util.watermark.WatermarkUtils
 import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase
 import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase.{ExecutionMode, SnapshotSpec, SnapshotType}
 import org.apache.flink.test.util.MigrationTest
@@ -249,7 +249,7 @@ class StatefulJobSavepointMigrationITCase(snapshotSpec: SnapshotSpec)
 
     @throws[Exception]
     override def run(ctx: SourceFunction.SourceContext[(Long, Long)]) {
-      ctx.emitWatermark(new Watermark(0))
+      ctx.emitWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(0))
       ctx.getCheckpointLock synchronized {
         var i = 0
         while (i < numElements) {

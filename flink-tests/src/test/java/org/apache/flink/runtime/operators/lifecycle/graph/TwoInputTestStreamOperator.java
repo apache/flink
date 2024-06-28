@@ -32,8 +32,9 @@ import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -122,26 +123,40 @@ class TwoInputTestStreamOperator extends AbstractStreamOperator<TestDataElement>
     }
 
     @Override
-    public void processWatermark1(Watermark mark) throws Exception {
-        collectEvent(
-                new WatermarkReceivedEvent(
-                        operatorID,
-                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
-                        getRuntimeContext().getTaskInfo().getAttemptNumber(),
-                        mark.getTimestamp(),
-                        1));
+    public void processWatermark1(WatermarkEvent mark) throws Exception {
+        WatermarkUtils.getTimestamp(mark)
+                .ifPresent(
+                        l ->
+                                collectEvent(
+                                        new WatermarkReceivedEvent(
+                                                operatorID,
+                                                getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getIndexOfThisSubtask(),
+                                                getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getAttemptNumber(),
+                                                l,
+                                                1)));
         super.processWatermark1(mark);
     }
 
     @Override
-    public void processWatermark2(Watermark mark) throws Exception {
-        collectEvent(
-                new WatermarkReceivedEvent(
-                        operatorID,
-                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
-                        getRuntimeContext().getTaskInfo().getAttemptNumber(),
-                        mark.getTimestamp(),
-                        2));
+    public void processWatermark2(WatermarkEvent mark) throws Exception {
+        WatermarkUtils.getTimestamp(mark)
+                .ifPresent(
+                        l ->
+                                collectEvent(
+                                        new WatermarkReceivedEvent(
+                                                operatorID,
+                                                getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getIndexOfThisSubtask(),
+                                                getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getAttemptNumber(),
+                                                l,
+                                                2)));
         super.processWatermark2(mark);
     }
 

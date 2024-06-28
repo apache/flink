@@ -65,6 +65,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.OutputTag;
 
 import org.junit.jupiter.api.Test;
@@ -171,21 +172,25 @@ class TwoInputStreamTaskTest {
         testHarness.invoke();
         testHarness.waitForTaskRunning();
 
-        testHarness.processElement(new WatermarkEvent(new TimestampWatermark(initialTime)), 0, 0);
-        testHarness.processElement(new WatermarkEvent(new TimestampWatermark(initialTime)), 0, 1);
+        testHarness.processElement(
+                WatermarkUtils.createWatermarkEventFromTimestamp(initialTime), 0, 0);
+        testHarness.processElement(
+                WatermarkUtils.createWatermarkEventFromTimestamp(initialTime), 0, 1);
 
-        testHarness.processElement(new WatermarkEvent(new TimestampWatermark(initialTime)), 1, 0);
+        testHarness.processElement(
+                WatermarkUtils.createWatermarkEventFromTimestamp(initialTime), 1, 0);
 
         // now the output should still be empty
         testHarness.waitForInputProcessing();
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processElement(new WatermarkEvent(new TimestampWatermark(initialTime)), 1, 1);
+        testHarness.processElement(
+                WatermarkUtils.createWatermarkEventFromTimestamp(initialTime), 1, 1);
 
         // now the watermark should have propagated, Map simply forward Watermarks
         testHarness.waitForInputProcessing();
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(initialTime)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(initialTime));
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -200,17 +205,17 @@ class TwoInputStreamTaskTest {
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         testHarness.processElement(
-                new WatermarkEvent(new TimestampWatermark(initialTime + 4)), 0, 0);
+                WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 4), 0, 0);
         testHarness.processElement(
-                new WatermarkEvent(new TimestampWatermark(initialTime + 3)), 0, 1);
+                WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 3), 0, 1);
         testHarness.processElement(
-                new WatermarkEvent(new TimestampWatermark(initialTime + 3)), 1, 0);
+                WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 3), 1, 0);
         testHarness.processElement(
-                new WatermarkEvent(new TimestampWatermark(initialTime + 2)), 1, 1);
+                WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 2), 1, 1);
 
         // check whether we get the minimum of all the watermarks, this must also only occur in
         // the output after the two StreamRecords
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(initialTime + 2)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 2));
         testHarness.waitForInputProcessing();
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -218,20 +223,20 @@ class TwoInputStreamTaskTest {
         // advance watermark from one of the inputs, now we should get a new one since the
         // minimum increases
         testHarness.processElement(
-                new WatermarkEvent(new TimestampWatermark(initialTime + 4)), 1, 1);
+                WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 4), 1, 1);
         testHarness.waitForInputProcessing();
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(initialTime + 3)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 3));
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         // advance the other two inputs, now we should get a new one since the
         // minimum increases again
         testHarness.processElement(
-                new WatermarkEvent(new TimestampWatermark(initialTime + 4)), 0, 1);
+                WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 4), 0, 1);
         testHarness.processElement(
-                new WatermarkEvent(new TimestampWatermark(initialTime + 4)), 1, 0);
+                WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 4), 1, 0);
         testHarness.waitForInputProcessing();
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(initialTime + 4)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 4));
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -239,16 +244,16 @@ class TwoInputStreamTaskTest {
         testHarness.processElement(WatermarkStatus.IDLE, 0, 1);
         testHarness.processElement(WatermarkStatus.IDLE, 1, 0);
         testHarness.processElement(
-                new WatermarkEvent(new TimestampWatermark(initialTime + 6)), 0, 0);
+                WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 6), 0, 0);
         testHarness.processElement(
-                new WatermarkEvent(new TimestampWatermark(initialTime + 5)),
+                WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 5),
                 1,
                 1); // this watermark should be advanced first
         testHarness.processElement(WatermarkStatus.IDLE, 1, 1); // once this is acknowledged,
 
         testHarness.waitForInputProcessing();
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(initialTime + 5)));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(initialTime + 6)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 5));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(initialTime + 6));
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -684,7 +689,7 @@ class TwoInputStreamTaskTest {
         assertThat(chainedInputWatermarkGauge.getValue()).isEqualTo(Long.MIN_VALUE);
         assertThat(chainedOutputWatermarkGauge.getValue()).isEqualTo(Long.MIN_VALUE);
 
-        testHarness.processElement(new WatermarkEvent(new TimestampWatermark(1L)), 0, 0);
+        testHarness.processElement(WatermarkUtils.createWatermarkEventFromTimestamp(1L), 0, 0);
         testHarness.waitForInputProcessing();
         assertThat(taskInputWatermarkGauge.getValue()).isEqualTo(Long.MIN_VALUE);
         assertThat(headInputWatermarkGauge.getValue()).isEqualTo(Long.MIN_VALUE);
@@ -694,7 +699,7 @@ class TwoInputStreamTaskTest {
         assertThat(chainedInputWatermarkGauge.getValue()).isEqualTo(Long.MIN_VALUE);
         assertThat(chainedOutputWatermarkGauge.getValue()).isEqualTo(Long.MIN_VALUE);
 
-        testHarness.processElement(new WatermarkEvent(new TimestampWatermark(2L)), 1, 0);
+        testHarness.processElement(WatermarkUtils.createWatermarkEventFromTimestamp(2L), 1, 0);
         testHarness.waitForInputProcessing();
         assertThat(taskInputWatermarkGauge.getValue()).isOne();
         assertThat(headInputWatermarkGauge.getValue()).isOne();
@@ -704,7 +709,7 @@ class TwoInputStreamTaskTest {
         assertThat(chainedInputWatermarkGauge.getValue()).isOne();
         assertThat(chainedOutputWatermarkGauge.getValue()).isEqualTo(2L);
 
-        testHarness.processElement(new WatermarkEvent(new TimestampWatermark(3L)), 0, 0);
+        testHarness.processElement(WatermarkUtils.createWatermarkEventFromTimestamp(3L), 0, 0);
         testHarness.waitForInputProcessing();
         assertThat(taskInputWatermarkGauge.getValue()).isEqualTo(2L);
         assertThat(headInputWatermarkGauge.getValue()).isEqualTo(2L);

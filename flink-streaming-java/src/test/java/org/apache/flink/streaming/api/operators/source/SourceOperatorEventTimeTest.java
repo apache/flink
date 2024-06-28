@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.api.operators.source;
 
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReader;
@@ -32,6 +31,7 @@ import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -70,8 +70,8 @@ class SourceOperatorEventTimeTest {
         assertWatermarksOrEmpty(
                 emitProgressiveWatermarks,
                 result,
-                new WatermarkEvent(new TimestampWatermark(100L)),
-                new WatermarkEvent(new TimestampWatermark(120L)));
+                WatermarkUtils.createWatermarkEventFromTimestamp(100L),
+                WatermarkUtils.createWatermarkEventFromTimestamp(120L));
     }
 
     @ParameterizedTest
@@ -91,8 +91,8 @@ class SourceOperatorEventTimeTest {
         assertWatermarksOrEmpty(
                 emitProgressiveWatermarks,
                 result,
-                new WatermarkEvent(new TimestampWatermark(100L)),
-                new WatermarkEvent(new TimestampWatermark(120L)));
+                WatermarkUtils.createWatermarkEventFromTimestamp(100L),
+                WatermarkUtils.createWatermarkEventFromTimestamp(120L));
     }
 
     @ParameterizedTest
@@ -118,9 +118,9 @@ class SourceOperatorEventTimeTest {
         assertWatermarksOrEmpty(
                 emitProgressiveWatermarks,
                 result,
-                new WatermarkEvent(new TimestampWatermark(100L)),
-                new WatermarkEvent(new TimestampWatermark(150L)),
-                new WatermarkEvent(new TimestampWatermark(200L)));
+                WatermarkUtils.createWatermarkEventFromTimestamp(100L),
+                WatermarkUtils.createWatermarkEventFromTimestamp(150L),
+                WatermarkUtils.createWatermarkEventFromTimestamp(200L));
     }
 
     @ParameterizedTest
@@ -146,9 +146,9 @@ class SourceOperatorEventTimeTest {
         assertWatermarksOrEmpty(
                 emitProgressiveWatermarks,
                 result,
-                new WatermarkEvent(new TimestampWatermark(100L)),
-                new WatermarkEvent(new TimestampWatermark(150L)),
-                new WatermarkEvent(new TimestampWatermark(200L)));
+                WatermarkUtils.createWatermarkEventFromTimestamp(100L),
+                WatermarkUtils.createWatermarkEventFromTimestamp(150L),
+                WatermarkUtils.createWatermarkEventFromTimestamp(200L));
     }
 
     @ParameterizedTest
@@ -182,8 +182,8 @@ class SourceOperatorEventTimeTest {
         assertWatermarksOrEmpty(
                 emitProgressiveWatermarks,
                 result,
-                new WatermarkEvent(new TimestampWatermark(150L)),
-                new WatermarkEvent(new TimestampWatermark(300L)));
+                WatermarkUtils.createWatermarkEventFromTimestamp(150L),
+                WatermarkUtils.createWatermarkEventFromTimestamp(300L));
     }
 
     @Test
@@ -231,27 +231,27 @@ class SourceOperatorEventTimeTest {
                 .containsExactly(
                         // Record and watermark from main output
                         new StreamRecord<>(0, 100L),
-                        new WatermarkEvent(new TimestampWatermark(100L)),
+                        WatermarkUtils.createWatermarkEventFromTimestamp(100L),
                         new WatermarkStatus(WatermarkStatus.IDLE_STATUS),
                         // Record and watermark from split 1
                         new StreamRecord<>(0, 150L),
                         new WatermarkStatus(WatermarkStatus.ACTIVE_STATUS),
-                        new WatermarkEvent(new TimestampWatermark(150L)),
+                        WatermarkUtils.createWatermarkEventFromTimestamp(150L),
                         // Record and watermark from split 2
                         new StreamRecord<>(0, 200L),
-                        new WatermarkEvent(new TimestampWatermark(200L)),
+                        WatermarkUtils.createWatermarkEventFromTimestamp(200L),
                         // IDLE event as output of main, split 1 and split 2 are idle
                         new WatermarkStatus(WatermarkStatus.IDLE_STATUS),
                         // Record and watermark from main output, together with an ACTIVE event
                         new StreamRecord<>(0, 250L),
                         new WatermarkStatus(WatermarkStatus.ACTIVE_STATUS),
-                        new WatermarkEvent(new TimestampWatermark(250L)),
+                        WatermarkUtils.createWatermarkEventFromTimestamp(250L),
                         // IDLE event as output of main, split 1 and split 2 are idle
                         new WatermarkStatus(WatermarkStatus.IDLE_STATUS),
                         // Record and watermark from split 1, together with an ACTIVE event
                         new StreamRecord<>(0, 300L),
                         new WatermarkStatus(WatermarkStatus.ACTIVE_STATUS),
-                        new WatermarkEvent(new TimestampWatermark(300)));
+                        WatermarkUtils.createWatermarkEventFromTimestamp(300));
     }
 
     // ------------------------------------------------------------------------

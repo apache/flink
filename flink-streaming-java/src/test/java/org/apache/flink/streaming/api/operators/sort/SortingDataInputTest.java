@@ -19,16 +19,15 @@
 package org.apache.flink.streaming.api.operators.sort;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
-import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import org.junit.jupiter.api.Test;
 
@@ -92,17 +91,17 @@ class SortingDataInputTest {
                 new CollectionDataInput<>(
                         Arrays.asList(
                                 new StreamRecord<>(1, 3),
-                                new WatermarkEvent(new TimestampWatermark(1)),
+                                WatermarkUtils.createWatermarkEventFromTimestamp(1),
                                 new StreamRecord<>(1, 1),
-                                new WatermarkEvent(new TimestampWatermark(2)),
+                                WatermarkUtils.createWatermarkEventFromTimestamp(2),
                                 new StreamRecord<>(2, 1),
-                                new WatermarkEvent(new TimestampWatermark(3)),
+                                WatermarkUtils.createWatermarkEventFromTimestamp(3),
                                 new StreamRecord<>(2, 3),
-                                new WatermarkEvent(new TimestampWatermark(4)),
+                                WatermarkUtils.createWatermarkEventFromTimestamp(4),
                                 new StreamRecord<>(1, 2),
-                                new WatermarkEvent(new TimestampWatermark(5)),
+                                WatermarkUtils.createWatermarkEventFromTimestamp(5),
                                 new StreamRecord<>(2, 2),
-                                new WatermarkEvent(new TimestampWatermark(6))));
+                                WatermarkUtils.createWatermarkEventFromTimestamp(6)));
         MockEnvironment environment = MockEnvironment.builder().build();
         SortingDataInput<Integer, Integer> sortingDataInput =
                 new SortingDataInput<>(
@@ -131,7 +130,7 @@ class SortingDataInputTest {
                         new StreamRecord<>(2, 1),
                         new StreamRecord<>(2, 2),
                         new StreamRecord<>(2, 3),
-                        new WatermarkEvent(new TimestampWatermark(6)));
+                        WatermarkUtils.createWatermarkEventFromTimestamp(6));
     }
 
     @Test

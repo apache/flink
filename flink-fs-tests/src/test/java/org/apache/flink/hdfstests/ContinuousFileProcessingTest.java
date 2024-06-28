@@ -19,6 +19,8 @@
 package org.apache.flink.hdfstests;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.FilePathFilter;
@@ -39,7 +41,7 @@ import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.streaming.api.operators.StreamSource;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
@@ -202,20 +204,25 @@ public class ContinuousFileProcessingTest {
         while (output.isEmpty()) {
             localMailbox.runMailboxStep();
         }
-        Assert.assertTrue(output.toString(), output.peek() instanceof Watermark);
-        Assert.assertEquals(200, ((Watermark) output.poll()).getTimestamp());
+        Assert.assertTrue(output.toString(), output.peek() instanceof WatermarkEvent);
+        Watermark tmpWatermark = ((WatermarkEvent) output.poll()).getWatermark();
+        Assert.assertTrue(tmpWatermark instanceof TimestampWatermark);
+        Assert.assertEquals(200, ((TimestampWatermark) tmpWatermark).getTimestamp());
 
         tester.setProcessingTime(301);
-        Assert.assertTrue(output.peek() instanceof Watermark);
-        Assert.assertEquals(300, ((Watermark) output.poll()).getTimestamp());
+        Assert.assertTrue(output.peek() instanceof WatermarkEvent);
+        tmpWatermark = ((WatermarkEvent) output.poll()).getWatermark();
+        Assert.assertEquals(300, ((TimestampWatermark) tmpWatermark).getTimestamp());
 
         tester.setProcessingTime(401);
         Assert.assertTrue(output.peek() instanceof Watermark);
-        Assert.assertEquals(400, ((Watermark) output.poll()).getTimestamp());
+        tmpWatermark = ((WatermarkEvent) output.poll()).getWatermark();
+        Assert.assertEquals(400, ((TimestampWatermark) tmpWatermark).getTimestamp());
 
         tester.setProcessingTime(501);
         Assert.assertTrue(output.peek() instanceof Watermark);
-        Assert.assertEquals(500, ((Watermark) output.poll()).getTimestamp());
+        tmpWatermark = ((WatermarkEvent) output.poll()).getWatermark();
+        Assert.assertEquals(500, ((TimestampWatermark) tmpWatermark).getTimestamp());
 
         Assert.assertTrue(output.isEmpty());
 
@@ -277,8 +284,8 @@ public class ContinuousFileProcessingTest {
                         actualFileContents.put(fileIdx, content);
                     }
                     content.add(element.getValue() + "\n");
-                } else if (line instanceof Watermark) {
-                    long watermark = ((Watermark) line).getTimestamp();
+                } else if (line instanceof TimestampWatermark) {
+                    long watermark = ((TimestampWatermark) line).getTimestamp();
 
                     Assert.assertEquals(
                             nextTimestamp - (nextTimestamp % watermarkInterval), watermark);
@@ -313,8 +320,9 @@ public class ContinuousFileProcessingTest {
 
         // check if the last element is the LongMax watermark (by now this must be the only element)
         Assert.assertEquals(1, tester.getOutput().size());
-        Assert.assertTrue(tester.getOutput().peek() instanceof Watermark);
-        Assert.assertEquals(Long.MAX_VALUE, ((Watermark) tester.getOutput().poll()).getTimestamp());
+        Assert.assertTrue(tester.getOutput().peek() instanceof WatermarkEvent);
+        tmpWatermark = ((WatermarkEvent) tester.getOutput().poll()).getWatermark();
+        Assert.assertEquals(Long.MAX_VALUE, ((TimestampWatermark) tmpWatermark).getTimestamp());
 
         // check if the elements are the expected ones.
         Assert.assertEquals(expectedFileContents.size(), actualFileContents.size());
@@ -430,8 +438,10 @@ public class ContinuousFileProcessingTest {
         }
 
         // check if the last element is the LongMax watermark
-        Assert.assertTrue(lastElement instanceof Watermark);
-        Assert.assertEquals(Long.MAX_VALUE, ((Watermark) lastElement).getTimestamp());
+        Assert.assertTrue(lastElement instanceof WatermarkEvent);
+        Watermark tmpWatermark = ((WatermarkEvent) lastElement).getWatermark();
+        Assert.assertTrue(tmpWatermark instanceof TimestampWatermark);
+        Assert.assertEquals(Long.MAX_VALUE, ((TimestampWatermark) tmpWatermark).getTimestamp());
 
         Assert.assertEquals(expectedFileContents.size(), actualFileContents.size());
         for (Integer fileIdx : expectedFileContents.keySet()) {
@@ -1072,7 +1082,7 @@ public class ContinuousFileProcessingTest {
         public void collectWithTimestamp(TimestampedFileInputSplit element, long timestamp) {}
 
         @Override
-        public void emitWatermark(Watermark mark) {}
+        public void emitWatermark(WatermarkEvent mark) {}
 
         @Override
         public void markAsTemporarilyIdle() {}

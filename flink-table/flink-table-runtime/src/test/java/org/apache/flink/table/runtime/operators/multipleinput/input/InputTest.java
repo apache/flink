@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.runtime.operators.multipleinput.input;
 
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
@@ -46,7 +46,7 @@ public class InputTest extends MultipleInputTestBase {
     @Before
     public void setup() {
         element = new StreamRecord<>(GenericRowData.of(StringData.fromString("123")), 456);
-        watermark = new WatermarkEvent(new TimestampWatermark(1223456789));
+        watermark = WatermarkUtils.createWatermarkEventFromTimestamp(1223456789);
         latencyMarker = new LatencyMarker(122345678, new OperatorID(123, 456), 1);
     }
 

@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.operators.wmassigners;
 
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -103,7 +102,7 @@ public class RowTimeMiniBatchAssginerOperator extends AbstractStreamOperator<Row
     }
 
     private void advanceWatermark() {
-        output.emitWatermark(new WatermarkEvent(new TimestampWatermark(currentWatermark)));
+        output.emitWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(currentWatermark));
         long start = getMiniBatchStart(currentWatermark, minibatchInterval);
         long end = start + minibatchInterval - 1;
         nextWatermark = end > currentWatermark ? end : end + minibatchInterval;

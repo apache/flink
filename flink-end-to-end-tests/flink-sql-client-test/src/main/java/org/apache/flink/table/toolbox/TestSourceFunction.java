@@ -97,8 +97,7 @@ public class TestSourceFunction implements SourceFunction<RowData> {
         @Override
         public void emitWatermark(Watermark watermark) {
             ctx.emitWatermark(
-                    new org.apache.flink.streaming.api.watermark.Watermark(
-                            watermark.getTimestamp()));
+                    new org.apache.flink.streaming.api.watermark.WatermarkEvent(watermark));
         }
 
         @Override

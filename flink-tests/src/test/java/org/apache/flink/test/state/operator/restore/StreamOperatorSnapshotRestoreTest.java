@@ -56,7 +56,7 @@ import org.apache.flink.streaming.api.operators.KeyContext;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFinalizer;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
@@ -310,7 +310,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
         }
 
         @Override
-        public void processWatermark(Watermark mark) {}
+        public void processWatermark(WatermarkEvent mark) {}
 
         @Override
         public void snapshotState(StateSnapshotContext context) throws Exception {

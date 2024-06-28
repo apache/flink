@@ -43,6 +43,7 @@ import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import org.junit.jupiter.api.Test;
 
@@ -166,7 +167,7 @@ class BatchExecutionInternalTimeServiceTest {
         timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, 123);
 
         // advancing the watermark should not fire timers
-        timeServiceManager.advanceWatermark(new WatermarkEvent(new TimestampWatermark(1000)));
+        timeServiceManager.advanceWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(1000));
         timerService.deleteEventTimeTimer(VoidNamespace.INSTANCE, 123);
         timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, 150);
 
@@ -241,7 +242,7 @@ class BatchExecutionInternalTimeServiceTest {
         assertThat(timerService.currentWatermark()).isEqualTo(Long.MIN_VALUE);
 
         // advancing the watermark to a value different than Long.MAX_VALUE should have no effect
-        timeServiceManager.advanceWatermark(new WatermarkEvent(new TimestampWatermark(1000)));
+        timeServiceManager.advanceWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(1000));
         assertThat(timerService.currentWatermark()).isEqualTo(Long.MIN_VALUE);
 
         // changing the current key fires all timers

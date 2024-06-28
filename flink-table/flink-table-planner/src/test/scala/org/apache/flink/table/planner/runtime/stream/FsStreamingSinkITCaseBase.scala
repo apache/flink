@@ -26,6 +26,7 @@ import org.apache.flink.core.execution.CheckpointingMode
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.api.watermark.WatermarkEvent
+import org.apache.flink.streaming.util.watermark.WatermarkUtils
 import org.apache.flink.table.data.TimestampData
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestSinkUtil}
 import org.apache.flink.testutils.junit.utils.TempDirUtils
@@ -259,11 +260,11 @@ class FiniteTestSource(elements: Iterable[Row], watermarkGenerator: Row => Long)
     lock.synchronized {
       for (t <- elements) {
         ctx.collect(t)
-        ctx.emitWatermark(new WatermarkEvent(new TimestampWatermark(watermarkGenerator(t))))
+        ctx.emitWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(watermarkGenerator(t)))
       }
     }
 
-    ctx.emitWatermark(new WatermarkEvent(new TimestampWatermark(Long.MaxValue)))
+    ctx.emitWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(Long.MaxValue))
 
     lock.synchronized {
       while (running && numCheckpointsComplete < 2) {

@@ -21,6 +21,7 @@ import org.apache.flink.api.common.eventtime.TimestampWatermark
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.watermark.WatermarkEvent
+import org.apache.flink.streaming.util.watermark.WatermarkUtils
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils._
@@ -1138,7 +1139,7 @@ private class Row4WatermarkExtractor
   override def checkAndGetNextWatermark(
       lastElement: (Int, Long, String, Long),
       extractedTimestamp: Long): WatermarkEvent = {
-    new WatermarkEvent(new TimestampWatermark(extractedTimestamp - 1))
+    WatermarkUtils.createWatermarkEventFromTimestamp(extractedTimestamp - 1)
   }
 
   override def extractTimestamp(
@@ -1154,7 +1155,7 @@ private class Row3WatermarkExtractor2
   override def checkAndGetNextWatermark(
       lastElement: (String, String, Long),
       extractedTimestamp: Long): WatermarkEvent = {
-    new WatermarkEvent(new TimestampWatermark(extractedTimestamp - 1))
+    WatermarkUtils.createWatermarkEventFromTimestamp(extractedTimestamp - 1)
   }
 
   override def extractTimestamp(

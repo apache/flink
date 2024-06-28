@@ -34,6 +34,7 @@ import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
@@ -232,7 +233,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
     }
 
     public void processWatermark(long watermark) throws Exception {
-        processWatermark(new WatermarkEvent(new TimestampWatermark(watermark)));
+        processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(watermark));
     }
 
     public void processWatermarkStatus(WatermarkStatus status) throws Exception {

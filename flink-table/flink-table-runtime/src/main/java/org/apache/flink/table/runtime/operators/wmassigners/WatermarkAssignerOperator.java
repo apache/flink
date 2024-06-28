@@ -134,7 +134,8 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
         if (currentWatermark > lastWatermark) {
             lastWatermark = currentWatermark;
             // emit watermark
-            output.emitWatermark(new WatermarkEvent(new TimestampWatermark(currentWatermark)));
+            output.emitWatermark(
+                    WatermarkUtils.createWatermarkEventFromTimestamp(currentWatermark));
         }
     }
 

@@ -68,8 +68,8 @@ public class TopSpeedWindowing {
     // *************************************************************************
 
     public static void main(String[] args) throws Exception {
-        ss();
-        //        orig();
+        //        ss();
+        orig();
     }
 
     public static void orig() throws Exception {
@@ -245,7 +245,6 @@ public class TopSpeedWindowing {
                                 ctx.getWatermarkManager().emitWatermark(watermark);
                             }
                         });
-
         env.execute("testjob");
     }
 

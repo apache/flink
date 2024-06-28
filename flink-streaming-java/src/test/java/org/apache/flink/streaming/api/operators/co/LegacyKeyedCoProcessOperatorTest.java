@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.api.operators.co;
 
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -28,11 +27,11 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
-import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.Collector;
 
 import org.junit.jupiter.api.Test;
@@ -61,19 +60,19 @@ class LegacyKeyedCoProcessOperatorTest {
         testHarness.setup();
         testHarness.open();
 
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(17)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(17)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(17));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(17));
         testHarness.processElement1(new StreamRecord<>(5, 12L));
 
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(42)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(42)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(42));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(42));
         testHarness.processElement2(new StreamRecord<>("6", 13L));
 
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(17L)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(17L));
         expectedOutput.add(new StreamRecord<>("5WM:17 TS:12", 12L));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(42L)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(42L));
         expectedOutput.add(new StreamRecord<>("6WM:42 TS:13", 13L));
 
         TestHarnessUtil.assertOutputEquals(
@@ -134,20 +133,20 @@ class LegacyKeyedCoProcessOperatorTest {
         testHarness.processElement1(new StreamRecord<>(17, 42L));
         testHarness.processElement2(new StreamRecord<>("18", 42L));
 
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(5)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(5)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(5));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(5));
 
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(6)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(6)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(6));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(6));
 
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
         expectedOutput.add(new StreamRecord<>("INPUT1:17", 42L));
         expectedOutput.add(new StreamRecord<>("INPUT2:18", 42L));
         expectedOutput.add(new StreamRecord<>("1777", 5L));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(5L)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(5L));
         expectedOutput.add(new StreamRecord<>("1777", 6L));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(6L)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(6L));
 
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -208,33 +207,33 @@ class LegacyKeyedCoProcessOperatorTest {
         testHarness.setup();
         testHarness.open();
 
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(1)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(1)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(1));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(1));
         testHarness.processElement1(new StreamRecord<>(17, 0L)); // should set timer for 6
         testHarness.processElement1(new StreamRecord<>(13, 0L)); // should set timer for 6
 
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(2)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(2)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(2));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(2));
         testHarness.processElement1(new StreamRecord<>(13, 1L)); // should delete timer
         testHarness.processElement2(new StreamRecord<>("42", 1L)); // should set timer for 7
 
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(6)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(6)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(6));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(6));
 
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(7)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(7)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(7));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(7));
 
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(1L)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(1L));
         expectedOutput.add(new StreamRecord<>("INPUT1:17", 0L));
         expectedOutput.add(new StreamRecord<>("INPUT1:13", 0L));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(2L)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(2L));
         expectedOutput.add(new StreamRecord<>("INPUT2:42", 1L));
         expectedOutput.add(new StreamRecord<>("STATE:17", 6L));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(6L)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(6L));
         expectedOutput.add(new StreamRecord<>("STATE:42", 7L));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(7L)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(7L));
 
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -323,14 +322,14 @@ class LegacyKeyedCoProcessOperatorTest {
         testHarness.open();
 
         testHarness.setProcessingTime(5);
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(6)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(6)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(6));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(6));
 
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
         expectedOutput.add(new StreamRecord<>("PROC:1777"));
         expectedOutput.add(new StreamRecord<>("EVENT:1777", 6L));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(6)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(6));
 
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());

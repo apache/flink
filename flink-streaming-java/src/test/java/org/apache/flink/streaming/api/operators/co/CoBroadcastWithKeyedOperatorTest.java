@@ -37,6 +37,7 @@ import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
@@ -219,27 +220,27 @@ class CoBroadcastWithKeyedOperatorTest {
                         BasicTypeInfo.STRING_TYPE_INFO,
                         new IdentityKeySelector<>(),
                         new FunctionWithTimerOnKeyed(41L, expectedKey))) {
-            testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(10L)));
-            testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(10L)));
+            testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(10L));
+            testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(10L));
             testHarness.processElement2(new StreamRecord<>(5, 12L));
 
-            testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(40L)));
-            testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(40L)));
+            testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(40L));
+            testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(40L));
             testHarness.processElement1(new StreamRecord<>(expectedKey, 13L));
             testHarness.processElement1(new StreamRecord<>(expectedKey, 15L));
 
-            testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(50L)));
-            testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(50L)));
+            testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(50L));
+            testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(50L));
 
             Queue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-            expectedOutput.add(new WatermarkEvent(new TimestampWatermark(10L)));
+            expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(10L));
             expectedOutput.add(new StreamRecord<>("BR:5 WM:10 TS:12", 12L));
-            expectedOutput.add(new WatermarkEvent(new TimestampWatermark(40L)));
+            expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(40L));
             expectedOutput.add(new StreamRecord<>("NON-BR:6 WM:40 TS:13", 13L));
             expectedOutput.add(new StreamRecord<>("NON-BR:6 WM:40 TS:15", 15L));
             expectedOutput.add(new StreamRecord<>("TIMER:41", 41L));
-            expectedOutput.add(new WatermarkEvent(new TimestampWatermark(50L)));
+            expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(50L));
 
             TestHarnessUtil.assertOutputEquals(
                     "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -293,17 +294,17 @@ class CoBroadcastWithKeyedOperatorTest {
                         new IdentityKeySelector<>(),
                         new FunctionWithSideOutput())) {
 
-            testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(10L)));
-            testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(10L)));
+            testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(10L));
+            testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(10L));
             testHarness.processElement2(new StreamRecord<>(5, 12L));
 
-            testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(40L)));
-            testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(40L)));
+            testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(40L));
+            testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(40L));
             testHarness.processElement1(new StreamRecord<>("6", 13L));
             testHarness.processElement1(new StreamRecord<>("6", 15L));
 
-            testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(50L)));
-            testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(50L)));
+            testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(50L));
+            testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(50L));
 
             Queue<StreamRecord<String>> expectedBr = new ConcurrentLinkedQueue<>();
             expectedBr.add(new StreamRecord<>("BR:5 WM:10 TS:12", 12L));
@@ -374,8 +375,8 @@ class CoBroadcastWithKeyedOperatorTest {
                         new IdentityKeySelector<>(),
                         new FunctionWithBroadcastState(
                                 "key", expectedBroadcastState, 41L, expectedKey))) {
-            testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(10L)));
-            testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(10L)));
+            testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(10L));
+            testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(10L));
 
             testHarness.processElement2(new StreamRecord<>(5, 10L));
             testHarness.processElement2(new StreamRecord<>(34, 12L));
@@ -387,8 +388,8 @@ class CoBroadcastWithKeyedOperatorTest {
 
             testHarness.processElement2(new StreamRecord<>(51, 21L));
 
-            testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(50L)));
-            testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(50L)));
+            testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(50L));
+            testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(50L));
 
             Queue<Object> output = testHarness.getOutput();
             assertThat(output).hasSize(3);
@@ -772,8 +773,8 @@ class CoBroadcastWithKeyedOperatorTest {
                                 // do nothing
                             }
                         })) {
-            testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(10L)));
-            testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(10L)));
+            testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(10L));
+            testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(10L));
             testHarness.processElement2(new StreamRecord<>(5, 12L));
         }
     }

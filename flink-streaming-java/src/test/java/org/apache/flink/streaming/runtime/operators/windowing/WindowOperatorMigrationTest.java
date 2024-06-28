@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.FlinkVersion;
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
@@ -55,6 +54,7 @@ import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.test.util.MigrationTest;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
@@ -417,16 +417,16 @@ class WindowOperatorMigrationTest implements MigrationTest {
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1999));
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
 
-        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(999)));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(999)));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(999));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
                 testHarness.getOutput(),
                 new Tuple2ResultSortComparator<>());
 
-        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1999)));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(1999)));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(1999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(1999));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
@@ -492,20 +492,20 @@ class WindowOperatorMigrationTest implements MigrationTest {
 
         testHarness.open();
 
-        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(2999)));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(2999));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 3), 2999));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 3), 2999));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(2999)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(2999));
 
-        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3999)));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3999)));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(3999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(3999));
 
-        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(4999)));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(4999)));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(4999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(4999));
 
-        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(5999)));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(5999));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), 5999));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(5999)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(5999));
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
@@ -567,16 +567,16 @@ class WindowOperatorMigrationTest implements MigrationTest {
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1999));
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
 
-        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(999)));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(999)));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(999));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
                 testHarness.getOutput(),
                 new Tuple2ResultSortComparator<>());
 
-        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1999)));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(1999)));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(1999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(1999));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
@@ -640,20 +640,20 @@ class WindowOperatorMigrationTest implements MigrationTest {
 
         testHarness.open();
 
-        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(2999)));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(2999));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 3), 2999));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 3), 2999));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(2999)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(2999));
 
-        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3999)));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3999)));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(3999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(3999));
 
-        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(4999)));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(4999)));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(4999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(4999));
 
-        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(5999)));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(5999));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), 5999));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(5999)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(5999));
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
@@ -1004,16 +1004,16 @@ class WindowOperatorMigrationTest implements MigrationTest {
         testHarness.processElement(
                 new StreamRecord<>(new Tuple2<>(new NonPojoType("key2"), 1), 1000));
 
-        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(999)));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(999)));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(999));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
                 testHarness.getOutput(),
                 new Tuple2ResultSortComparator<>());
 
-        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(1999)));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(1999)));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(1999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(1999));
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",
                 expectedOutput,
@@ -1087,20 +1087,20 @@ class WindowOperatorMigrationTest implements MigrationTest {
 
         testHarness.open();
 
-        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(2999)));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(2999));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>(new NonPojoType("key1"), 3), 2999));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>(new NonPojoType("key2"), 3), 2999));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(2999)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(2999));
 
-        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(3999)));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(3999)));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(3999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(3999));
 
-        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(4999)));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(4999)));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(4999));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(4999));
 
-        testHarness.processWatermark(new WatermarkEvent(new TimestampWatermark(5999)));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(5999));
         expectedOutput.add(new StreamRecord<>(new Tuple2<>(new NonPojoType("key2"), 2), 5999));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(5999)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(5999));
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "Output was not correct.",

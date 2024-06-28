@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.runtime.streamrecord;
 
 import org.apache.flink.api.common.eventtime.InternalWatermark;
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
@@ -27,6 +26,7 @@ import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.watermark.WatermarkEvent;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import org.junit.jupiter.api.Test;
 
@@ -86,12 +86,12 @@ class StreamElementSerializerTest {
         assertThat(serializeAndDeserialize(negativeTimestamp, serializer))
                 .isEqualTo(negativeTimestamp);
 
-        WatermarkEvent positiveWatermark = new WatermarkEvent(new TimestampWatermark(13));
+        WatermarkEvent positiveWatermark = WatermarkUtils.createWatermarkEventFromTimestamp(13);
         assertThat(serializeAndDeserialize(positiveWatermark, serializer))
                 .isEqualTo(positiveWatermark);
 
         WatermarkEvent negativeWatermark =
-                new WatermarkEvent(new TimestampWatermark(-4647654567676555876L));
+                WatermarkUtils.createWatermarkEventFromTimestamp(-4647654567676555876L);
         assertThat(serializeAndDeserialize(negativeWatermark, serializer))
                 .isEqualTo(negativeWatermark);
 

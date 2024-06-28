@@ -18,10 +18,9 @@
 
 package org.apache.flink.table.runtime.operators.join.window;
 
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
@@ -87,8 +86,8 @@ public class WindowJoinOperatorTest {
                 createTestHarness(FlinkJoinType.SEMI);
 
         testHarness.open();
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(1)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(1)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(1));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(1));
 
         // Test late data would be dropped
         testHarness.processElement1(insertRecord(toUtcTimestampMills(1L, shiftTimeZone), "k1"));
@@ -102,14 +101,14 @@ public class WindowJoinOperatorTest {
         assertThat(testHarness.numEventTimeTimers()).isEqualTo(3);
         assertThat(testHarness.numKeyedStateEntries()).isEqualTo(4);
 
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(10)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(10)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(10));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(10));
 
         List<Object> expectedOutput = new ArrayList<>();
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(1)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(1));
         expectedOutput.add(insertRecord(toUtcTimestampMills(3L, shiftTimeZone), "k1"));
         expectedOutput.add(insertRecord(toUtcTimestampMills(3L, shiftTimeZone), "k1"));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(10)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(10));
         SEMI_ANTI_JOIN_ASSERTER.assertOutputEqualsSorted(
                 "output wrong.", expectedOutput, testHarness.getOutput());
         assertThat(testHarness.numEventTimeTimers()).isEqualTo(0);
@@ -121,17 +120,17 @@ public class WindowJoinOperatorTest {
         testHarness.processElement2(insertRecord(toUtcTimestampMills(15L, shiftTimeZone), "k1"));
         assertThat(testHarness.numKeyedStateEntries()).isEqualTo(3);
 
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(13)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(13)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(13));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(13));
 
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(13)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(13));
         assertThat(testHarness.numKeyedStateEntries()).isEqualTo(2);
         ASSERTER.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(18)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(18)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(18));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(18));
         expectedOutput.add(insertRecord(toUtcTimestampMills(15L, shiftTimeZone), "k1"));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(18)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(18));
         ASSERTER.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
         testHarness.close();
     }
@@ -141,8 +140,8 @@ public class WindowJoinOperatorTest {
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(FlinkJoinType.ANTI);
         testHarness.open();
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(1)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(1)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(1));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(1));
 
         // Test late data would be dropped
         testHarness.processElement1(insertRecord(toUtcTimestampMills(1L, shiftTimeZone), "k1"));
@@ -156,13 +155,13 @@ public class WindowJoinOperatorTest {
         assertThat(testHarness.numEventTimeTimers()).isEqualTo(3);
         assertThat(testHarness.numKeyedStateEntries()).isEqualTo(4);
 
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(10)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(10)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(10));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(10));
 
         List<Object> expectedOutput = new ArrayList<>();
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(1)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(1));
         expectedOutput.add(insertRecord(toUtcTimestampMills(6L, shiftTimeZone), "k1"));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(10)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(10));
         SEMI_ANTI_JOIN_ASSERTER.assertOutputEqualsSorted(
                 "output wrong.", expectedOutput, testHarness.getOutput());
         assertThat(testHarness.numEventTimeTimers()).isEqualTo(0);
@@ -174,17 +173,17 @@ public class WindowJoinOperatorTest {
         testHarness.processElement2(insertRecord(toUtcTimestampMills(15L, shiftTimeZone), "k1"));
         assertThat(testHarness.numKeyedStateEntries()).isEqualTo(3);
 
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(13)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(13)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(13));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(13));
 
         expectedOutput.add(insertRecord(toUtcTimestampMills(12L, shiftTimeZone), "k1"));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(13)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(13));
         assertThat(testHarness.numKeyedStateEntries()).isEqualTo(2);
         ASSERTER.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(18)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(18)));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(18)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(18));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(18));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(18));
         ASSERTER.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
         testHarness.close();
     }
@@ -195,8 +194,8 @@ public class WindowJoinOperatorTest {
                 createTestHarness(FlinkJoinType.INNER);
 
         testHarness.open();
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(1)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(1)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(1));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(1));
 
         // Test late data would be dropped
         testHarness.processElement1(insertRecord(toUtcTimestampMills(1L, shiftTimeZone), "k1"));
@@ -210,11 +209,11 @@ public class WindowJoinOperatorTest {
         assertThat(testHarness.numEventTimeTimers()).isEqualTo(3);
         assertThat(testHarness.numKeyedStateEntries()).isEqualTo(4);
 
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(10)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(10)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(10));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(10));
 
         List<Object> expectedOutput = new ArrayList<>();
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(1)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(1));
         expectedOutput.add(
                 insertRecord(
                         toUtcTimestampMills(3L, shiftTimeZone),
@@ -227,7 +226,7 @@ public class WindowJoinOperatorTest {
                         "k1",
                         toUtcTimestampMills(3L, shiftTimeZone),
                         "k1"));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(10)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(10));
         ASSERTER.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
         assertThat(testHarness.numEventTimeTimers()).isEqualTo(0);
         assertThat(testHarness.numKeyedStateEntries()).isEqualTo(0);
@@ -238,15 +237,15 @@ public class WindowJoinOperatorTest {
         testHarness.processElement2(insertRecord(toUtcTimestampMills(15L, shiftTimeZone), "k1"));
         assertThat(testHarness.numKeyedStateEntries()).isEqualTo(3);
 
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(13)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(13)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(13));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(13));
 
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(13)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(13));
         assertThat(testHarness.numKeyedStateEntries()).isEqualTo(2);
         ASSERTER.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(18)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(18)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(18));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(18));
         expectedOutput.add(
                 insertRecord(
                         toUtcTimestampMills(15L, shiftTimeZone),
@@ -259,7 +258,7 @@ public class WindowJoinOperatorTest {
                         "k1",
                         toUtcTimestampMills(15L, shiftTimeZone),
                         "k1"));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(18)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(18));
         ASSERTER.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
         testHarness.close();
     }
@@ -270,8 +269,8 @@ public class WindowJoinOperatorTest {
                 createTestHarness(FlinkJoinType.LEFT);
 
         testHarness.open();
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(1)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(1)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(1));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(1));
 
         // Test late data would be dropped
         testHarness.processElement1(insertRecord(toUtcTimestampMills(1L, shiftTimeZone), "k1"));
@@ -285,11 +284,11 @@ public class WindowJoinOperatorTest {
         assertThat(testHarness.numEventTimeTimers()).isEqualTo(3);
         assertThat(testHarness.numKeyedStateEntries()).isEqualTo(4);
 
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(10)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(10)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(10));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(10));
 
         List<Object> expectedOutput = new ArrayList<>();
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(1)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(1));
         expectedOutput.add(
                 insertRecord(
                         toUtcTimestampMills(3L, shiftTimeZone),
@@ -303,7 +302,7 @@ public class WindowJoinOperatorTest {
                         toUtcTimestampMills(3L, shiftTimeZone),
                         "k1"));
         expectedOutput.add(insertRecord(toUtcTimestampMills(6L, shiftTimeZone), "k1", null, null));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(10)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(10));
         ASSERTER.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
         assertThat(testHarness.numEventTimeTimers()).isEqualTo(0);
         assertThat(testHarness.numKeyedStateEntries()).isEqualTo(0);
@@ -314,16 +313,16 @@ public class WindowJoinOperatorTest {
         testHarness.processElement2(insertRecord(toUtcTimestampMills(15L, shiftTimeZone), "k1"));
         assertThat(testHarness.numKeyedStateEntries()).isEqualTo(3);
 
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(13)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(13)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(13));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(13));
 
         expectedOutput.add(insertRecord(toUtcTimestampMills(12L, shiftTimeZone), "k1", null, null));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(13)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(13));
         assertThat(testHarness.numKeyedStateEntries()).isEqualTo(2);
         ASSERTER.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(18)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(18)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(18));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(18));
         expectedOutput.add(
                 insertRecord(
                         toUtcTimestampMills(15L, shiftTimeZone),
@@ -336,7 +335,7 @@ public class WindowJoinOperatorTest {
                         "k1",
                         toUtcTimestampMills(15L, shiftTimeZone),
                         "k1"));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(18)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(18));
         ASSERTER.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
         testHarness.close();
     }
@@ -347,8 +346,8 @@ public class WindowJoinOperatorTest {
                 createTestHarness(FlinkJoinType.RIGHT);
 
         testHarness.open();
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(1)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(1)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(1));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(1));
 
         // Test late data would be dropped
         testHarness.processElement1(insertRecord(toUtcTimestampMills(1L, shiftTimeZone), "k1"));
@@ -362,11 +361,11 @@ public class WindowJoinOperatorTest {
         assertThat(testHarness.numEventTimeTimers()).isEqualTo(3);
         assertThat(testHarness.numKeyedStateEntries()).isEqualTo(4);
 
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(10)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(10)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(10));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(10));
 
         List<Object> expectedOutput = new ArrayList<>();
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(1)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(1));
         expectedOutput.add(
                 insertRecord(
                         toUtcTimestampMills(3L, shiftTimeZone),
@@ -380,7 +379,7 @@ public class WindowJoinOperatorTest {
                         toUtcTimestampMills(3L, shiftTimeZone),
                         "k1"));
         expectedOutput.add(insertRecord(null, null, toUtcTimestampMills(9L, shiftTimeZone), "k1"));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(10)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(10));
         ASSERTER.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
         assertThat(testHarness.numEventTimeTimers()).isEqualTo(0);
         assertThat(testHarness.numKeyedStateEntries()).isEqualTo(0);
@@ -391,15 +390,15 @@ public class WindowJoinOperatorTest {
         testHarness.processElement2(insertRecord(toUtcTimestampMills(15L, shiftTimeZone), "k1"));
         assertThat(testHarness.numKeyedStateEntries()).isEqualTo(3);
 
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(13)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(13)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(13));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(13));
 
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(13)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(13));
         assertThat(testHarness.numKeyedStateEntries()).isEqualTo(2);
         ASSERTER.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(18)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(18)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(18));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(18));
         expectedOutput.add(
                 insertRecord(
                         toUtcTimestampMills(15L, shiftTimeZone),
@@ -412,7 +411,7 @@ public class WindowJoinOperatorTest {
                         "k1",
                         toUtcTimestampMills(15L, shiftTimeZone),
                         "k1"));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(18)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(18));
         ASSERTER.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
         testHarness.close();
     }
@@ -423,8 +422,8 @@ public class WindowJoinOperatorTest {
                 createTestHarness(FlinkJoinType.FULL);
 
         testHarness.open();
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(1)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(1)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(1));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(1));
 
         // Test late data would be dropped
         testHarness.processElement1(insertRecord(toUtcTimestampMills(1L, shiftTimeZone), "k1"));
@@ -438,11 +437,11 @@ public class WindowJoinOperatorTest {
         assertThat(testHarness.numEventTimeTimers()).isEqualTo(3);
         assertThat(testHarness.numKeyedStateEntries()).isEqualTo(4);
 
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(10)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(10)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(10));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(10));
 
         List<Object> expectedOutput = new ArrayList<>();
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(1)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(1));
         expectedOutput.add(
                 insertRecord(
                         toUtcTimestampMills(3L, shiftTimeZone),
@@ -457,7 +456,7 @@ public class WindowJoinOperatorTest {
                         "k1"));
         expectedOutput.add(insertRecord(toUtcTimestampMills(6L, shiftTimeZone), "k1", null, null));
         expectedOutput.add(insertRecord(null, null, toUtcTimestampMills(9L, shiftTimeZone), "k1"));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(10)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(10));
         ASSERTER.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
         assertThat(testHarness.numEventTimeTimers()).isEqualTo(0);
         assertThat(testHarness.numKeyedStateEntries()).isEqualTo(0);
@@ -468,16 +467,16 @@ public class WindowJoinOperatorTest {
         testHarness.processElement2(insertRecord(toUtcTimestampMills(15L, shiftTimeZone), "k1"));
         assertThat(testHarness.numKeyedStateEntries()).isEqualTo(3);
 
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(13)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(13)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(13));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(13));
 
         expectedOutput.add(insertRecord(toUtcTimestampMills(12L, shiftTimeZone), "k1", null, null));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(13)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(13));
         assertThat(testHarness.numKeyedStateEntries()).isEqualTo(2);
         ASSERTER.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processWatermark1(new WatermarkEvent(new TimestampWatermark(18)));
-        testHarness.processWatermark2(new WatermarkEvent(new TimestampWatermark(18)));
+        testHarness.processWatermark1(WatermarkUtils.createWatermarkEventFromTimestamp(18));
+        testHarness.processWatermark2(WatermarkUtils.createWatermarkEventFromTimestamp(18));
         expectedOutput.add(
                 insertRecord(
                         toUtcTimestampMills(15L, shiftTimeZone),
@@ -490,7 +489,7 @@ public class WindowJoinOperatorTest {
                         "k1",
                         toUtcTimestampMills(15L, shiftTimeZone),
                         "k1"));
-        expectedOutput.add(new WatermarkEvent(new TimestampWatermark(18)));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(18));
         ASSERTER.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
         testHarness.close();
     }

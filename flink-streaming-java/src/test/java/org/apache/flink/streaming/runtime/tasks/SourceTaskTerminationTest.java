@@ -35,6 +35,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -157,7 +158,7 @@ class SourceTaskTerminationTest {
         srcTaskTestHarness.processAll();
         verifyWatermark(
                 srcTaskTestHarness.getOutput(),
-                new WatermarkEvent(new TimestampWatermark(expectedElement)));
+                WatermarkUtils.createWatermarkEventFromTimestamp(expectedElement));
         verifyNextElement(srcTaskTestHarness.getOutput(), expectedElement);
     }
 
@@ -204,7 +205,7 @@ class SourceTaskTerminationTest {
             while (isRunning) {
                 runLoopStart.await();
                 if (isRunning) {
-                    ctx.emitWatermark(new WatermarkEvent(new TimestampWatermark(element)));
+                    ctx.emitWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(element));
                     ctx.collect(element++);
                 }
                 runLoopEnd.trigger();

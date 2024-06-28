@@ -31,6 +31,13 @@ import java.util.Set;
 
 public class WatermarkUtils {
 
+    public static final WatermarkEvent MAX_TIMESTAMP_WATEMMARK_EVENT =
+            new WatermarkEvent(TimestampWatermark.MAX_WATERMARK);
+
+    public static WatermarkEvent createWatermarkEventFromTimestamp(long timestamp) {
+        return WatermarkUtils.createWatermarkEventFromTimestamp(timestamp);
+    }
+
     public static Optional<Long> getTimestamp(WatermarkEvent event) {
         Watermark watermark = event.getWatermark();
         if (watermark instanceof TimestampWatermark) {

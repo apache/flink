@@ -22,9 +22,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
@@ -95,7 +95,7 @@ class PythonStreamGroupWindowAggregateOperatorTest
         expectedOutput.add(newWindowRecord(10000L, 20000L, "c1", 2L));
         expectedOutput.add(newStateCleanupRecord(10000L, 20000L, "c1"));
 
-        expectedOutput.add(new Watermark(Long.MAX_VALUE));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(Long.MAX_VALUE));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
     }
@@ -115,7 +115,7 @@ class PythonStreamGroupWindowAggregateOperatorTest
         testHarness.processElement(newRecord(true, initialTime + 2, "c1", "c4", 1L, 6000L));
         testHarness.processElement(newRecord(true, initialTime + 3, "c1", "c6", 2L, 10000L));
         testHarness.processElement(newRecord(true, initialTime + 4, "c2", "c8", 3L, 0L));
-        testHarness.processWatermark(new Watermark(10000L));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(10000L));
         // checkpoint trigger finishBundle
         testHarness.prepareSnapshotPreBarrier(0L);
 
@@ -128,7 +128,7 @@ class PythonStreamGroupWindowAggregateOperatorTest
         expectedOutput.add(newWindowRecord(0, 10000L, "c1", 0L));
         expectedOutput.add(newStateCleanupRecord(0L, 10000L, "c1"));
 
-        expectedOutput.add(new Watermark(10000L));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(10000L));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -141,7 +141,7 @@ class PythonStreamGroupWindowAggregateOperatorTest
         expectedOutput.add(newWindowRecord(10000L, 20000L, "c1", 2L));
         expectedOutput.add(newStateCleanupRecord(10000L, 20000L, "c1"));
 
-        expectedOutput.add(new Watermark(20000L));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(20000L));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
     }
@@ -162,7 +162,7 @@ class PythonStreamGroupWindowAggregateOperatorTest
         testHarness.processElement(newRecord(true, initialTime + 3, "c1", "c6", 2L, 10000L));
         testHarness.processElement(newRecord(true, initialTime + 4, "c2", "c8", 3L, 0L));
 
-        testHarness.processWatermark(new Watermark(10000L));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(10000L));
 
         expectedOutput.add(newWindowRecord(-5000L, 5000L, "c1", 0L));
         expectedOutput.add(newStateCleanupRecord(-5000L, 5000L, "c1"));
@@ -173,7 +173,7 @@ class PythonStreamGroupWindowAggregateOperatorTest
         expectedOutput.add(newWindowRecord(0, 10000L, "c1", 0L));
         expectedOutput.add(newStateCleanupRecord(0L, 10000L, "c1"));
 
-        expectedOutput.add(new Watermark(10000L));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(10000L));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -185,7 +185,7 @@ class PythonStreamGroupWindowAggregateOperatorTest
         expectedOutput.add(newWindowRecord(10000L, 20000L, "c1", 2L));
         expectedOutput.add(newStateCleanupRecord(10000L, 20000L, "c1"));
 
-        expectedOutput.add(new Watermark(20000L));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(20000L));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
     }
@@ -206,7 +206,7 @@ class PythonStreamGroupWindowAggregateOperatorTest
         testHarness.processElement(newRecord(true, initialTime + 2, "c1", "c4", 1L, 6000L));
         testHarness.processElement(newRecord(true, initialTime + 3, "c1", "c6", 2L, 10000L));
         testHarness.processElement(newRecord(true, initialTime + 4, "c2", "c8", 3L, 0L));
-        testHarness.processWatermark(new Watermark(20000L));
+        testHarness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(20000L));
 
         testHarness.setProcessingTime(1000L);
         expectedOutput.add(newWindowRecord(-5000L, 5000L, "c1", 0L));
@@ -222,7 +222,7 @@ class PythonStreamGroupWindowAggregateOperatorTest
         expectedOutput.add(newWindowRecord(10000L, 20000L, "c1", 2L));
         expectedOutput.add(newStateCleanupRecord(10000L, 20000L, "c1"));
 
-        expectedOutput.add(new Watermark(20000L));
+        expectedOutput.add(WatermarkUtils.createWatermarkEventFromTimestamp(20000L));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 

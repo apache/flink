@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.TimerException;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
@@ -200,7 +200,7 @@ public class StreamTaskTimerITCase extends AbstractTestBaseJUnit4 {
         }
 
         @Override
-        public void processWatermark(Watermark mark) throws Exception {
+        public void processWatermark(WatermarkEvent mark) throws Exception {
             if (!semaphore.tryAcquire()) {
                 Assert.fail("Concurrent invocation of operator functions.");
             }
@@ -275,12 +275,12 @@ public class StreamTaskTimerITCase extends AbstractTestBaseJUnit4 {
         }
 
         @Override
-        public void processWatermark1(Watermark mark) throws Exception {
+        public void processWatermark1(WatermarkEvent mark) throws Exception {
             // ignore
         }
 
         @Override
-        public void processWatermark2(Watermark mark) throws Exception {
+        public void processWatermark2(WatermarkEvent mark) throws Exception {
             // ignore
         }
     }

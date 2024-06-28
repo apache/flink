@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.operators.lifecycle.graph;
 
 import org.apache.flink.api.common.eventtime.SerializableTimestampAssigner;
+import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
@@ -279,14 +280,15 @@ public class TestJobBuilders {
         return WatermarkStrategy.forGenerator(
                         ctx ->
                                 new WatermarkGenerator<TestDataElement>() {
-                                    private Watermark watermark = new Watermark(Long.MIN_VALUE);
+                                    private Watermark watermark =
+                                            new TimestampWatermark(Long.MIN_VALUE);
 
                                     @Override
                                     public void onEvent(
                                             TestDataElement event,
                                             long eventTimestamp,
                                             WatermarkOutput output) {
-                                        this.watermark = new Watermark(eventTimestamp);
+                                        this.watermark = new TimestampWatermark(eventTimestamp);
                                     }
 
                                     @Override

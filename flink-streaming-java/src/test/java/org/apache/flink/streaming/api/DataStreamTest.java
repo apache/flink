@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.api;
 
 import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.FilterFunction;
@@ -83,6 +82,7 @@ import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.Collector;
 
 import org.junit.jupiter.api.Test;
@@ -1271,7 +1271,7 @@ class DataStreamTest {
         @Nullable
         @Override
         public WatermarkEvent checkAndGetNextWatermark(T lastElement, long extractedTimestamp) {
-            return new WatermarkEvent(new TimestampWatermark(extractedTimestamp));
+            return WatermarkUtils.createWatermarkEventFromTimestamp(extractedTimestamp);
         }
     }
 

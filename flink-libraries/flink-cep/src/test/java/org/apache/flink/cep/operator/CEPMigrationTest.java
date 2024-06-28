@@ -19,7 +19,6 @@
 package org.apache.flink.cep.operator;
 
 import org.apache.flink.FlinkVersion;
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.cep.Event;
@@ -30,12 +29,12 @@ import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.cep.utils.CepOperatorTestUtilities;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.test.util.MigrationTest;
 
 import org.junit.Test;
@@ -107,7 +106,7 @@ public class CEPMigrationTest implements MigrationTest {
             harness.processElement(new StreamRecord<Event>(middleEvent1, 2));
             harness.processElement(new StreamRecord<Event>(middleEvent2, 3));
 
-            harness.processWatermark(new WatermarkEvent(new TimestampWatermark(5)));
+            harness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(5));
 
             // do snapshot and save to file
             OperatorSubtaskState snapshot = harness.snapshot(0L, 0L);
@@ -157,7 +156,7 @@ public class CEPMigrationTest implements MigrationTest {
             harness.processElement(new StreamRecord<>(new Event(42, "start", 1.0), 4));
             harness.processElement(new StreamRecord<>(endEvent, 5));
 
-            harness.processWatermark(new WatermarkEvent(new TimestampWatermark(20)));
+            harness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(20));
 
             ConcurrentLinkedQueue<Object> result = harness.getOutput();
 
@@ -215,7 +214,7 @@ public class CEPMigrationTest implements MigrationTest {
 
             harness.processElement(new StreamRecord<>(endEvent1, 25));
 
-            harness.processWatermark(new WatermarkEvent(new TimestampWatermark(50)));
+            harness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(50));
 
             result = harness.getOutput();
 
@@ -270,7 +269,7 @@ public class CEPMigrationTest implements MigrationTest {
             harness.processElement(
                     new StreamRecord<Event>(new SubEvent(42, "barfoo", 1.0, 5.0), 3));
             harness.processElement(new StreamRecord<Event>(middleEvent1, 2));
-            harness.processWatermark(new WatermarkEvent(new TimestampWatermark(5)));
+            harness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(5));
 
             // do snapshot and save to file
             OperatorSubtaskState snapshot = harness.snapshot(0L, 0L);
@@ -324,7 +323,7 @@ public class CEPMigrationTest implements MigrationTest {
             harness.processElement(new StreamRecord<Event>(middleEvent2, 6));
             harness.processElement(new StreamRecord<>(endEvent, 7));
 
-            harness.processWatermark(new WatermarkEvent(new TimestampWatermark(20)));
+            harness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(20));
 
             ConcurrentLinkedQueue<Object> result = harness.getOutput();
 
@@ -395,7 +394,7 @@ public class CEPMigrationTest implements MigrationTest {
 
             harness.processElement(new StreamRecord<>(endEvent1, 25));
 
-            harness.processWatermark(new WatermarkEvent(new TimestampWatermark(50)));
+            harness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(50));
 
             result = harness.getOutput();
 
@@ -445,7 +444,7 @@ public class CEPMigrationTest implements MigrationTest {
         try {
             harness.setup();
             harness.open();
-            harness.processWatermark(new WatermarkEvent(new TimestampWatermark(5)));
+            harness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(5));
 
             // do snapshot and save to file
             OperatorSubtaskState snapshot = harness.snapshot(0L, 0L);
@@ -494,7 +493,7 @@ public class CEPMigrationTest implements MigrationTest {
 
             harness.processElement(new StreamRecord<>(startEvent1, 5));
 
-            harness.processWatermark(new WatermarkEvent(new TimestampWatermark(20)));
+            harness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(20));
 
             ConcurrentLinkedQueue<Object> result = harness.getOutput();
 
@@ -543,7 +542,7 @@ public class CEPMigrationTest implements MigrationTest {
             harness.setup();
             harness.open();
             harness.processElement(new StreamRecord<>(startEvent1, 5));
-            harness.processWatermark(new WatermarkEvent(new TimestampWatermark(6)));
+            harness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(6));
 
             // do snapshot and save to file
             OperatorSubtaskState snapshot = harness.snapshot(0L, 0L);
@@ -590,7 +589,7 @@ public class CEPMigrationTest implements MigrationTest {
 
             final Event endEvent = new SubEvent(42, "end", 1.0, 2.0);
             harness.processElement(new StreamRecord<>(endEvent, 9));
-            harness.processWatermark(new WatermarkEvent(new TimestampWatermark(20)));
+            harness.processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(20));
 
             ConcurrentLinkedQueue<Object> result = harness.getOutput();
 

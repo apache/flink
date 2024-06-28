@@ -25,12 +25,12 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 
@@ -228,7 +228,9 @@ public class SessionWindowITCase extends AbstractTestBaseJUnit4 {
                     SessionEvent<Integer, TestEventPayload> evt = generator.nextEvent();
                     if (evt != null) {
                         ctx.collectWithTimestamp(evt, evt.getEventTimestamp());
-                        ctx.emitWatermark(new Watermark(generator.getWatermark()));
+                        ctx.emitWatermark(
+                                WatermarkUtils.createWatermarkEventFromTimestamp(
+                                        generator.getWatermark()));
                     } else {
                         break;
                     }

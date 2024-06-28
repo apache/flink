@@ -25,8 +25,9 @@ import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.util.ProtoUtils;
 import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 import java.util.HashMap;
 import java.util.List;
@@ -100,9 +101,9 @@ public class EmbeddedPythonProcessOperator<IN, OUT>
     }
 
     @Override
-    public void processWatermark(Watermark mark) throws Exception {
+    public void processWatermark(WatermarkEvent mark) throws Exception {
         super.processWatermark(mark);
-        this.currentWatermark = mark.getTimestamp();
+        WatermarkUtils.getTimestamp(mark).ifPresent(t -> currentWatermark = t);
     }
 
     private class ContextImpl implements TimerService {

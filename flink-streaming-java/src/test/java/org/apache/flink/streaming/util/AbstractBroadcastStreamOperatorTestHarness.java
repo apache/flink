@@ -18,11 +18,11 @@
 
 package org.apache.flink.streaming.util;
 
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 
 /** Base class for broadcast stream operator test harnesses. */
 public abstract class AbstractBroadcastStreamOperatorTestHarness<IN1, IN2, OUT>
@@ -66,17 +66,17 @@ public abstract class AbstractBroadcastStreamOperatorTestHarness<IN1, IN2, OUT>
     }
 
     public void processWatermark(long timestamp) throws Exception {
-        WatermarkEvent mark = new WatermarkEvent(new TimestampWatermark(timestamp));
+        WatermarkEvent mark = WatermarkUtils.createWatermarkEventFromTimestamp(timestamp);
         getOperator().processWatermark1(mark);
     }
 
     public void processBroadcastWatermark(long timestamp) throws Exception {
-        WatermarkEvent mark = new WatermarkEvent(new TimestampWatermark(timestamp));
+        WatermarkEvent mark = WatermarkUtils.createWatermarkEventFromTimestamp(timestamp);
         getOperator().processWatermark2(mark);
     }
 
     public void watermark(long timestamp) throws Exception {
-        processWatermark(new WatermarkEvent(new TimestampWatermark(timestamp)));
-        processBroadcastWatermark(new WatermarkEvent(new TimestampWatermark(timestamp)));
+        processWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(timestamp));
+        processBroadcastWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(timestamp));
     }
 }

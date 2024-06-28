@@ -46,6 +46,7 @@ import org.apache.flink.streaming.runtime.tasks.TimerService;
 import org.apache.flink.streaming.util.CollectorOutput;
 import org.apache.flink.streaming.util.MockStreamTask;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.jupiter.api.Test;
@@ -262,8 +263,8 @@ class StreamSourceOperatorWatermarksTest {
         @Override
         public void run(SourceContext<T> ctx) {
             synchronized (ctx.getCheckpointLock()) {
-                ctx.emitWatermark(new WatermarkEvent(new TimestampWatermark(1000)));
-                ctx.emitWatermark(new WatermarkEvent(new TimestampWatermark(2000)));
+                ctx.emitWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(1000));
+                ctx.emitWatermark(WatermarkUtils.createWatermarkEventFromTimestamp(2000));
                 ctx.emitWatermark(new WatermarkEvent(TimestampWatermark.MAX_WATERMARK));
             }
         }

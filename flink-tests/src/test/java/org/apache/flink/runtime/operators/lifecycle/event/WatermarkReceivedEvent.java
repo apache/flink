@@ -19,13 +19,13 @@ package org.apache.flink.runtime.operators.lifecycle.event;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.watermark.WatermarkEvent;
 
 import java.util.Objects;
 
 /**
- * An event of calling {@link AbstractStreamOperator#processWatermark(Watermark) processWatermark}
- * or its variants.
+ * An event of calling {@link AbstractStreamOperator#processWatermark(WatermarkEvent)
+ * processWatermark} or its variants.
  */
 @Internal
 public class WatermarkReceivedEvent extends TestEvent {

@@ -18,7 +18,6 @@ limitations under the License.
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.api.common.eventtime.TimestampWatermark;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.mocks.MockSourceReader;
@@ -43,6 +42,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.CollectorOutput;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.CollectionUtil;
 
 import org.junit.jupiter.api.AfterEach;
@@ -228,10 +228,10 @@ class SourceOperatorTest {
         assertThat(outputStreamElements)
                 .containsExactly(
                         new StreamRecord<>(1, 1),
-                        new WatermarkEvent(new TimestampWatermark(0)),
+                        WatermarkUtils.createWatermarkEventFromTimestamp(0),
                         new RecordAttributes(true),
                         new StreamRecord<>(1001, 1001),
-                        new WatermarkEvent(new TimestampWatermark(1000)),
+                        WatermarkUtils.createWatermarkEventFromTimestamp(1000),
                         new RecordAttributes(false));
     }
 
