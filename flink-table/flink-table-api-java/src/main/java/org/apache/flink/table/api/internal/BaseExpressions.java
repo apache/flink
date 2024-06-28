@@ -189,6 +189,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TAN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TANH;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TIMES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TO_BASE64;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRANSLATE3;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRIM;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRUNCATE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRY_CAST;
@@ -958,6 +959,16 @@ public abstract class BaseExpressions<InType, OutType> {
         return toApiSpecificExpression(
                 unresolvedCall(
                         REPLACE,
+                        toExpr(),
+                        objectToExpression(search),
+                        objectToExpression(replacement)));
+    }
+
+    /** Returns an expr where all characters in from have been replaced with those in to. */
+    public OutType translate(InType search, InType replacement) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        TRANSLATE3,
                         toExpr(),
                         objectToExpression(search),
                         objectToExpression(replacement)));

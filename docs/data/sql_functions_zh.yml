@@ -369,6 +369,13 @@ string:
       返回一个新字符串，它用 STRING3（非重叠）替换 STRING1 中所有出现的 STRING2。
       例如 `'hello world'.replace('world', 'flink')` 返回 `'hello flink'`；
       `'ababab'.replace('abab', 'z')` 返回 `'zab'`。
+  - sql: TRANSLATE(string1, string2, string3)
+    table: STRING1.translate(STRING2, STRING3)
+    description: |
+      将 expr 中所有为 from 的字符都替换为 to 并返回结果。
+      如果 to 长度小于 from 不匹配的长度，则将会被删除。
+      例如 `'AaBbCc'.translate('abc', '123')` 返回 `'A1B2C3'`；
+      `'AaBbCc'.translate('abc', '1')` 返回 `'A1BC'`。
   - sql: REGEXP_EXTRACT(string1, string2[, integer])
     table: STRING1.regexpExtract(STRING2[, INTEGER1])
     description: |

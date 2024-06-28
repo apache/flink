@@ -1084,6 +1084,16 @@ class Expression(Generic[T]):
         """
         return _ternary_op("replace")(self, search, replacement)
 
+    def translate(self,
+                  search: Union[str, 'Expression[str]'] = None,
+                  replacement: Union[str, 'Expression[str]'] = None) -> 'Expression[str]':
+        """
+        Returns an expr where all characters in from have been replaced with those in to.
+
+        e.g. `'AaBbCc'.translate('abc', '1')` return `'A1BC'`.
+        """
+        return _ternary_op("translate")(self, search, replacement)
+
     @property
     def char_length(self) -> 'Expression[int]':
         """

@@ -449,6 +449,18 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                             SqlTypeFamily.CHARACTER),
                     SqlFunctionCategory.STRING);
 
+    public static final SqlFunction TRANSLATE3 =
+            new SqlFunction(
+                    "TRANSLATE3",
+                    SqlKind.OTHER_FUNCTION,
+                    ReturnTypes.cascade(
+                            ReturnTypes.explicit(SqlTypeName.VARCHAR),
+                            SqlTypeTransforms.TO_NULLABLE),
+                    null,
+                    OperandTypes.family(
+                            SqlTypeFamily.STRING, SqlTypeFamily.STRING, SqlTypeFamily.STRING),
+                    SqlFunctionCategory.STRING);
+
     public static final SqlFunction SPLIT_INDEX =
             new SqlFunction(
                     "SPLIT_INDEX",
