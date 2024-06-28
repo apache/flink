@@ -207,4 +207,11 @@ class CalcTest extends TableTestBase {
     val sqlQuery = "SELECT a FROM (SELECT a, b FROM MyTable) t WHERE random_udf(b) > 10"
     util.verifyRelPlan(sqlQuery)
   }
+
+  @Test
+  def testCastRow(): Unit = {
+    val sqlQuery =
+      "SELECT b, c, cast(row(b, c) as row(b_val int, c_val string)) as col FROM MyTable"
+    util.verifyExecPlan(sqlQuery)
+  }
 }

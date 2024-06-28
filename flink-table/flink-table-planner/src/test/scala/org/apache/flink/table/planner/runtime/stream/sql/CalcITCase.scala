@@ -28,7 +28,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.config.ExecutionConfigOptions.LegacyCastBehaviour
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.catalog.CatalogDatabaseImpl
-import org.apache.flink.table.data.{GenericRowData, MapData, RowData}
+import org.apache.flink.table.data.{GenericRowData, MapData}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
@@ -809,5 +809,39 @@ class CalcITCase extends StreamingTestBase {
 
     val expected = List("2.0", "2.0", "2.0")
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @Test
+  def testCastRow(): Unit = {
+    env.setParallelism(1)
+    val testDataId = TestValuesTableFactory.registerData(
+      Seq(
+        row(1, "a"),
+        row(2, "b")
+      ))
+    val ddl =
+      s"""
+         |CREATE TABLE t (
+         |  a int,
+         |  b varchar
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$testDataId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin
+    tEnv.executeSql(ddl)
+    val expected = List(
+      row(1, "a", row(1, "a")),
+      row(2, "b", row(2, "b"))
+    )
+    val actual = tEnv
+      .executeSql("select a, b, CAST(ROW(a, b) AS ROW<a_val int, b_val string>) AS col from t")
+      .collect()
+      // do not use 'Row#toString' to verify because of using RowUtils.USE_LEGACY_TO_STRING,
+      // and "1, a, (1, a)" will be converted to "1, a, 1, a"
+      .map(r => r)
+      .toList
+    assertThat(actual).isEqualTo(expected)
   }
 }
