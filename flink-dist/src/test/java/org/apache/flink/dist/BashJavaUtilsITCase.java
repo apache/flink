@@ -133,7 +133,7 @@ class BashJavaUtilsITCase extends JavaBashTestBase {
 
     @Test
     void testGetConfiguration() throws Exception {
-        int expectedResultLines = 26;
+        int expectedResultLines = 25;
         String[] commands = {
             RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
             BashJavaUtils.Command.UPDATE_AND_GET_FLINK_CONFIGURATION.toString(),
@@ -209,7 +209,7 @@ class BashJavaUtilsITCase extends JavaBashTestBase {
 
     @Test
     void testGetConfigurationRemoveKey() throws Exception {
-        int expectedResultLines = 24;
+        int expectedResultLines = 23;
         String[] commands = {
             RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
             BashJavaUtils.Command.UPDATE_AND_GET_FLINK_CONFIGURATION.toString(),
@@ -226,7 +226,7 @@ class BashJavaUtilsITCase extends JavaBashTestBase {
 
     @Test
     void testGetConfigurationRemoveKeyValue() throws Exception {
-        int expectedResultLines = 24;
+        int expectedResultLines = 23;
         String[] commands = {
             RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
             BashJavaUtils.Command.UPDATE_AND_GET_FLINK_CONFIGURATION.toString(),
@@ -243,7 +243,7 @@ class BashJavaUtilsITCase extends JavaBashTestBase {
 
     @Test
     void testGetConfigurationRemoveKeyValueNotMatchingValue() throws Exception {
-        int expectedResultLines = 26;
+        int expectedResultLines = 25;
         String[] commands = {
             RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
             BashJavaUtils.Command.UPDATE_AND_GET_FLINK_CONFIGURATION.toString(),
@@ -260,7 +260,7 @@ class BashJavaUtilsITCase extends JavaBashTestBase {
 
     @Test
     void testGetConfigurationReplaceKeyValue() throws Exception {
-        int expectedResultLines = 26;
+        int expectedResultLines = 25;
         String[] commands = {
             RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
             BashJavaUtils.Command.UPDATE_AND_GET_FLINK_CONFIGURATION.toString(),
@@ -277,7 +277,7 @@ class BashJavaUtilsITCase extends JavaBashTestBase {
 
     @Test
     void testGetConfigurationReplaceKeyValueNotMatchingValue() throws Exception {
-        int expectedResultLines = 26;
+        int expectedResultLines = 25;
         String[] commands = {
             RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
             BashJavaUtils.Command.UPDATE_AND_GET_FLINK_CONFIGURATION.toString(),
