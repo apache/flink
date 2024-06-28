@@ -100,7 +100,18 @@ class CompactOperatorTest extends AbstractCompactTestBase {
 
                     harness.notifyOfCompletedCheckpoint(2);
 
-                    // check all temp files have been deleted
+                    // check all temp files not deleted before subsumed
+                    assertThat(fs.exists(f0)).isTrue();
+                    assertThat(fs.exists(f1)).isTrue();
+                    assertThat(fs.exists(f2)).isTrue();
+                    assertThat(fs.exists(f3)).isTrue();
+                    assertThat(fs.exists(f4)).isTrue();
+                    assertThat(fs.exists(f5)).isTrue();
+                    assertThat(fs.exists(f6)).isTrue();
+
+                    notifyCheckpointSubsume(harness, 2);
+
+                    // check all temp files have been deleted, after subsume
                     assertThat(fs.exists(f0)).isFalse();
                     assertThat(fs.exists(f1)).isFalse();
                     assertThat(fs.exists(f2)).isFalse();
@@ -194,6 +205,66 @@ class CompactOperatorTest extends AbstractCompactTestBase {
         harness1.close();
     }
 
+    @Test
+    void testCompactOperatorOnHistoricalCheckpoint() throws Exception {
+        AtomicReference<OperatorSubtaskState> state = new AtomicReference<>();
+        Path f0 = newFile(".uncompacted-f0", 3);
+        Path f1 = newFile(".uncompacted-f1", 2);
+        Path f2 = newFile(".uncompacted-f2", 2);
+        Path f3 = newFile(".uncompacted-f3", 5);
+        Path f4 = newFile(".uncompacted-f4", 1);
+        Path f5 = newFile(".uncompacted-f5", 5);
+        Path f6 = newFile(".uncompacted-f6", 4);
+        FileSystem fs = f0.getFileSystem();
+        runCompact(
+                harness -> {
+                    harness.setup();
+                    harness.open();
+
+                    harness.processElement(
+                            new CompactionUnit(0, "p0", Collections.singletonList(f0)), 0);
+                    harness.processElement(
+                            new CompactionUnit(1, "p0", Collections.singletonList(f1)), 0);
+                    harness.processElement(
+                            new CompactionUnit(2, "p1", Collections.singletonList(f2)), 0);
+                    harness.processElement(
+                            new CompactionUnit(3, "p0", Collections.singletonList(f3)), 0);
+
+                    harness.processElement(new EndCompaction(1), 0);
+
+                    state.set(harness.snapshot(2, 0));
+
+                    harness.processElement(
+                            new CompactionUnit(4, "p0", Collections.singletonList(f4)), 0);
+                    harness.processElement(
+                            new CompactionUnit(5, "p0", Collections.singletonList(f5)), 0);
+                    harness.processElement(
+                            new CompactionUnit(2, "p1", Collections.singletonList(f6)), 0);
+
+                    harness.processElement(new EndCompaction(2), 0);
+
+                    state.set(harness.snapshot(3, 0));
+                });
+
+        runCompact(
+                harness -> {
+                    harness.setup();
+                    harness.initializeState(state.get());
+                    harness.open();
+
+                    notifyCheckpointSubsume(harness, 2);
+
+                    // check all temp files are partial deleted
+                    assertThat(fs.exists(f0)).isFalse();
+                    assertThat(fs.exists(f1)).isFalse();
+                    assertThat(fs.exists(f2)).isFalse();
+                    assertThat(fs.exists(f3)).isFalse();
+                    assertThat(fs.exists(f4)).isTrue();
+                    assertThat(fs.exists(f5)).isTrue();
+                    assertThat(fs.exists(f6)).isTrue();
+                });
+    }
+
     private void runCompact(
             ThrowingConsumer<
                             OneInputStreamOperatorTestHarness<
@@ -204,6 +275,13 @@ class CompactOperatorTest extends AbstractCompactTestBase {
         try (OneInputStreamOperatorTestHarness<CoordinatorOutput, PartitionCommitInfo> harness =
                 create(1, 0)) {
             consumer.accept(harness);
+        }
+    }
+
+    private void notifyCheckpointSubsume(
+            OneInputStreamOperatorTestHarness<?, ?> harness, long checkpointId) throws Exception {
+        if (harness.getOperator() instanceof CompactOperator) {
+            ((CompactOperator<?>) harness.getOperator()).notifyCheckpointSubsumed(checkpointId);
         }
     }
 
