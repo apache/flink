@@ -136,7 +136,7 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
 
         checkSchema(fileSchema, requestedSchema);
 
-        final long totalRowCount = parquetFileReader.getFilteredRecordCount();
+        final long totalRowCount = parquetFileReader.getRecordCount();
         final Pool<ParquetReaderBatch<T>> poolOfBatches =
                 createPoolOfBatches(split, requestedSchema, numBatchesToCirculate(config));
 
@@ -405,7 +405,7 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
         }
 
         private void readNextRowGroup() throws IOException {
-            PageReadStore pages = reader.readNextFilteredRowGroup();
+            PageReadStore pages = reader.readNextRowGroup();
             if (pages == null) {
                 throw new IOException(
                         "expecting more rows but reached last block. Read "
