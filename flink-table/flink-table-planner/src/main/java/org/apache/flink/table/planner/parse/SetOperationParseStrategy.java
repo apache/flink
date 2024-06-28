@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.parse;
 
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.command.SetOperation;
 
@@ -56,13 +55,8 @@ public class SetOperationParseStrategy extends AbstractRegexParseStrategy {
         // only capture SET
         if (operands.isEmpty()) {
             return new SetOperation();
-        } else if (operands.size() == 2) {
-            return new SetOperation(operands.get(0), operands.get(1));
         } else {
-            // impossible
-            throw new TableException(
-                    String.format(
-                            "Failed to convert the statement to SET operation: %s.", statement));
+            return new SetOperation(operands.get(0), operands.get(1));
         }
     }
 
