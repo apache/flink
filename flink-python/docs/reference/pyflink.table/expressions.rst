@@ -128,6 +128,7 @@ arithmetic functions
     Expression.sum0
     Expression.min
     Expression.max
+    Expression.mode
     Expression.count
     Expression.avg
     Expression.first_value
