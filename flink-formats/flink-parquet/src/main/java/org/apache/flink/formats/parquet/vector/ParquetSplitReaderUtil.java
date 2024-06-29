@@ -663,7 +663,7 @@ public class ParquetSplitReaderUtil {
             } else if (columnIO instanceof PrimitiveColumnIO) {
                 elementTypeColumnIO = columnIO;
             } else {
-                throw new RuntimeException(String.format("Unkown ColumnIO, %s", columnIO));
+                throw new RuntimeException(String.format("Unknown ColumnIO, %s", columnIO));
             }
 
             ParquetField field =
@@ -682,6 +682,10 @@ public class ParquetSplitReaderUtil {
                 type, required, primitiveColumnIO.getColumnDescriptor(), primitiveColumnIO.getId());
     }
 
+    /**
+     * Parquet's column names are case in sensitive. So when we look up columns we first check for
+     * exact match, and if that can not find we look for a case-insensitive match.
+     */
     public static ColumnIO lookupColumnByName(GroupColumnIO groupColumnIO, String columnName) {
         ColumnIO columnIO = groupColumnIO.getChild(columnName);
 

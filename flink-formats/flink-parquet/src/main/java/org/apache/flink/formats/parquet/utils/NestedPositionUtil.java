@@ -24,8 +24,6 @@ import org.apache.flink.formats.parquet.vector.type.ParquetField;
 import org.apache.flink.runtime.util.BooleanArrayList;
 import org.apache.flink.runtime.util.LongArrayList;
 
-import java.util.Optional;
-
 import static java.lang.String.format;
 
 /** Utils to calculate nested type position. */
@@ -70,9 +68,9 @@ public class NestedPositionUtil {
             }
         }
         if (nullValuesCount == 0) {
-            return new RowPosition(Optional.empty(), fieldDefinitionLevels.length);
+            return new RowPosition(null, fieldDefinitionLevels.length);
         }
-        return new RowPosition(Optional.of(nullRowFlags.toArray()), nullRowFlags.size());
+        return new RowPosition(nullRowFlags.toArray(), nullRowFlags.size());
     }
 
     /**
@@ -138,13 +136,13 @@ public class NestedPositionUtil {
                 emptyCollectionFlags.add(false);
             }
         }
-        long[] offestsArray = offsets.toArray();
-        long[] length = calculateLengthByOffsets(emptyCollectionFlags.toArray(), offestsArray);
+        long[] offsetsArray = offsets.toArray();
+        long[] length = calculateLengthByOffsets(emptyCollectionFlags.toArray(), offsetsArray);
         if (nullValuesCount == 0) {
-            return new CollectionPosition(Optional.empty(), offestsArray, length, valueCount);
+            return new CollectionPosition(null, offsetsArray, length, valueCount);
         }
         return new CollectionPosition(
-                Optional.of(nullCollectionFlags.toArray()), offestsArray, length, valueCount);
+                nullCollectionFlags.toArray(), offsetsArray, length, valueCount);
     }
 
     public static boolean isOptionalFieldValueNull(int definitionLevel, int maxDefinitionLevel) {
@@ -176,7 +174,7 @@ public class NestedPositionUtil {
         do {
             elementIndex++;
         } while (hasMoreElements(repetitionLevels, elementIndex)
-                && !isCollectionBeginningMarker(
+                && isNotCollectionBeginningMarker(
                         repetitionLevels, maxRepetitionLevel, elementIndex));
         return elementIndex;
     }
@@ -186,7 +184,8 @@ public class NestedPositionUtil {
             int[] repetitionLevels, int maxRepetitionLevel, int nextIndex) {
         int size = 1;
         while (hasMoreElements(repetitionLevels, nextIndex)
-                && !isCollectionBeginningMarker(repetitionLevels, maxRepetitionLevel, nextIndex)) {
+                && isNotCollectionBeginningMarker(
+                        repetitionLevels, maxRepetitionLevel, nextIndex)) {
             // Collection elements cannot only be primitive, but also can have nested structure
             // Counting only elements which belong to current collection, skipping inner elements of
             // nested collections/structs
@@ -198,9 +197,9 @@ public class NestedPositionUtil {
         return size;
     }
 
-    private static boolean isCollectionBeginningMarker(
+    private static boolean isNotCollectionBeginningMarker(
             int[] repetitionLevels, int maxRepetitionLevel, int nextIndex) {
-        return repetitionLevels[nextIndex] < maxRepetitionLevel;
+        return repetitionLevels[nextIndex] >= maxRepetitionLevel;
     }
 
     private static boolean hasMoreElements(int[] repetitionLevels, int nextIndex) {

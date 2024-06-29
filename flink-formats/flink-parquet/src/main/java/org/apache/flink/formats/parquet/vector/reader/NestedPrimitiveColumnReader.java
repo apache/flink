@@ -20,6 +20,7 @@ package org.apache.flink.formats.parquet.vector.reader;
 
 import org.apache.flink.formats.parquet.vector.ParquetDecimalVector;
 import org.apache.flink.formats.parquet.vector.position.LevelDelegation;
+import org.apache.flink.runtime.util.IntArrayList;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.columnar.vector.heap.HeapBooleanVector;
 import org.apache.flink.table.data.columnar.vector.heap.HeapByteVector;
@@ -33,18 +34,74 @@ import org.apache.flink.table.data.columnar.vector.heap.HeapTimestampVector;
 import org.apache.flink.table.data.columnar.vector.writable.WritableColumnVector;
 import org.apache.flink.table.types.logical.LogicalType;
 
+import org.apache.parquet.bytes.ByteBufferInputStream;
+import org.apache.parquet.bytes.BytesInput;
+import org.apache.parquet.bytes.BytesUtils;
 import org.apache.parquet.column.ColumnDescriptor;
+import org.apache.parquet.column.Encoding;
+import org.apache.parquet.column.page.DataPage;
+import org.apache.parquet.column.page.DataPageV1;
+import org.apache.parquet.column.page.DataPageV2;
+import org.apache.parquet.column.page.DictionaryPage;
 import org.apache.parquet.column.page.PageReader;
+import org.apache.parquet.column.values.ValuesReader;
+import org.apache.parquet.column.values.rle.RunLengthBitPackingHybridDecoder;
+import org.apache.parquet.io.ParquetDecodingException;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
-import shaded.parquet.it.unimi.dsi.fastutil.ints.IntArrayList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.parquet.column.ValuesType.DEFINITION_LEVEL;
+import static org.apache.parquet.column.ValuesType.REPETITION_LEVEL;
+import static org.apache.parquet.column.ValuesType.VALUES;
+
 /** Reader to read nested primitive column. */
-public class NestedPrimitiveColumnReader extends BaseVectorizedColumnReader {
+public class NestedPrimitiveColumnReader implements ColumnReader<WritableColumnVector> {
+    private static final Logger LOG = LoggerFactory.getLogger(NestedPrimitiveColumnReader.class);
+
+    private final IntArrayList repetitionLevelList = new IntArrayList(0);
+    private final IntArrayList definitionLevelList = new IntArrayList(0);
+
+    private final PageReader pageReader;
+    private final ColumnDescriptor descriptor;
+    private final Type type;
+    private final LogicalType logicalType;
+    /** The dictionary, if this column has dictionary encoding. */
+    private final ParquetDataColumnReader dictionary;
+    /** Maximum definition level for this column. */
+    private final int maxDefLevel;
+
+    private boolean isUtcTimestamp;
+
+    /** Total number of values read. */
+    private long valuesRead;
+
+    /**
+     * value that indicates the end of the current page. That is, if valuesRead ==
+     * endOfPageValueCount, we are at the end of the page.
+     */
+    private long endOfPageValueCount;
+
+    /** If true, the current page is dictionary encoded. */
+    private boolean isCurrentPageDictionaryEncoded;
+
+    private int definitionLevel;
+    private int repetitionLevel;
+
+    /** Repetition/Definition/Value readers. */
+    private IntIterator repetitionLevelColumn;
+
+    private IntIterator definitionLevelColumn;
+    private ParquetDataColumnReader dataColumn;
+
+    /** Total values in the current page. */
+    private int pageValueCount;
 
     // flag to indicate if there is no data in parquet data page
     private boolean eof = false;
@@ -53,9 +110,6 @@ public class NestedPrimitiveColumnReader extends BaseVectorizedColumnReader {
 
     private Object lastValue;
 
-    private final IntArrayList repetetionLevelList = new IntArrayList();
-    private final IntArrayList definitionLevelList = new IntArrayList();
-
     public NestedPrimitiveColumnReader(
             ColumnDescriptor descriptor,
             PageReader pageReader,
@@ -63,7 +117,32 @@ public class NestedPrimitiveColumnReader extends BaseVectorizedColumnReader {
             Type parquetType,
             LogicalType logicalType)
             throws IOException {
-        super(descriptor, pageReader, isUtcTimestamp, parquetType, logicalType);
+        this.descriptor = descriptor;
+        this.type = parquetType;
+        this.pageReader = pageReader;
+        this.maxDefLevel = descriptor.getMaxDefinitionLevel();
+        this.isUtcTimestamp = isUtcTimestamp;
+        this.logicalType = logicalType;
+
+        DictionaryPage dictionaryPage = pageReader.readDictionaryPage();
+        if (dictionaryPage != null) {
+            try {
+                this.dictionary =
+                        ParquetDataColumnReaderFactory.getDataColumnReaderByTypeOnDictionary(
+                                parquetType.asPrimitiveType(),
+                                dictionaryPage
+                                        .getEncoding()
+                                        .initDictionary(descriptor, dictionaryPage),
+                                isUtcTimestamp);
+                this.isCurrentPageDictionaryEncoded = true;
+            } catch (IOException e) {
+                throw new IOException(
+                        String.format("Could not decode the dictionary for %s", descriptor), e);
+            }
+        } else {
+            this.dictionary = null;
+            this.isCurrentPageDictionaryEncoded = false;
+        }
     }
 
     // This won't call, will actually call readAndNewVector
@@ -99,11 +178,11 @@ public class NestedPrimitiveColumnReader extends BaseVectorizedColumnReader {
     }
 
     public LevelDelegation getLevelDelegation() {
-        int[] repetition = repetetionLevelList.toIntArray();
-        int[] definition = definitionLevelList.toIntArray();
-        repetetionLevelList.clear();
+        int[] repetition = repetitionLevelList.toArray();
+        int[] definition = definitionLevelList.toArray();
+        repetitionLevelList.clear();
         definitionLevelList.clear();
-        repetetionLevelList.add(repetitionLevel);
+        repetitionLevelList.add(repetitionLevel);
         definitionLevelList.add(definitionLevel);
         return new LevelDelegation(repetition, definition);
     }
@@ -133,8 +212,10 @@ public class NestedPrimitiveColumnReader extends BaseVectorizedColumnReader {
 
     private void readAndSaveRepetitionAndDefinitionLevels() {
         // get the values of repetition and definitionLevel
-        readRepetitionAndDefinitionLevels();
-        repetetionLevelList.add(repetitionLevel);
+        repetitionLevel = repetitionLevelColumn.nextInt();
+        definitionLevel = definitionLevelColumn.nextInt();
+        valuesRead++;
+        repetitionLevelList.add(repetitionLevel);
         definitionLevelList.add(definitionLevel);
     }
 
@@ -381,5 +462,163 @@ public class NestedPrimitiveColumnReader extends BaseVectorizedColumnReader {
             }
         }
         return phbv;
+    }
+
+    protected void readPage() {
+        DataPage page = pageReader.readPage();
+
+        if (page == null) {
+            return;
+        }
+
+        page.accept(
+                new DataPage.Visitor<Void>() {
+                    @Override
+                    public Void visit(DataPageV1 dataPageV1) {
+                        readPageV1(dataPageV1);
+                        return null;
+                    }
+
+                    @Override
+                    public Void visit(DataPageV2 dataPageV2) {
+                        readPageV2(dataPageV2);
+                        return null;
+                    }
+                });
+    }
+
+    private void initDataReader(Encoding dataEncoding, ByteBufferInputStream in, int valueCount)
+            throws IOException {
+        this.pageValueCount = valueCount;
+        this.endOfPageValueCount = valuesRead + pageValueCount;
+        if (dataEncoding.usesDictionary()) {
+            this.dataColumn = null;
+            if (dictionary == null) {
+                throw new IOException(
+                        String.format(
+                                "Could not read page in col %s because the dictionary was missing for encoding %s.",
+                                descriptor, dataEncoding));
+            }
+            dataColumn =
+                    ParquetDataColumnReaderFactory.getDataColumnReaderByType(
+                            type.asPrimitiveType(),
+                            dataEncoding.getDictionaryBasedValuesReader(
+                                    descriptor, VALUES, dictionary.getDictionary()),
+                            isUtcTimestamp);
+            this.isCurrentPageDictionaryEncoded = true;
+        } else {
+            dataColumn =
+                    ParquetDataColumnReaderFactory.getDataColumnReaderByType(
+                            type.asPrimitiveType(),
+                            dataEncoding.getValuesReader(descriptor, VALUES),
+                            isUtcTimestamp);
+            this.isCurrentPageDictionaryEncoded = false;
+        }
+
+        try {
+            dataColumn.initFromPage(pageValueCount, in);
+        } catch (IOException e) {
+            throw new IOException(String.format("Could not read page in col %s.", descriptor), e);
+        }
+    }
+
+    private void readPageV1(DataPageV1 page) {
+        ValuesReader rlReader = page.getRlEncoding().getValuesReader(descriptor, REPETITION_LEVEL);
+        ValuesReader dlReader = page.getDlEncoding().getValuesReader(descriptor, DEFINITION_LEVEL);
+        this.repetitionLevelColumn = new ValuesReaderIntIterator(rlReader);
+        this.definitionLevelColumn = new ValuesReaderIntIterator(dlReader);
+        try {
+            BytesInput bytes = page.getBytes();
+            LOG.debug("Page size {}  bytes and {} records.", bytes.size(), pageValueCount);
+            ByteBufferInputStream in = bytes.toInputStream();
+            LOG.debug("Reading repetition levels at {}.", in.position());
+            rlReader.initFromPage(pageValueCount, in);
+            LOG.debug("Reading definition levels at {}.", in.position());
+            dlReader.initFromPage(pageValueCount, in);
+            LOG.debug("Reading data at {}.", in.position());
+            initDataReader(page.getValueEncoding(), in, page.getValueCount());
+        } catch (IOException e) {
+            throw new ParquetDecodingException(
+                    String.format("Could not read page %s in col %s.", page, descriptor), e);
+        }
+    }
+
+    private void readPageV2(DataPageV2 page) {
+        this.pageValueCount = page.getValueCount();
+        this.repetitionLevelColumn =
+                newRLEIterator(descriptor.getMaxRepetitionLevel(), page.getRepetitionLevels());
+        this.definitionLevelColumn =
+                newRLEIterator(descriptor.getMaxDefinitionLevel(), page.getDefinitionLevels());
+        try {
+            LOG.debug(
+                    "Page data size {} bytes and {} records.",
+                    page.getData().size(),
+                    pageValueCount);
+            initDataReader(
+                    page.getDataEncoding(), page.getData().toInputStream(), page.getValueCount());
+        } catch (IOException e) {
+            throw new ParquetDecodingException(
+                    String.format("Could not read page %s in col %s.", page, descriptor), e);
+        }
+    }
+
+    private IntIterator newRLEIterator(int maxLevel, BytesInput bytes) {
+        try {
+            if (maxLevel == 0) {
+                return new NullIntIterator();
+            }
+            return new RLEIntIterator(
+                    new RunLengthBitPackingHybridDecoder(
+                            BytesUtils.getWidthFromMaxInt(maxLevel),
+                            new ByteArrayInputStream(bytes.toByteArray())));
+        } catch (IOException e) {
+            throw new ParquetDecodingException(
+                    String.format("Could not read levels in page for col %s.", descriptor), e);
+        }
+    }
+
+    /** Utility interface to abstract over different way to read ints with different encodings. */
+    interface IntIterator {
+        int nextInt();
+    }
+
+    /** Reading int from {@link ValuesReader}. */
+    protected static final class ValuesReaderIntIterator implements IntIterator {
+        ValuesReader delegate;
+
+        public ValuesReaderIntIterator(ValuesReader delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public int nextInt() {
+            return delegate.readInteger();
+        }
+    }
+
+    /** Reading int from {@link RunLengthBitPackingHybridDecoder}. */
+    protected static final class RLEIntIterator implements IntIterator {
+        RunLengthBitPackingHybridDecoder delegate;
+
+        public RLEIntIterator(RunLengthBitPackingHybridDecoder delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public int nextInt() {
+            try {
+                return delegate.readInt();
+            } catch (IOException e) {
+                throw new ParquetDecodingException(e);
+            }
+        }
+    }
+
+    /** Reading zero always. */
+    protected static final class NullIntIterator implements IntIterator {
+        @Override
+        public int nextInt() {
+            return 0;
+        }
     }
 }

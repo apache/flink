@@ -48,8 +48,9 @@ import java.util.Map;
 
 /**
  * This ColumnReader mainly used to read `Group` type in parquet such as `Map`, `Array`, `Row`. The
- * method about how to resolve nested struct mainly refer to :
- * https://github.com/julienledem/redelm/wiki/The-striping-and-assembly-algorithms-from-the-Dremel-paper.
+ * method about how to resolve nested struct mainly refer to : <a
+ * href="https://github.com/julienledem/redelm/wiki/The-striping-and-assembly-algorithms-from-the-Dremel-paper">The
+ * striping and assembly algorithms from the Dremel paper</a>.
  *
  * <p>Brief explanation of reading repetition and definition levels: Repetition level equal to 0
  * means that this is the beginning of a new row. Other value means that we should add data to the
@@ -138,9 +139,8 @@ public class NestedColumnReader implements ColumnReader<WritableColumnVector> {
             heapRowVector.setFields(finalChildrenVectors);
         }
 
-        if (rowPosition.getIsNull().isPresent()) {
-            boolean[] nulls = rowPosition.getIsNull().get();
-            setFieldNullFalg(nulls, heapRowVector);
+        if (rowPosition.getIsNull() != null) {
+            setFieldNullFalg(rowPosition.getIsNull(), heapRowVector);
         }
         return Tuple2.of(levelDelegation, heapRowVector);
     }
@@ -179,9 +179,8 @@ public class NestedColumnReader implements ColumnReader<WritableColumnVector> {
             mapVector.setValues(valueTuple.f1);
         }
 
-        if (collectionPosition.getIsNull().isPresent()) {
-            boolean[] nulls = collectionPosition.getIsNull().get();
-            setFieldNullFalg(nulls, mapVector);
+        if (collectionPosition.getIsNull() != null) {
+            setFieldNullFalg(collectionPosition.getIsNull(), mapVector);
         }
 
         mapVector.setLengths(collectionPosition.getLength());
@@ -218,9 +217,8 @@ public class NestedColumnReader implements ColumnReader<WritableColumnVector> {
             arrayVector.setChild(tuple.f1);
         }
 
-        if (collectionPosition.getIsNull().isPresent()) {
-            boolean[] nulls = collectionPosition.getIsNull().get();
-            setFieldNullFalg(nulls, arrayVector);
+        if (collectionPosition.getIsNull() != null) {
+            setFieldNullFalg(collectionPosition.getIsNull(), arrayVector);
         }
         arrayVector.setLengths(collectionPosition.getLength());
         arrayVector.setOffsets(collectionPosition.getOffsets());

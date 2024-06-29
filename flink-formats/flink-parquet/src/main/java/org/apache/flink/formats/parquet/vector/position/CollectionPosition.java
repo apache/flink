@@ -18,26 +18,25 @@
 
 package org.apache.flink.formats.parquet.vector.position;
 
-import java.util.Optional;
+import javax.annotation.Nullable;
 
 /** To represent collection's position in repeated type. */
 public class CollectionPosition {
-    private final Optional<boolean[]> isNull;
+    @Nullable private final boolean[] isNull;
     private final long[] offsets;
 
     private final long[] length;
 
     private final int valueCount;
 
-    public CollectionPosition(
-            Optional<boolean[]> isNull, long[] offsets, long[] length, int valueCount) {
+    public CollectionPosition(boolean[] isNull, long[] offsets, long[] length, int valueCount) {
         this.isNull = isNull;
         this.offsets = offsets;
         this.length = length;
         this.valueCount = valueCount;
     }
 
-    public Optional<boolean[]> getIsNull() {
+    public boolean[] getIsNull() {
         return isNull;
     }
 

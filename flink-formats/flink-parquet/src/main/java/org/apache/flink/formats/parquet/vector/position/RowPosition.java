@@ -18,19 +18,19 @@
 
 package org.apache.flink.formats.parquet.vector.position;
 
-import java.util.Optional;
+import javax.annotation.Nullable;
 
 /** To represent struct's position in repeated type. */
 public class RowPosition {
-    private final Optional<boolean[]> isNull;
+    @Nullable private final boolean[] isNull;
     private final int positionsCount;
 
-    public RowPosition(Optional<boolean[]> isNull, int positionsCount) {
+    public RowPosition(boolean[] isNull, int positionsCount) {
         this.isNull = isNull;
         this.positionsCount = positionsCount;
     }
 
-    public Optional<boolean[]> getIsNull() {
+    public boolean[] getIsNull() {
         return isNull;
     }
 

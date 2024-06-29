@@ -23,6 +23,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.ParquetWriterFactory;
 import org.apache.flink.formats.parquet.row.ParquetRowDataBuilder;
+import org.apache.flink.formats.parquet.utils.ParquetSchemaConverter;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericMapData;
@@ -58,9 +59,16 @@ import org.apache.flink.types.Row;
 import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.parquet.example.data.Group;
+import org.apache.parquet.example.data.simple.SimpleGroupFactory;
+import org.apache.parquet.hadoop.ParquetFileWriter;
+import org.apache.parquet.hadoop.ParquetWriter;
+import org.apache.parquet.hadoop.example.ExampleParquetWriter;
+import org.apache.parquet.schema.MessageType;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.File;
@@ -636,10 +644,17 @@ class ParquetColumnarRowSplitReaderTest {
     }
 
     @ParameterizedTest
-    @MethodSource("parameters")
-    public void testNestedRead(int rowGroupSize) throws Exception {
+    @CsvSource({"10, flink", "1000, flink", "10, origin", "1000, origin"})
+    public void testNestedRead(int rowGroupSize, String writerType) throws Exception {
         List<Row> rows = prepareNestedData(1283);
-        Path path = createNestedData(rows, tmpDir, rowGroupSize);
+        Path path;
+        if ("flink".equals(writerType)) {
+            path = createNestedDataByFlinkWriter(rows, tmpDir, rowGroupSize);
+        } else if ("origin".equals(writerType)) {
+            path = createNestedDataByOriginWriter(1283, tmpDir, rowGroupSize);
+        } else {
+            throw new RuntimeException("Unknown writer type.");
+        }
 
         ParquetColumnarRowSplitReader reader =
                 new ParquetColumnarRowSplitReader(
@@ -776,7 +791,7 @@ class ParquetColumnarRowSplitReaderTest {
         reader.close();
     }
 
-    private Path createNestedData(List<Row> rows, File tmpDir, int rowGroupSize)
+    private Path createNestedDataByFlinkWriter(List<Row> rows, File tmpDir, int rowGroupSize)
             throws IOException {
         Path path = new Path(tmpDir.getPath(), UUID.randomUUID().toString());
         Configuration conf = new Configuration();
@@ -795,10 +810,10 @@ class ParquetColumnarRowSplitReaderTest {
         return path;
     }
 
-    private List<Row> prepareNestedData(int number) {
-        List<Row> rows = new ArrayList<>(number);
+    private List<Row> prepareNestedData(int rowNum) {
+        List<Row> rows = new ArrayList<>(rowNum);
 
-        for (int i = 0; i < number; i++) {
+        for (int i = 0; i < rowNum; i++) {
             Integer v = i;
             Map<String, String> mp1 = new HashMap<>();
             mp1.put(null, "val_" + i);
@@ -809,7 +824,7 @@ class ParquetColumnarRowSplitReaderTest {
             rows.add(
                     Row.of(
                             v,
-                            new Integer[] {v, v + 1},
+                            new Integer[] {v, v + 1, null},
                             new Integer[][] {{i, i + 1, null}, {i, i + 2, null}, {}, null},
                             new Map[] {null, mp1, mp2},
                             new Row[] {Row.of(i), Row.of(i + 1), null},
@@ -825,5 +840,98 @@ class ParquetColumnarRowSplitReaderTest {
                                     i)));
         }
         return rows;
+    }
+
+    private Path createNestedDataByOriginWriter(int rowNum, File tmpDir, int rowGroupSize) {
+        Path path = new Path(tmpDir.getPath(), UUID.randomUUID().toString());
+        Configuration conf = new Configuration();
+        conf.setInt("parquet.block.size", rowGroupSize);
+        MessageType schema =
+                ParquetSchemaConverter.convertToParquetMessageType(
+                        "flink-parquet", NESTED_ARRAY_MAP_TYPE, conf);
+        try (ParquetWriter<Group> writer =
+                ExampleParquetWriter.builder(new org.apache.hadoop.fs.Path(path.getPath()))
+                        .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)
+                        .withConf(new Configuration())
+                        .withType(schema)
+                        .build()) {
+            SimpleGroupFactory simpleGroupFactory = new SimpleGroupFactory(schema);
+            for (int i = 0; i < rowNum; i++) {
+                Group row = simpleGroupFactory.newGroup();
+                // add int
+                row.append("f0", i);
+
+                // add array<int>
+                Group f1 = row.addGroup("f1");
+                createParquetArrayGroup(f1, i, i + 1);
+
+                // add array<array<int>>
+                Group f2 = row.addGroup("f2");
+                createParquetDoubleNestedArray(f2, i);
+
+                // add array<map>
+                Group f3 = row.addGroup("f3");
+                f3.addGroup(0);
+                Group mapList = f3.addGroup(0);
+                Group map1 = mapList.addGroup(0);
+                createParquetMapGroup(map1, null, "val_" + i);
+                Group map2 = mapList.addGroup(0);
+                createParquetMapGroup(map2, "key_" + i, null);
+                createParquetMapGroup(map2, "key@" + i, "val@" + i);
+
+                // add array<row>
+                Group f4 = row.addGroup("f4");
+                Group rowList = f4.addGroup(0);
+                Group row1 = rowList.addGroup(0);
+                row1.add(0, i);
+                Group row2 = rowList.addGroup(0);
+                row2.add(0, i + 1);
+                f4.addGroup(0);
+
+                // add ROW<`f0` ARRAY<ROW<`b` ARRAY<ARRAY<INT>>, `c` INT>>, `f1` INT>>
+                Group f5 = row.addGroup("f5");
+                Group arrayRow = f5.addGroup(0);
+                Group insideRow = arrayRow.addGroup(0).addGroup(0);
+                Group insideArray = insideRow.addGroup(0);
+                createParquetDoubleNestedArray(insideArray, i);
+                insideRow.add(1, i);
+                arrayRow.addGroup(0);
+                f5.add(1, i);
+                writer.write(row);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Create nested data by parquet origin writer failed.");
+        }
+        return path;
+    }
+
+    private void createParquetDoubleNestedArray(Group group, int i) {
+        Group outside = group.addGroup(0);
+        Group inside = outside.addGroup(0);
+        createParquetArrayGroup(inside, i, i + 1);
+        Group inside2 = outside.addGroup(0);
+        createParquetArrayGroup(inside2, i, i + 2);
+        // create empty array []
+        outside.addGroup(0);
+        // create null
+        group.addGroup(0);
+    }
+
+    private void createParquetArrayGroup(Group group, int i, int j) {
+        Group element = group.addGroup(0);
+        element.add(0, i);
+        element = group.addGroup(0);
+        element.add(0, j);
+        group.addGroup(0);
+    }
+
+    private void createParquetMapGroup(Group map, String key, String value) {
+        Group entry = map.addGroup(0);
+        if (key != null) {
+            entry.append("key", key);
+        }
+        if (value != null) {
+            entry.append("value", value);
+        }
     }
 }
