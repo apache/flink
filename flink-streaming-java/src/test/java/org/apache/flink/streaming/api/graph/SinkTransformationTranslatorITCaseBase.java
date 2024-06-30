@@ -121,6 +121,24 @@ public abstract class SinkTransformationTranslatorITCaseBase<SinkT> extends Test
                 -1);
     }
 
+    @Test
+    public void testParallelismConfigured() {
+        testParallelismConfiguredInternal(true);
+
+        testParallelismConfiguredInternal(false);
+    }
+
+    private void testParallelismConfiguredInternal(boolean setSinkParallelism) {
+        final StreamGraph streamGraph =
+                buildGraph(sinkWithCommitter(), runtimeExecutionMode, setSinkParallelism);
+
+        final StreamNode writerNode = findWriter(streamGraph);
+        final StreamNode committerNode = findCommitter(streamGraph);
+
+        assertThat(writerNode.isParallelismConfigured(), equalTo(setSinkParallelism));
+        assertThat(committerNode.isParallelismConfigured(), equalTo(setSinkParallelism));
+    }
+
     StreamNode findWriter(StreamGraph streamGraph) {
         return findNodeName(
                 streamGraph, name -> name.contains("Writer") && !name.contains("Committer"));
@@ -196,6 +214,11 @@ public abstract class SinkTransformationTranslatorITCaseBase<SinkT> extends Test
     }
 
     StreamGraph buildGraph(SinkT sink, RuntimeExecutionMode runtimeExecutionMode) {
+        return buildGraph(sink, runtimeExecutionMode, true);
+    }
+
+    StreamGraph buildGraph(
+            SinkT sink, RuntimeExecutionMode runtimeExecutionMode, boolean setSinkParallelism) {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         final Configuration config = new Configuration();
@@ -203,16 +226,19 @@ public abstract class SinkTransformationTranslatorITCaseBase<SinkT> extends Test
         env.configure(config, getClass().getClassLoader());
         final DataStreamSource<Integer> src = env.fromElements(1, 2);
         final DataStreamSink<Integer> dataStreamSink = sinkTo(src.rebalance(), sink);
-        setSinkProperty(dataStreamSink);
+        setSinkProperty(dataStreamSink, setSinkParallelism);
         // Trigger the plan generation but do not clear the transformations
         env.getExecutionPlan();
         return env.getStreamGraph();
     }
 
-    private void setSinkProperty(DataStreamSink<Integer> dataStreamSink) {
+    private void setSinkProperty(
+            DataStreamSink<Integer> dataStreamSink, boolean setSinkParallelism) {
         dataStreamSink.name(NAME);
         dataStreamSink.uid(UID);
-        dataStreamSink.setParallelism(SinkTransformationTranslatorITCaseBase.PARALLELISM);
+        if (setSinkParallelism) {
+            dataStreamSink.setParallelism(SinkTransformationTranslatorITCaseBase.PARALLELISM);
+        }
         dataStreamSink.slotSharingGroup(SLOT_SHARE_GROUP);
     }
 
