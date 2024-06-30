@@ -19,15 +19,18 @@
 package org.apache.flink.formats.parquet;
 
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
 import org.apache.flink.table.planner.runtime.batch.sql.BatchFileSystemITCaseBase;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.parquet.filter2.predicate.FilterPredicate;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
@@ -39,11 +42,18 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.IntStream;
 
+import static java.util.stream.Collectors.toList;
+import static org.apache.parquet.filter2.predicate.FilterApi.eq;
+import static org.apache.parquet.filter2.predicate.FilterApi.intColumn;
 import static org.apache.parquet.format.converter.ParquetMetadataConverter.range;
 import static org.apache.parquet.hadoop.ParquetFileReader.readFooter;
+import static org.apache.parquet.hadoop.ParquetInputFormat.FILTER_PREDICATE;
+import static org.apache.parquet.hadoop.ParquetInputFormat.setFilterPredicate;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** ITCase for {@link ParquetFileFormatFactory}. */
@@ -129,5 +139,56 @@ public class ParquetFileSystemITCase extends BatchFileSystemITCaseBase {
         check(
                 "select a from parquetLimitTable limit 5",
                 Arrays.asList(Row.of(1), Row.of(1), Row.of(1), Row.of(1), Row.of(1)));
+    }
+
+    @TestTemplate
+    void testParquetFilterPredicate() throws IOException, ExecutionException, InterruptedException {
+        // create a temporary parquet file with number of rows slightly greater than read batch size
+        String path = TempDirUtils.newFolder(super.fileTempFolder()).toURI().getPath();
+        int nRows = VectorizedColumnBatch.DEFAULT_SIZE + 10;
+        createParquetFile(nRows, path);
+
+        // search one record in the parquet file, the is in the second read batch
+        int x = nRows - 2;
+        // set parquet file level filter
+        FilterPredicate predicate = eq(intColumn("x"), x);
+        Configuration config = new Configuration();
+        setFilterPredicate(config, predicate);
+        String filterBase64 = config.get(FILTER_PREDICATE);
+        super.tableEnv()
+                .executeSql(
+                        String.format(
+                                "create table data("
+                                        + "x int"
+                                        + ") with ("
+                                        + "'connector' = 'filesystem',"
+                                        + "'path' = '%s',"
+                                        + "'format' = 'parquet',"
+                                        + "'%s' = '%s'"
+                                        + ")",
+                                path, FILTER_PREDICATE, filterBase64));
+        // assert that we found exactly one row of value x
+        check(
+                String.format("select * from data where x = %s", x),
+                Collections.singletonList(Row.of(x)));
+    }
+
+    private void createParquetFile(int nRows, String path)
+            throws InterruptedException, ExecutionException {
+        List<Row> rows = IntStream.range(0, nRows).boxed().map(Row::of).collect(toList());
+        tableEnv().createTemporaryView("t_in", tableEnv().fromValues(rows).as("x"));
+        super.tableEnv()
+                .executeSql(
+                        String.format(
+                                "create table t_out("
+                                        + "x int"
+                                        + ") with ("
+                                        + "'connector' = 'filesystem',"
+                                        + "'path' = '%s',"
+                                        + "'format' = 'parquet',"
+                                        + "'parquet.page.size' = '100'"
+                                        + ")",
+                                path));
+        super.tableEnv().executeSql("insert into t_out select * from t_in").await();
     }
 }

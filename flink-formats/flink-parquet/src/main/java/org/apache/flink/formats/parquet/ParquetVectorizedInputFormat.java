@@ -140,7 +140,7 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
 
         checkSchema(fileSchema, requestedSchema);
 
-        final long totalRowCount = parquetFileReader.getFilteredRecordCount();
+        final long totalRowCount = parquetFileReader.getRecordCount();
         final Pool<ParquetReaderBatch<T>> poolOfBatches =
                 createPoolOfBatches(split, requestedSchema, numBatchesToCirculate(config));
 
