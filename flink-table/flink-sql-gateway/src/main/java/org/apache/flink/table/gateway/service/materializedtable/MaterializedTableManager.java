@@ -541,10 +541,17 @@ public class MaterializedTableManager {
                         materializedTableIdentifier.asSerializableString());
         customConfig.set(NAME, jobName);
         customConfig.set(RUNTIME_MODE, STREAMING);
-        customConfig.set(
-                CheckpointingOptions.CHECKPOINTING_INTERVAL,
-                catalogMaterializedTable.getFreshness());
         restorePath.ifPresent(s -> customConfig.set(SAVEPOINT_PATH, s));
+
+        // Do not override the user-defined checkpoint interval
+        if (!operationExecutor
+                .getSessionContext()
+                .getSessionConf()
+                .contains(CheckpointingOptions.CHECKPOINTING_INTERVAL)) {
+            customConfig.set(
+                    CheckpointingOptions.CHECKPOINTING_INTERVAL,
+                    catalogMaterializedTable.getFreshness());
+        }
 
         String insertStatement =
                 getInsertStatement(
