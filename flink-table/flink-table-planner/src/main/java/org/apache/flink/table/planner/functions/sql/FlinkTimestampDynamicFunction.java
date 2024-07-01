@@ -30,30 +30,30 @@ import java.util.Objects;
 /**
  * Function that used to define SQL time functions like LOCALTIME, CURRENT_TIME(these are all
  * dynamic functions in Calcite's {@link SqlStdOperatorTable}) in Flink, the difference from the
- * parent {@link SqlAbstractTimeFunction} is this function class be aware of whether it is used in
- * batch mode, if true it will act totally same as the parent {@link SqlAbstractTimeFunction}, but
- * will be a non-deterministic function if not in batch mode.
+ * parent {@link SqlAbstractTimeFunction} is this function class be aware of whether it uses a
+ * stable time. If true it will act totally same as the parent {@link SqlAbstractTimeFunction}, but
+ * will be a non-deterministic function if it uses record level time.
  */
 @Internal
 public class FlinkTimestampDynamicFunction extends SqlAbstractTimeFunction {
 
-    protected final boolean isBatchMode;
+    protected final boolean useQueryTime;
 
     public FlinkTimestampDynamicFunction(
-            String functionName, SqlTypeName returnTypeName, boolean isBatchMode) {
+            String functionName, SqlTypeName returnTypeName, boolean useQueryTime) {
         super(functionName, returnTypeName);
-        this.isBatchMode = isBatchMode;
+        this.useQueryTime = useQueryTime;
     }
 
     @Override
     public boolean isDynamicFunction() {
-        return isBatchMode && super.isDynamicFunction();
+        return useQueryTime && super.isDynamicFunction();
     }
 
     @Override
     public boolean isDeterministic() {
-        // be a non-deterministic function in streaming mode
-        return isBatchMode;
+        // be a non-deterministic function if using record level timestamp
+        return useQueryTime;
     }
 
     @Override
@@ -67,11 +67,11 @@ public class FlinkTimestampDynamicFunction extends SqlAbstractTimeFunction {
         FlinkTimestampDynamicFunction other = (FlinkTimestampDynamicFunction) obj;
         return this.getName().equals(other.getName())
                 && kind == other.kind
-                && this.isBatchMode == other.isBatchMode;
+                && this.useQueryTime == other.useQueryTime;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(kind, this.getName(), isBatchMode);
+        return Objects.hash(kind, this.getName(), useQueryTime);
     }
 }
