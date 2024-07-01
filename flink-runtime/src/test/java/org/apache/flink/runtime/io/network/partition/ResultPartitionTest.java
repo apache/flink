@@ -34,10 +34,11 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+
+import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -909,7 +910,7 @@ class ResultPartitionTest {
         }
     }
 
-    @NotNull
+    @Nonnull
     private BufferBuilder getFinishedBufferBuilder(
             PipelinedResultPartition resultPartition, int bufferSize) throws Exception {
         BufferBuilder bufferBuilder = resultPartition.requestBufferBuilderBlocking();
