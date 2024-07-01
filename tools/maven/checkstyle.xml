@@ -230,6 +230,19 @@ This file is based on the checkstyle file of Apache Beam.
 		</module>
 
 		<!--
+			The Nullable & Nonnull annotations check.
+		-->
+		<module name="RegexpSinglelineJava">
+			<property name="format" value="^import org.jetbrains.annotations.Nullable;$"/>
+			<property name="message" value="Use import javax.annotation.Nullable"/>
+		</module>
+
+		<module name="RegexpSinglelineJava">
+			<property name="format" value="^import org.jetbrains.annotations.NotNull;$"/>
+			<property name="message" value="Use import javax.annotation.Nonnull"/>
+		</module>
+
+		<!--
 
 		JAVADOC CHECKS
 
