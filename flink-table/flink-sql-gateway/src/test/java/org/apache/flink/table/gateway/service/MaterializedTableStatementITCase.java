@@ -73,6 +73,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTING_INTERVAL;
 import static org.apache.flink.table.api.config.TableConfigOptions.RESOURCES_DOWNLOAD_DIR;
 import static org.apache.flink.table.factories.FactoryUtil.WORKFLOW_SCHEDULER_TYPE;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.awaitOperationTermination;
@@ -168,6 +169,67 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
         long checkpointInterval =
                 getCheckpointIntervalConfig(restClusterClient, activeRefreshHandler.getJobId());
         assertThat(checkpointInterval).isEqualTo(30 * 1000);
+    }
+
+    @Test
+    void testCreateMaterializedTableInContinuousModeWithCustomCheckpointInterval()
+            throws Exception {
+
+        // set checkpoint interval to 60 seconds
+        long checkpointInterval = 60 * 1000;
+
+        OperationHandle checkpointSetHandle =
+                service.executeStatement(
+                        sessionHandle,
+                        String.format(
+                                "SET '%s' = '%d'",
+                                CHECKPOINTING_INTERVAL.key(), checkpointInterval),
+                        -1,
+                        new Configuration());
+        awaitOperationTermination(service, sessionHandle, checkpointSetHandle);
+
+        String materializedTableDDL =
+                "CREATE MATERIALIZED TABLE users_shops"
+                        + " PARTITIONED BY (ds)\n"
+                        + " WITH(\n"
+                        + "   'format' = 'debezium-json'\n"
+                        + " )\n"
+                        + " FRESHNESS = INTERVAL '30' SECOND\n"
+                        + " AS SELECT \n"
+                        + "  user_id,\n"
+                        + "  shop_id,\n"
+                        + "  ds,\n"
+                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum,\n"
+                        + "  SUM (1) AS pv\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds)";
+        OperationHandle materializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, materializedTableHandle);
+
+        ResolvedCatalogMaterializedTable actualMaterializedTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+
+        ContinuousRefreshHandler activeRefreshHandler =
+                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
+                        actualMaterializedTable.getSerializedRefreshHandler(),
+                        getClass().getClassLoader());
+
+        waitUntilAllTasksAreRunning(
+                restClusterClient, JobID.fromHexString(activeRefreshHandler.getJobId()));
+
+        long actualCheckpointInterval =
+                getCheckpointIntervalConfig(restClusterClient, activeRefreshHandler.getJobId());
+        assertThat(actualCheckpointInterval).isEqualTo(checkpointInterval);
     }
 
     @Test
