@@ -1554,8 +1554,12 @@ public class FunctionITCase extends StreamingTestBase {
                         "CREATE FUNCTION MultiLocalVariables AS '"
                                 + MultiLocalVariableBlocksClass.class.getName()
                                 + "'");
-        CollectionUtil.iteratorToList(
-                tEnv().executeSql("SELECT MultiLocalVariables(x, y) FROM SourceTable").collect());
+
+        List<Row> actualRows =
+                CollectionUtil.iteratorToList(
+                        tEnv().executeSql("SELECT MultiLocalVariables(x, y) FROM SourceTable")
+                                .collect());
+        assertThat(actualRows).isEqualTo(Arrays.asList(Row.of(2L), Row.of(6L)));
     }
 
     // --------------------------------------------------------------------------------------------

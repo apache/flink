@@ -59,6 +59,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -826,6 +827,40 @@ public final class ExtractionUtils {
      *   <localVar:index=2 , name=otherLocal2 , desc=J, sig=null, start=L1, end=L2>
      * }
      * }</pre>
+     *
+     * <p>If a constructor or method has multiple identical local variables that are not initialized
+     * like:
+     *
+     * <pre>{@code
+     * String localVariable;
+     * if (generic == null) {
+     *     localVariable = "null";
+     * } else if (generic < 0) {
+     *     localVariable = "negative";
+     * } else if (generic > 0) {
+     *     localVariable = "positive";
+     * } else {
+     *     localVariable = "zero";
+     * }
+     * }</pre>
+     *
+     * <p>Its local variable table is as follows:
+     *
+     * <pre>{@code
+     * Start  Length  Slot     Name           Signature
+     * 7       3       2     localVariable   Ljava/lang/String;
+     * 22      3       2     localVariable   Ljava/lang/String;
+     * 37      3       2     localVariable   Ljava/lang/String;
+     * 0      69       0     this            ...;
+     * 0      69       1     generic         Ljava/lang/Long;
+     * 43     26       2     localVariable   Ljava/lang/String;
+     * }</pre>
+     *
+     * <p>The method parameters are always at the head in the 'slot' list.
+     *
+     * <p>NOTE: the first parameter may be "this" if the function is not static. See more at <a
+     * href="https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-3.html">3.6. Receiving
+     * Arguments</a>
      */
     private static class ParameterExtractor extends ClassVisitor {
 
@@ -833,7 +868,7 @@ public final class ExtractionUtils {
 
         private final String methodDescriptor;
 
-        private final Map<Integer, String> parameterNamesWithIndex = new HashMap<>();
+        private final Map<Integer, String> parameterNamesWithIndex = new TreeMap<>();
 
         ParameterExtractor(Constructor<?> constructor) {
             super(OPCODE);
@@ -850,10 +885,7 @@ public final class ExtractionUtils {
             // NOTE: the first parameter may be "this" if the function is not static
             // See more at Chapter "3.6. Receiving Arguments" in
             // https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-3.html
-            return parameterNamesWithIndex.entrySet().stream()
-                    .sorted(Comparator.comparingInt(Map.Entry::getKey))
-                    .map(Map.Entry::getValue)
-                    .collect(Collectors.toList());
+            return new ArrayList<>(parameterNamesWithIndex.values());
         }
 
         @Override
