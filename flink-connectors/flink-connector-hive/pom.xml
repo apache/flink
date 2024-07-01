@@ -1264,6 +1264,11 @@ under the License.
 								<relocation>
 									<pattern>org.apache.flink.runtime.util</pattern>
 									<shadedPattern>org.apache.flink.hive.shaded.util</shadedPattern>
+									<excludes>
+										<exclude>org.apache.flink.runtime.util.IntArrayList</exclude>
+										<exclude>org.apache.flink.runtime.util.BooleanArrayList</exclude>
+										<exclude>org.apache.flink.runtime.util.LongArrayList</exclude>
+									</excludes>
 								</relocation>
 								<relocation>
 									<pattern>org.apache.flink.formats.parquet</pattern>
