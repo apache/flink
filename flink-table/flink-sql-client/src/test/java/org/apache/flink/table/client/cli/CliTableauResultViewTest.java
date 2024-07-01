@@ -38,11 +38,12 @@ import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
-import org.jetbrains.annotations.NotNull;
 import org.jline.terminal.Terminal;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+
+import javax.annotation.Nonnull;
 
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
@@ -723,7 +724,7 @@ class CliTableauResultViewTest {
         assertThat(changelogResult.closed).isTrue();
     }
 
-    @NotNull
+    @Nonnull
     private TestChangelogResult createNewTestChangelogResult() {
         TestChangelogResult collectResult =
                 new TestChangelogResult(

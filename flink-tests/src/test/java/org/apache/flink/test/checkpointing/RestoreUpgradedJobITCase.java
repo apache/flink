@@ -41,13 +41,14 @@ import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.TestLogger;
 
-import org.jetbrains.annotations.NotNull;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import javax.annotation.Nonnull;
 
 import java.util.Iterator;
 import java.util.concurrent.ExecutionException;
@@ -165,7 +166,7 @@ public class RestoreUpgradedJobITCase extends TestLogger {
         return PARALLELISM * expectedBeforeSavepointResult;
     }
 
-    @NotNull
+    @Nonnull
     private String runOriginalJob() throws Exception {
         Configuration conf = new Configuration();
         // TODO: remove this after FLINK-32081
