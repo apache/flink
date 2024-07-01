@@ -621,9 +621,14 @@ public class MaterializedTableManager {
         // Set job name, runtime mode
         Configuration customConfig = new Configuration();
         String jobName =
-                String.format(
-                        "Materialized_table_%s_one_time_refresh_job",
-                        materializedTableIdentifier.asSerializableString());
+                isPeriodic
+                        ? String.format(
+                                "Materialized_table_%s_periodic_refresh_job",
+                                materializedTableIdentifier.asSerializableString())
+                        : String.format(
+                                "Materialized_table_%s_one_time_refresh_job",
+                                materializedTableIdentifier.asSerializableString());
+
         customConfig.set(NAME, jobName);
         customConfig.set(RUNTIME_MODE, BATCH);
 
