@@ -240,6 +240,9 @@ public class MiniCluster implements AutoCloseableAsync {
     @GuardedBy("lock")
     private Reference<RpcSystem> rpcSystem;
 
+    @GuardedBy("lock")
+    private MemoryExecutionGraphInfoStore memoryExecutionGraphInfoStore;
+
     // ------------------------------------------------------------------------
 
     /**
@@ -454,6 +457,8 @@ public class MiniCluster implements AutoCloseableAsync {
                                 new InetSocketAddress(
                                         InetAddress.getLocalHost(), blobServer.getPort()));
 
+                memoryExecutionGraphInfoStore = new MemoryExecutionGraphInfoStore();
+
                 startTaskManagers();
 
                 MetricQueryServiceRetriever metricQueryServiceRetriever =
@@ -559,7 +564,7 @@ public class MiniCluster implements AutoCloseableAsync {
                         heartbeatServices,
                         delegationTokenManager,
                         metricRegistry,
-                        new MemoryExecutionGraphInfoStore(),
+                        memoryExecutionGraphInfoStore,
                         metricQueryServiceRetriever,
                         Collections.emptySet(),
                         fatalErrorHandler);
@@ -698,7 +703,11 @@ public class MiniCluster implements AutoCloseableAsync {
                             FutureUtils.runAfterwards(
                                     executorsTerminationFuture, this::deleteDirectories);
 
-                    deleteDirectoriesFuture.whenComplete(
+                    final CompletableFuture<Void> closeInfoStoreFuture =
+                            FutureUtils.runAfterwards(
+                                    deleteDirectoriesFuture, this::closeExecutionGraphInfoStore);
+
+                    closeInfoStoreFuture.whenComplete(
                             (Void ignored, Throwable throwable) -> {
                                 if (throwable != null) {
                                     terminationFuture.completeExceptionally(
@@ -1367,6 +1376,15 @@ public class MiniCluster implements AutoCloseableAsync {
                 dispatcherGateway ->
                         dispatcherGateway.reportJobClientHeartbeat(
                                 jobId, expiredTimestamp, rpcTimeout));
+    }
+
+    private void closeExecutionGraphInfoStore() throws IOException {
+        synchronized (lock) {
+            if (memoryExecutionGraphInfoStore != null) {
+                memoryExecutionGraphInfoStore.close();
+                memoryExecutionGraphInfoStore = null;
+            }
+        }
     }
 
     /** Internal factory for {@link RpcService}. */
