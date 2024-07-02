@@ -44,11 +44,12 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.Csv
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
 import org.apache.commons.io.FileUtils;
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
+
+import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -217,7 +218,7 @@ public class DataStreamCsvITCase {
         assertThat(result).containsExactlyInAnyOrder(CSV_LINES);
     }
 
-    @NotNull
+    @Nonnull
     private String[] getResultsFromSinkFiles(File outDir) throws IOException {
         final Map<File, String> contents = getFileContentByPath(outDir);
 
@@ -355,7 +356,7 @@ public class DataStreamCsvITCase {
         return getResultsFromStream(stream);
     }
 
-    @NotNull
+    @Nonnull
     private static <T> List<T> getResultsFromStream(DataStream<T> stream) throws Exception {
         final ClientAndIterator<T> client =
                 DataStreamUtils.collectWithClient(stream, "Bounded Results Fetch");

@@ -22,8 +22,9 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.streaming.api.operators.KeyContext;
 import org.apache.flink.streaming.api.operators.TestInternalTimerService;
 
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
+
+import javax.annotation.Nonnull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -58,7 +59,7 @@ class DefaultProcessingTimeManagerTest {
         assertThat(timerService.numProcessingTimeTimers()).isZero();
     }
 
-    @NotNull
+    @Nonnull
     private static TestInternalTimerService<Integer, VoidNamespace> getTimerService() {
         return new TestInternalTimerService<>(
                 new KeyContext() {

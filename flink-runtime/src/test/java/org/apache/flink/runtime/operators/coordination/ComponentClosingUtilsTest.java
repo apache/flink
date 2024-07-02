@@ -21,9 +21,10 @@ package org.apache.flink.runtime.operators.coordination;
 import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.util.clock.ManualClock;
 
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import javax.annotation.Nonnull;
 
 import java.time.Duration;
 import java.util.List;
@@ -135,7 +136,7 @@ class ComponentClosingUtilsTest {
         }
 
         @Override
-        public @NotNull List<Runnable> shutdownNow() {
+        public @Nonnull List<Runnable> shutdownNow() {
             forcefullyShutdownCount++;
             return super.shutdownNow();
         }
