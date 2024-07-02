@@ -19,6 +19,7 @@
 package org.apache.flink.table.connector.source;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.connector.source.abilities.SupportsLookupCustomShuffle;
 import org.apache.flink.table.connector.source.lookup.AsyncLookupFunctionProvider;
 import org.apache.flink.table.connector.source.lookup.LookupFunctionProvider;
 import org.apache.flink.types.RowKind;
@@ -91,6 +92,16 @@ public interface LookupTableSource extends DynamicTableSource {
          * @return array of key index paths
          */
         int[][] getKeys();
+
+        /**
+         * Whether the distribution of the input stream data matches the partitioner provided by the
+         * {@link LookupTableSource}. If the interface {@link SupportsLookupCustomShuffle} is not
+         * implemented, false is guaranteed to be returned.
+         *
+         * @return true if the custom partitioner provided by the source is applied, otherwise
+         *     return false.
+         */
+        boolean isCustomShuffleEnabled();
     }
 
     /**

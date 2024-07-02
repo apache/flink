@@ -664,6 +664,16 @@ public class ExecutionConfigOptions {
                                     + "leading to possible discarding of these records by downstream watermark-dependent operators, such as window operators. "
                                     + "The default value is 0, which means it will clean up unmatched records immediately.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_EXEC_ENABLE_LOOKUP_CUSTOM_SHUFFLE =
+            key("table.exec.lookup-custom-shuffle")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Enables the use of custom shuffle strategies provided by connectors to optimize data distribution for lookup joins. "
+                                    + "When enabled, connectors can provide specific partitioning logic that aligns the input stream distribution with the data distribution "
+                                    + "in the external data source.");
+
     // ------------------------------------------------------------------------------------------
     // Enum option types
     // ------------------------------------------------------------------------------------------
