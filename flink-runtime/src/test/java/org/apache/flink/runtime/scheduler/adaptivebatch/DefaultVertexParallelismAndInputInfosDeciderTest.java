@@ -416,7 +416,7 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
         assertThat(
                         vertexParallelismAndInputInfosDecider.computeSourceParallelismUpperBound(
                                 new JobVertexID(), VERTEX_MAX_PARALLELISM))
-                .isEqualTo(VERTEX_MAX_PARALLELISM);
+                .isEqualTo(VERTEX_MAX_PARALLELISM * 2);
     }
 
     private static void checkAllToAllJobVertexInputInfo(
