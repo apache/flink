@@ -104,18 +104,11 @@ class SqlCreateTableConverter {
                                                                         .getAsQuery()
                                                                         .getClass()
                                                                         .getSimpleName()));
-        CatalogTable catalogTable = createCatalogTable(sqlCreateTableAs);
+
         CatalogTable tableWithResolvedSchema =
-                CatalogTable.newBuilder()
-                        .schema(
-                                Schema.newBuilder()
-                                        .fromResolvedSchema(query.getResolvedSchema())
-                                        .build())
-                        .comment(catalogTable.getComment())
-                        .distribution(catalogTable.getDistribution().orElse(null))
-                        .options(catalogTable.getOptions())
-                        .partitionKeys(catalogTable.getPartitionKeys())
-                        .build();
+                createCatalogTable(
+                        sqlCreateTableAs,
+                        Schema.newBuilder().fromResolvedSchema(query.getResolvedSchema()).build());
 
         CreateTableOperation createTableOperation =
                 new CreateTableOperation(
@@ -129,8 +122,19 @@ class SqlCreateTableConverter {
     }
 
     private CatalogTable createCatalogTable(SqlCreateTable sqlCreateTable) {
+        if (sqlCreateTable instanceof SqlCreateTableLike) {
+            SqlTableLike sqlTableLike = ((SqlCreateTableLike) sqlCreateTable).getTableLike();
+            CatalogTable table = lookupLikeSourceTable(sqlTableLike);
 
-        final Schema sourceTableSchema;
+            return createCatalogTable(sqlCreateTable, table.getUnresolvedSchema());
+        } else {
+            return createCatalogTable(sqlCreateTable, Schema.newBuilder().build());
+        }
+    }
+
+    private CatalogTable createCatalogTable(
+            SqlCreateTable sqlCreateTable, Schema sourceTableSchema) {
+
         final Optional<TableDistribution> sourceTableDistribution;
         final List<String> sourcePartitionKeys;
         final List<SqlTableLike.SqlTableLikeOption> likeOptions;
@@ -138,13 +142,11 @@ class SqlCreateTableConverter {
         if (sqlCreateTable instanceof SqlCreateTableLike) {
             SqlTableLike sqlTableLike = ((SqlCreateTableLike) sqlCreateTable).getTableLike();
             CatalogTable table = lookupLikeSourceTable(sqlTableLike);
-            sourceTableSchema = table.getUnresolvedSchema();
             sourceTableDistribution = table.getDistribution();
             sourcePartitionKeys = table.getPartitionKeys();
             likeOptions = sqlTableLike.getOptions();
             sourceProperties = table.getOptions();
         } else {
-            sourceTableSchema = Schema.newBuilder().build();
             sourceTableDistribution = Optional.empty();
             sourcePartitionKeys = Collections.emptyList();
             likeOptions = Collections.emptyList();

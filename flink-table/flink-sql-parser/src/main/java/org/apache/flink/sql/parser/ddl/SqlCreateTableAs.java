@@ -136,11 +136,7 @@ public class SqlCreateTableAs extends SqlCreateTable {
                     getParserPosition(),
                     "CREATE TABLE AS SELECT syntax does not support to specify explicit watermark yet.");
         }
-        if (getDistribution() != null) {
-            throw new SqlValidateException(
-                    getParserPosition(),
-                    "CREATE TABLE AS SELECT syntax does not support creating distributed tables yet.");
-        }
+
         // TODO flink dialect supports dynamic partition
         if (getPartitionKeyList().size() > 0) {
             throw new SqlValidateException(

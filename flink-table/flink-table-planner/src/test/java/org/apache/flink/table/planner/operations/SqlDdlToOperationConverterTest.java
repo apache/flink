@@ -680,11 +680,24 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                 catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
 
         final String sql =
-                "create table derivedTable DISTRIBUTED BY (f0) AS SELECT * FROM sourceTable";
-        assertThatThrownBy(() -> parseAndConvert(sql))
-                .isInstanceOf(SqlValidateException.class)
-                .hasMessageContaining(
-                        "CREATE TABLE AS SELECT syntax does not support creating distributed tables yet.");
+                "create table derivedTable DISTRIBUTED BY HASH(f0) INTO 2 BUCKETS "
+                        + "AS SELECT * FROM sourceTable";
+
+        Operation ctas = parseAndConvert(sql);
+        Operation operation = ((CreateTableASOperation) ctas).getCreateTableOperation();
+        assertThat(operation)
+                .is(
+                        new HamcrestCondition<>(
+                                isCreateTableOperation(
+                                        withDistribution(
+                                                TableDistribution.ofHash(
+                                                        Collections.singletonList("f0"), 2)),
+                                        withSchema(
+                                                Schema.newBuilder()
+                                                        .column("f0", DataTypes.INT().notNull())
+                                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                                        .column("f2", DataTypes.INT().notNull())
+                                                        .build()))));
     }
 
     @Test
