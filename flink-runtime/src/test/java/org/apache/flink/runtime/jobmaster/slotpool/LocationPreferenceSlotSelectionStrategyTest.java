@@ -52,7 +52,7 @@ class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionStrategyT
         final SlotProfile slotProfile =
                 SlotProfile.priorAllocation(
                         resourceProfile,
-                        biggerResourceProfile,
+                        biggerResourceProfile.toEmptyLoadable(),
                         Collections.emptyList(),
                         Collections.emptyList(),
                         Collections.emptySet());
@@ -77,7 +77,7 @@ class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionStrategyT
         final SlotProfile slotProfileNotMatching =
                 SlotProfile.priorAllocation(
                         resourceProfile,
-                        evenBiggerResourceProfile,
+                        evenBiggerResourceProfile.toEmptyLoadable(),
                         Collections.emptyList(),
                         Collections.emptyList(),
                         Collections.emptySet());
@@ -157,7 +157,7 @@ class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionStrategyT
         SlotProfile slotProfile =
                 SlotProfile.priorAllocation(
                         resourceProfile,
-                        resourceProfile,
+                        resourceProfile.toEmptyLoadable(),
                         Collections.singletonList(tml3),
                         Collections.singletonList(aid3),
                         blacklisted);

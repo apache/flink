@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 
 import javax.annotation.Nonnull;
@@ -34,10 +34,13 @@ class EvenlySpreadOutLocationPreferenceSlotSelectionStrategy
     @Override
     protected Optional<SlotInfoAndLocality> selectWithoutLocationPreference(
             @Nonnull FreeSlotInfoTracker freeSlotInfoTracker,
-            @Nonnull ResourceProfile resourceProfile) {
+            @Nonnull LoadableResourceProfile loadableResourceProfile) {
         return freeSlotInfoTracker.getAvailableSlots().stream()
                 .map(freeSlotInfoTracker::getSlotInfo)
-                .filter(slotInfo -> slotInfo.getResourceProfile().isMatching(resourceProfile))
+                .filter(
+                        slotInfo ->
+                                slotInfo.getResourceProfile()
+                                        .isMatching(loadableResourceProfile.getResourceProfile()))
                 // calculate utilization first to avoid duplicated calculation in min()
                 .map(
                         slot ->

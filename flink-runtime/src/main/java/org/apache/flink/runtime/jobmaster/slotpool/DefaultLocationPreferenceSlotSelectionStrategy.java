@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 
@@ -35,10 +35,12 @@ class DefaultLocationPreferenceSlotSelectionStrategy
     @Override
     protected Optional<SlotInfoAndLocality> selectWithoutLocationPreference(
             @Nonnull FreeSlotInfoTracker freeSlotInfoTracker,
-            @Nonnull ResourceProfile resourceProfile) {
+            @Nonnull LoadableResourceProfile loadableResourceProfile) {
         for (AllocationID allocationId : freeSlotInfoTracker.getAvailableSlots()) {
             SlotInfo candidate = freeSlotInfoTracker.getSlotInfo(allocationId);
-            if (candidate.getResourceProfile().isMatching(resourceProfile)) {
+            if (candidate
+                    .getResourceProfile()
+                    .isMatching(loadableResourceProfile.getResourceProfile())) {
                 return Optional.of(SlotInfoAndLocality.of(candidate, Locality.UNCONSTRAINED));
             }
         }

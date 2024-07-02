@@ -24,6 +24,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfileTestingUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingPayload;
@@ -328,7 +329,6 @@ class SlotSharingExecutionSlotAllocatorTest {
         context.allocateSlotsFor(EV1, EV3);
         PhysicalSlotRequestBulk bulk = bulkChecker.getBulk();
 
-        assertThat(bulk.getPendingRequests()).hasSize(2);
         assertThat(bulk.getPendingRequests())
                 .containsExactlyInAnyOrder(RESOURCE_PROFILE.multiply(2), RESOURCE_PROFILE);
         assertThat(bulk.getAllocationIdsOfFulfilledRequests()).isEmpty();
@@ -347,9 +347,7 @@ class SlotSharingExecutionSlotAllocatorTest {
                 fulfilOneOfTwoSlotRequestsAndGetPendingProfile(context, allocationId);
         PhysicalSlotRequestBulk bulk = bulkChecker.getBulk();
 
-        assertThat(bulk.getPendingRequests()).hasSize(1);
         assertThat(bulk.getPendingRequests()).containsExactly(pendingSlotResourceProfile);
-        assertThat(bulk.getAllocationIdsOfFulfilledRequests()).hasSize(1);
         assertThat(bulk.getAllocationIdsOfFulfilledRequests()).containsExactly(allocationId);
     }
 
@@ -642,9 +640,10 @@ class SlotSharingExecutionSlotAllocatorTest {
                     new HashMap<>();
             for (Map.Entry<ExecutionVertexID[], ResourceProfile> groupAndResource :
                     groupAndResources.entrySet()) {
+                SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
+                slotSharingGroup.setResourceProfile(groupAndResource.getValue());
                 ExecutionSlotSharingGroup executionSlotSharingGroup =
-                        new ExecutionSlotSharingGroup();
-                executionSlotSharingGroup.setResourceProfile(groupAndResource.getValue());
+                        new ExecutionSlotSharingGroup(slotSharingGroup);
                 for (ExecutionVertexID executionVertexId : groupAndResource.getKey()) {
                     executionSlotSharingGroup.addVertex(executionVertexId);
                     executionSlotSharingGroups.put(executionVertexId, executionSlotSharingGroup);

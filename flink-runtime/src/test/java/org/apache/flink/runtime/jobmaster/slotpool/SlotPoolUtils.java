@@ -66,7 +66,7 @@ public class SlotPoolUtils {
         return CompletableFuture.supplyAsync(
                         () ->
                                 slotPool.requestNewAllocatedBatchSlot(
-                                        new SlotRequestId(), resourceProfile),
+                                        new SlotRequestId(), resourceProfile.toEmptyLoadable()),
                         mainThreadExecutor)
                 .thenCompose(Function.identity());
     }

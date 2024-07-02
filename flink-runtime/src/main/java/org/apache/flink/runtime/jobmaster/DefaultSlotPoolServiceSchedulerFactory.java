@@ -43,6 +43,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.RequestSlotMatchingStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.SimpleRequestSlotMatchingStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolServiceFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.TasksBalancedRequestSlotMatchingStrategy;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerFactory;
@@ -57,9 +58,15 @@ import org.apache.flink.util.clock.SystemClock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+
+import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
+
+import static org.apache.flink.configuration.JobManagerOptions.SLOT_REQUEST_MAX_INTERVAL;
+import static org.apache.flink.configuration.TaskManagerOptions.TaskManagerLoadBalanceMode;
 
 /** Default {@link SlotPoolServiceSchedulerFactory} implementation. */
 public final class DefaultSlotPoolServiceSchedulerFactory
@@ -85,8 +92,11 @@ public final class DefaultSlotPoolServiceSchedulerFactory
 
     @Override
     public SlotPoolService createSlotPoolService(
-            JobID jid, DeclarativeSlotPoolFactory declarativeSlotPoolFactory) {
-        return slotPoolServiceFactory.createSlotPoolService(jid, declarativeSlotPoolFactory);
+            JobID jid,
+            DeclarativeSlotPoolFactory declarativeSlotPoolFactory,
+            @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor) {
+        return slotPoolServiceFactory.createSlotPoolService(
+                jid, declarativeSlotPoolFactory, componentMainThreadExecutor);
     }
 
     @Override
@@ -164,6 +174,13 @@ public final class DefaultSlotPoolServiceSchedulerFactory
         JobManagerOptions.SchedulerType schedulerType =
                 getSchedulerType(configuration, jobType, isDynamicGraph);
 
+        final Duration slotRequestMaxInterval = configuration.get(SLOT_REQUEST_MAX_INTERVAL);
+
+        TaskManagerLoadBalanceMode mode =
+                TaskManagerLoadBalanceMode.loadFromConfiguration(configuration);
+        boolean slotBatchAllocatable =
+                mode == TaskManagerLoadBalanceMode.TASKS && jobType == JobType.STREAMING;
+
         if (configuration
                 .getOptional(JobManagerOptions.HYBRID_PARTITION_DATA_CONSUME_CONSTRAINT)
                 .isPresent()) {
@@ -182,13 +199,18 @@ public final class DefaultSlotPoolServiceSchedulerFactory
                                 rpcTimeout,
                                 slotIdleTimeout,
                                 batchSlotTimeout,
+                                slotRequestMaxInterval,
+                                slotBatchAllocatable,
                                 getRequestSlotMatchingStrategy(configuration, jobType));
                 break;
             case Adaptive:
                 schedulerNGFactory = new AdaptiveSchedulerFactory();
                 slotPoolServiceFactory =
                         new DeclarativeSlotPoolServiceFactory(
-                                SystemClock.getInstance(), slotIdleTimeout, rpcTimeout);
+                                SystemClock.getInstance(),
+                                slotIdleTimeout,
+                                rpcTimeout,
+                                slotRequestMaxInterval);
                 break;
             case AdaptiveBatch:
                 schedulerNGFactory = new AdaptiveBatchSchedulerFactory();
@@ -198,6 +220,8 @@ public final class DefaultSlotPoolServiceSchedulerFactory
                                 rpcTimeout,
                                 slotIdleTimeout,
                                 batchSlotTimeout,
+                                slotRequestMaxInterval,
+                                slotBatchAllocatable,
                                 getRequestSlotMatchingStrategy(configuration, jobType));
                 break;
             default:
@@ -266,10 +290,16 @@ public final class DefaultSlotPoolServiceSchedulerFactory
             Configuration configuration, JobType jobType) {
         final boolean isLocalRecoveryEnabled =
                 configuration.get(StateRecoveryOptions.LOCAL_RECOVERY);
+        TaskManagerLoadBalanceMode mode =
+                TaskManagerLoadBalanceMode.loadFromConfiguration(configuration);
 
         if (isLocalRecoveryEnabled) {
             if (jobType == JobType.STREAMING) {
-                return PreferredAllocationRequestSlotMatchingStrategy.INSTANCE;
+                RequestSlotMatchingStrategy rollback =
+                        mode == TaskManagerLoadBalanceMode.TASKS
+                                ? TasksBalancedRequestSlotMatchingStrategy.INSTANCE
+                                : SimpleRequestSlotMatchingStrategy.INSTANCE;
+                return PreferredAllocationRequestSlotMatchingStrategy.create(rollback);
             } else {
                 LOG.warn(
                         "Batch jobs do not support local recovery. Falling back for request slot matching strategy to {}.",
@@ -277,6 +307,9 @@ public final class DefaultSlotPoolServiceSchedulerFactory
                 return SimpleRequestSlotMatchingStrategy.INSTANCE;
             }
         } else {
+            if (jobType == JobType.STREAMING && mode == TaskManagerLoadBalanceMode.TASKS) {
+                return TasksBalancedRequestSlotMatchingStrategy.INSTANCE;
+            }
             return SimpleRequestSlotMatchingStrategy.INSTANCE;
         }
     }
