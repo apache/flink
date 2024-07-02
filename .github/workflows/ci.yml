@@ -32,7 +32,7 @@ jobs:
     name: "Default (Java 8)"
     uses: ./.github/workflows/template.flink-ci.yml
     with:
-      environment: 'PROFILE="-Dinclude_hadoop_aws"'
+      environment: 'PROFILE="-Dinclude_hadoop_aws -Penable-adaptive-scheduler"'
       jdk_version: 8
     secrets:
       s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}

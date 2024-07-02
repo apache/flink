@@ -45,5 +45,7 @@ public enum NoOpCheckpointResponder implements CheckpointResponder {
 
     @Override
     public void reportInitializationMetrics(
-            JobID jobId, SubTaskInitializationMetrics initializationMetrics) {}
+            JobID jobId,
+            ExecutionAttemptID executionAttemptId,
+            SubTaskInitializationMetrics initializationMetrics) {}
 }
