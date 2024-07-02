@@ -86,6 +86,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COSH;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COUNT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DATE_ADD;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DECODE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DEGREES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DISTINCT;
@@ -1333,6 +1334,20 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType ceil(TimeIntervalUnit timeIntervalUnit) {
         return toApiSpecificExpression(
                 unresolvedCall(CEIL, toExpr(), valueLiteral(timeIntervalUnit)));
+    }
+
+    /**
+     * Adds {@code numDays} days to {@code startDate}.
+     *
+     * @param numDays an INTEGER expression
+     * @return a DATE. {@code null} if any of its arguments are {@code null}. <br>
+     *     If {@code numDays} is negative, {@code -numDays} are subtracted from {@code startDate}.
+     *     <br>
+     *     If the result date overflows, the function raises an error.
+     */
+    public OutType dateAdd(InType numDays) {
+        return toApiSpecificExpression(
+                unresolvedCall(DATE_ADD, toExpr(), objectToExpression(numDays)));
     }
 
     // Advanced type helper functions

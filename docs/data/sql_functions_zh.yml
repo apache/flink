@@ -669,6 +669,14 @@ temporal:
         CURRENT_WATERMARK(ts) IS NULL
         OR ts > CURRENT_WATERMARK(ts)
       ```
+  - sql: DATE_ADD(startDate, numDays>)
+    table: startDate.dateAdd(numDays)
+    description: |
+      startDate <DATE>, numDays <TINYINT | SMALLINT | INTEGER>
+      返回一个 DATE，如果任何一个参数为 null，则返回 null。
+      返回起始日期 startDate 之后 numDays 天的日期。
+      如果 numDays 为负数，则从 startDate 中减去 -numDays 天。
+      如果结果日期溢出，函数会引发一个错误。
 
 conditional:
   - sql: |

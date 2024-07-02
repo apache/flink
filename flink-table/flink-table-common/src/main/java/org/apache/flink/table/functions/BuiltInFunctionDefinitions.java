@@ -2022,6 +2022,24 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(explicit(TIMESTAMP(3))))
                     .build();
 
+    // TODO add support for python
+    public static final BuiltInFunctionDefinition DATE_ADD =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("DATE_ADD")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Arrays.asList("startDate", "numDays"),
+                                    Arrays.asList(
+                                            logical(LogicalTypeRoot.DATE),
+                                            or(
+                                                    logical(LogicalTypeRoot.TINYINT),
+                                                    logical(LogicalTypeRoot.SMALLINT),
+                                                    logical(LogicalTypeRoot.INTEGER)))))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.DATE())))
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.DateAddFunction")
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // Collection functions
     // --------------------------------------------------------------------------------------------
