@@ -313,6 +313,137 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
   }
 
   @TestTemplate
+  def testCreateTableAsSelectWithNewColumnsOnly(): Unit = {
+    tEnv
+      .executeSql("""
+                    |CREATE TABLE MyCtasTable(`p1` INT, `p2` STRING)
+                    | WITH (
+                    |   'connector' = 'values',
+                    |   'sink-insert-only' = 'true'
+                    |) AS
+                    |  SELECT
+                    |    `person`,
+                    |    `votes`
+                    |  FROM
+                    |    src
+                    |""".stripMargin)
+      .await()
+    val actual = TestValuesTableFactory.getResultsAsStrings("MyCtasTable")
+    val expected = List(
+      "+I[null, null, jason, 1]",
+      "+I[null, null, jason, 1]",
+      "+I[null, null, jason, 1]",
+      "+I[null, null, jason, 1]"
+    )
+    assertThat(actual.sorted).isEqualTo(expected.sorted)
+    // test statement set
+    val statementSet = tEnv.createStatementSet()
+    statementSet.addInsertSql("""
+                                |CREATE TABLE MyCtasTableUseStatement(`p1` INT, `p2` STRING)
+                                | WITH (
+                                |   'connector' = 'values',
+                                |   'sink-insert-only' = 'true'
+                                |) AS
+                                |  SELECT
+                                |    `person`,
+                                |    `votes`
+                                |  FROM
+                                |    src
+                                |""".stripMargin)
+    statementSet.execute().await()
+    val actualUseStatement = TestValuesTableFactory.getResultsAsStrings("MyCtasTableUseStatement")
+    assertThat(actualUseStatement.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testCreateTableAsSelectWithColumnsFromQueryOnly(): Unit = {
+    tEnv
+      .executeSql("""
+                    |CREATE TABLE MyCtasTable(`person` STRING, `votes` DOUBLE)
+                    | WITH (
+                    |   'connector' = 'values',
+                    |   'sink-insert-only' = 'true'
+                    |) AS
+                    |  SELECT
+                    |    `person`,
+                    |    `votes`
+                    |  FROM
+                    |    src
+                    |""".stripMargin)
+      .await()
+    val actual = TestValuesTableFactory.getResultsAsStrings("MyCtasTable")
+    val expected = List(
+      "+I[jason, 1.0]",
+      "+I[jason, 1.0]",
+      "+I[jason, 1.0]",
+      "+I[jason, 1.0]"
+    )
+    assertThat(actual.sorted).isEqualTo(expected.sorted)
+    // test statement set
+    val statementSet = tEnv.createStatementSet()
+    statementSet.addInsertSql(
+      """
+        |CREATE TABLE MyCtasTableUseStatement(`person` STRING, `votes` DOUBLE)
+        | WITH (
+        |   'connector' = 'values',
+        |   'sink-insert-only' = 'true'
+        |) AS
+        |  SELECT
+        |    `person`,
+        |    `votes`
+        |  FROM
+        |    src
+        |""".stripMargin)
+    statementSet.execute().await()
+    val actualUseStatement = TestValuesTableFactory.getResultsAsStrings("MyCtasTableUseStatement")
+    assertThat(actualUseStatement.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testCreateTableAsSelectWithMixOfNewColumnsAndQueryColumns(): Unit = {
+    tEnv
+      .executeSql("""
+                    |CREATE TABLE MyCtasTable(`p1` INT, `votes` DOUBLE, `votes_2x` AS `votes` * 2)
+                    | WITH (
+                    |   'connector' = 'values',
+                    |   'sink-insert-only' = 'true'
+                    |) AS
+                    |  SELECT
+                    |    `person`,
+                    |    `votes`
+                    |  FROM
+                    |    src
+                    |""".stripMargin)
+      .await()
+    val actual = TestValuesTableFactory.getResultsAsStrings("MyCtasTable")
+    val expected = List(
+      "+I[null, jason, 1.0]",
+      "+I[null, jason, 1.0]",
+      "+I[null, jason, 1.0]",
+      "+I[null, jason, 1.0]"
+    )
+    assertThat(actual.sorted).isEqualTo(expected.sorted)
+    // test statement set
+    val statementSet = tEnv.createStatementSet()
+    statementSet.addInsertSql(
+      """
+        |CREATE TABLE MyCtasTableUseStatement(`p1` INT, `votes` DOUBLE, `votes_2x` AS `votes` * 2)
+        | WITH (
+        |   'connector' = 'values',
+        |   'sink-insert-only' = 'true'
+        |) AS
+        |  SELECT
+        |    `person`,
+        |    `votes`
+        |  FROM
+        |    src
+        |""".stripMargin)
+    statementSet.execute().await()
+    val actualUseStatement = TestValuesTableFactory.getResultsAsStrings("MyCtasTableUseStatement")
+    assertThat(actualUseStatement.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
   def testPartialInsert(): Unit = {
     val srcDataId = TestValuesTableFactory.registerData(
       Seq(
