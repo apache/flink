@@ -19,8 +19,10 @@
 package org.apache.flink.table.runtime.operators.aggregate.window.buffers;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.window.tvf.combines.RecordsCombiner;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
@@ -57,6 +59,12 @@ public final class RecordsWindowBuffer implements WindowBuffer {
 
     private long minSliceEnd = Long.MAX_VALUE;
 
+    /**
+     * Flush if we reach this threshold so that we don't block for a long time in checkpoint sync
+     * phase.
+     */
+    private final long maxBufferedElements;
+
     public RecordsWindowBuffer(
             Object operatorOwner,
             MemoryManager memoryManager,
@@ -65,7 +73,8 @@ public final class RecordsWindowBuffer implements WindowBuffer {
             PagedTypeSerializer<RowData> keySer,
             AbstractRowDataSerializer<RowData> inputSer,
             boolean requiresCopy,
-            ZoneId shiftTimeZone) {
+            ZoneId shiftTimeZone,
+            long maxBufferedElements) {
         this.combineFunction = combineFunction;
         this.recordsBuffer =
                 new WindowBytesMultiMap(
@@ -74,6 +83,7 @@ public final class RecordsWindowBuffer implements WindowBuffer {
         this.reuseWindowKey = new WindowKeySerializer(keySer).createInstance();
         this.requiresCopy = requiresCopy;
         this.shiftTimeZone = shiftTimeZone;
+        this.maxBufferedElements = maxBufferedElements;
     }
 
     @Override
@@ -92,6 +102,9 @@ public final class RecordsWindowBuffer implements WindowBuffer {
             flush();
             // remember to add the input element again
             addElement(key, sliceEnd, element);
+        }
+        if (recordsBuffer.getNumElements() >= maxBufferedElements) {
+            flush();
         }
     }
 
@@ -164,12 +177,24 @@ public final class RecordsWindowBuffer implements WindowBuffer {
             return new RecordsWindowBuffer(
                     operatorOwner,
                     memoryManager,
-                    memorySize,
+                    Math.min(
+                            // memory size for this operator:
+                            memorySize,
+                            // memory size for global aggregation buffer:
+                            runtimeContext
+                                    .getExecutionConfig()
+                                    .get(ExecutionConfigOptions.GLOBAL_AGG_BUFFER_SIZE)
+                                    .map(MemorySize::getBytes)
+                                    .orElse(memorySize)),
                     combiner,
                     keySer,
                     inputSer,
                     requiresCopy,
-                    shiftTimeZone);
+                    shiftTimeZone,
+                    runtimeContext
+                            .getExecutionConfig()
+                            .get(ExecutionConfigOptions.GLOBAL_AGG_MAX_BUFFERED_RECORDS)
+                            .orElse(Integer.MAX_VALUE));
         }
     }
 
@@ -205,12 +230,24 @@ public final class RecordsWindowBuffer implements WindowBuffer {
             return new RecordsWindowBuffer(
                     operatorOwner,
                     memoryManager,
-                    memorySize,
+                    Math.min(
+                            // memory size for this operator:
+                            memorySize,
+                            // memory size for local aggregation buffer:
+                            runtimeContext
+                                    .getExecutionConfig()
+                                    .get(ExecutionConfigOptions.LOCAL_AGG_BUFFER_SIZE)
+                                    .map(MemorySize::getBytes)
+                                    .orElse(memorySize)),
                     combiner,
                     keySer,
                     inputSer,
                     false,
-                    shiftTimeZone);
+                    shiftTimeZone,
+                    runtimeContext
+                            .getExecutionConfig()
+                            .get(ExecutionConfigOptions.LOCAL_AGG_MAX_BUFFERED_RECORDS)
+                            .orElse(Integer.MAX_VALUE));
         }
     }
 }

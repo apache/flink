@@ -118,7 +118,10 @@ public abstract class AbstractBytesMultiMap<K> extends BytesMap<K, Iterator<RowD
         this.reusedRecord = valueSerializer.createInstance();
 
         checkArgument(
-                memorySize > INIT_BUCKET_MEMORY_IN_BYTES, "The minBucketMemorySize is not valid!");
+                memorySize >= INIT_BUCKET_MEMORY_IN_BYTES,
+                "memorySize for %s is invalid: %s",
+                this.getClass().getSimpleName(),
+                memorySize);
         int initBucketSegmentNum =
                 MathUtils.roundDownToPowerOf2((int) (INIT_BUCKET_MEMORY_IN_BYTES / segmentSize));
 
