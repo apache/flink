@@ -18,7 +18,13 @@
 
 package org.apache.flink.connector.file.sink.compactor;
 
+import org.apache.flink.connector.file.sink.FileSinkCommittable;
+import org.apache.flink.connector.file.sink.FileSinkCommittableSerializer;
+import org.apache.flink.connector.file.sink.compactor.operator.CompactorRequest;
+import org.apache.flink.connector.file.sink.utils.FileSinkTestUtils;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
@@ -26,20 +32,63 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /** Test base for compact operators. */
-abstract class AbstractCompactTestBase {
+public abstract class AbstractCompactTestBase {
 
     public static final int TARGET_SIZE = 9;
 
-    Path folder;
+    protected Path folder;
 
     @BeforeEach
-    void before(@TempDir java.nio.file.Path tmpDir) {
+    protected void before(@TempDir java.nio.file.Path tmpDir) {
         folder = new Path(tmpDir.toString());
     }
 
-    Path newFile(String name, int len) throws IOException {
+    protected StreamRecord<CompactorRequest> request(
+            String bucketId,
+            List<FileSinkCommittable> toCompact,
+            List<FileSinkCommittable> toPassthrough) {
+        return new StreamRecord<>(rawRequest(bucketId, toCompact, toPassthrough), 0L);
+    }
+
+    protected FileSinkCommittable committable(String bucketId, String name, int size)
+            throws IOException {
+        // put bucketId after name to keep the possible '.' prefix in name
+        return new FileSinkCommittable(
+                bucketId,
+                new FileSinkTestUtils.TestPendingFileRecoverable(
+                        newFile(name + "_" + bucketId, size <= 0 ? 1 : size), size));
+    }
+
+    protected FileSinkCommittable cleanupInprogress(String bucketId, String name, int size)
+            throws IOException {
+        Path toCleanup = newFile(name + "_" + bucketId, size);
+        return new FileSinkCommittable(
+                bucketId, new FileSinkTestUtils.TestInProgressFileRecoverable(toCleanup, size));
+    }
+
+    protected SimpleVersionedSerializer<FileSinkCommittable> getTestCommittableSerializer() {
+        return new FileSinkCommittableSerializer(
+                new FileSinkTestUtils.SimpleVersionedWrapperSerializer<>(
+                        FileSinkTestUtils.TestPendingFileRecoverable::new),
+                new FileSinkTestUtils.SimpleVersionedWrapperSerializer<>(
+                        FileSinkTestUtils.TestInProgressFileRecoverable::new));
+    }
+
+    protected CompactorRequest rawRequest(
+            String bucketId,
+            List<FileSinkCommittable> toCompact,
+            List<FileSinkCommittable> toPassthrough) {
+        return new CompactorRequest(
+                bucketId,
+                toCompact == null ? new ArrayList<>() : toCompact,
+                toPassthrough == null ? new ArrayList<>() : toPassthrough);
+    }
+
+    protected Path newFile(String name, int len) throws IOException {
         Path path = new Path(folder, name);
         File file = new File(path.getPath());
         file.delete();

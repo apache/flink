@@ -19,17 +19,22 @@
 package org.apache.flink.connector.file.sink.compactor.operator;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.connector.file.sink.FileSinkCommittable;
+import org.apache.flink.connector.file.sink.compactor.ConcatFileCompactor;
 import org.apache.flink.connector.file.sink.compactor.FileCompactor;
 import org.apache.flink.connector.file.sink.compactor.OutputStreamBasedFileCompactor;
 import org.apache.flink.connector.file.sink.compactor.RecordWiseFileCompactor;
+import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketWriter;
+import org.apache.flink.streaming.api.functions.sink.filesystem.BulkBucketWriter;
 import org.apache.flink.streaming.api.functions.sink.filesystem.CompactingFileWriter;
-import org.apache.flink.streaming.api.functions.sink.filesystem.CompactingFileWriter.Type;
 import org.apache.flink.streaming.api.functions.sink.filesystem.InProgressFileWriter.PendingFileRecoverable;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputStreamBasedCompactingFileWriter;
+import org.apache.flink.streaming.api.functions.sink.filesystem.OutputStreamBasedPartFileWriter;
 import org.apache.flink.streaming.api.functions.sink.filesystem.RecordWiseCompactingFileWriter;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
@@ -51,6 +56,8 @@ public class CompactService {
     private final FileCompactor fileCompactor;
     private final CompactingFileWriter.Type compactingWriterType;
     private final BucketWriter<?, String> bucketWriter;
+
+    private BucketWriter<?, String> compactingBucketWriter;
 
     private transient ExecutorService compactService;
 
@@ -92,7 +99,8 @@ public class CompactService {
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
-    private Iterable<FileSinkCommittable> compact(CompactorRequest request) throws Exception {
+    @VisibleForTesting
+    Iterable<FileSinkCommittable> compact(CompactorRequest request) throws Exception {
         List<FileSinkCommittable> results = new ArrayList<>(request.getCommittableToPassthrough());
 
         List<Path> compactingFiles = getCompactingPath(request);
@@ -101,18 +109,21 @@ public class CompactService {
         }
 
         Path targetPath = assembleCompactedFilePath(compactingFiles.get(0));
+        initCompactingBucketWriter(targetPath);
+
         CompactingFileWriter compactingFileWriter =
-                bucketWriter.openNewCompactingFile(
+                compactingBucketWriter.openNewCompactingFile(
                         compactingWriterType,
                         request.getBucketId(),
                         targetPath,
                         System.currentTimeMillis());
-        if (compactingWriterType == Type.RECORD_WISE) {
+        if (compactingWriterType == CompactingFileWriter.Type.RECORD_WISE) {
             ((RecordWiseFileCompactor) fileCompactor)
                     .compact(
                             compactingFiles,
                             ((RecordWiseCompactingFileWriter) compactingFileWriter)::write);
-        } else if (compactingWriterType == CompactingFileWriter.Type.OUTPUT_STREAM) {
+        } else if (compactingWriterType == CompactingFileWriter.Type.OUTPUT_STREAM
+                || compactingWriterType == CompactingFileWriter.Type.COMPRESSED_STREAM) {
             ((OutputStreamBasedFileCompactor) fileCompactor)
                     .compact(
                             compactingFiles,
@@ -130,6 +141,21 @@ public class CompactService {
         }
 
         return results;
+    }
+
+    @VisibleForTesting
+    BucketWriter<?, String> initCompactingBucketWriter(Path targetPath) throws IOException {
+        if (compactingBucketWriter == null) {
+            if (compactingWriterType == CompactingFileWriter.Type.COMPRESSED_STREAM) {
+                compactingBucketWriter =
+                        new BulkBucketWriter<>(
+                                targetPath.getFileSystem().createRecoverableWriter(),
+                                new RawBulkWriterFactory());
+            } else {
+                compactingBucketWriter = bucketWriter;
+            }
+        }
+        return compactingBucketWriter;
     }
 
     private List<Path> getCompactingPath(CompactorRequest request) throws IOException {
@@ -162,15 +188,51 @@ public class CompactService {
         return new Path(uncompactedPath.getParent(), COMPACTED_PREFIX + uncompactedName);
     }
 
-    private static CompactingFileWriter.Type getWriterType(FileCompactor fileCompactor) {
+    @VisibleForTesting
+    static CompactingFileWriter.Type getWriterType(FileCompactor fileCompactor) {
         if (fileCompactor instanceof OutputStreamBasedFileCompactor) {
-            return CompactingFileWriter.Type.OUTPUT_STREAM;
+            return fileCompactor instanceof ConcatFileCompactor
+                            && ((ConcatFileCompactor) fileCompactor).isCompressed()
+                    ? CompactingFileWriter.Type.COMPRESSED_STREAM
+                    : CompactingFileWriter.Type.OUTPUT_STREAM;
         } else if (fileCompactor instanceof RecordWiseFileCompactor) {
             return CompactingFileWriter.Type.RECORD_WISE;
         } else {
             throw new UnsupportedOperationException(
                     "Unable to crate compacting file writer for compactor:"
                             + fileCompactor.getClass());
+        }
+    }
+
+    /**
+     * Creates a raw {@link BulkWriter} that writes the part files into the compacted output stream
+     * without any added bytes. This is required for compacting compressed part files that use a
+     * codec that supports concat, like GZIP or BZIP2.
+     */
+    private static class RawBulkWriterFactory implements BulkWriter.Factory<String> {
+
+        @Override
+        public BulkWriter<String> create(FSDataOutputStream out) {
+            return new BulkWriter<String>() {
+                @Override
+                public void addElement(String element) throws IOException {
+                    out.write(element.getBytes());
+                }
+
+                @Override
+                public void flush() throws IOException {
+                    out.flush();
+                }
+
+                /**
+                 * Finish without closing the stream, which will be closed by {@link
+                 * OutputStreamBasedPartFileWriter#closeForCommit()}.
+                 */
+                @Override
+                public void finish() throws IOException {
+                    out.flush();
+                }
+            };
         }
     }
 }

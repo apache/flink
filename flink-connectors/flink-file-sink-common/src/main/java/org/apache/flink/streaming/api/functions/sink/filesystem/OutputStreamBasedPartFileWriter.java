@@ -89,11 +89,11 @@ public abstract class OutputStreamBasedPartFileWriter<IN, BucketID>
 
     @Override
     public OutputStream asOutputStream() throws IOException {
-        ensureWriteType(Type.OUTPUT_STREAM);
+        ensureWriteType(CompactingFileWriter.Type.OUTPUT_STREAM);
         return currentPartStream;
     }
 
-    protected void ensureWriteType(Type type) {
+    protected void ensureWriteType(CompactingFileWriter.Type type) {
         if (type != this.writeType) {
             if (this.writeType == null) {
                 this.writeType = type;
