@@ -157,6 +157,8 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecPythonGroupWindowAggregate.class);
                     add(StreamExecPythonOverAggregate.class);
                     // Batch execution mode
+
+                    // TODO: Balance these with the RestoreTestCompleteness test
                     add(BatchExecExchange.class);
                     add(BatchExecSink.class);
                     add(BatchExecSort.class);

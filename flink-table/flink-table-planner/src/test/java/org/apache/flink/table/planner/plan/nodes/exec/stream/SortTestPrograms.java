@@ -126,7 +126,7 @@ public class SortTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT * from source_t ORDER BY a DESC LIMIT 3")
                     .build();
 
-    static final TableTestProgram SORT_ASC =
+    public static final TableTestProgram SORT_ASC =
             TableTestProgram.of("sort-asc", "validates sort node by sorting integers in asc mode")
                     .setupConfig(InternalConfigOptions.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED, true)
                     .setupTableSource(
@@ -148,7 +148,7 @@ public class SortTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT * from source_t ORDER BY a")
                     .build();
 
-    static final TableTestProgram SORT_DESC =
+    public static final TableTestProgram SORT_DESC =
             TableTestProgram.of("sort-desc", "validates sort node by sorting integers in desc mode")
                     .setupConfig(InternalConfigOptions.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED, true)
                     .setupTableSource(

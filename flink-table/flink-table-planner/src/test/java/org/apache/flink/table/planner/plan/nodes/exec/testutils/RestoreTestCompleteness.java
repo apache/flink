@@ -39,6 +39,7 @@ import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -107,6 +108,38 @@ public class RestoreTestCompleteness {
             for (Class<? extends ExecNode<?>> childExecNode : childExecNodes) {
                 execNodesWithRestoreTests.add(childExecNode);
             }
+        }
+
+        Set<ClassPath.ClassInfo> batchClassesInPackage =
+                ClassPath.from(this.getClass().getClassLoader())
+                        .getTopLevelClassesRecursive(
+                                "org.apache.flink.table.planner.plan.nodes.exec.batch")
+                        .stream()
+                        .filter(x -> BatchCompiledPlanTestBase.class.isAssignableFrom(x.load()))
+                        .collect(Collectors.toSet());
+
+        //        Set<Class<? extends ExecNode<?>>> execNodesWithRestoreTests = new HashSet<>();
+
+        for (ClassPath.ClassInfo classInfo : batchClassesInPackage) {
+            Class<?> restoreTest = classInfo.load();
+
+            Class<? extends ExecNode<?>> execNode = getExecNode(restoreTest);
+            execNodesWithRestoreTests.add(execNode);
+
+            List<Class<? extends ExecNode<?>>> childExecNodes = getChildExecNodes(restoreTest);
+            for (Class<? extends ExecNode<?>> childExecNode : childExecNodes) {
+                execNodesWithRestoreTests.add(childExecNode);
+            }
+        }
+
+        System.out.println(
+                execNodesWithRestoreTests.stream()
+                        .map(Objects::toString)
+                        .collect(Collectors.joining(", ")));
+        for (Map.Entry<ExecNodeNameVersion, Class<? extends ExecNode<?>>> entry :
+                versionedExecNodes.entrySet()) {
+            ExecNodeNameVersion execNodeNameVersion = entry.getKey();
+            System.out.println(execNodeNameVersion);
         }
 
         for (Map.Entry<ExecNodeNameVersion, Class<? extends ExecNode<?>>> entry :
