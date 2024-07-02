@@ -20,15 +20,24 @@ package org.apache.flink.state.forst;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.asyncprocessing.StateExecutor;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
+import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
+import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.SnapshotStrategyRunner;
+import org.apache.flink.runtime.state.v2.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.v2.StateDescriptor;
 import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
+import org.apache.flink.state.forst.snapshot.ForStSnapshotStrategyBase;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
@@ -45,9 +54,14 @@ import javax.annotation.concurrent.GuardedBy;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.RunnableFuture;
 import java.util.function.Function;
 import java.util.function.Supplier;
+
+import static org.apache.flink.runtime.state.SnapshotExecutionType.ASYNCHRONOUS;
 
 /**
  * A KeyedStateBackend that stores its state in {@code ForSt}. This state backend can store very
@@ -69,6 +83,8 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
     /** Supplier to create DataInputDeserializer to deserialize value. */
     private final Supplier<DataInputDeserializer> valueDeserializerView;
 
+    private final UUID backendUID;
+
     /** The container of ForSt options. */
     private final ForStResourceContainer optionsContainer;
 
@@ -83,6 +99,14 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
      */
     private final ColumnFamilyHandle defaultColumnFamily;
 
+    private final ForStSnapshotStrategyBase<K, ?> snapshotStrategy;
+
+    /**
+     * Registry for all opened streams, so they can be closed if the task using this backend is
+     * closed.
+     */
+    private final CloseableRegistry cancelStreamRegistry;
+
     /** The native metrics monitor. */
     private final ForStNativeMetricMonitor nativeMetricMonitor;
 
@@ -94,6 +118,13 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
 
     /** Handler to handle state request. */
     private StateRequestHandler stateRequestHandler;
+
+    /**
+     * Information about the k/v states, maintained in the order as we create them. This is used to
+     * retrieve the column family that is used for a state and also for sanity checks when
+     * restoring.
+     */
+    private final LinkedHashMap<String, ForStKvStateInfo> kvStateInformation;
 
     /** Lock guarding the {@code managedStateExecutors} and {@code disposed}. */
     private final Object lock = new Object();
@@ -110,23 +141,31 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
     private boolean disposed = false;
 
     public ForStKeyedStateBackend(
+            UUID backendUID,
             ForStResourceContainer optionsContainer,
             TypeSerializer<K> keySerializer,
             Supplier<SerializedCompositeKeyBuilder<K>> serializedKeyBuilder,
             Supplier<DataOutputSerializer> valueSerializerView,
             Supplier<DataInputDeserializer> valueDeserializerView,
             RocksDB db,
+            LinkedHashMap<String, ForStKvStateInfo> kvStateInformation,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             ColumnFamilyHandle defaultColumnFamilyHandle,
+            ForStSnapshotStrategyBase<K, ?> snapshotStrategy,
+            CloseableRegistry cancelStreamRegistry,
             ForStNativeMetricMonitor nativeMetricMonitor) {
+        this.backendUID = backendUID;
         this.optionsContainer = Preconditions.checkNotNull(optionsContainer);
         this.keySerializer = keySerializer;
         this.serializedKeyBuilder = serializedKeyBuilder;
         this.valueSerializerView = valueSerializerView;
         this.valueDeserializerView = valueDeserializerView;
         this.db = db;
+        this.kvStateInformation = kvStateInformation;
         this.columnFamilyOptionsFactory = columnFamilyOptionsFactory;
         this.defaultColumnFamily = defaultColumnFamilyHandle;
+        this.snapshotStrategy = snapshotStrategy;
+        this.cancelStreamRegistry = cancelStreamRegistry;
         this.nativeMetricMonitor = nativeMetricMonitor;
         this.managedStateExecutors = new HashSet<>(1);
     }
@@ -147,6 +186,16 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
                 ForStOperationUtils.createColumnFamilyHandle(
                         stateDesc.getStateId(), db, columnFamilyOptionsFactory);
         if (stateDesc.getType() == StateDescriptor.Type.VALUE) {
+
+            kvStateInformation.put(
+                    stateDesc.getStateId(),
+                    new ForStKvStateInfo(
+                            columnFamilyHandle,
+                            new RegisteredKeyValueStateBackendMetaInfo<>(
+                                    stateDesc.getStateId(),
+                                    stateDesc.getType(),
+                                    stateDesc.getSerializer())));
+
             return (S)
                     new ForStValueState<>(
                             stateRequestHandler,
@@ -174,6 +223,42 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
             managedStateExecutors.add(stateExecutor);
             return stateExecutor;
         }
+    }
+
+    @Nonnull
+    @Override
+    public RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot(
+            long checkpointId,
+            long timestamp,
+            @Nonnull CheckpointStreamFactory streamFactory,
+            @Nonnull CheckpointOptions checkpointOptions)
+            throws Exception {
+
+        return new SnapshotStrategyRunner<>(
+                        snapshotStrategy.getDescription(),
+                        snapshotStrategy,
+                        cancelStreamRegistry,
+                        ASYNCHRONOUS)
+                .snapshot(checkpointId, timestamp, streamFactory, checkpointOptions);
+    }
+
+    @Override
+    public void notifyCheckpointComplete(long checkpointId) throws Exception {
+        if (snapshotStrategy != null) {
+            snapshotStrategy.notifyCheckpointComplete(checkpointId);
+        }
+    }
+
+    @Override
+    public void notifyCheckpointAborted(long checkpointId) throws Exception {
+        if (snapshotStrategy != null) {
+            snapshotStrategy.notifyCheckpointAborted(checkpointId);
+        }
+    }
+
+    @Override
+    public void notifyCheckpointSubsumed(long checkpointId) throws Exception {
+        LOG.info("Backend:{} checkpoint: {} subsumed.", backendUID, checkpointId);
     }
 
     /** Should only be called by one thread, and only after all accesses to the DB happened. */
@@ -222,6 +307,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
 
             IOUtils.closeQuietly(optionsContainer);
         }
+        IOUtils.closeQuietly(snapshotStrategy);
         this.disposed = true;
     }
 
@@ -245,6 +331,23 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend {
             for (StateExecutor executor : managedStateExecutors) {
                 executor.shutdown();
             }
+        }
+    }
+
+    /** ForSt specific information about the k/v states. */
+    public static class ForStKvStateInfo implements AutoCloseable {
+        public final ColumnFamilyHandle columnFamilyHandle;
+        public final RegisteredStateMetaInfoBase metaInfo;
+
+        public ForStKvStateInfo(
+                ColumnFamilyHandle columnFamilyHandle, RegisteredStateMetaInfoBase metaInfo) {
+            this.columnFamilyHandle = columnFamilyHandle;
+            this.metaInfo = metaInfo;
+        }
+
+        @Override
+        public void close() throws Exception {
+            this.columnFamilyHandle.close();
         }
     }
 }
