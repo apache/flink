@@ -121,7 +121,7 @@ class ParquetColumnarRowInputFormatTest {
                 new ArrayType(new DecimalType(15, 0)),
                 new ArrayType(new DecimalType(20, 0)),
                 new MapType(
-                        new VarCharType(VarCharType.MAX_LENGTH),
+                        new VarCharType(false, VarCharType.MAX_LENGTH),
                         new VarCharType(VarCharType.MAX_LENGTH)),
                 new MapType(new IntType(), new BooleanType()),
                 RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType())

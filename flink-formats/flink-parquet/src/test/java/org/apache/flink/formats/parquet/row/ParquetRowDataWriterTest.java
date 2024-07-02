@@ -35,6 +35,7 @@ import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -72,6 +73,7 @@ import static org.apache.flink.formats.parquet.ParquetFileFormatFactory.IDENTIFI
 import static org.apache.flink.formats.parquet.ParquetFileFormatFactory.TIMESTAMP_TIME_UNIT;
 import static org.apache.flink.formats.parquet.ParquetFileFormatFactory.WRITE_INT64_TIMESTAMP;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link ParquetRowDataBuilder} and {@link ParquetRowDataWriter}. */
 class ParquetRowDataWriterTest {
@@ -97,9 +99,18 @@ class ParquetRowDataWriterTest {
                     new ArrayType(true, new IntType()),
                     new MapType(
                             true,
-                            new VarCharType(VarCharType.MAX_LENGTH),
+                            new VarCharType(false, VarCharType.MAX_LENGTH),
                             new VarCharType(VarCharType.MAX_LENGTH)),
                     RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType()));
+
+    private static final RowType INVALID_ROW_TYPE1 =
+            RowType.of(
+                    new MapType(
+                            false,
+                            new VarCharType(VarCharType.MAX_LENGTH),
+                            new VarCharType(VarCharType.MAX_LENGTH)));
+    private static final RowType INVALID_ROW_TYPE2 =
+            RowType.of(new MultisetType(new VarCharType(VarCharType.MAX_LENGTH)));
 
     private static final RowType NESTED_ARRAY_MAP_TYPE =
             RowType.of(
@@ -109,7 +120,7 @@ class ParquetRowDataWriterTest {
                             true,
                             new MapType(
                                     true,
-                                    new VarCharType(VarCharType.MAX_LENGTH),
+                                    new VarCharType(false, VarCharType.MAX_LENGTH),
                                     new VarCharType(VarCharType.MAX_LENGTH))));
 
     private static final RowType NESTED_ARRAY_ROW_TYPE =
@@ -148,6 +159,8 @@ class ParquetRowDataWriterTest {
         nestedArrayAndMapTest(folder, conf, false);
         nestedArrayAndRowTest(folder, conf, true);
         nestedArrayAndRowTest(folder, conf, false);
+        invalidTypeTest(folder, conf, true);
+        invalidTypeTest(folder, conf, false);
     }
 
     @Test
@@ -162,6 +175,8 @@ class ParquetRowDataWriterTest {
         nestedArrayAndMapTest(folder, conf, false);
         nestedArrayAndRowTest(folder, conf, true);
         nestedArrayAndRowTest(folder, conf, false);
+        invalidTypeTest(folder, conf, true);
+        invalidTypeTest(folder, conf, false);
     }
 
     @Test
@@ -173,6 +188,8 @@ class ParquetRowDataWriterTest {
         innerTest(folder, conf, false);
         complexTypeTest(folder, conf, true);
         complexTypeTest(folder, conf, false);
+        invalidTypeTest(folder, conf, true);
+        invalidTypeTest(folder, conf, false);
     }
 
     private void innerTest(java.nio.file.Path folder, Configuration conf, boolean utcTimestamp)
@@ -241,7 +258,6 @@ class ParquetRowDataWriterTest {
         List<Row> rows = new ArrayList<>(number);
         Map<String, String> mapData = new HashMap<>();
         mapData.put("k1", "v1");
-        mapData.put(null, "v2");
         mapData.put("k2", null);
 
         for (int i = 0; i < number; i++) {
@@ -264,6 +280,30 @@ class ParquetRowDataWriterTest {
         assertThat(fileContent).isEqualTo(rows);
     }
 
+    public void invalidTypeTest(java.nio.file.Path folder, Configuration conf, boolean utcTimestamp)
+            throws IOException {
+        Path path = new Path(folder.toString(), UUID.randomUUID().toString());
+        ParquetWriterFactory<RowData> factory1 =
+                ParquetRowDataBuilder.createWriterFactory(INVALID_ROW_TYPE1, conf, utcTimestamp);
+        assertThatThrownBy(
+                        () ->
+                                factory1.create(
+                                        path.getFileSystem()
+                                                .create(path, FileSystem.WriteMode.OVERWRITE)),
+                        "f0 MAP<STRING, STRING> NOT NULL has nullable key, unsupported by Parquet format. See FLINK-35641 and https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#maps for more details.")
+                .isInstanceOf(IllegalStateException.class);
+
+        ParquetWriterFactory<RowData> factory2 =
+                ParquetRowDataBuilder.createWriterFactory(INVALID_ROW_TYPE2, conf, utcTimestamp);
+        assertThatThrownBy(
+                        () ->
+                                factory2.create(
+                                        path.getFileSystem()
+                                                .create(path, FileSystem.WriteMode.OVERWRITE)),
+                        "f0 MULTISET<STRING> has nullable elements, unsupported by Parquet format. See FLINK-35641 and https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#maps for more details.")
+                .isInstanceOf(IllegalStateException.class);
+    }
+
     public void nestedArrayAndMapTest(
             java.nio.file.Path folder, Configuration conf, boolean utcTimestamp) throws Exception {
         Path path = new Path(folder.toString(), UUID.randomUUID().toString());
@@ -273,7 +313,6 @@ class ParquetRowDataWriterTest {
         for (int i = 0; i < number; i++) {
             Integer v = i;
             Map<String, String> mp1 = new HashMap<>();
-            mp1.put(null, "val_" + i);
             Map<String, String> mp2 = new HashMap<>();
             mp2.put("key_" + i, null);
             mp2.put("key@" + i, "val@" + i);

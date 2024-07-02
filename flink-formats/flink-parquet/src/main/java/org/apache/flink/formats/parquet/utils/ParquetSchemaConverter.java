@@ -25,6 +25,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.schema.ConversionPatterns;
@@ -61,7 +62,9 @@ public class ParquetSchemaConverter {
     }
 
     public static Type convertToParquetType(String name, LogicalType type, Configuration conf) {
-        return convertToParquetType(name, type, Type.Repetition.OPTIONAL, conf);
+        Type.Repetition repetition =
+                type.isNullable() ? Type.Repetition.OPTIONAL : Type.Repetition.REQUIRED;
+        return convertToParquetType(name, type, repetition, conf);
     }
 
     private static Type convertToParquetType(
@@ -143,6 +146,13 @@ public class ParquetSchemaConverter {
                         convertToParquetType(LIST_ELEMENT_NAME, arrayType.getElementType(), conf));
             case MAP:
                 MapType mapType = (MapType) type;
+                Preconditions.checkState(
+                        !mapType.getKeyType().isNullable(),
+                        name
+                                + " "
+                                + mapType
+                                + " has nullable key, unsupported by Parquet format. See FLINK-35641 and https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#maps for more details.");
+
                 return ConversionPatterns.mapType(
                         repetition,
                         name,
@@ -151,6 +161,12 @@ public class ParquetSchemaConverter {
                         convertToParquetType("value", mapType.getValueType(), conf));
             case MULTISET:
                 MultisetType multisetType = (MultisetType) type;
+                Preconditions.checkState(
+                        !multisetType.getElementType().isNullable(),
+                        name
+                                + " "
+                                + multisetType
+                                + " has nullable elements, unsupported by Parquet format. See FLINK-35641 and https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#maps for more details.");
                 return ConversionPatterns.mapType(
                         repetition,
                         name,
