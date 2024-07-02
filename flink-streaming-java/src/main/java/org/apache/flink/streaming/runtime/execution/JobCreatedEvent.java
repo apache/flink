@@ -16,22 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client.deployment.executors;
+package org.apache.flink.streaming.runtime.execution;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.client.deployment.StandaloneClientFactory;
-import org.apache.flink.client.deployment.StandaloneClusterId;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.execution.PipelineExecutor;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.core.execution.JobStatusChangedEvent;
+import org.apache.flink.streaming.api.lineage.LineageGraph;
 
-/** The {@link PipelineExecutor} to be used when executing a job on an already running cluster. */
-@Internal
-public class RemoteExecutor
-        extends AbstractSessionClusterExecutor<StandaloneClusterId, StandaloneClientFactory> {
+/** Basic job created event. */
+@PublicEvolving
+public interface JobCreatedEvent extends JobStatusChangedEvent {
 
-    public static final String NAME = "remote";
+    /* Lineage for the current job. */
+    LineageGraph lineageGraph();
 
-    public RemoteExecutor(Configuration configuration) {
-        super(new StandaloneClientFactory(), configuration);
-    }
+    /* Runtime execution mode for the job, STREAMING/BATCH/AUTOMATIC. */
+    RuntimeExecutionMode executionMode();
 }

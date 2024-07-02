@@ -16,22 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client.deployment.executors;
+package org.apache.flink.core.execution;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.client.deployment.StandaloneClientFactory;
-import org.apache.flink.client.deployment.StandaloneClusterId;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.execution.PipelineExecutor;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.JobStatus;
 
-/** The {@link PipelineExecutor} to be used when executing a job on an already running cluster. */
-@Internal
-public class RemoteExecutor
-        extends AbstractSessionClusterExecutor<StandaloneClusterId, StandaloneClientFactory> {
+import javax.annotation.Nullable;
 
-    public static final String NAME = "remote";
+/** Job execution status event. */
+@PublicEvolving
+public interface JobExecutionStatusEvent extends JobStatusChangedEvent {
+    /** Old status for job. */
+    JobStatus oldStatus();
 
-    public RemoteExecutor(Configuration configuration) {
-        super(new StandaloneClientFactory(), configuration);
-    }
+    /** New status for job. */
+    JobStatus newStatus();
+
+    /** Exception for job. */
+    @Nullable
+    Throwable exception();
 }

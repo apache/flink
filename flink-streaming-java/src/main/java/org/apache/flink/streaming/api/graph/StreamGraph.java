@@ -46,6 +46,7 @@ import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
+import org.apache.flink.streaming.api.lineage.LineageGraph;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.OutputFormatOperatorFactory;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
@@ -134,6 +135,7 @@ public class StreamGraph implements Pipeline {
     private boolean dynamic;
 
     private boolean autoParallelismEnabled;
+    private LineageGraph lineageGraph;
 
     public StreamGraph(
             Configuration jobConfiguration,
@@ -226,6 +228,10 @@ public class StreamGraph implements Pipeline {
 
     public void setTimeCharacteristic(TimeCharacteristic timeCharacteristic) {
         this.timeCharacteristic = timeCharacteristic;
+    }
+
+    public LineageGraph getLineageGraph() {
+        return lineageGraph;
     }
 
     public GlobalStreamExchangeMode getGlobalStreamExchangeMode() {
