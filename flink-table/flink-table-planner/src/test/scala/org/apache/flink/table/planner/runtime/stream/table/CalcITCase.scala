@@ -26,13 +26,14 @@ import org.apache.flink.table.catalog.CatalogDatabaseImpl
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.expressions.utils._
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink, UserDefinedFunctionTestUtils}
+import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.utils.LegacyRowExtension
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
-import org.assertj.core.api.Assertions.{assertThat, assertThatExceptionOfType, assertThatThrownBy}
+import org.assertj.core.api.Assertions.{assertThat, assertThatExceptionOfType}
 import org.junit.jupiter.api.{Disabled, TestTemplate}
 import org.junit.jupiter.api.extension.{ExtendWith, RegisterExtension}
 
@@ -702,6 +703,32 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     result2.toDataStream.addSink(sink2)
     env.execute()
     assertThat(sink2.getAppendResults.sorted).isEqualTo(List(tEnv.getCurrentDatabase))
+  }
+
+  @TestTemplate
+  def testCastRow(): Unit = {
+    env.setParallelism(1)
+    val data = new mutable.MutableList[(Int, String)]
+    data.+=((1, "a"))
+    data.+=((2, "b"))
+    tEnv.createTemporaryView("MyTable", env.fromCollection(data).toTable(tEnv).as("a", "b"))
+    val view = tEnv.sqlQuery(
+      "SELECT a, b, CAST(ROW(a, b) as ROW(a_val INT, b_val STRING)) as col FROM MyTable")
+    tEnv.createTemporaryView("MyView", view)
+    val sink = new TestingAppendSink
+    tEnv
+      .sqlQuery("SELECT * FROM MyView")
+      .toDataStream
+      .addSink(sink)
+    env.execute()
+
+    // do not convert the expected rows to string here to
+    // avoid this case fails after remove RowUtils.USE_LEGACY_TO_STRING
+    val expected = List(
+      row(1, "a", row(1, "a")),
+      row(2, "b", row(2, "b"))
+    )
+    assertThat(sink.getAppendResults).isEqualTo(expected.map(_.toString))
   }
 }
 

@@ -176,6 +176,17 @@ class CalcTest extends TableTestBase {
 
     util.verifyExecPlan(resultTable)
   }
+
+  @Test
+  def testCastRow(): Unit = {
+    val util = streamTestUtil()
+
+    util.addTableSource[(Int, String)]("MyTable", 'a, 'b)
+    val view = util.tableEnv.sqlQuery(
+      "SELECT a, b, CAST(ROW(a, b) as ROW(a_val INT, b_val STRING)) as col FROM MyTable")
+    util.tableEnv.createTemporaryView("MyView", view)
+    util.verifyExecPlan("SELECT * from MyView")
+  }
 }
 
 object CalcTest {

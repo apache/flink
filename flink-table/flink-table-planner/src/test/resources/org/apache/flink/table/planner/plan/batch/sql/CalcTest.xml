@@ -502,4 +502,21 @@ Calc(select=[ROW(1, 'Hi', a) AS EXPR$0])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCastRow">
+    <Resource name="sql">
+      <![CDATA[SELECT b, c, cast(row(b, c) as row(b_val int, c_val string)) as col FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(b=[$1], c=[$2], col=[CAST(ROW($1, $2)):RecordType:peek_no_expand(INTEGER b_val, VARCHAR(2147483647) CHARACTER SET "UTF-16LE" c_val) NOT NULL])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[b, c, CAST(ROW(b, c) AS RecordType:peek_no_expand(INTEGER b_val, VARCHAR(2147483647) c_val)) AS col])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

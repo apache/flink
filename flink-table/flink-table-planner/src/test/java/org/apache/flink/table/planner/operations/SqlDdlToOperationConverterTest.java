@@ -834,7 +834,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                                 + " ROW<`tmstmp` TIMESTAMP(3)>.");
     }
 
-    @Test // TODO: tweak the tests when FLINK-13604 is fixed.
+    @Test
     public void testCreateTableWithFullDataTypes() {
         final List<TestItem> testItems =
                 Arrays.asList(
@@ -908,17 +908,15 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                         createTestItem(
                                 "MAP<BIGINT, BOOLEAN>",
                                 DataTypes.MAP(DataTypes.BIGINT(), DataTypes.BOOLEAN())),
-                        // Expect to be ROW<`f0` INT NOT NULL, `f1` BOOLEAN>.
                         createTestItem(
                                 "ROW<f0 INT NOT NULL, f1 BOOLEAN>",
                                 DataTypes.ROW(
-                                        DataTypes.FIELD("f0", DataTypes.INT()),
+                                        DataTypes.FIELD("f0", DataTypes.INT().notNull()),
                                         DataTypes.FIELD("f1", DataTypes.BOOLEAN()))),
-                        // Expect to be ROW<`f0` INT NOT NULL, `f1` BOOLEAN>.
                         createTestItem(
                                 "ROW(f0 INT NOT NULL, f1 BOOLEAN)",
                                 DataTypes.ROW(
-                                        DataTypes.FIELD("f0", DataTypes.INT()),
+                                        DataTypes.FIELD("f0", DataTypes.INT().notNull()),
                                         DataTypes.FIELD("f1", DataTypes.BOOLEAN()))),
                         createTestItem(
                                 "ROW<`f0` INT>",
@@ -928,12 +926,11 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                                 DataTypes.ROW(DataTypes.FIELD("f0", DataTypes.INT()))),
                         createTestItem("ROW<>", DataTypes.ROW()),
                         createTestItem("ROW()", DataTypes.ROW()),
-                        // Expect to be ROW<`f0` INT NOT NULL '...', `f1` BOOLEAN '...'>.
                         createTestItem(
                                 "ROW<f0 INT NOT NULL 'This is a comment.',"
                                         + " f1 BOOLEAN 'This as well.'>",
                                 DataTypes.ROW(
-                                        DataTypes.FIELD("f0", DataTypes.INT()),
+                                        DataTypes.FIELD("f0", DataTypes.INT().notNull()),
                                         DataTypes.FIELD("f1", DataTypes.BOOLEAN()))),
                         createTestItem(
                                 "ARRAY<ROW<f0 INT, f1 BOOLEAN>>",
