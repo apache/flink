@@ -39,6 +39,8 @@ import org.apache.flink.runtime.shuffle.ShuffleMaster;
 
 import org.slf4j.Logger;
 
+import javax.annotation.Nonnull;
+
 import java.util.Collection;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
@@ -51,10 +53,13 @@ public interface SlotPoolServiceSchedulerFactory {
      *
      * @param jid jid is the JobID to pass to the service
      * @param declarativeSlotPoolFactory the declarative slot pool factory
+     * @param componentMainThreadExecutor component main thread executor.
      * @return created SlotPoolService
      */
     SlotPoolService createSlotPoolService(
-            JobID jid, DeclarativeSlotPoolFactory declarativeSlotPoolFactory);
+            JobID jid,
+            DeclarativeSlotPoolFactory declarativeSlotPoolFactory,
+            @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor);
 
     /**
      * Returns the scheduler type this factory is creating.

@@ -28,6 +28,8 @@ import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
+import javax.annotation.Nonnull;
+
 import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.Map;
@@ -72,13 +74,19 @@ abstract class SlotSelectionStrategyTestBase {
     protected SlotSelectionStrategy selectionStrategy;
 
     private FreeSlotInfoTracker createCandidates() {
+        Map<AllocationID, SlotInfo> candidates = getSlotInfosMap();
+        return FreeSlotInfoTrackerTestUtils.createDefaultFreeSlotInfoTracker(candidates);
+    }
+
+    @Nonnull
+    protected Map<AllocationID, SlotInfo> getSlotInfosMap() {
         Map<AllocationID, SlotInfo> candidates = new HashMap<>(4);
 
         candidates.put(slotInfo1.getAllocationId(), slotInfo1);
         candidates.put(slotInfo2.getAllocationId(), slotInfo2);
         candidates.put(slotInfo3.getAllocationId(), slotInfo3);
         candidates.put(slotInfo4.getAllocationId(), slotInfo4);
-        return FreeSlotInfoTrackerTestUtils.createDefaultFreeSlotInfoTracker(candidates);
+        return candidates;
     }
 
     protected Optional<SlotSelectionStrategy.SlotInfoAndLocality> runMatching(

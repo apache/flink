@@ -18,22 +18,30 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.WeightLoadable;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nonnull;
 
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
 /** Represents execution vertices that will run the same shared slot. */
-class ExecutionSlotSharingGroup {
+class ExecutionSlotSharingGroup implements WeightLoadable {
 
     private final Set<ExecutionVertexID> executionVertexIds;
 
-    private ResourceProfile resourceProfile = ResourceProfile.UNKNOWN;
+    @Nonnull private final SlotSharingGroup slotSharingGroup;
 
-    ExecutionSlotSharingGroup() {
+    ExecutionSlotSharingGroup(@Nonnull SlotSharingGroup slotSharingGroup) {
+        this.slotSharingGroup = Preconditions.checkNotNull(slotSharingGroup);
         this.executionVertexIds = new HashSet<>();
     }
 
@@ -41,12 +49,15 @@ class ExecutionSlotSharingGroup {
         executionVertexIds.add(executionVertexId);
     }
 
-    void setResourceProfile(ResourceProfile resourceProfile) {
-        this.resourceProfile = Preconditions.checkNotNull(resourceProfile);
+    @VisibleForTesting
+    @Nonnull
+    SlotSharingGroup getSlotSharingGroup() {
+        return slotSharingGroup;
     }
 
+    @Nonnull
     ResourceProfile getResourceProfile() {
-        return resourceProfile;
+        return slotSharingGroup.getResourceProfile();
     }
 
     Set<ExecutionVertexID> getExecutionVertexIds() {
@@ -58,8 +69,16 @@ class ExecutionSlotSharingGroup {
         return "ExecutionSlotSharingGroup{"
                 + "executionVertexIds="
                 + executionVertexIds
-                + ", resourceProfile="
-                + resourceProfile
+                + ", slotSharingGroup="
+                + slotSharingGroup
+                + ", loadingWeight="
+                + getLoading()
                 + '}';
+    }
+
+    @Nonnull
+    @Override
+    public LoadingWeight getLoading() {
+        return new DefaultLoadingWeight(executionVertexIds.size());
     }
 }

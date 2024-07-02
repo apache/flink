@@ -31,7 +31,11 @@ import org.apache.flink.util.clock.SystemClock;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+
+import static org.apache.flink.configuration.JobManagerOptions.SLOT_REQUEST_MAX_INTERVAL;
+import static org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter.forMainThread;
 
 /** Builder for a {@link DeclarativeSlotPoolBridge}. */
 public class DeclarativeSlotPoolBridgeBuilder {
@@ -41,6 +45,7 @@ public class DeclarativeSlotPoolBridgeBuilder {
             Time.fromDuration(JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue());
     private Time idleSlotTimeout = TestingUtils.infiniteTime();
     private Clock clock = SystemClock.getInstance();
+    private Duration slotRequestMaxInterval = SLOT_REQUEST_MAX_INTERVAL.defaultValue();
 
     @Nullable
     private ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
@@ -64,6 +69,12 @@ public class DeclarativeSlotPoolBridgeBuilder {
         return this;
     }
 
+    public DeclarativeSlotPoolBridgeBuilder setSlotRequestMaxInterval(
+            Duration slotRequestMaxInterval) {
+        this.slotRequestMaxInterval = slotRequestMaxInterval;
+        return this;
+    }
+
     public DeclarativeSlotPoolBridgeBuilder setClock(Clock clock) {
         this.clock = clock;
         return this;
@@ -81,6 +92,10 @@ public class DeclarativeSlotPoolBridgeBuilder {
     }
 
     public DeclarativeSlotPoolBridge build() {
+        return build(false);
+    }
+
+    public DeclarativeSlotPoolBridge build(boolean slotBatchAllocatable) {
         return new DeclarativeSlotPoolBridge(
                 jobId,
                 new DefaultDeclarativeSlotPoolFactory(),
@@ -88,12 +103,21 @@ public class DeclarativeSlotPoolBridgeBuilder {
                 TestingUtils.infiniteTime(),
                 idleSlotTimeout,
                 batchSlotTimeout,
-                requestSlotMatchingStrategy);
+                requestSlotMatchingStrategy,
+                slotRequestMaxInterval,
+                slotBatchAllocatable,
+                forMainThread());
     }
 
     public DeclarativeSlotPoolBridge buildAndStart(
             ComponentMainThreadExecutor componentMainThreadExecutor) throws Exception {
-        final DeclarativeSlotPoolBridge slotPool = build();
+        return buildAndStart(componentMainThreadExecutor, false);
+    }
+
+    public DeclarativeSlotPoolBridge buildAndStart(
+            ComponentMainThreadExecutor componentMainThreadExecutor, boolean slotBatchAllocatable)
+            throws Exception {
+        final DeclarativeSlotPoolBridge slotPool = build(slotBatchAllocatable);
 
         slotPool.start(JobMasterId.generate(), "foobar", componentMainThreadExecutor);
 

@@ -20,7 +20,11 @@ package org.apache.flink.runtime.clusterframework.types;
 
 import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.slotpool.PreviousAllocationSlotSelectionStrategy;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.WeightLoadable;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+
+import javax.annotation.Nonnull;
 
 import java.util.Collection;
 import java.util.Set;
@@ -35,12 +39,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * task slot. A matcher can be generated to filter out candidate slots by matching their {@link
  * SlotContext} against the slot profile and, potentially, further requirements.
  */
-public class SlotProfile {
+public class SlotProfile implements WeightLoadable {
     /** This specifies the desired resource profile for the task slot. */
     private final ResourceProfile taskResourceProfile;
 
     /** This specifies the desired resource profile for the physical slot to host this task slot. */
-    private final ResourceProfile physicalSlotResourceProfile;
+    private final LoadableResourceProfile loadablePhysicalSlotResourceProfile;
 
     /** This specifies the preferred locations for the slot. */
     private final Collection<TaskManagerLocation> preferredLocations;
@@ -53,13 +57,14 @@ public class SlotProfile {
 
     private SlotProfile(
             final ResourceProfile taskResourceProfile,
-            final ResourceProfile physicalSlotResourceProfile,
+            final LoadableResourceProfile loadablePhysicalSlotResourceProfile,
             final Collection<TaskManagerLocation> preferredLocations,
             final Collection<AllocationID> preferredAllocations,
             final Set<AllocationID> reservedAllocations) {
 
         this.taskResourceProfile = checkNotNull(taskResourceProfile);
-        this.physicalSlotResourceProfile = checkNotNull(physicalSlotResourceProfile);
+        this.loadablePhysicalSlotResourceProfile =
+                checkNotNull(loadablePhysicalSlotResourceProfile);
         this.preferredLocations = checkNotNull(preferredLocations);
         this.preferredAllocations = checkNotNull(preferredAllocations);
         this.reservedAllocations = checkNotNull(reservedAllocations);
@@ -72,7 +77,17 @@ public class SlotProfile {
 
     /** Returns the desired resource profile for the physical slot to host this task slot. */
     public ResourceProfile getPhysicalSlotResourceProfile() {
-        return physicalSlotResourceProfile;
+        return loadablePhysicalSlotResourceProfile.getResourceProfile();
+    }
+
+    public LoadableResourceProfile getLoadablePhysicalSlotResourceProfile() {
+        return loadablePhysicalSlotResourceProfile;
+    }
+
+    @Nonnull
+    @Override
+    public LoadingWeight getLoading() {
+        return loadablePhysicalSlotResourceProfile.getLoading();
     }
 
     /** Returns the preferred locations for the slot. */
@@ -101,8 +116,8 @@ public class SlotProfile {
      * allocation ids from the whole execution graph.
      *
      * @param taskResourceProfile specifying the required resources for the task slot
-     * @param physicalSlotResourceProfile specifying the required resources for the physical slot to
-     *     host this task slot
+     * @param physicalLoadableSlotResourceProfile specifying the required resources with loading for
+     *     the physical slot to host this task slot
      * @param preferredLocations specifying the preferred locations
      * @param priorAllocations specifying the prior allocations
      * @param reservedAllocations specifying all reserved allocations
@@ -110,14 +125,14 @@ public class SlotProfile {
      */
     public static SlotProfile priorAllocation(
             final ResourceProfile taskResourceProfile,
-            final ResourceProfile physicalSlotResourceProfile,
+            final LoadableResourceProfile physicalLoadableSlotResourceProfile,
             final Collection<TaskManagerLocation> preferredLocations,
             final Collection<AllocationID> priorAllocations,
             final Set<AllocationID> reservedAllocations) {
 
         return new SlotProfile(
                 taskResourceProfile,
-                physicalSlotResourceProfile,
+                physicalLoadableSlotResourceProfile,
                 preferredLocations,
                 priorAllocations,
                 reservedAllocations);
@@ -128,8 +143,8 @@ public class SlotProfile {
         return "SlotProfile{"
                 + "taskResourceProfile="
                 + taskResourceProfile
-                + ", physicalSlotResourceProfile="
-                + physicalSlotResourceProfile
+                + ", loadablePhysicalSlotResourceProfile="
+                + loadablePhysicalSlotResourceProfile
                 + ", preferredLocations="
                 + preferredLocations
                 + ", preferredAllocations="
