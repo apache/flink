@@ -24,7 +24,7 @@ import java.util.Random;
 
 public interface SerializationTestType extends IOReadableWritable {
 
-    public SerializationTestType getRandom(Random rnd);
+    SerializationTestType getRandom(Random rnd);
 
-    public int length();
+    int length();
 }
