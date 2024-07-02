@@ -1,0 +1,70 @@
+{
+  "lineageEdges": [
+    {
+      "sourceLineageVertex": {
+        "datasets": [
+          {
+            "name": "default_catalog.default_database.FirstTable",
+            "namespace": "values://FromElementsFunction",
+            "objectPath": {
+              "databaseName": "default_database",
+              "objectName": "FirstTable",
+              "fullName": "default_database.FirstTable"
+            },
+            "facets": {}
+          }
+        ],
+        "boundedness": "BOUNDED"
+      },
+      "sinkVertex": {
+        "datasets": [
+          {
+            "name": "default_catalog.default_database.SinkTable",
+            "namespace": "values://RetractingSinkFunction",
+            "objectPath": {
+              "databaseName": "default_database",
+              "objectName": "SinkTable",
+              "fullName": "default_database.SinkTable"
+            },
+            "facets": {}
+          }
+        ],
+        "modifyType": "INSERT"
+      }
+    }
+  ],
+  "sources": [
+    {
+      "datasets": [
+        {
+          "name": "default_catalog.default_database.FirstTable",
+          "namespace": "values://FromElementsFunction",
+          "objectPath": {
+            "databaseName": "default_database",
+            "objectName": "FirstTable",
+            "fullName": "default_database.FirstTable"
+          },
+          "facets": {}
+        }
+      ],
+      "boundedness": "BOUNDED"
+    }
+  ],
+  "sinks": [
+    {
+      "datasets": [
+        {
+          "name": "default_catalog.default_database.SinkTable",
+          "namespace": "values://RetractingSinkFunction",
+          "objectPath": {
+            "databaseName": "default_database",
+            "objectName": "SinkTable",
+            "fullName": "default_database.SinkTable"
+          },
+          "facets": {}
+        }
+      ],
+      "modifyType": "INSERT"
+    }
+  ]
+}

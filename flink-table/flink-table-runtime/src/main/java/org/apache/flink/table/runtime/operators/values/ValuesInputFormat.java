@@ -20,8 +20,14 @@ package org.apache.flink.table.runtime.operators.values;
 
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.io.NonParallelInput;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.core.io.GenericInputSplit;
+import org.apache.flink.streaming.api.lineage.DefaultLineageDataset;
+import org.apache.flink.streaming.api.lineage.LineageDataset;
+import org.apache.flink.streaming.api.lineage.LineageVertex;
+import org.apache.flink.streaming.api.lineage.LineageVertexProvider;
+import org.apache.flink.streaming.api.lineage.SourceLineageVertex;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedInput;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -30,11 +36,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
 
 /** Generated ValuesInputFormat. */
 public class ValuesInputFormat extends GenericInputFormat<RowData>
-        implements NonParallelInput, ResultTypeQueryable<RowData> {
-
+        implements NonParallelInput, ResultTypeQueryable<RowData>, LineageVertexProvider {
+    private static final String LINEAGE_NAMESPACE = "values://ValuesInputFormat";
     private static final Logger LOG = LoggerFactory.getLogger(ValuesInputFormat.class);
     private static final long serialVersionUID = 1L;
 
@@ -74,5 +83,21 @@ public class ValuesInputFormat extends GenericInputFormat<RowData>
     @Override
     public InternalTypeInfo<RowData> getProducedType() {
         return returnType;
+    }
+
+    @Override
+    public LineageVertex getLineageVertex() {
+        return new SourceLineageVertex() {
+            @Override
+            public Boundedness boundedness() {
+                return Boundedness.BOUNDED;
+            }
+
+            @Override
+            public List<LineageDataset> datasets() {
+                return Arrays.asList(
+                        new DefaultLineageDataset("", LINEAGE_NAMESPACE, new HashMap<>()));
+            }
+        };
     }
 }
