@@ -37,16 +37,15 @@ Flink places some restrictions on the type of elements that can be in a DataStre
 The reason for this is that the system analyzes the types to determine
 efficient execution strategies.
 
-There are eight different categories of data types:
+There are seven different categories of data types:
 
 1. **Java Tuples** and **Scala Case Classes**
 2. **Java POJOs**
 3. **Primitive Types**
-4. **Common Collection Types**
-5. **Regular Classes**
-6. **Values**
-7. **Hadoop Writables**
-8. **Special Types**
+4. **Regular Classes**
+5. **Values**
+6. **Hadoop Writables**
+7. **Special Types**
 
 #### Tuples and Case Classes
 
@@ -167,20 +166,6 @@ input.keyBy(_.word)
 #### Primitive Types
 
 Flink supports all Java and Scala primitive types such as `Integer`, `String`, and `Double`.
-
-#### Common Collection Types
-
-Flink comes with dedicated serialization support for common Java collection types, which is more efficient than going
-through a general purpose serialization framework. Currently, only `Map`, `List` and its super interface `Collection`
-are supported. To utilize it, you need to declare the collection type with:
-
-1. Concrete type arguments: e.g. `List<String>` but not `List`, `List<T>`, or `List<?>`, as Flink needs them to dispatch
-   serialization of the element types.
-2. Interface types: e.g. `List<String>` but not `LinkedList<String>`, as Flink does not preserve the underlying
-   implementation types across serialization.
-
-Other nonqualified collection types will be handled by Flink as general class types. If the implementation types are
-also required to be preserved, you also need to register it with a custom serializer.
 
 #### General Class Types
 

@@ -81,6 +81,9 @@ public class AlterTableChangeOperation extends AlterTableOperation {
                     "  ADD %s %s",
                     addColumn.getColumn(),
                     addColumn.getPosition() == null ? "" : addColumn.getPosition());
+        } else if (tableChange instanceof TableChange.AddDistribution) {
+            TableChange.AddDistribution addDistribution = (TableChange.AddDistribution) tableChange;
+            return String.format("  ADD %s", addDistribution.getDistribution());
         } else if (tableChange instanceof TableChange.AddWatermark) {
             TableChange.AddWatermark addWatermark = (TableChange.AddWatermark) tableChange;
             return String.format("  ADD %s", addWatermark.getWatermark());
@@ -123,6 +126,10 @@ public class AlterTableChangeOperation extends AlterTableOperation {
                     "  MODIFY %s %s",
                     modifyColumn.getNewColumn(),
                     modifyColumn.getNewPosition() == null ? "" : modifyColumn.getNewPosition());
+        } else if (tableChange instanceof TableChange.ModifyDistribution) {
+            TableChange.ModifyDistribution modifyDistribution =
+                    (TableChange.ModifyDistribution) tableChange;
+            return String.format("  MODIFY %s", modifyDistribution.getDistribution());
         } else if (tableChange instanceof TableChange.ModifyWatermark) {
             TableChange.ModifyWatermark modifyWatermark = (TableChange.ModifyWatermark) tableChange;
             return String.format("  MODIFY %s", modifyWatermark.getNewWatermark());
@@ -137,6 +144,8 @@ public class AlterTableChangeOperation extends AlterTableOperation {
         } else if (tableChange instanceof TableChange.DropConstraint) {
             TableChange.DropConstraint dropConstraint = (TableChange.DropConstraint) tableChange;
             return String.format("  DROP CONSTRAINT %s", dropConstraint.getConstraintName());
+        } else if (tableChange instanceof TableChange.DropDistribution) {
+            return "  DROP DISTRIBUTION";
         } else if (tableChange instanceof TableChange.DropWatermark) {
             return "  DROP WATERMARK";
         } else {

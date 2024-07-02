@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.shuffle;
 
-import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
@@ -41,11 +41,14 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.Tiered
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyServiceImpl;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageProducerClient;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageResourceRegistry;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.util.NoOpTierShuffleDescriptor;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.IgnoreShutdownRejectedExecutionHandler;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,7 +56,9 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
@@ -111,7 +116,7 @@ class TieredResultPartitionTest {
     void testClose() throws Exception {
         final int numBuffers = 1;
 
-        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers, numBuffers);
+        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
         TieredResultPartition partition = createTieredStoreResultPartition(1, bufferPool, false);
 
         partition.close();
@@ -123,7 +128,7 @@ class TieredResultPartitionTest {
         final int numSubpartitions = 2;
         final int numBuffers = 10;
 
-        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers, numBuffers);
+        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
         TieredResultPartition partition =
                 createTieredStoreResultPartition(numSubpartitions, bufferPool, false);
 
@@ -142,10 +147,9 @@ class TieredResultPartitionTest {
 
     @Test
     void testMinMaxNetworkBuffersTieredResultPartition() {
-        final int numSubpartitions = 105;
-        final int tieredStorageTotalExclusiveBufferNum = 103;
-        final int tieredStorageMaxBuffersPerRecord = 8;
-        Tuple3<Integer, Integer, Integer> minMaxNetworkBuffers =
+        int numSubpartitions = 105;
+        int tieredStorageTotalExclusiveBufferNum = 103;
+        Pair<Integer, Integer> minMaxNetworkBuffers =
                 getMinMaxNetworkBuffersPerResultPartition(
                         100,
                         5,
@@ -153,19 +157,16 @@ class TieredResultPartitionTest {
                         10,
                         numSubpartitions,
                         true,
-                        true,
                         tieredStorageTotalExclusiveBufferNum,
-                        tieredStorageMaxBuffersPerRecord,
                         ResultPartitionType.HYBRID_SELECTIVE);
-        assertThat(minMaxNetworkBuffers.f0).isEqualTo(tieredStorageTotalExclusiveBufferNum);
-        assertThat(minMaxNetworkBuffers.f1).isEqualTo(tieredStorageMaxBuffersPerRecord);
-        assertThat(minMaxNetworkBuffers.f2).isEqualTo(Integer.MAX_VALUE);
+        assertThat(minMaxNetworkBuffers.getLeft()).isEqualTo(tieredStorageTotalExclusiveBufferNum);
+        assertThat(minMaxNetworkBuffers.getRight()).isEqualTo(Integer.MAX_VALUE);
     }
 
     @Test
     void testCreateSubpartitionViewAfterRelease() throws Exception {
         final int numBuffers = 10;
-        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers, numBuffers);
+        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
         TieredResultPartition resultPartition =
                 createTieredStoreResultPartition(2, bufferPool, false);
         resultPartition.release();
@@ -179,7 +180,7 @@ class TieredResultPartitionTest {
 
     @Test
     void testEmitRecords() throws Exception {
-        BufferPool bufferPool = globalPool.createBufferPool(3, 3, 3);
+        BufferPool bufferPool = globalPool.createBufferPool(3, 3);
         int bufferSize = NETWORK_BUFFER_SIZE;
         try (TieredResultPartition partition =
                 createTieredStoreResultPartition(2, bufferPool, false)) {
@@ -191,7 +192,7 @@ class TieredResultPartitionTest {
 
     @Test
     void testMetricsUpdateForBroadcastOnlyResultPartition() throws Exception {
-        BufferPool bufferPool = globalPool.createBufferPool(3, 3, 3);
+        BufferPool bufferPool = globalPool.createBufferPool(3, 3);
         int bufferSize = NETWORK_BUFFER_SIZE;
         try (TieredResultPartition partition =
                 createTieredStoreResultPartition(2, bufferPool, true)) {
@@ -205,7 +206,7 @@ class TieredResultPartitionTest {
         final int numBuffers = 20;
         final int numRecords = numBuffers / 2;
 
-        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, 1, numBuffers);
+        BufferPool bufferPool = globalPool.createBufferPool(1, numBuffers);
         TieredResultPartition resultPartition =
                 createTieredStoreResultPartitionWithStorageManager(1, bufferPool, false);
 
@@ -265,9 +266,7 @@ class TieredResultPartitionTest {
             int numSubpartitions, BufferPool bufferPool, boolean isBroadcastOnly)
             throws IOException {
         TieredStorageConfiguration tieredStorageConfiguration =
-                TieredStorageConfiguration.builder(null)
-                        .setMemoryTierSubpartitionMaxQueuedBuffers(10)
-                        .build();
+                TieredStorageConfiguration.fromConfiguration(new Configuration());
         TieredStorageResourceRegistry tieredStorageResourceRegistry =
                 new TieredStorageResourceRegistry();
         TieredStorageNettyServiceImpl tieredStorageNettyService =
@@ -278,6 +277,10 @@ class TieredResultPartitionTest {
                         tieredStorageNettyService,
                         tieredStorageResourceRegistry);
 
+        List<TierShuffleDescriptor> tierShuffleDescriptors =
+                Arrays.asList(
+                        NoOpTierShuffleDescriptor.INSTANCE, NoOpTierShuffleDescriptor.INSTANCE);
+
         TieredResultPartition resultPartition =
                 tieredResultPartitionFactory.createTieredResultPartition(
                         "TieredStoreResultPartitionTest",
@@ -286,9 +289,12 @@ class TieredResultPartitionTest {
                         ResultPartitionType.HYBRID_SELECTIVE,
                         numSubpartitions,
                         numSubpartitions,
+                        Integer.MAX_VALUE,
+                        NETWORK_BUFFER_SIZE,
                         isBroadcastOnly,
                         new ResultPartitionManager(),
                         new BufferCompressor(NETWORK_BUFFER_SIZE, CompressionCodec.LZ4),
+                        tierShuffleDescriptors,
                         () -> bufferPool,
                         fileChannelManager,
                         readBufferPool,

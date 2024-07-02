@@ -143,8 +143,7 @@ public class TestCheckpointedInputGateBuilder {
                         .setNumberOfChannels(numChannels)
                         .setSegmentProvider(networkBufferPool)
                         .setBufferPoolFactory(
-                                networkBufferPool.createBufferPool(
-                                        numChannels, numChannels, maxUsedBuffers))
+                                networkBufferPool.createBufferPool(numChannels, maxUsedBuffers))
                         .setChannelStateWriter(channelStateWriter)
                         .build();
         gate.setup();

@@ -87,6 +87,12 @@
             <td>The size of the write buffer of JobEventStore. The content will be flushed to external file system once the buffer is full</td>
         </tr>
         <tr>
+            <td><h5>jobmanager.adaptive-scheduler.max-delay-for-scale-trigger</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Duration</td>
+            <td>The maximum time the JobManager will wait with evaluating previously observed events for rescaling (default: 0ms if checkpointing is disabled and %dx of the checkpointing interval if checkpointing is enabled).</td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.adaptive-scheduler.min-parallelism-increase</h5></td>
             <td style="word-wrap: break-word;">1</td>
             <td>Integer</td>

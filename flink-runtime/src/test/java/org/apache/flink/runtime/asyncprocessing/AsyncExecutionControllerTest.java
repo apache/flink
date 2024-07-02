@@ -824,6 +824,7 @@ class AsyncExecutionControllerTest {
 
         @Override
         public void execute(
+                MailOptions mailOptions,
                 ThrowingRunnable<? extends Exception> command,
                 String descriptionFormat,
                 Object... descriptionArgs) {
@@ -842,6 +843,11 @@ class AsyncExecutionControllerTest {
 
         @Override
         public boolean tryYield() throws FlinkRuntimeException {
+            return false;
+        }
+
+        @Override
+        public boolean shouldInterrupt() {
             return false;
         }
     }

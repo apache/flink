@@ -124,4 +124,16 @@ public class FsMergingCheckpointStorageLocation extends FsCheckpointStorageLocat
     public boolean couldReuseStateHandle(StreamStateHandle stateHandle) {
         return fileMergingSnapshotManager.couldReusePreviousStateHandle(stateHandle);
     }
+
+    @Override
+    public String toString() {
+        return "FsMergingCheckpointStorageLocation {"
+                + "subtaskKey="
+                + subtaskKey
+                + ", FileMergingSnapshotManager="
+                + fileMergingSnapshotManager
+                + ", checkpointId="
+                + checkpointId
+                + "}";
+    }
 }

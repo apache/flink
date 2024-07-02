@@ -119,7 +119,8 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
                         partitionTracker);
 
         return new AdaptiveScheduler(
-                AdaptiveScheduler.Settings.of(jobMasterConfiguration),
+                AdaptiveScheduler.Settings.of(
+                        jobMasterConfiguration, jobGraph.getCheckpointingSettings()),
                 jobGraph,
                 JobResourceRequirements.readFromJobGraph(jobGraph).orElse(null),
                 jobMasterConfiguration,

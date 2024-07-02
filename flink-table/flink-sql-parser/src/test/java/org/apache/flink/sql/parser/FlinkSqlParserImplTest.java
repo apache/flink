@@ -26,12 +26,15 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParserFixture;
 import org.apache.calcite.sql.parser.SqlParserTest;
+import org.apache.commons.lang3.StringUtils;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -67,8 +70,10 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     void testAlterCatalog() {
-        sql("alter catalog a set ('k1'='v1','k2'='v2')")
+        sql("alter catalog a set ('k1'='v1', 'k2'='v2')")
                 .ok("ALTER CATALOG `A` SET (\n" + "  'k1' = 'v1',\n" + "  'k2' = 'v2'\n" + ")");
+        sql("alter catalog a reset ('k1')").ok("ALTER CATALOG `A` RESET (\n" + "  'k1'\n" + ")");
+        sql("alter catalog a comment 'comment1'").ok("ALTER CATALOG `A` COMMENT 'comment1'");
     }
 
     @Test
@@ -120,15 +125,25 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         sql("use catalog a").ok("USE CATALOG `A`");
     }
 
-    @Test
-    void testCreateCatalog() {
-        sql("create catalog c1\n"
+    @ParameterizedTest
+    @CsvSource({"true,true", "true,false", "false,true", "false,false"})
+    void testCreateCatalog(boolean ifNotExists, boolean comment) {
+        String ifNotExistsClause = ifNotExists ? "if not exists " : "";
+        String commentClause = comment ? "\ncomment 'HELLO' " : " ";
+
+        sql("create catalog "
+                        + ifNotExistsClause
+                        + "c1"
+                        + commentClause
                         + " WITH (\n"
                         + "  'key1'='value1',\n"
                         + "  'key2'='value2'\n"
                         + " )\n")
                 .ok(
-                        "CREATE CATALOG `C1` "
+                        "CREATE CATALOG "
+                                + StringUtils.upperCase(ifNotExistsClause)
+                                + "`C1`"
+                                + StringUtils.upperCase(commentClause)
                                 + "WITH (\n"
                                 + "  'key1' = 'value1',\n"
                                 + "  'key2' = 'value2'\n"
@@ -612,6 +627,59 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testAlterTableAddDistribution() {
+        sql("alter table t1 add DISTRIBUTION BY HASH(a) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `T1` ADD DISTRIBUTION BY HASH(`A`) INTO 6 BUCKETS");
+
+        sql("alter table t1 add DISTRIBUTION BY HASH(a, h) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `T1` ADD DISTRIBUTION BY HASH(`A`, `H`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 add DISTRIBUTION BY RANGE(a, h) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `TBL1` ADD DISTRIBUTION BY RANGE(`A`, `H`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 add DISTRIBUTION BY ^RANDOM^(a, h) INTO 6 BUCKETS")
+                .fails("(?s).*Encountered \"RANDOM\" at line 1, column 38.*");
+
+        sql("alter table tbl1 add DISTRIBUTION BY (a, h) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `TBL1` ADD DISTRIBUTION BY (`A`, `H`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 add DISTRIBUTION BY RANGE(a, h)")
+                .ok("ALTER TABLE `TBL1` ADD DISTRIBUTION BY RANGE(`A`, `H`)");
+
+        sql("alter table tbl1 add DISTRIBUTION BY (a, h)")
+                .ok("ALTER TABLE `TBL1` ADD DISTRIBUTION BY (`A`, `H`)");
+    }
+
+    @Test
+    void testAlterTableModifyDistribution() {
+        sql("alter table t1 modify DISTRIBUTION BY HASH(a) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `T1` MODIFY DISTRIBUTION BY HASH(`A`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY HASH(a, h) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `TBL1` MODIFY DISTRIBUTION BY HASH(`A`, `H`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY RANGE(a, h) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `TBL1` MODIFY DISTRIBUTION BY RANGE(`A`, `H`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY ^RANDOM^(a, h) INTO 6 BUCKETS")
+                .fails("(?s).*Encountered \"RANDOM\" at line 1, column 41.*");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY (a, h) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `TBL1` MODIFY DISTRIBUTION BY (`A`, `H`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY RANGE(a, h)")
+                .ok("ALTER TABLE `TBL1` MODIFY DISTRIBUTION BY RANGE(`A`, `H`)");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY (a, h)")
+                .ok("ALTER TABLE `TBL1` MODIFY DISTRIBUTION BY (`A`, `H`)");
+    }
+
+    @Test
+    void testAlterTableDropDistribution() {
+        sql("alter table t1 drop DISTRIBUTION").ok("ALTER TABLE `T1` DROP DISTRIBUTION");
+    }
+
+    @Test
     void testAlterTableAddMultipleColumn() {
         final String sql1 =
                 "alter table t1 add (\n"
@@ -969,7 +1037,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     void testCreateTableWithDistribution() {
-        final String sql = buildDistributionInput("DISTRIBUTED BY HASH(a, h) INTO 6 BUCKETS\n");
+        final String sql = buildDistributionInput("DISTRIBUTED BY HASH(a, h) INTO 6 BUCKETS");
         final String expected =
                 buildDistributionOutput("DISTRIBUTED BY HASH(`A`, `H`) INTO 6 BUCKETS\n");
         sql(sql).ok(expected);
@@ -1062,7 +1130,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "  h varchar, \n"
                         + "  PRIMARY KEY (a, b)\n"
                         + ")\n"
-                        + "DISTRIBUTED BY HASH(a, h) INTO 6 BUCKETS\n"
+                        + "DISTRIBUTED BY HASH(a, h) INTO 6 BUCKETS"
                         + "  with (\n"
                         + "    'connector' = 'kafka', \n"
                         + "    'kafka.topic' = 'log.test'\n"

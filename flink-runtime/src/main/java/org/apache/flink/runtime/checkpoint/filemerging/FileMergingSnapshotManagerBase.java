@@ -25,6 +25,7 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.OutputStreamAndPath;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.filemerging.LogicalFile.LogicalFileId;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
@@ -41,7 +42,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
 
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
@@ -59,6 +59,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
+import static org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManagerBase.DirectoryHandleWithReferenceTrack.wrap;
 import static org.apache.flink.runtime.checkpoint.filemerging.PhysicalFile.PhysicalFileDeleter;
 
 /** Base implementation of {@link FileMergingSnapshotManager}. */
@@ -133,9 +134,10 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     private final Map<SubtaskKey, Path> managedSharedStateDir = new ConcurrentHashMap<>();
 
     /**
-     * The {@link DirectoryStreamStateHandle} for shared state directories, one for each subtask.
+     * The {@link DirectoryStreamStateHandle} with it ongoing checkpoint reference count for shared
+     * state directories, one for each subtask and job.
      */
-    private final Map<SubtaskKey, DirectoryStreamStateHandle> managedSharedStateDirHandles =
+    private final Map<SubtaskKey, DirectoryHandleWithReferenceTrack> managedSharedStateDirHandles =
             new ConcurrentHashMap<>();
 
     /**
@@ -145,20 +147,24 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     protected Path managedExclusiveStateDir;
 
     /**
-     * The {@link DirectoryStreamStateHandle} for private state directory, one for each task
-     * manager.
+     * The {@link DirectoryStreamStateHandle} with it ongoing checkpoint reference count for private
+     * state directory, one for each taskmanager and job.
      */
-    protected DirectoryStreamStateHandle managedExclusiveStateDirHandle;
+    protected DirectoryHandleWithReferenceTrack managedExclusiveStateDirHandle;
 
     /** The current space statistic, updated on file creation/deletion. */
     protected SpaceStat spaceStat;
+
+    /** The metric group for file merging snapshot manager. */
+    protected FileMergingMetricGroup metricGroup;
 
     public FileMergingSnapshotManagerBase(
             String id,
             long maxFileSize,
             PhysicalFilePool.Type filePoolType,
             float maxSpaceAmplification,
-            Executor ioExecutor) {
+            Executor ioExecutor,
+            MetricGroup parentMetricGroup) {
         this.id = id;
         this.maxPhysicalFileSize = maxFileSize;
         this.filePoolType = filePoolType;
@@ -166,6 +172,7 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                 maxSpaceAmplification < 1f ? Float.MAX_VALUE : maxSpaceAmplification;
         this.ioExecutor = ioExecutor;
         this.spaceStat = new SpaceStat();
+        this.metricGroup = new FileMergingMetricGroup(parentMetricGroup, spaceStat);
     }
 
     @Override
@@ -193,7 +200,6 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
             this.checkpointDir = Preconditions.checkNotNull(checkpointBaseDir);
             this.sharedStateDir = Preconditions.checkNotNull(sharedStateDir);
             this.taskOwnedStateDir = Preconditions.checkNotNull(taskOwnedStateDir);
-            this.fileSystemInitiated = true;
             this.shouldSyncAfterClosingLogicalFile = shouldSyncAfterClosingLogicalFile(fileSystem);
             // Initialize the managed exclusive path using id as the child path name.
             // Currently, we use the task-owned directory to place the merged private state.
@@ -201,12 +207,12 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
             // to the FLIP-306, we later consider move these files to the new introduced
             // task-manager-owned directory.
             Path managedExclusivePath = new Path(taskOwnedStateDir, id);
-            createManagedDirectory(managedExclusivePath);
+            boolean newCreated = createManagedDirectory(managedExclusivePath);
             this.managedExclusiveStateDir = managedExclusivePath;
             this.managedExclusiveStateDirHandle =
-                    DirectoryStreamStateHandle.forPathWithZeroSize(
-                            new File(managedExclusivePath.getPath()).toPath());
+                    wrap(DirectoryStreamStateHandle.of(managedExclusivePath), newCreated);
             this.writeBufferSize = writeBufferSize;
+            this.fileSystemInitiated = true;
         }
     }
 
@@ -215,12 +221,10 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
         String managedDirName = subtaskKey.getManagedDirName();
         Path managedPath = new Path(sharedStateDir, managedDirName);
         if (!managedSharedStateDir.containsKey(subtaskKey)) {
-            createManagedDirectory(managedPath);
+            boolean newCreated = createManagedDirectory(managedPath);
             managedSharedStateDir.put(subtaskKey, managedPath);
             managedSharedStateDirHandles.put(
-                    subtaskKey,
-                    DirectoryStreamStateHandle.forPathWithZeroSize(
-                            new File(managedPath.getPath()).toPath()));
+                    subtaskKey, wrap(DirectoryStreamStateHandle.of(managedPath), newCreated));
         }
     }
 
@@ -228,6 +232,8 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     public void unregisterSubtask(SubtaskKey subtaskKey) {
         if (managedSharedStateDir.containsKey(subtaskKey)) {
             managedSharedStateDir.remove(subtaskKey);
+            // try clean up before remove
+            managedSharedStateDirHandles.get(subtaskKey).tryCleanupQuietly();
             managedSharedStateDirHandles.remove(subtaskKey);
         }
     }
@@ -490,14 +496,50 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     //  Checkpoint Listener
     // ------------------------------------------------------------------------
 
+    /**
+     * {@link org.apache.flink.streaming.runtime.tasks.SubtaskCheckpointCoordinatorImpl} use this
+     * method let the file merging manager know an ongoing checkpoint may reference the managed
+     * dirs.
+     */
+    @Override
+    public void notifyCheckpointStart(SubtaskKey subtaskKey, long checkpointId) {
+        if (fileSystemInitiated) {
+            managedSharedStateDirHandles.computeIfPresent(
+                    subtaskKey,
+                    (k, v) -> {
+                        v.increaseRefCountWhenCheckpointStart(checkpointId);
+                        return v;
+                    });
+            managedExclusiveStateDirHandle.increaseRefCountWhenCheckpointStart(checkpointId);
+        }
+    }
+
     @Override
     public void notifyCheckpointComplete(SubtaskKey subtaskKey, long checkpointId)
             throws Exception {
-        // does nothing
+        if (fileSystemInitiated) {
+            managedSharedStateDirHandles.computeIfPresent(
+                    subtaskKey,
+                    (k, v) -> {
+                        v.handoverOwnershipWhenCheckpointComplete(checkpointId);
+                        return v;
+                    });
+            managedExclusiveStateDirHandle.handoverOwnershipWhenCheckpointComplete(checkpointId);
+        }
     }
 
     @Override
     public void notifyCheckpointAborted(SubtaskKey subtaskKey, long checkpointId) throws Exception {
+        if (fileSystemInitiated) {
+            managedSharedStateDirHandles.computeIfPresent(
+                    subtaskKey,
+                    (k, v) -> {
+                        v.decreaseRefCountWhenCheckpointAbort(checkpointId);
+                        return v;
+                    });
+            managedExclusiveStateDirHandle.decreaseRefCountWhenCheckpointAbort(checkpointId);
+        }
+
         synchronized (lock) {
             Set<LogicalFile> logicalFilesForCurrentCp = uploadedStates.get(checkpointId);
             if (logicalFilesForCurrentCp == null) {
@@ -513,6 +555,16 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     @Override
     public void notifyCheckpointSubsumed(SubtaskKey subtaskKey, long checkpointId)
             throws Exception {
+        if (fileSystemInitiated) {
+            managedSharedStateDirHandles.computeIfPresent(
+                    subtaskKey,
+                    (k, v) -> {
+                        v.handoverOwnershipWhenCheckpointSubsumed(checkpointId);
+                        return v;
+                    });
+            managedExclusiveStateDirHandle.handoverOwnershipWhenCheckpointSubsumed(checkpointId);
+        }
+
         synchronized (lock) {
             Iterator<Map.Entry<Long, Set<LogicalFile>>> uploadedStatesIterator =
                     uploadedStates.headMap(checkpointId, true).entrySet().iterator();
@@ -571,7 +623,8 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                 if (file != null) {
                     file.advanceLastCheckpointId(checkpointId);
                 }
-            } else if (stateHandle instanceof PlaceholderStreamStateHandle) {
+            } else if (stateHandle instanceof PlaceholderStreamStateHandle
+                    && ((PlaceholderStreamStateHandle) stateHandle).isFileMerged()) {
                 // Since the rocksdb state backend will leverage the PlaceholderStreamStateHandle,
                 // the manager should recognize this.
                 LogicalFile file =
@@ -643,8 +696,20 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
             if (file != null) {
                 return file.getPhysicalFile().isCouldReuse();
             }
+        } else if (stateHandle instanceof PlaceholderStreamStateHandle
+                && ((PlaceholderStreamStateHandle) stateHandle).isFileMerged()) {
+            // Since the rocksdb state backend will leverage the PlaceholderStreamStateHandle,
+            // the manager should recognize this.
+            LogicalFile file =
+                    knownLogicalFiles.get(
+                            new LogicalFileId(stateHandle.getStreamStateHandleID().getKeyString()));
+            if (file != null) {
+                return file.getPhysicalFile().isCouldReuse();
+            }
         }
-        return true;
+        // If a stateHandle is not of the type SegmentFileStateHandle or if its corresponding file
+        // is not recognized by the fileMergingManager, it needs to be re-uploaded.
+        return false;
     }
 
     public void discardSingleLogicalFile(LogicalFile logicalFile, long checkpointId)
@@ -693,9 +758,11 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     public DirectoryStreamStateHandle getManagedDirStateHandle(
             SubtaskKey subtaskKey, CheckpointedStateScope scope) {
         if (scope.equals(CheckpointedStateScope.SHARED)) {
-            return managedSharedStateDirHandles.get(subtaskKey);
+            DirectoryHandleWithReferenceTrack handleWithTrack =
+                    managedSharedStateDirHandles.get(subtaskKey);
+            return handleWithTrack != null ? handleWithTrack.getHandle() : null;
         } else {
-            return managedExclusiveStateDirHandle;
+            return managedExclusiveStateDirHandle.getHandle();
         }
     }
 
@@ -710,7 +777,13 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     //  utilities
     // ------------------------------------------------------------------------
 
-    private void createManagedDirectory(Path managedPath) {
+    /**
+     * Create managed directory.
+     *
+     * @param managedPath the path.
+     * @return true if new created.
+     */
+    private boolean createManagedDirectory(Path managedPath) {
         try {
             FileStatus fileStatus = null;
             try {
@@ -721,8 +794,10 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
             if (fileStatus == null) {
                 fs.mkdirs(managedPath);
                 LOG.info("Created a directory {} for checkpoint file-merging.", managedPath);
+                return true;
             } else if (fileStatus.isDir()) {
                 LOG.info("Reusing previous directory {} for checkpoint file-merging.", managedPath);
+                return false;
             } else {
                 throw new FlinkRuntimeException(
                         "The managed path "
@@ -736,7 +811,25 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     }
 
     @Override
-    public void close() throws IOException {}
+    public void close() throws IOException {
+        if (fileSystemInitiated) {
+            quietlyCleanupManagedDir();
+        }
+    }
+
+    private void quietlyCleanupManagedDir() {
+        // Quietly clean up useless shared state dir.
+        managedSharedStateDirHandles.forEach(
+                (subtaskKey, handleWithTrack) -> handleWithTrack.tryCleanupQuietly());
+
+        // Quietly clean up useless exclusive state dir.
+        managedExclusiveStateDirHandle.tryCleanupQuietly();
+    }
+
+    @VisibleForTesting
+    public String getId() {
+        return id;
+    }
 
     // ------------------------------------------------------------------------
     //  restore
@@ -845,5 +938,83 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     @VisibleForTesting
     boolean isCheckpointDiscard(long checkpointId) {
         return notifiedCheckpoint.contains(checkpointId);
+    }
+
+    /**
+     * This class wrap DirectoryStreamStateHandle with reference count by ongoing checkpoint. If an
+     * ongoing checkpoint which reference the directory handle complete, we will stop tracking the
+     * handle, because the ownership of the handle is handover to JobManager.
+     */
+    protected static class DirectoryHandleWithReferenceTrack {
+
+        private final DirectoryStreamStateHandle directoryHandle;
+        // reference count by ongoing checkpoint
+        private final AtomicLong ongoingRefCount;
+        private boolean tracking;
+
+        DirectoryHandleWithReferenceTrack(DirectoryStreamStateHandle directoryHandle, boolean own) {
+            this.directoryHandle = directoryHandle;
+            this.ongoingRefCount = new AtomicLong(0);
+            this.tracking = own;
+        }
+
+        static DirectoryHandleWithReferenceTrack wrap(
+                DirectoryStreamStateHandle directoryHandle, boolean own) {
+            return new DirectoryHandleWithReferenceTrack(directoryHandle, own);
+        }
+
+        DirectoryStreamStateHandle getHandle() {
+            return directoryHandle;
+        }
+
+        void increaseRefCountWhenCheckpointStart(long checkpointId) {
+            if (tracking) {
+                LOG.debug(
+                        "checkpoint:{} start, increase ref-count to file-merging managed shared dir : {}",
+                        checkpointId,
+                        directoryHandle.getDirectory());
+                ongoingRefCount.incrementAndGet();
+            }
+        }
+
+        void decreaseRefCountWhenCheckpointAbort(long checkpointId) {
+            if (tracking) {
+                LOG.debug(
+                        "checkpoint:{} aborted, decrease ref-count to file-merging managed shared dir : {}",
+                        checkpointId,
+                        directoryHandle.getDirectory());
+                ongoingRefCount.decrementAndGet();
+            }
+        }
+
+        void handoverOwnershipWhenCheckpointComplete(long checkpointId) {
+            if (tracking) {
+                LOG.debug(
+                        "checkpoint:{} complete, handover ownership of file-merging managed shared dir to JobManager : {}",
+                        checkpointId,
+                        directoryHandle.getDirectory());
+                tracking = false;
+            }
+        }
+
+        void handoverOwnershipWhenCheckpointSubsumed(long checkpointId) {
+            if (tracking) {
+                LOG.debug(
+                        "checkpoint:{} subsumed, handover ownership of file-merging managed shared dir to JobManager : {}",
+                        checkpointId,
+                        directoryHandle.getDirectory());
+                tracking = false;
+            }
+        }
+
+        void tryCleanupQuietly() {
+            if (tracking && ongoingRefCount.get() == 0 && directoryHandle != null) {
+                try {
+                    directoryHandle.discardState();
+                } catch (Exception e) {
+                    // ignore
+                }
+            }
+        }
     }
 }

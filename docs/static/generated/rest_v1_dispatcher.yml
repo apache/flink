@@ -6,7 +6,7 @@ info:
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
-  version: v1/1.20-SNAPSHOT
+  version: v1/2.0-SNAPSHOT
 paths:
   /cluster:
     delete:
@@ -2395,6 +2395,8 @@ components:
           type: boolean
         jid:
           $ref: '#/components/schemas/JobID'
+        job-type:
+          $ref: '#/components/schemas/JobType'
         maxParallelism:
           type: integer
           format: int64
@@ -2572,6 +2574,11 @@ components:
       properties:
         jobUrl:
           type: string
+    JobType:
+      type: string
+      enum:
+      - BATCH
+      - STREAMING
     JobVertexAccumulatorsInfo:
       type: object
       properties:

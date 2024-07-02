@@ -43,9 +43,7 @@ import org.apache.flink.table.planner.utils.OperationConverterUtils;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.sql.SqlNumericLiteral;
 
-import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -248,29 +246,10 @@ class SqlCreateTableConverter {
 
         Optional<TableDistribution> derivedTabledDistribution = Optional.empty();
         if (sqlCreateTable.getDistribution() != null) {
-            TableDistribution.Kind kind =
-                    TableDistribution.Kind.valueOf(
-                            sqlCreateTable
-                                    .getDistribution()
-                                    .getDistributionKind()
-                                    .orElse(TableDistribution.Kind.UNKNOWN.toString()));
-            Integer bucketCount = null;
-            SqlNumericLiteral count = sqlCreateTable.getDistribution().getBucketCount();
-            if (count != null && count.isInteger()) {
-                bucketCount = ((BigDecimal) (count).getValue()).intValue();
-            }
-
-            List<String> bucketColumns = Collections.emptyList();
-
-            SqlNodeList columns = sqlCreateTable.getDistribution().getBucketColumns();
-            if (columns != null) {
-                bucketColumns =
-                        columns.getList().stream()
-                                .map(p -> ((SqlIdentifier) p).getSimple())
-                                .collect(Collectors.toList());
-            }
-            derivedTabledDistribution =
-                    Optional.of(TableDistribution.of(kind, bucketCount, bucketColumns));
+            TableDistribution distribution =
+                    OperationConverterUtils.getDistributionFromSqlDistribution(
+                            sqlCreateTable.getDistribution());
+            derivedTabledDistribution = Optional.of(distribution);
         }
 
         return mergeTableLikeUtil.mergeDistribution(

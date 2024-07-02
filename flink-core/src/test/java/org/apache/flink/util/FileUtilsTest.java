@@ -203,7 +203,7 @@ public class FileUtilsTest {
         t3.sync();
 
         // assert is empty
-        assertThat(parent.exists()).isFalse();
+        assertThat(parent).doesNotExist();
     }
 
     @Test

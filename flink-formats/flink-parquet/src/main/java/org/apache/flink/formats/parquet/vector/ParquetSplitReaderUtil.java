@@ -20,7 +20,6 @@ package org.apache.flink.formats.parquet.vector;
 
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.utils.ParquetSchemaConverter;
-import org.apache.flink.formats.parquet.vector.reader.ArrayColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.BooleanColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.ByteColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.BytesColumnReader;
@@ -30,10 +29,12 @@ import org.apache.flink.formats.parquet.vector.reader.FixedLenBytesColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.FloatColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.IntColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.LongColumnReader;
-import org.apache.flink.formats.parquet.vector.reader.MapColumnReader;
-import org.apache.flink.formats.parquet.vector.reader.RowColumnReader;
+import org.apache.flink.formats.parquet.vector.reader.NestedColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.ShortColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.TimestampColumnReader;
+import org.apache.flink.formats.parquet.vector.type.ParquetField;
+import org.apache.flink.formats.parquet.vector.type.ParquetGroupField;
+import org.apache.flink.formats.parquet.vector.type.ParquetPrimitiveField;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.columnar.vector.ColumnVector;
@@ -61,14 +62,23 @@ import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarBinaryType;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
+
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.ParquetRuntimeException;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.page.PageReadStore;
+import org.apache.parquet.io.ColumnIO;
+import org.apache.parquet.io.GroupColumnIO;
+import org.apache.parquet.io.MessageColumnIO;
+import org.apache.parquet.io.PrimitiveColumnIO;
 import org.apache.parquet.schema.GroupType;
 import org.apache.parquet.schema.InvalidSchemaException;
+import org.apache.parquet.schema.LogicalTypeAnnotation;
 import org.apache.parquet.schema.OriginalType;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
@@ -83,10 +93,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.utils.DateTimeUtils.toInternal;
 import static org.apache.parquet.Preconditions.checkArgument;
+import static org.apache.parquet.schema.Type.Repetition.REPEATED;
+import static org.apache.parquet.schema.Type.Repetition.REQUIRED;
 
 /** Util for generating {@link ParquetColumnarRowSplitReader}. */
 public class ParquetSplitReaderUtil {
@@ -298,6 +311,7 @@ public class ParquetSplitReaderUtil {
             Type type,
             List<ColumnDescriptor> columnDescriptors,
             PageReadStore pages,
+            ParquetField field,
             int depth)
             throws IOException {
         List<ColumnDescriptor> descriptors =
@@ -356,61 +370,10 @@ public class ParquetSplitReaderUtil {
                                 ((DecimalType) fieldType).getPrecision());
                 }
             case ARRAY:
-                return new ArrayColumnReader(
-                        descriptors.get(0),
-                        pages.getPageReader(descriptors.get(0)),
-                        isUtcTimestamp,
-                        descriptors.get(0).getPrimitiveType(),
-                        fieldType);
             case MAP:
-                MapType mapType = (MapType) fieldType;
-                ArrayColumnReader mapKeyReader =
-                        new ArrayColumnReader(
-                                descriptors.get(0),
-                                pages.getPageReader(descriptors.get(0)),
-                                isUtcTimestamp,
-                                descriptors.get(0).getPrimitiveType(),
-                                new ArrayType(mapType.getKeyType()));
-                ArrayColumnReader mapValueReader =
-                        new ArrayColumnReader(
-                                descriptors.get(1),
-                                pages.getPageReader(descriptors.get(1)),
-                                isUtcTimestamp,
-                                descriptors.get(1).getPrimitiveType(),
-                                new ArrayType(mapType.getValueType()));
-                return new MapColumnReader(mapKeyReader, mapValueReader);
             case MULTISET:
-                MultisetType multisetType = (MultisetType) fieldType;
-                ArrayColumnReader multisetKeyReader =
-                        new ArrayColumnReader(
-                                descriptors.get(0),
-                                pages.getPageReader(descriptors.get(0)),
-                                isUtcTimestamp,
-                                descriptors.get(0).getPrimitiveType(),
-                                new ArrayType(multisetType.getElementType()));
-                ArrayColumnReader multisetValueReader =
-                        new ArrayColumnReader(
-                                descriptors.get(1),
-                                pages.getPageReader(descriptors.get(1)),
-                                isUtcTimestamp,
-                                descriptors.get(1).getPrimitiveType(),
-                                new ArrayType(new IntType(false)));
-                return new MapColumnReader(multisetKeyReader, multisetValueReader);
             case ROW:
-                RowType rowType = (RowType) fieldType;
-                GroupType groupType = type.asGroupType();
-                List<ColumnReader> fieldReaders = new ArrayList<>();
-                for (int i = 0; i < rowType.getFieldCount(); i++) {
-                    fieldReaders.add(
-                            createColumnReader(
-                                    isUtcTimestamp,
-                                    rowType.getTypeAt(i),
-                                    groupType.getType(i),
-                                    descriptors,
-                                    pages,
-                                    depth + 1));
-                }
-                return new RowColumnReader(fieldReaders);
+                return new NestedColumnReader(isUtcTimestamp, pages, field);
             default:
                 throw new UnsupportedOperationException(fieldType + " is not supported now.");
         }
@@ -527,7 +490,18 @@ public class ParquetSplitReaderUtil {
                                 depth));
             case MAP:
                 MapType mapType = (MapType) fieldType;
+                LogicalTypeAnnotation mapTypeAnnotation = type.getLogicalTypeAnnotation();
                 GroupType mapRepeatedType = type.asGroupType().getType(0).asGroupType();
+                if (mapTypeAnnotation.equals(LogicalTypeAnnotation.listType())) {
+                    mapRepeatedType = mapRepeatedType.getType(0).asGroupType();
+                    depth++;
+                    if (mapRepeatedType
+                            .getLogicalTypeAnnotation()
+                            .equals(LogicalTypeAnnotation.mapType())) {
+                        mapRepeatedType = mapRepeatedType.getType(0).asGroupType();
+                        depth++;
+                    }
+                }
                 return new HeapMapVector(
                         batchSize,
                         createWritableColumnVector(
@@ -544,7 +518,18 @@ public class ParquetSplitReaderUtil {
                                 depth + 2));
             case MULTISET:
                 MultisetType multisetType = (MultisetType) fieldType;
+                LogicalTypeAnnotation multisetTypeAnnotation = type.getLogicalTypeAnnotation();
                 GroupType multisetRepeatedType = type.asGroupType().getType(0).asGroupType();
+                if (multisetTypeAnnotation.equals(LogicalTypeAnnotation.listType())) {
+                    multisetRepeatedType = multisetRepeatedType.getType(0).asGroupType();
+                    depth++;
+                    if (multisetRepeatedType
+                            .getLogicalTypeAnnotation()
+                            .equals(LogicalTypeAnnotation.mapType())) {
+                        multisetRepeatedType = multisetRepeatedType.getType(0).asGroupType();
+                        depth++;
+                    }
+                }
                 return new HeapMapVector(
                         batchSize,
                         createWritableColumnVector(
@@ -562,6 +547,12 @@ public class ParquetSplitReaderUtil {
             case ROW:
                 RowType rowType = (RowType) fieldType;
                 GroupType groupType = type.asGroupType();
+                if (LogicalTypeAnnotation.listType().equals(groupType.getLogicalTypeAnnotation())) {
+                    // this means there was two outside struct, need to get group twice.
+                    groupType = groupType.getType(0).asGroupType();
+                    groupType = groupType.getType(0).asGroupType();
+                    depth = depth + 2;
+                }
                 WritableColumnVector[] columnVectors =
                         new WritableColumnVector[rowType.getFieldCount()];
                 for (int i = 0; i < columnVectors.length; i++) {
@@ -577,5 +568,172 @@ public class ParquetSplitReaderUtil {
             default:
                 throw new UnsupportedOperationException(fieldType + " is not supported now.");
         }
+    }
+
+    public static List<ParquetField> buildFieldsList(
+            List<RowType.RowField> childrens, List<String> fieldNames, MessageColumnIO columnIO) {
+        List<ParquetField> list = new ArrayList<>();
+        for (int i = 0; i < childrens.size(); i++) {
+            list.add(
+                    constructField(
+                            childrens.get(i), lookupColumnByName(columnIO, fieldNames.get(i))));
+        }
+        return list;
+    }
+
+    private static ParquetField constructField(RowType.RowField rowField, ColumnIO columnIO) {
+        boolean required = columnIO.getType().getRepetition() == REQUIRED;
+        int repetitionLevel = columnIO.getRepetitionLevel();
+        int definitionLevel = columnIO.getDefinitionLevel();
+        LogicalType type = rowField.getType();
+        String filedName = rowField.getName();
+        if (type instanceof RowType) {
+            GroupColumnIO groupColumnIO = (GroupColumnIO) columnIO;
+            RowType rowType = (RowType) type;
+            ImmutableList.Builder<ParquetField> fieldsBuilder = ImmutableList.builder();
+            List<String> fieldNames = rowType.getFieldNames();
+            List<RowType.RowField> childrens = rowType.getFields();
+            for (int i = 0; i < childrens.size(); i++) {
+                fieldsBuilder.add(
+                        constructField(
+                                childrens.get(i),
+                                lookupColumnByName(groupColumnIO, fieldNames.get(i))));
+            }
+
+            return new ParquetGroupField(
+                    type, repetitionLevel, definitionLevel, required, fieldsBuilder.build());
+        }
+
+        if (type instanceof MapType) {
+            GroupColumnIO groupColumnIO = (GroupColumnIO) columnIO;
+            GroupColumnIO keyValueColumnIO = getMapKeyValueColumn(groupColumnIO);
+            MapType mapType = (MapType) type;
+            ParquetField keyField =
+                    constructField(
+                            new RowType.RowField("", mapType.getKeyType()),
+                            keyValueColumnIO.getChild(0));
+            ParquetField valueField =
+                    constructField(
+                            new RowType.RowField("", mapType.getValueType()),
+                            keyValueColumnIO.getChild(1));
+            return new ParquetGroupField(
+                    type,
+                    repetitionLevel,
+                    definitionLevel,
+                    required,
+                    ImmutableList.of(keyField, valueField));
+        }
+
+        if (type instanceof MultisetType) {
+            GroupColumnIO groupColumnIO = (GroupColumnIO) columnIO;
+            GroupColumnIO keyValueColumnIO = getMapKeyValueColumn(groupColumnIO);
+            MultisetType multisetType = (MultisetType) type;
+            ParquetField keyField =
+                    constructField(
+                            new RowType.RowField("", multisetType.getElementType()),
+                            keyValueColumnIO.getChild(0));
+            ParquetField valueField =
+                    constructField(
+                            new RowType.RowField("", new IntType()), keyValueColumnIO.getChild(1));
+            return new ParquetGroupField(
+                    type,
+                    repetitionLevel,
+                    definitionLevel,
+                    required,
+                    ImmutableList.of(keyField, valueField));
+        }
+
+        if (type instanceof ArrayType) {
+            ArrayType arrayType = (ArrayType) type;
+            ColumnIO elementTypeColumnIO;
+            if (columnIO instanceof GroupColumnIO) {
+                GroupColumnIO groupColumnIO = (GroupColumnIO) columnIO;
+                if (!StringUtils.isNullOrWhitespaceOnly(filedName)) {
+                    while (!Objects.equals(groupColumnIO.getName(), filedName)) {
+                        groupColumnIO = (GroupColumnIO) groupColumnIO.getChild(0);
+                    }
+                    elementTypeColumnIO = groupColumnIO;
+                } else {
+                    if (arrayType.getElementType() instanceof RowType) {
+                        elementTypeColumnIO = groupColumnIO;
+                    } else {
+                        elementTypeColumnIO = groupColumnIO.getChild(0);
+                    }
+                }
+            } else if (columnIO instanceof PrimitiveColumnIO) {
+                elementTypeColumnIO = columnIO;
+            } else {
+                throw new RuntimeException(String.format("Unknown ColumnIO, %s", columnIO));
+            }
+
+            ParquetField field =
+                    constructField(
+                            new RowType.RowField("", arrayType.getElementType()),
+                            getArrayElementColumn(elementTypeColumnIO));
+            if (repetitionLevel == field.getRepetitionLevel()) {
+                repetitionLevel = columnIO.getParent().getRepetitionLevel();
+            }
+            return new ParquetGroupField(
+                    type, repetitionLevel, definitionLevel, required, ImmutableList.of(field));
+        }
+
+        PrimitiveColumnIO primitiveColumnIO = (PrimitiveColumnIO) columnIO;
+        return new ParquetPrimitiveField(
+                type, required, primitiveColumnIO.getColumnDescriptor(), primitiveColumnIO.getId());
+    }
+
+    /**
+     * Parquet's column names are case in sensitive. So when we look up columns we first check for
+     * exact match, and if that can not find we look for a case-insensitive match.
+     */
+    public static ColumnIO lookupColumnByName(GroupColumnIO groupColumnIO, String columnName) {
+        ColumnIO columnIO = groupColumnIO.getChild(columnName);
+
+        if (columnIO != null) {
+            return columnIO;
+        }
+
+        for (int i = 0; i < groupColumnIO.getChildrenCount(); i++) {
+            if (groupColumnIO.getChild(i).getName().equalsIgnoreCase(columnName)) {
+                return groupColumnIO.getChild(i);
+            }
+        }
+
+        throw new FlinkRuntimeException("Can not find column io for parquet reader.");
+    }
+
+    public static GroupColumnIO getMapKeyValueColumn(GroupColumnIO groupColumnIO) {
+        while (groupColumnIO.getChildrenCount() == 1) {
+            groupColumnIO = (GroupColumnIO) groupColumnIO.getChild(0);
+        }
+        return groupColumnIO;
+    }
+
+    public static ColumnIO getArrayElementColumn(ColumnIO columnIO) {
+        while (columnIO instanceof GroupColumnIO && !columnIO.getType().isRepetition(REPEATED)) {
+            columnIO = ((GroupColumnIO) columnIO).getChild(0);
+        }
+
+        /* Compatible with array has a standard 3-level structure:
+         *  optional group my_list (LIST) {
+         *     repeated group element {
+         *        required binary str (UTF8);
+         *     };
+         *  }
+         */
+        if (columnIO instanceof GroupColumnIO
+                && columnIO.getType().getLogicalTypeAnnotation() == null
+                && ((GroupColumnIO) columnIO).getChildrenCount() == 1
+                && !columnIO.getName().equals("array")
+                && !columnIO.getName().equals(columnIO.getParent().getName() + "_tuple")) {
+            return ((GroupColumnIO) columnIO).getChild(0);
+        }
+
+        /* Compatible with array for 2-level arrays where a repeated field is not a group:
+         *   optional group my_list (LIST) {
+         *      repeated int32 element;
+         *   }
+         */
+        return columnIO;
     }
 }

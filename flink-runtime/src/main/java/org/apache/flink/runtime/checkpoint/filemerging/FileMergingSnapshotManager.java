@@ -25,6 +25,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
+import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.filemerging.DirectoryStreamStateHandle;
@@ -143,6 +144,15 @@ public interface FileMergingSnapshotManager extends Closeable {
             SubtaskKey subtaskKey, CheckpointedStateScope scope);
 
     /**
+     * Notifies the manager that the checkpoint with the given {@code checkpointId} has been
+     * started.
+     *
+     * @param subtaskKey the subtask key identifying the subtask.
+     * @param checkpointId The ID of the checkpoint that has been started.
+     */
+    void notifyCheckpointStart(SubtaskKey subtaskKey, long checkpointId);
+
+    /**
      * Notifies the manager that the checkpoint with the given {@code checkpointId} completed and
      * was committed.
      *
@@ -203,6 +213,8 @@ public interface FileMergingSnapshotManager extends Closeable {
      * the parallelism. Note that this key should be consistent across job attempts.
      */
     final class SubtaskKey {
+        private static final String MANAGED_DIR_FORMAT = "job_%s_op_%s_%d_%d";
+
         final String jobIDString;
         final String operatorIDString;
         final int subtaskIndex;
@@ -243,6 +255,11 @@ public interface FileMergingSnapshotManager extends Closeable {
                     environment.getTaskInfo());
         }
 
+        @VisibleForTesting
+        public String getJobIDString() {
+            return jobIDString;
+        }
+
         /**
          * Generate an unique managed directory name for one subtask.
          *
@@ -250,8 +267,11 @@ public interface FileMergingSnapshotManager extends Closeable {
          */
         public String getManagedDirName() {
             return String.format(
-                            "%s_%s_%d_%d_",
-                            jobIDString, operatorIDString, subtaskIndex, parallelism)
+                            MANAGED_DIR_FORMAT,
+                            jobIDString,
+                            operatorIDString,
+                            subtaskIndex,
+                            parallelism)
                     .replaceAll("[^a-zA-Z0-9\\-]", "_");
         }
 
@@ -360,5 +380,11 @@ public interface FileMergingSnapshotManager extends Closeable {
                     + logicalFileSize.get()
                     + '}';
         }
+    }
+
+    static boolean isFileMergingHandle(StreamStateHandle handle) {
+        return (handle instanceof SegmentFileStateHandle)
+                || (handle instanceof PlaceholderStreamStateHandle
+                        && ((PlaceholderStreamStateHandle) handle).isFileMerged());
     }
 }

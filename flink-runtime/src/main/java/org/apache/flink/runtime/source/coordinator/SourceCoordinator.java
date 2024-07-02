@@ -198,12 +198,16 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                 subTaskIds,
                 operatorName);
 
-        // Subtask maybe during deploying or restarting, so we only send WatermarkAlignmentEvent
-        // to ready task to avoid period task fail (Java-ThreadPoolExecutor will not schedule
-        // the period task if it throws an exception).
         for (Integer subtaskId : subTaskIds) {
-            context.sendEventToSourceOperatorIfTaskReady(
-                    subtaskId, new WatermarkAlignmentEvent(maxAllowedWatermark));
+            // when subtask have been finished, do not send event.
+            if (!context.hasNoMoreSplits(subtaskId)) {
+                // Subtask maybe during deploying or restarting, so we only send
+                // WatermarkAlignmentEvent to ready task to avoid period task fail
+                // (Java-ThreadPoolExecutor will not schedule the period task if it throws an
+                // exception).
+                context.sendEventToSourceOperatorIfTaskReady(
+                        subtaskId, new WatermarkAlignmentEvent(maxAllowedWatermark));
+            }
         }
     }
 

@@ -48,6 +48,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageUtils.getDiskTierName;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** The disk tier implementation of {@link TierProducerAgent}. */
@@ -177,7 +178,7 @@ public class DiskTierProducerAgent implements TierProducerAgent, NettyServicePro
             return false;
         }
         if (finishedBuffer.isBuffer()) {
-            memoryManager.transferBufferOwnership(bufferOwner, this, finishedBuffer);
+            memoryManager.transferBufferOwnership(bufferOwner, getDiskTierName(), finishedBuffer);
         }
         currentSubpartitionWriteBuffers[subpartitionIndex]++;
         emitBuffer(finishedBuffer, subpartitionIndex, numRemainingConsecutiveBuffers == 0);

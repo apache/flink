@@ -25,6 +25,9 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 
+import static org.apache.flink.connector.base.sink.writer.config.AsyncSinkWriterConfiguration.DEFAULT_FAIL_ON_TIMEOUT;
+import static org.apache.flink.connector.base.sink.writer.config.AsyncSinkWriterConfiguration.DEFAULT_REQUEST_TIMEOUT_MS;
+
 /**
  * A generic sink for destinations that provide an async client to persist data.
  *
@@ -54,6 +57,8 @@ public abstract class AsyncSinkBase<InputT, RequestEntryT extends Serializable>
     private final long maxBatchSizeInBytes;
     private final long maxTimeInBufferMS;
     private final long maxRecordSizeInBytes;
+    private final long requestTimeoutMS;
+    private final boolean failOnTimeout;
 
     protected AsyncSinkBase(
             ElementConverter<InputT, RequestEntryT> elementConverter,
@@ -63,6 +68,28 @@ public abstract class AsyncSinkBase<InputT, RequestEntryT extends Serializable>
             long maxBatchSizeInBytes,
             long maxTimeInBufferMS,
             long maxRecordSizeInBytes) {
+        this(
+                elementConverter,
+                maxBatchSize,
+                maxInFlightRequests,
+                maxBufferedRequests,
+                maxBatchSizeInBytes,
+                maxTimeInBufferMS,
+                maxRecordSizeInBytes,
+                DEFAULT_REQUEST_TIMEOUT_MS,
+                DEFAULT_FAIL_ON_TIMEOUT);
+    }
+
+    protected AsyncSinkBase(
+            ElementConverter<InputT, RequestEntryT> elementConverter,
+            int maxBatchSize,
+            int maxInFlightRequests,
+            int maxBufferedRequests,
+            long maxBatchSizeInBytes,
+            long maxTimeInBufferMS,
+            long maxRecordSizeInBytes,
+            long requestTimeoutMS,
+            boolean failOnTimeout) {
         this.elementConverter =
                 Preconditions.checkNotNull(
                         elementConverter,
@@ -73,6 +100,8 @@ public abstract class AsyncSinkBase<InputT, RequestEntryT extends Serializable>
         this.maxBatchSizeInBytes = maxBatchSizeInBytes;
         this.maxTimeInBufferMS = maxTimeInBufferMS;
         this.maxRecordSizeInBytes = maxRecordSizeInBytes;
+        this.requestTimeoutMS = requestTimeoutMS;
+        this.failOnTimeout = failOnTimeout;
     }
 
     protected ElementConverter<InputT, RequestEntryT> getElementConverter() {
@@ -101,5 +130,13 @@ public abstract class AsyncSinkBase<InputT, RequestEntryT extends Serializable>
 
     protected long getMaxRecordSizeInBytes() {
         return maxRecordSizeInBytes;
+    }
+
+    protected long getRequestTimeoutMS() {
+        return requestTimeoutMS;
+    }
+
+    protected boolean getFailOnTimeout() {
+        return failOnTimeout;
     }
 }

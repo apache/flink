@@ -42,6 +42,7 @@ import org.apache.flink.runtime.io.network.partition.PrioritizedDeque;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageIdMappingUtils;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageInputChannelId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
@@ -148,10 +149,6 @@ public class SingleInputGate extends IndexedInputGate {
 
     /** The number of input channels (equivalent to the number of consumed partitions). */
     private final int numberOfInputChannels;
-
-    /** The number of local input channels. */
-    @GuardedBy("requestLock")
-    private int numberOfLocalInputChannels;
 
     /** Input channels. We store this in a map for runtime updates of single channels. */
     private final Map<IntermediateResultPartitionID, Map<InputChannelInfo, InputChannel>>
@@ -312,6 +309,9 @@ public class SingleInputGate extends IndexedInputGate {
 
         BufferPool bufferPool = bufferPoolFactory.get();
         setBufferPool(bufferPool);
+        if (tieredStorageConsumerClient != null) {
+            tieredStorageConsumerClient.setup(bufferPool);
+        }
 
         setupChannels();
     }
@@ -538,10 +538,6 @@ public class SingleInputGate extends IndexedInputGate {
         return 0;
     }
 
-    public int unsynchronizedGetNumberOfLocalInputChannels() {
-        return numberOfLocalInputChannels;
-    }
-
     public CompletableFuture<Void> getCloseFuture() {
         return closeFuture;
     }
@@ -605,10 +601,6 @@ public class SingleInputGate extends IndexedInputGate {
 
                     numberOfUninitializedChannels++;
                 }
-                if (inputChannel instanceof LocalInputChannel
-                        || inputChannel instanceof LocalRecoveredInputChannel) {
-                    numberOfLocalInputChannels++;
-                }
             }
         }
     }
@@ -648,7 +640,6 @@ public class SingleInputGate extends IndexedInputGate {
                         newChannel =
                                 unknownChannel.toLocalInputChannel(
                                         shuffleDescriptor.getResultPartitionID());
-                        numberOfLocalInputChannels++;
                     } else {
                         RemoteInputChannel remoteInputChannel =
                                 unknownChannel.toRemoteInputChannel(
@@ -673,6 +664,22 @@ public class SingleInputGate extends IndexedInputGate {
 
                     if (--numberOfUninitializedChannels == 0) {
                         pendingEvents.clear();
+                    }
+                    if (enabledTieredStorage()) {
+                        TieredStoragePartitionId tieredStoragePartitionId =
+                                TieredStorageIdMappingUtils.convertId(
+                                        shuffleDescriptor.getResultPartitionID());
+                        TieredStorageConsumerSpec spec =
+                                checkNotNull(tieredStorageConsumerSpecs)
+                                        .get(current.getChannelIndex());
+                        for (int subpartitionId : spec.getSubpartitionIds().values()) {
+                            tieredStorageConsumerClient.updateTierShuffleDescriptors(
+                                    tieredStoragePartitionId,
+                                    spec.getInputChannelId(),
+                                    new TieredStorageSubpartitionId(subpartitionId),
+                                    checkNotNull(shuffleDescriptor.getTierShuffleDescriptors()));
+                        }
+                        queueChannel(newChannel, null, false);
                     }
                 }
             }

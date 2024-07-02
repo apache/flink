@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.connector.sink2;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
@@ -34,7 +35,7 @@ import java.util.Collection;
  * @param <InputT> The type of the sink's input
  * @param <WriterStateT> The type of the sink writer's state
  */
-@PublicEvolving
+@Public
 public interface SupportsWriterState<InputT, WriterStateT> {
 
     /**

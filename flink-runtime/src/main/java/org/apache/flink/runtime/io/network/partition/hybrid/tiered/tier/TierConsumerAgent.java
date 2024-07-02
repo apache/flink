@@ -20,9 +20,11 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageInputChannelId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.AvailabilityNotifier;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemoryManager;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -32,6 +34,14 @@ import java.util.Optional;
  * read data from responding tier.
  */
 public interface TierConsumerAgent {
+
+    /**
+     * The consumer agent may request buffers from the memory manager. Therefore, the {@link
+     * TieredStorageMemoryManager} should be integrated into the tier consumer agent. Since the
+     * buffer pool is initialized after the creation of the client, the memory manager need to be
+     * assigned after the buffer pool becomes available.
+     */
+    void setup(TieredStorageMemoryManager memoryManager);
 
     /** Start the consumer agent. */
     void start();
@@ -59,7 +69,8 @@ public interface TierConsumerAgent {
     Optional<Buffer> getNextBuffer(
             TieredStoragePartitionId partitionId,
             TieredStorageSubpartitionId subpartitionId,
-            int segmentId);
+            int segmentId)
+            throws IOException;
 
     /**
      * Register the notifier to notify the availability of a subpartition.
@@ -67,6 +78,13 @@ public interface TierConsumerAgent {
      * @param notifier to notify availability.
      */
     void registerAvailabilityNotifier(AvailabilityNotifier notifier);
+
+    /** Update the {@link TierShuffleDescriptor} for the consumer agent. */
+    void updateTierShuffleDescriptor(
+            TieredStoragePartitionId partitionId,
+            TieredStorageInputChannelId inputChannelId,
+            TieredStorageSubpartitionId subpartitionId,
+            TierShuffleDescriptor tierShuffleDescriptor);
 
     /** Close the consumer agent. */
     void close() throws IOException;

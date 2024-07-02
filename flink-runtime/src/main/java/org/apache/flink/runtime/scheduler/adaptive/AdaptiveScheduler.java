@@ -57,7 +57,6 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.DefaultVertexAttemptNumberStore;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.MutableVertexAttemptNumberStore;
@@ -75,6 +74,7 @@ import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -110,9 +110,6 @@ import org.apache.flink.runtime.scheduler.adaptive.allocator.JobInformation;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.ReservedSlots;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
-import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.EnforceMinimalIncreaseRescalingController;
-import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.EnforceParallelismChangeRescalingController;
-import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.RescalingController;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.metrics.DeploymentStateTimeMetrics;
@@ -147,8 +144,9 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.JobManagerOptions.MAXIMUM_DELAY_FOR_SCALE_TRIGGER;
+import static org.apache.flink.configuration.JobManagerOptions.MIN_PARALLELISM_INCREASE;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphUtils.isAnyOutputBlocking;
 
 /**
@@ -189,6 +187,12 @@ public class AdaptiveScheduler
     public static class Settings {
 
         public static Settings of(Configuration configuration) {
+            return of(configuration, null);
+        }
+
+        public static Settings of(
+                Configuration configuration,
+                @Nullable JobCheckpointingSettings checkpointingConfiguration) {
             final SchedulerExecutionMode executionMode =
                     configuration.get(JobManagerOptions.SCHEDULER_MODE);
             Duration allocationTimeoutDefault =
@@ -218,6 +222,16 @@ public class AdaptiveScheduler
                         scalingIntervalMin);
             }
 
+            final Duration maximumDelayForRescaleTriggerDefault =
+                    checkpointingConfiguration != null
+                            ? Duration.ofMillis(
+                                    JobManagerOptions
+                                                    .FACTOR_FOR_DEFAULT_MAXIMUM_DELAY_FOR_RESCALE_TRIGGER
+                                            * checkpointingConfiguration
+                                                    .getCheckpointCoordinatorConfiguration()
+                                                    .getCheckpointInterval())
+                            : Duration.ZERO;
+
             return new Settings(
                     executionMode,
                     configuration
@@ -228,7 +242,10 @@ public class AdaptiveScheduler
                             .orElse(stabilizationTimeoutDefault),
                     configuration.get(JobManagerOptions.SLOT_IDLE_TIMEOUT),
                     scalingIntervalMin,
-                    scalingIntervalMax);
+                    scalingIntervalMax,
+                    configuration.get(MIN_PARALLELISM_INCREASE),
+                    configuration.get(
+                            MAXIMUM_DELAY_FOR_SCALE_TRIGGER, maximumDelayForRescaleTriggerDefault));
         }
 
         private final SchedulerExecutionMode executionMode;
@@ -237,6 +254,8 @@ public class AdaptiveScheduler
         private final Duration slotIdleTimeout;
         private final Duration scalingIntervalMin;
         private final Duration scalingIntervalMax;
+        private final Duration maximumDelayForTriggeringRescale;
+        private final int minParallelismChangeForDesiredRescale;
 
         private Settings(
                 SchedulerExecutionMode executionMode,
@@ -244,13 +263,17 @@ public class AdaptiveScheduler
                 Duration resourceStabilizationTimeout,
                 Duration slotIdleTimeout,
                 Duration scalingIntervalMin,
-                Duration scalingIntervalMax) {
+                Duration scalingIntervalMax,
+                int minParallelismChangeForDesiredRescale,
+                Duration maximumDelayForTriggeringRescale) {
             this.executionMode = executionMode;
             this.initialResourceAllocationTimeout = initialResourceAllocationTimeout;
             this.resourceStabilizationTimeout = resourceStabilizationTimeout;
             this.slotIdleTimeout = slotIdleTimeout;
             this.scalingIntervalMin = scalingIntervalMin;
             this.scalingIntervalMax = scalingIntervalMax;
+            this.minParallelismChangeForDesiredRescale = minParallelismChangeForDesiredRescale;
+            this.maximumDelayForTriggeringRescale = maximumDelayForTriggeringRescale;
         }
 
         public SchedulerExecutionMode getExecutionMode() {
@@ -276,9 +299,19 @@ public class AdaptiveScheduler
         public Duration getScalingIntervalMax() {
             return scalingIntervalMax;
         }
+
+        public int getMinParallelismChangeForDesiredRescale() {
+            return minParallelismChangeForDesiredRescale;
+        }
+
+        public Duration getMaximumDelayForTriggeringRescale() {
+            return maximumDelayForTriggeringRescale;
+        }
     }
 
     private final Settings settings;
+    private final RescaleManager.Factory rescaleManagerFactory;
+
     private final JobGraph jobGraph;
 
     private final JobInfo jobInfo;
@@ -307,10 +340,6 @@ public class AdaptiveScheduler
     private final Collection<JobStatusListener> jobStatusListeners;
 
     private final SlotAllocator slotAllocator;
-
-    private final RescalingController rescalingController;
-
-    private final RescalingController forceRescalingController;
 
     private final ExecutionGraphFactory executionGraphFactory;
 
@@ -360,6 +389,8 @@ public class AdaptiveScheduler
         assertPreconditions(jobGraph);
 
         this.settings = settings;
+        this.rescaleManagerFactory = DefaultRescaleManager.Factory.fromSettings(settings);
+
         this.jobGraph = jobGraph;
         this.jobInfo = new JobInfoImpl(jobGraph.getJobID(), jobGraph.getName());
 
@@ -394,10 +425,6 @@ public class AdaptiveScheduler
         declarativeSlotPool.registerNewSlotsListener(this::newResourcesAvailable);
 
         this.componentMainThreadExecutor = mainThreadExecutor;
-
-        this.rescalingController = new EnforceMinimalIncreaseRescalingController(configuration);
-
-        this.forceRescalingController = new EnforceParallelismChangeRescalingController();
 
         this.executionGraphFactory = executionGraphFactory;
 
@@ -1048,8 +1075,8 @@ public class AdaptiveScheduler
                         this,
                         userCodeClassLoader,
                         failureCollection,
-                        settings.getScalingIntervalMin(),
-                        settings.getScalingIntervalMax()));
+                        rescaleManagerFactory,
+                        settings.getMinParallelismChangeForDesiredRescale()));
     }
 
     @Override
@@ -1275,34 +1302,10 @@ public class AdaptiveScheduler
                 LOG);
     }
 
-    /**
-     * In regular mode, rescale the job if added resource meets {@link
-     * JobManagerOptions#MIN_PARALLELISM_INCREASE}. In force mode rescale if the parallelism has
-     * changed.
-     */
     @Override
-    public boolean shouldRescale(ExecutionGraph executionGraph, boolean forceRescale) {
-        final Optional<VertexParallelism> maybeNewParallelism =
-                slotAllocator.determineParallelism(
-                        jobInformation, declarativeSlotPool.getAllSlotsInformation());
-        return maybeNewParallelism
-                .filter(
-                        vertexParallelism -> {
-                            RescalingController rescalingControllerToUse =
-                                    forceRescale ? forceRescalingController : rescalingController;
-                            return rescalingControllerToUse.shouldRescale(
-                                    getCurrentParallelism(executionGraph), vertexParallelism);
-                        })
-                .isPresent();
-    }
-
-    private static VertexParallelism getCurrentParallelism(ExecutionGraph executionGraph) {
-        return new VertexParallelism(
-                executionGraph.getAllVertices().values().stream()
-                        .collect(
-                                Collectors.toMap(
-                                        ExecutionJobVertex::getJobVertexId,
-                                        ExecutionJobVertex::getParallelism)));
+    public Optional<VertexParallelism> getAvailableVertexParallelism() {
+        return slotAllocator.determineParallelism(
+                jobInformation, declarativeSlotPool.getAllSlotsInformation());
     }
 
     @Override

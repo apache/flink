@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.table.api.config.AggregatePhaseStrategy;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
-import org.apache.flink.table.planner.plan.rules.physical.stream.IncrementalAggregateRule;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
@@ -38,8 +37,7 @@ public class ExpandTestPrograms {
                     .setupConfig(
                             OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
                     .setupConfig(
-                            IncrementalAggregateRule.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED(),
-                            false)
+                            OptimizerConfigOptions.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED, false)
                     .setupTableSource(
                             SourceTestStep.newBuilder("MyTable")
                                     .addSchema("a int", "b bigint", "c varchar")

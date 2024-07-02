@@ -211,7 +211,7 @@ class CheckpointedInputGateTest {
                         new SingleInputGateBuilder()
                                 .setNumberOfChannels(2)
                                 .setBufferPoolFactory(
-                                        bufferPool.createBufferPool(2, 2, Integer.MAX_VALUE))
+                                        bufferPool.createBufferPool(2, Integer.MAX_VALUE))
                                 .setSegmentProvider(bufferPool)
                                 .setChannelFactory(InputChannelBuilder::buildRemoteChannel)
                                 .build();
@@ -322,7 +322,7 @@ class CheckpointedInputGateTest {
                 new SingleInputGateBuilder()
                         .setBufferPoolFactory(
                                 networkBufferPool.createBufferPool(
-                                        numberOfChannels, numberOfChannels, Integer.MAX_VALUE))
+                                        numberOfChannels, Integer.MAX_VALUE))
                         .setSegmentProvider(networkBufferPool)
                         .setChannelFactory(
                                 (builder, gate) ->
@@ -368,7 +368,7 @@ class CheckpointedInputGateTest {
                 new SingleInputGateBuilder()
                         .setBufferPoolFactory(
                                 networkBufferPool.createBufferPool(
-                                        numberOfChannels, numberOfChannels, Integer.MAX_VALUE))
+                                        numberOfChannels, Integer.MAX_VALUE))
                         .setSegmentProvider(networkBufferPool)
                         .setChannelFactory(
                                 (builder, gate) ->

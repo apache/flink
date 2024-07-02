@@ -40,6 +40,8 @@ public class SqlNodeConverters {
         // register all the converters here
         register(new SqlCreateCatalogConverter());
         register(new SqlAlterCatalogOptionsConverter());
+        register(new SqlAlterCatalogResetConverter());
+        register(new SqlAlterCatalogCommentConverter());
         register(new SqlCreateViewConverter());
         register(new SqlAlterViewRenameConverter());
         register(new SqlAlterViewPropertiesConverter());

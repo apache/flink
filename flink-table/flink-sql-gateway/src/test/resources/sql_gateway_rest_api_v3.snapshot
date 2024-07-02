@@ -471,9 +471,6 @@
             "type" : "string"
           }
         },
-        "customScheduleTime" : {
-          "type" : "string"
-        },
         "restEndpointUrl" : {
           "type" : "string"
         }

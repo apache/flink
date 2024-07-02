@@ -95,7 +95,8 @@ class JoinDeriveNullFilterRule
 object JoinDeriveNullFilterRule {
   val INSTANCE = new JoinDeriveNullFilterRule
 
-  // It is a experimental config, will may be removed later.
+  /** This configuration will be removed in Flink 2.0. */
+  @Deprecated
   @Experimental
   val TABLE_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD: ConfigOption[JLong] =
     key("table.optimizer.join.null-filter-threshold")

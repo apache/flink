@@ -52,7 +52,9 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
+import org.apache.flink.table.operations.ddl.AlterCatalogCommentOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogOptionsOperation;
+import org.apache.flink.table.operations.ddl.AlterCatalogResetOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
@@ -86,6 +88,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -124,6 +127,39 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                         "cat2",
                         "ALTER CATALOG cat2\n  SET 'K1' = 'V1',\n  SET 'k2' = 'v2_new'",
                         expectedOptions);
+
+        // test alter catalog reset
+        final Set<String> expectedResetKeys = Collections.singleton("K1");
+
+        operation = parse("ALTER CATALOG cat2 RESET ('K1')");
+        assertThat(operation)
+                .isInstanceOf(AlterCatalogResetOperation.class)
+                .asInstanceOf(InstanceOfAssertFactories.type(AlterCatalogResetOperation.class))
+                .extracting(
+                        AlterCatalogResetOperation::getCatalogName,
+                        AlterCatalogResetOperation::asSummaryString,
+                        AlterCatalogResetOperation::getResetKeys)
+                .containsExactly("cat2", "ALTER CATALOG cat2\n  RESET 'K1'", expectedResetKeys);
+        assertThatThrownBy(() -> parse("ALTER CATALOG cat2 RESET ('type')"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("ALTER CATALOG RESET does not support changing 'type'");
+        assertThatThrownBy(() -> parse("ALTER CATALOG cat2 RESET ()"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("ALTER CATALOG RESET does not support empty key");
+
+        // test alter catalog comment
+        operation = parse("ALTER CATALOG cat2 COMMENT 'comment for catalog ''cat2'''");
+        assertThat(operation)
+                .isInstanceOf(AlterCatalogCommentOperation.class)
+                .asInstanceOf(InstanceOfAssertFactories.type(AlterCatalogCommentOperation.class))
+                .extracting(
+                        AlterCatalogCommentOperation::getCatalogName,
+                        AlterCatalogCommentOperation::asSummaryString,
+                        AlterCatalogCommentOperation::getComment)
+                .containsExactly(
+                        "cat2",
+                        "ALTER CATALOG cat2 COMMENT 'comment for catalog ''cat2'''",
+                        "comment for catalog 'cat2'");
     }
 
     @Test
@@ -1255,6 +1291,14 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                 .hasMessageContaining(
                         "Failed to execute ALTER TABLE statement.\nThe column `a` is used as the partition keys.");
         checkAlterNonExistTable("alter table %s nonexistent rename a to a1");
+
+        prepareNonManagedTableWithDistribution("tb3");
+        // rename column used as distribution key
+        assertThatThrownBy(() -> parse("alter table tb3 rename c to a1"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Failed to execute ALTER TABLE statement.\nThe column `c` is used as a distribution key.");
+        checkAlterNonExistTable("alter table %s nonexistent rename a to a1");
     }
 
     @Test
@@ -1289,6 +1333,11 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         assertThatThrownBy(() -> parse("alter table tb1 drop c"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("The column `c` is used as the primary key.");
+
+        prepareNonManagedTableWithDistribution("tb3");
+        assertThatThrownBy(() -> parse("alter table tb3 drop c"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("The column `c` is used as a distribution key.");
 
         // drop a column which defines watermark
         assertThatThrownBy(() -> parse("alter table tb1 drop ts"))
@@ -1361,16 +1410,29 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                                 .getUnresolvedSchema()
                                 .getPrimaryKey())
                 .isNotPresent();
+    }
 
-        operation = parse("alter table tb1 drop primary key");
+    @Test
+    public void testAlterTableDropDistribution() throws Exception {
+        prepareNonManagedTableWithDistribution("tb1");
+        String expectedSummaryString = "ALTER TABLE cat1.db1.tb1\n  DROP DISTRIBUTION";
+
+        Operation operation = parse("alter table tb1 drop distribution");
         assertThat(operation).isInstanceOf(AlterTableChangeOperation.class);
         assertThat(operation.asSummaryString()).isEqualTo(expectedSummaryString);
-        assertThat(
-                        ((AlterTableChangeOperation) operation)
-                                .getNewTable()
-                                .getUnresolvedSchema()
-                                .getPrimaryKey())
+        assertThat(((AlterTableChangeOperation) operation).getNewTable().getDistribution())
                 .isNotPresent();
+        checkAlterNonExistTable("alter table %s nonexistent rename a to a1");
+    }
+
+    @Test
+    public void testFailedToAlterTableDropDistribution() throws Exception {
+        prepareNonManagedTable("tb1", false);
+        assertThatThrownBy(() -> parse("alter table tb1 drop distribution"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Table `cat1`.`db1`.`tb1` does not have a distribution to drop.");
+        checkAlterNonExistTable("alter table %s nonexistent drop watermark");
     }
 
     @Test
@@ -2209,6 +2271,59 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
+    public void testAlterTableAddDistribution() throws Exception {
+        prepareNonManagedTable("tb1", false);
+
+        Operation operation = parse("alter table tb1 add distribution by hash(a) into 12 buckets");
+        ObjectIdentifier tableIdentifier = ObjectIdentifier.of("cat1", "db1", "tb1");
+        assertAlterTableDistribution(
+                operation,
+                tableIdentifier,
+                TableDistribution.ofHash(Collections.singletonList("a"), 12),
+                "ALTER TABLE cat1.db1.tb1\n" + "  ADD DISTRIBUTED BY HASH(`a`) INTO 12 BUCKETS\n");
+    }
+
+    @Test
+    public void testFailedToAlterTableAddDistribution() throws Exception {
+        prepareNonManagedTableWithDistribution("tb1");
+
+        // add distribution on a table with distribution
+        assertThatThrownBy(
+                        () -> parse("alter table tb1 add distribution by hash(a) into 12 buckets"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("You can modify it or drop it before adding a new one.");
+    }
+
+    @Test
+    public void testFailedToAlterTableModifyDistribution() throws Exception {
+        prepareNonManagedTable("tb2", false);
+
+        // modify distribution on a table without distribution
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "alter table tb2 modify distribution by hash(a) into 12 buckets"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "The base table does not define any distribution. You might want to add a new one.");
+    }
+
+    @Test
+    public void testAlterTableModifyDistribution() throws Exception {
+        prepareNonManagedTableWithDistribution("tb1");
+
+        Operation operation =
+                parse("alter table tb1 modify distribution by hash(c) into 12 buckets");
+        ObjectIdentifier tableIdentifier = ObjectIdentifier.of("cat1", "db1", "tb1");
+        assertAlterTableDistribution(
+                operation,
+                tableIdentifier,
+                TableDistribution.ofHash(Collections.singletonList("c"), 12),
+                "ALTER TABLE cat1.db1.tb1\n"
+                        + "  MODIFY DISTRIBUTED BY HASH(`c`) INTO 12 BUCKETS\n");
+    }
+
+    @Test
     public void testFailedToAlterTableModifyWatermark() throws Exception {
         prepareNonManagedTable("tb1", false);
 
@@ -2485,12 +2600,30 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         prepareTable("tb1", true, hasPartition, false, 0);
     }
 
+    private void prepareNonManagedTableWithDistribution(String tableName) throws Exception {
+        TableDistribution distribution =
+                TableDistribution.of(
+                        TableDistribution.Kind.HASH, 6, Collections.singletonList("c"));
+        prepareTable(tableName, false, false, false, 0, distribution);
+    }
+
     private void prepareTable(
             String tableName,
             boolean managedTable,
             boolean hasPartition,
             boolean hasWatermark,
             int numOfPkFields)
+            throws Exception {
+        prepareTable(tableName, managedTable, hasPartition, hasWatermark, numOfPkFields, null);
+    }
+
+    private void prepareTable(
+            String tableName,
+            boolean managedTable,
+            boolean hasPartition,
+            boolean hasWatermark,
+            int numOfPkFields,
+            @Nullable TableDistribution tableDistribution)
             throws Exception {
         Catalog catalog = new GenericInMemoryCatalog("default", "default");
         if (!catalogManager.getCatalog("cat1").isPresent()) {
@@ -2538,12 +2671,20 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         if (hasWatermark) {
             builder.watermark("ts", "ts - interval '5' seconds");
         }
-        CatalogTable catalogTable =
-                CatalogTable.of(
-                        builder.build(),
-                        "a table",
-                        hasPartition ? Arrays.asList("b", "c") : Collections.emptyList(),
-                        Collections.unmodifiableMap(options));
+        CatalogTable.Builder tableBuilder =
+                CatalogTable.newBuilder()
+                        .schema(builder.build())
+                        .comment("a table")
+                        .partitionKeys(
+                                hasPartition ? Arrays.asList("b", "c") : Collections.emptyList())
+                        .options(Collections.unmodifiableMap(options));
+
+        if (tableDistribution != null) {
+            tableBuilder.distribution(tableDistribution);
+        }
+
+        CatalogTable catalogTable = tableBuilder.build();
+
         catalogManager.setCurrentCatalog("cat1");
         catalogManager.setCurrentDatabase("db1");
         ObjectIdentifier tableIdentifier = ObjectIdentifier.of("cat1", "db1", tableName);
@@ -2574,6 +2715,20 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         assertThat(alterTableChangeOperation.getTableIdentifier()).isEqualTo(expectedIdentifier);
         assertThat(alterTableChangeOperation.getNewTable().getUnresolvedSchema())
                 .isEqualTo(expectedSchema);
+    }
+
+    private void assertAlterTableDistribution(
+            Operation operation,
+            ObjectIdentifier expectedIdentifier,
+            TableDistribution distribution,
+            String expectedSummaryString) {
+        assertThat(operation).isInstanceOf(AlterTableChangeOperation.class);
+        final AlterTableChangeOperation alterTableChangeOperation =
+                (AlterTableChangeOperation) operation;
+        assertThat(alterTableChangeOperation.getTableIdentifier()).isEqualTo(expectedIdentifier);
+        assertThat(alterTableChangeOperation.getNewTable().getDistribution())
+                .contains(distribution);
+        assertThat(operation.asSummaryString()).isEqualTo(expectedSummaryString);
     }
 
     private void checkAlterNonExistTable(String sqlTemplate) {

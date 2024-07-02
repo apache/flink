@@ -21,10 +21,14 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 
 /**
- * An operator that needs access to the {@link MailboxExecutor} to yield to downstream operators
+ * This class is no longer needed. {@link MailboxExecutor} is accessible via {@link
+ * StreamOperatorParameters#getMailboxExecutor()}.
+ *
+ * <p>An operator that needs access to the {@link MailboxExecutor} to yield to downstream operators
  * needs to be created through a factory implementing this interface.
  */
 @Experimental
+@Deprecated
 public interface YieldingOperatorFactory<OUT> extends StreamOperatorFactory<OUT> {
     void setMailboxExecutor(MailboxExecutor mailboxExecutor);
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.datastream.impl.operators;
 
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.datastream.api.context.ProcessingTimeManager;
 import org.apache.flink.datastream.api.context.TwoOutputNonPartitionedContext;
 import org.apache.flink.datastream.api.function.TwoOutputStreamProcessFunction;
@@ -72,6 +73,7 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
         this.mainCollector = getMainCollector();
         this.sideCollector = getSideCollector();
         StreamingRuntimeContext operatorContext = getRuntimeContext();
+        OperatorStateStore operatorStateStore = getOperatorStateBackend();
         TaskInfo taskInfo = operatorContext.getTaskInfo();
         this.context =
                 new DefaultRuntimeContext(
@@ -83,7 +85,12 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
                         operatorContext.getMetricGroup());
         this.partitionedContext =
                 new DefaultPartitionedContext(
-                        context, this::currentKey, this::setCurrentKey, getProcessingTimeManager());
+                        context,
+                        this::currentKey,
+                        this::setCurrentKey,
+                        getProcessingTimeManager(),
+                        operatorContext,
+                        operatorStateStore);
         this.nonPartitionedContext = getNonPartitionedContext();
     }
 

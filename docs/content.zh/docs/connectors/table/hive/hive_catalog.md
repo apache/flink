@@ -183,12 +183,12 @@ Create a simple Kafka table with Flink SQL DDL, and verify its schema.
 Flink SQL> USE CATALOG myhive;
 
 Flink SQL> CREATE TABLE mykafka (name String, age Int) WITH (
-   'connector.type' = 'kafka',
-   'connector.version' = 'universal',
-   'connector.topic' = 'test',
-   'connector.properties.bootstrap.servers' = 'localhost:9092',
-   'format.type' = 'csv',
-   'update-mode' = 'append'
+   'connector' = 'kafka',
+   'topic' = 'test',
+   'properties.bootstrap.servers' = 'localhost:9092',
+   'properties.group.id' = 'testGroup',
+   'scan.startup.mode' = 'earliest-offset',
+   'format' = 'csv'
 );
 [INFO] Table has been created.
 

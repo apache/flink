@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.io.network.metrics;
 
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -25,32 +28,33 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** Gauge metric measuring the floating buffers usage gauge for {@link SingleInputGate}s. */
 public class FloatingBuffersUsageGauge extends AbstractBuffersUsageGauge {
 
-    private final CreditBasedInputBuffersUsageGauge totalBuffersUsageGauge;
-    private final ExclusiveBuffersUsageGauge exclusiveBuffersUsageGauge;
-
-    public FloatingBuffersUsageGauge(
-            SingleInputGate[] inputGates,
-            CreditBasedInputBuffersUsageGauge totalBuffersUsageGauge,
-            ExclusiveBuffersUsageGauge exclusiveBuffersUsageGauge) {
+    public FloatingBuffersUsageGauge(SingleInputGate[] inputGates) {
         super(checkNotNull(inputGates));
-
-        this.totalBuffersUsageGauge = checkNotNull(totalBuffersUsageGauge);
-        this.exclusiveBuffersUsageGauge = checkNotNull(exclusiveBuffersUsageGauge);
     }
 
     @Override
     public int calculateUsedBuffers(SingleInputGate inputGate) {
-        return Math.max(
-                0,
-                totalBuffersUsageGauge.calculateUsedBuffers(inputGate)
-                        - exclusiveBuffersUsageGauge.calculateUsedBuffers(inputGate));
+        int availableFloatingBuffers = 0;
+        BufferPool bufferPool = inputGate.getBufferPool();
+        if (bufferPool != null) {
+            int requestedFloatingBuffers = bufferPool.bestEffortGetNumOfUsedBuffers();
+            for (InputChannel ic : inputGate.inputChannels()) {
+                if (ic instanceof RemoteInputChannel) {
+                    availableFloatingBuffers +=
+                            ((RemoteInputChannel) ic).unsynchronizedGetFloatingBuffersAvailable();
+                }
+            }
+            return Math.max(0, requestedFloatingBuffers - availableFloatingBuffers);
+        }
+        return 0;
     }
 
     @Override
     public int calculateTotalBuffers(SingleInputGate inputGate) {
-        return Math.max(
-                0,
-                totalBuffersUsageGauge.calculateTotalBuffers(inputGate)
-                        - exclusiveBuffersUsageGauge.calculateTotalBuffers(inputGate));
+        BufferPool bufferPool = inputGate.getBufferPool();
+        if (bufferPool != null) {
+            return inputGate.getBufferPool().getNumBuffers();
+        }
+        return 0;
     }
 }

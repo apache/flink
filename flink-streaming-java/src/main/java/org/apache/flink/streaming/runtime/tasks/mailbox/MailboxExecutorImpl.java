@@ -67,13 +67,19 @@ public final class MailboxExecutorImpl implements MailboxExecutor {
 
     @Override
     public void execute(
+            MailOptions mailOptions,
             final ThrowingRunnable<? extends Exception> command,
             final String descriptionFormat,
             final Object... descriptionArgs) {
         try {
             mailbox.put(
                     new Mail(
-                            command, priority, actionExecutor, descriptionFormat, descriptionArgs));
+                            mailOptions,
+                            command,
+                            priority,
+                            actionExecutor,
+                            descriptionFormat,
+                            descriptionArgs));
         } catch (MailboxClosedException mbex) {
             throw new RejectedExecutionException(mbex);
         }
@@ -102,5 +108,12 @@ public final class MailboxExecutorImpl implements MailboxExecutor {
         } else {
             return false;
         }
+    }
+
+    @Override
+    public boolean shouldInterrupt() {
+        // TODO: FLINK-35051 we shouldn't interrupt for every mail, but only for the time sensitive
+        // ones, for example related to checkpointing.
+        return mailbox.hasMail();
     }
 }

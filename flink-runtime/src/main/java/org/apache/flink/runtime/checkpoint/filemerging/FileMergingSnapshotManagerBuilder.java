@@ -17,6 +17,10 @@
 
 package org.apache.flink.runtime.checkpoint.filemerging;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -26,8 +30,12 @@ import java.util.concurrent.Executor;
 /** A builder that builds the {@link FileMergingSnapshotManager}. */
 public class FileMergingSnapshotManagerBuilder {
 
-    /** The id for identifying a {@link FileMergingSnapshotManager}. */
-    private final String id;
+    // Id format for FileMergingSnapshotManager, consist with jobId and tmId
+    private static final String ID_FORMAT = "job_%s_tm_%s";
+
+    private final JobID jobId;
+
+    private final ResourceID tmResourceId;
 
     /** The file merging type. */
     private final FileMergingType fileMergingType;
@@ -43,13 +51,17 @@ public class FileMergingSnapshotManagerBuilder {
 
     @Nullable private Executor ioExecutor = null;
 
+    @Nullable private TaskManagerJobMetricGroup metricGroup;
+
     /**
      * Initialize the builder.
      *
      * @param id the id of the manager.
      */
-    public FileMergingSnapshotManagerBuilder(String id, FileMergingType type) {
-        this.id = id;
+    public FileMergingSnapshotManagerBuilder(
+            JobID jobId, ResourceID tmResourceId, FileMergingType type) {
+        this.jobId = jobId;
+        this.tmResourceId = tmResourceId;
         this.fileMergingType = type;
     }
 
@@ -86,6 +98,11 @@ public class FileMergingSnapshotManagerBuilder {
         return this;
     }
 
+    public FileMergingSnapshotManagerBuilder setMetricGroup(TaskManagerJobMetricGroup metricGroup) {
+        this.metricGroup = metricGroup;
+        return this;
+    }
+
     /**
      * Create file-merging snapshot manager based on configuration.
      *
@@ -95,18 +112,26 @@ public class FileMergingSnapshotManagerBuilder {
         switch (fileMergingType) {
             case MERGE_WITHIN_CHECKPOINT:
                 return new WithinCheckpointFileMergingSnapshotManager(
-                        id,
+                        String.format(ID_FORMAT, jobId, tmResourceId),
                         maxFileSize,
                         filePoolType,
                         maxSpaceAmplification,
-                        ioExecutor == null ? Runnable::run : ioExecutor);
+                        ioExecutor == null ? Runnable::run : ioExecutor,
+                        metricGroup == null
+                                ? new UnregisteredMetricGroups
+                                        .UnregisteredTaskManagerJobMetricGroup()
+                                : metricGroup);
             case MERGE_ACROSS_CHECKPOINT:
                 return new AcrossCheckpointFileMergingSnapshotManager(
-                        id,
+                        String.format(ID_FORMAT, jobId, tmResourceId),
                         maxFileSize,
                         filePoolType,
                         maxSpaceAmplification,
-                        ioExecutor == null ? Runnable::run : ioExecutor);
+                        ioExecutor == null ? Runnable::run : ioExecutor,
+                        metricGroup == null
+                                ? new UnregisteredMetricGroups
+                                        .UnregisteredTaskManagerJobMetricGroup()
+                                : metricGroup);
             default:
                 throw new UnsupportedOperationException(
                         String.format(

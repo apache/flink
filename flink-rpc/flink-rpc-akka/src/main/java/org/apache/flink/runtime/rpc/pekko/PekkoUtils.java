@@ -322,6 +322,8 @@ class PekkoUtils {
                 configuration.get(
                         SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD,
                         configuration.get(SecurityOptions.SSL_KEYSTORE_PASSWORD));
+        final String sslKeyStoreType =
+                configuration.get(SecurityOptions.SSL_INTERNAL_KEYSTORE_TYPE);
 
         final String sslKeyPassword =
                 configuration.get(
@@ -337,6 +339,8 @@ class PekkoUtils {
                 configuration.get(
                         SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD,
                         configuration.get(SecurityOptions.SSL_TRUSTSTORE_PASSWORD));
+        final String sslTrustStoreType =
+                configuration.get(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_TYPE);
 
         final String sslCertFingerprintString =
                 configuration.get(SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT);
@@ -368,9 +372,11 @@ class PekkoUtils {
                 .add("        security {")
                 .add("          key-store = \"" + sslKeyStore + "\"")
                 .add("          key-store-password = \"" + sslKeyStorePassword + "\"")
+                .add("          key-store-type = \"" + sslKeyStoreType + "\"")
                 .add("          key-password = \"" + sslKeyPassword + "\"")
                 .add("          trust-store = \"" + sslTrustStore + "\"")
                 .add("          trust-store-password = \"" + sslTrustStorePassword + "\"")
+                .add("          trust-store-type = \"" + sslTrustStoreType + "\"")
                 .add("          protocol = " + sslProtocol + "")
                 .add("          enabled-algorithms = " + sslAlgorithms + "")
                 .add("          random-number-generator = \"\"")

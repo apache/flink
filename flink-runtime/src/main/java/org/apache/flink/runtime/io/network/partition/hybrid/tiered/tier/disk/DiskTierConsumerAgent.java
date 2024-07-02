@@ -20,13 +20,16 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.disk;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageInputChannelId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.NettyConnectionReader;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyService;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.AvailabilityNotifier;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerSpec;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemoryManager;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierConsumerAgent;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -62,12 +65,26 @@ public class DiskTierConsumerAgent implements TierConsumerAgent {
     }
 
     @Override
+    public void setup(TieredStorageMemoryManager memoryManager) {
+        // noop
+    }
+
+    @Override
     public void start() {
         // noop
     }
 
     @Override
     public void registerAvailabilityNotifier(AvailabilityNotifier notifier) {
+        // noop
+    }
+
+    @Override
+    public void updateTierShuffleDescriptor(
+            TieredStoragePartitionId partitionId,
+            TieredStorageInputChannelId inputChannelId,
+            TieredStorageSubpartitionId subpartitionId,
+            TierShuffleDescriptor tierShuffleDescriptor) {
         // noop
     }
 

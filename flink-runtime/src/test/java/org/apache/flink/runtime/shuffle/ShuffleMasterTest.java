@@ -152,7 +152,7 @@ class ShuffleMasterTest {
         private final boolean stopTrackingPartition;
 
         public TestShuffleMaster(Configuration conf) {
-            super(conf);
+            super(new ShuffleMasterContextImpl(conf, throwable -> {}));
             this.stopTrackingPartition = conf.getBoolean(STOP_TRACKING_PARTITION_KEY, false);
             currentInstance.set(this);
         }

@@ -50,7 +50,6 @@ import org.apache.flink.util.StringUtils;
 
 import javax.annotation.Nullable;
 
-import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -212,11 +211,9 @@ public class CheckpointTestUtils {
         boolean enableFileMerging = rnd.nextBoolean();
         if (enableFileMerging) {
             DirectoryStreamStateHandle taskOwnedDirHandle =
-                    DirectoryStreamStateHandle.forPathWithZeroSize(
-                            new File(String.valueOf(createRandomUUID(rnd))).toPath());
+                    DirectoryStreamStateHandle.of(new Path(createRandomUUID(rnd).toString()));
             DirectoryStreamStateHandle sharedDirHandle =
-                    DirectoryStreamStateHandle.forPathWithZeroSize(
-                            new File(String.valueOf(createRandomUUID(rnd))).toPath());
+                    DirectoryStreamStateHandle.of(new Path(createRandomUUID(rnd).toString()));
             return rnd.nextBoolean()
                     ? new FileMergingOperatorStreamStateHandle(
                             taskOwnedDirHandle,
