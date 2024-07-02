@@ -53,7 +53,7 @@ public class TaskExecutorFileMergingManagerTest {
         Path checkpointDir2 = new Path(testBaseDir.toString(), "job2");
         int writeBufferSize = 4096;
         Configuration jobConfig = new Configuration();
-        jobConfig.setBoolean(FILE_MERGING_ENABLED, true);
+        jobConfig.set(FILE_MERGING_ENABLED, true);
         Configuration clusterConfig = new Configuration();
         ExecutionAttemptID executionID1 = ExecutionAttemptID.randomId();
         FileMergingSnapshotManager manager1 =

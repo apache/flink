@@ -435,7 +435,7 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
         RocksDBStateBackend rocksDBStateBackend =
                 new RocksDBStateBackend("file://" + rootFolder.newFolder().getAbsolutePath(), true);
         Configuration configuration = new Configuration();
-        configuration.setBoolean(
+        configuration.set(
                 RocksDBConfigurableOptions.USE_INGEST_DB_RESTORE_MODE, useIngestDbRestoreMode);
         return rocksDBStateBackend.configure(configuration, getClass().getClassLoader());
     }

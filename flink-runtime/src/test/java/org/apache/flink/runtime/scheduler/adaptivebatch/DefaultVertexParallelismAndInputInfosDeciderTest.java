@@ -383,7 +383,7 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
     @Test
     void testComputeSourceParallelismUpperBound() {
         Configuration configuration = new Configuration();
-        configuration.setInteger(
+        configuration.set(
                 BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM,
                 DEFAULT_SOURCE_PARALLELISM);
         VertexParallelismAndInputInfosDecider vertexParallelismAndInputInfosDecider =
@@ -408,7 +408,7 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
     @Test
     void testComputeSourceParallelismUpperBoundNotExceedMaxParallelism() {
         Configuration configuration = new Configuration();
-        configuration.setInteger(
+        configuration.set(
                 BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM,
                 VERTEX_MAX_PARALLELISM * 2);
         VertexParallelismAndInputInfosDecider vertexParallelismAndInputInfosDecider =
