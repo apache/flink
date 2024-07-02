@@ -75,6 +75,16 @@ class ListSerializerTest extends SerializerTestBase<List<Long>> {
             list8.add(rnd.nextLong());
         }
 
-        return (List<Long>[]) new List[] {list1, list2, list3, list4, list5, list6, list7, list8};
+        // null-value lists
+        final List<Long> list9 = Collections.singletonList(null);
+        final List<Long> list10 = new LinkedList<>();
+        list10.add(null);
+        final List<Long> list11 = new ArrayList<>();
+        list11.add(null);
+
+        return (List<Long>[])
+                new List[] {
+                    list1, list2, list3, list4, list5, list6, list7, list8, list9, list10, list11
+                };
     }
 }
